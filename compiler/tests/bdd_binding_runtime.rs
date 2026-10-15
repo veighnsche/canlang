@@ -4,6 +4,163 @@
 
 #[cfg(unix)]
 #[test]
+fn repeated_named_users_are_dependencies_of_each_isolated_example_row() {
+    use std::{path::PathBuf, process::Command};
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..");
+    let scratch = tempfile::tempdir().unwrap();
+    std::os::unix::fs::symlink(
+        root.join("node_modules"),
+        scratch.path().join("node_modules"),
+    )
+    .unwrap();
+    let source = scratch.path().join("row-users.can");
+    std::fs::write(
+        &source,
+        r#"app RowUsers
+Given
+ role editor_role
+ Item {archived_by:user?}
+ policy Item read=members
+ fixture editor=user {roles=[editor_role]}
+ fixture bob=user {roles=[]}
+ fixture one=Item {archived_by=null}
+When
+ scenario inspect(item:Item) read=true -> bool by=members
+  do return true
+  examples item=one
+   as,item.archived_by -> editor,item.archived_by
+   editor,editor -> editor,editor
+   editor,editor -> editor,editor
+   editor,editor -> editor,editor
+  examples seed=[bob] item=one
+   as,item.archived_by -> item.archived_by
+   bob,bob -> bob
+Then
+"#,
+    )
+    .unwrap();
+    let compiled = Command::new(env!("CARGO_BIN_EXE_can"))
+        .args(["compile", "--format=json", "--catalog"])
+        .arg(root.join("packages/values/dist/catalog.json"))
+        .arg(source)
+        .output()
+        .unwrap();
+    assert!(
+        compiled.status.success(),
+        "{}",
+        String::from_utf8_lossy(&compiled.stdout)
+    );
+    let artifact: serde_json::Value = serde_json::from_slice(&compiled.stdout).unwrap();
+    std::fs::write(
+        scratch.path().join("examples.mjs"),
+        artifact["tests"][0]["module"]["js"].as_str().unwrap(),
+    )
+    .unwrap();
+    let runner = scratch.path().join("check.mjs");
+    std::fs::write(&runner, r#"
+import assert from 'node:assert/strict';
+import {loadExampleSuite,stashedRowOf} from '@canlang/testkit';
+import {exampleFixtures} from './examples.mjs';
+const bindings={self:'self',other:'other',outsider:'outsider',imported:{}};
+const emitted=exampleFixtures(bindings),table=emitted.examples[0];
+for(const row of table.rows) assert.deepEqual(row.dependencies,[emitted.fixtures.editor]);
+let sequence=0;
+const suite=await loadExampleSuite(new URL('./examples.mjs',import.meta.url).href,bindings,{
+ prepareFixtures:async(scope,values,required)=>new Map([...values].map(([name,value])=>
+  [name,required.find(recipe=>recipe.name===name).kind==='user'?{id:`row-${sequence}-${name}`}:value]))
+});
+assert.equal(suite.rows.length,4);
+for(const row of suite.rows){
+ const isEditor=sequence<3,name=isEditor?'editor':'bob',excluded=isEditor?'bob':'editor';
+ assert(row.seed.includes(name));assert(!row.seed.includes(excluded),'module discovery never seeds unrelated user recipes');
+ const scope={snapshot:async()=>null,dispose:async()=>{}};
+ await row.setup(scope);
+ const stash=stashedRowOf(scope),user=stash.fixtures.get(name);
+ assert.equal(stash.fixtures.has(excluded),false);
+ assert.equal(stash.cells[0],user);assert.equal(stash.cells[1],user);
+ assert.equal(stash.inputs.item.archived_by,user);
+ assert(stash.expectedValues.every(value=>value===user));
+ if(isEditor) assert.equal((await row.observe(scope))[0],user,'observation reference does not replace its required row seed');
+ sequence++;
+}
+"#).unwrap();
+    let result = Command::new("node").arg(runner).output().unwrap();
+    assert!(
+        result.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&result.stdout),
+        String::from_utf8_lossy(&result.stderr)
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn builtin_example_accounts_read_live_evaluation_context() {
+    use std::{path::PathBuf, process::Command};
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..");
+    let scratch = tempfile::tempdir().unwrap();
+    let source = scratch.path().join("live-accounts.can");
+    std::fs::write(
+        &source,
+        r#"app LiveAccounts
+Given
+ Item {owner:user}
+ policy Item read=members
+ fixture owned=Item {owner=other}
+When
+ scenario echo(value:user) read=true -> user by=members
+  do return value
+  examples seed=[owned] value=other
+   as -> self,other,outsider
+   self -> self,other,outsider
+Then
+"#,
+    )
+    .unwrap();
+    let compiled = Command::new(env!("CARGO_BIN_EXE_can"))
+        .args(["compile", "--format=json", "--catalog"])
+        .arg(root.join("packages/values/dist/catalog.json"))
+        .arg(source)
+        .output()
+        .unwrap();
+    assert!(
+        compiled.status.success(),
+        "{}",
+        String::from_utf8_lossy(&compiled.stdout)
+    );
+    let artifact: serde_json::Value = serde_json::from_slice(&compiled.stdout).unwrap();
+    std::fs::write(
+        scratch.path().join("examples.mjs"),
+        artifact["tests"][0]["module"]["js"].as_str().unwrap(),
+    )
+    .unwrap();
+    let runner = scratch.path().join("check.mjs");
+    std::fs::write(&runner, r#"
+import assert from 'node:assert/strict';
+import {exampleFixtures} from './examples.mjs';
+const suite=exampleFixtures({self:'stale-self',other:'stale-other',imported:{}});
+const c={self:{id:'live-self'},other:{id:'live-other'},outsider:{id:'live-outsider'}};
+assert.deepEqual(await suite.fixtures.owned.value(c,{}),{owner:c.other});
+const table=suite.examples[0],row=table.rows[0];
+assert.deepEqual(await table.inputs(c,{}),{value:c.other});
+assert.deepEqual(await row.values(c,{}),[c.self]);
+assert.deepEqual(await row.expected(c,{}),[c.self,c.other,c.outsider]);
+assert.deepEqual(await Promise.all(table.observations.map(observe=>observe(c,{}))),[c.self,c.other,c.outsider]);
+c.other={id:'next-row-other'};
+assert.equal((await suite.fixtures.owned.value(c,{})).owner,c.other);
+assert.deepEqual(await row.expected(c,{}),[c.self,c.other,c.outsider]);
+"#).unwrap();
+    let result = Command::new("node").arg(runner).output().unwrap();
+    assert!(
+        result.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&result.stdout),
+        String::from_utf8_lossy(&result.stderr)
+    );
+}
+
+#[cfg(unix)]
+#[test]
 fn lexical_request_tables_keep_business_inputs_separate_from_wire_overrides() {
     use std::{path::PathBuf, process::Command};
 

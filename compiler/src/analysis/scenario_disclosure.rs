@@ -283,6 +283,20 @@ pub struct CheckedScenarioCreatedModel {
     pub span: crate::source::Span,
     pub declaration: super::effects::ModelData,
     pub fields: Vec<CheckedScenarioCreatedField>,
+    /// Checked model-trait leaves retain their attachment identity, never
+    /// fabricated authored Field nodes.
+    pub(crate) contributed: Vec<CheckedScenarioContributedField>,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct CheckedScenarioContributedField {
+    pub field: SymbolId,
+    pub canonical: String,
+    pub source: DisclosureSource,
+    pub span: crate::source::Span,
+    pub ty: ResolvedType,
+    pub value: super::types::GivenContributedField,
+    pub constraints: Option<super::resolve::CheckedValueConstraints>,
 }
 
 #[derive(Debug, Clone)]
@@ -354,6 +368,8 @@ pub enum DisclosureEffectKind {
 /// provenance completeness nor eligibility for native execution.
 #[derive(Debug, Clone)]
 pub struct CheckedScenarioSource {
+    /// Exact resolved declared role at the original bare by= occurrence.
+    pub(crate) by_role: Option<(NodeKey, SymbolId, String)>,
     pub scenario: SymbolId,
     pub node: NodeKey,
     pub source: DisclosureSource,
@@ -2845,7 +2861,34 @@ impl<'a> Closure<'a> {
                 return None;
             }
         }
+        let by_role = scenario.by.and_then(|node| {
+            let authored = self.nodes.get(&node)?;
+            if authored.kind != SyntaxKind::NameRef {
+                return None;
+            }
+            let spelling = super::name_text(
+                super::kids(authored).first()?,
+                &self.db.get(node.file)?.text,
+            )?;
+            let id = match self
+                .resolve
+                .module_scopes
+                .get(scenario.module.0 as usize)?
+                .prod
+                .get(spelling)?
+            {
+                ScopedName::Local(id)
+                | ScopedName::Imported {
+                    target: id,
+                    bound: false,
+                } => *id,
+                _ => return None,
+            };
+            let role = self.resolve.symbols.get(id.0 as usize)?;
+            matches!(role.kind, SymbolKind::Role).then(|| (node, id, role.canonical.clone()))
+        });
         Some(CheckedScenarioSource {
+            by_role,
             scenario: scenario.scenario,
             node: scenario.node,
             source,
@@ -4258,13 +4301,46 @@ impl<'a> Closure<'a> {
         // Resolver membership also includes separately declared derives. Only
         // original stored fields are writable/defaulted constructor slots.
         let mut stored_order = Vec::new();
+        let mut contributed = Vec::new();
         for id in order {
             let member = self.resolve.symbols.get(id.0 as usize)?;
             if member.id != *id || member.module != module {
                 return None;
             }
             match member.kind {
-                SymbolKind::Field { owner, .. } if owner == model => stored_order.push(*id),
+                SymbolKind::Field { owner, .. } if owner == model => {
+                    if let Some(value) = self.types.given_fields.get(id) {
+                        let ty = self.types.symbol_types.get(id)?;
+                        if member.canonical != format!("{}.{}", symbol.canonical, value.name)
+                            || member.name != value.name
+                            || value.default.is_none()
+                            || !checked_source_type(ty)
+                        {
+                            return None;
+                        }
+                        contributed.push(CheckedScenarioContributedField {
+                            field: *id,
+                            canonical: member.canonical.clone(),
+                            source: self
+                                .source(
+                                    module,
+                                    NodeKey {
+                                        file: member.span.file,
+                                        start: member.span.start,
+                                        end: member.span.end,
+                                        kind: SyntaxKind::Field as u8,
+                                    },
+                                )
+                                .ok()?,
+                            span: member.span,
+                            ty: ty.clone(),
+                            value: value.clone(),
+                            constraints: self.types.value_constraints.get(id).cloned(),
+                        });
+                    } else {
+                        stored_order.push(*id);
+                    }
+                }
                 SymbolKind::DeriveField { model: owner, .. } if owner == model => {}
                 _ => return None,
             }
@@ -4386,6 +4462,7 @@ impl<'a> Closure<'a> {
             span: symbol.span,
             declaration: data.clone(),
             fields,
+            contributed,
         })
     }
 
@@ -9671,19 +9748,18 @@ impl<'a> Closure<'a> {
             .flatten();
         let mut argument_paths = vec![(ValuePath::default(), Vec::<ValuePath>::new())];
         for argument in &selected.arguments {
-            let mut alternatives =
-                if (authorization.is_some() && selected.arguments.first() == Some(argument))
-                    || matches!(
-                        self.query_binding(*argument),
-                        Some(Binding::Context(ContextVar::Actor(_)))
-                    )
-                {
-                    // Only this original authorization call passes Actor into its
-                    // checked nullable User formal. It is not ordinary context data.
-                    vec![ValuePath::default()]
-                } else {
-                    self.expr(*argument, module, env, calls)?
-                };
+            let mut alternatives = if (authorization.is_some()
+                && selected.arguments.first() == Some(argument))
+                || matches!(
+                    self.query_binding(*argument),
+                    Some(Binding::Context(ContextVar::Actor(_)))
+                ) {
+                // Only this original authorization call passes Actor into its
+                // checked nullable User formal. It is not ordinary context data.
+                vec![ValuePath::default()]
+            } else {
+                self.expr(*argument, module, env, calls)?
+            };
             if let Some((_, model, parent, _)) = authorization
                 && *argument == parent
             {

@@ -144,7 +144,7 @@ assert.ok(captionRef);
 const captionPage=(await import(assembled.moduleUrls[captionRef.module]))[captionRef.export];
 const captionContext=buildPresentationContext({request:new Request('https://example.test/captions'),
   pathname:'/captions',isPartial:false,appDefaultLocale:'nl',csrfToken:'',
-  principal:{actor:null,team:null,membership:null,binding:{kind:'none'},admitted_at:'2026-10-09T10:00:00Z'},
+  principal:{actor:null,team:null,membership:null,binding:{kind:'none'},admitted_at:'2026-10-09T10:00:00.000Z'},
   query:async()=>assert.fail('static captions do not query'),
 });
 const captionHtml=await captionPage.render(captionContext,await captionPage.admit(captionContext));
@@ -226,7 +226,7 @@ function presentation(deploymentBase) {
  return buildPresentationContext({
   request:new Request('https://request-hint.test/url-static?poll=hint'),pathname:'/url-static',
   isPartial:false,appDefaultLocale:'en',csrfToken:'',
-  principal:{actor:null,team:null,membership:null,binding:{kind:'none'},admitted_at:'2026-10-09T10:00:00Z'},
+  principal:{actor:null,team:null,membership:null,binding:{kind:'none'},admitted_at:'2026-10-09T10:00:00.000Z'},
   query:async()=>assert.fail('pure destinations do not query'),
   ...(deploymentBase===undefined?{}:{deploymentBase}),
   // These unrelated hints must never supply the trusted deployment base.

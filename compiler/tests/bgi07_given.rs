@@ -602,7 +602,7 @@ fn incompatible_uses_conflicts_and_hidden_authority_refuse() {
     expect_code(&diags, "E4056", "contributed declarations");
     assert!(tables.keywords.is_empty());
 
-    // Trait units admit no saved JavaScript in v1 (fields only).
+    // Model trait units still admit no saved JavaScript.
     let (mut db, _app, program, base) = check_app(&refusal_app(
         " trait completable $\"Add done.\"\n Account {handle:text} completable\n",
     ));
@@ -919,4 +919,301 @@ fn keyword_contract_fingerprint_covers_import_closure() {
         given_closure_fingerprint(root.as_bytes(), &[("fold.js", fold_v1.as_bytes())])
     );
     assert_eq!(contract_for(fold_v1), fp1);
+}
+
+#[test]
+fn pure_text_field_trait_checks_reuse_typed_contract_and_exact_closure() {
+    let source = refusal_app(
+        " trait bounded $\"Check encoded text bytes.\"\n Account {handle:text trim bounded}\n Other {name:text bounded}\n",
+    );
+    let (mut db, _, program, base) = check_app(&source);
+    assert!(base.is_empty(), "{base:?}");
+    let js = "import {checkBytes} from './bytes.js'; export function check(value) { return checkBytes(value); }";
+    let mut saved = trait_saved_for(
+        &mut db,
+        &program,
+        "app Tasks\nGiven\n bounded {value:text}\n",
+        Some(js),
+    );
+    saved
+        .values_mut()
+        .next()
+        .unwrap()
+        .implementation_imports
+        .push(canlang_compiler::analysis::types::GivenSavedImport {
+            rel_path: "bytes.js".to_string(),
+            bytes: b"export const checkBytes = v => new TextEncoder().encode(v).length <= 128;"
+                .to_vec(),
+        });
+    let (tables, diags) = run_given(&db, &program, &saved);
+    assert!(diags.is_empty(), "{diags:?}");
+    let emitted = assemble_given_contracts(&lower_given_contracts(&tables), "test");
+    assert_eq!(emitted.traits.len(), 2);
+    for instance in &emitted.traits {
+        let check = instance.validation.as_ref().unwrap();
+        assert_eq!(check.producer, "state.field-validation@1");
+        assert_eq!(check.export, "check");
+        assert_eq!(check.lifecycle, "validate-fields");
+        assert_eq!(check.input.name, "value");
+        assert_eq!(check.input.type_name, "text");
+        assert_eq!(check.result.type_name, "bool");
+        assert!(check.reads.is_empty() && check.effects.is_empty() && check.authority.is_empty());
+        assert_ne!(check.fingerprint, sha256_hex(js.as_bytes()));
+        assert_eq!(
+            check.fingerprint,
+            emitted.traits[0].validation.as_ref().unwrap().fingerprint
+        );
+    }
+    let old = tables.traits[0].validation_fingerprint.clone();
+    saved.values_mut().next().unwrap().implementation_imports[0]
+        .bytes
+        .push(b' ');
+    let (changed, diags) = run_given(&db, &program, &saved);
+    assert!(diags.is_empty(), "{diags:?}");
+    assert_ne!(old, changed.traits[0].validation_fingerprint);
+    assert_eq!(tables.traits[0].fingerprint, changed.traits[0].fingerprint);
+}
+
+#[test]
+fn field_check_refuses_nullable_nontext_and_model_targets_without_authority() {
+    for (field_type, model_attachment) in [("text?", false), ("int", false), ("text", true)] {
+        let declaration = if model_attachment {
+            " trait checked $\"Check.\"\n Account {handle:text} checked\n".to_string()
+        } else {
+            format!(" trait checked $\"Check.\"\n Account {{handle:{field_type} checked}}\n")
+        };
+        let source = format!(
+            "app Tasks\nGiven\n{declaration}When\nThen\n page / title=\"T\"\n  text \"hi\"\n"
+        );
+        let (mut db, _, program, base) = check_app(&source);
+        assert!(base.is_empty(), "{base:?}");
+        let carrier = format!("app Tasks\nGiven\n checked {{value:{field_type}}}\n");
+        let saved = trait_saved_for(
+            &mut db,
+            &program,
+            &carrier,
+            Some("export function check(value) { return true; }"),
+        );
+        let (tables, diags) = run_given(&db, &program, &saved);
+        assert!(tables.traits.is_empty());
+        assert!(
+            diags
+                .iter()
+                .any(|d| d.code == if model_attachment { "E4056" } else { "E3020" }),
+            "{diags:?}"
+        );
+    }
+}
+
+#[test]
+fn contributed_field_captions_require_checked_static_literals() {
+    let source =
+        refusal_app(" trait marked $\"Add labeled fields.\"\n Account {handle:text} marked\n");
+    let (mut db, _, program, base) = check_app(&source);
+    assert!(base.is_empty(), "{base:?}");
+    let saved = trait_saved_for(
+        &mut db,
+        &program,
+        "app Tasks\nGiven\n marked {pinned:bool=false label=\"Pinned\"}\n",
+        None,
+    );
+    let (tables, diags) = run_given(&db, &program, &saved);
+    assert!(diags.is_empty(), "{diags:?}");
+    assert_eq!(
+        tables.traits[0].contributed_fields[0].label.as_deref(),
+        Some("Pinned")
+    );
+    for (caption, code) in [
+        ("42", "E1214"),
+        ("messages.caption", "E3016"),
+        ("\"Pinned\"@{nl=\"Vastgezet\"}", "E3016"),
+        (
+            "{text=\"Pinned\",values={true=\"Yes\",false=\"No\"}}",
+            "E3016",
+        ),
+        ("\"Unknown {value}\"", "E5007"),
+        ("\"Unclosed {\"", "E5007"),
+    ] {
+        let carrier = format!("app Tasks\nGiven\n marked {{pinned:bool=false label={caption}}}\n");
+        let saved = trait_saved_for(&mut db, &program, &carrier, None);
+        let (tables, diags) = run_given(&db, &program, &saved);
+        assert!(tables.traits.is_empty(), "{caption}: {tables:?}");
+        expect_code(&diags, code, "label");
+    }
+}
+
+#[test]
+fn contributed_fields_admit_only_native_leaf_types_and_single_arrays() {
+    let source =
+        refusal_app(" trait marked $\"Add native fields.\"\n Account {handle:text} marked\n");
+    let (mut db, _, program, base) = check_app(&source);
+    assert!(base.is_empty(), "{base:?}");
+    let supported = [
+        "bool",
+        "boolean",
+        "int",
+        "integer",
+        "decimal",
+        "text",
+        "email",
+        "timezone",
+        "date",
+        "datetime",
+        "duration",
+        "money",
+        "user",
+        "file",
+        "enum(open,done)",
+    ];
+    let mut fields = Vec::new();
+    for (index, leaf) in supported.iter().enumerate() {
+        for (wrapper, default, suffix) in [
+            ("?", "null", "nullable"),
+            ("[]", "[]", "array"),
+            ("[]?", "null", "nullable_array"),
+        ] {
+            fields.push(format!("f{index}_{suffix}:{leaf}{wrapper}={default}"));
+        }
+    }
+    let carrier = format!("app Tasks\nGiven\n marked {{{}}}\n", fields.join(","));
+    let saved = trait_saved_for(&mut db, &program, &carrier, None);
+    let (tables, diags) = run_given(&db, &program, &saved);
+    assert!(diags.is_empty(), "{diags:?}");
+    assert_eq!(
+        tables.traits[0].contributed_fields.len(),
+        supported.len() * 3
+    );
+    for unsupported in [
+        "url",
+        "locale",
+        "currency",
+        "member",
+        "json",
+        "bytes",
+        "secret",
+        "text[][]",
+        "bool[][]",
+        "enum(open,done)[][]",
+        "text?[]",
+    ] {
+        let carrier = format!("app Tasks\nGiven\n marked {{value:{unsupported}?=null}}\n");
+        let saved = trait_saved_for(&mut db, &program, &carrier, None);
+        let (tables, diags) = run_given(&db, &program, &saved);
+        assert!(tables.traits.is_empty(), "{unsupported}: {tables:?}");
+        if unsupported.contains('[') {
+            expect_code(&diags, "E1213", "type permits one array suffix");
+        } else {
+            expect_code(&diags, "E3020", "supported native scalar/enum leaves");
+        }
+    }
+    // Nullability and arrays never supply an implicit default for a model
+    // contribution: existing creates and fixtures still need the explicit value.
+    for ty in ["text", "text?", "text[]", "text[]?"] {
+        let carrier = format!("app Tasks\nGiven\n marked {{value:{ty}}}\n");
+        let saved = trait_saved_for(&mut db, &program, &carrier, None);
+        let (tables, diags) = run_given(&db, &program, &saved);
+        assert!(tables.traits.is_empty(), "{ty}: {tables:?}");
+        expect_code(&diags, "E3022", "no default");
+    }
+}
+
+#[test]
+fn contributed_defaults_and_bounds_use_native_scalar_admission() {
+    let source = refusal_app(
+        " trait marked $\"Add checked native constants.\"\n Account {handle:text} marked\n",
+    );
+    let (mut db, _, program, base) = check_app(&source);
+    assert!(base.is_empty(), "{base:?}");
+    let carrier = r#"app Tasks
+Given
+ marked {price:decimal?=1.50 min=1.25 max=2.0,count:int=2 min=-5 max=9223372036854775807,note:text="has  spaces" min=0 max=100,emails:email[]=[] min=0 max=3,zone:timezone="UTC",at:datetime="2026-10-14T10:00:00Z",day:date="2026-10-14",delay:duration=2s min=1s max=3s}
+"#;
+    let saved = trait_saved_for(&mut db, &program, carrier, None);
+    let (tables, diags) = run_given(&db, &program, &saved);
+    assert!(diags.is_empty(), "{diags:?}");
+    assert_eq!(tables.traits[0].contributed_fields.len(), 8);
+    assert_eq!(
+        tables.traits[0].contributed_fields[0].min.as_deref(),
+        Some("1.25")
+    );
+    assert_eq!(
+        tables.traits[0].contributed_fields[2].default.as_deref(),
+        Some("\"has  spaces\"")
+    );
+    for field in [
+        "value:int=0 min=not_a_number",
+        "value:int=0 max=9223372036854775808",
+        "value:int=9223372036854775808",
+        "value:decimal=NaN",
+        "value:decimal=0.0000000000000000001",
+        "value:decimal=100000000000000000000000000000000000000",
+        "value:decimal?=null min=NaN",
+        "value:decimal=0 min=1.000000000000000002 max=1.000000000000000001",
+        "value:text=\"x\" min=\"bad\"",
+        "value:text=\"x\" min=-1",
+        "value:text=\"x\" max=9007199254740992",
+        "value:text[]=[] min=-1",
+        "value:bool=false min=0",
+        "value:bool=false trim",
+        "value:date?=null min=\"2026-10-14\"",
+        "value:date=\"2026-02-30\"",
+        "value:datetime=\"tomorrow\"",
+        "value:email=\"a@\"",
+        "value:timezone=UTC",
+        "value:timezone=\"../bad\"",
+        "value:duration=\"2s\"",
+        "value:duration=invalid",
+        "value:duration=9223372036854775807d",
+        "value:duration=2s min=3s max=1s",
+        "value:user=actor",
+        "value:file=\"invented\"",
+        "value:money={minor=1,currency=\"EUR\"}",
+    ] {
+        let carrier = format!("app Tasks\nGiven\n marked {{{field}}}\n");
+        let saved = trait_saved_for(&mut db, &program, &carrier, None);
+        let (tables, diags) = run_given(&db, &program, &saved);
+        assert!(tables.traits.is_empty(), "{field}: {tables:?}");
+        expect_code(&diags, "E3022", "contributed field");
+    }
+    for ty in ["enum(open,open)", "enum(1st,done)"] {
+        let carrier = format!("app Tasks\nGiven\n marked {{value:{ty}?=null}}\n");
+        let saved = trait_saved_for(&mut db, &program, &carrier, None);
+        let (tables, diags) = run_given(&db, &program, &saved);
+        assert!(tables.traits.is_empty(), "{ty}: {tables:?}");
+        assert!(
+            !diags.is_empty(),
+            "{ty} must refuse before native admission"
+        );
+    }
+}
+
+#[test]
+fn exported_model_field_trait_preserves_checked_target_default_and_bounds() {
+    let source = "app CRM uses=[crm]\npackage crm\n Given\n  trait sales_seats $\"Default and bound seats.\"\n  export Deal {seats:int sales_seats}\n When\n Then\n";
+    let (mut db, _, program, diagnostics) = check_app(source);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let found = discover_program(&db, program.checked_files());
+    let application = found
+        .descriptors
+        .iter()
+        .find(|d| d.kind == GenerationKind::TraitApplication)
+        .unwrap();
+    assert_eq!(application.owner, "crm");
+    assert_eq!(application.target.as_deref(), Some("Deal.seats"));
+    assert_eq!(
+        &source[application.span.start as usize..application.span.end as usize],
+        " sales_seats"
+    );
+    let saved = trait_saved_for(
+        &mut db,
+        &program,
+        "app CanCRM\nGiven\n sales_seats {value:int=1 min=1}\n",
+        None,
+    );
+    let (tables, diagnostics) = run_given(&db, &program, &saved);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let contract = &tables.traits[0];
+    assert_eq!(contract.applications[0].target_canonical, "crm.Deal.seats");
+    assert_eq!(contract.contributed_fields[0].default.as_deref(), Some("1"));
+    assert_eq!(contract.contributed_fields[0].min.as_deref(), Some("1"));
 }

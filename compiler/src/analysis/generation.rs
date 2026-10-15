@@ -100,6 +100,11 @@ fn names(node: &SyntaxNode, text: &str) -> Vec<String> {
         .collect()
 }
 
+/// The export modifier is a Name leaf, not the declared model name.
+pub(super) fn model_name(node: &SyntaxNode, text: &str) -> Option<String> {
+    names(node, text).into_iter().find(|name| name != "export")
+}
+
 fn first_name(node: &SyntaxNode, text: &str) -> Option<String> {
     names(node, text).into_iter().next()
 }
@@ -247,7 +252,7 @@ impl<'a> Collector<'a> {
         let saved_profile = self.host_profile.clone();
         match node.kind {
             SyntaxKind::Model => {
-                self.model = names(node, self.text).into_iter().next();
+                self.model = model_name(node, self.text);
                 self.field = None;
             }
             SyntaxKind::Field => {
@@ -629,7 +634,8 @@ fn canonical_syntax(node: &SyntaxNode, text: &str) -> serde_json::Value {
 /// Named declaration names and page routes remain independent of prompt freshness.
 fn containment_segment(node: &SyntaxNode, text: &str) -> Option<String> {
     let named = match node.kind {
-        SyntaxKind::Model | SyntaxKind::Field => names(node, text).into_iter().next(),
+        SyntaxKind::Model => model_name(node, text),
+        SyntaxKind::Field => names(node, text).into_iter().next(),
         SyntaxKind::View | SyntaxKind::KeywordDef | SyntaxKind::StyleDef => {
             names(node, text).get(1).cloned()
         }
@@ -838,7 +844,7 @@ fn collect_models(
     for node in tree.descendants() {
         match node.kind {
             SyntaxKind::Model => {
-                if let Some(model) = names(node, text).into_iter().next() {
+                if let Some(model) = model_name(node, text) {
                     let mut fields = HashMap::new();
                     for child in sig(node) {
                         if child.kind == SyntaxKind::Field {
@@ -904,6 +910,28 @@ const BUILTINS: &[&str] = &[
 /// Discover generation descriptors and discovery-level diagnostics for one
 /// parsed file. Works before any saved implementation exists.
 pub fn discover_generation(tree: &SyntaxNode, text: &str) -> GenerationDiscovery {
+    // A file may compose an app and several packages. Definitions, target
+    // lookup and anonymous association evidence belong to each declaration,
+    // never to the first module written in the file.
+    if !matches!(tree.kind, SyntaxKind::App | SyntaxKind::Package) {
+        let modules: Vec<_> = tree
+            .children
+            .iter()
+            .filter(|node| matches!(node.kind, SyntaxKind::App | SyntaxKind::Package))
+            .collect();
+        if !modules.is_empty() {
+            let mut found = GenerationDiscovery {
+                descriptors: Vec::new(),
+                diagnostics: Vec::new(),
+            };
+            for module in modules {
+                let scoped = discover_generation(module, text);
+                found.descriptors.extend(scoped.descriptors);
+                found.diagnostics.extend(scoped.diagnostics);
+            }
+            return found;
+        }
+    }
     let owner = module_owner(tree, text);
     let mut collector = Collector {
         text,

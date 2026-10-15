@@ -931,6 +931,23 @@ pub struct ArtifactGivenTrait {
     pub fingerprint: String,
     /// Source order among the definition's applications.
     pub order: usize,
+    /// Optional source-derived pure text-field check.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub validation: Option<ArtifactGivenValidation>,
+}
+
+/// Fixed field-trait validation contract; generated metadata never chooses authority.
+#[derive(Debug, Clone, Serialize)]
+pub struct ArtifactGivenValidation {
+    pub producer: String,
+    pub export: String,
+    pub lifecycle: String,
+    pub input: ArtifactGivenInputSchema,
+    pub result: ArtifactGivenResultSchema,
+    pub reads: Vec<String>,
+    pub effects: Vec<String>,
+    pub authority: Vec<String>,
+    pub fingerprint: String,
 }
 
 /// Typed input schema of an emitted keyword rule.
@@ -1055,6 +1072,26 @@ pub fn assemble_given_contracts(
                     })
                     .collect(),
                 fingerprint: instance.fingerprint.clone(),
+                validation: instance.validation_fingerprint.as_ref().map(|fingerprint| {
+                    ArtifactGivenValidation {
+                        producer: crate::analysis::types::GIVEN_PRODUCER_FIELD_VALIDATION
+                            .to_string(),
+                        export: crate::analysis::types::GIVEN_FIELD_VALIDATION_EXPORT.to_string(),
+                        lifecycle: crate::analysis::types::GIVEN_FIELD_VALIDATION_LIFECYCLE
+                            .to_string(),
+                        input: ArtifactGivenInputSchema {
+                            name: "value".to_string(),
+                            type_name: "text".to_string(),
+                        },
+                        result: ArtifactGivenResultSchema {
+                            type_name: "bool".to_string(),
+                        },
+                        reads: Vec::new(),
+                        effects: Vec::new(),
+                        authority: Vec::new(),
+                        fingerprint: fingerprint.clone(),
+                    }
+                }),
                 order: instance.order,
             })
             .collect(),
@@ -1180,7 +1217,7 @@ pub fn merge_given_trait_fields(
                     instance.id, contributed.name,
                 ));
             }
-            model.fields.push(given_model_field(contributed));
+            model.fields.push(given_model_field(contributed)?);
         }
     }
     Ok(())
@@ -1201,7 +1238,7 @@ fn merge_given_field_constraint(
         ));
     }
     if field.default.is_none() {
-        field.default = contributed.default.clone().map(JsFieldDefault::Literal);
+        field.default = given_field_default(contributed)?;
     }
     if field.trim.is_none() && contributed.trim {
         field.trim = Some(true);
@@ -1220,9 +1257,9 @@ fn merge_given_field_constraint(
 /// wrappers, bounds and defaults behave exactly like hand-written
 /// fields. Contributed model fields always carry checked defaults, so
 /// they never require the caller.
-fn given_model_field(contributed: &ArtifactGivenField) -> JsModelField {
+fn given_model_field(contributed: &ArtifactGivenField) -> Result<JsModelField, String> {
     let (tag, value_type, nullable, is_array) = given_field_tag(&contributed.type_name);
-    JsModelField {
+    Ok(JsModelField {
         name: contributed.name.clone(),
         field: tag,
         value_type,
@@ -1233,16 +1270,60 @@ fn given_model_field(contributed: &ArtifactGivenField) -> JsModelField {
         max: given_bound(&contributed.type_name, contributed.max.as_deref()),
         server_only: false,
         array_required: is_array.then_some(false),
-        default: contributed.default.clone().map(JsFieldDefault::Literal),
+        default: given_field_default(contributed)?,
         machine: None,
         description: None,
+    })
+}
+
+/// Carrier constants are source spellings; artifact defaults are Values wire
+/// data. In particular numeric leaves never pass through a JSON number.
+fn given_field_default(field: &ArtifactGivenField) -> Result<Option<JsFieldDefault>, String> {
+    field.default.as_deref().map(|source| {
+        given_wire_constant(&field.type_name, source)
+            .map(|value| JsFieldDefault::Literal(value.to_string()))
+    }).transpose()
+}
+
+fn given_wire_constant(type_name: &str, source: &str) -> Result<serde_json::Value, String> {
+    let source = source.trim();
+    let ty = type_name.strip_suffix('?').unwrap_or(type_name);
+    if source == "null" && ty != type_name {
+        return Ok(serde_json::Value::Null);
     }
+    if let Some(element) = ty.strip_suffix("[]") {
+        let body = source.strip_prefix('[').and_then(|s| s.strip_suffix(']'))
+            .ok_or_else(|| format!("invalid contributed array default `{source}`"))?;
+        return crate::analysis::types::split_given_consts(body).iter()
+            .map(|part| given_wire_constant(element, part))
+            .collect::<Result<Vec<_>, _>>().map(serde_json::Value::Array);
+    }
+    if matches!(ty, "int" | "integer") {
+        return source.parse::<i64>().map(|value| serde_json::Value::String(value.to_string()))
+            .map_err(|_| format!("invalid contributed integer default `{source}`"));
+    }
+    if ty == "duration" {
+        return super::ir::duration_millis(source)
+            .map(|value| serde_json::Value::String(value.to_string()))
+            .ok_or_else(|| format!("invalid contributed duration default `{source}`"));
+    }
+    if ty == "datetime" {
+        let value = serde_json::from_str::<String>(source)
+            .map_err(|_| format!("invalid contributed datetime default `{source}`"))?;
+        return crate::analysis::types::canonical_datetime_literal(&value)
+            .map(serde_json::Value::String);
+    }
+    if ty == "decimal" || ty.starts_with("enum(") {
+        let value = serde_json::from_str::<String>(source).unwrap_or_else(|_| source.to_string());
+        return Ok(serde_json::Value::String(value));
+    }
+    serde_json::from_str(source).map_err(|_| format!("invalid contributed {type_name} default `{source}`"))
 }
 
 /// Split a checked contributed type into its tag, value type,
 /// nullability and array marker. Mirrors `model_field_parts`/
 /// `model_field_tag`/`model_value_type` over the carrier spellings the
-/// Given check admits (one `?`, any `[]` nesting, scalar/enum leaves).
+/// Given check admits (one outer `?`, one `[]`, native scalar/enum leaves).
 fn given_field_tag(type_name: &str) -> (JsModelFieldType, Option<String>, bool, bool) {
     let mut rest = type_name;
     let mut nullable = false;
@@ -1275,16 +1356,9 @@ fn given_field_tag(type_name: &str) -> (JsModelFieldType, Option<String>, bool, 
             .split(',')
             .map(|case| case.trim().to_string())
             .collect();
-        let mut value_type = format!("enum({})", values.join(","));
-        if is_array {
-            value_type.push_str("[]");
-        }
-        if nullable {
-            value_type.push('?');
-        }
         return (
             JsModelFieldType::Enum { values },
-            Some(value_type),
+            None,
             nullable,
             is_array,
         );
@@ -1332,7 +1406,7 @@ fn given_field_tag(type_name: &str) -> (JsModelFieldType, Option<String>, bool, 
 
 /// Map one contributed bound to its wire value, mirroring the
 /// authored bound lowering: length bounds (arrays and string-like
-/// leaves) take integer values, everything else parses as JSON.
+/// leaves) take integer values; numeric value bounds retain exact wire strings.
 fn given_bound(type_name: &str, bound: Option<&str>) -> Option<serde_json::Value> {
     let bound = bound?;
     let mut rest = type_name;
@@ -1355,7 +1429,7 @@ fn given_bound(type_name: &str, bound: Option<&str>) -> Option<serde_json::Value
         }
         return Some(serde_json::Value::from(u64::try_from(value).ok()?));
     }
-    serde_json::from_str(bound).ok()
+    given_wire_constant(rest, bound).ok()
 }
 
 /// BGI-11 Can owner link: the separate unit/span link identifying the
@@ -1384,7 +1458,7 @@ pub struct CanOwnerLink {
 #[derive(Debug, Clone)]
 pub struct SavedUnitModule {
     /// Staged artifact path (`can.generated/<id>/server.js` for Given
-    /// keywords per the BGI-08 join, `can.generated/<id>/view.js` for
+    /// keywords and field checks, `can.generated/<id>/view.js` for
     /// views).
     pub path: String,
     /// Verified saved JavaScript bytes.
@@ -1395,19 +1469,20 @@ pub struct SavedUnitModule {
     pub owner: CanOwnerLink,
 }
 
-/// Staged artifact path for one saved JS unit. Only keyword and view
-/// units pack modules: styles travel through the CSS pipeline and
-/// traits through checked contracts, never as JavaScript modules.
+/// Staged artifact path for one saved JS unit. Checked keywords, optional
+/// field-trait checks and views pack modules; styles use the CSS pipeline.
 pub fn saved_unit_module_path(
     kind: crate::analysis::generation_intake::UnitKind,
     unit_id: &str,
 ) -> Result<String, String> {
     use crate::analysis::generation_intake::UnitKind;
     match kind {
-        UnitKind::Keyword => Ok(format!("can.generated/{unit_id}/server.js")),
+        UnitKind::Keyword | UnitKind::NamedTrait | UnitKind::InlineTrait => {
+            Ok(format!("can.generated/{unit_id}/server.js"))
+        }
         UnitKind::View => Ok(format!("can.generated/{unit_id}/view.js")),
         _ => Err(format!(
-            "unit `{unit_id}` ({}): only keyword and view units pack saved JavaScript modules",
+            "unit `{unit_id}` ({}): only keyword, field-trait check and view units pack saved JavaScript modules",
             kind.as_str(),
         )),
     }

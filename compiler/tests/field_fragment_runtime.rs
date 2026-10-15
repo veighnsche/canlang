@@ -317,3 +317,155 @@ fn fragments_refuse_foreign_missing_duplicate_nested_and_unsupported_source() {
         );
     }
 }
+
+#[test]
+fn contextual_forms_bind_unique_ancestors_and_preserve_explicit_record_authority() {
+    let scratch = tempfile::tempdir().unwrap();
+    let source = scratch.path().join("context.can");
+    let (output, artifact) = compile(
+        r#"app ContextForms
+Given
+ Catalog {name:text}
+ Entry in Catalog {title:text}
+ Note in Entry {body:text}
+ policy Catalog read=members
+ policy Entry read=members
+ policy Note read=members
+When
+ crud Catalog by=members fields=name
+ crud Entry by=members fields=title
+ crud Note by=members fields=body
+ scenario attach(catalog:Catalog,entry:Entry,label:text) by=members
+  do require true
+Then
+ page / title="Nested forms"
+  list Catalog
+   primary "Create Entry" action=Entry.create
+   list row.Entry
+    primary "Create Note" action=Note.create
+    form Entry.create
+    form attach arguments={entry=row}
+ page /ambiguous title="Explicit parent"
+  list Catalog as outer
+   list Catalog as inner
+    form Entry.create
+    form Entry.create arguments={parent=outer}
+ page /unbound title="No parent"
+  form Entry.create
+"#,
+        &source,
+    );
+    assert!(output.status.success(), "{artifact}");
+    std::fs::write(
+        scratch.path().join("artifact.json"),
+        serde_json::to_vec(&artifact).unwrap(),
+    )
+    .unwrap();
+    let runner = scratch.path().join("context.mjs");
+    std::fs::write(&runner, r#"
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {resolve,dirname} from 'node:path';
+import {fileURLToPath,pathToFileURL} from 'node:url';
+import {createRequire} from 'node:module';
+const root=process.argv[2],base=dirname(fileURLToPath(import.meta.url));
+const require=createRequire(resolve(root,'package.json'));
+const load=name=>import(pathToFileURL(require.resolve(name)));
+const {assembleModules,importVerifiedAssemblyModule}=await load('@canlang/cloudflare/runtime/modules');
+const {buildInvoker}=await load('@canlang/cloudflare/worker/assembly');
+const {createTestMemoryStorage}=await load('@canlang/state/storage/memory');
+const {FIXED_NOW,createMemoryIdentityStore,seedMember,makeIdentity,uuidv7}=await load('@canlang/state/testing/invocation/fixtures');
+const {catalogFromArtifactOperations}=await load('@canlang/interfaces/http/operations');
+const internal=name=>import(pathToFileURL(resolve(root,'packages/interfaces/dist/src/http/'+name+'.js')));
+const {buildPresentationContext}=await internal('presentation');
+const {createSourceFormBindings}=await internal('form-binding');
+const {createOperationFormPreparer}=await internal('forms');
+const artifact=JSON.parse(readFileSync(resolve(base,'artifact.json'),'utf8'));
+const assembly=await assembleModules({artifact,sourcePath:resolve(base,'context.can')},{
+ workDir:resolve(base,'modules'),stdlibUrl:pathToFileURL(require.resolve('@canlang/cloudflare/runtime/stdlib')).href,
+ uiUrl:pathToFileURL(require.resolve('@canlang/ui')).href,
+});
+const entry=await importVerifiedAssemblyModule(assembly,artifact.modules[0].path,artifact);
+const {store}=createTestMemoryStorage(),memberships=createMemoryIdentityStore();
+const member=await seedMember(memberships,{isOwner:false});
+const identity=makeIdentity({membership:member.membership,email:member.user.email});
+const invoker=buildInvoker(artifact,assembly,store,{memberships,now:()=>FIXED_NOW});
+let sequence=0;
+const invoke=async(operation,inputs,operation_id=uuidv7(FIXED_NOW,++sequence))=>{
+ const outcome=await invoker.invokeMutation({operation,operation_id,inputs},identity);
+ assert('result' in outcome,JSON.stringify(outcome));assert.equal(outcome.result.status,'committed');return outcome.result.records[0];
+};
+const ref=row=>({id:row.id,version:String(row.version)});
+const catalogRow=await invoke('ContextForms.Catalog.create',{name:'Catalog'});
+const otherCatalogRow=await invoke('ContextForms.Catalog.create',{name:'Other'});
+const childRow=await invoke('ContextForms.Entry.create',{parent:ref(catalogRow),title:'Existing'});
+const catalog=catalogFromArtifactOperations(artifact),clock={nowMs:()=>FIXED_NOW};
+const service=await createSourceFormBindings(new Uint8Array(32).fill(97),'compiler-context-forms');
+const appId='context-forms',sessionToken='context-session';
+const queried=[],requests=[],ready=[];
+const view=row=>({id:row.id,version:row.version,fields:row.data});
+const context=buildPresentationContext({request:new Request('https://example.test/'),pathname:'/',isPartial:false,
+ appDefaultLocale:'en',csrfToken:'csrf',principal:identity,catalog,clock,formBindings:service,appId,sessionToken,
+ query:async(invocation,model,args)=>{
+  assert.equal(invocation,context.invocation);queried.push(model);
+  if(model==='ContextForms.Catalog')return {rows:[view(context.path==='/ambiguous'&&queried.length===2?otherCatalogRow:catalogRow)],columns:[]};
+  assert.equal(model,'ContextForms.Entry');assert.equal(args.parent.id,catalogRow.id);
+  assert.equal(args.parent.version,BigInt(catalogRow.version));return {rows:[view(childRow)],columns:[]};
+ },
+});
+const prepare=createOperationFormPreparer(context,catalog,clock,{service,appId,sessionToken,identity});
+context.prepareForm=async spec=>{requests.push(spec);const result=await prepare(spec);ready.push(result);return result;};
+async function render(path){requests.length=0;ready.length=0;queried.length=0;context.path=path;
+ return entry.appDefinition.pages.find(page=>page.path===path).render(context,{});}
+let html=await render('/');
+assert.deepEqual(queried,['ContextForms.Catalog','ContextForms.Entry'],'only authored queries run');
+assert.deepEqual(requests.map(spec=>spec.operation),['ContextForms.Entry.create','ContextForms.Note.create','ContextForms.Entry.create','ContextForms.attach']);
+assert.deepEqual(ready.map(form=>form.status),['ready','ready','ready','ready']);
+assert(!html.includes('Operation form omits a required input.'));
+for(const index of [0,2]){
+ assert.equal(requests[index].arguments.parent.id,catalogRow.id,'Catalog survives bare row shadowing');
+ assert.equal(requests[index].arguments.parent.version,BigInt(catalogRow.version));
+ assert.deepEqual(requests[index].fields,['title']);
+}
+assert.equal(requests[1].arguments.parent.id,childRow.id);
+assert.equal(requests[1].arguments.parent.version,BigInt(childRow.version));
+assert.deepEqual(requests[1].fields,['body']);
+assert.equal(requests[3].arguments.catalog.id,catalogRow.id);
+assert.equal(requests[3].arguments.entry.id,childRow.id,'explicit argument remains authoritative');
+assert.deepEqual(requests[3].fields,['label'],'bound records never become editable controls');
+// Redeem the installed preparer's genuine protected refs, then invoke canonical
+// CRUD. This exercises child creation without an inferred lookup or stale ID.
+for(const [index,input,parent] of [[0,{title:'Created by form'},catalogRow],[1,{body:'Nested note'},childRow]]){
+ const form=ready[index],spec=requests[index];assert.equal(typeof form.props.sourceBinding,'string');
+ const restoreContext={appId,sessionToken,identity,derived:form.derived,
+  operationId:form.props.operationId,nowMs:FIXED_NOW};
+ assert.equal(await service.restore(restoreContext,form.props.sourceBinding,{...input,parent:ref(otherCatalogRow)}),null,'submitted parent cannot replace the protected binding');
+ const restored=await service.restore(restoreContext,form.props.sourceBinding,input);
+ assert(restored);assert.deepEqual(restored.parent,ref(parent));
+ const created=await invoke(spec.operation,restored,form.props.operationId);
+ assert.equal(created.parent.id,parent.id);assert.equal(created.parent.model,index===0?'ContextForms.Catalog':'ContextForms.Entry');assert.deepEqual(created.data,input);
+}
+// Optional-version parent linkage still enforces the rendered expected version
+// at native admission; updating that parent must invalidate the old form.
+await invoke('ContextForms.Catalog.update',{record:ref(catalogRow),name:'Updated'});
+const stale=await invoker.invokeMutation({operation:'ContextForms.Entry.create',operation_id:uuidv7(FIXED_NOW,++sequence),
+ inputs:{parent:ref(catalogRow),title:'Stale'}},identity);
+assert('error' in stale);assert.equal(stale.error.code,'conflict');
+html=await render('/ambiguous');
+assert.deepEqual(queried,['ContextForms.Catalog','ContextForms.Catalog']);
+assert.equal(requests[0].arguments,undefined,'two compatible lexical rows remain ambiguous');
+assert.equal(ready[0].status,'unavailable');assert.equal(ready[0].message,'Operation form omits a required input.');
+assert.equal(ready[1].status,'ready');assert.equal(requests[1].arguments.parent.id,catalogRow.id,'explicit outer overrides ambiguity');assert.notEqual(requests[1].arguments.parent.id,otherCatalogRow.id);
+assert(html.includes('Operation form omits a required input.'));
+await render('/unbound');assert.deepEqual(queried,[]);assert.equal(requests[0].arguments,undefined);
+assert.equal(ready[0].status,'unavailable');assert.equal(ready[0].message,'Operation form omits a required input.');
+"#).unwrap();
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    let executed = Command::new("node").arg(runner).arg(root).output().unwrap();
+    assert!(
+        executed.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&executed.stdout),
+        String::from_utf8_lossy(&executed.stderr)
+    );
+}

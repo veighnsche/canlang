@@ -567,6 +567,77 @@ fn anonymous_messages_compile_and_execute_native_date_time_and_plural_bindings()
     eprint!("{}", String::from_utf8_lossy(&result.stdout));
 }
 
+#[test]
+fn buttons_require_one_binding_and_inherited_submit_ownership() {
+    let catalog = catalog();
+    let source = |body: &str| {
+        format!(
+            "app ButtonOwners\nGiven\n Item {{title:text}}\n policy Item read=members\nWhen\n crud Item by=members fields=title\n scenario save(value:text=\"Saved\") by=members\n  do let supplied=value\nThen\n preferences {{expanded:bool=false}}\n page / title=\"Buttons\"\n{body}  modal \"Tools\" id=panel\n   slot content\n    text \"Tools\"\n"
+        )
+    };
+    let direct_form = "  form save display=inline\n   button submit=true caption=\"Save\"\n";
+    let nested_form = "  form save display=inline\n   fieldset \"Fields\"\n    button submit=true caption=\"Save\"\n";
+    for (body, accepted) in [
+        ("  button submit=true\n", false),
+        ("  card \"Card\"\n   button submit=true\n", false),
+        ("  fieldset \"Fields\"\n   button submit=true\n", false),
+        (direct_form, true),
+        (nested_form, true),
+        (
+            "  list Item\n   edit fields=title\n    fieldset \"Fields\"\n     button submit=true\n",
+            true,
+        ),
+        (
+            "  preferences\n   fieldset \"Settings\"\n    button submit=true\n",
+            true,
+        ),
+        ("  button action=save\n", true),
+        ("  button target=\"/\" caption=\"Home\"\n", true),
+        ("  button opens=panel caption=\"Tools\"\n", true),
+        (
+            "  form save display=inline\n   button submit=true opens=panel\n",
+            false,
+        ),
+        (
+            "  form save display=inline\n   button action=save submit=true\n",
+            false,
+        ),
+        ("  button action=save opens=panel\n", false),
+        ("  button caption=\"Unbound\"\n", false),
+    ] {
+        let mut db = SourceDb::new();
+        let file = db.add("buttons.can".into(), source(body));
+        let (_, diagnostics) = check_program(&db, &[file], Some(&catalog));
+        if accepted {
+            assert!(diagnostics.is_empty(), "{body}: {diagnostics:?}");
+        } else {
+            assert!(
+                diagnostics.iter().any(|d| d.code == "E3001"),
+                "{body}: {diagnostics:?}"
+            );
+        }
+    }
+    // Prove direct and wrapped ordinary submits still publish through the
+    // existing canonical form producer; preference/edit runtime profiles are
+    // not newly qualified by the analysis controls above.
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    let scratch = tempfile::tempdir().unwrap();
+    for body in [direct_form, nested_form] {
+        let input = scratch.path().join("buttons.can");
+        std::fs::write(&input, source(body)).unwrap();
+        let output = std::process::Command::new(env!("CARGO_BIN_EXE_can"))
+            .args(["compile", "--format=json", "--catalog"])
+            .arg(root.join("packages/values/dist/catalog.json"))
+            .arg(input)
+            .env_remove("CAN_CATALOG")
+            .output()
+            .unwrap();
+        let response: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert!(output.status.success(), "{body}: {response}");
+        assert!(response.get("modules").is_some(), "{body}: {response}");
+    }
+}
+
 #[cfg(unix)]
 #[test]
 fn invalid_destination_buttons_and_stat_descriptions_refuse() {
@@ -580,11 +651,11 @@ fn invalid_destination_buttons_and_stat_descriptions_refuse() {
         ("  button target=\"/\" caption=mutate()\n", "E3005"),
         (
             "  button target=\"/\" submit=true caption=\"Button\"\n",
-            "E6008",
+            "E3001",
         ),
         (
             "  button target=\"/\" opens=panel caption=\"Button\"\n",
-            "E6008",
+            "E3001",
         ),
         (
             "  button target=\"/\" arguments={} caption=\"Button\"\n",
@@ -598,7 +669,11 @@ fn invalid_destination_buttons_and_stat_descriptions_refuse() {
             "  button target=app_url(mutate()) caption=\"Button\"\n",
             "E3005",
         ),
-        ("  button submit=true caption=\"Button\"\n", "E6008"),
+        ("  button submit=true caption=\"Button\"\n", "E3001"),
+        (
+            "  form mutate display=inline\n   button submit=false caption=\"Button\"\n",
+            "E6008",
+        ),
         ("  stat 1 description=1\n", "E3001"),
         ("  stat 1 description=missing()\n", "E2001"),
         ("  stat 1 description=mutate()\n", "E3005"),

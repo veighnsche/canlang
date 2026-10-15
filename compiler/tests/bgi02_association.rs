@@ -615,6 +615,7 @@ fn argv(words: &[&str]) -> Vec<String> {
 
 fn write_fixture(dir: &std::path::Path, name: &str, text: &str) -> String {
     let path = dir.join(name);
+    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
     std::fs::write(&path, text).unwrap();
     path.to_string_lossy().to_string()
 }
@@ -763,6 +764,327 @@ fn cli_bind_round_trip_then_status_retains() {
         result.stderr.contains("no generation unit"),
         "{}",
         result.stderr
+    );
+}
+
+fn legacy_group(
+    root: &std::path::Path,
+    id: &str,
+    kind: &str,
+    label: Option<&str>,
+    primary: Option<&str>,
+) -> String {
+    let document = serde_json::json!({
+        "abi_version": 1, "unit_id": id, "kind": kind, "label": label,
+        "draft": true, "origin": "handwritten-draft", "provider": null,
+        "model": null, "owner": "historical-owner", "source": "old/app.can",
+        "prompt": "Historical prompt.", "target": "historical description",
+        "profile": "historical recipe"
+    })
+    .to_string();
+    write_fixture(root, &format!("can.generated/{id}/unit.json"), &document);
+    if let Some(primary) = primary {
+        write_fixture(
+            root,
+            &format!("can.generated/{id}/{primary}"),
+            "original bytes\n",
+        );
+    }
+    write_fixture(
+        root,
+        &format!("can.generated/{id}/notes.txt"),
+        "historical notes\n",
+    );
+    document
+}
+
+fn bind_json(
+    root: &std::path::Path,
+    descriptor: &GenerationDescriptor,
+    unit: &str,
+    revision: &str,
+) -> canlang_compiler::cli::DispatchResult {
+    let request = serde_json::json!({
+        "version": 1, "request_id": "bind-legacy", "operation": "bind",
+        "root": root, "file": "app.can", "start": descriptor.span.start,
+        "end": descriptor.span.end, "revision": revision, "unit": unit
+    });
+    let path = write_fixture(root, "bind-request.json", &request.to_string());
+    dispatch(&argv(&["gen", "--request", &path]))
+}
+
+#[test]
+fn cli_bind_adopts_legacy_kind_families_preserving_existing_bytes() {
+    let source = BASE.replace("$TaskSurface\n  edit", "$\"Quiet view root.\"\n  edit");
+    let descriptors = discover(&source);
+    let cases = [
+        (
+            GenerationKind::NamedTrait,
+            "given_trait",
+            Some("completable"),
+            "contributions.can",
+        ),
+        (
+            GenerationKind::InlineTrait,
+            "given_trait",
+            None,
+            "contributions.can",
+        ),
+        (
+            GenerationKind::KeywordDefinition,
+            "given_keyword",
+            Some("canonical_identity"),
+            "server.js",
+        ),
+        (
+            GenerationKind::StyleDefinition,
+            "style",
+            Some("TaskSurface"),
+            "style.css",
+        ),
+        (GenerationKind::StyleInline, "style", None, "style.css"),
+        (
+            GenerationKind::ViewDefinition,
+            "then_view",
+            Some("TaskTile"),
+            "server.js",
+        ),
+        (
+            GenerationKind::ViewRootStyleInline,
+            "style",
+            None,
+            "style.css",
+        ),
+    ];
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path();
+    let file = write_fixture(root, "app.can", &source);
+    let revision = sha256_hex(source.as_bytes());
+    // Untouched legacy siblings do not prevent explicit migration of one unit.
+    for (index, (_, legacy_kind, label, primary)) in cases.iter().enumerate() {
+        legacy_group(
+            root,
+            &format!("legacy-{index}"),
+            legacy_kind,
+            *label,
+            Some(primary),
+        );
+        if *legacy_kind == "given_trait" {
+            write_fixture(
+                root,
+                &format!("can.generated/legacy-{index}/server.js"),
+                "legacy field check bytes\n",
+            );
+        }
+    }
+    // An existing canonical module remains current even when server.js differs.
+    write_fixture(
+        root,
+        "can.generated/legacy-5/implementation.js",
+        "existing canonical bytes\n",
+    );
+    for (index, (kind, _, _, primary)) in cases.iter().enumerate() {
+        let descriptor = descriptors.iter().find(|d| d.kind == *kind).unwrap();
+        let id = format!("legacy-{index}");
+        let result = if index % 2 == 0 {
+            bind_json(root, descriptor, &id, &revision)
+        } else {
+            dispatch(&argv(&[
+                "gen",
+                "bind",
+                &root.to_string_lossy(),
+                &file,
+                &descriptor.span.start.to_string(),
+                &descriptor.span.end.to_string(),
+                &revision,
+                &id,
+            ]))
+        };
+        assert_eq!(
+            result.code, 0,
+            "{kind:?}: {} {}",
+            result.stdout, result.stderr
+        );
+        let group = read_saved_group(root, &GenerationUnitId::parse(&id).unwrap()).unwrap();
+        assert_eq!(
+            group.record.source,
+            association_for(descriptor, "app.can", &revision).unwrap()
+        );
+        assert_eq!(group.record.contract, contract_for(descriptor).unwrap());
+        assert_eq!(
+            group.record.original.prompt_sha256,
+            sha256_hex(b"Historical prompt.")
+        );
+        assert_eq!(group.record.provenance.origin, ProvenanceOrigin::Adopted);
+        assert_eq!(group.record.provenance.runner, None);
+        assert_eq!(group.record.provenance.model, None);
+        assert!(
+            group
+                .record
+                .provenance
+                .note
+                .as_deref()
+                .unwrap()
+                .contains("handwritten-draft")
+        );
+        for (path, contents) in [
+            (*primary, "original bytes\n"),
+            ("notes.txt", "historical notes\n"),
+        ] {
+            assert_eq!(
+                std::fs::read_to_string(group.dir.join(path)).unwrap(),
+                contents
+            );
+            assert_eq!(
+                group.record.original.files[path],
+                sha256_hex(contents.as_bytes())
+            );
+        }
+        if matches!(
+            kind,
+            GenerationKind::KeywordDefinition
+                | GenerationKind::NamedTrait
+                | GenerationKind::InlineTrait
+        ) {
+            assert_eq!(
+                std::fs::read(group.dir.join("implementation.js")).unwrap(),
+                std::fs::read(group.dir.join("server.js")).unwrap()
+            );
+            assert_eq!(
+                group.record.original.files["implementation.js"],
+                group.record.original.files["server.js"]
+            );
+        }
+        if *kind == GenerationKind::ViewDefinition {
+            assert_eq!(
+                std::fs::read_to_string(group.dir.join("implementation.js")).unwrap(),
+                "existing canonical bytes\n"
+            );
+        }
+    }
+}
+
+#[test]
+fn cli_legacy_bind_refuses_stale_incompatible_and_malformed_inputs_without_writes() {
+    let descriptors = discover(BASE);
+    let selected = descriptors
+        .iter()
+        .find(|d| d.kind == GenerationKind::NamedTrait)
+        .unwrap();
+    for case in ["stale", "label", "family", "missing", "modern"] {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path();
+        write_fixture(root, "app.can", BASE);
+        let document = legacy_group(
+            root,
+            "legacy",
+            if case == "family" {
+                "style"
+            } else {
+                "given_trait"
+            },
+            Some(if case == "label" {
+                "OtherTrait"
+            } else {
+                "completable"
+            }),
+            (case != "missing").then_some("contributions.can"),
+        );
+        if case == "modern" {
+            write_fixture(
+                root,
+                "can.generated/broken/unit.json",
+                r#"{"id":"broken","unit_id":"broken","abi_version":1,"kind":"style","draft":true,"origin":"handwritten-draft"}"#,
+            );
+        }
+        let revision = if case == "stale" {
+            "stale".into()
+        } else {
+            sha256_hex(BASE.as_bytes())
+        };
+        let result = bind_json(root, selected, "legacy", &revision);
+        assert_eq!(
+            result.code, 2,
+            "{case}: {} {}",
+            result.stdout, result.stderr
+        );
+        let body: serde_json::Value = serde_json::from_str(&result.stdout).unwrap();
+        assert_eq!(
+            body["error"]["code"],
+            match case {
+                "stale" => "stale-selector",
+                "modern" => "invalid-saved-record",
+                _ => "legacy-binding-refused",
+            }
+        );
+        assert_eq!(
+            std::fs::read_to_string(root.join("can.generated/legacy/unit.json")).unwrap(),
+            document
+        );
+        assert!(!root.join("can.generated/legacy/implementation.js").exists());
+        assert_eq!(
+            std::fs::read_to_string(root.join("can.generated/legacy/notes.txt")).unwrap(),
+            "historical notes\n"
+        );
+    }
+}
+
+#[test]
+fn cli_legacy_bind_preserves_group_lease_and_source_claim_guards() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path();
+    write_fixture(root, "app.can", BASE);
+    let descriptor = discover(BASE)
+        .into_iter()
+        .find(|d| d.kind == GenerationKind::StyleDefinition)
+        .unwrap();
+    let document = legacy_group(
+        root,
+        "legacy",
+        "style",
+        Some("TaskSurface"),
+        Some("style.css"),
+    );
+    let revision = sha256_hex(BASE.as_bytes());
+    let held = canlang_compiler::leases::acquire(
+        root,
+        &["can.generated/legacy"],
+        canlang_compiler::leases::LeaseMode::Write,
+        "another-writer",
+    )
+    .unwrap();
+    let refused = bind_json(root, &descriptor, "legacy", &revision);
+    assert_eq!(refused.code, 3, "{} {}", refused.stdout, refused.stderr);
+    canlang_compiler::leases::release(root, &held).unwrap();
+    let modern = saved_record("modern", &descriptor, "app.can", &revision);
+    write_fixture(root, "can.generated/modern/unit.json", &modern.to_json());
+    let occupied = bind_json(root, &descriptor, "legacy", &revision);
+    assert_eq!(occupied.code, 2, "{} {}", occupied.stdout, occupied.stderr);
+    assert!(
+        occupied.stdout.contains("occupied-binding"),
+        "{}",
+        occupied.stdout
+    );
+    std::fs::remove_dir_all(root.join("can.generated/modern")).unwrap();
+    write_fixture(root, "copy.can", BASE);
+    let duplicate = bind_json(root, &descriptor, "legacy", &revision);
+    assert_eq!(
+        duplicate.code, 2,
+        "{} {}",
+        duplicate.stdout, duplicate.stderr
+    );
+    assert!(
+        duplicate.stdout.contains("ambiguous-binding"),
+        "{}",
+        duplicate.stdout
+    );
+    assert_eq!(
+        std::fs::read_to_string(root.join("can.generated/legacy/unit.json")).unwrap(),
+        document
+    );
+    assert_eq!(
+        std::fs::read_to_string(root.join("can.generated/legacy/style.css")).unwrap(),
+        "original bytes\n"
     );
 }
 

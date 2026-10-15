@@ -5,12 +5,17 @@ use std::{path::Path, process::Command};
 const SOURCE: &str = "app PolicyProducer\nGiven\n Item {quantity:int,label:text,locked:bool,state:enum(open,closed)=open}\n Other {quantity:int}\n policy Item read=public\n invariant Item: row.quantity>=0\n lock Item fields=label when=row.locked\n invariant Item: row.state==open or row.quantity<=100\n lock Other fields=quantity\nWhen\nThen\n";
 
 fn compile(source: &str, output: &Path) -> serde_json::Value {
+    compile_with_native_receipts(source, output, false)
+}
+
+fn compile_with_native_receipts(source: &str, output: &Path, native: bool) -> serde_json::Value {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
     let input = output.join("policy.can");
     std::fs::write(&input, source).unwrap();
     let compiled = Command::new(env!("CARGO_BIN_EXE_can"))
         .args(["compile", "--format=json", "--catalog"])
         .arg(root.join("packages/values/dist/catalog.json"))
+        .args(native.then_some("--native-scenario-receipts"))
         .arg(input)
         .env_remove("CAN_CATALOG")
         .output()
@@ -24,6 +29,86 @@ fn compile(source: &str, output: &Path) -> serde_json::Value {
     let value = serde_json::from_slice(&compiled.stdout).unwrap();
     std::fs::write(output.join("artifact.json"), compiled.stdout).unwrap();
     value
+}
+
+#[test]
+fn composed_archive_evidence_rules_activate_and_refuse_inconsistent_native_writes() {
+    let source = r#"app AuditApp uses=[audit]
+package audit
+ Given
+  Entry {title:text,archived:bool=false,archived_by:user?,archive_recorded_at:datetime?}
+  Tag {title:text,archived:bool=false,archived_by:user?,archive_recorded_at:datetime?}
+  policy Entry read=members
+  policy Tag read=members
+  invariant Entry: (not row.archived and row.archived_by==null and row.archive_recorded_at==null) or (row.archived and row.archived_by!=null and row.archive_recorded_at!=null)
+  invariant Tag: (not row.archived and row.archived_by==null and row.archive_recorded_at==null) or (row.archived and row.archived_by!=null and row.archive_recorded_at!=null)
+ When
+  crud Entry by=members fields=title when=not row.archived delete=remove
+  crud Tag by=members fields=title when=not row.archived delete=remove
+  scenario archive_entry(entry:Entry) by=members
+   do set entry {archived=true,archived_by=actor,archive_recorded_at=now}
+  scenario bad_archive(entry:Entry) by=members
+   do set entry {archived=true}
+ Then
+"#;
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    let scratch = tempfile::tempdir().unwrap();
+    let artifact = compile_with_native_receipts(source, scratch.path(), true);
+    let policies = artifact["modelPolicies"]
+        .as_array()
+        .expect("both owning audit invariants must be emitted");
+    assert_eq!(policies.len(), 2);
+    for (policy, model) in policies.iter().zip(["audit.Entry", "audit.Tag"]) {
+        assert_eq!(policy["model"], model);
+        assert_eq!(policy["ownerPackage"], "audit");
+        assert_eq!(policy["rules"][0]["kind"], "invariant");
+        assert_eq!(policy["rules"][0]["dependencies"], serde_json::json!([]));
+    }
+    let runner = scratch.path().join("archive.mjs");
+    std::fs::write(&runner, r#"
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {resolve,dirname} from 'node:path';
+import {fileURLToPath,pathToFileURL} from 'node:url';
+import {createRequire} from 'node:module';
+const base=dirname(fileURLToPath(import.meta.url)),root=process.argv[2];
+const require=createRequire(resolve(root,'package.json'));
+const load=specifier=>import(pathToFileURL(require.resolve(specifier)));
+const {assembleModules}=await load('@canlang/cloudflare/runtime/modules');
+const {buildInvoker}=await load('@canlang/cloudflare/worker/assembly');
+const {createTestMemoryStorage}=await load('@canlang/state/storage/memory');
+const {createMemoryIdentityStore,seedMember,makeIdentity,FIXED_NOW,uuidv7}=await load('@canlang/state/testing/invocation/fixtures');
+const artifact=JSON.parse(readFileSync(resolve(base,'artifact.json'),'utf8'));
+const asm=await assembleModules({artifact,sourcePath:resolve(base,'policy.can')},{workDir:resolve(base,'modules'),stdlibUrl:pathToFileURL(require.resolve('@canlang/cloudflare/runtime/stdlib')).href});
+const memberships=createMemoryIdentityStore(),member=await seedMember(memberships,{isOwner:false});
+const identity=makeIdentity({membership:member.membership,email:member.user.email});
+const {store,probe}=createTestMemoryStorage();
+const invoker=buildInvoker(artifact,asm,store,{memberships,now:()=>FIXED_NOW});
+let sequence=0;
+const invoke=async(operation,inputs)=>{const id=uuidv7(FIXED_NOW,++sequence);return {id,outcome:await invoker.invokeMutation({operation:`audit.${operation}`,operation_id:id,inputs},identity)};};
+const committed=call=>{assert.ok('result' in call.outcome,JSON.stringify(call));assert.equal(call.outcome.result.status,'committed');return call.id;};
+const id=committed(await invoke('Entry.create',{title:'Archive me'}));
+const original=await store.load('audit.Entry',id),history=probe.historyFor('audit.Entry',id);
+assert.deepEqual(original.data,{title:'Archive me',archived:false,archived_by:null,archive_recorded_at:null});
+const refused=await invoke('bad_archive',{entry:{id,version:'1'}});
+assert.ok('error' in refused.outcome,JSON.stringify(refused));
+assert.equal(refused.outcome.error.code,'rule_failed');
+assert.deepEqual(await store.load('audit.Entry',id),original);
+assert.deepEqual(probe.historyFor('audit.Entry',id),history);
+committed(await invoke('archive_entry',{entry:{id,version:'1'}}));
+const archived=await store.load('audit.Entry',id);
+assert.equal(archived.version,2);
+assert.deepEqual(archived.data,{title:'Archive me',archived:true,archived_by:{id:member.user.user_id},archive_recorded_at:new Date(FIXED_NOW).toISOString()});
+assert.equal(probe.historyFor('audit.Entry',id).length,history.length+1);
+committed(await invoke('Tag.create',{title:'Second owning invariant'}));
+"#).unwrap();
+    let run = Command::new("node").arg(runner).arg(root).output().unwrap();
+    assert!(
+        run.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&run.stdout),
+        String::from_utf8_lossy(&run.stderr)
+    );
 }
 
 #[test]

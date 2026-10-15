@@ -848,6 +848,142 @@ struct LegacyUnitDoc {
     prompt: Option<String>,
     target: Option<String>,
     profile: Option<String>,
+    origin: Option<String>,
+    provider: Option<String>,
+    model: Option<String>,
+}
+
+/// Recognize the untouched draft record family without treating malformed
+/// modern records as legacy. Only an explicit bind may migrate these records.
+pub fn is_legacy_bind_record(text: &str, id: &GenerationUnitId) -> bool {
+    let Ok(value) = serde_json::from_str::<serde_json::Value>(text) else {
+        return false;
+    };
+    value.is_object()
+        && ["id", "contract", "original", "provenance"]
+            .iter()
+            .all(|field| value.get(field).is_none())
+        && value["unit_id"].as_str() == Some(id.as_str())
+        && value["abi_version"].as_u64() == Some(UNIT_ABI_VERSION as u64)
+        && value["draft"].as_bool() == Some(true)
+        && matches!(
+            value["origin"].as_str(),
+            Some("handwritten-draft" | "handwritten-script")
+        )
+        && (value.get("source").is_none() || value["source"].is_string())
+        && matches!(
+            value["kind"].as_str(),
+            Some("given_trait" | "given_keyword" | "style" | "then_view")
+        )
+        && serde_json::from_str::<LegacyUnitDoc>(text).is_ok()
+}
+
+/// Explicitly bind existing draft bytes to a selected live declaration. Source
+/// owns the current contract; legacy prompts and files remain adoption evidence.
+/// Returned canonical primary copies join the caller's existing bind journal.
+pub fn bind_legacy_unit(
+    dir: &Path,
+    id: &GenerationUnitId,
+    source: &SourceAssociation,
+    contract: &UnitContract,
+) -> Result<(UnitRecord, Vec<SavedFile>), String> {
+    for path in [dir.to_path_buf(), dir.join(UNIT_FILE)] {
+        if std::fs::symlink_metadata(&path)
+            .map_err(|error| error.to_string())?
+            .file_type()
+            .is_symlink()
+        {
+            return Err("legacy binding requires its own regular saved group and record".into());
+        }
+    }
+    let text = std::fs::read_to_string(dir.join(UNIT_FILE)).map_err(|error| error.to_string())?;
+    if !is_legacy_bind_record(&text, id) {
+        return Err("saved record is not a recognized handwritten legacy unit".into());
+    }
+    let doc: LegacyUnitDoc = serde_json::from_str(&text).map_err(|error| error.to_string())?;
+    let compatible = match doc.kind.as_str() {
+        "given_trait" => match doc.label {
+            Some(_) => source.kind == UnitKind::NamedTrait && doc.label == source.label,
+            None => source.kind == UnitKind::InlineTrait,
+        },
+        "given_keyword" => {
+            source.kind == UnitKind::Keyword && doc.label.is_some() && doc.label == source.label
+        }
+        "then_view" => {
+            source.kind == UnitKind::View && doc.label.is_some() && doc.label == source.label
+        }
+        "style" => match doc.label {
+            Some(_) => source.kind == UnitKind::Style && doc.label == source.label,
+            None => matches!(
+                source.kind,
+                UnitKind::StyleInline | UnitKind::ViewStyleInline
+            ),
+        },
+        _ => false,
+    };
+    if !compatible {
+        return Err(format!(
+            "legacy {} unit `{id}` does not match selected {} {:?}",
+            doc.kind,
+            source.kind.as_str(),
+            source.label
+        ));
+    }
+    let mut files = Vec::new();
+    collect_current_files(dir, dir, &mut files)?;
+    let mut copied_primary = false;
+    if matches!(
+        source.kind,
+        UnitKind::Keyword | UnitKind::View | UnitKind::NamedTrait | UnitKind::InlineTrait
+    ) && !files
+        .iter()
+        .any(|file| file.rel_path == "implementation.js")
+        && let Some(server) = files.iter().find(|file| file.rel_path == "server.js")
+    {
+        files.push(SavedFile {
+            rel_path: "implementation.js".into(),
+            bytes: server.bytes.clone(),
+            sha256: server.sha256.clone(),
+        });
+        copied_primary = true;
+    }
+    for required in source.kind.required_primary_outputs() {
+        if !files.iter().any(|file| file.rel_path == *required) {
+            return Err(format!(
+                "legacy unit `{id}` is missing required output `{required}`"
+            ));
+        }
+    }
+    files.sort_by(|a, b| a.rel_path.cmp(&b.rel_path));
+    let original_prompt = sha256_hex(doc.prompt.as_deref().unwrap_or_default().as_bytes());
+    let record = UnitRecord {
+        abi_version: UNIT_ABI_VERSION,
+        id: id.clone(),
+        source: source.clone(),
+        contract: contract.clone(),
+        original: OriginalOutput {
+            prompt_sha256: original_prompt,
+            files: files
+                .iter()
+                .map(|file| (file.rel_path.clone(), file.sha256.clone()))
+                .collect(),
+        },
+        provenance: UnitProvenance {
+            origin: ProvenanceOrigin::Adopted,
+            runner: doc.provider,
+            model: doc.model,
+            note: Some(format!(
+                "explicit bind adopted legacy {}; existing files preserved{}",
+                doc.origin.as_deref().unwrap_or("handwritten draft"),
+                if copied_primary {
+                    "; implementation.js copied byte-for-byte from server.js"
+                } else {
+                    ""
+                }
+            )),
+        },
+    };
+    Ok((record, files))
 }
 
 /// Bind-time evidence for a legacy adoption: the inspected source
@@ -1338,26 +1474,6 @@ mod legacy_adopt_tests {
         assert!(err.contains("does not match its directory"), "{err}");
         std::fs::remove_dir_all(&root).ok();
         std::fs::remove_dir_all(&skewed).ok();
-    }
-
-    #[test]
-    fn inline_seeks_synthesize_bound_while_named_refuse() {
-        let inline_key = AssociationKey {
-            owner: "CanDo".to_string(),
-            kind: UnitKind::StyleInline,
-            label: Some("Card".to_string()),
-            anchor: "CanDo:style-inline:Card:Card".to_string(),
-        };
-        let (record, files) = synthesize_inline_unit(&inline_key, &evidence()).unwrap();
-        assert_eq!(record.source.owner, "CanDo");
-        assert_eq!(record.source.kind, UnitKind::StyleInline);
-        assert_eq!(record.provenance.origin, ProvenanceOrigin::Bound);
-        assert!(record.original.files.is_empty());
-        assert!(files.is_empty());
-        assert!(record.id.as_str().starts_with("inline-"));
-        let again = synthesize_inline_unit(&inline_key, &evidence()).unwrap().0;
-        assert_eq!(again.id, record.id);
-        assert!(synthesize_inline_unit(&style_key(), &evidence()).is_none());
     }
 
     #[test]

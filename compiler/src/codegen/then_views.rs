@@ -3,8 +3,9 @@
 //! Structural lowering over the lossless CST, beside (not inside) the
 //! BGI-07-owned `ir.rs`/`js.rs` emission. For every prompted
 //! `view Name(row:Model) $"..."` this produces the checked renderer
-//! contract: the row model, the declared canonical controls, the optional
-//! definition-owned root style, and the once-only row evaluation marker the
+//! contract: the row model, opaque canonical cards, declared controls,
+//! presentation leaves, the optional definition-owned root style, and the
+//! once-only row evaluation marker the
 //! runtime join honors. Instance identity mirrors the ordinary
 //! `can-view-m..-f..-s..` occurrence shape, so repeated instances keep
 //! separate roots while sharing the definition's saved renderer.
@@ -83,12 +84,12 @@ pub struct ThenView {
     pub prompt: String,
     pub profile: Option<String>,
     pub controls: Vec<ThenControl>,
-    /// Source-owned renderer slot names before public factory lowering.
+    /// Source-owned renderer binding names before public factory lowering.
     pub binding_names: Vec<(Span, String)>,
     /// Definition-level `require` predicates gating the whole expansion.
     pub gates: Vec<String>,
-    /// Static presentation leaves (`history`/`text`/`content`) the host
-    /// pre-renders alongside controls.
+    /// Presentation roots (`card`/`history`/`text`/`content`) the host
+    /// pre-renders alongside controls, retaining each card's checked subtree.
     pub leaves: Vec<String>,
     pub root_style: Option<ThenRootStyle>,
     pub span: Span,
@@ -250,9 +251,31 @@ fn collect_models(tree: &SyntaxNode, text: &str) -> HashSet<String> {
 }
 
 /// Lower every prompted view in one parsed file. The parser already admits
-/// only canonical control children and one root style suffix; this step
-/// checks the row target and exposes the renderer contract.
+/// canonical cards, controls, presentation leaves and direct gates, plus one
+/// root style suffix; this step checks the row target and exposes the renderer
+/// contract. Card descendants keep their ordinary checked UI profiles.
 pub fn lower_then_views(tree: &SyntaxNode, text: &str) -> ThenLowering {
+    // A composed file has independent app/package namespaces. Row targets
+    // and view anchors belong to the declaration that contains each view.
+    if !matches!(tree.kind, SyntaxKind::App | SyntaxKind::Package) {
+        let modules: Vec<_> = tree
+            .children
+            .iter()
+            .filter(|node| matches!(node.kind, SyntaxKind::App | SyntaxKind::Package))
+            .collect();
+        if !modules.is_empty() {
+            let mut out = ThenLowering {
+                views: Vec::new(),
+                diagnostics: Vec::new(),
+            };
+            for module in modules {
+                let scoped = lower_then_views(module, text);
+                out.views.extend(scoped.views);
+                out.diagnostics.extend(scoped.diagnostics);
+            }
+            return out;
+        }
+    }
     let mut views = Vec::new();
     let mut diagnostics = Vec::new();
     let models = collect_models(tree, text);
@@ -307,6 +330,10 @@ pub fn lower_then_views(tree: &SyntaxNode, text: &str) -> ThenLowering {
                     .into_iter()
                     .next()
                     .filter(|name| name != "require"),
+                SyntaxKind::CatalogItem => names(child, text)
+                    .into_iter()
+                    .next()
+                    .filter(|name| name == "button"),
                 _ => None,
             };
             if let Some(binding) = binding {
@@ -322,6 +349,11 @@ pub fn lower_then_views(tree: &SyntaxNode, text: &str) -> ThenLowering {
                         .map(|v| selector_fields(v, text))
                         .unwrap_or_default();
                     controls.push(ThenControl::Edit { fields });
+                }
+                SyntaxKind::CatalogItem
+                    if names(child, text).first().map(String::as_str) == Some("button") =>
+                {
+                    collect_button_control(child, text, &mut controls);
                 }
                 SyntaxKind::Form => {
                     let priority = names(child, text).into_iter().next().unwrap_or_default();
@@ -406,7 +438,7 @@ pub fn lower_then_views(tree: &SyntaxNode, text: &str) -> ThenLowering {
                     diagnostics.push(Diagnostic::error(
                         "E2001",
                         format!(
-                            "view `{name}` admits only canonical controls and one root style suffix"
+                            "view `{name}` admits only canonical cards, controls, history/text/content leaves, require gates and one root style suffix"
                         ),
                         child.span,
                     ));
@@ -430,11 +462,26 @@ pub fn lower_then_views(tree: &SyntaxNode, text: &str) -> ThenLowering {
     ThenLowering { views, diagnostics }
 }
 
+/// Action buttons lower to protected forms, but retain their source-owned
+/// `button` binding name. Navigation/panel buttons add no mutation metadata.
+fn collect_button_control(button: &SyntaxNode, text: &str, controls: &mut Vec<ThenControl>) {
+    if let Some(operation) = attribute_value(button, text, "action") {
+        controls.push(ThenControl::Action {
+            operation: operation_text(operation, text),
+        });
+    }
+}
+
 /// Card control metadata describes the canonical subtree; only the whole
 /// card is a renderer binding. Local gates stay on their owning IR nodes.
 fn collect_card_controls(card: &SyntaxNode, text: &str, controls: &mut Vec<ThenControl>) {
     for child in card.descendants() {
         match child.kind {
+            SyntaxKind::CatalogItem
+                if names(child, text).first().map(String::as_str) == Some("button") =>
+            {
+                collect_button_control(child, text, controls);
+            }
             SyntaxKind::Edit => controls.push(ThenControl::Edit {
                 fields: attribute_value(child, text, "fields")
                     .map(|value| selector_fields(value, text))
@@ -513,6 +560,34 @@ pub fn walk_generation_uses(
     text: &str,
     descriptors: &[GenerationDescriptor],
 ) -> Vec<UseEdge> {
+    // Bare labels resolve only inside their owning app/package namespace.
+    if !matches!(tree.kind, SyntaxKind::App | SyntaxKind::Package) {
+        let modules: Vec<_> = tree
+            .children
+            .iter()
+            .filter(|node| matches!(node.kind, SyntaxKind::App | SyntaxKind::Package))
+            .collect();
+        if !modules.is_empty() {
+            let mut edges = Vec::new();
+            for module in modules {
+                let scoped: Vec<_> = descriptors
+                    .iter()
+                    .filter(|descriptor| {
+                        descriptor.span.file == module.span.file
+                            && descriptor.span.start >= module.span.start
+                            && descriptor.span.end <= module.span.end
+                    })
+                    .cloned()
+                    .collect();
+                edges.extend(walk_generation_uses(module, text, &scoped));
+            }
+            edges.sort_by(|a, b| {
+                (a.definition_anchor.as_str(), a.use_span.start)
+                    .cmp(&(b.definition_anchor.as_str(), b.use_span.start))
+            });
+            return edges;
+        }
+    }
     let mut defs: HashMap<(GenerationKind, String), &GenerationDescriptor> = HashMap::new();
     for descriptor in descriptors {
         let label = descriptor.label.clone().unwrap_or_default();

@@ -1307,7 +1307,7 @@ fn join_saved_given(
 
 /// Build one consumed unit's Given inputs from its saved group:
 /// the contributions carrier (when present), the implementation
-/// bytes plus their resolved import closure (keyword units), and the
+/// bytes plus their resolved import closure (keywords and field checks), and the
 /// owner-visible declaration (keyword units).
 fn given_saved_unit(
     db: &mut SourceDb,
@@ -1347,12 +1347,22 @@ fn given_saved_unit(
                 id.as_str(),
             )
         })?;
-        if def.kind == GenerationKind::KeywordDefinition {
-            implementation_imports =
-                resolve_saved_js_closure(id, group, "implementation.js", &js, "workerd").map_err(
-                    |detail| format!("{detail}; fix the saved imports or reconcile with adopt"),
-                )?;
+        if matches!(
+            def.kind,
+            GenerationKind::NamedTrait | GenerationKind::InlineTrait
+        ) && !scan_js_module(&js)
+            .exports
+            .iter()
+            .any(|export| export == crate::analysis::types::GIVEN_FIELD_VALIDATION_EXPORT)
+        {
+            return Err(format!(
+                "unit `{id}` field validation implementation declares no `check` export in `implementation.js`"
+            ));
         }
+        implementation_imports =
+            resolve_saved_js_closure(id, group, "implementation.js", &js, "workerd").map_err(
+                |detail| format!("{detail}; fix the saved imports or reconcile with adopt"),
+            )?;
         implementation_js = Some(js);
     }
     let mut declaration = None;
@@ -1372,7 +1382,7 @@ fn given_saved_unit(
 
 /// Attach checked saved Given inputs to a freshly emitted artifact:
 /// the `givenContracts` member, contributed trait fields merged into
-/// the stored model descriptors, and packed keyword server modules
+/// the stored model descriptors, and packed keyword/field-check server modules
 /// (with their import-closure siblings) appended to `staged`. Any
 /// failure refuses the artifact with its diagnostic; the caller
 /// reports it with exit 10 and no output.
@@ -1394,6 +1404,20 @@ fn attach_saved_given(
         artifact.given_contracts = Some(art::assemble_given_contracts(&given_ir, tool_version()));
     }
     if let Some(contracts) = artifact.given_contracts.as_ref() {
+        if contracts
+            .traits
+            .iter()
+            .any(|instance| instance.validation.is_some())
+            && !artifact
+                .requires
+                .iter()
+                .any(|requirement| requirement.capability == "state.field-validation")
+        {
+            artifact.requires.push(art::ArtifactRequirement {
+                capability: "state.field-validation".into(),
+                min_version: 1,
+            });
+        }
         for instance in &contracts.traits {
             if instance.target.split('.').count() == 2 {
                 if let Some(model) = artifact
@@ -1413,31 +1437,42 @@ fn attach_saved_given(
         art::merge_given_trait_fields(&mut artifact.models, &contracts.traits)
             .map_err(|detail| fail(format!("cannot lower saved trait contributions: {detail}")))?;
     }
-    // Keyword server modules pack per checked contract: the expected
+    // Given server modules pack per checked contract: the expected
     // fingerprint is the contract's own closure hash, so pack refuses
     // any pairing skew between check and staging.
     if let Some(contracts) = artifact.given_contracts.as_ref() {
         let mut packed_units = std::collections::HashMap::<&str, &str>::new();
-        for rule in &contracts.keywords {
+        let implementations = contracts
+            .keywords
+            .iter()
+            .map(|rule| (rule.unit_id.as_str(), rule.fingerprint.as_str(), "keyword"))
+            .chain(contracts.traits.iter().filter_map(|instance| {
+                instance.validation.as_ref().map(|validation| {
+                    (
+                        instance.unit_id.as_str(),
+                        validation.fingerprint.as_str(),
+                        "trait",
+                    )
+                })
+            }));
+        for (unit_id, fingerprint, kind) in implementations {
             // Applications retain independent checked rules, while the
             // declaration owns one implementation and import closure.
-            if let Some(previous) = packed_units.insert(&rule.unit_id, &rule.fingerprint) {
-                if previous != rule.fingerprint {
+            if let Some(previous) = packed_units.insert(unit_id, fingerprint) {
+                if previous != fingerprint {
                     return Err(fail(format!(
-                        "keyword unit `{}` has inconsistent checked implementation fingerprints",
-                        rule.unit_id
+                        "{kind} unit `{unit_id}` has inconsistent checked implementation fingerprints"
                     )));
                 }
                 continue;
             }
-            let Some(group) = join.groups.get(&rule.unit_id) else {
+            let Some(group) = join.groups.get(unit_id) else {
                 return Err(fail(format!(
-                    "cannot lower keyword rule `{}`: saved unit `{}` was not consumed by this build",
-                    rule.rule_id, rule.unit_id,
+                    "cannot lower {kind} unit `{unit_id}`: saved unit was not consumed by this build"
                 )));
             };
             let owner = art::CanOwnerLink {
-                unit_id: rule.unit_id.clone(),
+                unit_id: unit_id.to_string(),
                 kind: group.record.source.kind.as_str().to_string(),
                 can_path: group.record.source.path.clone(),
                 can_revision: group.record.source.revision.clone(),
@@ -1453,15 +1488,15 @@ fn attach_saved_given(
             let imports: Vec<crate::analysis::types::GivenSavedImport> = join
                 .units
                 .values()
-                .find(|unit| unit.unit_id == rule.unit_id)
+                .find(|unit| unit.unit_id == unit_id)
                 .map(|unit| unit.implementation_imports.clone())
                 .unwrap_or_default();
             let mut packed = if imports.is_empty() {
                 vec![
-                    art::pack_saved_unit(group.record.source.kind, owner, &root, &rule.fingerprint)
+                    art::pack_saved_unit(group.record.source.kind, owner, &root, fingerprint)
                         .map_err(|detail| {
                             fail(format!(
-                                "cannot lower saved keyword implementation: {detail}"
+                                "cannot lower saved {kind} implementation: {detail}"
                             ))
                         })?,
                 ]
@@ -1471,11 +1506,11 @@ fn attach_saved_given(
                     owner,
                     &root,
                     &imports,
-                    &rule.fingerprint,
+                    fingerprint,
                 )
                 .map_err(|detail| {
                     fail(format!(
-                        "cannot lower saved keyword implementation: {detail}"
+                        "cannot lower saved {kind} implementation: {detail}"
                     ))
                 })?
             };
@@ -3235,6 +3270,7 @@ fn read_gen_source(path: &str) -> Result<(SourceDb, SourceId, String), DispatchR
 /// incompatible groups as issues instead of aborting the report.
 fn load_gen_saved(
     root: &Path,
+    allow_legacy_bind: bool,
 ) -> (
     Vec<crate::analysis::generation_intake::UnitRecord>,
     Vec<crate::analysis::generation_intake::IntakeIssue>,
@@ -3266,7 +3302,10 @@ fn load_gen_saved(
             issues.push(intake::IntakeIssue {
                 unit: id.as_str().to_string(),
                 action: intake::IntakeAction::Bind,
-                detail: format!("saved record {} must be a readable regular file", path.display()),
+                detail: format!(
+                    "saved record {} must be a readable regular file",
+                    path.display()
+                ),
             });
             continue;
         }
@@ -3286,6 +3325,7 @@ fn load_gen_saved(
         };
         match intake::UnitRecord::parse(&text, &id) {
             Ok(record) => saved.push(record),
+            Err(_) if allow_legacy_bind && intake::is_legacy_bind_record(&text, &id) => {}
             Err(reason) => issues.push(intake::IntakeIssue {
                 unit: id.as_str().to_string(),
                 action: intake::IntakeAction::Bind,
@@ -3371,7 +3411,7 @@ struct GenStatusReport {
 fn collect_gen_status(root: &str, files: &[String]) -> Result<GenStatusReport, DispatchResult> {
     use crate::analysis::generation_intake as intake;
     let root_path = Path::new(root);
-    let (saved, mut issues) = load_gen_saved(root_path);
+    let (saved, mut issues) = load_gen_saved(root_path, false);
     let mut lines: Vec<String> = Vec::new();
     let mut units_json: Vec<serde_json::Value> = Vec::new();
     let mut matched: std::collections::HashSet<String> = std::collections::HashSet::new();
@@ -3910,7 +3950,7 @@ fn run_gen_inspect(
     use crate::analysis::generation_intake as intake;
     use crate::analysis::generation_protocol as proto;
     let root_path = Path::new(&params.root);
-    let (saved, _) = load_gen_saved(root_path);
+    let (saved, _) = load_gen_saved(root_path, false);
     let scope_files = match crate::analysis::generation_store::source_files(root_path) {
         Ok(files) => files,
         Err(error) => return DispatchResult::tool_error("E7002", error),
@@ -4334,7 +4374,7 @@ fn run_gen_bind_json(
         );
     };
     let root_path = Path::new(&params.root);
-    let (saved, saved_issues) = load_gen_saved(root_path);
+    let (mut saved, saved_issues) = load_gen_saved(root_path, true);
     if !saved_issues.is_empty() {
         return fail(
             "invalid-saved-record",
@@ -4393,6 +4433,45 @@ fn run_gen_bind_json(
         source,
         contract,
         target,
+    };
+    let mut legacy_files = Vec::new();
+    let _legacy_lease = if let intake::BindTarget::Existing(id) = &request.target
+        && !saved.iter().any(|record| record.id == *id)
+        && root_path
+            .join(intake::GENERATED_DIR)
+            .join(id.as_str())
+            .join(intake::UNIT_FILE)
+            .exists()
+    {
+        let paths = [
+            format!("{}/{}", intake::GENERATED_DIR, id.as_str()),
+            format!(
+                "{}/{}/{}",
+                intake::GENERATED_DIR,
+                id.as_str(),
+                intake::UNIT_FILE
+            ),
+        ];
+        let lease = match crate::analysis::generation_store::HeldLease::acquire(
+            root_path,
+            &paths.iter().map(String::as_str).collect::<Vec<_>>(),
+            crate::leases::LeaseMode::Write,
+            &header.request_id,
+        ) {
+            Ok(lease) => lease,
+            Err(error) => return fail("conflict", error),
+        };
+        let dir = root_path.join(intake::GENERATED_DIR).join(id.as_str());
+        let (record, files) =
+            match intake::bind_legacy_unit(&dir, id, &request.source, &request.contract) {
+                Ok(adopted) => adopted,
+                Err(error) => return fail("legacy-binding-refused", error),
+            };
+        legacy_files = files;
+        saved.push(record);
+        Some(lease)
+    } else {
+        None
     };
     let mut record = match intake::apply_bind(&saved, &request, &current_revision) {
         Ok(record) => record,
@@ -4480,6 +4559,15 @@ fn run_gen_bind_json(
         let is_destination = scope_evidence[&live.span.file].path == record.source.path
             && live.span.start == descriptor.span.start
             && live.span.end == descriptor.span.end;
+        if _legacy_lease.is_some()
+            && is_destination
+            && !matches!(&binding, intake::UnitAssociation::Retained { id, .. } if *id == record.id)
+        {
+            return fail(
+                "ambiguous-binding",
+                "selected source has duplicate or ambiguous saved claims; no files changed".into(),
+            );
+        }
         if let intake::UnitAssociation::Retained { id, .. } = binding {
             if is_destination && id != record.id {
                 return fail(
@@ -4508,16 +4596,36 @@ fn run_gen_bind_json(
     if let Some(old) = copied {
         guards.push(format!("{}/{}", intake::GENERATED_DIR, old.id.as_str()));
     }
-    let _unit_lease = match crate::analysis::generation_store::HeldLease::acquire(
-        root_path,
-        &guards.iter().map(String::as_str).collect::<Vec<_>>(),
-        crate::leases::LeaseMode::Write,
-        &header.request_id,
-    ) {
-        Ok(lease) => lease,
-        Err(error) => return fail("conflict", error),
+    let _unit_lease = if _legacy_lease.is_some() {
+        None
+    } else {
+        match crate::analysis::generation_store::HeldLease::acquire(
+            root_path,
+            &guards.iter().map(String::as_str).collect::<Vec<_>>(),
+            crate::leases::LeaseMode::Write,
+            &header.request_id,
+        ) {
+            Ok(lease) => Some(lease),
+            Err(error) => return fail("conflict", error),
+        }
     };
     let mut replacements = Vec::new();
+    // Legacy server modules keep their historical path and bytes. Publish only
+    // the missing canonical entrypoint copy beside the canonical unit record.
+    for file in legacy_files {
+        if !root_path
+            .join(intake::GENERATED_DIR)
+            .join(record.id.as_str())
+            .join(&file.rel_path)
+            .exists()
+        {
+            replacements.push(crate::leases::Replacement {
+                unit: record.id.as_str().to_string(),
+                path: file.rel_path,
+                bytes: file.bytes,
+            });
+        }
+    }
     if let Some(old) = copied {
         if let Err(error) = intake::read_saved_group(root_path, &old.id) {
             return fail("invalid-saved-group", error.to_string());
@@ -4682,7 +4790,7 @@ fn admit_saved_unit(
             ));
         }
     };
-    let (saved, _) = load_gen_saved(Path::new(root));
+    let (saved, _) = load_gen_saved(Path::new(root), false);
     match saved.into_iter().find(|record| record.id == id) {
         Some(record) => Ok(record),
         None => Err(gen_envelope_result(
@@ -5093,12 +5201,14 @@ fn diagnostic_in_span(diag: &crate::diagnostic::Diagnostic, start: u32, end: u32
 /// model, style host) is a drift input, not a runtime selector.
 fn runtime_targets_for(
     kind: crate::analysis::generation_intake::UnitKind,
+    has_implementation: bool,
 ) -> &'static [&'static str] {
     use crate::analysis::generation_intake::UnitKind;
     match kind {
         UnitKind::Keyword => &["workerd"],
         UnitKind::View => &["workerd", "browser"],
         UnitKind::Style | UnitKind::StyleInline | UnitKind::ViewStyleInline => &["css"],
+        UnitKind::NamedTrait | UnitKind::InlineTrait if has_implementation => &["check", "workerd"],
         UnitKind::NamedTrait | UnitKind::InlineTrait => &["check"],
     }
 }
@@ -5348,10 +5458,16 @@ fn validate_saved_unit(
     payload.insert(
         "runtime_targets".to_string(),
         serde_json::Value::Array(
-            runtime_targets_for(record.source.kind)
-                .iter()
-                .map(|t| serde_json::Value::String(t.to_string()))
-                .collect(),
+            runtime_targets_for(
+                record.source.kind,
+                group
+                    .files
+                    .iter()
+                    .any(|file| file.rel_path == "implementation.js"),
+            )
+            .iter()
+            .map(|t| serde_json::Value::String(t.to_string()))
+            .collect(),
         ),
     );
     payload.insert(
@@ -5748,8 +5864,8 @@ fn validate_keyword_unit(
 }
 
 /// Validate a trait unit: its contributions carrier checks through
-/// BGI-07 with no saved JavaScript in v1. Returns the carrier
-/// fingerprint.
+/// BGI-07 plus an optional source-derived pure text-field check. A check's
+/// code/import closure and carrier jointly determine validation freshness.
 fn validate_trait_unit(
     id: &crate::analysis::generation_intake::GenerationUnitId,
     group: &crate::analysis::generation_intake::SavedGroup,
@@ -5761,15 +5877,26 @@ fn validate_trait_unit(
     let implementation_js = group
         .files
         .iter()
-        .find(|f| f.rel_path == "implementation.js")
-        .map(|f| String::from_utf8_lossy(&f.bytes).into_owned());
+        .any(|file| file.rel_path == "implementation.js")
+        .then(|| require_group_text(id, group, "implementation.js"))
+        .transpose()?;
+    let implementation_imports = if let Some(js) = &implementation_js {
+        resolve_saved_js_closure(id, group, "implementation.js", js, "workerd").map_err(
+            |detail| {
+                ValidationFailure::new(
+                    detail,
+                    vec!["fix the saved imports and resend validate".into()],
+                )
+            },
+        )?
+    } else {
+        Vec::new()
+    };
     let saved_unit = crate::analysis::types::GivenSavedUnit {
         unit_id: id.as_str().to_string(),
         contributions: None,
-        implementation_js,
-        // Trait units consume no JavaScript in v1: the carrier alone is
-        // fingerprinted, so there is no import closure to resolve.
-        implementation_imports: Vec::new(),
+        implementation_js: implementation_js.clone(),
+        implementation_imports: implementation_imports.clone(),
         declaration: None,
     };
     let tables = check_one_given_unit(id, group, source_text, saved_unit, checks)?;
@@ -5804,10 +5931,60 @@ fn validate_trait_unit(
             },
         ),
     ));
-    let fingerprint = crate::source::sha256_hex(carrier.as_bytes());
+    let fingerprint = if let Some(validation) = &contract.validation_fingerprint {
+        let js = implementation_js
+            .as_ref()
+            .expect("checked validation implementation");
+        let scan = scan_js_module(js);
+        if !scan
+            .exports
+            .iter()
+            .any(|export| export == crate::analysis::types::GIVEN_FIELD_VALIDATION_EXPORT)
+        {
+            return Err(ValidationFailure::new(
+                format!(
+                    "unit `{id}` field validation implementation declares no `check` export in `implementation.js`"
+                ),
+                vec!["export the source-derived check(value) function and resend validate".into()],
+            ));
+        }
+        admit_js_imports(id, &scan, "workerd")?;
+        checks.push(validation_check(
+            "exports",
+            "saved module declares `check`".into(),
+        ));
+        checks.push(validation_check(
+            "imports",
+            format!(
+                "{} consumed unit-local imports",
+                implementation_imports.len()
+            ),
+        ));
+        checks.push(validation_check(
+            "contract-binding",
+            format!(
+                "producer `{}` lifecycle `{}` (implementation closure {validation})",
+                crate::analysis::types::GIVEN_PRODUCER_FIELD_VALIDATION,
+                crate::analysis::types::GIVEN_FIELD_VALIDATION_LIFECYCLE,
+            ),
+        ));
+        let mut closure = vec![("implementation.js", js.as_bytes())];
+        closure.extend(
+            implementation_imports
+                .iter()
+                .map(|import| (import.rel_path.as_str(), import.bytes.as_slice())),
+        );
+        crate::analysis::types::given_closure_fingerprint(carrier.as_bytes(), &closure)
+    } else {
+        crate::source::sha256_hex(carrier.as_bytes())
+    };
     checks.push(validation_check(
         "fingerprint",
-        format!("carrier sha256 {fingerprint}"),
+        if implementation_js.is_some() {
+            format!("carrier and admitted implementation sha256 {fingerprint}")
+        } else {
+            format!("carrier sha256 {fingerprint}")
+        },
     ));
     Ok(fingerprint)
 }
@@ -5941,19 +6118,13 @@ fn validate_view_unit(
             vec!["send a bind request to reconcile the unit's association".to_string()],
         ));
     };
-    let Some(view) = lowering.views.iter().find(|v| v.name == label) else {
-        let own: Vec<_> = lowering
-            .diagnostics
-            .iter()
-            .filter(|d| diagnostic_in_span(d, descriptor.span.start, descriptor.span.end))
-            .cloned()
-            .collect();
-        if own.is_empty() {
-            return Err(ValidationFailure::drift(format!(
-                "unit `{}` interface drifted: no prompted view `{label}` lowers from the current source; the saved group is preserved",
-                id.as_str(),
-            )));
-        }
+    let own: Vec<_> = lowering
+        .diagnostics
+        .iter()
+        .filter(|d| diagnostic_in_span(d, descriptor.span.start, descriptor.span.end))
+        .cloned()
+        .collect();
+    if !own.is_empty() {
         return Err(ValidationFailure::new(
             format!(
                 "unit `{}` view lowering failed: {}",
@@ -5962,6 +6133,12 @@ fn validate_view_unit(
             ),
             vec!["fix the source errors and resend validate".to_string()],
         ));
+    }
+    let Some(view) = lowering.views.iter().find(|v| v.name == label) else {
+        return Err(ValidationFailure::drift(format!(
+            "unit `{}` interface drifted: no prompted view `{label}` lowers from the current source; the saved group is preserved",
+            id.as_str(),
+        )));
     };
     checks.push(validation_check(
         "lowering",
@@ -6731,7 +6908,8 @@ fn split_saved_path(path: &str) -> Option<(String, String)> {
 /// a parseable record; anything else diagnoses (source reconciliation
 /// is `adopt`, BGI-12). Byte-level checks mirror the unit scope — JS
 /// admission, declared exports, CSS scope, asset presence — without
-/// re-checking the owning source; drift against recorded originals is
+/// re-checking the owning source, except field-check modules also verify their
+/// source-owned field attachment and carrier; drift against recorded originals is
 /// reported per file, never regenerated.
 fn validate_saved_files(
     header: &crate::analysis::generation_protocol::RequestHeader,
@@ -6746,11 +6924,47 @@ fn validate_saved_files(
     // the exact consumed closure.
     let mut bound_paths: Vec<String> = files.to_vec();
     for file in files {
-        if let Some((id, _)) = split_saved_path(file) {
+        if let Some((id, rel)) = split_saved_path(file) {
             for sibling in [intake::UNIT_FILE, DECLARATION_FILE] {
                 let candidate = format!("{}/{id}/{sibling}", intake::GENERATED_DIR);
                 if root_path.join(&candidate).is_file() {
                     bound_paths.push(candidate);
+                }
+            }
+            if rel == "implementation.js" {
+                let record_path = root_path
+                    .join(intake::GENERATED_DIR)
+                    .join(&id)
+                    .join(intake::UNIT_FILE);
+                let record = std::fs::read_to_string(record_path).ok().and_then(|text| {
+                    intake::GenerationUnitId::parse(&id)
+                        .ok()
+                        .and_then(|id| intake::UnitRecord::parse(&text, &id).ok())
+                });
+                if let Some(record) = record
+                    && matches!(
+                        record.source.kind,
+                        intake::UnitKind::NamedTrait | intake::UnitKind::InlineTrait
+                    )
+                {
+                    let group = match intake::read_saved_group(root_path, &record.id) {
+                        Ok(group) => group,
+                        Err(issue) => {
+                            return validation_failure_envelope(
+                                header,
+                                ValidationFailure::new(
+                                    issue.to_string(),
+                                    vec!["repair the saved group and resend validate".into()],
+                                ),
+                            );
+                        }
+                    };
+                    bound_paths.push(record.source.path.clone());
+                    bound_paths.extend(
+                        group.files.iter().map(|file| {
+                            format!("{}/{id}/{}", intake::GENERATED_DIR, file.rel_path)
+                        }),
+                    );
                 }
             }
         }
@@ -6934,10 +7148,42 @@ fn validate_one_saved_file(
                 ));
                 admit_js_imports(&id, &scan, "workerd/browser")?;
             }
+            intake::UnitKind::NamedTrait | intake::UnitKind::InlineTrait => {
+                let prefix = format!("{}/{id_text}/", intake::GENERATED_DIR);
+                let files = inputs
+                    .files
+                    .iter()
+                    .filter_map(|file| {
+                        let rel = file.path.strip_prefix(&prefix)?;
+                        (rel != intake::UNIT_FILE).then(|| intake::SavedFile {
+                            rel_path: rel.to_string(),
+                            bytes: file.bytes.clone(),
+                            sha256: file.sha256.clone(),
+                        })
+                    })
+                    .collect();
+                let group = intake::SavedGroup {
+                    record: record.clone(),
+                    files,
+                    dir: root_path.join(&prefix),
+                };
+                let source = inputs
+                    .files
+                    .iter()
+                    .find(|file| file.path == record.source.path)
+                    .and_then(|file| std::str::from_utf8(&file.bytes).ok())
+                    .ok_or_else(|| {
+                        ValidationFailure::new(
+                            format!("unit `{id_text}` field check has no captured owning source"),
+                            vec!["restore the owning source and resend validate".into()],
+                        )
+                    })?;
+                validate_trait_unit(&id, &group, source, &mut checks)?;
+            }
             _ => {
                 return Err(ValidationFailure::new(
                     format!(
-                        "unit `{id_text}` ({}) carries unexpected `implementation.js`: only keyword and view units own saved JavaScript in v1",
+                        "unit `{id_text}` ({}) carries unexpected `implementation.js`: only keywords, checked field traits and views own saved JavaScript",
                         kind.as_str(),
                     ),
                     vec![
@@ -6960,7 +7206,7 @@ fn validate_one_saved_file(
         ));
     } else if rel == "contributions.can" {
         let text = String::from_utf8_lossy(bytes).into_owned();
-        let (_, parse_diags) = crate::syntax::parse_source(SourceId(0), &text);
+        let (_, parse_diags) = crate::analysis::types::parse_given_carrier(SourceId(0), &text);
         if !parse_diags.is_empty() {
             return Err(ValidationFailure::new(
                 format!(

@@ -277,3 +277,184 @@ console.log('descriptor arrays: exact counts, authored construction order, repea
         String::from_utf8_lossy(&result.stderr)
     );
 }
+
+#[test]
+fn computed_message_formats_validate_every_reachable_descriptor() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    let scratch = tempfile::tempdir().unwrap();
+    for (expression, expected) in [
+        (
+            "format(choose(true,\"Hi\"@{},\"{unknown}\"@{}),locale=null)",
+            "E5007",
+        ),
+        (
+            "format(choose(true,\"Hi\"@{},\"Bye\"@{nl=\"{unknown}\"}),locale=null)",
+            "E5007",
+        ),
+        (
+            "format(choose(true,\"Hi\"@{},choose(false,\"{unknown}\"@{},\"Bye\"@{})),locale=null)",
+            "E5007",
+        ),
+        (
+            "format(choose(true,\"Hi\"@{},\"ordinary text\"),locale=null)",
+            "E3005",
+        ),
+        ("format(choose(true,\"Hi\"@{},named),locale=null)", "E3005"),
+        ("format(choose(true,\"Hi\"@{},null),locale=null)", "E3005"),
+    ] {
+        let input = scratch.path().join("computed-negative.can");
+        std::fs::write(
+            &input,
+            format!(
+                "app ComputedNegative\nGiven\n message named=\"Hi\"@{{}}\n derive shown():text={expression}\nWhen\nThen\n"
+            ),
+        )
+        .unwrap();
+        let result = Command::new(env!("CARGO_BIN_EXE_can"))
+            .args(["compile", "--format=json", "--catalog"])
+            .arg(root.join("packages/values/dist/catalog.json"))
+            .arg(input)
+            .env_remove("CAN_CATALOG")
+            .output()
+            .unwrap();
+        let output: serde_json::Value = serde_json::from_slice(&result.stdout).unwrap();
+        assert_eq!(result.status.code(), Some(10), "{expression}: {output}");
+        assert!(output.get("modules").is_none(), "{expression}: {output}");
+        let diagnostics = output["diagnostics"].as_array().unwrap();
+        assert!(
+            diagnostics
+                .iter()
+                .any(|finding| finding["code"] == expected),
+            "{expression}: {output}"
+        );
+        assert!(
+            diagnostics
+                .iter()
+                .all(|finding| !finding["code"].as_str().unwrap().starts_with("E1")),
+            "negative must parse: {expression}: {output}"
+        );
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn computed_message_formats_execute_selected_schemas_without_rebinding() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    let scratch = tempfile::tempdir().unwrap();
+    std::os::unix::fs::symlink(
+        root.join("node_modules"),
+        scratch.path().join("node_modules"),
+    )
+    .unwrap();
+    let source = r#"app ComputedFormats source="FR"
+Given
+ contract Inputs {condition:bool,other:bool,n:int,label:text,target:locale?}
+ export derive raw(condition:bool):text=format(choose(condition,"Salut"@{},"Au revoir"@{}),locale=null)
+ export derive bound(value:Inputs):text=format(choose(value.condition,"Nombre {n}"@{nl="Aantal {n}"}(n=value.n),"Mot {label}"@{nl="Woord {label}"}(label=value.label)),locale=value.target)
+ export derive sameSlot(value:Inputs):text=format(choose(value.condition,"{value,number}"@{nl="Getal {value,number}"}(value=value.n),"{value}"@{nl="Tekst {value}"}(value=value.label)),locale=value.target)
+ export derive reordered(value:Inputs):text=format(choose(value.condition,"A {n}|{label}"@{nl="Eén {n}|{label}"}(n=value.n,label=value.label),"B {n}|{label}"@{nl="Twee {n}|{label}"}(label=value.label,n=value.n)),locale=value.target)
+ export derive localeFirst(value:Inputs):text=format(locale=value.target,descriptor=choose(value.condition,"Nombre {n}"@{nl="Aantal {n}"}(n=value.n),"Mot {label}"@{nl="Woord {label}"}(label=value.label)))
+ export derive nested(value:Inputs):text=format(((choose(value.condition,((choose(value.other,"Nombre {n}"@{nl="Aantal {n}"}(n=value.n),"Mot {label}"@{nl="Woord {label}"}(label=value.label)))),"Fin"@{}))),locale=value.target)
+When
+ export scenario aliased(value:Inputs) -> text by=members
+  do
+   let selected=choose(value.condition,"Nombre {n}"@{nl="Aantal {n}"}(n=value.n),"Mot {label}"@{nl="Woord {label}"}(label=value.label))
+   let alias=((selected))
+   let formatted=format(((alias)),locale=value.target)
+   return "aliased"
+Then
+"#;
+    let input = scratch.path().join("computed.can");
+    let artifact = scratch.path().join("computed.json");
+    std::fs::write(&input, source).unwrap();
+    let result = Command::new(env!("CARGO_BIN_EXE_can"))
+        .args(["compile", "--format=json", "--catalog"])
+        .arg(root.join("packages/values/dist/catalog.json"))
+        .arg(&input)
+        .env_remove("CAN_CATALOG")
+        .output()
+        .unwrap();
+    let output: serde_json::Value = serde_json::from_slice(&result.stdout).unwrap();
+    assert!(result.status.success(), "{output}");
+    assert!(!output["modules"].as_array().unwrap().is_empty());
+    std::fs::write(&artifact, &result.stdout).unwrap();
+    let script = r#"
+import assert from 'node:assert/strict';
+import {readFileSync,writeFileSync} from 'node:fs';
+import {resolve} from 'node:path';
+import {pathToFileURL} from 'node:url';
+import {assembleModules} from '@canlang/cloudflare/runtime/modules';
+const [artifactPath,sourcePath,scratch]=process.argv.slice(1);
+// Observe the actual installed formatter's result for a scenario-local value.
+const stdlib=JSON.stringify(import.meta.resolve('@canlang/stdlib'));
+const observed=resolve(scratch,'observed-stdlib.mjs');
+globalThis.computedFormatted=[];
+writeFileSync(observed,`export * from ${stdlib};import {format as actual} from ${stdlib};export function format(...args){const result=actual(...args);globalThis.computedFormatted.push(result);return result}`);
+const assembled=await assembleModules({artifact:JSON.parse(readFileSync(artifactPath,'utf8')),sourcePath},{
+ workDir:resolve(scratch,'modules'),stdlibUrl:pathToFileURL(observed).href,uiUrl:import.meta.resolve('@canlang/ui'),
+});
+const registry=(await import(assembled.entryUrl)).canApp();
+const context={formatting:{appDefault:'nl'},team:null,memberships:['members']};
+for(const [condition,text] of [[true,'Salut'],[false,'Au revoir']]) {
+ assert.deepEqual(await registry['ComputedFormats.raw']({...context,formatting:{appDefault:'es'}},condition),{text,locale:'fr'},'selected raw descriptor preserves canonical owning source locale');
+}
+const trace=[];
+function observedInput(condition=true,other=false,target=null,fail) {
+ const values={condition,other,n:7n,label:'tâche',target};
+ return Object.defineProperties({},Object.fromEntries(Object.keys(values).map(name=>[name,{get(){trace.push(name);if(name===fail)throw failure;return values[name]}}])));
+}
+const failure=new Error('first failing operand');
+for(const [condition,text] of [[true,'Aantal 7'],[false,'Woord tâche']]) {
+ trace.length=0;
+ assert.deepEqual(await registry['ComputedFormats.bound'](context,observedInput(condition)),{text,locale:'nl'});
+ assert.deepEqual(trace,['condition','n','label','target'],'both distinct bound schemas capture eagerly once');
+ trace.length=0;
+ assert.deepEqual(await registry['ComputedFormats.localeFirst'](context,observedInput(condition)),{text,locale:'nl'});
+ assert.deepEqual(trace,['target','condition','n','label'],'named arguments retain authored locale-first evaluation');
+ trace.length=0;
+ globalThis.computedFormatted.length=0;
+ assert.equal(await registry['ComputedFormats.aliased'](context,{value:observedInput(condition)}),'aliased');
+ assert.deepEqual(globalThis.computedFormatted,[{text,locale:'nl'}],'immutable aliases format the selected captured schema');
+ assert.deepEqual(trace,['condition','n','label','target'],'alias reads never recapture operands');
+}
+for(const [condition,text] of [[true,'Getal 7'],[false,'Tekst tâche']]) {
+ trace.length=0;
+ assert.deepEqual(await registry['ComputedFormats.sameSlot'](context,observedInput(condition)),{text,locale:'nl'},'same slot selects the checked canonical int or text type');
+ assert.deepEqual(trace,['condition','n','label','target']);
+}
+for(const [condition,text] of [[true,'Eén 7|tâche'],[false,'Twee 7|tâche']]) {
+ trace.length=0;
+ assert.deepEqual(await registry['ComputedFormats.reordered'](context,observedInput(condition)),{text,locale:'nl'},'equal name/type schemas match independently of authored capture order');
+ assert.deepEqual(trace,['condition','n','label','label','n','target'],'schema matching does not reorder or repeat either eager operand capture');
+}
+for(const [condition,other,text] of [[true,true,'Aantal 7'],[true,false,'Woord tâche'],[false,true,'Fin']]) {
+ trace.length=0;
+ const result=await registry['ComputedFormats.nested'](context,observedInput(condition,other));
+ assert.deepEqual(result,{text,locale:condition?'nl':'fr'});
+ assert.deepEqual(trace,['condition','other','n','label','target'],'nested grouped choices retain every eager operand');
+}
+assert.deepEqual(await registry['ComputedFormats.bound'](context,{condition:false,other:false,n:7n,label:'tâche',target:'fr'}),{text:'Mot tâche',locale:'fr'},'explicit locale formats the selected text schema');
+for(const [name,order] of [['bound',['condition','n','label','target']],['localeFirst',['target','condition','n','label']]]) {
+ for(const fail of order) {
+  trace.length=0;
+  await assert.rejects(registry['ComputedFormats.'+name](context,observedInput(false,false,null,fail)),error=>error===failure);
+  assert.deepEqual(trace,order.slice(0,order.indexOf(fail)+1),'first failure stops later operands without replacement');
+ }
+}
+console.log('computed formats: selected schemas/locales, eager operands, aliases and first failure passed');
+"#;
+    let result = Command::new("node")
+        .args(["--input-type=module", "--eval", script])
+        .arg(&artifact)
+        .arg(&input)
+        .arg(scratch.path())
+        .current_dir(root)
+        .output()
+        .unwrap();
+    assert!(
+        result.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&result.stdout),
+        String::from_utf8_lossy(&result.stderr)
+    );
+}

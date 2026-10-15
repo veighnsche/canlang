@@ -284,7 +284,10 @@ fn original_loyalty_bound_panels_keep_their_checked_cases_labels_and_bodies_in_i
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
     let original = include_str!("../../draft/apps/CanLoyalty/CanLoyalty.can");
     let mut db = SourceDb::new();
-    let id = db.add("draft/apps/CanLoyalty/CanLoyalty.can".into(), original.into());
+    let id = db.add(
+        "draft/apps/CanLoyalty/CanLoyalty.can".into(),
+        original.into(),
+    );
     let path = root.join("packages/values/dist/catalog.json");
     let (catalog, diagnostics) = load_catalog(&CatalogRequest {
         flag: Some(&path),
@@ -812,7 +815,7 @@ const trace=[];
 let childReads=0;
 const invocation={probe:'producer-only'};
 const formContext={
- appDefaultLocale:'en',preferredLocales:[],invocation,
+ appDefaultLocale:'en',preferredLocales:[],invocation,memberships:[],canonical:{builtinRoles:['public']},
  async prepareForm(request) {
   const label=typeof request.submit==='string'?request.submit:request.submit.source;
   trace.push(['prepare:start',request.operation,label]);
@@ -866,6 +869,52 @@ console.log('actual UI adapter and controlled async unavailable-form producer pa
 }
 
 #[test]
+fn disclosure_open_requires_nonnullable_bool_during_analysis() {
+    use canlang_compiler::analysis::{resolve, types};
+    use canlang_compiler::source::SourceDb;
+    use canlang_compiler::syntax;
+
+    for component in ["details", "collapse"] {
+        for (operand, expected) in [
+            ("true", None),
+            ("false", None),
+            ("row.expanded", None),
+            ("preferences.expanded", None),
+            ("1", Some("E3007")),
+            ("\"yes\"", Some("E3007")),
+            ("row.optional", Some("E3007")),
+            ("absent", Some("E2001")),
+        ] {
+            let source = format!(
+                "app Ui\nGiven\n Probe {{title:text,expanded:bool,optional:bool?}}\nWhen\nThen\n preferences {{expanded:bool=false}}\n page / title=\"Page\"\n  list Probe\n   {component} \"Caption\" open={operand}\n    text row.title\n"
+            );
+            let mut db = SourceDb::new();
+            let id = db.add("disclosure.can".into(), source.clone());
+            let (tree, mut diagnostics) = syntax::parse(&db, id);
+            assert!(diagnostics.is_empty(), "{source}\n{diagnostics:?}");
+            let trees = vec![(id, tree)];
+            let resolved = resolve::resolve_program(&db, &trees, None, &mut diagnostics);
+            let typed = types::check_types(&db, &trees, None, &resolved, &mut diagnostics);
+            resolve::emit_unresolved(&db, &resolved, &typed, &mut diagnostics);
+            assert_eq!(
+                diagnostics.iter().map(|d| d.code).collect::<Vec<_>>(),
+                expected.into_iter().collect::<Vec<_>>(),
+                "{source}\n{diagnostics:?}"
+            );
+            if expected.is_some() {
+                let start = source.find("open=").unwrap() + "open=".len();
+                assert_eq!(diagnostics[0].primary.start as usize, start, "{source}");
+                assert_eq!(
+                    diagnostics[0].primary.end as usize,
+                    start + operand.len(),
+                    "{source}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
 fn unsupported_ui_payloads_refuse_instead_of_losing_authored_meaning() {
     use std::path::PathBuf;
     use std::process::Command;
@@ -876,10 +925,7 @@ fn unsupported_ui_payloads_refuse_instead_of_losing_authored_meaning() {
             "  details \"Caption\" display=drawer\n   text \"Body\"\n",
             "details",
         ),
-        (
-            "  details \"Caption\" open=1\n   text \"Body\"\n",
-            "collapse",
-        ),
+        ("  details \"Caption\" open=1\n   text \"Body\"\n", "open="),
         (
             "  tabs \"Unused\"@{nl=\"Ongebruikt\"}\n   tab \"One\"\n    text \"Body\"\n",
             "bound tab panels",
@@ -896,10 +942,7 @@ fn unsupported_ui_payloads_refuse_instead_of_losing_authored_meaning() {
         ("  badge \"Value\" unknown=true\n", "badge"),
         ("  details \"Caption\"\n   require false\n", "details"),
         ("  collapse\n   text \"Body\"\n", "collapse"),
-        (
-            "  collapse \"Caption\" open=1\n   text \"Body\"\n",
-            "collapse",
-        ),
+        ("  collapse \"Caption\" open=1\n   text \"Body\"\n", "open="),
         ("  collapse \"Caption\"\n   require false\n", "collapse"),
         (
             "  collapse \"Caption\"\n   slot content\n    text \"Body\"\n",
@@ -939,6 +982,8 @@ fn unsupported_ui_payloads_refuse_instead_of_losing_authored_meaning() {
         let diagnostic: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
         let expected_code = if profile == "bound tab panels" {
             "E3001"
+        } else if profile == "open=" {
+            "E3007"
         } else if profile == "absent" {
             "E2001"
         } else {
@@ -959,6 +1004,134 @@ fn unsupported_ui_payloads_refuse_instead_of_losing_authored_meaning() {
         assert!(
             diagnostic.get("modules").is_none(),
             "{profile} published modules"
+        );
+    }
+}
+
+#[test]
+fn nullable_file_destinations_reach_presenter_once_in_authored_order() {
+    use std::process::Command;
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap();
+    let scratch = tempfile::tempdir().unwrap();
+    let source = scratch.path().join("file-target.can");
+    std::fs::write(
+        &source,
+        r#"app FileTargets
+Given
+ Item {caption:text, pdf:file?, direct:file, show:bool}
+ policy Item read=members
+When
+Then
+ page / title="Files"
+  list Item
+   button caption=row.caption target=row.pdf
+    require row.show
+   primary "Direct PDF" target=row.direct
+    require row.show
+   text "After files"
+"#,
+    )
+    .unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_can"))
+        .args(["compile", "--format=json", "--catalog"])
+        .arg(root.join("packages/values/dist/catalog.json"))
+        .arg(&source)
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stdout)
+    );
+    let artifact = scratch.path().join("artifact.json");
+    std::fs::write(&artifact, output.stdout).unwrap();
+    let runner = scratch.path().join("consume.mjs");
+    std::fs::write(&runner, r#"
+import assert from 'node:assert/strict';
+import {writeFileSync} from 'node:fs';
+import {resolve} from 'node:path';
+import {pathToFileURL} from 'node:url';
+const [root,artifactPath,scratch]=process.argv.slice(2);
+const load=path=>import(pathToFileURL(resolve(root,path)));
+const {loadArtifactFile}=await load('packages/cloudflare/dist/runtime/artifact.js');
+const {assembleModules}=await load('packages/cloudflare/dist/runtime/modules.js');
+const fixture={trace:[],show:true,target:null,withheld:false,failure:false};
+globalThis.fileTargetFixture=fixture;
+const native={show:true};
+for(const name of ['show','caption','pdf','direct']) Object.defineProperty(native,name,{enumerable:true,configurable:true,get(){
+ fixture.trace.push(name);
+ if(name==='show')return fixture.show;
+ if(!fixture.show)throw new Error('hidden target evaluated');
+ return name==='caption'?'Open <PDF>':name==='pdf'?fixture.target:{kind:'file',id:'direct'};
+}});
+fixture.native=native;
+const uiPath=resolve(scratch,'ui.mjs');
+writeFileSync(uiPath,`export * from ${JSON.stringify(pathToFileURL(resolve(root,'packages/ui/dist/src/index.js')).href)};
+export async function list(props){const f=globalThis.fileTargetFixture;return (await props.renderRow({id:'item',version:'1',fields:{}},props.context,f.native)).join('');}`);
+const loaded=loadArtifactFile(artifactPath);
+const asm=await assembleModules(loaded,{workDir:resolve(scratch,'modules'),stdlibUrl:pathToFileURL(resolve(root,'packages/cloudflare/dist/runtime/stdlib.js')).href,uiUrl:pathToFileURL(uiPath).href});
+const ref=loaded.artifact.pages[0],module=await import(asm.moduleUrls[ref.module]);
+const page=module[ref.export];
+const context={path:'/',preferredLocales:[],appDefaultLocale:'en',memberships:[],canonical:{builtinRoles:[]},async presentFile(file){
+ fixture.trace.push(`present:${file.id}:start`);await Promise.resolve();
+ if(fixture.failure)throw new Error('presenter-failed');
+ fixture.trace.push(`present:${file.id}:end`);
+ return fixture.withheld?null:{href:`/files/read/${file.id}`};
+}};
+let html=await page.render(context,{});
+assert.ok(html.includes('disabled aria-disabled="true">Open &lt;PDF&gt;'));
+assert.ok(html.includes('href="/files/read/direct"'));
+assert.deepEqual(fixture.trace,['show','caption','pdf','show','direct','present:direct:start','present:direct:end']);
+fixture.trace=[];fixture.target={kind:'file',id:'optional'};
+html=await page.render(context,{});
+assert.ok(html.indexOf('/files/read/optional')<html.indexOf('/files/read/direct'));
+assert.ok(html.indexOf('/files/read/direct')<html.indexOf('After files'));
+assert.deepEqual(fixture.trace,['show','caption','pdf','present:optional:start','present:optional:end','show','direct','present:direct:start','present:direct:end']);
+fixture.trace=[];fixture.withheld=true;
+html=await page.render(context,{});assert.equal((html.match(/disabled aria-disabled/g)||[]).length,2);assert.ok(!html.includes('href='));
+fixture.trace=[];fixture.show=false;
+html=await page.render(context,{});assert.deepEqual(fixture.trace,['show','show']);assert.ok(!html.includes('Open &lt;PDF&gt;'));
+fixture.trace=[];fixture.show=true;fixture.failure=true;
+await assert.rejects(page.render(context,{}),/presenter-failed/);
+assert.deepEqual(fixture.trace,['show','caption','pdf','present:optional:start'],'first presenter failure prevents following sibling evaluation');
+delete globalThis.fileTargetFixture;
+"#).unwrap();
+    let result = Command::new("node")
+        .arg(runner)
+        .arg(root)
+        .arg(artifact)
+        .arg(scratch.path())
+        .output()
+        .unwrap();
+    assert!(
+        result.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&result.stdout),
+        String::from_utf8_lossy(&result.stderr)
+    );
+    // The extension is exact File?, not arbitrary nullable destinations or collections.
+    for ty in ["url?", "file[]"] {
+        let bad = format!(
+            "app InvalidFileTarget\nGiven\n Item {{target:{ty}}}\nWhen\nThen\n page / title=\"Files\"\n  list Item\n   button caption=\"Open\" target=row.target\n"
+        );
+        std::fs::write(&source, bad).unwrap();
+        let output = Command::new(env!("CARGO_BIN_EXE_can"))
+            .args(["check", "--format=json", "--catalog"])
+            .arg(root.join("packages/values/dist/catalog.json"))
+            .arg(&source)
+            .output()
+            .unwrap();
+        assert!(!output.status.success(), "{ty} unexpectedly accepted");
+        let diagnostics: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert!(
+            diagnostics["diagnostics"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|d| d["code"] == "E3001"),
+            "{diagnostics}"
         );
     }
 }

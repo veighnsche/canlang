@@ -837,17 +837,15 @@ impl SemanticJoin<'_> {
                     args: a,
                     descriptor_index: x,
                     locale_index: u,
-                    source_lang: p,
-                    param_types: i,
+                    schemas: p,
                 },
                 IrExpr::Format {
                     args: b,
                     descriptor_index: y,
                     locale_index: v,
-                    source_lang: q,
-                    param_types: j,
+                    schemas: q,
                 },
-            ) if x == y && u == v && p == q && i == j => self.expressions(a, b, depth + 1)?,
+            ) if x == y && u == v && p == q => self.expressions(a, b, depth + 1)?,
             (
                 IrExpr::DeliveryRead {
                     record: x,
@@ -1523,8 +1521,12 @@ impl<'a> FreshSourceContext<'a> {
         program
             .validate_cohort(db, catalog)
             .map_err(|_| SourcePreparationGap::Cohort)?;
-        let (original, diagnostics) =
-            crate::analysis::check_program(db, program.checked_files(), catalog);
+        let (original, diagnostics) = crate::analysis::check_program_with_given(
+            db,
+            program.checked_files(),
+            catalog,
+            program.original_given(),
+        );
         if diagnostics
             .iter()
             .any(|d| d.severity == crate::diagnostic::Severity::Error)
@@ -1552,9 +1554,14 @@ impl<'a> FreshSourceContext<'a> {
             trees.push((file, tree));
         }
         let mut diagnostics = Vec::new();
-        let resolved =
-            crate::analysis::resolve::try_resolve_program(db, &trees, catalog, &mut diagnostics)
-                .map_err(|_| SourcePreparationGap::Resolution)?;
+        let resolved = crate::analysis::resolve::try_resolve_program_with_given(
+            db,
+            &trees,
+            catalog,
+            program.original_given(),
+            &mut diagnostics,
+        )
+        .map_err(|_| SourcePreparationGap::Resolution)?;
         if diagnostics
             .iter()
             .any(|d| d.severity == crate::diagnostic::Severity::Error)
@@ -1907,6 +1914,11 @@ fn serialize_read_predicates(sources: &FreshSourceContext<'_>) -> Option<Vec<Ser
                 };
                 if predicates.next().is_some() {
                     return None;
+                }
+                // Checked data filters are compared by the complete fresh UI
+                // join above and carry no callable decision census.
+                if matches!(&predicate.expr, IrExpr::Object(_)) {
+                    continue;
                 }
                 let IrExpr::Lambda { body, .. } = &predicate.expr else {
                     return None;
