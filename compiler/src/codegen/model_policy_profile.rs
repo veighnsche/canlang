@@ -1101,6 +1101,16 @@ fn policy_field(
     name: &str,
     ty: &ResolvedType,
 ) -> Option<SymbolId> {
+    policy_field_with_required_array(program, model, name, ty, false)
+}
+
+fn policy_field_with_required_array(
+    program: &IrProgram,
+    model: SymbolId,
+    name: &str,
+    ty: &ResolvedType,
+    allow_required_array: bool,
+) -> Option<SymbolId> {
     let owner = policy_model(program, model)?;
     let IrItemKind::Model { fields, .. } = &owner.kind else {
         return None;
@@ -1118,8 +1128,9 @@ fn policy_field(
         || field.span.file != module.file
         || !contains_span(module.span, field.span)
         || field.canonical != format!("{}.{}", owner.canonical, name)
-        || !matches!(&field.kind, IrItemKind::Field { owner: own, ty: IrType::Known(actual), required_array: false,
-            server: None, modifiers, .. } if *own == model && actual == ty && !modifiers.machine)
+        || !matches!(&field.kind, IrItemKind::Field { owner: own, ty: IrType::Known(actual), required_array,
+            server: None, modifiers, .. } if *own == model && actual == ty && !modifiers.machine
+                && (!*required_array || allow_required_array && matches!(actual, ResolvedType::Array { .. })))
     {
         return None;
     }
@@ -1445,5 +1456,497 @@ fn visit(
             Some(())
         }
         _ => None,
+    }
+}
+
+/// Additional no-query leaves after the caller seals the complete original
+/// source/fresh policy closure. Raw local_rule_fields remains unchanged.
+pub(crate) fn checked_local_rule_fields(
+    checked: &crate::analysis::CheckedProgram,
+    program: &IrProgram,
+    model: SymbolId,
+    predicate: &TypedExpr,
+    db: &crate::source::SourceDb,
+    catalog: Option<&crate::analysis::catalog::Catalog>,
+) -> Option<Vec<SymbolId>> {
+    use super::ir::IrCallTarget;
+    use crate::analysis::{NodeKey, types::SelectedCallTarget};
+    fn argument(db: &crate::source::SourceDb, key: NodeKey, value: &TypedExpr) -> Option<()> {
+        let (tree, diagnostics) = crate::syntax::parse_source(key.file, &db.get(key.file)?.text);
+        if !diagnostics.is_empty() {
+            return None;
+        }
+        let mut node = tree.descendants().find(|node| NodeKey::of(node) == key)?;
+        for _ in 0..65 {
+            if node.kind != crate::syntax::SyntaxKind::Group {
+                return (node.span == value.span).then_some(());
+            }
+            node = node.children.iter().find(|child| {
+                child.token().is_none()
+                    && !matches!(
+                        child.kind,
+                        crate::syntax::SyntaxKind::Trivia | crate::syntax::SyntaxKind::Comment
+                    )
+            })?;
+        }
+        None
+    }
+    fn call<'a>(
+        checked: &crate::analysis::CheckedProgram,
+        value: &'a TypedExpr,
+        id: &str,
+        arity: usize,
+        db: &crate::source::SourceDb,
+        catalog: Option<&crate::analysis::catalog::Catalog>,
+    ) -> Option<Vec<&'a TypedExpr>> {
+        let (target, args, slots) = match &value.expr {
+            IrExpr::Call { target, args } => {
+                (target, args, (0..args.len()).map(Some).collect::<Vec<_>>())
+            }
+            IrExpr::BoundCall {
+                target,
+                args,
+                slots,
+            } => (target, args, slots.clone()),
+            _ => return None,
+        };
+        if !matches!(target, IrCallTarget::Builtin { id: actual, awaited: false } if actual == id) {
+            return None;
+        }
+        let key = NodeKey {
+            file: value.span.file,
+            start: value.span.start,
+            end: value.span.end,
+            kind: crate::syntax::SyntaxKind::Call as u8,
+        };
+        let selected = checked.types.selected_calls.get(&key)?;
+        if !matches!(&selected.target, SelectedCallTarget::Builtin { id: actual, overload: 0 } if actual == id)
+            || selected.arguments.len() != arity
+            || args.len() != arity
+            || selected.slots != slots
+            || slots.len() != arity
+            || checked.types.node_types.get(&key) != Some(&value.ty)
+        {
+            return None;
+        }
+        let catalog = catalog?;
+        if catalog.lookup(id)?.effects != Some(crate::analysis::catalog::Effects::Pure)
+            || catalog.overloads(id)?.first()?.params.len() != arity
+        {
+            return None;
+        }
+        for (key, arg) in selected.arguments.iter().zip(args) {
+            argument(db, *key, arg)?;
+        }
+        let mut used = HashSet::new();
+        slots
+            .iter()
+            .map(|slot| {
+                let index = (*slot)?;
+                if !used.insert(index) {
+                    return None;
+                }
+                args.get(index)
+            })
+            .collect()
+    }
+    fn field(
+        program: &IrProgram,
+        model: SymbolId,
+        value: &TypedExpr,
+        fields: &mut Vec<SymbolId>,
+    ) -> Option<()> {
+        let IrExpr::Member { field, .. } = &value.expr else {
+            return None;
+        };
+        policy_row_member(value, model, field, &value.ty)?;
+        let id = policy_field_with_required_array(
+            program,
+            model,
+            field,
+            &value.ty,
+            matches!(value.ty, ResolvedType::Array { .. }),
+        )?;
+        if !fields.contains(&id) {
+            fields.push(id);
+        }
+        Some(())
+    }
+    fn operand(
+        checked: &crate::analysis::CheckedProgram,
+        program: &IrProgram,
+        model: SymbolId,
+        value: &TypedExpr,
+        fields: &mut Vec<SymbolId>,
+        db: &crate::source::SourceDb,
+        catalog: Option<&crate::analysis::catalog::Catalog>,
+    ) -> Option<()> {
+        if let Some(args) = call(checked, value, "count", 1, db, catalog) {
+            if value.ty != ResolvedType::Scalar(Scalar::Int)
+                || !matches!(args[0].ty, ResolvedType::Array { .. })
+            {
+                return None;
+            }
+            return field(program, model, args[0], fields);
+        }
+        if let Some(args) = call(checked, value, "trim", 1, db, catalog) {
+            if value.ty != ResolvedType::Scalar(Scalar::Text)
+                || args[0].ty != ResolvedType::Scalar(Scalar::Text)
+            {
+                return None;
+            }
+            return field(program, model, args[0], fields);
+        }
+        // Existing scalar semantics may form the other comparison operand;
+        // calls cannot enter arithmetic recursively through this fallback.
+        visit(program, model, value, fields, false)
+    }
+    fn boolean(
+        checked: &crate::analysis::CheckedProgram,
+        program: &IrProgram,
+        model: SymbolId,
+        value: &TypedExpr,
+        fields: &mut Vec<SymbolId>,
+        db: &crate::source::SourceDb,
+        catalog: Option<&crate::analysis::catalog::Catalog>,
+        depth: usize,
+    ) -> Option<()> {
+        if depth > 64 || value.ty != ResolvedType::Scalar(Scalar::Bool) {
+            return None;
+        }
+        if let Some(local) = local_rule_fields(program, model, value).or_else(|| {
+            let fields = required_model_rule_fields(program, model, value)?;
+            required_model_rule_dependencies(program, model, value)?
+                .is_empty()
+                .then_some(fields)
+        }) {
+            for id in local {
+                if !fields.contains(&id) {
+                    fields.push(id);
+                }
+            }
+            return Some(());
+        }
+        if let Some(args) = call(checked, value, "starts_with", 2, db, catalog) {
+            if !matches!(args[0].ty, ResolvedType::Scalar(Scalar::Text | Scalar::Url))
+                || args[1].ty != ResolvedType::Scalar(Scalar::Text)
+                || !matches!(args[1].expr, IrExpr::Text(_))
+            {
+                return None;
+            }
+            return field(program, model, args[0], fields);
+        }
+        if let IrExpr::Unary {
+            op: IrUnOp::Not,
+            operand,
+        } = &value.expr
+        {
+            return boolean(
+                checked,
+                program,
+                model,
+                operand,
+                fields,
+                db,
+                catalog,
+                depth + 1,
+            );
+        }
+        let IrExpr::Binary { op, left, right } = &value.expr else {
+            return None;
+        };
+        policy_binary(value, *op)?;
+        if matches!(op, IrBinOp::And | IrBinOp::Or) {
+            boolean(
+                checked,
+                program,
+                model,
+                left,
+                fields,
+                db,
+                catalog,
+                depth + 1,
+            )?;
+            return boolean(
+                checked,
+                program,
+                model,
+                right,
+                fields,
+                db,
+                catalog,
+                depth + 1,
+            );
+        }
+        if matches!(op, IrBinOp::Eq | IrBinOp::Ne)
+            && (matches!(left.expr, IrExpr::Null) || matches!(right.expr, IrExpr::Null))
+        {
+            let (read, null) = if matches!(left.expr, IrExpr::Null) {
+                (right, left)
+            } else {
+                (left, right)
+            };
+            let ty = read.ty.nullable_inner().unwrap_or(&read.ty);
+            let ResolvedType::Record {
+                symbol,
+                stored: true,
+            } = ty
+            else {
+                return None;
+            };
+            policy_model(program, *symbol)?;
+            if null.ty != ResolvedType::Null {
+                return None;
+            }
+            let IrExpr::Member { field, .. } = &read.expr else {
+                return None;
+            };
+            policy_row_member(read, model, field, &read.ty)?;
+            let declared = ResolvedType::Nullable(Box::new(ty.clone()));
+            let id = policy_field(program, model, field, &declared)?;
+            if !fields.contains(&id) {
+                fields.push(id);
+            }
+            return Some(());
+        }
+        if left.ty != right.ty
+            || !(matches!(op, IrBinOp::Eq | IrBinOp::Ne)
+                && matches!(
+                    left.ty,
+                    ResolvedType::Scalar(Scalar::Int | Scalar::Text | Scalar::Bool)
+                )
+                || matches!(op, IrBinOp::Lt | IrBinOp::Le | IrBinOp::Gt | IrBinOp::Ge)
+                    && left.ty == ResolvedType::Scalar(Scalar::Int))
+        {
+            return None;
+        }
+        operand(checked, program, model, left, fields, db, catalog)?;
+        operand(checked, program, model, right, fields, db, catalog)
+    }
+    policy_model(program, model)?;
+    let mut fields = Vec::new();
+    boolean(
+        checked,
+        program,
+        model,
+        predicate,
+        &mut fields,
+        db,
+        catalog,
+        0,
+    )?;
+    Some(fields)
+}
+
+#[cfg(test)]
+mod checked_local_leaf_tests {
+    use super::*;
+    use crate::analysis::{
+        CheckedProgram,
+        catalog::{Catalog, CatalogRequest, load_catalog},
+        check_program,
+    };
+    use crate::codegen::{ir, js, model_policies};
+    use crate::source::{SourceDb, Span};
+    use std::{collections::BTreeMap, path::Path, process::Command};
+
+    const SOURCE: &str = "package Shared\n Given\n  export Location {name:text}\n  export contract Terms {title:text}\n When\n Then\napp LeafRules\nuse Shared {Location,Terms}\nGiven\n Portfolio {sites:Location[],products:text[]!,agreement:Terms.title,destination:url,window:duration,amount:money}\n Choice {first:Portfolio?,second:Portfolio?}\n invariant Portfolio: row.window>0m and row.amount.minor>0 and count(domain=(row.sites))>0 and count(row.products)>0 and trim((row.agreement))!=\"\" and starts_with(prefix=\"https://\",value=(row.destination))\n invariant Choice: (row.first!=null and row.second==null) or (row.first==null and row.second!=null)\nWhen\nThen\n";
+    fn checked(source: &str) -> (SourceDb, CheckedProgram, IrProgram, Catalog) {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+        let path = root.join("packages/values/dist/catalog.json");
+        let mut db = SourceDb::new();
+        let file = db.add("leaf-rules.can".into(), source.into());
+        let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+            flag: Some(&path),
+            env: None,
+            cwd: root,
+            primary: Span::new(file, 0, 0),
+        });
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let catalog = catalog.unwrap();
+        let (program, diagnostics) = check_program(&db, &[file], Some(&catalog));
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let (ir, diagnostics) = ir::build(&program, &db, Some(&catalog));
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        (db, program, ir, catalog)
+    }
+    #[test]
+    fn checked_pure_invariant_leaves_keep_raw_refusal_source_slots_and_lazy_values() {
+        for renamed in [false, true] {
+            let source = if renamed {
+                SOURCE
+                    .replace("Portfolio", "Catalog")
+                    .replace("Choice", "Selection")
+                    .replace("sites", "locations")
+                    .replace("agreement", "terms")
+                    .replace("title", "caption")
+            } else {
+                SOURCE.into()
+            };
+            let (db, program, ir, catalog) = checked(&source);
+            let module = js::module_path("LeafRules");
+            assert!(
+                model_policies::collect_local_policies(&ir, &module).is_none(),
+                "raw IR cannot issue call-backed native rule bindings"
+            );
+            let policies = model_policies::collect_checked_policies(
+                &program,
+                &ir,
+                &db,
+                Some(&catalog),
+                &module,
+            )
+            .expect("exact checked pure calls and nullable Model presence");
+            assert_eq!(policies.bindings.len(), 2);
+            assert!(
+                policies.dependency_bindings.is_empty(),
+                "no query or foreign reference traversal"
+            );
+            let emitted = js::emit_program_with_feasible_query_sources(
+                &ir,
+                false,
+                &db,
+                &BTreeMap::new(),
+                &BTreeMap::new(),
+                js::EmitDecisionSources {
+                    local_policies: Some(&policies),
+                    ..Default::default()
+                },
+                None,
+            );
+            assert!(emitted.diagnostics.is_empty(), "{:?}", emitted.diagnostics);
+            let scratch = tempfile::tempdir().unwrap();
+            let stdlib = Path::new(env!("CARGO_MANIFEST_DIR"))
+                .parent()
+                .unwrap()
+                .join("packages/cloudflare/dist/runtime/stdlib.js");
+            for module in std::iter::once(&emitted.entry).chain(&emitted.packages) {
+                std::fs::write(
+                    scratch.path().join(&module.path),
+                    module
+                        .js
+                        .replace("@canlang/stdlib", &format!("file://{}", stdlib.display())),
+                )
+                .unwrap();
+            }
+            let portfolio = if renamed {
+                "LeafRules.Catalog"
+            } else {
+                "LeafRules.Portfolio"
+            };
+            let choice = if renamed {
+                "LeafRules.Selection"
+            } else {
+                "LeafRules.Choice"
+            };
+            let sites = if renamed { "locations" } else { "sites" };
+            let agreement = if renamed { "terms" } else { "agreement" };
+            let script = format!(
+                r#"import assert from 'node:assert/strict';
+import {{canApp}} from './{entry}';
+const rules=canApp().modelPolicyBindings.filter(rule=>rule.kind==='invariant');
+const evaluate=rules.find(rule=>rule.model==='{portfolio}').evaluate;
+const choose=rules.find(rule=>rule.model==='{choice}').evaluate;
+const row={{window:1800000n,amount:{{minor:1n,currency:'EUR'}},{sites}:[{{}}],products:['office'],{agreement}:' good ',destination:'https://example.test/'}};
+assert.equal(await evaluate({{}},row),true);
+assert.equal(await evaluate({{}},{{...row,{sites}:[]}}),false);
+assert.equal(await evaluate({{}},{{...row,products:[]}}),false);
+assert.equal(await evaluate({{}},{{...row,{agreement}:'  '}}),false);
+assert.equal(await evaluate({{}},{{...row,destination:'http://example.test/'}}),false);
+let later=0; const stopped={{...row,window:0n,get products(){{later++;throw Error('later array');}},get {agreement}(){{later++;throw Error('later text');}}}};
+assert.equal(await evaluate({{}},stopped),false);assert.equal(later,0);
+const pointer={{get id(){{throw Error('presence must not hydrate reference');}}}};
+assert.equal(await choose({{}},{{first:pointer,second:null}}),true);
+assert.equal(await choose({{}},{{first:null,second:pointer}}),true);
+assert.equal(await choose({{}},{{first:null,second:null}}),false);
+assert.equal(await choose({{}},{{first:pointer,second:pointer}}),false);
+"#,
+                entry = emitted.entry.path
+            );
+            let runner = scratch.path().join("check.mjs");
+            std::fs::write(&runner, script).unwrap();
+            let result = Command::new("node").arg(runner).output().unwrap();
+            assert!(
+                result.status.success(),
+                "{}\n{}",
+                String::from_utf8_lossy(&result.stdout),
+                String::from_utf8_lossy(&result.stderr)
+            );
+            for mode in ["target", "slot", "argument", "owner", "type", "source"] {
+                let (mut changed_program, diagnostics) =
+                    check_program(&db, &[crate::source::SourceId(0)], Some(&catalog));
+                assert!(diagnostics.is_empty());
+                let mut changed = ir.clone();
+                if matches!(mode, "target" | "slot" | "argument") {
+                    let (key,call)=changed_program.types.selected_calls.iter_mut().find(|(_,call)| matches!(&call.target,crate::analysis::types::SelectedCallTarget::Builtin{id,..} if id=="starts_with")).unwrap();
+                    match mode {
+                        "target" => {
+                            call.target = crate::analysis::types::SelectedCallTarget::Builtin {
+                                id: "trim".into(),
+                                overload: 0,
+                            }
+                        }
+                        "slot" => call.slots.reverse(),
+                        _ => call.arguments[0].start = key.start,
+                    }
+                } else if mode == "source" {
+                    changed.invariants[0].pred.span.start += 1;
+                } else {
+                    let field = changed
+                        .items
+                        .iter_mut()
+                        .find(|item| item.canonical == format!("{portfolio}.{sites}"))
+                        .unwrap();
+                    let IrItemKind::Field { owner, ty, .. } = &mut field.kind else {
+                        panic!("field")
+                    };
+                    if mode == "owner" {
+                        *owner = SymbolId(u32::MAX);
+                    } else {
+                        *ty = IrType::Known(ResolvedType::Scalar(Scalar::Text));
+                    }
+                }
+                assert!(
+                    model_policies::collect_checked_policies(
+                        &changed_program,
+                        &changed,
+                        &db,
+                        Some(&catalog),
+                        &module
+                    )
+                    .is_none(),
+                    "{mode}"
+                );
+            }
+        }
+        for replacement in [
+            "count(row.sites)+1>0",
+            "trim(row.destination)!=\"\"",
+            "count(row.sites[0])>0",
+        ] {
+            // These are outside the declared direct call operand scope; the
+            // checker may already reject the last two before classification.
+            let source = SOURCE.replace("count(domain=(row.sites))>0", replacement);
+            let mut db = SourceDb::new();
+            let file = db.add("outside-leaves.can".into(), source);
+            let (_, _, _, catalog) = checked(SOURCE);
+            let (program, diagnostics) = check_program(&db, &[file], Some(&catalog));
+            if diagnostics.is_empty() {
+                let (ir, diagnostics) = ir::build(&program, &db, Some(&catalog));
+                if diagnostics.is_empty() {
+                    assert!(
+                        model_policies::collect_checked_policies(
+                            &program,
+                            &ir,
+                            &db,
+                            Some(&catalog),
+                            &js::module_path("LeafRules")
+                        )
+                        .is_none(),
+                        "{replacement}"
+                    );
+                }
+            }
+        }
     }
 }

@@ -2,6 +2,15 @@
 
 ## Current remainder and finite completion
 
+**C02 checked local invariant leaves (2026-10-15, source component qualified).**
+Existing checked/fresh-source policy intake now admits direct owning array count,
+trim, text/URL starts_with and nullable Model presence. Required `[]!` arrays keep
+their exact declaration proof; raw IR gains no bindings. Actual selected builtin/
+slot/argument/owner/type/source joins and lazy failure order remain mandatory.
+Renamed/reused-field/generated-predicate and corruption controls pass1/.46s;
+existing required-path and reverse-parent controls pass2/.04s. Original Partner
+activation remains open for its full query invariant/dependency/owner-read closure.
+
 **C02 next dependency-ordered implementation (2026-10-15).**
 Current execution remains this record. Promotion caller-array lowering owns the
 next native6 retry; no original expected values change. Partner activation then
@@ -35,8 +44,13 @@ now stops before execution:10E6008 role-reference failures inside caller arrays
 (2.82s). Checker and Testkit already support role arrays. Exact caller-only canonical
 role lowering now passes its owning CLI/emitted/Testkit test1/.94s, including
 import aliases and invalid-member refusals; tested snapshot
-`/tmp/can-compiler-example-role-arrays`. Native6 retry is running before draft
-commit; no native acceptance is inferred from the component check.
+`/tmp/can-compiler-example-role-arrays`. The actual Testkit table adapter was also missing; it now passes6/.404s
+loader/accounts controls including cross-realm and empty-role default membership,
+and its normal package build. The earlier JEV context overstated that receiving
+implementation; this corrects mechanics without changing the source choice.
+Native6 now awaits a fresh coherent compiler/receiver closure: concurrent FIRST
+Rust edits correctly invalidate the old frozen CLI in preview input checks.
+Preflight failures execute no rows; no native acceptance or draft commit yet.
 
 **C02 consumed decision CST index (2026-10-15, qualified source component).**
 Index exact checked decision/statement/call/argument/default/derive-body subtrees
