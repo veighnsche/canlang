@@ -374,6 +374,14 @@ fn serialize_query_any_prepared(
     same_scenario_semantics(program, ir, &fresh, ir.items.get(owner.id.0 as usize)?)?;
     if let Some(plan) =
         super::scenario_receipts::checked_native_helper_any_query_plan(ir, owner, db, entry_module)
+            .or_else(|| {
+                super::scenario_receipts::checked_native_mixed_helper_query_plan(
+                    ir,
+                    owner,
+                    db,
+                    entry_module,
+                )
+            })
     {
         if let Some(prepared) = prepared {
             prepared.decisions(owner)?;
@@ -383,41 +391,46 @@ fn serialize_query_any_prepared(
         use crate::analysis::scenario_disclosure::{
             CheckedDecisionCallTarget, CheckedDecisionStage,
         };
-        let [query] = source.queries.as_deref()? else {
-            return None;
-        };
-        let outer = *query.dependencies.first()?.calls.first()?;
-        let sites: Vec<_> = source
-            .decision_sites
+        let mixed = plan.queries.len() == 3;
+        let mut metadata = Vec::new();
+        for query in source
+            .queries
             .as_deref()?
             .iter()
-            .filter(|site| {
-                !matches!(
-                    site.stage,
-                    CheckedDecisionStage::ReadPolicy
-                        | CheckedDecisionStage::ReadPredicate
-                        | CheckedDecisionStage::SendDispatch
-                )
-            })
-            .collect();
-        let mut selected = sites.iter().enumerate().flat_map(|(site_index,site)|
+            .filter(|query| query.first.is_none())
+        {
+            let outer = *query.dependencies.first()?.calls.first()?;
+            let sites: Vec<_> = source
+                .decision_sites
+                .as_deref()?
+                .iter()
+                .filter(|site| {
+                    !matches!(
+                        site.stage,
+                        CheckedDecisionStage::ReadPolicy
+                            | CheckedDecisionStage::ReadPredicate
+                            | CheckedDecisionStage::SendDispatch
+                    )
+                })
+                .collect();
+            let mut selected = sites.iter().enumerate().flat_map(|(site_index,site)|
             site.calls.iter().enumerate().filter_map(move |(call_index,call)|
-                (site.owner == owner.id && site.stage == CheckedDecisionStage::LeadingRequire
-                    && site.node == outer && call.chain.len() == 1 && call.chain[0].node == outer
+                (site.owner == owner.id && (site.stage == CheckedDecisionStage::LeadingRequire
+                    || mixed && site.stage == CheckedDecisionStage::BodyRequire)
+                    && (site.node == outer || mixed) && call.chain.len() == 1 && call.chain[0].node == outer
                     && matches!(&call.target,CheckedDecisionCallTarget::Builtin{id,overload} if id=="any" && *overload==0)
                     && call.arguments.first().is_some_and(|value| value.0==query.node)
                     && call.arguments.get(1).is_some_and(|value| Some(value.0)==query.predicate))
                     .then_some((site_index,call_index))));
-        let (site_index, call_index) = selected.next()?;
-        if selected.next().is_some() {
-            return None;
-        }
-        if plan.queries.len() != 1 {
-            return None;
-        }
-        return Some(serde_json::json!([{"kind":"predicate","queryId":query.id,
+            let (site_index, call_index) = selected.next()?;
+            if selected.next().is_some() {
+                return None;
+            }
+            metadata.push(serde_json::json!({"kind":"predicate","queryId":query.id,
             "dependencyIds":query.dependencies.iter().map(|read|&read.id).collect::<Vec<_>>(),
-            "sourceCall":{"siteIndex":site_index,"callIndex":call_index}}]));
+            "sourceCall":{"siteIndex":site_index,"callIndex":call_index}}));
+        }
+        return Some(serde_json::Value::Array(metadata));
     }
     let IrItemKind::Scenario {
         guards,
@@ -655,16 +668,32 @@ fn collect_complete_query_receipt_prepared(
         prepared.db,
         &plan.source.module,
     );
+    let mixed_plan = super::scenario_receipts::checked_native_mixed_helper_query_plan(
+        ir,
+        owner,
+        prepared.db,
+        &plan.source.module,
+    );
     if helper_plan.is_some()
         || queries
             .iter()
             .any(|query| query.first.is_some() || query.count.is_some())
     {
-        let expected_influences = if helper_plan.is_some() {
+        let expected_influences = if mixed_plan.is_some() {
+            Vec::new()
+        } else if helper_plan.is_some() {
             query.influences.clone()
         } else {
             super::scenario_receipts::checked_native_query_influences(queries)?
         };
+        let mixed = mixed_plan.is_some();
+        if let Some(mut expected) = mixed_plan {
+            let selected = prepared.returns.as_ref()?.returns(ir, owner.id)?;
+            super::scenario_receipts::project_plan_returns(&mut expected, &selected)?;
+            if serde_json::to_value(&plan).ok()? != serde_json::to_value(expected).ok()? {
+                return None;
+            }
+        }
         if prepared.has_diagnostics {
             return None;
         }
@@ -696,7 +725,7 @@ fn collect_complete_query_receipt_prepared(
                     || returned.id != emitted.id
                     || returned.source != original.source_facts()?.source
                     || returned.model_result.is_none()
-                    || returned.influences != expected_influences
+                    || !mixed && returned.influences != expected_influences
                     || emitted.projection.is_some()
                 {
                     return None;
@@ -853,6 +882,21 @@ fn checked_query_plan_full(
     let IrItemKind::Scenario { effects, .. } = &owner.kind else {
         return None;
     };
+    if let Some(plan) = super::scenario_receipts::checked_native_mixed_helper_query_plan(
+        ir,
+        owner,
+        db,
+        entry_module,
+    ) {
+        prepared.decisions(owner)?;
+        super::scenario_receipts::checked_require_consumptions(
+            ir,
+            owner,
+            db,
+            prepared.returns.as_ref()?,
+        )?;
+        return Some(plan);
+    }
     if let Some(plan) =
         super::scenario_receipts::checked_native_helper_any_query_plan(ir, owner, db, entry_module)
     {
@@ -2577,6 +2621,227 @@ mod helper_any_plan_tests {
     use crate::analysis::{check_program, scenario_disclosure::CheckedDecisionCallTarget};
     use std::path::Path;
 
+    #[test]
+    fn mixed_helper_first_plan_keeps_borrowed_returns_and_exact_occurrences() {
+        let source = "package Places\n Given\n  export Location {name:text}\n When\n Then\npackage People\n use Places {Location as Site}\n Given\n  export Worker {account:user,enabled:bool,all_sites:bool,home:Site,sites:Site[]}\n  export derive allowed(person:user,location:Site):bool = any(Worker as worker,worker.account==person and worker.enabled and active_member(person,team) and (worker.all_sites or worker.home==location or location in worker.sites))\n When\n Then\napp QueryConsumer\nuse People {allowed}\nuse Places {Location}\nGiven\n contract Input {location:Location,title:text}\n Run {location:Location,title:text,account:user server=actor,enabled:bool=true}\n Intake {source:text unique,input:Input,deal:Run}\nWhen\n scenario pick(source:text,input:Input) -> Run by=members\n  require starts_with(source,\"discover:\") and source!=\"discover:\" and allowed(actor,input.location)\n  do\n   let existing=first(Intake as prior where prior.source==source)\n   if existing!=null\n    require existing.input==input and allowed(actor,existing.deal.location)\n    return existing.deal\n   create Run {location=input.location,title=input.title} as run\n   create Intake {source,input,deal=run} as intake\n   return run\nThen\n";
+        let fields = (1..=16)
+            .map(|i| format!("v{i}:int"))
+            .collect::<Vec<_>>()
+            .join(",");
+        let entries = (1..=16)
+            .map(|i| format!("v{i}=input.v{i}"))
+            .collect::<Vec<_>>()
+            .join(",");
+        let source = source.replace("location:Location,title:text", &format!("location:Location,title:text,{fields}"))
+            .replace("title=input.title}", &format!("title=input.title,{entries}}}"))
+            .replace("allowed(actor,input.location)\n", "allowed(actor,input.location) and input.v1>=0 and input.v2>=0 and input.v3>=0 and input.v4>=0\n");
+        for renamed in [false, true] {
+            let source = if renamed {
+                source
+                    .replace("allowed", "permitted")
+                    .replace("Worker", "Staff")
+                    .replace("Intake", "Evidence")
+                    .replace(
+                        "permitted(actor,input.location)",
+                        "permitted(location=input.location,person=actor)",
+                    )
+                    .replace(
+                        "permitted(actor,existing.deal.location)",
+                        "permitted(location=existing.deal.location,person=actor)",
+                    )
+            } else {
+                source.clone()
+            };
+            let mut db = SourceDb::new();
+            let file = db.add("mixed-query.can".into(), source);
+            let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+            let path = root
+                .parent()
+                .unwrap()
+                .join("packages/cloudflare/dist/native-catalog.json");
+            let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+                flag: Some(&path),
+                env: None,
+                cwd: root,
+                primary: Span::new(file, 0, 0),
+            });
+            assert!(diagnostics.is_empty(), "{diagnostics:?}");
+            let catalog = catalog.unwrap();
+            let (program, diagnostics) = check_program(&db, &[file], Some(&catalog));
+            assert!(diagnostics.is_empty(), "{diagnostics:?}");
+            let (ir, diagnostics) = super::super::ir::build(&program, &db, Some(&catalog));
+            assert!(diagnostics.is_empty(), "{diagnostics:?}");
+            let owner = ir
+                .items
+                .iter()
+                .find(|item| item.canonical == "QueryConsumer.pick")
+                .unwrap();
+            let module = super::super::js::module_path("QueryConsumer");
+            let prepared =
+                PreparedQuerySources::standalone(&program, &ir, &db, Some(&catalog)).unwrap();
+            let selected = prepared
+                .returns
+                .as_ref()
+                .unwrap()
+                .returns(&ir, owner.id)
+                .unwrap();
+            assert_eq!(
+                selected.len(),
+                2,
+                "two borrowed original successful returns"
+            );
+            let plan = prepared
+                .plan(owner, &module)
+                .expect("source-owned mixed plan");
+            assert_eq!(plan.queries.len(), 3);
+            assert_eq!(plan.returns.len(), selected.len());
+            for (returned, original) in plan.returns.iter().zip(&selected) {
+                assert_eq!(returned.id, original.id);
+                assert_eq!(returned.influences.len(), original.influences.len());
+                for (emitted, influence) in returned.influences.iter().zip(&original.influences) {
+                    assert_eq!(emitted.id, influence.id);
+                    assert_eq!(emitted.query_id, influence.query_id);
+                }
+            }
+            let metadata = serialize_query_any(&program, &ir, owner, &db, Some(&catalog), &module)
+                .expect("both original helper occurrences");
+            let entries = metadata.as_array().unwrap();
+            assert_eq!(entries.len(), 2);
+            assert_ne!(entries[0]["queryId"], entries[1]["queryId"]);
+            assert_ne!(entries[0]["sourceCall"], entries[1]["sourceCall"]);
+            assert!(
+                collect_complete_query_receipt(&program, &ir, owner, &db, Some(&catalog), &module)
+                    .is_some()
+            );
+            let models = super::super::js::Emitter::source_models(&ir, &db).unwrap();
+            let mut emitter = super::super::js::Emitter::new(&ir);
+            let values = if ir.committed_sources.has_standard_value_inventory_fact() {
+                Some(
+                    emitter
+                        .collect_standard_value_inventory(&db)
+                        .expect("owning standard inventory"),
+                )
+            } else {
+                None
+            };
+            let sources = |plan| super::super::scenario_receipts::NativeReceiptSources {
+                db: Some(&db),
+                send_guards: None,
+                query_plan: Some(plan),
+            };
+            let receipt =
+                super::super::scenario_receipts::collect_native_scenario_receipt_with_feasibility(
+                    &ir,
+                    owner,
+                    &models,
+                    &module,
+                    values.as_ref(),
+                    sources(&plan),
+                    prepared.returns.as_ref(),
+                )
+                .expect("original two root creates/defaults/effects source join");
+            assert_eq!(receipt.plan.queries.len(), 3);
+            for mutation in 0..4 {
+                let mut changed = ir.clone();
+                let ScenarioDisclosure::Complete(checked) =
+                    changed.scenario_disclosures.get_mut(&owner.id).unwrap()
+                else {
+                    panic!("complete")
+                };
+                if mutation == 3 {
+                    checked.returns[0].influences.clear();
+                } else {
+                    let queries = checked
+                        .source_facts
+                        .as_mut()
+                        .unwrap()
+                        .queries
+                        .as_mut()
+                        .unwrap();
+                    match mutation {
+                        0 => queries[0].source.path.push_str(".foreign"),
+                        1 => {
+                            queries[1].dependencies[0].calls =
+                                queries[0].dependencies[0].calls.clone()
+                        }
+                        _ => queries
+                            .iter_mut()
+                            .find(|query| query.first.is_some())
+                            .unwrap()
+                            .dependencies[0]
+                            .field_name
+                            .push_str("_foreign"),
+                    }
+                }
+                let owner = &changed.items[owner.id.0 as usize];
+                assert!(
+                    checked_query_plan(&program, &changed, owner, &db, Some(&catalog), &module)
+                        .is_none(),
+                    "source mutant {mutation}"
+                );
+            }
+            let mut changed = ir.clone();
+            let helper = changed
+                .items
+                .iter_mut()
+                .find(|item| {
+                    item.canonical
+                        == if renamed {
+                            "People.permitted"
+                        } else {
+                            "People.allowed"
+                        }
+                })
+                .unwrap();
+            let IrItemKind::DeriveFn {
+                expr: Some(body), ..
+            } = &mut helper.kind
+            else {
+                panic!("helper")
+            };
+            body.expr = IrExpr::Bool(true);
+            let changed_owner = &changed.items[owner.id.0 as usize];
+            assert!(
+                checked_query_plan(
+                    &program,
+                    &changed,
+                    changed_owner,
+                    &db,
+                    Some(&catalog),
+                    &module
+                )
+                .is_none(),
+                "changed helper body cannot use original query authority"
+            );
+            assert!(
+                serialize_query_any(
+                    &program,
+                    &changed,
+                    changed_owner,
+                    &db,
+                    Some(&catalog),
+                    &module
+                )
+                .is_none(),
+                "changed helper body cannot issue original predicate markers"
+            );
+            let mut changed = plan.clone();
+            changed.returns[0].influences.clear();
+            assert!(
+                super::super::scenario_receipts::collect_native_scenario_receipt_with_feasibility(
+                    &ir,
+                    owner,
+                    &models,
+                    &module,
+                    values.as_ref(),
+                    sources(&changed),
+                    prepared.returns.as_ref()
+                )
+                .is_none(),
+                "plan cannot delete original return influences"
+            );
+        }
+    }
     #[test]
     fn leading_helper_any_native_plan_metadata_preserve_original_source_and_refuse_mutants() {
         let places = "package Places\n Given\n  export Location {name:text}\n When\n Then\n";

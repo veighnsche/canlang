@@ -2726,10 +2726,18 @@ fn checked_query_influence_census(
 fn checked_helper_any_influences(
     facts: &crate::analysis::scenario_disclosure::CheckedScenarioSource,
 ) -> Option<Vec<crate::analysis::scenario_disclosure::DisclosureInfluence>> {
-    use crate::analysis::scenario_disclosure::{CheckedDecisionCallTarget, CheckedDecisionStage};
     let [query] = facts.queries.as_deref()? else {
         return None;
     };
+    checked_helper_query_influences(facts, query, false)
+}
+
+fn checked_helper_query_influences(
+    facts: &crate::analysis::scenario_disclosure::CheckedScenarioSource,
+    query: &crate::analysis::scenario_disclosure::DisclosureQuery,
+    compound: bool,
+) -> Option<Vec<crate::analysis::scenario_disclosure::DisclosureInfluence>> {
+    use crate::analysis::scenario_disclosure::{CheckedDecisionCallTarget, CheckedDecisionStage};
     let [outer] = query.dependencies.first()?.calls.as_slice() else {
         return None;
     };
@@ -2763,7 +2771,9 @@ fn checked_helper_any_influences(
     }
     let mut calls = facts.decision_sites.as_deref()?.iter().filter(|site|
         site.owner == facts.scenario && site.source == facts.source
-            && site.stage == CheckedDecisionStage::LeadingRequire && site.node == *outer)
+            && (site.stage == CheckedDecisionStage::LeadingRequire
+                || compound && site.stage == CheckedDecisionStage::BodyRequire)
+            && (site.node == *outer || compound))
         .flat_map(|site| site.calls.iter()).filter(|call|
             matches!(&call.target, CheckedDecisionCallTarget::Builtin{id,overload} if id == "any" && *overload == 0)
             && call.source == query.source && call.chain.len() == 1
@@ -2775,6 +2785,201 @@ fn checked_helper_any_influences(
         return None;
     }
     checked_query_influence_census(query)
+}
+
+/// The mixed cohort keeps the two helper occurrences distinct from the first
+/// lookup. This is a source census, not a union of return influences.
+pub(super) fn checked_mixed_helper_query_influences(
+    facts: &crate::analysis::scenario_disclosure::CheckedScenarioSource,
+) -> Option<Vec<crate::analysis::scenario_disclosure::DisclosureInfluence>> {
+    use crate::analysis::scenario_disclosure::{CheckedDecisionCallTarget, CheckedDecisionStage};
+    let queries = facts.queries.as_deref()?;
+    if queries.len() != 3 || facts.creates.as_deref()?.len() != 2 {
+        return None;
+    }
+    let mut first = 0;
+    let mut helpers = Vec::new();
+    let mut stages = Vec::new();
+    let mut all = Vec::new();
+    for query in queries {
+        if query.first.is_some()
+            && query.count.is_none()
+            && query.projection.is_none()
+            && query.cardinality_guard.is_none()
+        {
+            first += 1;
+            all.extend(checked_query_influence_census(query)?);
+        } else {
+            all.extend(checked_helper_query_influences(facts, query, true)?);
+            let outer = query.dependencies.first()?.calls[0];
+            let mut owners = facts.decision_sites.as_deref()?.iter().filter(|site|
+                site.owner == facts.scenario && site.source == facts.source
+                && matches!(site.stage, CheckedDecisionStage::LeadingRequire | CheckedDecisionStage::BodyRequire)
+                && site.calls.iter().any(|call| call.source == query.source
+                    && call.chain.len() == 1 && call.chain[0].node == outer
+                    && matches!(&call.target, CheckedDecisionCallTarget::Builtin {id,overload} if id=="any" && *overload==0)
+                    && call.arguments.first().is_some_and(|argument| argument.0==query.node)
+                    && call.arguments.get(1).is_some_and(|argument| Some(argument.0)==query.predicate)));
+            stages.push(owners.next()?.stage);
+            if owners.next().is_some() {
+                return None;
+            }
+            helpers.push(outer);
+        }
+    }
+    if first != 1
+        || helpers.len() != 2
+        || !stages.contains(&CheckedDecisionStage::LeadingRequire)
+        || !stages.contains(&CheckedDecisionStage::BodyRequire)
+        || helpers[0] == helpers[1]
+        || all
+            .iter()
+            .map(|value| &value.id)
+            .collect::<HashSet<_>>()
+            .len()
+            != all.len()
+    {
+        return None;
+    }
+    Some(all)
+}
+
+fn receipt_influence(
+    value: &crate::analysis::scenario_disclosure::DisclosureInfluence,
+) -> Option<ReceiptInfluence> {
+    Some(ReceiptInfluence {
+        id: value.id.clone(),
+        query_id: value.query_id.clone(),
+        kind: match value.kind {
+            InfluenceKind::QueryExistence => "query-existence",
+            InfluenceKind::QueryCardinality => "query-cardinality",
+            InfluenceKind::QueryMembership => "query-membership",
+            InfluenceKind::QueryOrder => "query-order",
+            _ => return None,
+        }
+        .into(),
+    })
+}
+
+/// Compose authenticated query descriptors while retaining each original
+/// source return's own influence vector, including its original order.
+pub(super) fn checked_native_mixed_helper_query_plan(
+    ir: &IrProgram,
+    owner: &IrItem,
+    db: &SourceDb,
+    entry: &str,
+) -> Option<ReceiptDisclosurePlan> {
+    let facts = super::scenario_calls::checked_source(ir, owner, db)?;
+    let census = checked_mixed_helper_query_influences(facts)?;
+    let ScenarioDisclosure::Complete(checked) = ir.scenario_disclosures.get(&owner.id)? else {
+        return None;
+    };
+    let IrItemKind::Scenario {
+        guards,
+        effects,
+        read: false,
+        trusted: false,
+        cohort: None,
+        ..
+    } = &owner.kind
+    else {
+        return None;
+    };
+    fn condition_at(value: &TypedExpr, span: Span) -> Option<&TypedExpr> {
+        if value.span == span {
+            return Some(value);
+        }
+        match &value.expr {
+            IrExpr::Binary { left, right, .. } => {
+                condition_at(left, span).or_else(|| condition_at(right, span))
+            }
+            _ => None,
+        }
+    }
+    fn require_at(statements: &[IrStmt], span: Span) -> Option<&TypedExpr> {
+        statements.iter().find_map(|statement| match statement {
+            IrStmt::Require { cond, .. } => condition_at(cond, span),
+            IrStmt::If {
+                then_branch,
+                else_branch,
+                ..
+            } => require_at(then_branch, span).or_else(|| require_at(else_branch, span)),
+            _ => None,
+        })
+    }
+    let queries = facts.queries.as_deref()?;
+    let first = queries.iter().find(|query| query.first.is_some())?;
+    let first_call = effects.iter().find_map(|statement| match statement {
+        IrStmt::Let { value, span, .. } if *span == node_span(first.first.as_ref()?.binding) => {
+            Some(value)
+        }
+        _ => None,
+    })?;
+    let original_create = facts.creates.as_deref()?.first()?;
+    if checked_first_query_ir(
+        ir,
+        original_create,
+        first_call,
+        first.first.as_ref()?.call,
+        db,
+    )? != first
+    {
+        return None;
+    }
+    let mut plan = checked_native_first_query_source_plan(ir, owner, checked, first, entry, db)?;
+    plan.queries.clear();
+    for query in queries {
+        if query.first.is_some() {
+            plan.queries.extend(
+                checked_native_first_query_source_plan(ir, owner, checked, query, entry, db)?
+                    .queries,
+            );
+            continue;
+        }
+        let outer = query.dependencies.first()?.calls[0];
+        let actual = require_at(guards, node_span(outer))
+            .or_else(|| require_at(effects, node_span(outer)))?;
+        if checked_helper_any_query_ir(ir, owner, actual, db)? != query {
+            return None;
+        }
+        plan.queries.push(ReceiptQuery {
+            id: query.id.clone(),
+            source: transport_source(&query.source, entry)?,
+            model: query.model_name.clone(),
+            parent: None,
+            order: Vec::new(),
+            limit: None,
+            archived: "exclude".into(),
+            dependencies: query
+                .dependencies
+                .iter()
+                .map(|read| {
+                    Some(ReceiptQueryDependency {
+                        id: read.id.clone(),
+                        source: transport_source(&read.source, entry)?,
+                        role: ReceiptRole::Control,
+                        field: read.field_name.clone(),
+                        type_id: read.type_id.clone(),
+                    })
+                })
+                .collect::<Option<Vec<_>>>()?,
+        });
+    }
+    for (emitted, original) in plan.returns.iter_mut().zip(&checked.returns) {
+        if original
+            .influences
+            .iter()
+            .any(|value| !census.contains(value))
+        {
+            return None;
+        }
+        emitted.influences = original
+            .influences
+            .iter()
+            .map(receipt_influence)
+            .collect::<Option<Vec<_>>>()?;
+    }
+    Some(plan)
 }
 
 /// The finite native plan reuses the complete owning create/effect collector;
@@ -3016,6 +3221,7 @@ pub(super) fn checked_scenario_query_influences(
     }
     if transcripts.is_empty() {
         return checked_helper_any_influences(facts)
+            .or_else(|| checked_mixed_helper_query_influences(facts))
             .or_else(|| checked_native_query_influences(queries));
     }
     let [early, later] = transcripts else {
@@ -3192,6 +3398,13 @@ fn checked_native_first_query_plan<'a>(
         .map(Some);
     }
     let queries = facts.queries.as_deref().unwrap_or_default();
+    if checked_mixed_helper_query_influences(facts).is_some() {
+        let plan = supplied?;
+        let mut expected = checked_native_mixed_helper_query_plan(ir, owner, db?, entry_module)?;
+        project_plan_returns(&mut expected, returned_paths)?;
+        return (serde_json::to_value(plan).ok()? == serde_json::to_value(expected).ok()?)
+            .then_some(Some(plan));
+    }
     if checked_helper_any_influences(facts).is_some() {
         let plan = supplied?;
         let mut expected = checked_native_helper_any_query_plan(ir, owner, db?, entry_module)?;
@@ -3769,6 +3982,7 @@ fn checked_native_first_query_source_plan(
 ) -> Option<ReceiptDisclosurePlan> {
     let facts = checked.source_facts.as_deref()?;
     let expected_influences = checked_scenario_query_influences(facts)?;
+    let mixed = checked_mixed_helper_query_influences(facts);
     if checked.returns.is_empty() {
         return None;
     }
@@ -3802,7 +4016,14 @@ fn checked_native_first_query_source_plan(
             returned.source != checked.source
                 || result_statement_at(effects, node_span(returned.node)).is_none()
                 || returned.model_result.is_none()
-                || returned.influences != expected_influences
+                || if let Some(census) = &mixed {
+                    returned
+                        .influences
+                        .iter()
+                        .any(|value| !census.contains(value))
+                } else {
+                    returned.influences != expected_influences
+                }
         })
         || query.id.is_empty()
         || first.binding.kind != SyntaxKind::Let as u8
@@ -4689,7 +4910,8 @@ fn checked_first_query_row<'a>(
 ) -> Option<&'a crate::analysis::scenario_disclosure::CheckedStoredContractSchema> {
     let facts = super::scenario_calls::checked_source(ir, owner, db)?;
     let queries = facts.queries.as_deref()?;
-    checked_native_query_influences(queries)?;
+    checked_native_query_influences(queries)
+        .or_else(|| checked_mixed_helper_query_influences(facts))?;
     let mut selected = queries.iter().filter(|query| query.first.is_some());
     let query = selected.next()?;
     if selected.next().is_some() {
@@ -9570,7 +9792,8 @@ fn checked_created_pair<'a>(
     }
     let queries = facts.queries.as_deref()?;
     if !queries.is_empty() {
-        checked_native_query_influences(queries)?;
+        checked_native_query_influences(queries)
+            .or_else(|| checked_mixed_helper_query_influences(facts))?;
     }
     let parent_context = if let Some(parent_id) = parent_id {
         let mut selected = queries.iter().filter(|query| {
@@ -10881,7 +11104,10 @@ impl<'a> Sites<'a> {
                                 .scenario_disclosures
                                 .get(&owner.id)
                                 .and_then(|source| source.source_facts())
-                                .and_then(checked_helper_any_influences)
+                                .and_then(|facts| {
+                                    checked_helper_any_influences(facts)
+                                        .or_else(|| checked_mixed_helper_query_influences(facts))
+                                })
                                 .is_some()
                             {
                                 // Preserve this original derive call and explicit argument
