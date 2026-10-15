@@ -2,6 +2,18 @@
 
 ## Current remainder and finite completion
 
+**C02 helper body source and leading native plan (2026-10-15, implemented/tested).**
+Body Require source consumption retains the genuine first initializer/non-null
+branch, ordered compound guard and required Model-edge DATA reads; candidate
+CONTROL reads stay query-owned. Analysis1/1 and source-consumer8/8 pass, including
+import/local/named reuse and six body corruptions. The leading-only native plan
+joins the complete created-model receipt with exact helper/call-chain/influences
+and canonical owner sourceCall metadata; its imported/local/named and mutation
+check passes1/1. First initializer source proof no longer depends on unrelated
+aggregate native-profile admission. Existing native cohort gates remain.
+Emitted callback issuance and actual D1/Identity helper execution are next; mixed
+first/leading/body native execution remains incomplete and unadmitted.
+
 **C02 declared PaymentState event owner (2026-10-15, implemented/tested).**
 The provider catalog explicitly identifies the whole `Payments.changed` payload
 as PaymentState; the checker retains that owner rather than constructing an

@@ -16628,3 +16628,18 @@ cannot replace the retained666 backend census. Three payment identity checks
 pass, including event-to-Contract typing, schema equality and unchanged codec/
 source refusals. Provider ingress execution remains a separate gate. This is a
 settled declared-schema repair; no new language choice or JEV call is required.
+
+
+### 2026-10-15 — separate helper source authentication from native profile admission
+
+Accepted implementation: authenticate a stored first initializer from its exact
+source/query/influence census independently of the aggregate executable profile.
+This lets the original body Require retain its first-row branch and required
+Model-edge argument reads without claiming mixed native execution. Leading helper
+ANY now has a source-checked complete created-model receipt plan and canonical
+owner call selector; imported/local/named equivalents preserve meaning. Candidate
+CONTROL reads remain query-owned and actual arguments retain authored order.
+Analysis1, source8 and leading plan1 checks pass with corruptions. No new language
+primitive, authority carrier or broader cohort is introduced; emitted/native and
+mixed-body acceptance remain open. Existing settled source correspondence rules
+apply; no additional JEV language decision is needed.
