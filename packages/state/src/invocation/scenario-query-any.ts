@@ -105,10 +105,17 @@ function bindPredicateAny(bound: Bound, metadata: Extract<ScenarioQueryAnyMetada
   const model = bound.artifactModels.get(query.model), canonical = bound.canonicalModels.find(model => model.name === query.model);
   if (model === undefined || canonical === undefined || model.parent !== undefined) return fail('declared root query model required.');
   for (const dependency of query.dependencies) {
-    const fields = model.fields.filter(field => field.name === dependency.field), field = fields[0];
+    const fields = model.fields.filter(field => field.name === dependency.field);
+    const field = fields[0] === undefined ? undefined : copyScenarioFileData(fields[0]) as typeof fields[0];
     const checked = canonical.fields[dependency.field];
+    // The existing compiler User tag is already exact; its redundant valueType
+    // claim may be absent. Registry still supplies the exact canonical type.
+    const nativeUser = field !== undefined && field.field.kind === 'user' && Reflect.ownKeys(field.field).length === 1 &&
+      field.array === undefined && field.nullable !== true;
+    const declaredType = field !== undefined && !Object.hasOwn(field, 'valueType') && nativeUser ? 'user' : field?.valueType;
     if (dependency.role !== 'control' || !same(dependency.source, query.source) || fields.length !== 1 ||
-        field === undefined || checked === undefined || field.valueType !== dependency.type || checked.valueType !== dependency.type ||
+        field === undefined || checked === undefined || declaredType !== dependency.type || checked.valueType !== dependency.type ||
+        dependency.type === 'user' && !nativeUser ||
         field.default?.kind === 'derived' || checked.default?.kind === 'derived') return fail('exact stored CONTROL field declaration required.');
     const type = parseTypeId(dependency.type);
     const modelReference = type.base.kind === 'nominal' && bound.artifactModels.has(type.base.path as ModelName) &&

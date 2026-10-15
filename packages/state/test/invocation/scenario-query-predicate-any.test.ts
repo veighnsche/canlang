@@ -44,7 +44,7 @@ const importedMetadata = { ...metadata, sourceCall: { siteIndex: 0, callIndex: 1
 type Association = 'valid' | 'missing-owner' | 'missing-capture' | 'site-index' | 'call-index' | 'path' | 'hash' | 'module' | 'chain' | 'slots' | 'domain';
 let sequence = 160000;
 type Mode = 'normal' | 'wrong-pointer' | 'copied-call' | 'foreign-store' | 'wrong-query' | 'closed' | 'repeat' | 'missing-marker' | 'wrong-first' | 'failure';
-async function world(allFalse = false, corruption?: 'source' | 'census' | 'type' | 'import', denySuffix = true, association?: Association) {
+async function world(allFalse = false, corruption?: 'source' | 'census' | 'type' | 'import', denySuffix = true, association?: Association, nativeUser = false) {
   const dependencies = controls.map(([field, type], index) => ({ id: dependencyIds[index]!, source, role: 'control' as const, field, type: type as CanTypeId }));
   const slice: ArtifactDescriptorSlice = { artifact_version: 1, sources: [{ path: source.path, sha256: source.sha256 }],
     modules: [{ path: source.module, js: 'export const identity="Predicate.check";', map: { version: 3, file: source.module,
@@ -61,6 +61,7 @@ async function world(allFalse = false, corruption?: 'source' | 'census' | 'type'
       disclosure: { version: 1, source, queries: [{ id: QUERY, source, model: EMPLOYEE, order: [], limit: null, archived: 'exclude', dependencies }],
         returns: [{ id: 'result', source, dependencies: [], influences: (['query-existence', 'query-cardinality', 'query-membership', 'query-order'] as const)
           .map(kind => ({ id: kind, kind, queryId: QUERY })) }] } } }] };
+  if (nativeUser) delete (slice.models![0]!.fields[0] as { valueType?: CanTypeId }).valueType;
   if (corruption === 'import' || association !== undefined) {
     const imported = { ...helper, module: source.module,
       ...(association === 'path' ? { path: 'foreign.can' } : {}),
@@ -268,4 +269,42 @@ test('imported predicate association refuses absent private producers and forged
     get: () => { reads++; throw new Error('must not inspect source accessor'); } });
   assert.throws(() => bindScenarioQueryAny(w.profileBound, w.associated, facts as typeof w.sourceFacts), StateError);
   assert.equal(reads, 0);
+});
+
+
+test('predicate ANY consumes the compiler singular User tag without a redundant artifact valueType', async () => {
+  const w = await world(false, undefined, true, 'valid', true), ex = execution(w);
+  const artifactUser = w.profileBound.artifactModels.get(EMPLOYEE)!.fields.find(field => field.name === 'user')!;
+  assert.deepEqual(artifactUser.field, { kind: 'user' });
+  assert.equal(Object.hasOwn(artifactUser, 'valueType'), false);
+  assert.equal(w.profileBound.canonicalModels.find(model => model.name === EMPLOYEE)!.fields.user!.valueType, 'user');
+  assert.equal((await invoke(ex.request)).status, 'committed');
+  assert.deepEqual(ex.visited, ['a', 'b']);
+  const saved = readScenarioReceiptAssociation(ex.receipt())!;
+  assert.deepEqual(saved.queries![0]!.selectedIndices, [1]);
+  assert.deepEqual((await projectScenarioReceipt({ ...w, receipt: ex.receipt() })).result, { id: 'result' });
+});
+
+test('native User predicate declaration refuses wrong claims, native kinds, wrappers and accessors', async () => {
+  const w = await world(false, undefined, true, 'valid', true);
+  const original = w.profileBound.artifactModels.get(EMPLOYEE)!;
+  const user = original.fields.find(field => field.name === 'user')!;
+  let getters = 0;
+  const malformed: unknown[] = [
+    { ...user, valueType: 'bool' },
+    { ...user, valueType: 'user', field: { kind: 'string' } },
+    { ...user, valueType: 'user', field: { kind: 'boolean' } },
+    { ...user, field: { kind: 'ref', model: LOCATION } },
+    { ...user, array: { required: false } },
+    { ...user, nullable: true },
+    { ...user, field: { kind: 'user', extra: true } },
+    Object.defineProperty({ ...user }, 'valueType', { enumerable: true, get() { getters++; return 'user'; } }),
+    Object.defineProperty({ ...user }, 'field', { enumerable: true, get() { getters++; return { kind: 'user' }; } }),
+  ];
+  for (const invalid of malformed) {
+    const artifactModels = new Map(w.profileBound.artifactModels);
+    artifactModels.set(EMPLOYEE, { ...original, fields: original.fields.map(field => field.name === 'user' ? invalid as typeof user : field) });
+    assert.throws(() => bindScenarioQueryAny({ ...w.profileBound, artifactModels }, w.associated, w.sourceFacts), StateError);
+  }
+  assert.equal(getters, 0);
 });
