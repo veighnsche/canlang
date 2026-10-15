@@ -939,8 +939,15 @@ fn unsupported_ui_payloads_refuse_instead_of_losing_authored_meaning() {
             "bound tab panels",
         ),
         ("  stat 1,2\n", "stat"),
-        ("  metrics 1\n", "metrics"),
-        ("  copy \"Value\"\n", "copy"),
+        // Bare `metrics 1` is admitted by the outcome-6 payload slice
+        // (DESIGN s9 `metrics expr,...`: one typed scalar through the
+        // shared stat contract; a constant needs no row grant), so it no
+        // longer belongs in this refusal list. Twin boundary coverage lives
+        // in ui_original_bindings (empty/suite metrics still refuse E6008).
+        // Page-level `copy "Value"` is admitted by the same slice (DESIGN s9
+        // `copy expr`: one text value, label defaulting to the value at the
+        // factory); twin non-text/multi-header refusal coverage lives in
+        // ui_original_bindings.
         ("  tooltip \"Notice\"\n", "tooltip"),
         (
             "  chat_bubble\n   slot content\n    text \"First\"\n   slot content\n    text \"Second\"\n",
