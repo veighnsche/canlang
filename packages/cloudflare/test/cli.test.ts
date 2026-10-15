@@ -84,7 +84,7 @@ describe("can-platform CLI (L1 IR-03 delegation target)", () => {
     expect(envelope(result.stdout)).toEqual({
       ok: true,
       name: "can-platform",
-      version: "0.1.0",
+      version: "0.1.1",
     });
   });
 
@@ -92,7 +92,7 @@ describe("can-platform CLI (L1 IR-03 delegation target)", () => {
     const result = await runCli(["--help"]);
     expect(result.code).toBe(0);
     const body = envelope(result.stdout);
-    expect(body).toMatchObject({ ok: true, name: "can-platform", version: "0.1.0" });
+    expect(body).toMatchObject({ ok: true, name: "can-platform", version: "0.1.1" });
     expect(typeof body["usage"]).toBe("string");
     expect(result.stderr).toContain("Usage:");
   });
@@ -101,14 +101,14 @@ describe("can-platform CLI (L1 IR-03 delegation target)", () => {
     const help = await runCli(["-h"]);
     expect(help.code).toBe(0);
     const helpBody = envelope(help.stdout);
-    expect(helpBody).toMatchObject({ ok: true, name: "can-platform", version: "0.1.0" });
+    expect(helpBody).toMatchObject({ ok: true, name: "can-platform", version: "0.1.1" });
     expect(typeof helpBody["usage"]).toBe("string");
     const version = await runCli(["-V"]);
     expect(version.code).toBe(0);
     expect(envelope(version.stdout)).toEqual({
       ok: true,
       name: "can-platform",
-      version: "0.1.0",
+      version: "0.1.1",
     });
   });
 
@@ -134,7 +134,7 @@ describe("can-platform CLI (L1 IR-03 delegation target)", () => {
     const result = await runCli(["run", flag]);
     expect(result.code).toBe(0);
     const body = envelope(result.stdout);
-    expect(body).toMatchObject({ ok: true, name: "can-platform", version: "0.1.0" });
+    expect(body).toMatchObject({ ok: true, name: "can-platform", version: "0.1.1" });
     expect(typeof body["usage"]).toBe("string");
     expect(result.stderr).toContain("Usage:");
   });
