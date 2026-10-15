@@ -17873,3 +17873,66 @@ synchronization/deployment is the remaining external gate, owned by that checkou
 No website source or deployment is changed in this task. Release-only acceptance
 is complete; unrelated application/provider and complete filetree-review holds
 remain at their recorded scopes.
+
+
+## 2026-10-15 — one normative Can contract and finite conformance remainder
+
+**Accepted specification decisions.** REQUIREMENTS owns product scope, DESIGN
+accepted v1 meaning and implicit behavior, and GRAMMAR syntax. DESIGN §0 indexes
+derived behavior and states order, authority, transaction, failure and recovery
+boundaries. Named component/service contracts remain at their defining owners;
+historical examples and backend limitations cannot silently redefine the language.
+The completion record owns one current execution view with 18 finite outcomes
+under existing IDs: 14 current implementation/validation outcomes and four
+retained cross-system/policy scopes. These are not patch or diagnostic counts.
+
+The bounded semantic review retains consuming-site authority through equivalent
+inline/local/imported helpers, independent of Boolean result or route-record
+presence. Exact enum domains survive type reuse; ordinary typed helpers express
+explicit conversion. Successful mutation-table observations use the actual
+immutable operation context, without adding a test-only business result or
+borrowing context into setup/expectations. Private `EmailV1.send_user` keeps
+same-team verified recipient lookup, durable pinned address/identity, current
+membership on retry and original-outcome reconciliation. Exporting the directory
+would change privacy; a generic recipient carrier lacks a demonstrated wider
+requirement. These choices require general defining-owner behavior, not app
+exceptions or a second execution engine.
+
+**Accepted refinements; implementation pending.** Admission remains before
+explicit parameter defaults. Reject direct/transitive `by` dependence on any
+explicitly defaulted parameter, even when supplied at a particular call. Required
+inputs and schema null/empty-array normalization remain available. Evaluating
+explicit defaults before admission changes denied-call evaluation/failure;
+silently moving permission checks into `require` changes error identity. A
+signature-level restriction gives one meaning without new syntax or effects.
+
+A link accepts `url?`: present values retain typed URL validation; absent values
+render a shared noninteractive state with no href and localized fallback caption.
+Authored guards still omit business-specific controls/groups. Denied reads and
+real failures never become null. Explicit null guards would repeat availability
+setup; automatic omission would conflate availability with authored visibility.
+Shared inert presentation preserves that distinction and the independent expiry
+conditions in existing sources. This does not add nullable-text links, nullable
+URL buttons or a general nullable coercion.
+
+Three independently worded equivalent two-question JEV requests and raw responses
+are retained in [responses 1](../../design/jev/spec-implicit-contract-20261015/1.json),
+[2](../../design/jev/spec-implicit-contract-20261015/2.json) and
+[3](../../design/jev/spec-implicit-contract-20261015/3.json). Admission advice agrees
+(probability .99, confidence .98 each). URL advice is divided (guard/disabled/guard,
+confidence .27/.35/.27); the accepted choice follows the optional evidence
+requirement and separate business visibility, not claimed consensus. Runtime
+conformance for the new sink remains unqualified. Future optional extensions are
+proposals, not inferred requirements from symmetry or existing machinery.
+
+**Validation and limits.** Focused current-compiler probes distinguish three local
+gaps: nullable URL links reject with E3001, default-dependent admission incorrectly
+checks, and a heading-free styled card rejects with E1215. Headed style attachments
+and ordinary named helper calls check. A first helper probe used a reserved builtin
+name; its rejection was correct. These are checking results, not runtime order or
+rendering proof. Added local document links/anchors and diff whitespace are
+checked. Unchanged accepted component checks are reused; no compiler/runtime/app
+source, grants, independent assertions, training inputs or datasets change.
+The original composition and required executable consumers remain unfinished
+under the finite completion record; this specification commit claims no production
+or all-v1 implementation readiness.

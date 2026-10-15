@@ -4,6 +4,16 @@ This is the normative source grammar for the bounded v1 language in [DESIGN.md](
 
 The [Rust compiler](../../compiler/README.md) is the supported implementation; its documentation records implementation status. The separate [Python syntax prototype](../../tools/README.md) may drift from this grammar; its historical coverage does not limit accepted source syntax. Parsing alone does not establish semantic or runtime support.
 
+## Specification boundary
+
+[REQUIREMENTS.md](REQUIREMENTS.md) owns product scope; [DESIGN §0](DESIGN.md#0-conformance-and-implicit-behavior)
+indexes all implicit behavior and its conformance rules. This grammar owns source
+structure, not backend coverage. Semantic constraints in DESIGN still apply to
+parsed forms: for example, an operation `by` cannot depend on an explicitly
+defaulted parameter, and a typed nullable URL is an admitted link destination.
+Neither rule needs additional syntax. A missing checker/renderer path is a
+reported implementation gap, not an alternative grammar or an inferred grant.
+
 ## Notation
 
 EBNF uses `=` for a production, `|` for alternatives, `[x]` for optional syntax, `{x}` for repetition, and quoted text for exact source tokens. Uppercase names are lexical/layout tokens. `line(x)` means `x NEWLINE`. `suite(x)` means `NEWLINE INDENT x DEDENT`, with at least one source item. `optional_suite(x)` is either `NEWLINE` or `suite(x)`; lookahead at the next noncomment logical line determines which. `leaf_lines(x)` means a nonempty sequence of `line(x {";" x})`. These are grammar notation, not source words. End of file supplies a final `NEWLINE` when the final nonblank logical line lacks one.
@@ -167,7 +177,7 @@ The presence of `uses=` selects the composed-app production; its absence selects
 
 `export` is optional on stored models, contracts, events, roles, derived functions, capabilities, judgments, fixtures, user scenarios and named messages. It prefixes the declaration at its existing indentation. It is unavailable on imports, apps, packages, contexts, preferences, derived fields, trusted scenarios, CRUD, policies/rules, presentation, migrations or effects. Exported declaration visibility and whether a scenario is a legitimate user operation are checked after parsing.
 
-Page title/group/attached-description metadata is static: any message arguments must be context-free constants. Page `require` expressions retain their existing pure-expression syntax, including legitimate data dependencies; no new navigation declaration or guard syntax is introduced. Contextual current-membership reads in record-bound top-level page admission and `bool` derived fields reuse ordinary expression syntax; their effect, source-provenance and permission checks are semantic rules. The current native observer profile implements only these entry points; nonbool derived values and unbound/container gates are implementation gaps, not permanent language restrictions. Strict defaults remain context-free and cannot acquire State-read authority through a helper. DESIGN §9 defines derived page admission versus local container gates, dependency-limited discovery, current eligibility and ordering. Descriptor generation/admission is semantic compiler/runtime work, not parser behavior.
+Page title/group/attached-description metadata is static: any message arguments must be context-free constants. Page `require` expressions retain their existing pure-expression syntax, including legitimate data dependencies; no new navigation declaration or guard syntax is introduced. Contextual current-membership reads and their helper calls reuse ordinary expression syntax; their permitted evaluation sites, authority, source provenance and dependency checks follow DESIGN §§2–4 and §9. Boolean result types and record-bound routes do not themselves grant authority. Field/server initializers cannot acquire current-membership reads through helpers; authorized parent reads and signature-default rules retain their separate semantics. Explicitly constant sites remain context-free. Native observer entry-point limitations are implementation gaps recorded separately. DESIGN §9 defines derived page admission versus local container gates, dependency-limited discovery, current eligibility and ordering. Descriptor generation/admission is semantic compiler/runtime work, not parser behavior.
 
 ## Types, schemas and signatures
 
@@ -399,10 +409,11 @@ mutation_target = path ;
 The optional trusted-header `each=cohort [as NAME]` selects a same-package
 stored model or a nonnullable event-rooted parent's contained collection.
 Its optional alias is a stored child reference in the handler's lexical
-scope and cannot hide a contextual fact. Declared-event cohorts currently
-emit a private handler plus checked child admission metadata and require
-`state.cohorts@1`. Periodic, lifecycle and delivery-progress cohort trigger
-lowering remains unavailable; ordinary trigger syntax is unchanged.
+scope and cannot hide a contextual fact. Omission adds no authored child
+binding. Frozen membership, bounded child transactions, verified source
+authority and replay follow DESIGN §6. Parsing does not establish support
+for a trigger/owner consumer; unavailable execution is an explicit
+unsupported diagnostic, never a client-callable fallback.
 
 The table's `on=source` slot uses `handler_source`. Each effect suite is nonempty. `else` occurs at the same indentation as its paired `if` immediately after that suite, ignoring blank/comments. No `else if` shortcut is introduced; write a nested `if` in the `else` suite. The mandatory `limit` slot parses an expression whose value must be a positive integer within the work budget. It is not a query clause. Loop query expressions end at `limit=`. Call/send targets parse ordinary expressions with unparenthesized typed construction disabled so their following argument object remains a distinct effect slot; later checking requires a valid operation/action reference. A delete path must resolve to a permitted mutable record target.
 
@@ -436,7 +447,7 @@ example_assertion = observations "->" observations ;
 
 In the table form, the first child line is a header, and at least one row follows it. Both sides are nonempty. `->` at current delimiter depth divides header/row sides; commas divide columns only outside brackets/braces/calls. A sole `error(code)` on the expected side is recognized as a rejection expectation and replaces the whole expected row; it cannot be combined with expected observation cells. Other calls/expressions are parsed normally and validated in test scope. Neither a header nor a row admits semicolons or a child suite.
 
-Common bindings use the operation's input names, including `event` for a trusted handler, and may include the special `seed` list. Duplicate input/seed bindings are invalid. Both header sides parse expression lists; checking must establish that the left expressions are permitted input-selector paths. `as`, `request.*`, record-fixture fields, generated CRUD inputs and direct delivery-recipe whole status/result/error selectors acquire their specified test meaning during validation. Delivery selectors resolve a named recipe declaration, not a path through a stored association, and permit no protected request/identity fields or descendant patches; combined setup validation precedes receipt provisioning (DESIGN §5.1). Caller-role arrays, fixture names and deterministic account names are ordinary expression shapes with test-only resolution. `as` can select a named user fixture or explicit `self`/`other`; identity values cannot occur inside caller-role arrays, and user recipe attributes are not editable selectors. Header/row arity and the whole-row single-argument `error(...)` shape are checked structurally. Valid input selectors, fixture setup validity, observation types, exact error-code values and production behavior are not established by parsing.
+Common bindings use the operation's input names, including `event` for a trusted handler, and may include the special `seed` list. Duplicate input/seed bindings are invalid. Both header sides parse expression lists; checking must establish that the left expressions are permitted input-selector paths. `as`, `request.*`, record-fixture fields, generated CRUD inputs and direct delivery-recipe whole status/result/error selectors acquire their specified test meaning during validation. Delivery selectors resolve a named recipe declaration, not a path through a stored association, and permit no protected request/identity fields or descendant patches; combined setup validation precedes receipt provisioning (DESIGN §5.1). Caller-role arrays, fixture names and deterministic account names are ordinary expression shapes with test-only resolution. `as` can select a named user fixture or explicit `self`/`other`; identity values cannot occur inside caller-role arrays, and user recipe attributes are not editable selectors. Header/row arity and the whole-row single-argument `error(...)` shape are checked structurally. Valid input selectors, fixture setup validity, observation types, exact error-code values and production behavior are not established by parsing. Only successful mutation-table post-call observations may read the actual completed `operation.id`/`operation.source`; setup, expected cells, reads and sequence expressions do not receive that contextual binding. This creates no production result or additional read grant.
 
 A scenario-attached sequence starts with a sole `do` child instead of a table header and accepts only `seed` on its examples header. It is available on user scenarios, not trusted handlers or CRUD declarations; calls inside it may name enabled generated CRUD operations. At least one explicit call must resolve to the enclosing scenario and at least one assertion or expected-error call must exist. There is no implicit invocation. `example_caller` must resolve to self/other/outsider/public or a user fixture, never a role expression/array; role grants stay fixed during a sequence. `request` is the existing envelope-override meaning in value-object form. `as` requires an actual declared typed operation result and is forbidden together with an expected error. The sequence body has no other effects or control flow. Observation tuples have matching nonzero arity; `condition -> true` permits the ordinary true-branch narrowing after the assertion. Name resolution, stored-snapshot setup validation, per-step admission/rollback and error codes follow DESIGN §5.1. Domain server fields can be explicitly initialized in fixtures; reserved metadata cannot. Parsing a sequence does not establish its semantic validity or BDD execution.
 
@@ -453,31 +464,34 @@ view_header    = "view" NAME "(" "row" ":" NAME ")" [generation_agent] ;
 generation_agent = "agent" "=" NAME ;
 generation_prompt = "$" STRING ;
 style_suffix   = generation_prompt | "$" NAME ;
-show           = "show" NAME values [generation_agent] [style_suffix] ;
-page           = "page" route attributes optional_suite(ui_body) ;
+style_attachment = [generation_agent] style_suffix ;
+show           = "show" NAME values [style_attachment] ;
+page           = "page" route attributes [style_attachment] optional_suite(ui_body) ;
 ui_body        = {ui_item} ;
 ui_item        = core_ui_item | catalog_item | preference_panel | edit_group ;
 core_ui_item   = line(ui_leaves) | ui_group | collection | form | tabs_group | action_priority ;
 action_priority = ("primary" | "secondary") expr action_binding attributes optional_suite(ui_body) ;
 action_binding  = "action" "=" expr | "submit" "=" "true"
                 | "opens" "=" NAME | "target" "=" expr ;
-preference_panel = "preferences" suite(ui_body) ;
-edit_group     = "edit" attributes suite(ui_body) ;
+preference_panel = "preferences" [style_attachment] suite(ui_body) ;
+edit_group     = "edit" attributes [style_attachment] suite(ui_body) ;
 slot_item      = "slot" NAME suite(ui_body) ;
 ui_leaves      = ui_leaf {";" ui_leaf} ;
-ui_leaf        = "require" expr | "title" expr | "text" observations | "content" observations
+ui_leaf        = "require" expr | visual_leaf [style_attachment]
+               | collection_header | form_header | show ;
+visual_leaf    = "title" expr | "text" observations | "content" observations
                | "metrics" observations | "copy" expr | "edit" attributes
                | "delete" | "action" expr | "actions" separated(expr) | "history"
-               | collection_header | form_header | "tabs" expr | show ;
-ui_group       = "card" expr attributes suite(ui_body)
-               | "details" expr attributes suite(ui_body) ;
-tabs_group     = "tabs" [expr] suite(tab_items) ;
-tab_items      = {"tab" expr suite(ui_body)} ;
+               | "tabs" expr ;
+ui_group       = "card" [expr] attributes [style_attachment] suite(ui_body)
+               | "details" expr attributes [style_attachment] suite(ui_body) ;
+tabs_group     = "tabs" [expr] [style_attachment] suite(tab_items) ;
+tab_items      = {"tab" expr [style_attachment] suite(ui_body)} ;
 collection     = collection_header suite(ui_body) ;
-collection_header = collection_head expr attributes ;
+collection_header = collection_head expr attributes [style_attachment] ;
 collection_head = "list" | "table" | "board" | "calendar" | "gallery" ;
 form           = form_header suite(ui_body) ;
-form_header    = "form" expr attributes ;
+form_header    = "form" expr attributes [style_attachment] ;
 selector       = path ;
 selectors      = separated(["-"] selector) ;
 ordering       = selectors ;
@@ -493,7 +507,7 @@ route_segment  = STATIC_SEGMENT | "{" path "." "id" "}"
 STATIC_SEGMENT = /[A-Za-z0-9_-]+/ ;
 ```
 
-Named style definitions and views belong directly in Then and cannot be exported. A style definition has no body. In `generation_prompt` and named `style_suffix`, `$` is adjacent to its STRING or NAME; prompts are static JSON strings without interpolation or translation suffixes and are not ordinary expressions. Definition-owned `agent=` selects a generation profile. On a `show` instance, `agent=` requires an inline style prompt and cannot override a named style's profile.
+Named style definitions and views belong directly in Then and cannot be exported. A style definition has no body. In `generation_prompt` and named `style_suffix`, `$` is adjacent to its STRING or NAME; prompts are static JSON strings without interpolation or translation suffixes and are not ordinary expressions. Definition-owned `agent=` selects a generation profile. A style attachment ends its visual header before the logical newline, semicolon or suite. Each permitted visual header accepts at most one attachment. The catalog's readable leaves, groups, collections, field controls, buttons and shared-state/navigation controls use the same optional `style_attachment` after their checked payload/options and before their header ends; their existing profiles still determine body shape and legal placement. `agent=` on an attachment requires an inline style prompt and cannot override a named style's profile. `require`, schema declarations, slot markers and other nonvisual structural declarations are not style targets. Priority `primary`/`secondary` actions accept no attachment, and styles on their visual ancestors cannot restyle their standard controls. An ordinary view definition accepts no root style; its visual children and `show` instances may carry attachments. Saved style reuse and freshness follow BGEN02 without additional AI calls for a compatible use.
 
 An ordinary view requires a nonempty presentation suite. A generated view has a renderer prompt, an optional second style suffix for its root, and an optional suite governed by the [canonical generated-view child contract](BUILD_GENERATION_REQUIREMENTS.md#bgen-02-complete-generation-targets). Its `require` children gate the whole instance; guards inside a card remain local. An ordinary view definition does not accept a root-style suffix; its rendered children and `show` instances may carry their own attachments. Both forms bind exactly one required nonnullable local stored-model `row`. A `show` object must resolve to exactly `{row=expression}`; evaluate that expression once. Views resolve in their owning module without caller capture; slots and nested `show` are excluded at any depth. Parsing does not establish admitted row data, saved renderer availability or runtime behavior.
 
@@ -580,13 +594,13 @@ Mapper `before` is the pinned old row and `row` the partially initialized desire
 
 ## Verification boundary
 
-This grammar establishes source structure and rejects unsupported spelling. A syntax AST parser must retain physical start locations and parse every accepted token into structure, including examples and fields, and report the file, physical line, column and expectation for failures. Complete AST end spans are additional implementation work, not implied by a start location. Testing the current source corpus alone cannot exercise absent features such as semicolon sequences, unions, field descriptions, richer contexts and maintenance declarations. Syntax coverage neither supplies a type checker/runtime nor proves the design's business requirements. Compiler-derived schemas, interfaces, indexes and deployment plans do not require authored manifests or additional source primitives.
+This grammar establishes source structure and rejects unsupported spelling. A syntax AST parser must retain physical start locations and parse every accepted token into structure, including examples and fields, and report the file, physical line, column and expectation for failures. Source correspondence and diagnostic ranges must identify the actual authored occurrences; the internal AST representation is an implementation choice. Testing the current source corpus alone cannot exercise absent features such as semicolon sequences, unions, field descriptions, richer contexts and maintenance declarations. Syntax coverage neither supplies a type checker/runtime nor proves the design's business requirements. Compiler-derived schemas, interfaces, indexes and deployment plans do not require authored manifests or additional source primitives.
 
 ## Personal configuration and presentation boundaries
 
 Then `preferences {fields}` declares an extension to the standard configuration dialog; it is not a Given fact or stored business model. It is the sole unnamed extension declaration; `preferences Name {fields}` and exports are errors. A field called preferences remains legal. Empty and duplicate owner schemas are rejected syntactically; allowed field types, constant defaults, preference invariants and presentation-only dependency checks are semantic, as defined in DESIGN §9.
 
-Then accepts pages, ordinary/generated views, named style definitions, the unnamed preferences configuration-dialog declaration, and its `invariant preferences: expr` validation in the same owner. The checker rejects stored-model invariants in Then; an actual Given model named `preferences` retains its ordinary Given invariant. Given retains facts and stored business configuration; When retains mutations. Authored nav/link trees are removed; navigation derives from eligible pages with page-local exceptions. Grouping retains scope. Collection defaults use the existing values-object production, never a new query or permission grammar. Typed filter matching and display values require semantic checks. The parser rejects details with both display and open, since open is only for default Collapse.
+Then accepts pages, ordinary/generated views, named style definitions, the unnamed preferences configuration-dialog declaration, and its `invariant preferences: expr` validation in the same owner. The checker rejects stored-model invariants in Then; an actual Given model named `preferences` retains its ordinary Given invariant. Given retains facts and stored business configuration; When retains mutations. An authored replacement shell, route registry or permission registry is invalid. Navigation derives from eligible pages; page-local catalog navigation components and canonical links remain valid presentations of those admitted destinations. Grouping retains scope. Collection defaults use the existing values-object production, never a new query or permission grammar. Typed filter matching and display values require semantic checks. The parser rejects details with both display and open, since open is only for default Collapse.
 
 `tabs [expr]` may have `tab expr` child suites; only direct tab children are allowed. A selector-free tabs header requires suites. Each tab requires a nonempty normal presentation body. A selector-backed leaf is allowed. Semantic resolution requires an owned enum preference selector and, in its block form, every exact distinct case once. Unbound tab captions must resolve to text/messages. Types do not choose the syntactic production.
 
