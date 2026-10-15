@@ -2501,6 +2501,26 @@ fn emit_program_with_sources(
                                 .all(|query| query.first.is_none() && query.count.is_none())
                         })
                 {
+                    if emitter
+                        .query_any
+                        .and_then(|owners| owners.get(&item.canonical))
+                        .and_then(serde_json::Value::as_array)
+                        .is_some_and(|queries| {
+                            queries.iter().any(|query| query["kind"] == "predicate")
+                        })
+                    {
+                        // Helper query preparation proves its plan, but its empty
+                        // effect/call maps must never replace the complete owner
+                        // recipe that captures the actual derive invocation.
+                        if !emitter.native_receipts.contains_key(&item.id) {
+                            emitter.unsupported(
+                                "helper ANY",
+                                "complete owning effect and derive-call receipt is unavailable",
+                                item.span,
+                            );
+                        }
+                        continue;
+                    }
                     emitter.native_receipts.insert(item.id, recipe.clone());
                     emitter.prepared_query_receipts.insert(item.id);
                 }

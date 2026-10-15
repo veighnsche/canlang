@@ -2,6 +2,24 @@
 
 ## Current remainder and finite completion
 
+**C02 leading helper native journey (2026-10-15, implemented/tested).**
+The complete owning receipt now survives source-only query preparation, retaining
+the original derive-call capture and lazy issued callback. The existing private
+owner-row lease supplies the genuine bounded root domain to nested bool policy
+queries; stage/original guards retain intermediate rows, final authority overlays
+actual later writes/inserts/removes. Missing/foreign/scoped domains still refuse;
+no store-scan fallback or broader viewer grant. State source checks31/31 and
+normal State/CF builds pass. Actual captured CLI→verified assembly→D1/Identity
+Employee fixture passes1/1 (57.73s): original declarations/three policies/staff/
+can_work/CRUD/deactivate, home/list/operator-wide lazy prefix, untouched suffix,
+HR/self/coworker privacy, invalid-date invariant rollback, rejected guard receipts,
+commit/replay/retained replay, inactive and membership-loss withholding. Stored
+Model edges correctly retain id; input reference versions remain admission facts.
+This accepts one leading helper workflow, not full Employee.changed/provider or
+original mixed CRM/native/application readiness. File-placement/native cross-file
+association and the original mixed first/body guard path remain explicit next
+qualification/implementation scopes; original24 count remains655 at0d751ed1.
+
 **C02 checked Given omission in create census (2026-10-15, implemented/tested).**
 The create-source omission check now recognizes defaults already validated in
 Given field-trait tables, matching checker/default lowering. Existing adjacent

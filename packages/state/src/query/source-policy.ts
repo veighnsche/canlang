@@ -325,11 +325,14 @@ export async function readRecordsAtSourceObservation(input: SourceObservationRec
   return withinInstalledSourceReadQuery(observation, { store, model }, async (checkpoint, loadRow, ownerRows, control) => {
     const reads = captureSourceReadPolicies(input.readPolicies), policy = new Map(input.policy), read = reads.get(model);
     if (read === undefined) invalid();
-    if (ownerRows !== undefined && id === undefined) throw new StateError('validation', 'Source collection needs its original committed query domain.');
+    if (ownerRows !== undefined && id === undefined && (!control || parent !== undefined || ownerRows.query === undefined)) {
+      throw new StateError('validation', 'Source collection needs its original committed query domain.');
+    }
     await checkpoint();
     const single = id === undefined ? undefined : await loadRow(model, id);
-    const candidates = id === undefined ? await store.query({ model, authority: 'viewer', order: [{ field: 'id', direction: 'asc' }], archived: 'exclude',
-      ...(parent === undefined ? {} : { parent }) }) : single === null ? [] : [single!];
+    const candidates = id === undefined ? ownerRows !== undefined ? await ownerRows.query!(model) :
+      await store.query({ model, authority: 'viewer', order: [{ field: 'id', direction: 'asc' }], archived: 'exclude',
+        ...(parent === undefined ? {} : { parent }) }) : single === null ? [] : [single!];
     await checkpoint();
     const rows = new Map<string, StoredRow>();
     for (const row of candidates) rows.set(`${model}\0${row.id}`, row);

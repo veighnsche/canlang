@@ -2592,10 +2592,30 @@ async function readObservedStoredReferenceRow(call: AdmittedCall, store: Storage
   } catch (error) { state.poisoned = true; if (owner !== undefined) owner.capture.poisoned = true; poisonSourceOwner(); throw error; }
   finally { if (acquired) { state.pending--; owner!.busy = false; } }
 }
+/** Borrow only this complete root predicate domain. Source-policy collections
+ * retain id order and exclude archives; final authority sees the actual final
+ * owning overlay while the original query guard retains its intermediate rows. */
+function predicateControlDomain(model: ModelName, domain: readonly StoredRow[], maxRows: number,
+  assertHealthy: () => void, writes: readonly DomainWrite[] = []) {
+  return async (requested: ModelName): Promise<readonly StoredRow[]> => {
+    assertHealthy();
+    if (requested !== model) throw new StateError('validation', 'Source collection needs its original committed query domain.');
+    const rows = new Map(domain.map(row => [row.id, row]));
+    for (const write of writes) if (write.model === model) {
+      if (write.kind === 'remove') rows.delete(write.id);
+      else rows.set(write.row.id, write.row);
+    }
+    const selected = [...rows.values()].filter(row => row.archivedAt === null && row.parent == null);
+    if (selected.length > maxRows) throw new StateError('validation', 'Source predicate domain exceeds its owning row bound.');
+    selected.sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0);
+    assertHealthy(); return Object.freeze(selected);
+  };
+}
 /** Original first-query rows reuse the installed source/ancestor projector and
  * complete Identity observation, both now and against actual final effects. */
 async function observeModelQuerySourceAuthority(call: AdmittedCall, store: StoragePort, owner: ReceiptOwnerSession,
-  state: Capture, model: ModelName, row: StoredRow, fields: readonly string[], pending = 0): Promise<{
+  state: Capture, model: ModelName, row: StoredRow, fields: readonly string[], pending = 0,
+  predicateDomain?: readonly StoredRow[]): Promise<{
     readonly requireFields: (fields: readonly string[]) => Promise<void>; readonly revalidate: () => Promise<void>;
   }> {
   const producer = querySourceProducer(call.def as GeneratedOperationDef, model), read = producer?.readPolicies?.get(model);
@@ -2615,11 +2635,13 @@ async function observeModelQuerySourceAuthority(call: AdmittedCall, store: Stora
   const membership = actorUserId === null || teamId === null ? null : await reader.findMembership(teamId, actorUserId); healthy();
   const context: ByContext = { actorUserId, teamId, membership, memberships: reader };
   const project = async (current: StoredRow, observed: ByContext,
-    load: (model: ModelName, id: RecordId) => Promise<StoredRow | null>, assertHealthy: () => void) => {
+    load: (model: ModelName, id: RecordId) => Promise<StoredRow | null>, assertHealthy: () => void,
+    query?: (model: ModelName) => Promise<readonly StoredRow[]>) => {
     try {
       return await projectInstalledSourceRowAndAncestors({ model, row: current,
         readPolicies: producer.readPolicies!, policy: producer.policy, context: observed, revision: call.revision,
-        fence: undefined, store, rows: new Map([[`${model}\0${current.id}`, current]]), ownerRows: { read: load, assertHealthy } });
+        fence: undefined, store, rows: new Map([[`${model}\0${current.id}`, current]]),
+        ownerRows: { read: load, assertHealthy, ...(query === undefined ? {} : { query }) } });
     } catch (error) {
       if (error instanceof FenceConflictError) throw new StateError('conflict', 'Model query source authority moved beyond its checkpoint.');
       throw error;
@@ -2630,7 +2652,8 @@ async function observeModelQuerySourceAuthority(call: AdmittedCall, store: Stora
     ? value.record!.parent !== null && value.record!.parent.model === state.bound.artifactModels.get(model)?.parent
     : ('grants' in read ? value.grants.some(grant => grant.fields.includes(field)) : true) && (field === 'id' || Object.hasOwn(value.record!.data, field)));
   const authority = await observeRowGrantAuthority(context, observed => project(row, observed,
-    async (model, id) => { healthy(); const value = await owner.session!.views.final.get(model, id); healthy(); return value; }, healthy));
+    async (model, id) => { healthy(); const value = await owner.session!.views.final.get(model, id); healthy(); return value; }, healthy,
+    predicateDomain === undefined ? undefined : predicateControlDomain(model, predicateDomain, owner.maxRows, healthy)));
   healthy();
   if (!readable(authority.value)) throw new StateError('forbidden', 'Original model query source fields are unavailable.');
   await authority.revalidate(); healthy();
@@ -2646,7 +2669,8 @@ async function observeModelQuerySourceAuthority(call: AdmittedCall, store: Stora
     };
     const current = await load(model, row.id);
     if (current === null || !sameModelLifetime(row, current)) throw new StateError('forbidden', 'Original model query row lifetime changed.');
-    const now = await observeRowGrantAuthority(context, observed => project(current, observed, load, finalHealthy));
+    const now = await observeRowGrantAuthority(context, observed => project(current, observed, load, finalHealthy,
+      predicateDomain === undefined ? undefined : predicateControlDomain(model, predicateDomain, owner.maxRows, finalHealthy, final.writes)));
     finalHealthy();
     if (!readable(now.value)) throw new StateError('forbidden', 'Model query source field authority changed before commit.');
     await now.revalidate(); await authority.revalidate(); finalHealthy();
@@ -2772,7 +2796,10 @@ async function executeScenarioReceiptQueryMode(call: AdmittedCall, store: Storag
           return invalid('source query crossed its actual owner stage.');
         }
       };
-      const stageReader = { assertHealthy: stageHealthy, read: async (model: ModelName, id: RecordId) => {
+      const predicateDomain = anyProfile?.kind === 'predicate' && plan.parent === undefined ? domain : undefined;
+      const stageReader = { assertHealthy: stageHealthy,
+        ...(predicateDomain === undefined ? {} : { query: predicateControlDomain(plan.model, predicateDomain, owner.maxRows, stageHealthy) }),
+        read: async (model: ModelName, id: RecordId) => {
         stageHealthy(); const key = `${model}\0${id}`;
         if (!stageRows.has(key)) { stageRows.set(key, await owner.session!.views.final.get(model, id)); stageHealthy(); }
         return stageRows.get(key)!;
@@ -2783,7 +2810,8 @@ async function executeScenarioReceiptQueryMode(call: AdmittedCall, store: Storag
         if (owner.executingCall !== call || owner.stage !== execution.stage) return invalid('query predicate crossed its original owner stage.');
         const sourceAuthority = producer.readPolicies !== undefined || state.bound.resultModel !== undefined || plan.parent !== undefined || plan.dependencies.some(dep => dep.field === 'parent')
           ? await observeModelQuerySourceAuthority(call, store, owner, state, plan.model, row,
-            (any || selection !== undefined || (plan.parent !== undefined || producer.readPolicies !== undefined) && state.bound.resultModel === undefined) ? [] : plan.dependencies.map(dependency => dependency.field)) : undefined;
+            (any || selection !== undefined || (plan.parent !== undefined || producer.readPolicies !== undefined) && state.bound.resultModel === undefined) ? [] : plan.dependencies.map(dependency => dependency.field),
+            0, predicateDomain) : undefined;
         sourceAuthorities.push(sourceAuthority);
         const slot = Object.freeze({});
         const candidate = { row, record: deepFreeze(dataCopy(record)), slot, dependencies: new Set<string>(),
@@ -2868,7 +2896,9 @@ async function executeScenarioReceiptQueryMode(call: AdmittedCall, store: Storag
         const finalHealthy = () => {
           if (final === null || owner.finalized !== final || owner.capture.poisoned) return invalid('source query final owning effects are unavailable.');
         };
-        const originalReader = { assertHealthy: finalHealthy, read: async (model: ModelName, id: RecordId) => {
+        const originalReader = { assertHealthy: finalHealthy,
+          ...(predicateDomain === undefined ? {} : { query: predicateControlDomain(plan.model, predicateDomain, owner.maxRows, finalHealthy) }),
+          read: async (model: ModelName, id: RecordId) => {
           finalHealthy(); const key = `${model}\0${id}`;
           if (!stageRows.has(key)) throw new StateError('forbidden', 'Source query guard requested an unobserved original ancestor.');
           return stageRows.get(key)!;

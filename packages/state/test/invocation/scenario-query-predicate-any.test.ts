@@ -10,7 +10,7 @@ import { StateError } from '../../src/errors.js';
 import { createMemoryStorage } from '../../src/storage/memory.js';
 import { buildModelTableFromCanonical } from '../../src/mutation/models.js';
 import { buildPolicyTable } from '../../src/policy/grants.js';
-import type { ViewerSourceReadPolicy } from '../../src/query/source-policy.js';
+import { readRecordsAtSourceObservation, type ViewerSourceReadPolicy } from '../../src/query/source-policy.js';
 import type { AdmittedCall } from '../../src/invocation/admission.js';
 import { invoke } from '../../src/invocation/invoke.js';
 import { loadArtifactDescriptors, isGeneratedOperationDef, type ArtifactDescriptorSlice } from '../../src/invocation/registry.js';
@@ -44,14 +44,14 @@ const importedMetadata = { ...metadata, sourceCall: { siteIndex: 0, callIndex: 1
 type Association = 'valid' | 'missing-owner' | 'missing-capture' | 'site-index' | 'call-index' | 'path' | 'hash' | 'module' | 'chain' | 'slots' | 'domain';
 let sequence = 160000;
 type Mode = 'normal' | 'wrong-pointer' | 'copied-call' | 'foreign-store' | 'wrong-query' | 'closed' | 'repeat' | 'missing-marker' | 'wrong-first' | 'failure';
-async function world(allFalse = false, corruption?: 'source' | 'census' | 'type' | 'import', denySuffix = true, association?: Association, nativeUser = false) {
+async function world(allFalse = false, corruption?: 'source' | 'census' | 'type' | 'import', denySuffix = true, association?: Association, nativeUser = false, controlDomain = false) {
   const dependencies = controls.map(([field, type], index) => ({ id: dependencyIds[index]!, source, role: 'control' as const, field, type: type as CanTypeId }));
   const slice: ArtifactDescriptorSlice = { artifact_version: 1, sources: [{ path: source.path, sha256: source.sha256 }],
     modules: [{ path: source.module, js: 'export const identity="Predicate.check";', map: { version: 3, file: source.module,
       sources: [source.path], sourcesContent: [null], names: [], mappings: '' } }],
     callables: [{ id: OP, kind: 'operation', module: source.module, export: 'identity', member: ['check'] }],
     valueTypes: { contracts: [] }, models: [
-      { name: EMPLOYEE, deleteMode: 'archive', fields: controls.map(([name, type]) => ({ name, valueType: type as CanTypeId,
+      { name: EMPLOYEE, deleteMode: controlDomain ? 'remove' : 'archive', fields: controls.map(([name, type]) => ({ name, valueType: type as CanTypeId,
         field: name === 'user' ? { kind: 'user' as const } : name === 'home' || name === 'locations'
           ? { kind: 'ref' as const, model: LOCATION } : { kind: 'boolean' as const },
         ...(name === 'locations' ? { array: { required: false } } : {}), required: true, serverOnly: false })) },
@@ -89,7 +89,14 @@ async function world(allFalse = false, corruption?: 'source' | 'census' | 'type'
   readPolicies.set(EMPLOYEE, { fields: controls.map(([field]) => field), secretFields: [], grants: [
     { fields: ['id', 'user'], read: async ({ context, row }) => { scanned.add(row.id); return context.membership?.status === 'active' &&
       (await context.memberships.findMembership(team.team_id, reader.user_id))?.status === 'active'; } },
-    { fields: ['active', 'operator_wide', 'home', 'locations'], read: async ({ context, row }) => access.fields && (!denySuffix || row.id !== 'c') && context.membership?.status === 'active' },
+    { fields: ['active', 'operator_wide', 'home', 'locations'], read: async observation => {
+      const { context, row } = observation;
+      if (!access.fields || denySuffix && row.id === 'c' || context.membership?.status !== 'active') return false;
+      if (!controlDomain) return true;
+      const domain = await readRecordsAtSourceObservation({ observation, store, model: EMPLOYEE, readPolicies, policy });
+      assert.deepEqual(domain.map(candidate => candidate.record.id), [...domain.map(candidate => candidate.record.id)].sort());
+      return domain.some(candidate => candidate.record.data.operator_wide === true);
+    } },
   ] });
   readPolicies.set(RESULT, { fields: ['allowed'], secretFields: [], grants: [{ fields: ['id', 'allowed'], read: async ({ context }) => context.membership?.status === 'active' }] });
   let pending: { readonly call: AdmittedCall; readonly predicate: ScenarioReceiptAnyPredicate } | null = null, captures = 0;
@@ -118,7 +125,7 @@ async function world(allFalse = false, corruption?: 'source' | 'census' | 'type'
     ...(loaded.valueSchema === undefined ? {} : { valueSchema: loaded.valueSchema }) });
   const rows: [ModelName, StoredRow][] = [ [LOCATION, makeRow({ id: 'site' })] ];
   for (const id of ['c', 'b', 'a']) rows.push([EMPLOYEE, makeRow({ id, created: FIXED_NOW,
-    data: { user: { id: person.id }, active: id !== 'a', operator_wide: false,
+    data: { user: { id: person.id }, active: id !== 'a', operator_wide: controlDomain && id === 'c',
       home: { id: id === 'b' && !allFalse ? 'site' : 'elsewhere' }, locations: [] } })]);
   await store.commit(makeBatch(await store.readRevision(), { writes: rows.map(([model, row]) => ({ kind: 'insert', model, row })) }));
   const plan = def.descriptor.result!.disclosure!;
@@ -137,7 +144,7 @@ async function world(allFalse = false, corruption?: 'source' | 'census' | 'type'
     deactivate: () => { pending = null; }, captures: () => captures, person: person.id };
 }
 type World = Awaited<ReturnType<typeof world>>;
-function execution(w: World, mode: Mode = 'normal', after?: () => Promise<void> | void) {
+function execution(w: World, mode: Mode = 'normal', after?: (session: Awaited<ReturnType<typeof beginScenarioReceiptMutation>>) => Promise<void> | void) {
   let receipt: Receipt | undefined, activeCall: AdmittedCall | undefined, late: ScenarioReceiptAnyPredicate | undefined;
   const visited: string[] = [];
   const request = { ...w, observeCommittedReceipt: (value: Receipt) => { receipt = value; }, execute: async (call: AdmittedCall) => {
@@ -159,7 +166,7 @@ function execution(w: World, mode: Mode = 'normal', after?: () => Promise<void> 
         predicate: mode === 'wrong-pointer' ? candidate => predicate(candidate) : predicate });
     const allowed = await invokeAny();
     if (mode === 'repeat') { await assert.rejects(invokeAny()); throw new StateError('validation', 'Repeat refused'); }
-    await after?.();
+    await after?.(session);
     await session.stage({ op: 'create', model: RESULT, id: asId('result'), data: { allowed } }, { cause: 'scenario' });
     const row = await session.read(RESULT, asId('result')); assert.ok(row);
     const result = await bindScenarioReceiptModelResult(call, w.store, { returnId: 'result', row });
@@ -307,4 +314,63 @@ test('native User predicate declaration refuses wrong claims, native kinds, wrap
     assert.throws(() => bindScenarioQueryAny({ ...w.profileBound, artifactModels }, w.associated, w.sourceFacts), StateError);
   }
   assert.equal(getters, 0);
+});
+
+
+test('root predicate policies retain their private stage domain and current saved recovery', async () => {
+  const w = await world(false, undefined, true, 'valid', true, true), ex = execution(w);
+  assert.equal((await invoke(ex.request)).status, 'committed');
+  assert.deepEqual(ex.visited, ['a', 'b']);
+  const saved = readScenarioReceiptAssociation(ex.receipt())!;
+  assert.deepEqual(saved.queries![0]!.candidates.map(candidate => candidate.row.id), ['a', 'b', 'c']);
+  assert.deepEqual(saved.queries![0]!.selectedIndices, [1]);
+  assert.deepEqual((await projectScenarioReceipt({ ...w, receipt: ex.receipt() })).result, { id: 'result' });
+  await w.memberships.removeMembership(w.authority.membership_id);
+  assert.deepEqual(await projectScenarioReceipt({ ...w, receipt: ex.receipt() }), { result: null, records: [] });
+});
+
+test('final root policy authority sees own updates and removals of another domain row', async () => {
+  for (const change of ['update', 'remove'] as const) {
+    const w = await world(false, undefined, true, 'valid', true, true), original = await w.store.load(EMPLOYEE, asId('c'));
+    assert.ok(original);
+    const ex = execution(w, 'normal', async session => {
+      await session.stage(change === 'update'
+        ? { op: 'update', model: EMPLOYEE, id: original.id, data: { operator_wide: false } }
+        : { op: 'remove', model: EMPLOYEE, id: original.id }, { cause: 'scenario' });
+    });
+    await assert.rejects(invoke(ex.request), error => error instanceof StateError && error.code === 'forbidden');
+    assert.deepEqual(await w.store.load(EMPLOYEE, original.id), original);
+    assert.equal(await w.store.load(RESULT, asId('result')), null);
+  }
+});
+
+test('final root policy includes new own rows while the original query guard retains its intermediate domain', async () => {
+  const w = await world(false, undefined, true, 'valid', true, true);
+  const ex = execution(w, 'normal', async session => {
+    await session.stage({ op: 'update', model: EMPLOYEE, id: asId('c'), data: { operator_wide: false } }, { cause: 'scenario' });
+    await session.stage({ op: 'create', model: EMPLOYEE, id: asId('d'), data: {
+      user: { id: w.person }, active: true, operator_wide: true, home: { id: 'site' }, locations: [],
+    } }, { cause: 'scenario' });
+  });
+  assert.equal((await invoke(ex.request)).status, 'committed');
+  assert.deepEqual(ex.visited, ['a', 'b']);
+  const saved = readScenarioReceiptAssociation(ex.receipt())!, query = saved.queries![0]!;
+  assert.deepEqual(query.candidates.map(candidate => candidate.row.id), ['a', 'b', 'c']);
+  assert.deepEqual(query.selectedIndices, [1]);
+  assert.equal(query.candidates[2]!.row.data.operator_wide, true);
+  assert.equal((await w.store.load(EMPLOYEE, asId('c')))!.data.operator_wide, false);
+  assert.equal((await w.store.load(EMPLOYEE, asId('d')))!.data.operator_wide, true);
+});
+
+
+test('new final root control rows retain the existing owner domain bound', async () => {
+  const w = await world(false, undefined, true, 'valid', true, true);
+  const ex = execution(w, 'normal', async session => {
+    for (let index = 0; index < 8; index++) await session.stage({ op: 'create', model: EMPLOYEE, id: asId(`new-${index}`), data: {
+      user: { id: w.person }, active: true, operator_wide: true, home: { id: 'site' }, locations: [],
+    } }, { cause: 'scenario' });
+  });
+  await assert.rejects(invoke(ex.request), error => error instanceof StateError && error.code === 'validation');
+  assert.equal((await w.store.query({ model: EMPLOYEE, authority: 'owner' })).length, 3);
+  assert.equal(await w.store.load(RESULT, asId('result')), null);
 });
