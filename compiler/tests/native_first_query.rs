@@ -1015,3 +1015,56 @@ fn required_reference_chain_emits_each_original_bridge_and_refuses_replaced_edge
         );
     }
 }
+
+#[test]
+fn original_first_execution_is_independent_of_void_scalar_and_model_result_shapes() {
+    for (result, body) in [
+        ("", "   require budget!=null\n"),
+        (" -> bool", "   require budget!=null\n   return enabled\n"),
+        (
+            " -> Run",
+            "   require budget!=null\n   create Run {title=\"Created\"} as run\n   return run\n",
+        ),
+    ] {
+        let source = format!(
+            "app FirstSources\nGiven\n Budget {{account:user,held:int}}\n Run {{title:text}}\n policy Budget read=members\n policy Run read=members\nWhen\n scenario generate(enabled:bool){result} by=members\n  do\n   let budget=first(Budget as row where row.account==actor order=row.id)\n{body}Then\n"
+        );
+        let (db, program, ir, catalog) = fixture_source("independent-first.can", &source);
+        let owner = item(&ir, OWNER);
+        let ScenarioDisclosure::Complete(checked) = &ir.scenario_disclosures[&owner.id] else {
+            panic!("{result}: {:?}", ir.scenario_disclosures[&owner.id]);
+        };
+        let (artifact, diagnostics) = prepared_artifact(&program, &db, &catalog);
+        assert!(diagnostics.is_empty(), "{result}: {diagnostics:?}");
+        let plan = &operation(&artifact)["result"]["disclosure"];
+        let actual_ids = plan["returns"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|value| value["id"].as_str().unwrap())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            actual_ids,
+            checked
+                .returns
+                .iter()
+                .map(|value| value.id.as_str())
+                .collect::<Vec<_>>()
+        );
+        assert_eq!(plan["queries"].as_array().unwrap().len(), 1);
+        let text = artifact["modules"][0]["js"].as_str().unwrap();
+        assert!(text.contains("queryFirst:["), "{text}");
+        assert!(text.contains("await firstQuery(c,"), "{text}");
+        for returned in plan["returns"].as_array().unwrap() {
+            let original = checked
+                .returns
+                .iter()
+                .find(|value| value.id == returned["id"])
+                .unwrap();
+            assert_eq!(
+                returned["influences"].as_array().unwrap().len(),
+                original.influences.len()
+            );
+        }
+    }
+}

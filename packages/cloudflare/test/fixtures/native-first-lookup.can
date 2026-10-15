@@ -1,5 +1,9 @@
 app LookupSources
 Given
+ contract AuditNote {note:text}
+ contract OptionalDocument {attachment:file?}
+ UnrelatedLedger {amount:money,proof:AuditNote}
+ derive UnrelatedLedger.document:OptionalDocument = OptionalDocument {attachment=null}
  Item {account:user,source:text,active:bool=true}
  Run {item:Item}
  policy Item read=members and row.account==actor
@@ -13,4 +17,15 @@ When
    create Run {item=chosen} as run
    require accept
    return run
+ scenario lookup_scalar(source:text,accept:bool) -> bool by=members
+  do
+   let chosen=first(Item as candidate where candidate.source==source)
+   require chosen!=null
+   require accept
+   return true
+ scenario lookup_void(source:text,accept:bool) by=members
+  do
+   let chosen=first(Item as candidate where candidate.source==source)
+   require chosen!=null
+   require accept
 Then

@@ -4008,21 +4008,32 @@ fn checked_native_first_query_source_plan(
     };
     checked_first_query_order(query, scan)?;
     checked_first_query_predicate(ir, owner, query, scan)?;
-    if checked_created_model_result(ir, owner).is_none()
-        || query.projection.is_some()
+    let standalone_first = facts
+        .queries
+        .as_ref()
+        .is_some_and(|queries| queries.len() == 1 && queries[0].first.is_some());
+    if query.projection.is_some()
         || query.cardinality_guard.is_some()
         || query.source != checked.source
         || checked.returns.iter().any(|returned| {
             returned.source != checked.source
-                || result_statement_at(effects, node_span(returned.node)).is_none()
-                || returned.model_result.is_none()
+                || !standalone_first
+                    && result_statement_at(effects, node_span(returned.node)).is_none()
+                || !standalone_first && returned.model_result.is_none()
                 || if let Some(census) = &mixed {
                     returned
                         .influences
                         .iter()
                         .any(|value| !census.contains(value))
                 } else {
-                    returned.influences != expected_influences
+                    if standalone_first {
+                        returned
+                            .influences
+                            .iter()
+                            .any(|value| !expected_influences.contains(value))
+                    } else {
+                        returned.influences != expected_influences
+                    }
                 }
         })
         || query.id.is_empty()
@@ -4117,7 +4128,16 @@ fn checked_native_first_query_source_plan(
                 Some(ReceiptReturn {
                     id: returned.id.clone(),
                     source: transport_source(&returned.source, entry_module)?,
-                    influences: influences.clone(),
+                    influences: influences
+                        .iter()
+                        .filter(|value| {
+                            returned
+                                .influences
+                                .iter()
+                                .any(|original| original.id == value.id)
+                        })
+                        .cloned()
+                        .collect(),
                     dependencies: Vec::new(),
                     intrinsics: Vec::new(),
                     projection: None,
@@ -11035,23 +11055,7 @@ impl<'a> Sites<'a> {
                                 })
                             })
                         {
-                            let original = facts.creates.as_deref()?.iter().find(|created| {
-                                checked_created_model_result(ir, owner) == Some(created.model)
-                            })?;
-                            let query = checked_first_query_ir(
-                                ir,
-                                original,
-                                expression,
-                                query.first.as_ref()?.call,
-                                db?,
-                            )?;
-                            super::scenario_create_sources::checked_create_expression(
-                                ir,
-                                original,
-                                expression,
-                                query.first.as_ref()?.call,
-                                db?,
-                            )?;
+                            checked_owner_first_query_ir(ir, owner, expression, query.first.as_ref()?.call, db?)?;
                             // Query candidate fields have their separate query
                             // observation path, not ordinary parent row reads.
                             continue;

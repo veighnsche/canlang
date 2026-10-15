@@ -3982,6 +3982,7 @@ async function bindScenarioFrameworkProducers(asm: AssembledModules, artifact: C
 }
 
 type NativeQuerySelectionMetadata = NonNullable<Parameters<typeof import('@canlang/state/invocation').bindScenarioReceiptQueryProducer>[1]['selections']>[number];
+type NativeQueryFirstMetadata = NonNullable<Parameters<typeof import('@canlang/state/invocation').bindScenarioReceiptQueryProducer>[1]['first']>[number];
 type NativeQueryAnyMetadata = NonNullable<Parameters<typeof import('@canlang/state/invocation').bindScenarioReceiptQueryProducer>[1]['any']>[number];
 const nativeScenarioQuerySelections = new WeakMap<GeneratedOperationDef, readonly NativeQuerySelectionMetadata[]>();
 type NativePredicateAnyMetadata = Extract<NativeQueryAnyMetadata, { readonly kind: 'predicate' }>;
@@ -4027,6 +4028,31 @@ async function bindNativeScenarioQueries(asm: AssembledModules, artifact: Compil
     if (typeof app !== 'string' || app === '') throw new AssemblyCorrespondenceError('Scenario query lacks its owning app identity.');
     const operations = isUnknownRecord(definition) ? readMetadataMember(definition, 'operations', where)?.value : undefined;
     const operation = isUnknownRecord(operations) ? readMetadataMember(operations, def.name, where)?.value : undefined;
+    const rawFirst = isUnknownRecord(operation) ? readMetadataMember(operation, 'queryFirst', where)?.value : undefined;
+    const first = rawFirst === undefined ? [] : await Promise.all(nativeCallArray(rawFirst, plan.queries.length).map(async value => {
+      const metadata = localPolicyObject(value, ['queryId', 'source', 'query', 'node', 'statement']);
+      const source = localPolicyObject(metadata.source, ['path', 'sha256', 'module']);
+      const queryNode = localPolicyObject(metadata.query, ['start', 'end']);
+      const node = localPolicyObject(metadata.node, ['start', 'end']);
+      const statement = localPolicyObject(metadata.statement, ['start', 'end']);
+      const interval = (value: Record<string, unknown>) => Object.keys(value).length === 2 &&
+        Number.isSafeInteger(value.start) && Number.isSafeInteger(value.end) && (value.start as number) >= 0 && (value.end as number) > (value.start as number);
+      const query = plan.queries!.find(query => query.id === metadata.queryId);
+      if (Object.keys(metadata).length !== 5 || Object.keys(source).length !== 3 || query === undefined ||
+          stableStringify(captureDispatchPreclaimData(source)) !== stableStringify(query.source) ||
+          stableStringify(query.source) !== stableStringify(plan.source) ||
+          !artifact.sources.some(original => original.path === source.path && original.sha256 === source.sha256) ||
+          !interval(queryNode) || !interval(node) || !interval(statement) || (queryNode.start as number) < (node.start as number) || (queryNode.end as number) > (node.end as number) ||
+          await sha256HexText(`scenario-disclosure/v1:query:${source.path}:${source.sha256}:${def.name.slice(0, def.name.lastIndexOf('.'))}:${queryNode.start}:${queryNode.end}:`) !== query.id ||
+          (node.start as number) < (statement.start as number) ||
+          (node.end as number) > (statement.end as number)) {
+        throw new AssemblyCorrespondenceError('First query lacks its original checked Let, call and owning source.');
+      }
+      return captureDispatchPreclaimData({ queryId: query.id, source: query.source,
+        query: { start: queryNode.start as number, end: queryNode.end as number },
+        node: { start: node.start as number, end: node.end as number },
+        statement: { start: statement.start as number, end: statement.end as number } }) as NativeQueryFirstMetadata;
+    }));
     const rawAny = isUnknownRecord(operation) ? readMetadataMember(operation, 'queryAny', where)?.value : undefined;
     const any = rawAny === undefined ? [] : nativeCallArray(rawAny, plan.queries.length).map(value => {
       if (isUnknownRecord(value) && readMetadataMember(value, 'kind', where)?.value === 'predicate') {
@@ -4077,10 +4103,10 @@ async function bindNativeScenarioQueries(asm: AssembledModules, artifact: Compil
       });
       return captureDispatchPreclaimData({ queryId: selection.queryId, type: selection.type as CanTypeId, fields }) as NativeQuerySelectionMetadata;
     });
-    if ((selections.length !== 0 || any.length !== 0) && (!isUnknownRecord(operation) || readMetadataMember(operation, 'handler', where)?.value !== def.name)) {
+    if ((selections.length !== 0 || any.length !== 0 || first.length !== 0) && (!isUnknownRecord(operation) || readMetadataMember(operation, 'handler', where)?.value !== def.name)) {
       throw new AssemblyCorrespondenceError('Query consumer differs from its actual installed operation.');
     }
-    const needsSourcePolicy = selections.length !== 0 || any.length !== 0 || plan.queries.some(query => {
+    const needsSourcePolicy = selections.length !== 0 || any.length !== 0 || first.length !== 0 || plan.queries.some(query => {
       const visited = new Set<ModelName>();
       let model: ModelName | undefined = query.model;
       while (model !== undefined && !visited.has(model)) {
@@ -4106,6 +4132,7 @@ async function bindNativeScenarioQueries(asm: AssembledModules, artifact: Compil
     }
     bind(def, { source: plan.source, app, policy: loaded.policy as Parameters<typeof bind>[1]['policy'],
       ...(readPolicies === undefined ? {} : { readPolicies }), ...(selections.length === 0 ? {} : { selections }),
+      ...(first.length === 0 ? {} : { first }),
       ...(any.length === 0 ? {} : { any }), ...(predicates.size === 0 ? {} : {
         captureAnyPredicate: (call: AdmittedCall, queryId: string) => {
           const active = nativeScenarioExecutions.get(call);
@@ -4181,6 +4208,9 @@ async function bindNativeScenarioReferences(asm: AssembledModules, artifact: Com
   const sourceReads = context === undefined ? undefined : createSourceReadPolicyAdapter({ loaded,
     opts: context.opts, now: context.now,
     ...(context.preferences === undefined ? {} : { preferences: context.preferences }) });
+  const nominalAssignments = await bindFileStagingCensus(loaded, artifact);
+  const hasNominalAssignments = artifact.models?.some(model => model.fields.some(field =>
+    field.default?.kind !== 'derived' && nominalAssignments?.fields.get(model.name as ModelName)?.has(field.name))) === true;
   for (const value of loaded.registry.values()) {
     const def = generatedScenarioDef({ def: value }), plan = def?.descriptor.result?.disclosure;
     if (def === undefined || plan === undefined) continue;
@@ -4217,6 +4247,13 @@ async function bindNativeScenarioReferences(asm: AssembledModules, artifact: Com
     const rawExecution = isUnknownRecord(operation) ? readMetadataMember(operation, 'executionDependencies', where)?.value : undefined;
     const executionDependencies = rawExecution === undefined ? undefined : captureDispatchPreclaimData(nativeCallArray(rawExecution, 200)) as
       NonNullable<Parameters<typeof bind>[1]['executionDependencies']>;
+    // Query models select the invocation source reader, but an execution-only
+    // query does not itself consume the separate stored-reference producer.
+    if (executionDependencies === undefined && !loaded.models.some(model => model.name === def.descriptor.result?.type) &&
+        plan.returns.every(returned => returned.dependencies.length === 0 && (returned.intrinsics?.length ?? 0) === 0) &&
+        !plan.queries?.some(query => query.parent !== undefined || query.dependencies.some(dependency => dependency.field === 'parent')) &&
+        !def.descriptor.inputs.some(input => input.kind === 'ref' || input.kind === 'nominal') &&
+        !hasNominalAssignments) continue;
     const executionSites = executionDependencies === undefined ? undefined : (loaded.membershipSources.get(def.name) ?? [])
       .filter(site => site.stage !== 'read-policy' && site.stage !== 'read-predicate' && site.stage !== 'send-dispatch');
     if (executionSites !== undefined) {

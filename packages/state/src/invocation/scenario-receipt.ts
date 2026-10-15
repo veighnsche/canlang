@@ -1329,6 +1329,20 @@ export type ScenarioReceiptAnyPredicate = (candidate: {
 }) => boolean | Promise<boolean>;
 
 /** Loader-only policy wiring, bound to the same checked source and app. */
+/** Original checked Let(first) occurrence; no result-disclosure edge is implied. */
+export interface ScenarioReceiptQueryFirstMetadata {
+  readonly queryId: string;
+  readonly source: ScenarioResultDisclosurePlan['source'];
+  readonly query: { readonly start: number; readonly end: number };
+  readonly node: { readonly start: number; readonly end: number };
+  readonly statement: { readonly start: number; readonly end: number };
+}
+function firstQueryNode(value: unknown): { readonly start: number; readonly end: number } {
+  const node = object(value, ['start', 'end']);
+  if (!Number.isSafeInteger(node.start) || !Number.isSafeInteger(node.end) ||
+      (node.start as number) < 0 || (node.end as number) <= (node.start as number)) return invalid('first requires its exact source interval.');
+  return { start: node.start as number, end: node.end as number };
+}
 export interface ScenarioReceiptQueryProducer {
   readonly source: ScenarioResultDisclosurePlan['source'];
   readonly app: string;
@@ -1337,6 +1351,7 @@ export interface ScenarioReceiptQueryProducer {
    * Functions receive State's actual current observation, never a root actor fallback. */
   readonly readPolicies?: ReadonlyMap<ModelName, ViewerSourceReadPolicy>;
   readonly selections?: readonly ScenarioQuerySelectionMetadata[];
+  readonly first?: readonly ScenarioReceiptQueryFirstMetadata[];
   /** Literal checked stored-bool or finite first-read predicate ANY profiles. */
   readonly any?: readonly ScenarioQueryAnyMetadata[];
   /** Verified host consumes the exact active source closure synchronously.
@@ -1349,7 +1364,7 @@ const querySelections = new WeakMap<GeneratedOperationDef, ReadonlyMap<string, S
 export function bindScenarioReceiptQueryProducer(def: GeneratedOperationDef, producer: ScenarioReceiptQueryProducer): void {
   const bound = boundPlans.get(def);
   if (bound === undefined || !bound.plan.queries?.length || invokedPlans.has(def) || queryProducers.has(def)) return invalid('query producer requires one checked source binding before execution.');
-  object(producer, ['source', 'app', 'policy', ...(Object.hasOwn(producer, 'readPolicies') ? ['readPolicies'] : []), ...(Object.hasOwn(producer, 'selections') ? ['selections'] : []), ...(Object.hasOwn(producer, 'any') ? ['any'] : []), ...(Object.hasOwn(producer, 'captureAnyPredicate') ? ['captureAnyPredicate'] : [])]); origin(producer.source); text(producer.app);
+  object(producer, ['source', 'app', 'policy', ...(Object.hasOwn(producer, 'readPolicies') ? ['readPolicies'] : []), ...(Object.hasOwn(producer, 'selections') ? ['selections'] : []), ...(Object.hasOwn(producer, 'first') ? ['first'] : []), ...(Object.hasOwn(producer, 'any') ? ['any'] : []), ...(Object.hasOwn(producer, 'captureAnyPredicate') ? ['captureAnyPredicate'] : [])]); origin(producer.source); text(producer.app);
   if (stableStringify(dataCopy(producer.source)) !== stableStringify(bound.plan.source) || !(producer.policy instanceof Map)) return invalid('query producer differs from its checked source/policy.');
   const policies = [...producer.policy].map(([model, value]) => {
     const copied = dataCopy(value);
@@ -1377,6 +1392,22 @@ export function bindScenarioReceiptQueryProducer(def: GeneratedOperationDef, pro
   }
   if (bound.plan.queries.some(query => !policy.has(query.model) &&
       (readPolicies?.get(query.model) === undefined || !('grants' in readPolicies.get(query.model)!)))) return invalid('query model requires its actual viewer policy.');
+  const first: ScenarioReceiptQueryFirstMetadata[] = [];
+  for (const raw of list(dataCopy(producer.first ?? []))) {
+    const metadata = object(raw, ['queryId', 'source', 'query', 'node', 'statement']);
+    const queryId = text(metadata.queryId), query = bound.plan.queries.find(query => query.id === queryId);
+    origin(metadata.source);
+    const interval = firstQueryNode(metadata.query), node = firstQueryNode(metadata.node), statement = firstQueryNode(metadata.statement);
+    if (query === undefined || query.parent !== undefined || query.limit !== null || query.archived !== 'exclude' ||
+        query.dependencies.length !== 1 || query.dependencies[0]!.role !== 'control' ||
+        !['bool','int','decimal','text','money','date','datetime','duration','currency','user'].includes(query.dependencies[0]!.type) ||
+        query.order.some(order => order.field !== 'id' || order.direction !== 'asc') ||
+        stableStringify(metadata.source) !== stableStringify(query.source) ||
+        stableStringify(metadata.source) !== stableStringify(bound.plan.source) ||
+        interval.start < node.start || interval.end > node.end || node.start < statement.start || node.end > statement.end || first.some(value => value.queryId === queryId ||
+          value.node.start === node.start && value.node.end === node.end)) return invalid('first requires its unique original unscoped checked Let and call.');
+    first.push({ queryId, source: query.source, query: interval, node, statement });
+  }
   const selections = new Map<string, ScenarioQuerySelectionProfile>();
   for (const metadata of list(dataCopy(producer.selections ?? []))) {
     const profile = bindScenarioQuerySelection(bound, metadata as ScenarioQuerySelectionMetadata);
@@ -1409,6 +1440,7 @@ export function bindScenarioReceiptQueryProducer(def: GeneratedOperationDef, pro
   querySelections.set(def, selections);
   queryProducers.set(def, Object.freeze({ source: bound.plan.source, app: producer.app, policy,
     ...(readPolicies === undefined ? {} : { readPolicies }),
+    ...(first.length === 0 ? {} : { first: deepFreeze(first) }),
     ...(producer.captureAnyPredicate === undefined ? {} : { captureAnyPredicate: producer.captureAnyPredicate }) }));
 }
 /** Query source authority comes from its exact installed consumer. Legacy
@@ -1511,6 +1543,9 @@ export function projectReadScenarioQueryResult(def: GeneratedOperationDef, query
 }
 
 function requireQueryResult(state: Capture | undefined, returned: ScenarioResultDisclosurePlan['returns'][number], result: unknown): void {
+  if (state?.queries.some(query => queryProducers.get(query.call.def as GeneratedOperationDef)?.first?.some(value => value.queryId === query.plan.id) && (!query.complete || !query.firstSelected))) {
+    return invalid('executed first query requires its actual completed original consumption.');
+  }
   if (state?.bound.resultModel !== undefined && (state.modelResult?.returnId !== returned.id ||
       state.modelResult.wire !== result)) return invalid('model return requires its actual privately bound current-stage row and wire.');
   if (returned.projection === undefined) {
@@ -3085,12 +3120,22 @@ export async function readScenarioReceiptQueryParentRow(call: AdmittedCall, stor
  * Every matched index remains saved: first is never a query limit/truncation. */
 export async function selectScenarioReceiptQueryFirstRow(call: AdmittedCall, store: StoragePort, input: {
   readonly query: ScenarioReceiptQueryHandle;
+  readonly first?: Pick<ScenarioReceiptQueryFirstMetadata, 'node' | 'statement'>;
 }): Promise<StoredRow | null> {
   const state = capture(call, store), owner = ownerSessions.get(call);
   try {
-    object(input, ['query']);
+    object(input, ['query', ...(Object.hasOwn(input, 'first') ? ['first'] : [])]);
     const query = queryHandles.get(input.query);
-    const executionFirst = query !== undefined && [...referenceProducers.get(call.def as GeneratedOperationDef)?.boundExecutionDependencies.values() ?? []]
+    const metadata = queryProducers.get(call.def as GeneratedOperationDef)?.first?.find(value => value.queryId === query?.plan.id);
+    let originalFirst = false;
+    if (Object.hasOwn(input, 'first')) {
+      const marker = object(input.first, ['node', 'statement']);
+      const node = firstQueryNode(marker.node), statement = firstQueryNode(marker.statement);
+      if (metadata === undefined || stableStringify({ node, statement }) !== stableStringify({ node: metadata.node, statement: metadata.statement })) return invalid('first consumer differs from its actual checked Let and call.');
+      originalFirst = true;
+    }
+    if (metadata !== undefined && !originalFirst) return invalid('checked first consumer omitted its original Let and call.');
+    const executionFirst = originalFirst || query !== undefined && [...referenceProducers.get(call.def as GeneratedOperationDef)?.boundExecutionDependencies.values() ?? []]
       .some(value => value.association.queryId === query.plan.id);
     if (owner === undefined || state.bound.resultModel === undefined && !executionFirst || owner.busy || state.pending !== 0 || state.returnId !== null ||
         owner.executingCall !== call || query === undefined || query.call !== call || query.owner !== owner ||

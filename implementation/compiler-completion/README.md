@@ -2,6 +2,22 @@
 
 ## Current remainder and finite completion
 
+**C02 result-independent first prerequisite (2026-10-15, native component qualified).**
+Existing unscoped single primitive-equality first retains query/alias/field/order
+source proof independently of newly created result shape. Existing private query
+producer carries actual query/Let/call intervals and source-derived query ID;
+issued handle, marker and completion stay mandatory. Only real checked Returns
+and actual influence publish disclosure; no synthetic Return or forced result
+taint. Reference binding reuses the actual file-bearing assignment census with
+derived-target exclusion, so unrelated Money/Contract/derived optional-File
+schemas do not create an invalid reference consumer. State strict gates stay.
+Compiler10/1.10s and State18 (16 reused,two affected span checks/.19s) pass;
+normal State/CF builds and genuine captured native FIRST1/39.78s pass. Source/
+query/call/Let substitution, order, current authority, rollback, scalar/void
+commit/replay/no saved query taint and schema composition are covered.
+Selected scalar Require is still fail-closed and next needs the existing exact
+execution-dependency leaf; Purchase/fullCRM acceptance remain open.
+
 **C02 checked local invariant leaves (2026-10-15, source component qualified).**
 Existing checked/fresh-source policy intake now admits direct owning array count,
 trim, text/URL starts_with and nullable Model presence. Required `[]!` arrays keep
@@ -48,9 +64,16 @@ import aliases and invalid-member refusals; tested snapshot
 loader/accounts controls including cross-realm and empty-role default membership,
 and its normal package build. The earlier JEV context overstated that receiving
 implementation; this corrects mechanics without changing the source choice.
-Native6 now awaits a fresh coherent compiler/receiver closure: concurrent FIRST
-Rust edits correctly invalidate the old frozen CLI in preview input checks.
-Preflight failures execute no rows; no native acceptance or draft commit yet.
+The current coherent CLI/receiver now executes all6 original rows:5pass in
+49.82s, including create and all4 independent rejection/write-absence checks.
+Only existing-deal retry reports validation: its installed source collection
+policy loses the original owner domain in a later reference/return reader. The CF role-array identity adapter
+passes1/1.340s with real actor/session and normal build; no new grants. Native
+FIRST now passes with exact State file-bearing census reuse and unrelated/derived
+schema controls. Next forward the existing policy-domain port through the actual
+stored-reference conjunction and existing-Model row-id return readers, preserving
+stage/final authority. Original6 and draft commit remain pending; earlier preview-
+freshness preflights executed no rows.
 
 **C02 consumed decision CST index (2026-10-15, qualified source component).**
 Index exact checked decision/statement/call/argument/default/derive-body subtrees

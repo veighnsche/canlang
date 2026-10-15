@@ -665,7 +665,7 @@ export function readScenarioReceiptNullableStoredReference(c: HandlerContext, or
 /** Awaited original first(Query) facade. The originating context and exact
  * issued query array alone locate State's private handle; generic first(array)
  * remains pure. Compiler owns selecting this helper for its checked occurrence. */
-export function firstQuery(c: HandlerContext, value: unknown): Promise<Record<string, unknown> | null> {
+export function firstQuery(c: HandlerContext, value: unknown, firstMarker?: Parameters<typeof selectStateQueryFirstRow>[2]['first']): Promise<Record<string, unknown> | null> {
   const operation = (async () => {
     const frame = checked(c);
     if (frame.pending !== 0) return fail(frame, new StateError('validation', 'First query selection must follow its completed original query.'));
@@ -680,7 +680,7 @@ export function firstQuery(c: HandlerContext, value: unknown): Promise<Record<st
       query.bound = true;
       // This literal handle stays private; no selected projection, copied
       // row or later owner read can substitute for the defining selection.
-      const row = await selectStateQueryFirstRow(frame.call, frame.store, { query: result.query });
+      const row = await selectStateQueryFirstRow(frame.call, frame.store, { query: result.query, ...(firstMarker === undefined ? {} : { first: firstMarker }) });
       checked(c);
       const first = result.rows[0];
       if (row === null) {

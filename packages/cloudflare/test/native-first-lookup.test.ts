@@ -15,7 +15,6 @@ import { createD1Storage, ensureSchema } from '@canlang/state/storage/d1';
 import { readScenarioReceiptAssociation } from '@canlang/state/invocation';
 import { hashInputs } from '@canlang/state/invocation/replay';
 import { asId, asModel, asOperation, asOperationId, uuidv7 } from '@canlang/state/testing/invocation/fixtures';
-import { distribution } from '@canlang/values/distribution';
 import type { MutationOutcome } from '../src/worker/assembly.js';
 
 const root = resolve(fileURLToPath(new URL('../../../', import.meta.url)));
@@ -60,13 +59,16 @@ test('native field/input first retains the authorized full domain, default order
     try {
       const { assembleModules, importVerifiedAssemblyModule } = await nodeImport(installed('runtime/modules.js')) as typeof import('../src/runtime/modules.js');
       const { buildInvoker } = await nodeImport(installed('worker/assembly.js')) as typeof import('../src/worker/assembly.js');
-      const { prepareLocalPreviewCapture } = await nodeImport(installed('dev/preview-inputs.js')) as typeof import('../src/dev/preview-inputs.js');
+      const { installedLocalPreviewInputInventory } = await nodeImport(installed('dev/preview-inputs.js')) as typeof import('../src/dev/preview-inputs.js');
       const { captureIsCurrent, captureSingleFileSource, verifyCompilerSources } = await nodeImport(installed('dev/source-capture.js')) as typeof import('../src/dev/source-capture.js');
       const { compileCapturedSingleFile } = await nodeImport(installed('dev/compiler-check.js')) as typeof import('../src/dev/compiler-check.js');
       const originalSource = await readFile(sourcePath);
-      capture = await captureSingleFileSource(prepareLocalPreviewCapture({ checkoutRoot: root, appPath: sourcePath,
-        compilerPath: join(root, 'compiler/target/debug/can'), catalogPath: fileURLToPath(distribution.catalog),
-        helpIndexPath: join(root, 'docs/specification/CONSTRUCT-HELP.md') }));
+      const compilerPath = join(root, 'compiler/target/debug/can');
+      capture = await captureSingleFileSource({ checkoutRoot: root, appPath: sourcePath,
+        profile: 'native-first-lookup', compilerPath, catalogPath: join(root, 'packages/cloudflare/dist/native-catalog.json'),
+        helpIndexPath: join(root, 'docs/specification/CONSTRUCT-HELP.md'),
+        ...installedLocalPreviewInputInventory(root, compilerPath), inputInventory: 'installed-local-preview',
+        semanticOptions: { nativeScenarioReceipts: 'true' } });
       assert.equal(await captureIsCurrent(capture), true);
       const compiled = await compileCapturedSingleFile(capture);
       assert.equal(compiled.kind, 'artifact', compiled.kind === 'diagnostics' ? JSON.stringify(compiled.envelope.diagnostics) : compiled.kind);
@@ -132,7 +134,7 @@ test('native field/input first retains the authorized full domain, default order
       const unchanged = async (before: Awaited<ReturnType<typeof resources>>) => assert.deepEqual(await resources(), before);
       async function rejectedWithoutEffects(input: MutationEnvelope) {
         const before = await resources(), revision = await store.readRevision(), count = batches.length;
-        const outcome = await invoke(input); assert.ok('error' in outcome, JSON.stringify(outcome)); assert.equal(outcome.error.code, 'rule_failed');
+        const outcome = await invoke(input); assert.ok('error' in outcome, JSON.stringify(outcome)); assert.equal(outcome.error.code, 'rule_failed', JSON.stringify(outcome));
         const receipt = await store.readReceipt(receiptIdentity(input)); assert.ok(receipt);
         assert.equal(receipt.outcome.status, 'rejected'); assert.equal(receipt.committedRevision, revision + 1);
         assert.equal(Object.hasOwn(receipt.outcome, 'scenario'), false, 'failed branches never retain a successful model/query result');
@@ -175,6 +177,55 @@ test('native field/input first retains the authorized full domain, default order
       now = baseTime + 40;
       await rejectedWithoutEffects(lookup('wanted', false)); // authentic create is staged, then the late guard rolls it back
       assert.deepEqual(await store.query({ model: RUN, authority: 'owner' }), []);
+      const independentDefinition = object(object(definition.operations)[`${APP}.lookup_scalar`]);
+      const firstMetadata = (independentDefinition.queryFirst as Array<Record<string, unknown>>)[0]!;
+      for (const key of ['queryId', 'query', 'node', 'statement'] as const) {
+        const previous = firstMetadata[key];
+        firstMetadata[key] = key === 'queryId' ? 'foreign-query' : { ...object(previous), start: Number(object(previous).start) + 1 };
+        const before = await resources(), batchCount = batches.length;
+        const malformed = envelope('lookup_scalar', { source: 'wanted', accept: true });
+        let refused: unknown;
+        try {
+          const fresh = buildInvoker(artifact, asm, store, { appId: APP, memberships: identities, source: 'http', now: clock.nowMs });
+          const outcome = await fresh.invokeMutation(malformed, member.identity);
+          if ('error' in outcome) refused = outcome.error;
+        } catch (error) { refused = error; }
+        finally { firstMetadata[key] = previous; }
+        assert.ok(refused, `substituted ${key} must refuse`);
+        assert.match(String(object(refused).message), /[Ff]irst|checked Let/);
+        if (key === 'node' || key === 'statement') {
+          const rejected = await store.readReceipt(receiptIdentity(malformed)); assert.ok(rejected);
+          assert.equal(rejected.outcome.status, 'rejected');
+          assert.equal(object(rejected.outcome).code, 'validation');
+          assert.match(String(object(rejected.outcome).message), /first consumer differs/);
+          const after = await resources(); assert.deepEqual(after.identity, before.identity);
+          for (const table of Object.keys(before.owner)) if (!['receipts', 'fence', 'fence_log'].includes(table)) {
+            assert.deepEqual(after.owner[table], before.owner[table], table);
+          }
+          for (const batch of batches.slice(batchCount)) {
+            assert.deepEqual(batch.writes, []); assert.deepEqual(batch.history, []);
+            assert.deepEqual(batch.outbox, []); assert.deepEqual(batch.schedules, []);
+          }
+        } else await unchanged(before);
+      }
+
+      // These original-profile variants consume first without disclosing its
+      // row/query. They use the same captured CLI/verified module/D1 owners.
+      for (const [operation, expectedValue] of [['lookup_scalar', true], ['lookup_void', null]] as const) {
+        const independent = envelope(operation, { source: 'wanted', accept: true });
+        const before = await resources();
+        const outcome = await invoke(independent); assert.ok('result' in outcome, JSON.stringify(outcome));
+        assert.equal(outcome.result.status, 'committed'); assert.equal(outcome.result.result, expectedValue);
+        const receipt = await store.readReceipt(receiptIdentity(independent)); assert.ok(receipt);
+        const saved = readScenarioReceiptAssociation(receipt); assert.ok(saved);
+        assert.equal(saved.queries, undefined); assert.deepEqual(saved.observations, []);
+        const after = await resources(); assert.deepEqual(after.identity, before.identity);
+        assert.deepEqual(after.owner.records, before.owner.records); assert.deepEqual(after.owner.history, before.owner.history);
+        const replay = await invoke(independent); assert.ok('result' in replay); assert.equal(replay.result.status, 'replayed');
+        assert.equal(replay.result.result, expectedValue); await unchanged(after);
+        await rejectedWithoutEffects(envelope(operation, { source: 'wanted', accept: false }));
+        await rejectedWithoutEffects(envelope(operation, { source: 'absent', accept: true }));
+      }
       const input = lookup('wanted'), before = await resources(), revision = await store.readRevision(), count = batches.length;
       const result = committed(await invoke(input));
       assert.equal(batches.length, count + 1); const batch = batches.at(-1)!;

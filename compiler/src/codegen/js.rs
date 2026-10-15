@@ -5953,6 +5953,27 @@ impl<'a> Emitter<'a> {
             && super::scenario_receipts::checked_first_query_order(source, query).is_some()
     }
 
+    fn first_query_marker(&self, at: Span) -> String {
+        let first = self
+            .query_capture
+            .as_ref()
+            .and_then(|capture| {
+                capture
+                    .queries
+                    .iter()
+                    .filter_map(|query| query.first.as_ref())
+                    .find(|first| {
+                        first.call.file == at.file
+                            && first.call.start == at.start
+                            && first.call.end == at.end
+                    })
+            })
+            .expect("authenticated first call");
+        descriptor_json(
+            &serde_json::json!({"node":{"start":first.call.start,"end":first.call.end},"statement":{"start":first.binding.start,"end":first.binding.end}}),
+        )
+    }
+
     /// Stored-model first needs its checked native recipe. A value-array
     /// query already produces a supplied ordered array for the pure builtin.
     fn unprepared_first_query(
@@ -6319,7 +6340,8 @@ impl<'a> Emitter<'a> {
         if self.native_first_query(target, args, None, span, result) {
             self.stdlib.insert("firstQuery".into());
             let query = self.lower_expr(&args[0]);
-            return format!("await firstQuery(c,{query})");
+            let marker = self.first_query_marker(span);
+            return format!("await firstQuery(c,{query},{marker})");
         }
         if let Some(refusal) = self.unprepared_first_query(target, args, span) {
             return refusal;
@@ -6381,7 +6403,11 @@ impl<'a> Emitter<'a> {
             .map(|arg| &arg.ty);
         let call = if native_first {
             self.stdlib.insert("firstQuery".into());
-            format!("firstQuery(c,{})", ordered[0])
+            format!(
+                "firstQuery(c,{},{})",
+                ordered[0],
+                self.first_query_marker(span)
+            )
         } else if native_count {
             self.stdlib.insert("countQuery".into());
             format!("countQuery(c,{})", ordered[0])
@@ -12485,6 +12511,16 @@ impl<'a> Emitter<'a> {
                             "executionDependencies:{}",
                             descriptor_json(dependencies)
                         ));
+                    }
+                    if let Some(capture) = self.native_query_sources.get(&item.id) {
+                        let first: Vec<_> = capture.queries.iter().filter_map(|query| {
+                            let first = query.first.as_ref()?;
+                            let source = capture.plan["queries"].as_array()?.iter().find(|value| value["id"].as_str() == Some(query.id.as_str()))?.get("source")?;
+                            Some(serde_json::json!({"queryId":query.id,"source":source,"query":{"start":query.node.start,"end":query.node.end},"node":{"start":first.call.start,"end":first.call.end},"statement":{"start":first.binding.start,"end":first.binding.end}}))
+                        }).collect();
+                        if !first.is_empty() {
+                            members.push(format!("queryFirst:{}", descriptor_json(&first)));
+                        }
                     }
                     if let Some(metadata) = self
                         .query_any
