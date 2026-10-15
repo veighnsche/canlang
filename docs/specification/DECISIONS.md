@@ -13911,3 +13911,921 @@ Journal v2 supports exact additions, replacements and deletions, reads v1 recove
 The [current BGI execution record](../../design/proposals/build-generation/implementation-plan.md#current-execution--clean-source-persistence-2026-10-14) retains the finite verification, including native/host checks, the owning build and a real eight-group saved fixture clone compiled and built with the generation executable unavailable. Its 23 tracked files stayed unchanged.
 
 The subsequent user-requested independent review closes concrete ownership, snapshot and publication gaps before commit: same-kind displaced groups require explicit reconciliation even after owner renames; legacy adoption needs a unique source claim; source-path aliases are frozen before analysis; unreadable/nonregular saved membership and malformed metadata/status fail closed; rollback validation handles both file/directory transitions without losing binary bytes or sibling helpers. The execution record records the final affected checks and reuses unchanged results. The user authorized committing this persistence scope; no merge or file-tree checkpoint advance is involved.
+
+## 2026-10-14 — reliable Can source before model fine-tuning
+
+**Accepted user constraint:** a specialized `.can` authoring model must fit a
+12 GB GPU for inference; training may run elsewhere. Record this in REQUIREMENTS.
+Model choice, inference context and measured memory remain open. This does not
+change the compiler/runtime resource requirements or certify training readiness.
+
+**Accepted correctness repairs:** follow the existing description grammar.
+Formatting preserves literal `#` prose whitespace, including spaces/tabs at line
+ends; ordinary `##` comments retain whitespace cleanup. Joined description CST
+leaves consume intervening comment entries once, preventing a parser panic and
+overlapping coverage for legal multiline descriptions. The formatter corpus
+check visits the discovered corpus instead of stopping at an obsolete fixed
+file count. Stored-field expression boundaries accept named traits after numeric
+values, fixing the unchanged CanPromptLab `max=100 key_text_budget` source;
+ordinary expressions and parameters retain spaced-unit rejection. A trait named
+`m` is not globally reserved: a field's numeric value plus trait is not a duration
+literal. Normative grammar text now separates the supported Rust compiler
+from historical Python-prototype limitations; syntax support does not imply
+semantic, emission or runtime qualification. These repairs enforce existing
+contracts, rather than introducing new language semantics.
+
+Verification: the two initial formatter regressions reproduced content loss;
+their multiline case also exposed the parser panic. Final affected results are
+61 syntax checks and 23 formatter checks passing, reusing unchanged passes and
+rerunning the repaired corpus scope (57 formatter inputs). Source files were not
+reformatted in place. Existing native `can check` with the explicit current
+Values catalog reports complete, zero-diagnostic, zero-omitted results for
+TeamTasks and ExpenseFlow. Rust formatting and changed-file whitespace checks
+pass. These results establish their stated parser/formatter/analysis scopes,
+not executable application or training-dataset acceptance.
+
+An additional BGI-01 run passes 14/15 checks. Its existing
+`negative_parse_diagnostics` fails because a prompted view containing
+`card "Nope"` / `text row.title` parses successfully. HEAD already admits
+`card`, `text` and `content`; BUILD_GENERATION_REQUIREMENTS and the negative
+control still restrict children to canonical controls. This is an unresolved
+source-contract discrepancy: reconcile those exact children with the BGI owner
+before accepting either spelling as training truth. No generated-view behavior
+or test expectation is changed here, and no whole-suite pass is claimed.
+
+**Proposed training-readiness gate:** select a versioned positive source set with
+its actual imports and saved generated contributions, checked against the same
+compiler/catalog revision with complete diagnostics and no errors or omissions.
+Preserve inline success and expected-rejection examples. For programs advertised
+as executable, require compilation and their claimed behavior checks; successful
+parsing alone is insufficient. Keep intentionally invalid source for explicitly
+labelled repair/rejection examples, and keep historical snapshots and handwritten
+desired-output witnesses out of the positive whole-program set. Separate held-out
+application requirements from training examples before generating variants.
+
+Existing DFE-01 owns source corrections, DFE-02 owns selected import-closure
+integration, and BGI owns saved-generation inputs; their recorded accepted scopes
+stay closed. This proposed gate adds no duplicate execution plan and does not
+relax their remaining application/runtime requirements. The current repository
+is not an approved training dataset. No model training, commit, merge or complete
+file-tree checkpoint advancement is performed by this pass.
+
+## 2026-10-14 — reconcile generated views and checked presentation consumers
+
+**Accepted generated-view contract:** the earlier action-owner decision already
+requires complete source-owned cards as opaque renderer bindings. Retain the
+existing finite direct children: canonical cards and controls, `text`, `content`,
+`history` and `require`. A card keeps its ordinary checked UI descendants and
+local guards. Priority actions still need a real owning region; a generated view
+does not itself supply one. Slots, nested `show`, arbitrary props, caller capture
+and cross-package view export remain excluded. The row evaluates once, the
+whole-view guard runs before rendering, and admitted children render in source
+order. Repeated source kinds receive numeric binding suffixes; an action button
+keeps `button` even though its canonical implementation is a protected form.
+The generator instructions, build-generation requirements, implementation
+contract and examples now use this same rule. This resolves the preceding
+controls-only discrepancy; it grants no new runtime authority or unsupported
+emission profile.
+
+Three independently worded equivalent JEV Choice requests compare retaining
+that finite set, restricting direct presentation to opaque cards, and admitting
+all ordinary UI roots, with the accepted opaque-card rule fixed. The
+[saved requests and responses](../../design/jev/generated-view-contract-20261014/1.json)
+and companion 2/3 records all select the finite existing set (probabilities
+.99/1/.99; confidence .98/1/.98; `jev-1.13.0`, 2,463 total tokens). There is no
+disagreement. These judgments advise the bounded design; compiler/runtime
+checks establish its behavior.
+
+**Accepted repairs:** generated-view lowering now records direct action buttons
+under their source binding and retains nested button operation metadata inside
+their opaque card. Public saved-view validation refuses relevant lowering errors
+even when lowering also returns a view, closing its false acceptance of a direct
+priority action without an owner. Disclosure `open` requires a nonnullable Boolean
+during analysis, with the operand span and no extra error for an unresolved name.
+Reference documentation consumes checked inherited `app_default_locale`, preserving
+source-language identity and the existing selected-module policy. The main grammar
+now includes already implemented reusable views, `show` and styles; the compiler
+README distinguishes supported original-query-row history from its unsupported
+argument/options/provenance profiles.
+
+Verification: BGI-01 **16/16**, BGI-09/10 **31/31**, documentation **31/31** and UI
+adapter **13/13** pass. Public BGI-11 validation subsequently passes **35/35**,
+including invalid-owner refusal and a valid gated opaque card. The owning
+Cloudflare build and its dependency closure pass; its existing mixed-generation
+prompt check passes **1/1**, and the generated-view UI runtime suite passes
+**14/14**. These checks include native compiler output joined to installed UI
+factories; they do not certify every draft or approve a training corpus.
+
+The actual `PromptStudio.can` source checks without diagnostics and compiles into
+three modules with the current catalog and saved contributions. Correct four
+CanPromptLab uniqueness expectations from nonexistent `error(unique)` to the
+canonical `error(conflict)`, matching both builtin and generated State key
+failures. Its subsequent complete check has no example-error diagnostic. The
+remaining five missing-contribution errors and dependent field errors are held
+by its 20 legacy handwritten saved records: their old metadata has no accepted
+current binding. Existing draft witnesses remain desired-output evidence, not
+an executable positive training example. BGI owns explicit compatible adoption
+and saved contributions; the source correction does not claim that release.
+
+## 2026-10-14 — format computed anonymous messages with their checked schemas
+
+**Accepted:** explicit `format` consumes anonymous descriptors selected through
+the checked builtin `choose`, including nested/grouped choices and immutable
+aliases. Retain every reachable checked leaf and validate all source/translation
+placeholders, even for an unselected branch. Raw leaves have an empty schema;
+bound leaves retain their inferred parameter types. Different placeholder names
+and types are supported. Condition and both operands keep their eager, once-only
+authored evaluation; the surrounding locale argument retains its source position.
+Only the selected descriptor's already captured values are formatted.
+
+The existing runtime descriptor already carries canonical source locale and
+typed parameter entries. Emit a finite list of checked formatter schemas, match
+that descriptor's exact own parameter names/types and canonical locale, and apply
+the corresponding Values presentation mapping. Reuse the existing locale
+normalizer. Equivalent observable schemas may coalesce; conflicting presentation
+mappings refuse. The existing signature integrity checks also reject foreign,
+inherited or accessor parameter metadata before conversion. This uses compiler
+analysis/IR metadata and the existing descriptor; it adds no public syntax,
+runtime carrier or dependency. It does not admit arbitrary descriptor-producing
+functions, indexing, coalescing, nullable descriptors or every UI/outbound sink.
+
+The initial actual CLI check reproduced E3005 for
+`format(choose(true,"Hi"@{},"Bye"@{}),locale=null)`. Three independently worded
+equivalent JEV Choice requests compare empty-schema-only choices, one shared
+schema and finite alternatives using existing descriptor metadata. The
+[saved requests/results](../../design/jev/computed-message-format-20261014/1.json)
+and companion 2/3 records all select finite alternatives (probability/confidence
+1 in each; `jev-1.13.0`, 3,807 total tokens). There is no disagreement. The bounded
+source graph and exact schema matching remain implementation obligations, not
+facts proved by the judgments.
+
+Five anonymous-message coverage checks pass, including actual installed-runtime
+results for both selections, differing names/types, equal schemas with opposite
+capture order, nested choices, aliases, canonical source locale, authored
+locale-first order and first-failure identity. Invalid reachable placeholders
+and mixed/nullable operands refuse without artifacts. Four existing localized
+formatter checks, six slot-coverage checks and eleven decision-source checks
+also pass. These results close this explicit formatter scope while preserving
+the broader S9-Q01/C17 remainder and the existing 58/67 completion count.
+
+The compatibility checks also exposed an ordinary button-contract defect:
+`button submit=true` outside a form compiled, and non-destination combinations
+could carry conflicting bindings. Analysis now requires exactly one binding
+and an inherited canonical form/edit/preferences owner for submit. Layout
+wrappers preserve that ancestry; the separate direct priority-action owner
+rules stay unchanged. Positive direct/wrapped forms compile, and edit/preferences
+controls pass analysis without claiming their broader runtime profiles. Literal
+`submit=true`, caption typing/purity and canonical operation admission remain
+with their existing checks. Two older runtime-fixture `principal.admitted_at`
+values now include mandatory wire milliseconds; accepted `datetime(...)` source
+constructor syntax is unchanged.
+
+Final affected checks pass **10/10**, covering the new button controls, both
+previous binding-suite failures, the updated exact TeamTasks formatter-schema
+assertion, button/catalog compatibility and the saved-view button compile join.
+Reusing unchanged checks yields **137/137** codegen and **10/10** anonymous
+binding checks at their affected scopes. The new formatter native tests and
+other accepted results above are not repeated. No model training, complete
+language/application certification, commit, merge or file-tree checkpoint
+advancement is claimed.
+
+
+## 2026-10-14 — adopt legacy saved outputs and enforce pure field checks
+
+**Accepted:** explicit `can gen bind` may adopt a recognizable untouched legacy
+saved group against an explicitly selected current definition and source revision.
+The current source owns association and contract; the original prompt, file hashes
+and handwritten/provider provenance remain historical evidence. Named labels and
+kind families must agree; anonymous correspondence requires explicit selection.
+Malformed modern records never fall back to legacy intake. Preserve leases,
+occupied/duplicate-source refusal and journal publication. Copy legacy `server.js`
+to a missing canonical `implementation.js` for executable units without deleting
+or replacing the original. Automatic compile fallback remains at its prior scope.
+PromptLab's three styles with no live host must be retained outside active saved
+output discovery, not silently assigned to different source.
+
+**Accepted:** a named or inline trait attached only to required native `text`
+fields may supply `implementation.js` exporting `check(value)`. The existing
+`contributions.can` supplies one matching typed field template; `value:text`
+adds no artificial constraint when the check alone supplies behavior. The
+compiler derives `state.field-validation@1`, `validate-fields`, text input,
+Boolean result and empty reads/effects/authority. A separate implementation
+closure fingerprint accompanies the existing contribution fingerprint. Artifacts require the existing `state.field-validation` capability at version 1,
+so older installed consumers refuse instead of ignoring the additional contract.
+Model traits, nullable/other field types and metadata-invented producer authority
+remain refused. No additional public source syntax or dependency is needed.
+
+State evaluates checks in checked application order over normalized, hook-adjusted
+text on each create/update, before provisional publication, history and unique
+claims. A trusted hook can transform input before this final-value check. Strict
+`true` succeeds; `false`, non-Boolean results and exceptions produce canonical
+`validation` with no committed partial state. Existing admission, work accounting,
+transaction failure, replay and commit remain authoritative. Desired migration
+validation checks both staged and retained rows before activation, without silently
+normalizing stored data. Privileged example materialization must enforce the same
+field constraints; it does not claim user CRUD authorization.
+
+The verified saved-module loader checks exact implementation/import bytes and
+passes projected text, with no record/store/permission handles. As with existing
+computed keys, these are trusted adopted modules, not a JavaScript isolation
+boundary or proof of arbitrary module purity. General sandboxing and additional
+field types are separate proposals, not prerequisites invented for this repair.
+
+Three independently worded JEV Choice requests compared this trait extension,
+two native algorithm-specific constraints and a standalone-keyword rewrite. All
+selected the trait extension with probability/confidence 1 (`jev-1.13.0`, 4,150
+total tokens), with no disagreement. [Requests and responses](../../design/jev/field-trait-validation-20261014/1.json)
+and companion 2/3 preserve the evidence and uncertainty. These are design advice;
+compiler, runtime and actual app validation remain required. Implementation and
+qualification are in progress; no training or whole-language acceptance is claimed.
+
+
+The main grammar now records existing named/inline traits and custom keyword
+syntax. Its reconciliation exposed a parser asymmetry: adjacent named traits
+worked on models but a stored field required lookahead to the final suffix.
+Accept each field suffix name in authored order after native modifiers, preserving
+unknown-trait resolution and label/description boundaries. This admits the same
+finite checked contribution composition on both attachment kinds, including
+`text min=1 max=100 clean budget`, without a new syntax.
+
+
+Actual PromptLab compilation after binding exposed another ownership mismatch:
+generation discovery and authored-trait compatibility used the first module in a
+file, although the resolver supports a composition app followed by packages.
+Discover prompts, target names, style uses and anonymous evidence separately per
+owning app/package; read authored model constraints from their checked module
+span. Preserve the source composition and explicitly rebind affected saved groups
+to the corrected owner. Repeated local trait/style names in distinct packages do
+not conflict or cross-resolve. This is a demonstrated compiler repair, not an
+app-source workaround.
+
+Contributed model fields retain static literal captions through the existing
+field-label IR, AppDefinition and prepared form path. Validate those captions
+with the existing empty-schema ICU checker and use the receiving module's logical
+source locale. Unsupported computed, descriptor, path or translation-table
+captions refuse explicitly. Field-trait constraints cannot replace an authored
+caption or its translations. Additional generated translation profiles remain
+proposed; silently dropping a supplied caption is not supported behavior.
+
+Trait leaf admission must match existing native State/Values associations:
+Boolean, integer, decimal, text, email, timezone, date, datetime, duration,
+money, user, file and inline enums, with one array wrapper and optional outer
+nullability. Existing scalar aliases remain valid. Nested arrays and the currently
+unmapped url, locale, currency, member, json, bytes and secret contributions
+refuse until their ordinary storage associations exist. Model contributions
+continue to require explicit defaults, including `=null` and `=[]`; this repair
+does not infer omitted carrier defaults. Decode defaults through the existing
+exact Values codecs rather than converting integer/decimal tokens through
+JavaScript Number. Nonnullable object-like defaults still require an expressible
+source constant; nullable and empty-array forms do not invent one.
+
+The same default must have the same artifact wire shape whether authored directly
+or contributed: exact integer/decimal strings, duration milliseconds, Boolean/null
+values, enum strings and recursively encoded arrays. Preserve decimal source scale
+in compiler output, as ordinary fields do; State compares reused defaults after
+the existing Values codec normalization. Preserve whitespace inside array string
+literals. Native numeric bounds also use exact wire strings; length bounds retain
+safe nonnegative JSON integers. Nullable decimal bounds use the underlying decimal
+type rather than being parsed as integers.
+
+Actual application qualification also requires the local preview to admit the
+already supported one-app, same-file package composition. Remove the lexical
+blanket refusal of `uses=` and `package`; the native compiler still resolves
+references, source capture still verifies the complete file inventory, and the
+preview retains its import, multiple-app, resource and capability restrictions.
+Optional local actor roles resolve only against the verified compiled definition
+and are granted through Identity's owner API; ordinary starts grant no extra roles.
+This introduces no production role-assignment endpoint.
+
+Source example recipes must initialize dependencies before their consumers,
+including the definitions retained for otherwise unused fixtures. Fixture lookup
+uses the owning module's fixture symbols rather than a flat name map that can be
+overwritten by a scenario parameter. Returned-record observations retain the
+actual successful result and use the existing caller-authorized projection; a
+test observation is not authority to read private fields. These are repairs to
+the existing example contract, not changes to the authored expected outcomes.
+
+The default-wire correspondence check also covers offset/no-millisecond datetime
+source literals: contributed and directly authored fields both emit the existing
+canonical UTC millisecond wire representation. Its focused native check passes;
+the five example-binding checks invalidated by a concurrent catalog cache refresh
+pass after serializing that refresh, restoring all eight checks at their original
+scope. Package build/catalog output must remain fixed during consumers' captures.
+
+Actual PromptLab execution then exposed the remaining generated CRUD candidate
+admission gap: all 26 original rows stopped during registry setup because `when`
+callbacks were not connected to canonical admission. The accepted semantics in
+DESIGN.md remain unchanged: normalize the proposed create/update row, evaluate
+`when` before staging, and use the existing row for delete. Candidate field reads
+see the proposed row; scans see the provisional store before this write, including
+earlier effects. Ordinary scenario create/set effects must not inherit the CRUD
+guard. Their own guards, permissions, locks and final invariants remain in force.
+
+**Accepted implementation choice; qualification in progress:** bind the existing
+verified generated CRUD callback to an internal owner-scoped stage option at that
+boundary. Check its exact operation/module/model/key association before admitting
+the manifest's `when` marker. Reuse native actor, parent and bounded query adapters,
+the provisional reader, work budget and failure latch. A false predicate refuses
+with `rule_failed`; malformed results/errors must fail closed. Do not replace the
+callback with an unguarded manifest, change source policy or introduce a parallel
+predicate language. The existing restricted invariant adapter alone does not
+establish query support; faithful pre-write queries remain an implementation and
+validation obligation.
+
+Three equivalent independently worded JEV Choice requests compared this callback
+bridge with a complete serializable predicate AST/interpreter and an explicitly
+limited data-predicate subset. All chose the bridge with probability/confidence 1
+(`jev-1.13.0`, 4,265 tokens), with no disagreement. [Saved requests and responses](../../design/jev/crud-candidate-admission-20261014/1.json)
+and companion 2/3 retain the alternatives and uncertainty. This is advice, not
+runtime proof. Four additional source rows independently specify catalog key
+scope and the `É`/`é` distinction; the current app has 30 rows awaiting successful
+runtime qualification. Browser retry uses an isolated temporary preview namespace
+so the unrelated active ActionGallery session remains owned by its original caller.
+
+PromptLab's source also misused unconditional field locks as CRUD field lists.
+Such locks prohibit scenario changes and row removal as well (DESIGN.md318), so
+they made the required archive/restore and note-removal workflows impossible.
+Remove those three locks: the existing CRUD allowlists already exclude archive
+evidence and server-owned Note.author, while the attributed archive scenarios and
+stored invariants retain their declared authority. Do not weaken lock semantics
+in the runtime. Archived fixture rows now supply consistent actor/time evidence;
+expected archive attribution names the selected `editor` fixture, not the distinct
+test `self` account. The revised 30-row source compiles without diagnostics.
+
+The installed example materializer has a distinct unfinished gap: parent models
+and computed-key fixture overrides refuse, and its computed-key seed branch
+incorrectly tries user CRUD as `self`. DESIGN.md544 requires privileged stored
+snapshots with complete constraint/reference/invariant/unique validation, no
+CRUD guards/hooks/events and no claimed historical workflow. It may initialize
+server-owned domain fields. This cannot be repaired by granting `self` production
+roles or bypassing stored-data checks. Actual source-example qualification remains
+open until that snapshot path is implemented and executed.
+
+**Accepted implementation choice; qualification in progress:** add an internal
+fixture stage cause only for a test owner context, with no production source or
+request switch. Reuse the same model table, codecs, field checks, containment,
+references, final invariants and net unique claims. Setup may initialize declared
+server-owned domain fields; it does not run CRUD admission/hooks, pre-state locks
+or business history/events. Apply the entire override batch before final validation
+and preserve initial version/time/attribution. Do not mix setup with operation
+stages. The installed adapter opens a separately checked native policy frame from
+the actual test context, commits once under the revision fence and closes it on
+every exit. It does not manufacture an admitted operation or grant roles. Existing
+file/provider fixture profiles remain explicitly unsupported.
+
+Three equivalent independently worded JEV Choice requests compare this owner
+snapshot path with a complete shadow-store rebuild/claim translation and a
+migration-validation adapter. All choose the owner path with confidence/probability
+1 (`jev-1.13.0`, 4,562 tokens). [Requests and responses](../../design/jev/fixture-snapshot-admission-20261014/1.json)
+and companion 2/3 preserve the alternatives and remaining implementation risks.
+No disagreement occurred; validation still owns acceptance. User recipes resolve
+to the actual provisioned Identity references, and one row clock must feed fixture
+expressions, the real operation and its observations.
+
+The native CRUD consumer also exposed lexical query capture: lowering
+`stored.name == row.name` inside a CRUD predicate renamed `stored` to `row`, making
+both sides read the query row. Preserve the outer candidate binding during query
+parameter normalization; do not rewrite the source example to hide the defect.
+The established native query correspondence checks retain their exact ownership
+and must continue to pass after this repair.
+
+The native CRUD consumer now passes with the original query preserved. Compiler
+checks cover the candidate binding, a nested outer query binding and a locally
+bound `row`; ordinary predicates retain their existing canonical spelling. The
+fixture snapshot owner passes four affected checks, and all eight installed
+example-runner checks pass after replacing two obsolete setup-version assertions
+with the specified initial version/time/attribution behavior. The package build
+and catalog refresh pass. These bounded results do not qualify PromptLab itself.
+
+Actual PromptLab setup exposes a further compiler omission: the native local-rule
+classifier rejects its nullable archive-evidence presence checks, omitting the
+whole model-policy contract. Admit checked equality/inequality with null for
+direct owning nullable user/datetime fields through the existing policy path.
+Retain the exact source fields/types and existing runtime invariant evaluator;
+this adds no reference traversal, arithmetic, context or query authority. Native
+emission and valid/invalid archive-evidence invocation own acceptance. The source
+rules and expected outcomes stay unchanged. The 12 profile and seven producer
+checks pass: incomplete archive evidence rejects without row/history changes,
+the authored archive scenario commits actor/time evidence, and the original
+PromptLab emits both Entry and Tag policies with their exact owning bindings.
+
+The same existing example contract requires `self`, `other` and `outsider` to be
+the provisioned row's typed user references. Test factories currently capture
+placeholder strings before provisioning. Resolve these built-in references from
+the row binding object when fixture/input/expected/observation closures execute,
+as already done for `now`; preserve lexical shadowing and load-time caller
+selection. The runner may recognize only identities it provisioned in that row.
+Do not reload every suite per row, invent grants or convert arbitrary strings to
+users. A native source example with an explicit `server` domain value of `other`
+and a real invocation as `self` owns this finite compiler/runtime acceptance.
+The nine compiler BDD runtime checks and affected ExpenseFlow emission golden
+pass, including stale-factory/live-row and lexical-shadowing controls. Installed
+row identity now passes its four native source rows, and the complete installed
+runner suite passes nine checks. PromptLab reaches 13 passing rows; the other 17
+expose a compiler fixture-dependency defect: a module-wide discovery union was
+reused as the current table's seeded baseline, so one row's `editor` reference
+suppressed that fixture in later rows. Keep the actual common/seed dependency
+closure separate from module discovery and each row's closure. The runtime must
+continue to materialize only that row's required fixtures; auto-seeding every
+declared fixture would change collection and uniqueness outcomes. Original rows
+remain unchanged and own the application retry.
+The focused emitted/Testkit regression passes with repeated `editor` references
+in caller, field-cell, expected and observation positions. A separate Bob-seeded
+table verifies that neither fixture leaks into the other's rows. Fresh PromptLab
+output retains `editor` in all 24 applicable row dependency lists.
+
+The subsequent actual PromptLab run passes 29/30 rows with no setup failures or
+unsupported rows. Its sole failure is the existing independent-Catalog case:
+the same canonical Entry code incorrectly conflicts across distinct parents.
+DESIGN.md131 and the keyword contract already require the owning parent/team/app
+scope; repair the owning implementation rather than broaden uniqueness or alter
+the example. Browser qualification separately reaches its isolated session but
+stops at preview construction (`preview_build_failed`) before UI actions. Both
+remaining failures are concrete implementation work; training remains gated.
+
+**Accepted parent-key repair and installed-state boundary:** reuse the existing
+canonical parent-scope wrapper for computed claim/release values in mutation,
+installation, migration validation and all changed/retained/dropped-row migration
+paths. Root/team key bytes and the pure `canonicalKey(text)` ABI remain unchanged.
+The source schema itself already declares containment. An `oldModels` table with
+containment removed would fabricate predecessor source semantics and is not a
+valid repair description for old raw claims.
+
+Add a narrow optional trusted-owner storage read, `uniqueOwner(model,keyName,keyValue)`,
+to the real memory/D1/DO owners. Contained computed mutations require this read
+and reject relevant legacy raw claims before staging; root/team profiles retain
+their existing behavior. Classify claim ownership using the actual stored row,
+pure output and canonical scoped value, including raw/scoped string overlaps.
+Missing support or inconsistent ownership fails closed. Reuse the owner work
+budget and revision fence; no source or request endpoint gains this read.
+
+An explicit derived-index repair through the trusted State owner must validate a
+complete bounded affected row set and final collisions, then release old claims
+and publish canonical claims atomically under the existing fence. It changes no
+record data, versions, history, permissions or source-schema provenance. Ordinary
+writes do not silently migrate installed indexes. Fresh, valid legacy, mixed
+encoding, failed-repair and post-repair behavior own acceptance; no existing store
+is claimed repaired merely because its runtime code was replaced.
+
+The first three JEV requests split two for bounded refusal and one for a persisted
+version, at low confidence (0.37–0.46). Inspection corrected two assumptions: the
+storage port has no claim read, and existing activation's predecessor table is a
+source schema rather than a physical-index profile. Three corrected equivalent
+requests compare adding the read plus explicit repair, adding a persisted version
+plus repair, and rebuilding the index on every write. Two favor lookup/repair
+(confidence 0.51/0.56); one favors rebuilding (0.30). [All requests and responses](../../design/jev/computed-key-parent-scope-20261014/1.json)
+and the `corrected/` directory retain the disagreement and correction (9,296 tokens,
+`jev-1.13.0`). The choice rests on the actual interfaces and preserving indexed
+write costs: a complete rebuild on every mutation would broaden work/refusal
+behavior, while a persisted version crosses more installation/admission state.
+Advice remains uncertain; the direct owner and repair checks determine acceptance.
+
+The preview failure is independently an Identity grammar mismatch: its role
+validator excludes underscores permitted by Can `NAME`. Match both qualified
+segments to `[A-Za-z_][A-Za-z0-9_]*`, keep `owner` and the two-segment shape, and
+reject trailing line terminators. Verify actual owner-managed grants, revocation,
+invitation acceptance/ceilings and unauthorized callers; do not bypass Identity
+to seed preview actors. Surfacing a safe actionable preview-build error remains
+a separate diagnostic proposal.
+
+The parent-scope change passes all 31 affected State checks: the final retry
+corrects only the version expectation for an explicit source backfill, which
+increments that row once. Physical index repair separately proves unchanged
+rows, versions and history. Five real Memory/D1/Durable Object storage checks
+pass, as do both Identity role grammar/authority checks and the 24-package build.
+The trusted claim read is forwarded through installed staged/join/producer store
+wrappers without exposing it to source-facing policy or request objects.
+
+The explicit repair covers valid legacy indexes under the current pure key
+binding, including mixed raw/scoped overlap. A lookup-only port cannot discover
+arbitrary orphan claims or claims from an unknown historical key algorithm;
+corrupt-index reconstruction is outside this accepted repair scope. No installed
+store has been repaired by these tests. Actual PromptLab source and browser
+qualification now consume the rebuilt runtime and retain their separate gates.
+
+**2026-10-15 actual application result:** all 30 original/current PromptLab source
+rows pass through the installed canonical runtime, with zero setup failures or
+unsupported rows. This closes the independent-Catalog failure without changing
+its expected outcome. Reuse that result for the unchanged source-row scope.
+Isolated rows do not prove key availability after a failed operation or receipt
+replay across calls; the required actual-app permission/rollback/replay sequence
+remains a separate finite check. Browser retry gets past Identity seeding and
+fails at the installed authenticated page probe with HTTP 400, before any UI
+actions. That concrete runtime failure, archive-evidence assertions, and the
+remaining documented browser states/baselines retain their own acceptance.
+
+The actual-app native sequence passes member CRUD/foreign-note refusals and
+failed-write key preservation/reuse before failing at successful scenario replay.
+The runtime refusal is correct: `add_entry` has no compiler-emitted result
+disclosure, so its first invocation cannot issue a genuine saved association.
+The checked Create producer currently excludes named source roles and models with
+trait-contributed fields. Extend their existing checked role and Given-field
+provenance correspondence for the actual source; keep unassociated legacy replay
+refused. No new receipt authority may be inferred from the returned value alone.
+
+**Accepted installed page binding; qualification in progress:** the compiler
+already emits stable collection occurrences. Installed worker construction omits
+the required trusted page binding. Extend the existing optional static
+`pageReads` seam with a host-owned factory, resolved once after the current
+Identity owner boundary selects the physical store. Validate the returned app
+and owner against that selected context, and retain it for the request's read
+scope. Static bindings preserve their existing checks. The worker derives the
+factory from its verified declared app/configured owner routes and existing exact
+source identity. Reuse the existing private form key with the page cursor codec's
+separate MAC domain; add no URL/source authority or new secret configuration.
+Cursor occurrence/query/actor/team/source checks, original query time, expiry and
+final State authority/revision checks remain unchanged.
+
+Three equivalent independently worded JEV Choice requests compared this factory
+with an explicit trusted owner-binding map and separate owner-specific assemblies.
+All selected the factory (confidence 0.91/0.92/0.85; selected probability
+0.94/0.95/0.90; `jev-1.13.0`, 3,617 tokens). [Saved requests and responses](../../design/jev/page-owner-binding-20261015/1.json)
+and companion 2/3 retain all alternatives and uncertainty. No disagreement needs
+resolution. This avoids duplicate route configuration and assembly lifecycle
+changes; direct installed host/owner/cursor checks still own acceptance.
+
+Archive presentation also exposes a demonstrated adapter mismatch: canonical
+`text` forwards native UserRef/DatetimeValue objects to a formatter that expects
+typed scalar operands. DESIGN's existing stable user identity rule and the
+existing exact datetime formatter define the result. Admit those native shapes
+at the text boundary, escape/isolate the stable user ID and route datetime through
+the existing Values-backed formatter. Preserve null behavior and refuse malformed
+or arbitrary objects without stringification/accessor evaluation. This adds no
+directory lookup, new source type or timezone policy. Browser assertions compare
+visible archive evidence with the actual canonical changed-row projection, then
+verify its removal after restoration; prepared assertions alone are not acceptance.
+
+The compiler's focused library-test build exposed a stale test already present on
+HEAD: it calls the removed `synthesize_inline_unit` helper and expects silent
+empty-style synthesis. Remove that obsolete test, not restore the superseded
+behavior. The existing BGI02 missing-primary refusal check owns the accepted
+requirement and its unchanged passing result is reused. Production intake behavior
+is unchanged by this test cleanup.
+
+Native user/datetime presentation passes all 101 affected UI component/leaf checks,
+including visible text, plain accessible names, exact temporal decoding and
+malformed-object refusal. One shared internal adapter keeps visible and accessible
+sinks consistent while each sink retains its own escaping. The installed page
+binding also preserves the old static-mismatch order: refuse before selecting or
+initializing a physical owner store. Only the new trusted factory resolves after
+selection. Its actual host regression includes a 25+1 page continuation,
+cross-owner cursor refusal and static mismatch with no selection; execution is
+pending the final installed build.
+
+That host regression and the focused installed worker configuration check now
+pass. The actual PromptLab native application sequence also passes: member
+Catalog/Entry/Tag writes, another author's Note changes and Note writes below an
+archived Entry refuse without business state/history/claim changes; rejected
+final approval preserves the original key and leaves Carol available; replay of
+the successful canonical operation preserves its result/records with no second
+commit, revision or effect. The compiler's exact actual-app disclosure regression
+and checked-provenance tamper regression each pass. The runtime's legacy
+unassociated-replay refusal remains unchanged.
+
+The prior 30-row result is now being rerun because the new checked disclosure
+changes scenario execution. The three desktop journeys consume the same frozen
+installed closure. An additional isolated actual-source predecessor/candidate
+check targets only collision-refusing activation: copied saved outputs change
+under the ordinary edit lease, with no edit to live outputs or deployed state.
+Successful policy migration and host release are not inferred from that negative.
+
+The actual-source activation collision check passes 1/1. The copied candidate's
+leased implementation edit changes the verified keyword fingerprint while
+preserving authored source and contract identity. Both distinct predecessor Tags
+are created by the actual operation; candidate validation then refuses their
+collision before publication. Installed predecessor pointer, all model rows and
+history, key claims, revision and outbox remain unchanged. This closes PromptLab's
+listed collision-refusing activation criterion at its recorded negative scope.
+
+The full source-example retry after checked disclosure passes **30/30**, with
+zero failures, setup failures or unsupported rows. Browser runtime5 reaches no
+application steps: direct installed diagnosis finds the new dynamically loaded
+`page-cursor.js` absent from the portable bundle's pinned runtime set, failing
+worker construction before Identity routes. Add that exact dependency and the
+existing bundle-layout assertion; retain the startup deadline unless a separate
+failure demonstrates a timing defect. The unchanged source-example behavior is
+reused; the actual portable/browser consumer owns this packaging correction.
+
+The portable runtime now includes that codec. The existing bundle-layout check
+passes (1 selected check; 38 unrelated cases filtered), and the affected package
+build/catalog succeed. The three desktop workflows now consume this frozen
+installed closure; functional execution and visual acceptance remain separate.
+
+The installed browser now starts and performs real catalog writes. The first
+desktop run still fails all three workflow bodies: one test helper races the
+successful form's asynchronous modal close; nested Entry/Note forms omit their
+required parent; correcting a refused Tag input does not yet produce a Tag.
+The helper now waits for a confirmed commit's modal closure. The nested-form
+failure belongs to compiler lowering: DESIGN's exactly-one-compatible enclosing
+record rule already supplies the intended binding. Preserve that rule and the
+runtime's missing-input refusal rather than adding workaround arguments to this
+app. The Tag retry must be classified before changing receipt identity: unknown
+or post-commit failures cannot safely authorize a fresh mutation identity.
+
+Lexical browser coverage no longer invents inline loading/failure states for
+synchronous server-rendered collections. Real form pending/validation/success,
+explicit recovery requirements, empty/populated states and access denials remain.
+Direct inventory of PromptLab confirms those states. Keep its existing table
+labelled as required runtime outcomes so all twelve authored fixtures remain
+visible to the inventory; no requirement is removed by prose rewording.
+
+The real form preparer exposes a second parent-binding mismatch: protected forms
+require `versioned=true`, although create-parent API references deliberately make
+the version optional. Accept any declared singular reference only when the actual
+evaluated bound snapshot still supplies the existing exact `{id,version}` pair.
+Keep that pair protected by the existing token. State already checks a supplied
+version even when optional, then passes resolved parent identity to internal CRUD.
+Do not tighten the public create API, strip the observed version, or add another
+token shape. Existing missing-input, signature, source, session, scope and final
+authority checks remain.
+
+Three equivalent JEV Choice requests favor that uniform adapter correction over
+a create-parent-only exception or a second identity-only payload shape, with low
+confidence (0.22/0.43/0.34; selected probability 0.48/0.62/0.56). All choose the
+same option; their near alternative is the narrower parent exception. Inspection
+of State's optional-version parsing and current-row comparison supports retaining
+the shared reference mechanism. [Requests and responses](../../design/jev/implicit-parent-form-binding-20261015/1.json)
+and companion 2/3 retain the uncertainty (`jev-1.13.0`, 3,659 tokens).
+
+The retained-artifact HTTP diagnostic classifies the first Tag blocker before any
+receipt: both 65- and 64-character inputs fail because CRUD intake encodes an
+archive default as a nonnullable user. No Tag or receipt is created. Repair that
+correspondence and then exercise corrected retry; this result does not justify
+changing nonce or rejected-receipt semantics.
+
+The parent-form change passes 10 compiler/native checks and eight protected-form
+checks, including genuine Entry/Note creation, shadowed ancestor binding,
+ambiguity, explicit overrides, token tampering and current-parent version
+conflict. No new route/query profile is inferred: unsupported dynamic/data page
+roots retain their existing diagnostics. The nullable-wrapper correction passes
+both affected native HTTP tests; it composes the existing separate array and
+nullable flags before encoding defaults and keeps malformed/nonnullable inputs
+refused. The compiler CLI and installed packages/catalog are rebuilt.
+
+With that first Tag blocker fixed, the actual HTML/native HTTP sequence now
+confirms a second gap: 65 `é` returns validation and a durable rejected receipt;
+corrected 64 `é` reuses its nonce and conflicts. Accept a fresh form attempt in
+the authenticated denial response only from State's exact rejected-receipt
+commit/replay observation. Preserve immutable old receipts and input-hash checks.
+The trusted invocation result carries that narrow observation separately from
+the ordinary error. The HTTP owner mints a new identity and, for protected forms,
+rechecks the original unexpired proof before re-sealing the same refs, observed
+versions and editable inventory. No new token shape or permission is added.
+The client validates the complete replacement against the submitted identity
+before replacing hidden metadata together; values, CSRF, feedback and focus stay.
+Unknown/pre-admission/post-commit failures and expired receipt-only recovery do
+not receive renewal. A renewal failure retains the original refusal safely.
+
+Three equivalent JEV Choice requests all favor renewal in the denial response
+over an automatic authorized partial refresh or renewal before the next submit
+(confidence 0.89/0.85/0.88; probability 0.93/0.90/0.92). [Saved requests and responses](../../design/jev/rejected-form-retry-20261015/1.json)
+and companion 2/3 retain the alternatives (`jev-1.13.0`, 4,818 tokens). This
+avoids adding an asynchronous page-refresh lifecycle to correction. State owns
+terminal observation, Interfaces owns renewed integrity metadata, and UI owns
+atomic adoption; actual correction, immutable replay and uncertain-outcome
+checks still own acceptance. No browser or training acceptance follows yet.
+
+The rejected-attempt bridge passes State 16/16, UI 50/50 and Interfaces 60/60
+(59 unchanged passes plus the repaired focused assertion). The actual native Tag
+sequence corrects the rejected input and commits exactly once. Complete native
+app qualification remains open: rendering populated Entry rows exposes raw wire
+user values in source expressions. The canonical model loader and decoder already
+have the correct types; the collection source-row adapter bypasses that decoder.
+
+Keep the original collection `RowView` representation for UI and saved-view JSON
+metadata. Decoding that whole row is not sufficient: native bigint values then
+break the saved view's JSON snapshot. Accept a narrow extension of the existing
+private native query facade instead. The owning page scope decodes only its exact
+returned row into a separate native source row using the existing checked schema;
+the facade supplies it as an optional third compiled `renderRow` argument. The
+compiler retains the original first argument for generated-view mounting. Preserve
+the authorized field set, lazy getter order, File bindings, nominal/alias/wrapper
+codecs and selected physical owner; add no query or public read capability.
+
+Three equivalent JEV Choice requests agree on this private callback bridge over
+compiler-emitted schema conversion or a public presentation-context decoder
+(confidence 0.98/0.97/0.98; probability 0.99/0.98/0.99; `jev-1.13.0`, 4,338 tokens).
+[Requests and responses](../../design/jev/native-source-row-boundary-20261015/1.json)
+and companion 2/3 record the complete alternatives. The choice is accepted;
+implementation and actual source/native consumer checks remain in progress.
+
+Browser coverage now links nonvisual requirements to their existing native/source
+owners instead of duplicating them in page journeys. Transient pending/success
+states use actual asserted DOM/commit observations; durable visual states still
+require captures. The twelve-fixture lexical coverage check and browser TypeScript
+check pass, without claiming those journeys have executed or approving baselines.
+The page cursor fixture's older static-grant refusal expectation is separately
+reconciled with the existing dynamic source-read rule: lacking a required filter
+grant excludes rows before comparison. Matching and nonmatching hidden values
+must remain indistinguishable after role removal; current authority and mid-read
+revocation checks remain required.
+
+The native source-row bridge now passes 141 code-generation checks, both existing
+collection producer cases and all 11 private-facade checks. Stale fixture-only
+expectations were corrected for the existing context-bound fixture identity and
+the catalog's gallery export; their unchanged passes are reused. The current
+CLI, package build and catalog pass. The hosted current-role page check also
+passes, retaining the established hidden-filter exclusion semantics.
+
+Actual PromptLab now renders Tag rows and completes corrected Tag submission,
+but its populated Catalog page exposes a separate History sink mismatch:
+authorized history still carries wire user references, which the scalar renderer
+rejects. Keep State's grant-filtered stored history unchanged. The owning page
+adapter will decode declared singular user/datetime fields through its existing
+checked schema, and History will reuse the strict native text scalar adapter.
+Do not infer user or datetime types from arbitrary object/string shapes or add
+a directory lookup. Complete current native and browser acceptance remains open.
+
+History formatting passes all 34 panel checks, and the affected compiled
+attachment workflow passes with authenticated uploads, SQLite bytes and native
+D1 grants. Its older browser fixture now uses the established rooted local
+operation/intent URL contract.
+
+Prepared HTTP validation now derives a contained create's parent from the owning
+source model declaration, checks it against artifact containment and the required
+singular parent input, then retains it in both the ordered transport census and
+prepared schema. It is not a writable domain field; no `operation.inputs.parent`
+fallback is invented. The extended nullable/default/parent HTTP case passes,
+including absent, malformed, foreign, stale and source-tampered parents. Actual
+PromptLab Tag and protected Entry reject/correct/replay sequences pass; the final
+archived page still fails original-WHERE callable correspondence, so complete
+native page and browser acceptance remain open.
+
+For C10's unchanged optional quote-PDF destination, accept a disabled,
+non-submitting button with its authored caption and no URL when the explicitly
+configured File is null or the existing presenter withholds its link. Preserve
+failed presentation gates as omission before expression evaluation, and preserve
+real presenter/configuration/unsafe-link failures as failures. Undefined is not
+a new nullable-value profile. Existing null placeholder behavior beside another
+valid binding remains compatible; mixed active bindings stay invalid.
+
+The three equivalent JEV requests disagree weakly: disabled (confidence .40,
+probability .70), omitted (.10/.55), disabled (.02/.51), totaling 4,125 tokens.
+[Requests and responses](../../design/jev/c10-nullable-file-target-20261015/1.json)
+and companion 2/3 preserve the uncertainty. Inspection resolves the choice: the
+original quote action is intentionally ungated while the document can remain
+pending with `pdf=null`; retaining its caption communicates availability without
+revealing File details. Existing disabled pagination supplies the non-submitting
+control pattern, while permission-gated controls remain separate. Implementation
+will reuse the protected page File presenter and existing async button API; it
+is pending until the current PromptLab capture closure is released.
+
+The archived page exposes a second, independent constraint: cursor pages already
+require stable data-only filter identities. Accept compiler lowering of an exact
+checked own stored nonnullable Boolean field, such as `where row.archived`, to
+the existing `eq` field/value predicate with `true`. Preserve original model,
+alias and field correspondence, source syntax and pagination. Existing State
+projection excludes rows without the required filter grant before comparison,
+and the cursor binds the normalized predicate. Do not admit arbitrary callables,
+relationship traversal, derived/nullable fields, coercion or a new cursor profile.
+
+Three equivalent JEV choices select this existing transport over callable cursor
+support or an incomplete source workaround (confidence/probability 1.0 each,
+4,699 tokens). [Requests and responses](../../design/jev/paged-bool-source-filter-20261015/1.json)
+and companion 2/3 preserve the comparison. The original callable issuer omission
+is investigated separately; an emitted entry filename does not prove that the
+IR's logical owner differs from its module. Strict ownership/census checks remain.
+Both prepared HTTP cases now pass, reusing the parent/default case and rerunning
+only the earlier text-bound fixture after adapting its denial assertion to the
+accepted wrapped retry response.
+
+The issuer diagnosis is now exact: fresh analysis omits the original checked
+Given tables and reports E2013 for contributed archive/pinned fields before the
+predicate census runs. Accept retaining the original optional Given input
+privately on `CheckedProgram` and replaying it into both fresh checking and
+resolution. Public analysis/IR tables cannot reconstruct or appoint that input.
+Existing source-cohort checks, complete fresh analysis/IR and census comparisons
+remain, including changed-source and public-table refusal. Three equivalent JEV
+choices favor this original-input replay over reconstruction or skipping generated
+issuers (confidence/probability 1.0 each; 4,592 tokens).
+[Requests and responses](../../design/jev/given-source-replay-20261015/1.json) and
+companion 2/3 retain the alternatives. All five affected predicate/replay checks
+pass, including mixed data/callable filters and original-source/public-table
+tamper refusals. The rebuilt CLI compiles the actual PromptLab composition with
+the archived predicate emitted as the existing data-only equality.
+
+C10's UI/Contracts implementation passes the 19 selected button checks and all
+three affected File-text checks after extracting their existing strict link
+validation into a private shared helper. The package build and catalog pass.
+The compiler-to-installed-UI producer and genuine finalized-File native consumer
+both pass. They cover explicit null, withheld links, exact File presentation,
+current grants, gate nonevaluation, evaluation/failure order and unsupported
+nullable URL/File-array targets. Ordinary string targets keep their existing
+asynchronous API. Original CanCRM composition remains a separate source consumer:
+a standalone CanCRM invocation lacks its declared dependencies and saved
+`sales_seats` contribution, so this result does not qualify the full app.
+
+The complete actual PromptLab native check now passes: the original saved views
+and source rows agree, populated History formats checked native leaves, contained
+Entry and Tag forms correct terminal rejections, and the archived page uses its
+stable paged predicate. The same check covers retained wire snapshots, exact-row
+admission, lazy native field access and closed-scope refusal. Desktop/mobile
+journeys are running against this frozen CLI/package/catalog/source closure;
+browser and visual acceptance remain pending. These bounded results do not change
+the broader reference count, external holds or the pre-training agreement gate.
+
+The first desktop browser pass exposes one additional source/runtime mismatch:
+the authenticated member sees curator-only canonical forms even though the
+corresponding native mutations refuse. Form emission currently checks explicit
+presentation gates but omits the owning checked operation's `by` guard. Repair
+that existing admission join for wholly role-only `by` guards before evaluating
+form properties; use current page role facts and the established guard evaluator,
+not generated metadata or interim MCP permission descriptors. Subject/input-
+dependent UI admission remains a separate gap: preparing a form's schema and
+bindings does not authorize it, and unbound inputs cannot be evaluated as if
+provided. The original operation remains authoritative at submission. Compiler
+and actual current-role page checks own this bounded acceptance.
+
+Two browser-fixture corrections are separate: HTML denial negotiates the
+canonical sign-in redirect, while JSON retains the protected route's forbidden
+response; edit-dialog completion must follow the stable operation identity when
+the edited record's heading changes. The corrected browser source type-checks.
+Nine individually inspected desktop captures are adopted as initial/empty/dialog
+and Tag failure/validation baselines. Populated views and mobile remain pending.
+The run was stopped before repeating these known failures on mobile.
+
+Actual owned preview shutdown also exceeded the five-second endpoint wait, then
+released the endpoint and exited. Increase the bounded wait to ten seconds
+within the existing fifteen-second control budget, retaining exact-session
+matching and actual endpoint-absence verification. Keep the refusal code in a
+cleanup failure instead of discarding it. No foreign process is stopped; the
+interrupted run's exact endpoint and process absence were verified before edits.
+The existing daemon handshake/ownership/release check passes after this change.
+
+Saved-file validation consumes canonical paths relative to the explicit project
+root. Adoption and direct validation incorrectly absolutized those operands,
+although native saved-group classification requires `can.generated/` at the
+start. Correct both tooling producers using the existing contained-path
+normalization; source operands for status/inspect/bind retain their separate
+absolute-path contract. Keep group ownership, root containment, leases, source
+revision and provenance checks intact. The three affected generation control
+checks pass, including outside-root/cross-group refusals. Genuine adoption of
+CanCRM's trait and page style now passes with both associations retained and no
+intake issues.
+
+That native consumer also exposed divergent contribution parsing: ordinary
+Given intake intentionally accepts a Given-only carrier, while saved validation
+reported missing When/Then sections. Both now use the same private parser rule.
+Do not add empty sections merely to appease one consumer. The existing focused
+trait check passes at file and unit scopes; malformed syntax, missing Given,
+wrong template, incompatible default type and contributed effects retain their
+appropriate refusals. The final CLI is rebuilt. Role-control checks also pass:
+one source/emission regression, ten existing action checks and the installed UI
+producer. The complete actual PromptLab native check passes with current
+member/curator control inventories, real role revocation/restoration and unchanged
+business state. Desktop/mobile journeys are running against the frozen release.
+
+The original CanCRM local dependency set now has all twenty required legacy
+units adopted under their owning app roots: one trait, two views and seventeen
+styles. Preserve originals in hidden `.legacy.saved` directories so archived
+`.can` carriers do not reenter source discovery. Invoice and Member retain typed
+source-owned view bodies; styles use their admitted host scope. Report's changed
+prompt is explicitly rebound. Per-owner status retains every association with no
+issues. This is adoption acceptance, not composed-app qualification. Compiling
+the original twelve source operands with their owning generated roots reports
+68 diagnostics. The first compiler defect mistakes `export Deal` for a model
+named `export` during Given trait intake; actions nested in a tooltip are an
+independent source mismatch. Other selected-app, capability and enum diagnostics
+remain visible rather than being suppressed.
+
+The next desktop run passes the stable initial Tags/Archived routes and keyboard
+navigation/dialog journey. Four newly inspected validation, populated EntryTile,
+History-expanded and action-menu captures join the nine accepted desktop
+baselines. Mobile and full workflows remain pending. The run exposed an actual
+preview watcher defect: an event for an unconsumed sibling such as DECISIONS.md
+increments the cancellation serial before input bytes are recaptured, falsely
+superseding unchanged checks. Retain events as hints and fence full recaptures
+against overlapping events; only a changed or incomplete captured input closure
+can invalidate that captured work. Stop and cancellation must remain effective.
+
+Archive commits expose another genuine missing join: Given-contributed stored
+fields have checked contribution proofs but no authored field AST, so scenario
+disclosure declines their reads/writes and omits authorized changed records.
+The spec's changed-record requirement remains in force. Reuse the existing
+checked contribution provenance at this boundary; runtime reconstruction of
+authority or a weaker browser assertion is not an accepted solution.
+
+Separate browser-fixture repairs open inline action menus before looking for a
+dialog and send the actual preview Origin on direct HTTP mutations. Chromium
+navigation retains its default Accept despite extra-header configuration; the
+JSON denial case now forwards the real navigation with an explicit Accept
+header, without substituting its response. The updated browser source
+type-checks. The interrupted run's exact daemon acknowledged stop, its endpoint
+was absent and its process exited before the input freeze was released.
+
+The watcher correction passes all 21 existing core lifecycle checks. It fences
+each full recapture with the event serial at its start and end, retries only
+overlapped captures, and observes cancellation/stop while yielding between
+attempts. Unconsumed sibling and same-byte events permit unchanged publication;
+changed, added, deleted or unreadable consumed inputs still refuse it. Final
+publication clears the reconciled dirty hint.
+
+Exported-model Given intake now consistently skips the leading `export` name
+token when identifying a model. Field names, contribution provenance, original
+spans and target validation retain their existing rules. The 15 Given and 17
+discovery checks pass, as do formatting and the final CLI build. The original
+CanCRM tooltip explanation is ordinary text beside its interactive candidate
+list within the same collapse; its query, guard and action order are unchanged.
+Both saved CanCRM associations remain retained. The original twelve-source
+compile now reports 64 diagnostics, with all four CanCRM diagnostics closed.
+The remaining dependency diagnostics do not reopen the accepted File mechanism.

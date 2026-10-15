@@ -1,0 +1,53 @@
+{
+  "request": {
+    "model": "jev-latest",
+    "state": {
+      "goal": "Resolve only C10, the original authored nullable File destination in CanCRM, without source workaround, new URL API or additional authority. Recommend unavailable-control rendering; implementations share the same safe active-file path.",
+      "source": {
+        "path": "draft/apps/CanCRM/CanCRM.can",
+        "line": 355,
+        "exact": "primary \"Open quote PDF\"@{nl=\"Offerte-PDF openen\"} target=revision.pdf",
+        "context": "Inside the checked Proposal.Revision query. Original source has no guard on this control. CanPropose.can declares pdf:file?; queued-document examples legitimately retain null. The adjacent text also presents revision.pdf. No requirement says null File targets must be hidden or disabled."
+      },
+      "verified_contracts": [
+        "DECISIONS.md8725 explicitly leaves UI/Interfaces/Files to define current-authorized finalized File-to-safeURL and nullable/no-file behavior before Compiler emission. This is an open owner prerequisite, not permission to rewrite CanCRM or a regression in accepted nonnullable string destinations.",
+        "Existing PageFilePresenter(file:FileValue)->Promise<FileLinkView|null> is sufficient for the active purpose. The canonical page scope binds exact original File object to actual current row/field/attachment. Returned href is the existing authorized attachment read/download URL, rechecking current identity and row/field/File authority on each open; not a storage/public URL or permission by ID possession. Copied, foreign, withheld occurrences return null. Original physical finalized-file and current-grant tests already exist.",
+        "Source native-row decoding preserves exact File object identity. No new query, source capability, URL function, filename lookup, token or public carrier is needed. Actual File with no configured presenter remains an explicit unavailable/error; unsafe/malformed presenter output and thrown failures retain existing failure behavior instead of inventing a destination.",
+        "Current Can target checking accepts nonnullable text/url/file but rejects file?; emission and ButtonProps currently admit string only. The finite source extension is exactly file or nullable(file) for target on button/primary/secondary, keeping nullable text/url, arrays and unrelated objects refused. Existing IR already preserves gates and evaluates caption/target expressions once in source order.",
+        "Current UI button counts null as no binding then throws. That baseline cannot finish this unchanged nullable source. Distinguish a configured target property whose value is null/withheld from an entirely absent/multiple binding configuration. No File resolution is needed for a null target. Missing field projection can yield undefined and must not confer a destination.",
+        "Existing primaryActions/actionMenu omit absent/empty controls and omit the whole empty group/trigger. Existing text File sink instead renders localized noninteractive File unavailable when its presenter withholds. These are two relevant precedents, not a settled File-button policy.",
+        "Both alternatives below use the same authorized attachment presenter for nonnull File, escape the authored localized caption and href, keep no active href/submission for null or withheld, avoid new existence/failure-reason metadata, preserve gates/once-only evaluation/source order/first failure, and render the same generic unavailable state for null and withheld. Existing ordinary string/Url controls and other bindings remain unchanged. The authored control caption is public source wording, not secret file metadata."
+      ],
+      "tradeoff": "Omission keeps action regions limited to currently executable destinations and reuses empty-group omission; users may not see that the source defines a pending PDF action. A disabled type=button with authored caption/no href retains discoverability and stable layout; it adds a non-executable control to action regions without explaining why. Neither option adds current File authority or reveals a File identifier/name when unavailable.",
+      "scope": "Advice for one technical design decision only. Active-file authority, scope lifetimes, missing-config refusals and per-open checks remain identical. Broader CRM composition, provider finalization, temporal release and deployment/application gates are separate."
+    },
+    "questions": {
+      "availability": {
+        "type": "choice",
+        "instructions": "Choose the most appropriate narrowly scoped renderer contract for the PDF action when its optional File has no authorized destination. Both candidates share all listed authority, validation and evaluation requirements. Balance continuity/discoverability against clean actionable menus and implementation simplicity.",
+        "criteria": {
+          "disabled_control": "Keep a noninteractive control labeled with the original localized action text when the File is null or withheld: disabled button, type=button, no link, no additional filename/ID/reason. On a usable File use the existing protected presenter link. Stable visible affordance and position cost one inert action entry.",
+          "omit_control": "Suppress this action entry when the File is null or withheld, allowing existing action owners to omit empty groups. On a usable File use the same existing protected presenter link and original text. Action regions contain only destinations currently available, at the cost of hiding the not-yet-available authored affordance."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "availability": {
+        "type": "choice",
+        "choice": "omit_control",
+        "confidence": 0.1,
+        "probabilities": {
+          "disabled_control": 0.45,
+          "omit_control": 0.55
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1340,
+      "output_tokens": 34
+    }
+  }
+}

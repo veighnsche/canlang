@@ -1,0 +1,48 @@
+{
+  "request": {
+    "model": "jev-latest",
+    "state": {
+      "goal": "Execute actual PromptLab .can source examples with valid stored fixture snapshots, preserving canonical operation permissions and source expected outcomes.",
+      "accepted_semantics": "DESIGN.md544: fixtures are typed stored snapshots, not client create requests or past workflow evidence. They can supply declared server-owned domain fields. Reject reserved id/version/audit metadata, invalid types/constraints/refs/containment/invariants/unique/file/lifetime setup. Default/server expressions use self. Row cells evaluate once against untouched valid baseline, then simultaneous initial-field overrides validate together. Fixtures remain version1. Setup invokes no CRUD hooks/events and locked historical initial values are valid. Operation executes once through normal admission after valid setup. Scope here is ordinary current scalar/user/parent models; unsupported file/provider recipe profiles continue explicit refusal.",
+      "verified_gap": "Current installed materializer refuses parent models and builtin unique models, invokes user CRUD as self for computed-key fixtures (wrong authority), and refuses computed-key row overrides. Other fixtures commit raw rows without full shared validation. Actual PromptLab needs Catalog->Entry parents, archive-evidence cross-field invariant and computed keys plus source row overrides. Existing independent source guards/CRUD candidate bridge remains separate.",
+      "verified_interfaces": "State beginOwnerMutation owns normalization, native checks, references, bounded provisional views, final invariant checks and net unique claims; scenario stages already skip CRUD hooks. Ordinary stages reject caller serverOnly fields, apply prestate locks on updates, increment versions and add history. So merely selecting scenario cause is incomplete. Canonical context builder already supports test kind with isolation explicitly caller/testkit-owned. CF private verified owner policy control opens active native frame from matching frozen context/session; admission-call wrapper can retain behavior while separate test-only wrapper opens fixture frame. It requires exact verified artifact/modules; no copied callback or model-table authority override.",
+      "required_outcomes": "Actual source fixtures and parent IDs materialize with defaults, exact scalar values, validation and key claims under self without granting curator. Invalid baseline or combined override is setup failure with no partial setup publication; valid historical archived rows initialize their actor/time coherently. Existing emitted operations still enforce their real by, CRUD when, guards and transaction checks. Test-only setup has no row history, events or production role grant and preserves initial version1.",
+      "alternatives": {
+        "owner_snapshot": "Add an explicit internal State fixture/snapshot stage mode, admitted only in a test invocation context. Reuse current owner pipeline normalization, native field validation, containment/references, final invariants and net old/new unique claims. Fresh setup creates and simultaneous initial-field replacements allow declared server domain fields but no authored reserved metadata; preserve version1 and initial metadata. Skip CRUD by/when/hooks, entry locks and history/events only for this snapshot mode. CF opens a separate verified native-policy frame for the exact test context and commits one fenced setup batch. Dev owns fresh row isolation and exposes no production route/source switch.",
+        "shadow_snapshot": "Build a fresh private shadow store containing the complete relevant baseline/dependency closure. Validate a fully rebuilt snapshot there using shared canonical rules, then translate validated differences and old/new unique claims to one fenced real-store setup replacement. Keeps ordinary mutation staging unchanged and isolates trial data, but requires complete closure copying, initial-metadata replacement and shadow-to-real claim translation without duplicating rule semantics.",
+        "migration_adapter": "Adapt existing migration staged-row validation to fixture snapshots and row replacements, reusing schema-level type/reference/unique validation. Supply the required schema/progress/activation context and add native invariant frame integration; omit actual production migration activation. Strong reuse of snapshot validation, with extra migration bookkeeping and a separate initial-snapshot installation adapter."
+      },
+      "uncertainty": "Advice only; new snapshot stage must be explicitly bounded to isolated setup and preserve failure latch/fences, not a generic permission bypass. Existing unsupported resource profiles must fail rather than be claimed complete. Acceptance requires focused owner checks plus actual compiler-to-runtime examples."
+    },
+    "questions": {
+      "implementation": {
+        "type": "choice",
+        "instructions": "Compare these alternatives on semantic fidelity, authority separation and total integration complexity; which should implement this finite stored-fixture profile?",
+        "criteria": {
+          "owner_snapshot": "Add an explicit internal State fixture/snapshot stage mode, admitted only in a test invocation context. Reuse current owner pipeline normalization, native field validation, containment/references, final invariants and net old/new unique claims. Fresh setup creates and simultaneous initial-field replacements allow declared server domain fields but no authored reserved metadata; preserve version1 and initial metadata. Skip CRUD by/when/hooks, entry locks and history/events only for this snapshot mode. CF opens a separate verified native-policy frame for the exact test context and commits one fenced setup batch. Dev owns fresh row isolation and exposes no production route/source switch.",
+          "shadow_snapshot": "Build a fresh private shadow store containing the complete relevant baseline/dependency closure. Validate a fully rebuilt snapshot there using shared canonical rules, then translate validated differences and old/new unique claims to one fenced real-store setup replacement. Keeps ordinary mutation staging unchanged and isolates trial data, but requires complete closure copying, initial-metadata replacement and shadow-to-real claim translation without duplicating rule semantics.",
+          "migration_adapter": "Adapt existing migration staged-row validation to fixture snapshots and row replacements, reusing schema-level type/reference/unique validation. Supply the required schema/progress/activation context and add native invariant frame integration; omit actual production migration activation. Strong reuse of snapshot validation, with extra migration bookkeeping and a separate initial-snapshot installation adapter."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "implementation": {
+        "type": "choice",
+        "choice": "owner_snapshot",
+        "confidence": 1.0,
+        "probabilities": {
+          "owner_snapshot": 1.0,
+          "shadow_snapshot": 0.0,
+          "migration_adapter": 0.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1481,
+      "output_tokens": 42
+    }
+  }
+}

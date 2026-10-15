@@ -1,0 +1,51 @@
+{
+  "request": {
+    "model": "jev-latest",
+    "state": {
+      "goal": "Restore complete fresh source agreement for compiler-checked saved Given contributions so original native page predicate issuance remains sound, while preserving all original source/IR/census/tamper checks and current runtime authority.",
+      "verified_facts": [
+        "Actual PromptLab source declares named archive_evidence with archived:bool=false, archived_by:user?=null, archive_recorded_at:datetime?=null; a saved inline Note trait contributes pinned:bool=false. These are adopted checked Given contributions, not authored replacement fields. The ordinary CLI first check uses analysis::check_program_with_given(db,files,catalog,Some(&join.tables)).",
+        "Actual fresh-source diagnostic is FreshSourceContext::prepare failing Analysis: it reruns plain check_program without Given tables, so reanalysis reports E2013 unknown contributed archived/user/datetime/pinned fields. Prior speculation about a page-owner/module-name guard is not established and must not be treated as the cause.",
+        "compiler/src/codegen/scenario_decisions.rs1515 first validates CheckedProgram source/catalog cohort, then calls plain check_program(db,program.checked_files(),catalog). It builds fresh IR and parses original source trees, then calls plain try_resolve_program without Given tables. This shared preparation feeds checked original predicate issuance and other compiler source decisions.",
+        "analysis::check_program_with_given and resolve::try_resolve_program_with_given already accept Option<&GivenContractTables>. They are compiler-internal functions. No common checked-input replay helper exists today.",
+        "CheckedProgram has public editable analysis tables/modules/symbols and existing private cohort/source-declaration census/disclosure fields. Its public analysis tables are explicitly not authority. GivenContractTables derives Clone, PartialEq, Eq; it contains clean validated source-ordered trait contracts and keyword bindings. Units with diagnostics do not contribute checked contracts.",
+        "Existing checked source decisions compare complete fresh analysis types/symbols/modules, IR execution closure/value constraints/disclosures, and original source inventories. These checks must remain; retaining an input must not authenticate mutable public outputs or accept edited source, targets, attachments, defaults, types, omitted fields or invented contribution census.",
+        "A prior narrow scenario-create/disclosure fix retains original checked contributed-field facts for that particular join; it is not a general replay helper and does not recover the entire original Given tables used to check the program.",
+        "Runtime bindOriginalPageWhere recognizes only the original callable through the verified emitted module WeakMap getter and optional matching source marker. It correctly refuses when the compiler emits no checked issuer. Runtime signature, source, owner, current grants, original field projection and cursor policy must not be weakened.",
+        "This decision only repairs compiler-private replay of original check inputs. A separate accepted finite Boolean data predicate lowering is needed for paginated row.archived; it does not replace complete source provenance for genuine callable predicates. No public runtime carrier, endpoint, new permission or new query is requested."
+      ],
+      "acceptance": "Same original source/catalog/saved checked Given inputs reproduce clean analysis/resolution and full matching fresh IR/census; actual checked page callable issuer can be produced. Untouched generated source workflows remain usable. Changed source cohort or public generated tables/type/default/target/attachment/census must still fail original comparisons. Native current-grant checks, exact callable identity and runtime refusals remain intact.",
+      "comparison": "Judge total implementation surface, trusted-input ownership, correctness, maintainability and workflow completeness against the same acceptance. Private source association is input replay only, not a new authorization certificate. Advice is not acceptance or proof."
+    },
+    "questions": {
+      "implementation": {
+        "type": "choice",
+        "instructions": "Which bounded implementation best restores sound fresh-source correspondence for these already checked Given contributions while preserving all stated invariants and workflows?",
+        "criteria": {
+          "retain_private_checked_inputs": "Store an optional private clone of the original validated GivenContractTables on CheckedProgram when check_program_with_given constructs it. Expose only a compiler-internal borrowed replay input/helper. FreshSourceContext validates its existing cohort, then uses exactly those original inputs in both check_program_with_given and try_resolve_program_with_given, preserving full fresh analysis/IR/census comparisons and all tamper refusals. Ordinary no-Given checks retain None. Adds retained compiler-private input memory and plumbing; introduces no public serialized authority and avoids reconstructing richer inputs from derived mutable outputs.",
+          "reconstruct_and_verify": "Reconstruct the complete original GivenContractTables from current public IR/type generated fields plus original source/census and verified saved associations, with explicit checks for every trait/keyword, source order, target, attachment, field type/default/constraints and omission. Feed the reconstructed tables into existing fresh check/resolve and keep all full comparisons. Avoids storing a private copy on CheckedProgram, but requires a complete reversible reconstruction and provenance checks across publicly editable derived structures; partial reconstruction cannot satisfy this option.",
+          "keep_generated_issuer_refused": "Retain the current fail-closed lack of callable source issuer for generated programs rather than replay Given inputs. Make unsupported scope explicit and keep runtime refusal; ordinary non-generated source remains usable. Avoids new retained input state or reconstruction and minimizes immediate compiler changes, but generated workflows needing checked native callable predicates remain unavailable until a later defining implementation; it cannot claim original PromptLab acceptance or bypass the runtime gate."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "implementation": {
+        "type": "choice",
+        "choice": "retain_private_checked_inputs",
+        "confidence": 1.0,
+        "probabilities": {
+          "retain_private_checked_inputs": 1.0,
+          "reconstruct_and_verify": 0.0,
+          "keep_generated_issuer_refused": 0.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1469,
+      "output_tokens": 55
+    }
+  }
+}

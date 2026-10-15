@@ -1,0 +1,48 @@
+{
+  "request": {
+    "model": "jev-latest",
+    "state": {
+      "goal": "Make accepted .can CRUD when semantics, compiler, State runtime and actual PromptLab source agree without weakening permissions or rewriting authored workflows.",
+      "verified_spec": "DESIGN.md332: when runs on normalized proposed create/update and existing delete row; row sees candidate, model scans see provisional store before this write including earlier effects, old update row remains visible. Defaults/server-owned fields prepared without staging; final invariants see completed transaction. DESIGN.md1244: CRUD effects pass admission callback; ordinary source effects do not gain invented CRUD guards. These semantics are accepted, not options to change.",
+      "verified_gap": "Actual PromptLab 26 authored rows all fail runtime setup because mapCrudPolicyToBy rejects when:true. Current compiler emits verified canApp.crudWhen callbacks and appDefinition operation.when keys, but also wrongly injects them on ordinary source create/set; separate compiler repair removes only that injection. State serializable registry when supports QueryPredicate, legacy generated CRUD drops create when. Removing refusal alone would bypass guards.",
+      "verified_runtime": "State beginOwnerMutation owns normalized hook-adjusted candidates before provisional publication/history/claims. Existing checkWhen runs there; delete before row is available. generatedCrudExecute already creates owner frame and calls session.stage(write,{cause:crud,input:call.inputs}); its native internal stage options can carry callback without changing serializable artifact or registry types. Existing nativeOwnerRuleRecord provides candidate and parent hydration; call.context supplies identity. views.final provides pre-write owner reader and work budget. Existing invariant context intentionally denies general scans, so callback query support must bind actual native query callbacks to provisional reader with liveness/first-failure preservation.",
+      "required_examples": "PromptLab has Entry/Tag when not row.archived and Note when row.author==actor and not row.parent.archived. Explicit archive scenario has own role/require and sets archived=true, so must not inherit CRUD when. Test false-create, false-update and existing-row-delete refusal with no writes/history/claim changes, defaults/trim/server fields, parent/actor, successful scenarios, and pre-write scans where relevant.",
+      "alternatives": {
+        "native_bridge": "Bind the existing verified canApp.crudWhen callback through an internal owner-scoped CRUD stage option. Reuse normalized candidate boundary, owner provisional read views, native actor/parent/query adapters and budget/failure latch. Evaluate exactly once before staging, strict Boolean. Verify exact module/model/kind and descriptor key before accepting manifest when:true. Ordinary source effects omit the CRUD guard. No public source syntax or artifact AST; implementation must complete bounded query integration instead of assuming restricted invariant adapters suffice.",
+        "predicate_ast": "Add compiler-owned serializable typed predicate AST and versioned runtime interpreter covering existing accepted CRUD-when expressions including actor, parent records and owner queries. Route create/update/delete through it at the identical normalized candidate/pre-write boundary. Uniform inspectable data contract and fail-closed unknown tags, but a new producer/carrier/interpreter must preserve full existing evaluation order and Values semantics.",
+        "bounded_subset": "Retain generated callback refusal and admit only predicates completely representable by existing QueryPredicate data, with explicit compiler refusal for actor/parent/query expressions. This limits implementation and remains safe, but leaves PromptLab Note CRUD and accepted general when profiles unusable until a later policy bridge."
+      },
+      "uncertainty": "Advice only; native bridge query wiring not yet implemented. New AST may be warranted if native context cannot faithfully supply bounded query semantics. No sandbox/security proof or broader permission ABI claimed. Choose smallest complete integration, not a metadata bypass."
+    },
+    "questions": {
+      "implementation": {
+        "type": "choice",
+        "instructions": "Select the most appropriate repair for these accepted CRUD predicates: weigh semantic fidelity, explicit ownership, integration work, and safe refusal against the same required outcomes.",
+        "criteria": {
+          "native_bridge": "Bind the existing verified canApp.crudWhen callback through an internal owner-scoped CRUD stage option. Reuse normalized candidate boundary, owner provisional read views, native actor/parent/query adapters and budget/failure latch. Evaluate exactly once before staging, strict Boolean. Verify exact module/model/kind and descriptor key before accepting manifest when:true. Ordinary source effects omit the CRUD guard. No public source syntax or artifact AST; implementation must complete bounded query integration instead of assuming restricted invariant adapters suffice.",
+          "predicate_ast": "Add compiler-owned serializable typed predicate AST and versioned runtime interpreter covering existing accepted CRUD-when expressions including actor, parent records and owner queries. Route create/update/delete through it at the identical normalized candidate/pre-write boundary. Uniform inspectable data contract and fail-closed unknown tags, but a new producer/carrier/interpreter must preserve full existing evaluation order and Values semantics.",
+          "bounded_subset": "Retain generated callback refusal and admit only predicates completely representable by existing QueryPredicate data, with explicit compiler refusal for actor/parent/query expressions. This limits implementation and remains safe, but leaves PromptLab Note CRUD and accepted general when profiles unusable until a later policy bridge."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "implementation": {
+        "type": "choice",
+        "choice": "native_bridge",
+        "confidence": 1.0,
+        "probabilities": {
+          "native_bridge": 1.0,
+          "predicate_ast": 0.0,
+          "bounded_subset": 0.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1381,
+      "output_tokens": 42
+    }
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "request": {
+    "state": "Task: align Can source rules, native compiler, TS presentation and examples before generating a training corpus. The unresolved choice is top-level children of a prompted view. Already accepted: priority controls belong to concrete owners, and source-declared canonical cards reach the generated renderer as indivisible host-rendered HTML. Do not replace that owner rule. Legacy specification text says only canonical controls, but current Rust accepts/lower direct text/content/history as well as cards, edit/delete/form/action/actions and require. A compiled integration example consumes the direct text binding. The emitter passes an already evaluated row once, gates the whole view before rendering, pre-renders children in source order, and suffixes repeated names (card2, text2). The runtime calls saved render with the resulting strings. Nested card guards remain attached to the card. Nested show is rejected by resolution; slots, arbitrary component inputs, caller capture and cross-package exports remain excluded, and no hostile-code sandbox is promised. These are verified source observations, with existing tests inspected; no new complete browser acceptance is claimed. Sources: current action-owner decision, syntax/parser.rs, codegen/then_views.rs, codegen/js.rs, bgi0910_then.rs and ui/components.ts. Seek a compact teachable contract without dropping permissions, local guards or established workflows.",
+    "questions": {
+      "direct_children": {
+        "type": "choice",
+        "instructions": "Select the direct-child policy that best fits the supplied contract and finite stabilization goal. Each alternative must keep opaque cards, canonical authority and authored order; judge benefits and migration/qualification costs together.",
+        "criteria": {
+          "card_and_controls": "Constrain direct children to cards, admitted controls and guard declarations; put all text/content/history within cards. Smaller direct grammar at the cost of changing existing leaf witnesses and renderer binding expectations.",
+          "all_canonical_roots": "Generalize direct bindings to all ordinary supported UI roots while keeping existing explicit exclusions. More uniform authoring, with extra required admission and runtime coverage outside today's demonstrated root set.",
+          "finite_bindings": "Codify the current finite set of cards, standalone text/content/history, checked controls and require. Render cards with their normal owned descendants and pass them whole; retain exclusions. Avoids source migrations but keeps a bounded special list."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "direct_children": {
+        "type": "choice",
+        "choice": "finite_bindings",
+        "confidence": 0.98,
+        "probabilities": {
+          "card_and_controls": 0.0,
+          "all_canonical_roots": 0.01,
+          "finite_bindings": 0.99
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 753,
+      "output_tokens": 50
+    }
+  }
+}

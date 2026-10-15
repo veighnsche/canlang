@@ -1,0 +1,54 @@
+{
+  "request": {
+    "model": "jev-latest",
+    "state": {
+      "objective": "Adopt PromptLab handwritten saved outputs without weakening its authored UTF-8 byte-budget and EAN-13 validation requirements. Spec, compiler, State, installed runtime and examples must agree before training.",
+      "verified_source": [
+        "Named key_text_budget trait attaches to required native text Entry.code and Tag.name; inline field trait attaches to required native text Entry.barcode. Prompts require pure field check, unchanged stored spelling, existing trim/length constraints, canonical validation feedback and no authority. Saved server.js exports check(value)->boolean; correct algorithms by inspection.",
+        "Current v1 traits consume contributions.can templates (fields/constraints/defaults) and refuse all implementation.js. Repeating min/max cannot enforce UTF-8 byte count or checksum. Existing state.unique-key@1 keyword integration fingerprints full unit-local JS closure, loads trusted saved modules after assembly verification, supplies projected text only, and leaves atomic state to State. It is not a general sandbox proving arbitrary JS purity."
+      ],
+      "verified_owners": [
+        "Compiler checks named/inline trait applications and emits ArtifactGivenTrait per source use. A single field template must match authored field type; model traits can add defaulted fields. Saved implementation closure helper already exists in compiler and Cloudflare.",
+        "State mutation/pipeline.ts unifies CRUD, scenario and hook-staged create/update. Native normalization and bounds run before hooks and again on post-hook candidate. A custom check can run after post-hook normalization before computed unique claims, provisional publication and history. Owner finalize/commit retains rollback and replay. Deletes need no field check.",
+        "State migration/validate.ts already scans staged rows and retained-live rows for desired computed-key rules. A new field constraint must join desired validation for both sets to prevent activation with invalid existing data. Existing admission still owns permissions."
+      ],
+      "alternatives": {
+        "field_trait": "Extend existing field trait contract with optional source-derived state.field-validation@1 descriptor only when saved implementation.js is present; fixed check(text)->boolean, validate-fields lifecycle, closure fingerprint and no declared authority. Initially only required native text field attachments with compatible single-field templates; model attachments/other types refuse. Add State check at shared post-hook normalized create/update boundary, strict bool/exception refusal as validation, and desired migration checks for staged and retained rows. Reuse existing trusted saved-module loader; no new source syntax or metadata that invents authority.",
+        "native_constraints": "Implement two native constraints (UTF-8 byte cap and EAN-13), surface checked constraint fields through trait templates, and retire old saved check functions as historical content. More specific algorithms in core and new constraint syntax/carrier, but no generated callback for these cases; future algorithms require native additions.",
+        "keyword_producer": "Require these constraints to be rewritten as standalone keyword applications, with a separate field-validation producer and per-rule checked contract. Keeps trait templates inert but changes current authored reusable/inline field trait design; still needs identical runtime validation/activation integration."
+      },
+      "acceptance": "Both algorithms, trim-before-check, CRUD/source scenario/hook writes, strict false/error outcomes, no persisted value/history/key claim on failure, same byte fingerprint and current saved module across native and installed runtime. Model traits and unadmitted types/authority stay refused. Existing permitted workflows remain usable; no training yet.",
+      "uncertainty": "Choose minimal complete owning integration, not a general plugin sandbox. Scalar/nullable generalization is separately proposed; permissions and storage stay existing owners. Model advice is not proof; focused compiler/runtime and actual app examples must validate implementation."
+    },
+    "questions": {
+      "implementation": {
+        "type": "choice",
+        "instructions": "Which implementation best satisfies the existing field-trait authoring requirement and both saved algorithms with coherent ownership and the smallest complete change?",
+        "criteria": {
+          "field_trait": "Extend existing field trait contract with optional source-derived state.field-validation@1 descriptor only when saved implementation.js is present; fixed check(text)->boolean, validate-fields lifecycle, closure fingerprint and no declared authority. Initially only required native text field attachments with compatible single-field templates; model attachments/other types refuse. Add State check at shared post-hook normalized create/update boundary, strict bool/exception refusal as validation, and desired migration checks for staged and retained rows. Reuse existing trusted saved-module loader; no new source syntax or metadata that invents authority.",
+          "native_constraints": "Implement two native constraints (UTF-8 byte cap and EAN-13), surface checked constraint fields through trait templates, and retire old saved check functions as historical content. More specific algorithms in core and new constraint syntax/carrier, but no generated callback for these cases; future algorithms require native additions.",
+          "keyword_producer": "Require these constraints to be rewritten as standalone keyword applications, with a separate field-validation producer and per-rule checked contract. Keeps trait templates inert but changes current authored reusable/inline field trait design; still needs identical runtime validation/activation integration."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "implementation": {
+        "type": "choice",
+        "choice": "field_trait",
+        "confidence": 1.0,
+        "probabilities": {
+          "field_trait": 1.0,
+          "native_constraints": 0.0,
+          "keyword_producer": 0.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1339,
+      "output_tokens": 43
+    }
+  }
+}

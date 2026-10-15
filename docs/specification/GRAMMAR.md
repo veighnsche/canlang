@@ -2,6 +2,8 @@
 
 This is the normative source grammar for the bounded v1 language in [DESIGN.md](DESIGN.md). It specifies tokens, layout, syntactic roles and AST boundaries; DESIGN owns business semantics. A successful parse does not establish valid names, types, permissions, application behavior, deployed resources or executable examples. Unknown syntax is an error. No production permits an unparsed tail or an arbitrary extension word.
 
+The [Rust compiler](../../compiler/README.md) is the supported implementation; its documentation records implementation status. The separate [Python syntax prototype](../../tools/README.md) may drift from this grammar; its historical coverage does not limit accepted source syntax. Parsing alone does not establish semantic or runtime support.
+
 ## Notation
 
 EBNF uses `=` for a production, `|` for alternatives, `[x]` for optional syntax, `{x}` for repetition, and quoted text for exact source tokens. Uppercase names are lexical/layout tokens. `line(x)` means `x NEWLINE`. `suite(x)` means `NEWLINE INDENT x DEDENT`, with at least one source item. `optional_suite(x)` is either `NEWLINE` or `suite(x)`; lookahead at the next noncomment logical line determines which. `leaf_lines(x)` means a nonempty sequence of `line(x {";" x})`. These are grammar notation, not source words. End of file supplies a final `NEWLINE` when the final nonblank logical line lacks one.
@@ -27,7 +29,7 @@ There are no single-quoted strings, literal physical newlines inside strings, so
 All identifier-shaped words are `NAME` tokens. The parser assigns contextual roles as described below. Punctuation tokens are:
 
 ```text
-( ) [ ] { } , . : ; = ! | + - * / % < > == != <= >= ?? ?. -> @
+( ) [ ] { } , . : ; = ! | + - * / % < > == != <= >= ?? ?. -> @ $
 ```
 
 `/` is division in expressions and begins a route only in a route slot. Route segments have the additional lexical rule defined below. `#` is recognized only as a physical-line marker, outside strings. `@` is valid only as the contiguous `@{` message-variant marker following a source string or final description prose; it is not a general object annotation.
@@ -178,7 +180,7 @@ delivery_type    = "delivery" "(" path ")" ;
 invocation_type  = "invocation" "(" separated(path) [","] ")" ;
 field_type       = type ["!"] ;
 schema           = "{" bracketed(field) "}" ;
-field            = NAME ":" field_type [initializer] {field_modifier} [desc_attribute] [field_label_attribute] ;
+field            = NAME ":" field_type [initializer] {field_modifier} {trait_suffix} [desc_attribute] [field_label_attribute] ;
 initializer      = "=" expr | "server" "=" expr ;
 field_modifier   = "trim" | "unique" | "machine" | "min" "=" expr | "max" "=" expr ;
 parameters       = "(" bracketed(parameter) ")" ;
@@ -191,9 +193,9 @@ An ordinary scenario parameter can carry optional `choices={read=owning_read(inp
 
 `enum(...)`, `action(...)`, `delivery(...)` and `invocation(...)` are recognized by their exact call-shaped type production. A bare type path component named `enum`, `action`, `delivery` or `invocation` is not globally banned. Their atom forms are not union arms. Union `|` combines all named paths before array/container suffixes: `A|B[]?` means a nullable array of union values. There are no grouped types, repeated array suffixes or nullable-element spelling `T?[]`. A scalar may have `?` without an array. Enumerator/allowed-action lists are syntactically nonempty, and enum entries are unqualified names. Checking requires distinct values and valid canonical action targets. Union arms must resolve to the supported tagged named value types; primitive unions are not authorized by their syntactic path shape.
 
-`delivery(path)` resolves exactly one bound capability operation or bound exported user operation, not a model or arbitrary string. Normal nullable/array suffix rules apply. Its read-only members, send result and protected association follow DESIGN §8.1; no production constructor is added. The current prototype does not recognize this type form.
+`delivery(path)` resolves exactly one bound capability operation or bound exported user operation, not a model or arbitrary string. Normal nullable/array suffix rules apply. Its read-only members, send result and protected association follow DESIGN §8.1; no production constructor is added.
 
-`invocation(paths)` resolves a nonempty distinct closed set of local enabled user mutation targets. It is a complete normalized call value, unlike `action`'s record-bound form requiring remaining input. Its ordinary expression constructor is `invocation(Target,{arguments})`; `call value {}` uses the existing call production and supplies no replacement arguments. Current authority, frozen record versions, provider-result reference provenance and preview rules follow DESIGN §2.2. Neither the constructor nor a model-generated value grants permission. The current syntax prototype does not support this type form.
+`invocation(paths)` resolves a nonempty distinct closed set of local enabled user mutation targets. It is a complete normalized call value, unlike `action`'s record-bound form requiring remaining input. Its ordinary expression constructor is `invocation(Target,{arguments})`; `call value {}` uses the existing call production and supplies no replacement arguments. Current authority, frozen record versions, provider-result reference provenance and preview rules follow DESIGN §2.2. Neither the constructor nor a model-generated value grants permission.
 
 The trailing field `!` is creation metadata, not a value-type operator. `text!`, `text?!`, `text[]?!` and repeated `!` are invalid; an explicitly written nonnullable array can use `text[]!`. A qualified field path whose representation is unresolved can be parsed with `!`, as in `items:Contract.rows!`; later checking must prove that the reused field is a nonnullable array. A required-array-input field cannot also have a default or server initializer. A syntax-only parser must not claim it knows an unresolved path's representation.
 
@@ -268,10 +270,16 @@ A query alias scopes over its following clauses, not backward into its domain an
 ```ebnf
 given_items    = {line(given_leaf {";" given_leaf}) | ["export"] (capability | judgment)} ;
 given_leaf     = corpus | ["export"] (model | contract | event | role | pure_function | fixture | message)
-               | ordinary_given ;
+               | ordinary_given | trait_definition | keyword_definition | keyword_application ;
 ordinary_given = derive_field | policy | invariant | unique | lock | retain ;
+trait_definition = "trait" NAME [generation_agent] generation_prompt ;
+trait_suffix   = NAME | "trait" [generation_agent] generation_prompt ;
+keyword_definition = "keyword" NAME "(" separated(keyword_parameter) [","] ")"
+                     [generation_agent] generation_prompt ;
+keyword_parameter = NAME ":" ("field" "(" NAME "," type ")" | type) ;
+keyword_application = NAME (NAME "=" expr) {NAME "=" expr} ;
 preferences    = "preferences" schema attributes ;
-model          = NAME ["in" (path | "app")] ["at" "=" path] schema [scalar_label_attribute] ;
+model          = NAME ["in" (path | "app")] ["at" "=" path] schema {trait_suffix} [scalar_label_attribute] ;
 contract       = "contract" NAME schema [scalar_label_attribute] ;
 event          = "event" NAME schema ;
 role           = "role" NAME [scalar_label_attribute] ;
@@ -297,6 +305,24 @@ judgment_option = NAME "=" caption ;
 ```
 
 Here and below, `attributes` expands only the row for that header in the closed table; it is not a generic NAME/value bag. `given_items` consists of leaf lines, capability compounds and judgment compounds. `judgment_items` is nonempty. NOUL has either both named criteria in the shown order or neither; static choice options, any authored runtime-choice option map and ordered score levels are nonempty and uniquely named. `options=runtime` is confined to choice questions; its optional map contributes fixed choices, and its generated runtime input must produce a combined 2–26 distinct options. Empty dynamic arrays are valid only when the fixed choices already satisfy that total. The marker does not make question instructions or score rubrics mutable. Captions are static literal/message values; result shapes, generated type paths, bounds and binding behavior are specified in DESIGN §8.2. Judgment items cannot be mixed with Given declarations or effects. `capability_items` is a nonempty sequence of capability items. A field derive target must resolve to `Model.field`; syntactically its path need not be classified by length. A pure function is distinguished by its parameter parentheses. `invariant path: expr` is the sole stored-model invariant spelling in Given; the former `require path: expr` is invalid. Its target path, colon, expression and `row` scope are unchanged. Execution/mapper guards and presentation gates retain `require`. Both words remain contextual names in name slots. `in team`, a role scope attribute, and arbitrary resource declarations in Given are invalid. `in app` is the explicit app scope; a model path denotes explicit containment. `at` and containment compatibility are semantic.
+
+Trait definitions and custom keyword definitions are local Given leaves with
+static generation prompts; they cannot be exported or redefine built-in words.
+Named traits apply by their bare name after the model schema or stored-field
+modifiers; `trait Name` is not an attachment. Inline attachments use
+`trait [agent=profile] $"..."`. Multiple attachments retain authored order and end before the field
+terminator or label/description. Parameters and non-model schemas cannot
+own these traits. Definition-owned profiles are not overridden by named uses.
+
+Keyword signatures are nonempty and have unique required names. The admitted
+reference kinds are `model`, dependent `field(target,type)` and `operation`;
+ordinary value types carry compile-time constants. Applications supply each named
+argument once and have no prompt, positional arguments or defaults. These forms
+resolve against all same-owner definitions before application checks. The
+[Given extension contract](BUILD_GENERATION_REQUIREMENTS.md#bgen-02-complete-generation-targets)
+defines compatible targets and checked runtime producers; parsing alone grants
+no registration, storage or authority. Pure required-text field checks use the
+existing trait syntax and saved files, not embedded JavaScript in `.can`.
 
 User-fixture recipes reuse the existing path/value-object syntax: `fixture NAME=user {roles=[ROLE,...]}` or `fixture NAME=user {}`. Only a static, duplicate-free list of `owner` and visible declared roles is valid; no other fields or dynamic values are accepted. Identity, active same-team membership, grants, dependency loading and caller selection follow DESIGN §5.1 and require semantic validation. File-fixture recipes reuse the value-object syntax. Their parsed fields must later validate as only `type=STRING` and `owner=(self|other|outsider|user_fixture)`; unknown recipe fields and inappropriate shorthand/value shapes are semantic errors. Duplicate object fields are syntactically invalid for every object. An empty recipe is valid. An operation-resolved fixture path provisions a typed delivery recipe with required complete `request={...}` and optional status/result/error; DESIGN §8.1 defines protected runtime identity, result consistency, same-owner association and finalized-file provenance. Resolution distinguishes this test-only operation recipe from ordinary model recipes. Other fixture objects use named/shorthand input fields and require ordinary model/constraint/fixture resolution. There is no production file constructor. Test-only fixture identities are not production globals.
 
@@ -329,7 +355,7 @@ Scalar `label=` slots parse only a literal source STRING with optional descripto
 
 `source=STRING` belongs to app/package headers, defaulting to `"en"` per logical owner. Its validation and annotation of owned assets/attached prose are semantic; imported or composed owners retain their own source language. `locale` is a normal type-path name whose canonical BCP 47 value rules come from DESIGN §9.1. Its context declaration uses `default=STRING` above and controls deployment fallback/viewer selection only.
 
-Text caption/submit/empty/diagnostic slots parse expressions; checking accepts literal text or message values and rejects other results. No configuration-wide localization is implied. Message references and calls reuse expression grammar. Anonymous descriptor calls require a nonempty list of explicit named arguments, with types resolved from their expressions and every placeholder across variants explicitly bound; there is no implicit capture. Named messages use their declared typed signatures. The initial parser does not parse ICU internals, resolve pure message import closure, execute fallback/formatting, or certify translations.
+Text caption/submit/empty/diagnostic slots parse expressions; checking accepts literal text or message values and rejects other results. No configuration-wide localization is implied. Message references and calls reuse expression grammar. Anonymous descriptor calls require a nonempty list of explicit named arguments, with types resolved from their expressions and every placeholder across variants explicitly bound; there is no implicit capture. Named messages use their declared typed signatures. Parsing this shape does not validate ICU internals, resolve pure message import closure, execute fallback/formatting, or certify translations.
 
 `corpus NAME` is an unexported Given leaf with the required attributes above; its generated interface/result members are ordinary qualified paths. It derives model-bound indexing, protected grounded answers and observable progress under DESIGN §8.3. No arbitrary extraction expression, query-language string or separate fixture constructor is introduced.
 
@@ -412,14 +438,22 @@ In the table form, the first child line is a header, and at least one row follow
 
 Common bindings use the operation's input names, including `event` for a trusted handler, and may include the special `seed` list. Duplicate input/seed bindings are invalid. Both header sides parse expression lists; checking must establish that the left expressions are permitted input-selector paths. `as`, `request.*`, record-fixture fields, generated CRUD inputs and direct delivery-recipe whole status/result/error selectors acquire their specified test meaning during validation. Delivery selectors resolve a named recipe declaration, not a path through a stored association, and permit no protected request/identity fields or descendant patches; combined setup validation precedes receipt provisioning (DESIGN §5.1). Caller-role arrays, fixture names and deterministic account names are ordinary expression shapes with test-only resolution. `as` can select a named user fixture or explicit `self`/`other`; identity values cannot occur inside caller-role arrays, and user recipe attributes are not editable selectors. Header/row arity and the whole-row single-argument `error(...)` shape are checked structurally. Valid input selectors, fixture setup validity, observation types, exact error-code values and production behavior are not established by parsing.
 
-A scenario-attached sequence starts with a sole `do` child instead of a table header and accepts only `seed` on its examples header. It is available on user scenarios, not trusted handlers or CRUD declarations; calls inside it may name enabled generated CRUD operations. At least one explicit call must resolve to the enclosing scenario and at least one assertion or expected-error call must exist. There is no implicit invocation. `example_caller` must resolve to self/other/outsider/public or a user fixture, never a role expression/array; role grants stay fixed during a sequence. `request` is the existing envelope-override meaning in value-object form. `as` requires an actual declared typed operation result and is forbidden together with an expected error. The sequence body has no other effects or control flow. Observation tuples have matching nonzero arity; `condition -> true` permits the ordinary true-branch narrowing after the assertion. Name resolution, stored-snapshot setup validation, per-step admission/rollback and error codes follow DESIGN §5.1. Domain server fields can be explicitly initialized in fixtures; reserved metadata cannot. These sequence productions are a proposed grammar extension; the initial parser currently supports fixture shapes and tables only. No parser acceptance or BDD execution is claimed for a sequence witness.
+A scenario-attached sequence starts with a sole `do` child instead of a table header and accepts only `seed` on its examples header. It is available on user scenarios, not trusted handlers or CRUD declarations; calls inside it may name enabled generated CRUD operations. At least one explicit call must resolve to the enclosing scenario and at least one assertion or expected-error call must exist. There is no implicit invocation. `example_caller` must resolve to self/other/outsider/public or a user fixture, never a role expression/array; role grants stay fixed during a sequence. `request` is the existing envelope-override meaning in value-object form. `as` requires an actual declared typed operation result and is forbidden together with an expected error. The sequence body has no other effects or control flow. Observation tuples have matching nonzero arity; `condition -> true` permits the ordinary true-branch narrowing after the assertion. Name resolution, stored-snapshot setup validation, per-step admission/rollback and error codes follow DESIGN §5.1. Domain server fields can be explicitly initialized in fixtures; reserved metadata cannot. Parsing a sequence does not establish its semantic validity or BDD execution.
 
 ## Presentation and routes
 
 The [approved full daisyUI catalog](../../design/UI-COMPONENTS.md#grammar-and-option-boundaries) extends these core productions with all 68 contextual component words and their finite header/body profiles. Its field-placement, exclusive button bindings, named slots, repetition and shared-state/navigation rules are normative design contracts. The old short UI production list is not an exhaustive allowlist. Parser/checker/renderer delivery is separate; lane 1 and lane 5 must agree on the same producer-owned catalog and finish its checked per-component appearance matrix. Unknown words, unsupported options and invalid parent/child/binding shapes remain errors. No context `shell` setting is added: all apps retain the shared left-sidebar shell, bottom-left user menu, user configuration dialog and login screen.
 
 ```ebnf
-then_item      = page | line(preferences) | line(invariant) ;
+then_item      = page | view | line(style_definition) | line(preferences) | line(invariant) ;
+style_definition = "style" NAME [generation_agent] generation_prompt ;
+view           = view_header (suite(ui_body)
+                            | generation_prompt [style_suffix] optional_suite(ui_body)) ;
+view_header    = "view" NAME "(" "row" ":" NAME ")" [generation_agent] ;
+generation_agent = "agent" "=" NAME ;
+generation_prompt = "$" STRING ;
+style_suffix   = generation_prompt | "$" NAME ;
+show           = "show" NAME values [generation_agent] [style_suffix] ;
 page           = "page" route attributes optional_suite(ui_body) ;
 ui_body        = {ui_item} ;
 ui_item        = core_ui_item | catalog_item | preference_panel | edit_group ;
@@ -434,7 +468,7 @@ ui_leaves      = ui_leaf {";" ui_leaf} ;
 ui_leaf        = "require" expr | "title" expr | "text" observations | "content" observations
                | "metrics" observations | "copy" expr | "edit" attributes
                | "delete" | "action" expr | "actions" separated(expr) | "history"
-               | collection_header | form_header | "tabs" expr ;
+               | collection_header | form_header | "tabs" expr | show ;
 ui_group       = "card" expr attributes suite(ui_body)
                | "details" expr attributes suite(ui_body) ;
 tabs_group     = "tabs" [expr] suite(tab_items) ;
@@ -457,6 +491,27 @@ route          = "/" [route_segment {"/" route_segment}] ;
 route_segment  = STATIC_SEGMENT | "{" path "." "id" "}"
                | "{" NAME ":" type "}" ;
 STATIC_SEGMENT = /[A-Za-z0-9_-]+/ ;
+```
+
+Named style definitions and views belong directly in Then and cannot be exported. A style definition has no body. In `generation_prompt` and named `style_suffix`, `$` is adjacent to its STRING or NAME; prompts are static JSON strings without interpolation or translation suffixes and are not ordinary expressions. Definition-owned `agent=` selects a generation profile. On a `show` instance, `agent=` requires an inline style prompt and cannot override a named style's profile.
+
+An ordinary view requires a nonempty presentation suite. A generated view has a renderer prompt, an optional second style suffix for its root, and an optional suite governed by the [canonical generated-view child contract](BUILD_GENERATION_REQUIREMENTS.md#bgen-02-complete-generation-targets). Its `require` children gate the whole instance; guards inside a card remain local. An ordinary view definition does not accept a root-style suffix; its rendered children and `show` instances may carry their own attachments. Both forms bind exactly one required nonnullable local stored-model `row`. A `show` object must resolve to exactly `{row=expression}`; evaluate that expression once. Views resolve in their owning module without caller capture; slots and nested `show` are excluded at any depth. Parsing does not establish admitted row data, saved renderer availability or runtime behavior.
+
+For a declared local `Todo` model with a `title:text` field, these Then declarations use the same row contract:
+
+```can
+Then
+ style TaskSurface $"Readable task surfaces."
+ view TaskText(row:Todo)
+  require row.title != ""
+  text row.title
+ view TaskTile(row:Todo) $"Arrange the complete canonical card." $TaskSurface
+  card "Task"
+   text row.title
+ page / title="Tasks"
+  list Todo
+   show TaskText {row=row}
+   show TaskTile {row=row} $TaskSurface
 ```
 
 `catalog_item` expands through the approved catalog's exhaustive profile table and slot schemas, using these same expression, selector, observation and suite productions. Overlapping words such as card/list/table/tabs lower to the same existing semantic nodes, not a second runtime. Calendar headers with both endpoints select the agenda; a selector without endpoints is a date control only in the catalog's field-placement context. A partial endpoint header is invalid rather than inferred from types. All component words remain contextual outside their declaration slots.
@@ -492,11 +547,11 @@ source declares a canonical card and its renderer preserves the complete opaque
 appearance values on other components retain their meanings.
 
 
-Presentation suites are nonempty when present. A bare list/table/form remains valid without descendants. Top-level Then accepts pages, the unnamed preferences configuration-dialog declaration and its owning validation invariants, not arbitrary effects, authored navigation trees or free-standing business handlers. Within pages, `card`/`details` are scope-transparent groups; collections bind `row` and retain the enclosing record chain. A read form's result is scoped to its descendants; page `data` provides page-level result. The grammar does not infer a current record from a model name.
+Presentation suites are nonempty when present. A bare list/table/form remains valid without descendants. Top-level Then accepts pages, ordinary/generated views, named style definitions, the unnamed preferences configuration-dialog declaration and its owning validation invariants, not arbitrary effects, authored navigation trees or free-standing business handlers. Within pages, `card`/`details` are scope-transparent groups; collections bind `row` and retain the enclosing record chain. A read form's result is scoped to its descendants; page `data` provides page-level result. The grammar does not infer a current record from a model name.
 
 The record route production splits the final `.id` from the path and requires at least one preceding type-name component. The scalar route production declares a named typed parameter. Every route, including typed braces, must be contiguous on one physical line; joined delimiter lines or spaces within the route are invalid. Its static pieces must also satisfy the lexical token rules above. Route braces admit neither structural values nor arbitrary expressions. `/x/{id}`, optional segments, consecutive slash segments, query strings and trailing slash segments other than root `/` are not in this spelling. Whether a scalar route type is supported, a record route names a model, a data call is a pure read, a selector matches the current row, or two normalized route shapes conflict is checked after parsing. Static/dynamic routing behavior and authorization come from DESIGN.
 
-The parsed expression in `form`/`action` must resolve to a canonical operation or typed action value, including `row.action`; it is not a schema copied into the UI. Selector attributes parse optionally signed paths, with sign/arity/schema suitability checked against their attribute purpose. Their ordering list is distinct from expression-query ordering. Both standalone `title` and page `title=` accept expressions; checking requires text/message results. Text/content/metrics accept comma-delimited expressions. Card/detail headings and link labels parse expressions and require appropriate typed text/message values later. No arbitrary HTML, CSS, chart, fragment, named render, drag/drop or visual-editor syntax is introduced. Page `poll` is an authorized GET reread only; it never invokes mutations or refreshes external source data. Preference ordering requires exactly `by`, `default`, `cases`, each once, an owned enum preference, nonempty selector lists, known distinct cases and only overrides differing from the default. All alternatives use the same schema/grant checks; omitted cases use the authored default. Page navigation `order` and expression-query ordering are unchanged. The syntax prototype has not yet implemented these two draft extensions.
+The parsed expression in `form`/`action` must resolve to a canonical operation or typed action value, including `row.action`; it is not a schema copied into the UI. Selector attributes parse optionally signed paths, with sign/arity/schema suitability checked against their attribute purpose. Their ordering list is distinct from expression-query ordering. Both standalone `title` and page `title=` accept expressions; checking requires text/message results. Text/content/metrics accept comma-delimited expressions. Card/detail headings and link labels parse expressions and require appropriate typed text/message values later. No arbitrary HTML, CSS, chart, fragment, named render, drag/drop or visual-editor syntax is introduced. Page `poll` is an authorized GET reread only; it never invokes mutations or refreshes external source data. Preference ordering requires exactly `by`, `default`, `cases`, each once, an owned enum preference, nonempty selector lists, known distinct cases and only overrides differing from the default. All alternatives use the same schema/grant checks; omitted cases use the authored default. Page navigation `order` and expression-query ordering are unchanged.
 
 ## Maintenance declarations
 
@@ -531,7 +586,7 @@ This grammar establishes source structure and rejects unsupported spelling. A sy
 
 Then `preferences {fields}` declares an extension to the standard configuration dialog; it is not a Given fact or stored business model. It is the sole unnamed extension declaration; `preferences Name {fields}` and exports are errors. A field called preferences remains legal. Empty and duplicate owner schemas are rejected syntactically; allowed field types, constant defaults, preference invariants and presentation-only dependency checks are semantic, as defined in DESIGN §9.
 
-Then accepts pages, the unnamed preferences configuration-dialog declaration, and its `invariant preferences: expr` validation in the same owner. The checker rejects stored-model invariants in Then; an actual Given model named `preferences` retains its ordinary Given invariant. Given retains facts and stored business configuration; When retains mutations. Authored nav/link trees are removed; navigation derives from eligible pages with page-local exceptions. Grouping retains scope. Collection defaults use the existing values-object production, never a new query or permission grammar. Typed filter matching and display values require semantic checks. The parser rejects details with both display and open, since open is only for default Collapse.
+Then accepts pages, ordinary/generated views, named style definitions, the unnamed preferences configuration-dialog declaration, and its `invariant preferences: expr` validation in the same owner. The checker rejects stored-model invariants in Then; an actual Given model named `preferences` retains its ordinary Given invariant. Given retains facts and stored business configuration; When retains mutations. Authored nav/link trees are removed; navigation derives from eligible pages with page-local exceptions. Grouping retains scope. Collection defaults use the existing values-object production, never a new query or permission grammar. Typed filter matching and display values require semantic checks. The parser rejects details with both display and open, since open is only for default Collapse.
 
 `tabs [expr]` may have `tab expr` child suites; only direct tab children are allowed. A selector-free tabs header requires suites. Each tab requires a nonempty normal presentation body. A selector-backed leaf is allowed. Semantic resolution requires an owned enum preference selector and, in its block form, every exact distinct case once. Unbound tab captions must resolve to text/messages. Types do not choose the syntactic production.
 
@@ -545,12 +600,12 @@ The §8 host/browser upload bridge and §10 opaque MCP file slots derive from th
 
 Declared team-role subject checks reuse `call_expr`: a resolved role callee accepts exactly one nonnull user expression and returns bool in the verified team context. Normal lexical/import resolution applies. A bare role remains the literal-actor predicate; an explicit `role(actor)` is redundant. This semantic call form creates no first-class function or role-value type, and does not authenticate or impersonate its subject. See DESIGN §4.
 
-CSV form import uses existing attribute grammar with `import=csv` and optional `review=path`. The target must be a canonical mutation and the review a pure model-array read with compatible named input bindings. No new effect, batch scenario or form-input expression scope is added. `app_url` is a closed typed builtin using ordinary call syntax. The unchanged syntax prototype does not yet accept the new form attributes; this is a recorded prototype boundary, not alternate source spelling.
+CSV form import uses existing attribute grammar with `import=csv` and optional `review=path`. The target must be a canonical mutation and the review a pure model-array read with compatible named input bindings. No new effect, batch scenario or form-input expression scope is added. `app_url` is a closed typed builtin using ordinary call syntax.
 
-A page refresh attribute names a canonical operation, not an arbitrary expression, callback or source URL. Semantic checks require an existing same-page form, no record parameters, and the active-session invocation contract in DESIGN §9. Representation polling stays GET-only. The syntax prototype has not yet implemented this page attribute.
+A page refresh attribute names a canonical operation, not an arbitrary expression, callback or source URL. Semantic checks require an existing same-page form, no record parameters, and the active-session invocation contract in DESIGN §9. Representation polling stays GET-only.
 
 Retention keeps the existing `retain path until=expr` production. The expression may yield `datetime?` as specified in DESIGN §7.1; null adds no independent deadline and never cancels a finite ancestor lifetime. This is semantic typing, not a new condition attribute or ternary expression.
 
-Derived model-field labels reuse the ordinary caption/value map. Values must belong to the resolved enum/bool type (after nullable unwrapping); null keeps shared unavailable/not-requested presentation, never an invented enum case. This conveys presentation only, not defaults, initialization or authority. Other declaration labels stay scalar. The current syntax prototype still rejects a structured derived-field label; this semantic/grammar draft extension is not parser implementation.
+Derived model-field labels reuse the ordinary caption/value map. Values must belong to the resolved enum/bool type (after nullable unwrapping); null keeps shared unavailable/not-requested presentation, never an invented enum case. This conveys presentation only, not defaults, initialization or authority. Other declaration labels stay scalar.
 
-CRUD `expose` is a closed publication allowlist of enabled `create`, `update`, `delete`, or sole `none`; omission permits all enabled operations. Duplicate/unknown/disabled selectors and mixed `none` fail checking. Public references cannot override the owner exception; normal internal canonical admission/lifecycle remains unchanged (DESIGN §5). The syntax prototype does not yet recognize this attribute.
+CRUD `expose` is a closed publication allowlist of enabled `create`, `update`, `delete`, or sole `none`; omission permits all enabled operations. Duplicate/unknown/disabled selectors and mixed `none` fail checking. Public references cannot override the owner exception; normal internal canonical admission/lifecycle remains unchanged (DESIGN §5).

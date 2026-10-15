@@ -1,0 +1,48 @@
+{
+  "request": {
+    "model": "jev-latest",
+    "state": {
+      "task": "Resolve a demonstrated Can runtime/spec uniqueness mismatch safely, not just make an example pass. User requires spec/compiler/runtime/examples agreement before training.",
+      "accepted_semantics": "DESIGN131: native and computed uniqueness belongs to containing parent, team or app. PromptLab Entry in Catalog uses pure canonicalKey(text)->text and must permit Alice under different Catalog records, reject same-parent collision, and preserve atomic swaps/deletion releases/replay/migration. No permissions or source outcomes may be weakened.",
+      "verified_defect": "Actual source29/30 passes; only Alice in other_catalog conflicts. Artifact/table containment and distinct parent IDs are correct. Native builtin canonicalUniqueRowValue wraps parent identity. State computed pipeline uses raw export text without row.parent. Migration validation, changed/removed/retained-row activation and install planner also use raw output. All will be changed to one existing scope wrapper; root/team models retain existing keys and pure keyword ABI.",
+      "verified_legacy_risk": "Corrected fact after inspecting StoragePort (contracts/state.ts678): there is NO public unique-claim lookup or enumeration, only commit receives claims/releases. A narrow owner read could be implemented in existing memory/D1/DO storage. OldModels in existing activation is explicitly predecessor SOURCE schema; removing containment from it to pretend the raw physical index is old schema would fabricate provenance and is not allowed. A truthful source containment-change migration is supported but does not repair this code-only old encoding. An explicit derived-index repair path is therefore required, whichever gate is chosen. No persistent encoding marker exists; same source/binding fingerprint spans both formats.",
+      "constraints": "Smallest complete repair for demonstrated legacy gap; preserve permissions/order/atomicity/failure/recovery and owner bounds. No assumption of fresh stores or operational gates. New internal API/marker requires this demonstrated need; no new source syntax. Do not auto-certify an old source table by erasing containment. Root/team key bytes and trusted pure-key ABI remain unchanged.",
+      "alternatives": {
+        "lookup_and_repair": "Add a narrow owner-storage lookup for unique claim ownership to memory/D1/DO ports. For contained computed writes, detect relevant raw legacy claims and verify owner row/pure output to distinguish legitimate corrected scoped-key bytes; refuse affected mutation with explicit reindex-required outcome. Add an explicit fenced derived-index repair under the existing trusted activation owner, scanning bounded complete affected rows, validating parent scopes/collisions, releasing old raw claims and claiming scoped values atomically without changing source schema, record data/history/version or permissions. No new persisted version. More implementation than just scope wrapper, but exact legacy gate and repair, and row/claim disambiguation must be proved.",
+        "version_and_repair": "Add a persisted internal computed-index encoding version to installed state/schema, and enforce that version at affected mutation admission. Add explicit existing-owner activation repair that checks complete affected rows/collisions, releases raw and claims parent-scoped values under its resumable fence, and publishes the version atomically. Unversioned populated stores refuse until repaired; fresh stores need checked initialization. Clear lasting gate/no raw-key disambiguation, but new marker threads through installation, fresh-memory/test profiles, storage/activation/admission and recovery.",
+        "rebuild_each_write": "Avoid new port methods or persisted markers by reading all affected model rows under existing owner bounds on every contained computed mutation, validating final grouped parent keys, then atomically releasing all possible old raw/current scoped claims and publishing the complete correct index under the normal revision fence. Automatically repairs old stores and keeps source schema unchanged, but turns indexed writes into full-model computation, must prove releases cannot conflict across namespaces, refuses over bounds and changes runtime cost/evaluation on every write."
+      },
+      "uncertainty": "Earlier advisory requests incorrectly assumed an existing unique-owner read and usable physical-profile activation; those are corrected here. They produced low-confidence split advice (two bounded-refusal vs one version). This new fact-based comparison addresses that disagreement. All alternatives now include an actual implementation and legacy repair obligation. Advice still requires implementation tests."
+    },
+    "questions": {
+      "implementation": {
+        "type": "choice",
+        "instructions": "Which alternative most coherently restores parent uniqueness for both untouched legacy rows and new writes, given no claim-read port, no format marker and a source-schema activation contract?",
+        "criteria": {
+          "lookup_and_repair": "Add a narrow owner-storage lookup for unique claim ownership to memory/D1/DO ports. For contained computed writes, detect relevant raw legacy claims and verify owner row/pure output to distinguish legitimate corrected scoped-key bytes; refuse affected mutation with explicit reindex-required outcome. Add an explicit fenced derived-index repair under the existing trusted activation owner, scanning bounded complete affected rows, validating parent scopes/collisions, releasing old raw claims and claiming scoped values atomically without changing source schema, record data/history/version or permissions. No new persisted version. More implementation than just scope wrapper, but exact legacy gate and repair, and row/claim disambiguation must be proved.",
+          "version_and_repair": "Add a persisted internal computed-index encoding version to installed state/schema, and enforce that version at affected mutation admission. Add explicit existing-owner activation repair that checks complete affected rows/collisions, releases raw and claims parent-scoped values under its resumable fence, and publishes the version atomically. Unversioned populated stores refuse until repaired; fresh stores need checked initialization. Clear lasting gate/no raw-key disambiguation, but new marker threads through installation, fresh-memory/test profiles, storage/activation/admission and recovery.",
+          "rebuild_each_write": "Avoid new port methods or persisted markers by reading all affected model rows under existing owner bounds on every contained computed mutation, validating final grouped parent keys, then atomically releasing all possible old raw/current scoped claims and publishing the complete correct index under the normal revision fence. Automatically repairs old stores and keeps source schema unchanged, but turns indexed writes into full-model computation, must prove releases cannot conflict across namespaces, refuses over bounds and changes runtime cost/evaluation on every write."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "implementation": {
+        "type": "choice",
+        "choice": "rebuild_each_write",
+        "confidence": 0.3,
+        "probabilities": {
+          "lookup_and_repair": 0.39,
+          "version_and_repair": 0.08,
+          "rebuild_each_write": 0.53
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1589,
+      "output_tokens": 50
+    }
+  }
+}

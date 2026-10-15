@@ -1,0 +1,56 @@
+{
+  "request": {
+    "model": "jev-latest",
+    "state": {
+      "objective": "Close the recorded computed anonymous descriptor formatting gap in Can before training an authoring LLM; prioritize coherent simple semantics, correctness and finite complete work.",
+      "accepted_language": [
+        "choose(condition:bool,yes:T,no:T)->T is eager in authored argument order. Generic anonymous descriptors already self-unify, even with different captured schemas. Existing CLI/native tests prove both operands captured once and first failure aborts later operands.",
+        "format(descriptor:message,locale:locale?)->text consumes checked owner/source language and typed parameters. Anonymous postfix bindings explicitly bind every placeholder across source and translations. Plain business strings stay literal.",
+        "Direct and immutable-aliased raw/bound anonymous descriptors already format. Current format(choose(true,\"Hi\"@{},\"Bye\"@{}),locale=null) reproduces E3005 no matching overload. The completion record explicitly leaves this schema-provenance join unfinished."
+      ],
+      "verified_implementation": [
+        "InlineMessage currently has no schema in its type. message_descriptor_references retains one origin, inadequate for computed selection. Formatting overload selection, empty-schema ICU checking and IR lowering all use that origin.",
+        "IR Format currently supplies one source language and parameter schema. Its generated helper checks d.params[name].type against canonical compiler type ids and converts values to Values presentation tags.",
+        "The existing immutable runtime descriptor already retains canonical sourceLocale and params entries containing canonical type plus captured value. checked_message canonicalizes and asserts sourceLocale. Thus a finite allowed schema set can select the matching schema from the already evaluated selected descriptor; no reevaluation or new runtime descriptor field is needed.",
+        "Recognizing checker-selected builtin choose, through groups, nested choose and current immutable aliases, can retain all checked leaf origins. Arbitrary generic producers, indexing and nullable selections are outside this finite task. Every selected-format raw leaf must be checked against an empty schema, including unchosen branches; bound leaves keep existing inferred-schema checks."
+      ],
+      "alternatives": {
+        "empty_only": "Support computed raw empty-schema anonymous choose at this sink; explicitly refuse captured anonymous choices. Least implementation but leaves bound selections as another documented limitation.",
+        "common_schema": "Support choose only when every leaf shares exact placeholder names/resolved types and canonical source language, irrespective of capture values/order. Reuse one fixed IR format schema; differing-schema choices still work for generic consumers but refuse formatting.",
+        "finite_schemas": "Retain all checked choose leaf origins and emit their finite allowed source-locale/parameter schemas. Match the selected existing descriptor against those schemas, then format its already captured values. Allows heterogeneous choices without a new runtime carrier. Modestly larger IR/helper change; enforce that equivalent observable schema keys never imply conflicting presentation mappings."
+      },
+      "invariants": "Preserve eager once-only condition/operand captures, first failure, authored format locale argument order, checked schema/ICU diagnostics, and no output on error. Never infer a checked schema from untrusted input or match just a presentation tag. No new public source syntax. No change to accepted generic choice/array consumers.",
+      "uncertainty": "Finite-schemas lookup must canonicalize source tags and compare exact parameter name/type sets; any indistinguishable key with conflicting conversion must refuse. Implementation/native tests remain necessary; model advice is not proof."
+    },
+    "questions": {
+      "implementation": {
+        "type": "choice",
+        "instructions": "Which finite implementation should Can adopt for computed anonymous choose descriptors at the existing format sink, considering the verified carrier, semantic consistency, implementation size and safety invariants?",
+        "criteria": {
+          "empty_only": "Support computed raw empty-schema anonymous choose at this sink; explicitly refuse captured anonymous choices. Least implementation but leaves bound selections as another documented limitation.",
+          "common_schema": "Support choose only when every leaf shares exact placeholder names/resolved types and canonical source language, irrespective of capture values/order. Reuse one fixed IR format schema; differing-schema choices still work for generic consumers but refuse formatting.",
+          "finite_schemas": "Retain all checked choose leaf origins and emit their finite allowed source-locale/parameter schemas. Match the selected existing descriptor against those schemas, then format its already captured values. Allows heterogeneous choices without a new runtime carrier. Modestly larger IR/helper change; enforce that equivalent observable schema keys never imply conflicting presentation mappings."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "implementation": {
+        "type": "choice",
+        "choice": "finite_schemas",
+        "confidence": 1.0,
+        "probabilities": {
+          "empty_only": 0.0,
+          "common_schema": 0.0,
+          "finite_schemas": 1.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1220,
+      "output_tokens": 46
+    }
+  }
+}

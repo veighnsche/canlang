@@ -1,0 +1,50 @@
+{
+  "request": {
+    "model": "jev-latest",
+    "state": {
+      "goal": "Fix demonstrated real PromptLab form correction after a terminal rejected mutation, preserving immutable receipts, protected source bindings, typed drafts/focus and unknown transport retry identity.",
+      "verified_facts": [
+        "Actual compiled PromptLab /tags HTML plus canonical HTTP/State: first Tag.create name65\u00e9 returns400 validation, creates rejected receipt and zeroTags. Correcting to64\u00e9 in same rendered form sends same operation_id, returns409 Conflicting reuse of this operation identity, leaves zeroTags and same rejectedreceipt. Separate nullable-default HTTP bug has been fixed and its native tests pass.",
+        "State invocation has exact input-hash reuse checks. After an execution StateError, it commits an empty-effects rejected receipt behind current fence; on exact rejected replay it throws saved code/message. Successful receipts, including replay, have existing trusted observeCommittedReceipt callback; rejected outcome is currently erased into ordinary thrown StateError. These receipt semantics must not change.",
+        "Canonical Cloudflare invoker may throw after a successful commit during projection/disclosure. Assembly catches all failures into MutationOutcome {error:BusinessError}; HTTP sends ordinary BusinessError JSON. Therefore error code, retryable:false, HTTP400 or409, or denied status is NOT sufficient proof that no business commit happened. Unknown/lost HTTP response and post-commit projection errors must never auto-mint a new mutation identity.",
+        "Browser canonical submit keeps original flat operation_id and form_binding. On JSON denial it displays error and retains typed controls. Only confirmed commits trigger authorized main partial refresh. Existing mocked denial tests pin nonce/token/CSRF/version retention and mock eventual success without actual consumed State receipt; they do not prove real corrected retry.",
+        "Source form bindings are host-MAC integrity attestations, not permissions: operation/schema/source revision, app/session/actor/team, operation nonce, exact protected observed record id/version pairs and editable allowlist. Ordinary form preparation mintsUUIDv7 via existing Interfaces context helper and seals with existing service. Missing/expired/tampered tokens refuse except existing receipt-only recovery which must not grant fresh mutation execution.",
+        "The existing form-binding service exposes seal/restore/restoreRetained; the private restore parses signed selection after all nonce/current-context/expiry checks. A renewal method could verify an unexpired existing token and re-seal only identical protected refs/editable allowlist under a server-minted nonce; no new token shape or lookup authority. Unbound Tag.create has no token. State still rechecks supplied observed versions/current permissions on the next invocation.",
+        "The existing main partial morph preserves dirty editable values, unrelated forms/focus, and old request metadata while the same binding identity remains. A settled form adopts new hidden metadata and closes its modal. Using this for rejected correction requires retaining rejected form drafts/error/open/focus while replacing only its request metadata, plus awaiting or blocking overlap until renewal succeeds.",
+        "A trustworthy minimal bridge can observe only actual State rejected-receipt commit or exact matching rejected replay and propagate that fact through host invocation outcome. Do not mark pre-admission errors, input-hash mismatch, unknown storage/transport errors, or successful/post-commit failures rejected. Other request/binding/receipt authority checks remain unchanged."
+      ],
+      "acceptance": "65\u00e9 rejection then64\u00e9 correction commits exactly1Tag with new attempt identity; original exact envelope still replays immutable rejection and altered old identity still conflicts. Bound Entry forms keep signed parent/version protection, drafts/focus/CSRF and current source/session checks. Unknown/lost response retries original identity without duplicate writes. No renewal from forged, stale/expired receipt-only, post-commit or unconfirmed errors. Existing nonreceipt correctable pre-admission errors can reuse their unconsumed identity.",
+      "comparison": "Every alternative uses authoritative rejected-receipt observation, not generic error inference, and preserves the same outcomes above. Compare real implementation surface, request cost, failure recovery and authority traceability fairly. Advice only; required new fields/seams must be justified by this demonstrated gap."
+    },
+    "questions": {
+      "implementation": {
+        "type": "choice",
+        "instructions": "Select the strongest bounded design for genuine rejected-receipt form renewal, fairly comparing the same required semantics and the actual existing owner and browser seams.",
+        "criteria": {
+          "renew_in_denial_response": "After authoritative rejected receipt, HTTP issues a new UUIDv7 for the same form and, when protected, re-verifies the original unexpired token then renews only its identical bound refs/editable inventory through the existing signer. Return narrow retry metadata in that authenticated denial response. Browser validates the complete nonce/token replacement and originating request identity before atomically replacing hidden metadata, while leaving typed controls/focus/error intact. Unknown/nonproven/receipt-only outcomes carry no renewal. Adds owner signal and narrow signer/response adapter; no extra page request, no new token shape, next State call rechecks authority/version.",
+          "refresh_authorized_partial": "After authoritative rejected receipt, response carries only confirmed-rejection status. Browser requests the existing current authorized page partial and uses its genuine new form nonce/token, preserving rejected draft/error/open/focus and unrelated forms. It prevents overlapping submits during that read; failed/denied refresh cannot authorize new attempt and must support safe retry of the read. No signer renewal method or replacement credentials in denial JSON; adds asynchronous refresh/lifecycle cases and must match exact source occurrence/current binding.",
+          "renew_on_corrected_submit": "After authoritative rejected receipt, mark form attempt terminal and keep its current drafts/error. When user presses Submit again, first fetch current authorized page partial, match that exact form occurrence, preserve edited values and adopt new metadata, then submit with that new identity. Unknown transport keeps original request path. Same current rendering authority and no signer renewal, but adds a two-stage submit flow, fresh-projection reconciliation and failure recovery before posting."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "implementation": {
+        "type": "choice",
+        "choice": "renew_in_denial_response",
+        "confidence": 0.85,
+        "probabilities": {
+          "renew_in_denial_response": 0.9,
+          "refresh_authorized_partial": 0.07,
+          "renew_on_corrected_submit": 0.03
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1550,
+      "output_tokens": 56
+    }
+  }
+}

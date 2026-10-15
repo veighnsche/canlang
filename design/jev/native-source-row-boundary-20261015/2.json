@@ -1,0 +1,50 @@
+{
+  "request": {
+    "model": "jev-latest",
+    "state": {
+      "goal": "Repair actual native page source values while preserving the existing JSON RowView consumed by UI and saved generated-view browser metadata.",
+      "facts": [
+        "Actual current PromptLab native HTTP: /tags JSON-safe rows render; populated /catalogs fails in UI text formatScalar because source row.archived_by is persisted raw {id}, not native UserRef. Canonical State model loader already derives correct user?/datetime? value types for contributed fields.",
+        "Compiler js.rs renderRow captures original RowView when generated views need it, then replaces source row with {...row.fields,id,version:BigInt(version)}, preserving descriptors for gallery/message/details lazy cases. Saved generatedViewInstance explicitly receives original RowView and serializes its row into JSON browser metadata.",
+        "An attempted runtime change decoding all page query RowView.fields fixed the first native source error but then /tags failed JSON.stringify in generatedViewInstance on native bigint. It has been reverted. Public query wire responses and saved-view RowView must keep their established representation; changing all consumers to accept native JSON is outside this repair.",
+        "Existing runtime nativeRecordField uses canonical loaded model type plus decodeCanonicalValue. That helper uses validateValue with normalized schema for nominal contracts/aliases, and decodeValue for scalar/enum/reference/nullable/array values. No permission or query is acquired by decoding already-projected fields.",
+        "Existing private native-ui-query bridge registers real RowQueryRunner functions in WeakMap, forwards through selected physical owner query, and wraps actual UI collection factories. Wrapper already sees original own-data props/context/query. Canonical page scope query already has loaded schema, actual final returned RowView objects and exact historyViews model/id/version associations after checkpoint.",
+        "A private decoder can require the exact returned row object from that scope, retain only its actually projected own field descriptors and create lazy native source getters. Never insert omitted fields, fetch another row, memoize original getter results, evaluate unused getters or change source read order. Existing File-bearing fields already use their qualified native File binding; preserve those identities and final authority checks.",
+        "Pure decodeValue is already exported by ordinary stdlib; the Cloudflare stdlib facade would need to reexport it. A compiler-only complete conversion also needs normalized nominal schemas/aliases, beyond copying primitive type names; no existing lazy source field-map helper was found.",
+        "The private facade can wrap only an existing own renderRow callback and invoke it as original(wireRow,childContext,nativeSourceRow). UI collection factories keep their existing public two-argument call. Compiler can consume optional third input for the native source binding while preserving first wireRow for saved-view mounting. The selected-owner forwarding bridge must forward decoder ownership as well as current predicate binding."
+      ],
+      "acceptance": "Current original PromptLab Tag/Entry/Note forms, corrected rejection retries, source row UserRef/Datetime/int rendering, archive evidence and null defaults work. Wire saved-view mounts remain JSON-safe. Preserve exact current field projection, scope lifetime/currentness, getter laziness/order, File binding, aliases/nominal schemas, model/ref/array wrappers, original controls and no extra query. Synthetic/pure host fixtures keep their existing supported behavior; malformed/unassociated canonical rows cannot acquire source authority.",
+      "comparison": "Each alternative must meet all these outcomes. Compare change surface, duplication, auditability and compatibility fairly. New method/private callback/schema artifacts must be justified by this demonstrated representation gap. Advice only."
+    },
+    "questions": {
+      "implementation": {
+        "type": "choice",
+        "instructions": "Choose the most reliable and economical owner boundary for native source row conversion, comparing the three complete repairs against the verified existing interfaces.",
+        "criteria": {
+          "private_callback_bridge": "Extend the existing private registered query/facade bridge with a scope-owned exact-row decoder. Keep normal query RowView wire. Wrap renderRow so compiled callback receives the original wire row plus an optional third native source row; compiler preserves first row for mounts and uses third for source expressions. Reuse existing loaded canonical schema/codec and File handling, lazy getters and selected-owner forwarding. Adds narrow private callback plumbing and compiler consumption, no public read/context API or emitted duplicate nominal schema.",
+          "compiler_owned_conversion": "Keep RowView unchanged and have compiler emit a lazy source field-map conversion at its existing renderRow preamble using checked owning field types and existing stdlib codecs. Add the required facade codec export and complete normalized nominal/alias schema correspondence so all current types are handled, preserving File binding and own descriptor semantics. No private query callback extension; compiler owns additional schema/codec emission and consumers must remain consistent.",
+          "presentation_context_decoder": "Add an explicit source-row decoding method to the existing canonical PresentationContext/PageReadScope ports and forwarding adapters. Canonical scope accepts only exact already-returned row objects, reuses existing loaded schema/codec/File binding and lazy getters; compiler invokes method in renderRow while retaining original wire row for mounts. Avoids emitted duplicate schemas and private third callback argument; introduces a public typed context capability and plumbing across current owners, with no new query or permission."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "implementation": {
+        "type": "choice",
+        "choice": "private_callback_bridge",
+        "confidence": 0.97,
+        "probabilities": {
+          "private_callback_bridge": 0.98,
+          "compiler_owned_conversion": 0.0,
+          "presentation_context_decoder": 0.02
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1397,
+      "output_tokens": 46
+    }
+  }
+}

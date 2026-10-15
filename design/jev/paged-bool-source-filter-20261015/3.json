@@ -1,0 +1,56 @@
+{
+  "request": {
+    "model": "jev-latest",
+    "state": {
+      "goal": "Finish the unchanged actual PromptLab archived Entry page: checked source list Entry as row where row.archived with pagination, preserving current grants, order, stable cursor identity, failures and current authority; choose one bounded implementation strategy, not a broad query language.",
+      "original_source": {
+        "path": "draft/apps/CanPromptLab/CanPromptLab.can",
+        "lines": "176-182",
+        "source": "page /catalogs/archived title=\"Archived entries\"; require members; list Entry as row where row.archived columns=code,title,archived order=rank; pagination; show EntryTile {row=row}",
+        "model": "Entry has contributed nonnullable bool archived default=false; source policy Entry read=members; existing source archive/restore scenarios and evidence must remain."
+      },
+      "verified_files": [
+        "compiler/src/codegen/ir.rs17031: a source where clause decodes a typed body and normally becomes IrExpr::Lambda. Existing narrow PageTimePredicate handles checked table datetime/now using data AST. No own-bool-field data path exists yet.",
+        "compiler/src/codegen/read_predicates.rs: immutable fresh checked query census validates original model, module/page owner, exact source spans and Bool body. The composed-module callable currently separately fails runtime correspondence. Fixing its identity alone still reaches explicit cursor refusal; do not confuse these independent causes.",
+        "compiler/src/codegen/js.rs9470: native lambda emits a callable with original issued source identity when census available; whereSource is emitted alongside. Finite data lowering can consume checked source/model/field association instead; no public source syntax or runtime carrier is needed.",
+        "packages/contracts/src/state.ts320: existing QueryPredicate has {op:\"eq\",field:string,value:unknown}, and not/and/or. Exact positive own bool member can be represented {op:\"eq\",field:\"archived\",value:true}. Reject nullable/non-bool/nested/unrelated aliases/calls for this finite lowering; do not silently lower arbitrary expressions or coerce truthiness.",
+        "packages/cloudflare/src/runtime/invoke.ts12304-12330: callable sourceWhere becomes sourceFilter, installed through original scope, but page===true explicitly throws validation Cursor pages require a stable data-only filter identity. Noncallable existing data AST passes directly as selection.where. Public UI collections forward where unchanged.",
+        "packages/state/src/query/engine.ts201: viewerPagePredicateTuple validates closed existing data AST into normalized stable tuple. runAuthorizedQuery applies current row grants/projection BEFORE where; source-declared path admission and per-row missing values never reveal hidden data. queryPageRowsInScope hashes page.queryDefinition along with original source identity/occurrence/actor/team/scope; cursor query/context/revision changes refuse.",
+        "packages/state/src/policy/grants.ts459: data comparisons with null/missing or wrong-type scalar are nonmatch, not errors. Current original policy exposes complete admitted Entry to members, so checked nonnullable archived values evaluate identically true/false. Broader partial-projection profiles must retain established data-query missing-as-nonmatch semantics, never read stored hidden values or invent grants.",
+        "Existing paged source time filter already uses a separately checked IR predicate fact and existing AST transport. A finite bool fact may reuse that architecture, but must preserve existing unrelated callable census and refuse forged/mismatched model/field/span/IR."
+      ],
+      "comparison": "Both complete implementation options must keep original source and pagination, source field authority, projection-before-filter, stable source/normalized-query cursor binding and revision fences. Minimal bool AST leaves broader source predicates explicitly unsupported on cursor pages. Native callable cursor option can cover richer authored logic but requires stable original predicate/context capture identity, dependencies and first-failure/eager evaluation rules, plus privacy/cursor invalidation tests; source metadata by itself grants no authority. Workaround can remove immediate failure fastest but loses required pagination or archived filtering and is not completion.",
+      "finite_acceptance": "Original composed module archived list emits exact checked bool eq AST; native page only archived visible rows, expected rank order and next cursor; continuation remains valid for same query and refuses changed filter/source/context/revision; hidden/missing field nonmatch per existing State contract; no new query or authorization. Forged/mismatched checked fact refuses. Other callables/nullable predicates are not silently recast."
+    },
+    "questions": {
+      "implementation": {
+        "type": "choice",
+        "instructions": "For this demonstrated mismatch, select the smallest complete correction preserving original source, paging, row authority, evaluation semantics and stable continuation. Assess bounded AST translation against extending the callable cursor execution profile and an explicitly incomplete source edit.",
+        "criteria": {
+          "native_callable_cursor": "Implement original callable filtering inside canonical cursor pages with checked source identity and complete stable dependency/context binding. Reuse current source predicate observation and permission fences. Supports beyond the direct boolean case, but must establish new callable cursor semantics and tests rather than merely remove a refusal.",
+          "source_workaround": "Remove where or pagination in the source. Minimal code and no runtime extension; original archived-only/paged workflow is degraded, so this option remains incomplete at the stated acceptance.",
+          "checked_bool_ast": "Recognize only checked singular current-row own nonnullable bool field, emit existing QueryPredicate eq(field,true), and prove original model/field/alias/span linkage. Existing data selection/cursor, grant projection, missing-field nonmatch, ordering and revision refusal remain authoritative. No arbitrary expression lowering, syntax, authorization or runtime transport is added."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "implementation": {
+        "type": "choice",
+        "choice": "checked_bool_ast",
+        "confidence": 1.0,
+        "probabilities": {
+          "native_callable_cursor": 0.0,
+          "source_workaround": 0.0,
+          "checked_bool_ast": 1.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1519,
+      "output_tokens": 48
+    }
+  }
+}

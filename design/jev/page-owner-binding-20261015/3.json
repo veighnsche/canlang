@@ -1,0 +1,47 @@
+{
+  "request": {
+    "model": "jev-latest",
+    "state": {
+      "goal": "Fix demonstrated original PromptLab empty /catalogs HTTP400 at paged collection binding, preserving canonical permissions, current owner/store identity, signed continuations and existing single-owner hosts with smallest complete runtime change.",
+      "verified_facts": [
+        "Compiler emits stable list occurrence correctly. State runtime queryPageRowsCanonical requires PageReadsBinding.scope {app,owner,ownerPackage}, sourceIdentity and optional cursor codec. worker/main.ts does not configure pageReads at all; only direct test hosts currently supply it.",
+        "AssemblyDeps.pageReads currently is one optional static binding. Assembly checks its app and owner equal appInfo.appId and current identity.team.team_id when ownerStorage exists. One assembled worker handles multiple configured physical owner D1 stores (local preview Cedar/Oak). Owner boundary resolves actual store once per read scope using current trusted Identity memberships, then final State reader rechecks authority and revision.",
+        "worker/main already validates declared app from checked compiled appDefinition, distinct configured owner/db routes, and constructs ownerStorage routing. It already configures canonical form signing from private CAN_FORM_BINDING_KEY; exact sourceFormRevision derives from checked artifact sources.",
+        "Existing createPageCursorCodec uses canonical 32byte private key, fixed HMAC domain can-page-cursor v2, 15-minute lease. Runtime binding digest adds app/owner/ownerPackage/sourceIdentity/model/current actor and team/compiler occurrence/State-owned queryDefinition. Current checks reject stale/tampered/cross-query/cross-actor cursor and retain original query time. A cursor never grants read authority.",
+        "The repair can use existing form private key with existing separate cursor MAC domain. It adds no user/source/URL-specified binding or secret option. A host without configured owner route/key must not gain a fabricated scope. Existing static bindings must remain supported."
+      ],
+      "acceptance": "Actual installed empty and populated paged routes work for each configured owner, own next-page cursor works, cross-owner/actor/source misuse and wrong physical-store scope refuse, current authority/fence checks remain. No source rewrite, no weakening paged-host gate, no whole-worker rearchitecture unless needed.",
+      "tradeoff": "All alternatives below must use the same verified owner routing and exact source identity, resolve only inside current read scope, retain public errors and existing static-host compatibility. Assess change size, correctness traceability, lifecycle cost and duplicated configuration fairly."
+    },
+    "questions": {
+      "implementation": {
+        "type": "choice",
+        "instructions": "Given these existing runtime and host interfaces, which alternative is the strongest bounded repair for missing page bindings without broadening source authority or changing cursor semantics?",
+        "criteria": {
+          "trusted_factory": "Extend existing AssemblyDeps.pageReads to accept its current static binding or a trusted host factory of admitted identity. Resolve factory exactly once after ownerStorage.forIdentity selects actual store, validate binding against declared app/selected team, and pass captured binding into the read scope. worker/main constructs it from existing checked app, owner routes, source revision and existing codec. Small union/callback seam; dynamic selection and order require direct tests, but no per-owner assembly or separate map carrier.",
+          "trusted_owner_map": "Retain current static pageReads and add a trusted per-owner map of immutable PageReadsBinding entries, constructed by worker/main from its same configured routing list and shared codec/source revision. Assembly selects map entry only after actual owner store selection and validates scope. Explicit enumerable associations and no callback; new carrier/map selection path and coupling with owner route configuration must be maintained and bounded.",
+          "owner_specific_assembly": "Keep AssemblyDeps.pageReads unchanged. Build/cache a separate assembly for each verified configured owner, with static binding and correct store, and route authenticated current-owner requests to that assembly after membership resolution. Static associations straightforward and no union/factory; changes worker lifecycle/request routing, duplicates or shares assembly preload/assets explicitly, and must preserve current access checks and cleanup."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "implementation": {
+        "type": "choice",
+        "choice": "trusted_factory",
+        "confidence": 0.85,
+        "probabilities": {
+          "trusted_factory": 0.9,
+          "trusted_owner_map": 0.07,
+          "owner_specific_assembly": 0.03
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1159,
+      "output_tokens": 47
+    }
+  }
+}

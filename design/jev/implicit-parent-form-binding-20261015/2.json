@@ -1,0 +1,48 @@
+{
+  "request": {
+    "model": "jev-latest",
+    "state": {
+      "goal": "Complete already specified exactly-one-compatible enclosing-record form binding for actual PromptLab nested Entry.create and Note.create, preserving canonical parent semantics and protected source forms without creating new source syntax or changing create API requirements.",
+      "verified_facts": [
+        "DESIGN.md specifies enclosing record chain retention and automatic record-parameter binding when exactly one compatible record exists. Compiler previously omitted implicit arguments; scoped correction now emits actual observed parent record snapshot arguments.",
+        "Real installed form preparer now refuses these emitted args as unsupported: packages/interfaces/src/http/forms.ts and form-binding.ts require declared ref.versioned===true. Their existing bound payload is exactly {id,version}, canonical integer string version, authenticated host-key MAC over session/actor/team/app/operation/schema/source revision/operation nonce and bound refs/editable allowlist.",
+        "CRUD create parent descriptor intentionally sets require_version:false (compiler js.rs). Parent is linkage, not an update target. Existing canonical native API admits parent.id; changing require_version globally would tighten existing API. State create consumes canonical parent identity and revalidates current parent/read authority and final commit scope. Its internal CRUD parent rejects a version property.",
+        "Existing incoming API ref checker allows optional version when not required. Existing Cloudflare source validation consumes/translates incoming parent {id,version} to canonical parent linkage. Native direct parent creation using observed id+version succeeds. Thus the internal State shape need not change.",
+        "Current source-form adapter already copies id/version from an actual evaluated record argument. Sealing is only host-controlled render preparation, not a request ability to choose bound refs. Signature/inventory/current identity/source/expiry/nonce/editable-disjointness checks remain and State independently rechecks authority. No new token carrier is needed to carry the already supported observed pair.",
+        "Scenario model record parameters currently already require versions; behavior there remains unchanged. Source omitted fields still require bound/defaulted/optional inputs; zero/multiple matching implicit records must not silently choose one."
+      ],
+      "acceptance": "Actual compiler-emitted Entry/Note parent-bound forms prepare, preserve protected selected parent identity, and submit through canonical invocation. Forged/changed parent token inputs refuse. Existing unbound API parent.id and scenario versioned refs retain behavior; no weakening State current authority, signatures, omission checks, or public API version requirements.",
+      "comparison": "Assess these viable bounded approaches against the SAME actual required outcome, preserving authority and validation order. Advice is not source authority. Prefer simple existing mechanisms; broader inferred capabilities are not acceptance requirements."
+    },
+    "questions": {
+      "implementation": {
+        "type": "choice",
+        "instructions": "Select the most appropriate implementation for the demonstrated implicit parent form gap, weighing minimal change, exact declared reference semantics and unchanged authority checks fairly.",
+        "criteria": {
+          "observed_singular_refs": "Allow existing protected form binding for any declared singular ref, including unversioned declarations, while still requiring the actual bound value to contain the existing exact observed {id,version} pair and passing unchanged checkBoundArguments. Remove only versioned:true admission restriction in adapter and token selection; keep full version pair, all signature checks, source/current authorization and canonical parent translation. Uniform reference handling and no token representation change; must verify optional-version parent compatibility and reject malformed snapshots.",
+          "create_parent_only": "Admit the same existing observed {id,version} pair only for the demonstrated derived.kind=create, input.name=parent unversioned exception; retain versioned:true restriction for other refs. Same authority and token representation; smallest behavioral expansion, but a special case in two existing adapters that could leave other declared source record bindings unsupported. No claim to close unassigned profiles.",
+          "declared_identity_projection": "For unversioned declared refs, project the evaluated record snapshot to its declared {id} shape and extend protected form token validation/encoding to accept this closed id-only alternative; preserve {id,version} for version-required refs. Same current State checks and hidden/immutable parent identity, no global API tightening. Aligns token shape with declared requirement but introduces a second token payload shape and updates restore/comparison identity handling."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "implementation": {
+        "type": "choice",
+        "choice": "observed_singular_refs",
+        "confidence": 0.43,
+        "probabilities": {
+          "observed_singular_refs": 0.62,
+          "create_parent_only": 0.32,
+          "declared_identity_projection": 0.06
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1163,
+      "output_tokens": 55
+    }
+  }
+}

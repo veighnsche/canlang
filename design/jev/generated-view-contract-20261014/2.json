@@ -1,0 +1,35 @@
+{
+  "request": {
+    "state": "We are stabilizing the Can DSL for a future local-inference authoring model. Current evidence is inspected code plus existing fixtures, not an assertion that all applications run. A newer accepted owner-placement rule already selects complete canonical cards inside prompted views: host rendering retains nested gates/content/action placement and hands generated code one opaque card string. An older document and rejection test still describe only controls. Independent direct text/content/history siblings currently parse and lower; a saved-renderer integration fixture explicitly consumes text. Ordinary edit/delete/form/action/actions and require also have direct carriers. Priorities need a real action owner. Compilation evaluates the row once, checks the view guard, evaluates child bindings in source order and gives repeated kinds numbered names. The TypeScript UI forwards pre-rendered bindings; a local card guard does not hide unrelated siblings. Existing resolution forbids nested show, arbitrary slots/props/caller capture and cross-package export are outside scope, and arbitrary generated JavaScript is not sandboxed. The agreed opaque-card behavior must remain. Files establishing these facts are DECISIONS action owners (14 October), parser.rs, then_views.rs, js.rs, bgi0910_then.rs and UI components.ts. Decide only how far the direct-child vocabulary extends, aiming for predictable small-source programs and bounded verification.",
+    "questions": {
+      "direct_children": {
+        "type": "choice",
+        "instructions": "Choose the most suitable reconciliation of direct prompted-view children, keeping canonical card ownership, access control and evaluation ordering unchanged. Weigh authoring simplicity and the actual remaining implementation obligations equally across alternatives.",
+        "criteria": {
+          "all_canonical_roots": "Make all otherwise supported ordinary UI roots eligible opaque renderer bindings. Preserve prohibitions on nested show, slots and arbitrary properties. Removes a special root vocabulary, while requiring broader source-contract and runtime checks than the current examples establish.",
+          "finite_bindings": "Keep the present bounded roots: canonical card subtrees; direct text, content and history; admitted controls; and view-level require. Specify their binding names and existing subtree rules. Preserves demonstrated direct-leaf use with a deliberate closed surface.",
+          "card_and_controls": "Permit cards, controls and guards directly, and move standalone display leaves into cards. Gives fewer top-level forms but changes currently supported sources, tests and named bindings."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "direct_children": {
+        "type": "choice",
+        "choice": "finite_bindings",
+        "confidence": 1.0,
+        "probabilities": {
+          "all_canonical_roots": 0.0,
+          "finite_bindings": 1.0,
+          "card_and_controls": 0.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 760,
+      "output_tokens": 50
+    }
+  }
+}

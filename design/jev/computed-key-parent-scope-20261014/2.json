@@ -1,0 +1,48 @@
+{
+  "request": {
+    "model": "jev-latest",
+    "state": {
+      "task": "Resolve a demonstrated Can runtime/spec uniqueness mismatch safely, not just make an example pass. User requires spec/compiler/runtime/examples agreement before training.",
+      "accepted_semantics": "DESIGN131: native and computed uniqueness belongs to containing parent, team or app. PromptLab Entry in Catalog uses pure canonicalKey(text)->text and must permit Alice under different Catalog records, reject same-parent collision, and preserve atomic swaps/deletion releases/replay/migration. No permissions or source outcomes may be weakened.",
+      "verified_defect": "Actual source29/30 passes; only Alice in other_catalog conflicts. Artifact/table containment and distinct parent IDs are correct. Native builtin canonicalUniqueRowValue wraps parent identity. State computed pipeline uses raw export text without row.parent. Migration validation, changed/removed/retained-row activation and install planner also use raw output. All will be changed to one existing scope wrapper; root/team models retain existing keys and pure keyword ABI.",
+      "verified_legacy_risk": "A valid existing contained store under buggy code has raw given:rule computed claims. After code-only wrapping, untouched old rows still have raw claims, so new scoped claims may miss same-parent collision. The module/binding fingerprint is unchanged; no persisted computed-claim encoding marker identifies old raw versus corrected scoped data. Existing activation supports explicit oldModels/desiredModels, validates whole collisions and publishes under a resumable revision fence, but representing the physical old claim profile without falsely claiming changed source containment needs verification.",
+      "constraints": "Smallest complete repair; preserve permissions, evaluation order, atomicity, failure/recovery and bounded work. New carriers allowed only for demonstrated gaps. Do not assume a fresh store or an enforced operational gate without evidence. Existing store unique-owner lookups and stored row reads exist; compatibility disambiguation and activation profile fit are not yet implemented. No claimed automatic legacy upgrade.",
+      "alternatives": {
+        "bounded_refusal": "Repair all computed claim/release paths to the existing canonical parent scope. For contained computed-key writes, detect relevant old raw claims using the existing unique-owner lookup and verify their owning stored row/pure computed value to distinguish a legitimate new scoped key string; refuse mutation with a reindex prerequisite if legacy encoding is present. Reuse bounded owner reads/fencing. Existing explicit activation owns full reindex before affected traffic; prove its old physical profile is representable without fabricating source schema. No automatic data migration or new persisted marker. Adds bounded compatibility checks to writes and requires correct key-collision disambiguation.",
+        "versioned_profile": "Add an explicit persisted internal computed-claim encoding version/profile to the installed schema/runtime contract. Old or absent profiles refuse affected mutations until an existing fenced activation reindexes claims and publishes the new profile. Clear durable release gate and no per-write raw-key ambiguity, but adds a genuine carrier across installation/activation/admission and must handle existing markerless fresh versus populated stores without bypass.",
+        "activation_procedure": "Repair all computations and document an obligatory existing full fenced reindex/activation before upgrading any populated affected store. No new runtime marker or compatibility lookup; minimal implementation and uses the existing validated migration process. Correct only when deployment reliably enforces that prerequisite; current source/binding fingerprints alone cannot detect the old physical encoding and direct code replacement otherwise risks missing old same-parent conflicts."
+      },
+      "uncertainty": "Advice only. Runtime owner is investigating whether bounded refusal and explicit existing activation are representable; a persisted profile may be necessary if not. Each option assessed against identical fresh/legacy mutation and activation correctness outcomes."
+    },
+    "questions": {
+      "implementation": {
+        "type": "choice",
+        "instructions": "Choose the best implementation strategy for this key-scope correction, balancing reliable upgrade enforcement, current owner mechanisms, bounded execution and added schema surface.",
+        "criteria": {
+          "bounded_refusal": "Repair all computed claim/release paths to the existing canonical parent scope. For contained computed-key writes, detect relevant old raw claims using the existing unique-owner lookup and verify their owning stored row/pure computed value to distinguish a legitimate new scoped key string; refuse mutation with a reindex prerequisite if legacy encoding is present. Reuse bounded owner reads/fencing. Existing explicit activation owns full reindex before affected traffic; prove its old physical profile is representable without fabricating source schema. No automatic data migration or new persisted marker. Adds bounded compatibility checks to writes and requires correct key-collision disambiguation.",
+          "versioned_profile": "Add an explicit persisted internal computed-claim encoding version/profile to the installed schema/runtime contract. Old or absent profiles refuse affected mutations until an existing fenced activation reindexes claims and publishes the new profile. Clear durable release gate and no per-write raw-key ambiguity, but adds a genuine carrier across installation/activation/admission and must handle existing markerless fresh versus populated stores without bypass.",
+          "activation_procedure": "Repair all computations and document an obligatory existing full fenced reindex/activation before upgrading any populated affected store. No new runtime marker or compatibility lookup; minimal implementation and uses the existing validated migration process. Correct only when deployment reliably enforces that prerequisite; current source/binding fingerprints alone cannot detect the old physical encoding and direct code replacement otherwise risks missing old same-parent conflicts."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "implementation": {
+        "type": "choice",
+        "choice": "bounded_refusal",
+        "confidence": 0.37,
+        "probabilities": {
+          "bounded_refusal": 0.58,
+          "versioned_profile": 0.22,
+          "activation_procedure": 0.2
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1418,
+      "output_tokens": 47
+    }
+  }
+}

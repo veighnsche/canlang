@@ -1,0 +1,35 @@
+{
+  "request": {
+    "state": "Can is a compact typed business-app language. The user requires spec/compiler/runtime/examples agreement before model training. Verified current sources: an accepted 2026-10-14 action-owner decision requires prompted views to declare canonical cards and receive each complete card as an opaque host-rendered binding, preserving its content, guards and action placement. Reversing that is outside this choice. Older build-generation requirements still say controls-only. Current parser and then_views lowering also admit direct text/content/history and canonical edit/delete/form/action/actions/require; direct priority actions require a concrete owner. Existing compiled tests exercise a direct text binding. The JS emitter evaluates the row once, applies whole-view guards, pre-renders direct children in authored order, and names repeated bindings text2/card2; UI passes those strings to the saved renderer. Card-local guards stay local. Resolver rejects nested show; slots, arbitrary props, caller capture, cross-package export, and hostile-JS sandboxing are excluded. This is source inspection and existing test evidence, not fresh whole-app qualification. We need a finite contract for direct presentation children without weakening permissions or enlarging unfinished workflows. Relevant files: docs/specification/DECISIONS.md action owners; compiler/src/{syntax/parser.rs,codegen/then_views.rs,codegen/js.rs}; compiler/tests/bgi0910_then.rs; packages/ui/src/components.ts.",
+    "questions": {
+      "direct_children": {
+        "type": "choice",
+        "instructions": "Which direct-child language contract best reconciles these verified mechanisms with concise authoring and a finite implementation scope? Treat the accepted opaque-card rule as mandatory; compare the same authorization, ordering and generated-renderer boundaries for each option.",
+        "criteria": {
+          "finite_bindings": "Document and verify the existing finite direct roots: opaque canonical cards, text/content/history, checked canonical controls and whole-view require. Keep ordinary supported card descendants under their canonical owners; preserve existing exclusions. This keeps working direct leaves but requires an explicit finite list.",
+          "card_and_controls": "Require all display text/content/history to live in a canonical card; direct children consist only of opaque cards, controls and guards. This narrows top-level authoring but requires migrating existing direct-leaf examples/tests and generated bindings.",
+          "all_canonical_roots": "Allow every ordinary supported UI component as a direct pre-rendered binding, retaining the same permissions and excluded slots/nested show/props. This unifies ordinary/generated root vocabulary but expands contract validation and qualification beyond the currently exercised finite roots."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "direct_children": {
+        "type": "choice",
+        "choice": "finite_bindings",
+        "confidence": 0.98,
+        "probabilities": {
+          "finite_bindings": 0.99,
+          "card_and_controls": 0.01,
+          "all_canonical_roots": 0.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 800,
+      "output_tokens": 50
+    }
+  }
+}

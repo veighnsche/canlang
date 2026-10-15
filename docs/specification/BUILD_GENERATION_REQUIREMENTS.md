@@ -20,7 +20,7 @@ One generation lifecycle serves three declaration categories. Their generated ou
 
 Server implementations, including server rendering, target workerd. Browser interaction code executes in the browser; CSS styles browser output. A coding CLI executes during generation preparation, not inside the deployed application.
 
-Custom components extend same-module `view Name(row:Model)` / `show Name {row=expression}`: one required nonnullable stored-model row, evaluated once, with checked canonical form/action bindings. Arbitrary props, slots, nested `show`, caller capture and cross-package exports are outside the initial scope. Generated rendering/assets/control bindings remain implementation work beyond the existing source-expansion pilot.
+Custom components extend same-module `view Name(row:Model)` / `show Name {row=expression}`: one required nonnullable stored-model row, evaluated once, with checked canonical form/action bindings. Arbitrary props, slots, nested `show`, caller capture and cross-package exports are outside the initial scope. Saved renderer, asset and control-binding delivery and qualification are recorded in the existing implementation plan; source expansion alone does not establish those outcomes.
 
 ## Functional requirements
 
@@ -36,7 +36,7 @@ The feature must not require verbatim CSS or JavaScript embedded in `.can`. Styl
 
 ### BGEN 02 Complete generation targets
 
-All three categories participate in the shared lifecycle. Top-level `style Name $"prompt"` defines reusable CSS in the owning Then namespace without a visual body. Ordinary rendered components, pages and custom component instances carry one attached `$"prompt"` or `$Name` style suffix; nonvisual data/guard/schema declarations are not targets. This supersedes ordinary wrapper-style uses and excludes top-level anonymous style scopes. Ordinary reusable view children support attachments. Prompt-rendered views retain the renderer prompt in their header and carry their root style as an optional second `$"prompt"` or `$Name` suffix on that same header, binding declared renderer-root/part hooks, alongside canonical controls as their only children. Definition-owned styles generate once per definition, not per instance; caller styling obeys child-host/interior ownership.
+All three categories participate in the shared lifecycle. Top-level `style Name $"prompt"` defines reusable CSS in the owning Then namespace without a visual body. Ordinary rendered components, pages and custom component instances carry one attached `$"prompt"` or `$Name` style suffix; nonvisual data/guard/schema declarations are not targets. This supersedes ordinary wrapper-style uses and excludes top-level anonymous style scopes. Ordinary reusable view children support attachments. Prompt-rendered views retain the renderer prompt in their header and carry their root style as an optional second `$"prompt"` or `$Name` suffix on that same header, binding declared renderer-root/part hooks, with the finite host-rendered child contract below. Definition-owned styles generate once per definition, not per instance; caller styling obeys child-host/interior ownership.
 
 A named style definition is the sole generation unit for its CSS. Every use has a separate compiler-owned instance root and hooks, shares saved CSS, and requires zero AI calls and no copied generated output. Resolve names in the owning package/app Then namespace. No style exports, cross-package imports, parameters or style inheritance are admitted initially. Duplicate/unknown/cyclic references and incompatible ownership or part contracts diagnose. Styles cannot change data or authority. Generate against the actual checked use contracts and, for refinement, the saved CSS through the existing lifecycle. A new compatible use consumes that CSS without regeneration; an incompatible hook/template contract diagnoses instead of changing or regenerating it.
 
@@ -44,7 +44,55 @@ Generated declarations and implementation must expose the fields, interfaces, ac
 
 Named traits and named custom keywords are definition-owned units: compatible applications reuse their saved implementation without additional AI calls. An inline trait owns the attached one-off model/field behavior. Traits retain checked model/field contributions applied in source order: model traits can add fields and supported model invariants/hooks; field traits add compatible constraints/defaults to their field, without sibling fields. Reject incompatible targets, duplicate contributions and contradictory defaults; traits cannot grant authorization or invent operations from a prompt. Their effects retain canonical operation/hook ownership. A custom keyword defines a new standalone Given declaration with its own target, arguments and implicit semantics. Its acceptance requires novel behavior unavailable in current Can and is not met by trait contributions/reuse. Contracts must expose target, typed inputs/outputs, reads, effects, lifecycle, dependencies and authority as needed for compiler/runtime integration. The frozen D1/D4 v1 contract supplies explicit compile-time signatures and checked owner-versioned producer bindings; no anonymous inline keyword prompt is a generation target. Reject contract mismatches, built-in redefinition, duplicate contributions and contradictory defaults where applicable. New behavior may require compiler/runtime capabilities that do not yet exist; implementing those is part of this requirement, rather than grounds to exclude the behavior. Preserve canonical operation, authority, storage, transaction, replay and migration ownership; new effects or permissions must be visible and admitted by their normal owners.
 
-A prompted row-bound view may declare checked canonical controls and carry one optional root-style suffix on its header. Its renderer arranges those bindings using presentation helpers; optional browser code enhances them through canonical submission helpers. No arbitrary executable presentation children or generated permission grants are admitted.
+
+Pure checks on required native text fields may accompany named/inline trait
+contributions as saved `implementation.js`. The source-derived contract fixes
+`state.field-validation@1`, export `check(value)`, text input, Boolean result,
+`validate-fields` lifecycle and no reads/effects/authority. The single-field
+`contributions.can` template may specify only `value:text` when there are no extra
+native constraints. State checks the normalized, hook-adjusted candidate on every
+create/update before publishing state, history or key claims; only strict `true`
+succeeds. False, exceptions and other return types produce canonical validation.
+Desired migration checks cover staged and retained rows. Implementation/import
+bytes are fingerprinted separately from the contribution carrier. Model traits,
+nullable and other field types do not admit this executable profile. Saved modules
+retain the existing trusted-code boundary; no general JavaScript sandbox is implied.
+
+The implemented model-field contribution profile admits the existing native
+Boolean/integer aliases, decimal, text, email, timezone, date, datetime, duration,
+money, user, file and inline enum associations, optionally one array wrapper and
+outer nullability. Explicit defaults are required, including null and empty-array
+defaults. Unsupported native associations and nested arrays diagnose instead of
+producing an artifact State cannot install. Literal field labels use the receiving
+source locale and checked ICU syntax; other generated caption forms diagnose.
+Field constraints preserve authored labels and translations.
+
+A prompted row-bound view may declare canonical `card` roots, checked `edit`,
+`delete`, `form`, `action`, `actions` and `button` controls, `text`, `content` and
+`history` display bindings, and whole-view `require` guards. This is a finite
+set of direct children, not permission to use an arbitrary component as a direct
+root. Cards retain their ordinary typed UI descendants and local guards. A
+source-owned card is passed whole as one opaque binding, including its content,
+primary footer and secondary heading menu. The generated renderer must preserve
+that complete binding; it cannot extract or reposition nested controls. A view
+is not an action owner: `primary` and `secondary` need a canonical owner such as
+a card, and existing form-submission and placement restrictions still apply.
+Slots, nested `show`, arbitrary props, caller capture and cross-package view
+exports remain excluded at any depth.
+
+The compiler evaluates the row once, applies whole-view guards before rendering,
+and pre-renders direct children in source order through their canonical factories.
+Bindings use the source child kind (`card`, `edit`, `delete`, `form`, `action`,
+`actions`, `button`, `text`, `content`, `history`), with repeated names suffixed
+`2`, `3`, and so on. An action button retains `button` even when its factory
+implementation is a protected form. A local guard may produce an empty binding;
+it does not become a whole-view guard. The renderer receives admitted row data,
+these complete HTML bindings and escaping helpers. It arranges each binding once,
+unchanged; optional browser code uses canonical submission helpers. One optional
+root-style suffix belongs on the view header. No generated permission grants or
+new mutation path are admitted. Syntax acceptance does not establish every
+component's emission/runtime profile; unsupported profiles must diagnose through
+their existing owner.
 
 ### BGEN 03 Coding tools and models
 

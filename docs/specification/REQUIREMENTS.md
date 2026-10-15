@@ -26,6 +26,12 @@ Presentation serves that scope. Provide the entire pinned daisyUI component set 
 
 AI writes canlang; humans will never write it. Design the syntax for compact, unambiguous, reliable AI generation. Human readability is secondary.
 
+A specialized model for writing `.can` must support inference on a GPU with
+12 GB of VRAM. Fine-tuning may run on other hardware. This constrains the
+authoring model, not the compiler or generated application's resource budget;
+the model, context length and inference configuration remain to be selected
+and measured.
+
 An unfamiliar AI coding agent should be able to start with a tiny Given/When/Then orientation, draft plausible `.can` without memorizing the grammar, and converge through localized, actionable compiler feedback. This goal includes invented but recognizable declaration shapes, not only typos. For an unknown source word or construct, the development error should identify the closest supported Can keyword or construct and give its canonical signature, concise meaning and versioned reference link. Jev may rank context-eligible construct IDs by likely author intent, with alternatives and uncertainty; the compiler supplies the authoritative syntax and help text. The agent revises and checks source again. An exact patch is useful for mechanical cases but is not required for this guidance. Measure completion, wrong-intent suggestions and total tokens on real agent tasks rather than assuming a shorter prompt succeeds.
 
 Required repetition is a language-design failure: it wastes tokens and reduces adoption chances. Declare shared context once and reuse it. Preserve Given / When / Then semantics without unnecessary keyword repetition, repeated setup, or boilerplate.
