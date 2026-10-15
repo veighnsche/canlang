@@ -52,7 +52,7 @@ function artifact(limit: number | null = null, absenceResult = false, skippedCon
       } } })),
   };
 }
-async function world(options: { domain?: 'empty' | 'false'; limit?: number; absenceResult?: boolean; skippedControl?: boolean; executionContract?: boolean; guardOnlyQuery?: boolean; scalarResult?: 'bool' | 'void'; executionBinding?: (producer: ScenarioReceiptReferenceProducer, sites: ScenarioReceiptMembershipSite[]) => void } = {}) {
+async function world(options: { domain?: 'empty' | 'false'; limit?: number; absenceResult?: boolean; skippedControl?: boolean; executionContract?: boolean; guardOnlyQuery?: boolean; scalarResult?: 'bool' | 'void'; firstBinding?: (metadata: Record<string, unknown>) => void; executionFirst?: boolean; executionBinding?: (producer: ScenarioReceiptReferenceProducer, sites: ScenarioReceiptMembershipSite[]) => void } = {}) {
   const memberships = createMemoryIdentityStore({ clock: createFrozenClock(FIXED_NOW) });
   const caller = await memberships.createMembership({ team_id: TEAM, user_id: 'caller', is_owner: false, roles: [] });
   const reader = await memberships.createMembership({ team_id: TEAM, user_id: 'allowance-reader', is_owner: false, roles: [] });
@@ -103,7 +103,7 @@ async function world(options: { domain?: 'empty' | 'false'; limit?: number; abse
         (await context.memberships.findMembership(TEAM, 'allowance-reader'))?.status === 'active' }] : [])] });
   }
   for (const def of [root, child]) {
-    if (options.scalarResult && def === root) continue;
+    if (options.scalarResult && (def === root || options.executionFirst && !options.executionContract)) continue;
     const producer: ScenarioReceiptReferenceProducer = { source, app: APP, policy, readPolicies,
       ...(def === child && options.executionContract ? { executionDependencies: [{ siteIndex: 0, queryId: 'allowances',
         node: { start: 12, end: 14 }, dependency: { id: 'require-input', source, role: 'control', model: ALLOWANCE,
@@ -117,7 +117,10 @@ async function world(options: { domain?: 'empty' | 'false'; limit?: number; abse
     }
     bindScenarioReceiptReferenceProducer(def, producer);
   }
-  bindScenarioReceiptQueryProducer(child, { source, app: APP, policy, ...(options.executionContract ? { readPolicies } : {}) });
+  const first = { queryId: 'allowances', source, query: { start: 14, end: 24 }, node: { start: 12, end: 25 }, statement: { start: 10, end: 26 } };
+  options.firstBinding?.(first);
+  bindScenarioReceiptQueryProducer(child, { source, app: APP, policy, ...((options.executionContract || options.executionFirst) ? { readPolicies } : {}),
+    ...(options.executionFirst ? { first: [first] } : {}) });
   return { store, memberships, caller, reader, root, child, table, policy, access, readPolicies, rows,
     absenceResult: options.absenceResult === true,
     registry: loaded.registry, app: APP, source: 'component', clock: { nowMs: () => FIXED_NOW },
@@ -461,5 +464,63 @@ test('execution-only first Contract Require accepts independent scalar and void 
     w.access.input = false;
     assert.equal((await projectScenarioReceipt({ ...w, receipt })).result, type === 'bool' ? true : null);
     assert.equal((await invoke(request)).status, 'replayed'); assert.equal(reads, 1);
+  }
+});
+
+test('original first executes independently of scalar and void output with no retained query taint', async () => {
+  for (const type of ['bool', 'void'] as const) for (const domain of [undefined, 'empty'] as const) {
+    const w = await world({ absenceResult: true, scalarResult: type, guardOnlyQuery: true, executionFirst: true, ...(domain === undefined ? {} : { domain }) });
+    let receipt: Receipt | undefined, executions = 0;
+    const request = { ...w, envelope: makeEnvelope(CHILD, uuidv7(FIXED_NOW, ++sequence), {}),
+      observeCommittedReceipt: (value: Receipt) => { receipt = value; }, execute: async (call: AdmittedCall) => {
+        executions++;
+        const session = await beginScenarioReceiptMutation(call, w.store, { table: w.table, bounds });
+        const query = await executeScenarioReceiptQuery(call, w.store, { queryId: 'allowances', predicate: ({ slot, record }) => {
+          const account = record.data.account;
+          observeScenarioReceiptQueryDependency(call, w.store, { slot, dependencyId: 'account-control' });
+          return account === 'caller';
+        } });
+        const row = await selectScenarioReceiptQueryFirstRow(call, w.store, { query: query.query,
+          first: { node: { start: 12, end: 25 }, statement: { start: 10, end: 26 } } });
+        assert.equal(row?.id ?? null, domain === 'empty' ? null : 'allowance-a');
+        selectScenarioReceiptReturn(call, w.store, 'child-return');
+        return { ...await session.finalize(), result: type === 'bool' ? true : null, outbox: [] };
+      } };
+    assert.equal((await invoke(request)).status, 'committed'); assert.ok(receipt);
+    const saved = readScenarioReceiptAssociation(receipt)!;
+    assert.deepEqual(saved.observations, []); assert.equal(saved.queries, undefined);
+    w.access.allowance = false;
+    assert.equal((await projectScenarioReceipt({ ...w, receipt })).result, type === 'bool' ? true : null);
+    assert.equal((await invoke(request)).status, 'replayed'); assert.equal(executions, 1);
+  }
+});
+
+test('first execution rejects malformed source bindings, missing/copy/foreign markers and incomplete consumption', async () => {
+  for (const mutate of [
+    (value: Record<string, unknown>) => { value.source = { ...source, sha256: 'a'.repeat(64) }; },
+    (value: Record<string, unknown>) => { value.node = { start: 1, end: 25 }; },
+    (value: Record<string, unknown>) => { value.extra = true; },
+  ]) await assert.rejects(world({ absenceResult: true, scalarResult: 'bool', guardOnlyQuery: true, executionFirst: true, firstBinding: mutate }), refuses);
+  for (const mode of ['missing', 'foreign', 'accessor', 'copy-handle', 'incomplete', 'revoked'] as const) {
+    const w = await world({ absenceResult: true, scalarResult: 'bool', guardOnlyQuery: true, executionFirst: true });
+    let accesses = 0;
+    const request = { ...w, envelope: makeEnvelope(CHILD, uuidv7(FIXED_NOW, ++sequence), {}), execute: async (call: AdmittedCall) => {
+      const session = await beginScenarioReceiptMutation(call, w.store, { table: w.table, bounds });
+      const query = await executeScenarioReceiptQuery(call, w.store, { queryId: 'allowances', predicate: ({ slot, record }) => {
+        const account = record.data.account;
+        observeScenarioReceiptQueryDependency(call, w.store, { slot, dependencyId: 'account-control' }); return account === 'caller';
+      } });
+      if (mode !== 'incomplete') {
+        const first = { node: { start: mode === 'foreign' ? 13 : 12, end: 25 }, statement: { start: 10, end: 26 } };
+        if (mode === 'accessor') Object.defineProperty(first, 'node', { enumerable: true, get: () => { accesses++; return { start: 12, end: 25 }; } });
+        await selectScenarioReceiptQueryFirstRow(call, w.store, { query: mode === 'copy-handle' ? { ...query.query } : query.query,
+          ...(mode === 'missing' ? {} : { first }) });
+      }
+      await session.stage({ op: 'create', model: RUN, id: CREATED, data: { account: 'caller', title: 'Must roll back' } }, cause);
+      if (mode === 'revoked') w.access.allowance = false;
+      selectScenarioReceiptReturn(call, w.store, 'child-return');
+      return { ...await session.finalize(), result: true, outbox: [] };
+    } };
+    await assert.rejects(invoke(request), refuses, mode); assert.equal(accesses, 0); await unchanged(w);
   }
 });

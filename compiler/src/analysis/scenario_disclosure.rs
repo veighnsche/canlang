@@ -7744,30 +7744,10 @@ impl<'a> Closure<'a> {
         } else {
             Vec::new()
         };
+        // Query execution is independent from its eventual result. This is
+        // the actual terminal source anchor; only the checked Return census
+        // may publish return identities or disclosure associations.
         let returned = scenario.effects.last()?;
-        let returned_value = self.query_group(returned.value?)?;
-        let Binding::CreateAs { node: created } = self.query_binding(returned_value)? else {
-            return None;
-        };
-        let created = scenario
-            .effects
-            .iter()
-            .find(|effect| effect.node == *created)?;
-        let result = self
-            .types
-            .symbol_results
-            .get(&scenario.scenario)?
-            .as_ref()?;
-        if returned.verb != EffectVerb::Return
-            || created.verb != EffectVerb::Create
-            || !matches!((result, &created.target),
-                (ResolvedType::Record {symbol,stored:true}, Some(EffectTarget::Model(model))) if symbol == model)
-            || self.types.node_types.get(&returned_value) != Some(result)
-            || created.node.end > returned.node.start
-            || binding.node.end > created.node.start
-        {
-            return None;
-        }
         let id = self.opaque("query", fact.query, "").ok()?;
         let source = self.source(scenario.module, fact.query).ok()?;
         let influences = [

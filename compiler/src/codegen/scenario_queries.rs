@@ -787,6 +787,7 @@ fn collect_complete_query_receipt_prepared(
         prepared.db,
         &plan.source.module,
     );
+    let standalone_first = queries.len() == 1 && query.first.is_some() && query.count.is_none();
     if helper_plan.is_some()
         || queries
             .iter()
@@ -832,11 +833,17 @@ fn collect_complete_query_receipt_prepared(
                 return None;
             }
             for (returned, emitted) in selected_returns.iter().zip(&plan.returns) {
-                if super::scenario_receipts::checked_created_model_result(ir, owner).is_none()
+                if !standalone_first
+                    && super::scenario_receipts::checked_created_model_result(ir, owner).is_none()
                     || returned.id != emitted.id
                     || returned.source != original.source_facts()?.source
-                    || returned.model_result.is_none()
-                    || !mixed && returned.influences != expected_influences
+                    || !standalone_first && returned.model_result.is_none()
+                    || !mixed && !standalone_first && returned.influences != expected_influences
+                    || standalone_first
+                        && returned
+                            .influences
+                            .iter()
+                            .any(|value| !expected_influences.contains(value))
                     || emitted.projection.is_some()
                 {
                     return None;
@@ -2066,26 +2073,21 @@ fn checked_first_query_plan(
     if kinds.len() != 4 {
         return None;
     }
-    let return_ids = match ir.scenario_disclosures.get(&owner.id)? {
-        ScenarioDisclosure::Complete(checked) => {
-            if checked.returns.is_empty()
-                || checked.returns.iter().any(|returned| {
-                    super::scenario_receipts::checked_created_model_result(ir, owner).is_none()
-                        || returned.model_result.is_none()
-                        || returned.source != q.source
-                        || returned.influences != expected_influences
-                })
-            {
-                return None;
-            }
-            checked
-                .returns
-                .iter()
-                .map(|returned| returned.id.clone())
-                .collect::<Vec<_>>()
-        }
-        _ => vec![q.return_id()],
+    let ScenarioDisclosure::Complete(checked_returns) = ir.scenario_disclosures.get(&owner.id)?
+    else {
+        return None;
     };
+    if checked_returns.returns.is_empty()
+        || checked_returns.returns.iter().any(|returned| {
+            returned.source != q.source
+                || returned
+                    .influences
+                    .iter()
+                    .any(|value| !expected_influences.contains(value))
+        })
+    {
+        return None;
+    }
     Some(ReceiptDisclosurePlan {
         version: 1,
         source: origin(&q.source, entry),
@@ -2112,12 +2114,22 @@ fn checked_first_query_plan(
                 type_id: dependency.type_id.clone(),
             }],
         }],
-        returns: return_ids
-            .into_iter()
-            .map(|id| ReceiptReturn {
-                id,
-                source: origin(&q.source, entry),
-                influences: influences.clone(),
+        returns: checked_returns
+            .returns
+            .iter()
+            .map(|returned| ReceiptReturn {
+                id: returned.id.clone(),
+                source: origin(&returned.source, entry),
+                influences: influences
+                    .iter()
+                    .filter(|value| {
+                        returned
+                            .influences
+                            .iter()
+                            .any(|original| original.id == value.id)
+                    })
+                    .cloned()
+                    .collect(),
                 dependencies: Vec::new(),
                 intrinsics: Vec::new(),
                 projection: None,
