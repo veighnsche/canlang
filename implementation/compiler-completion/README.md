@@ -2,6 +2,17 @@
 
 ## Current remainder and finite completion
 
+**C02 native User CONTROL declaration (2026-10-15, implemented/tested).**
+Predicate ANY accepts the compiler's exact singular/nonnullable `{kind:user}`
+artifact tag when its redundant valueType is absent, while retaining exact
+canonical `user` equality and every field marker. Present conflicting claims,
+other native tags/wrappers and accessors refuse. Eight source checks pass,
+including actual compiler-shaped commit/recovery and nine corruptions; normal
+State/CF builds pass. The genuine helper fixture now passes query installation
+and reaches execution, exposing a separate compiler recipe overwrite: source-only
+query preparation displaced the complete derive-call receipt. Fix that join next;
+this State declaration repair does not qualify the whole native journey.
+
 **C02 exact native membership occurrence (2026-10-15, implemented/tested prerequisite).**
 The private native membership binding accepts an optional exact sourceCall
 site/call selector in addition to the unchanged physical source/node marker.

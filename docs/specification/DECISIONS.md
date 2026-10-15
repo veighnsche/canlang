@@ -16681,3 +16681,15 @@ a unique occurrence; never choose the first/unconsumed match or create ambient
 call state. Fourteen source controls and normal CF build pass. Compiler selector
 issuance and original mixed-workflow execution remain required. Existing checked
 call chains settle identity; this adds no language or membership authority.
+
+
+### 2026-10-15 — retain the native User declaration in predicate CONTROL joins
+
+Accepted implementation correction: the compiler's singular nonnullable User tag
+already declares its type when redundant valueType is absent. Normalize that
+exact raw declaration for comparison with the existing canonical `user` claim;
+retain marker equality, reject present mismatches, foreign native tags, wrappers
+and accessors. This is not shape inference from arbitrary objects or a grant.
+Eight State source checks and normal State/CF builds pass. Actual helper execution
+still needs the compiler's full owning receipt retained instead of its source-only
+query preparation. No new language decision requires JEV consultation.
