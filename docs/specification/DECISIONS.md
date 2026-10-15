@@ -17158,3 +17158,21 @@ exact recipe identity, with the later-row fixture excluded from common seeding
 (1/.22s). This fixes the original first4 promotion rows' missing-dependency
 producer; original six-row execution and last2 validation failures remain open.
 No Testkit fallback, replacement fixture or permission change is introduced.
+
+
+## 2026-10-15 — scope nongrant query association to its consumed source
+
+Unrelated backend lowering gaps must remain diagnostics without misreporting a
+valid operation's source correspondence. Retain the complete freshly checked
+cohort for query-only association, requiring original/actual/fresh owner semantics
+and excluding diagnostics intersecting its consumed declarations, helpers,
+defaults and schemas. Nonbackend gaps still refuse; policy, membership, read and
+SEND consumers retain their strict gates. This supplies no execution authority or
+capability availability. Reuse the existing fresh source in feasibility and
+standalone decision serialization rather than rebuilding and globally refusing.
+
+Final owning checks2/1.60s and locked CLI build pass, including a genuine unrelated
+unsupported sibling and affected owner/helper/schema/source/return refusals. Full
+original24 qualification is running from a frozen binary. Diagnostic original6
+has no setup failures but four query-domain runtime refusals; no complete native
+workflow acceptance is claimed. No language rule, grant or error identity changes.

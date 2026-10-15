@@ -2,6 +2,28 @@
 
 ## Current remainder and finite completion
 
+**C02 query association with unrelated backend gaps (2026-10-15, source qualified).**
+Authentic26-source inspection has zero checker errors and retains CRM2creates/
+3queries/3decision sites, but strict fresh preparation stopped globally at270
+E6008+25E6007 IR diagnostics before inspecting the owner. Query-only nongrant
+association now retains those backend diagnostics and requires exact original/
+actual/fresh semantics plus diagnostic exclusion for its owner/helper/default/
+query Model/schema/alias/reuse/create closure. Nonbackend gaps still refuse
+and all original artifact diagnostics remain. Policy/membership/read/SEND
+consumers keep strict preparation. Feasibility and standalone query serialization
+reuse the same fresh cohort with their existing full source checks, avoiding a
+second global refusal. Final owning controls2/1.60s pass: real unsupported sibling,
+renamed helper reuse, borrowed returns, actual body/source/schema/return mutants,
+intersecting owner/helper/schema diagnostics and global E6006. Locked CLI build
+passes. Original24 frozen-binary qualification is live (session78591), retained
+argv/results `/tmp/cancrm-query-association-20261015-*`; no count credit yet.
+
+Diagnostic original6 with this binary + nested fixture dependency fix has no
+setup failures, two passing rows and four identical runtime refusals: `Source
+collection needs its original committed query domain.` Temporary error-only dist
+logging was restored byte-for-byte afterward; this is diagnosis, not workflow
+qualification. The defining collection-domain producer/consumer join is next.
+
 **C02 nested common fixture dependency census (2026-10-15, producer qualified).**
 The original first4 promotion rows reference company/contact inside their common
 Contract input, but the emitted table previously seeded only test_worker.
@@ -10,8 +32,9 @@ canonical s-slot keys to the resolved fixture declaration (source aliases were
 already checked during decoding). Preserve explicit seed order and independent
 row dependencies. Actual generated-module/Node check1/.22s passes nested
 Contract/array values, imported aliases, exact common recipe identity and a later
-row's fixture absent from the common seed set. Original6 execution still requires
-the new frozen binary; their last2 validation errors remain under investigation.
+row's fixture absent from the common seed set. Existing fixture/role/sequence controls5/.39s also pass. The subsequent diagnostic
+original6 run has no setup failures and exposes the collection-domain join above;
+no six-row acceptance is claimed.
 
 **C02 parent enum invariant association (2026-10-15, qualified component).**
 CompanyRole's original `row.parent.kind==company` was outside the compiler's
@@ -99,8 +122,8 @@ The exact selected schemas/policies/saved Given and both inline tables emit3
 queries with verified consumed source hashes. Canonical fixture linking now
 loads the original graph. With User+enum uniqueness and parent-enum invariant
 association fixed, the frozen-closure run14.56s reaches the next adapter leaves:
-4 rows setup-refuse `input.customer.active` selector resolution;2 invoke and
-reject validation. Original date invariant and complete policies remain unchanged.
+the later diagnostic run has no setup failures; four rows refuse the original
+committed query-domain join and two pass (diagnosis-only instrumentation). Original date invariant and complete policies remain unchanged.
 Earlier missing-Testkit capture and invariant-gate results are superseded at
 these scopes. No fixture/schema/policy/unique reductions qualify this workflow.
 Acceptance still requires all6 unchanged rows through default canonical hooks.

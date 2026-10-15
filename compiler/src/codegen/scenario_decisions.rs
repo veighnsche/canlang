@@ -1536,6 +1536,19 @@ pub fn serialize_decision_sources(
     serialize_sites(program, ir, db, sites, None)
 }
 
+/// Reuse an already lowered cohort without removing decision serialization checks.
+pub(super) fn serialize_decision_sources_with_fresh(
+    program: &CheckedProgram,
+    ir: &IrProgram,
+    owner: &IrItem,
+    db: &SourceDb,
+    catalog: Option<&Catalog>,
+    fresh: &IrProgram,
+) -> Option<Vec<SerialDecisionSite>> {
+    let sites = collect_decision_sources_with_fresh(program, ir, owner, db, catalog, fresh)?;
+    serialize_sites(program, ir, db, sites, None)
+}
+
 /// One fresh, invocation-local source cohort. No authority or global cache;
 /// all consumers borrow the exact supplied inputs and retain their own checks.
 pub(super) struct FreshSourceContext<'a> {
@@ -1546,6 +1559,7 @@ pub(super) struct FreshSourceContext<'a> {
     original: CheckedProgram,
     fresh: IrProgram,
     has_ir_diagnostics: bool,
+    ir_diagnostics: Vec<crate::diagnostic::Diagnostic>,
     trees: Vec<(crate::source::SourceId, SyntaxNode)>,
     resolved: crate::analysis::resolve::ResolveTables,
 }
@@ -1567,6 +1581,27 @@ impl<'a> FreshSourceContext<'a> {
         db: &'a SourceDb,
         catalog: Option<&'a Catalog>,
     ) -> Result<Self, SourcePreparationGap> {
+        Self::prepare_inner(program, ir, db, catalog, false)
+    }
+
+    /// Query association may borrow a partial lowering, never execution authority.
+    /// The query consumer still seals its complete original consumed closure.
+    pub(super) fn prepare_queries(
+        program: &'a CheckedProgram,
+        ir: &'a IrProgram,
+        db: &'a SourceDb,
+        catalog: Option<&'a Catalog>,
+    ) -> Result<Self, SourcePreparationGap> {
+        Self::prepare_inner(program, ir, db, catalog, true)
+    }
+
+    fn prepare_inner(
+        program: &'a CheckedProgram,
+        ir: &'a IrProgram,
+        db: &'a SourceDb,
+        catalog: Option<&'a Catalog>,
+        query_association: bool,
+    ) -> Result<Self, SourcePreparationGap> {
         program
             .validate_cohort(db, catalog)
             .map_err(|_| SourcePreparationGap::Cohort)?;
@@ -1584,12 +1619,13 @@ impl<'a> FreshSourceContext<'a> {
         }
         let (fresh, diagnostics) = super::ir::build(&original, db, catalog);
         let has_ir_diagnostics = !diagnostics.is_empty();
-        if diagnostics
-            .iter()
-            .any(|d| d.severity == crate::diagnostic::Severity::Error)
-        {
+        if diagnostics.iter().any(|d| {
+            d.severity == crate::diagnostic::Severity::Error
+                && (!query_association || !matches!(d.code, "E6007" | "E6008"))
+        }) {
             return Err(SourcePreparationGap::Ir);
         }
+        let ir_diagnostics = diagnostics;
         let mut trees = Vec::new();
         for &file in original.checked_files() {
             let input = db.get(file).ok_or(SourcePreparationGap::MissingSource)?;
@@ -1625,6 +1661,7 @@ impl<'a> FreshSourceContext<'a> {
             original,
             fresh,
             has_ir_diagnostics,
+            ir_diagnostics,
             trees,
             resolved,
         })
@@ -1647,6 +1684,14 @@ impl<'a> FreshSourceContext<'a> {
     }
     pub(super) fn fresh(&self) -> &IrProgram {
         &self.fresh
+    }
+    pub(super) fn has_ir_errors(&self) -> bool {
+        self.ir_diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.severity == crate::diagnostic::Severity::Error)
+    }
+    pub(super) fn ir_diagnostics(&self) -> &[crate::diagnostic::Diagnostic] {
+        &self.ir_diagnostics
     }
     pub(super) fn has_ir_diagnostics(&self) -> bool {
         self.has_ir_diagnostics
