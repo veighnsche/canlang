@@ -15939,3 +15939,44 @@ capture for this pure runtime prerequisite. Cloudflare still needs to pass its
 private identity resolver with the actual owning Contract field/type checks,
 and the original stored snapshot/equality workflow still needs its native
 consumer. No storage authorization or full CRM completion is inferred here.
+
+
+2026-10-15 — C02/C10: preserve contained-parent identity through original Contract slots.
+
+A required Model slot in an original Contract parameter now retains its checked
+containment lineage through the existing implicit-parent path. Contract selectors
+do not consume the existing two parent hops. Source census includes only actually
+authored verified parent targets. Native receipt lowering joins the same source,
+receiver, owning schemas, containment and exact parent observation. The existing
+Name-receiver check now ignores surrounding source trivia like the Contract-slot
+check; no token/type/owner proof is removed.
+
+Parent equality accepts independently admitted required references with matching
+Model identity, whether packaged in one Contract, two Contracts or direct Model
+parameters. The original parent occurrence, admission provenance and source stage
+remain required; arbitrary stored-reference field operands retain their separate
+backend boundary. Nullable/array/copied operands and source/IR substitutions do
+not acquire lineage. A same-Contract-root restriction was rejected because input
+packaging cannot change the meaning or authority of genuine reference identity.
+This applies settled containment/equality rules without another JEV decision.
+
+All18 affected compiler checks pass, including renamed and independently packaged
+equivalents, ancestor-only census, native emission and corruption controls.
+The extended actual generated-source/CLI/verified assembly/D1/Identity consumer
+passes1/1 in25.98s with frozen input/producer checks. It retains distinct Contact
+parent CONTROL evidence, current source/parent grants, mismatched parents, stale
+Contact inputs, original early/late rollback and rejected replay. Independent
+Contact read-role revocation with ordinary membership intact withholds saved
+results without business writes; restoring the role restores disclosure. Existing
+membership revocation/restoration and unchanged Contact/Customer rows remain.
+CLI and owning package builds pass; root TypeScript retains16 errors in four
+unchanged files. The first root typecheck overlapped a clean package rebuild;
+only its post-build rerun is credited. Formatting/diff checks pass.
+
+Frozen original24-source validation exits10 after388.62s with the same701
+diagnostics (675 E6008,26 E6007), complete=true, omitted=0, identical source
+inventory, none added/removed versus the preceding Contract-input capture and
+no usable artifact. Original .can/catalog bytes remain unchanged.
+Currency inventory, original can_work query-backed guards, whole Contract
+snapshot/source joins, adjacent root creates and cohort hooks remain local work.
+No full CRM or training-data readiness is inferred from this prerequisite.

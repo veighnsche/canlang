@@ -5939,11 +5939,18 @@ fn checked_parent_reference_at<'a>(
                 || file
                     .text
                     .get(base.span.start as usize..base.span.end as usize)?
+                    .trim()
                     != name
             {
                 return None;
             }
             *symbol
+        }
+        IrExpr::Member { .. }
+            if checked_contract_parameter_path(ir, owner, base, Some(db)).is_some() =>
+        {
+            let models = super::js::Emitter::source_models(ir, db)?;
+            checked_contract_parameter_row(ir, owner, base, &models, db)?.id
         }
         IrExpr::Member { field, .. } if field == "parent" => {
             let (_, parent) = checked_parent_reference_at(ir, owner, base, db, remaining - 1)?;

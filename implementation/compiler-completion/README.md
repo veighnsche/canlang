@@ -570,9 +570,15 @@ lazy multi-field predicate, actual argument lineage or body-stage source point.
 Its acceptance must include renamed equivalent reuse, operator-wide/home/listed
 location cases, current source/target/ancestor authority, short-circuit order and
 rollback/recovery. No nullable-user relaxation, fabricated query or guard hoist
-can close it. Required contained-parent access from `input.contact` can reuse the existing
-checked Contract slot and containment path; `Scalar::Currency` stored reads need
-a separate receipt inventory join. The second root constructor's whole hydrated
+can close it. Required contained-parent access from `input.contact` now retains the
+checked original slot, exact containment and source/parent authority. All18
+affected compiler checks and the extended generated D1 case1/1 (25.98s) pass,
+including one/two Contract roots or direct parameters, mismatched parents,
+stale Contacts, rollback/replay and independent Contact read-role revocation/
+restoration. Source/IR/copy/nullable/array refusals remain; root TypeScript has
+16 unchanged diagnostics. Original24-source validation exits10 in388.62s with
+the same701 diagnostics (675 E6008,26 E6007), complete=true, omitted=0,
+identical source inventory, none added/removed and no usable artifact. `Scalar::Currency` stored reads need a separate inventory join. The second root constructor's whole hydrated
 Contract snapshot must also rejoin canonical RecordRefs for storage/equality:
 Values cannot infer Cloudflare's private native-view identity. Canonical equality
 now has a demand-driven private reference-leaf join:46 Values checks and two
