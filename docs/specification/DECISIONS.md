@@ -16487,3 +16487,15 @@ call/store controls preserve the existing forbidden error. Compiler/CF original
 factory and imported source-chain integration remain unfinished; no original
 can_work native acceptance is claimed. The original24 static capture is running
 against the already frozen compiler closure and does not consume this runtime.
+
+2026-10-15 — C02: original24 qualification after event-owner/source prerequisites.
+
+The frozen original24 command finishes in390.31s with exit10, complete=true,
+omitted=0 and666 diagnostics (640 E6008,26 E6007). Full comparison with the prior
+701 report removes exactly35 declared-event carrier refusals, adds none and
+retains identical original24 source hashes. The prior37 owner-path candidates
+were not37 closed occurrences; eleven event-carrier refusals remain. Report:
+/tmp/cancrm-event-owner-20261015-compile.json. Compiler source is474b1c85; later
+State/doc commits do not change that captured source closure. Cloudflare type
+checking against the new State producer API also passes. No usable artifact,
+original imported can_work execution or full CanCRM readiness is claimed.
