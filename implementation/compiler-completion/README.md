@@ -56,8 +56,8 @@ operation outcomes; existing retry alone fails its unchanged `result==prospect`
 Then with noncanonical input to `same`. The observation boundary now brands
 only actual verified fixture/returned rows and passes its existing independent
 name/equality/copied-view-refusal check1/3.197s plus normalCFbuild (92768b83).
-Final original6 retry awaits the current scalar-Require compiler closure; no
-authored assertion changed and draft acceptance remains pending.
+Final original6 passes82.695s with current scalar-Require closure; all authored
+assertions stay unchanged. Draft4990400 is clean and accepted at this scope.
 Frozen d4eb297b original24 qualification is terminal411.34s: exit10,
 complete=true/omitted0,582 diagnostics (556E6008+26E6007), no artifact. All
 inputs stayed unchanged during capture;26 source records, only the two intended
@@ -78,8 +78,8 @@ Compiler10/1.10s and State18 (16 reused,two affected span checks/.19s) pass;
 normal State/CF builds and genuine captured native FIRST1/39.78s pass. Source/
 query/call/Let substitution, order, current authority, rollback, scalar/void
 commit/replay/no saved query taint and schema composition are covered.
-Selected scalar Require is still fail-closed and next needs the existing exact
-execution-dependency leaf; Purchase/fullCRM acceptance remain open.
+Selected scalar Require is qualified above. Broader call-chain/contained query
+profiles and Purchase/fullCRM acceptance remain open.
 
 **C02 checked local invariant leaves (2026-10-15, source component qualified).**
 Existing checked/fresh-source policy intake now admits direct owning array count,
@@ -90,53 +90,39 @@ Renamed/reused-field/generated-predicate and corruption controls pass1/.46s;
 existing required-path and reverse-parent controls pass2/.04s. Original Partner
 activation remains open for its full query invariant/dependency/owner-read closure.
 
-**C02 next dependency-ordered implementation (2026-10-15).**
-Current execution remains this record. Promotion caller-array lowering owns the
-next native6 retry; no original expected values change. Partner activation then
-needs checked local pure-call/nullable-Model-presence invariant leaves, followed
-by its actual checked Credit/Advocate query rules and complete affected-row
-selection, then the existing owner final-query adapter. Keep all six original
-invariants/locks; all-or-none policy publication explains its misleading first
-Employee activation refusal. Existing State owner-rule final views/bounds and
-atomic pipeline remain the consumers, not a new engine.
+**C02 current dependency-ordered execution (2026-10-15).**
+This is the current execution view; earlier dated continuations below are
+evidence at their recorded scopes. The promotion six-row consumer, result-shape
+first prerequisite, selected direct/one-helper scalar observation and checked
+local invariant leaves are closed at their accepted scopes. Do not reopen their
+unchanged checks. Remaining ready work:
 
-The90 first-query refusals span67handlers/18operations/5derives. The first
-Customer.accept example separately needs contained CompanyRole domain, compound
-User/enum predicate, and execution independent of a new-record return. The next
-reusable batch removes only the return-shape dependency from the existing
-unscoped single-equality profile, retaining genuine query handles, exact source
-census and current field authority. Void/scalar/Model outputs do not invent
-result influence; selected result disclosure keeps its distinct source join.
-Original Purchase.receive supplies a scalar-parameter/current-selection witness;
-its other workflow prerequisites stay open.
+- Generalize the existing selected-field helper call-chain join beyond the
+  qualified one-formal same-owner profile; preserve original supplied/default
+  evaluation and current authority. Unsupported shapes currently refuse safely.
+- Qualify the complete original Partner policy cohort. Compiler query producer,
+  State bound and CF query receiver components pass; actual original two-case
+  native consumer still refuses before setup because modelPolicies is absent.
+  Find the first unsupported owning leaf in that exact retained source, then
+  run its default-owner transaction and unchanged record-page consumers.
+- Lower the43 original role-only Boolean operation admissions through existing
+  ordered State ByPredicate, including both metadata and native policy receiving.
+  Exact source census finds only role OR trees; no data/subject gate is implied.
+- Finish current frozen original24 capture93802, then continue the remaining
+  defining root-cause table using actual diagnostics and named prerequisites.
 
-**C02 explicit promotion caller context (2026-10-15, source correction pending compiler).**
-Exact native diagnostics identify `customer.Contact.parent` as the denied leading
-read: salesperson-only membership lacks the required Customer ancestor grant.
-Three independently worded JEV requests prefer an explicit existing
-`[salesperson,customer_reader]` caller over adding a stronger company-admin
-fixture (probabilities .87/.91/.93; advice retained in
-`crm-example-authority-jev.json`). Export/import the existing reader role and
-change only five salesperson caller cells; keep the members denial, production
-policies, fixtures and all six expectations unchanged. Genuine native intake
-now stops before execution:10E6008 role-reference failures inside caller arrays
-(2.82s). Checker and Testkit already support role arrays. Exact caller-only canonical
-role lowering now passes its owning CLI/emitted/Testkit test1/.94s, including
-import aliases and invalid-member refusals; tested snapshot
-`/tmp/can-compiler-example-role-arrays`. The actual Testkit table adapter was also missing; it now passes6/.404s
-loader/accounts controls including cross-realm and empty-role default membership,
-and its normal package build. The earlier JEV context overstated that receiving
-implementation; this corrects mechanics without changing the source choice.
-The current coherent CLI/receiver now executes all6 original rows:5pass in
-49.82s, including create and all4 independent rejection/write-absence checks.
-Only existing-deal retry reports validation: its installed source collection
-policy loses the original owner domain in a later reference/return reader. The CF role-array identity adapter
-passes1/1.340s with real actor/session and normal build; no new grants. Native
-FIRST now passes with exact State file-bearing census reuse and unrelated/derived
-schema controls. Next forward the existing policy-domain port through the actual
-stored-reference conjunction and existing-Model row-id return readers, preserving
-stage/final authority. Original6 and draft commit remain pending; earlier preview-
-freshness preflights executed no rows.
+**C02 explicit promotion caller context (2026-10-15, native qualified).**
+Draft4990400 exports/imports existing customer_reader and changes only five sales
+caller cells to [salesperson,customer_reader]. The members denial, fixtures,
+policies, complete operation/saved Given and every expectation stay. Three JEV
+Choice consultations prefer limited reader roles over company-admin fixture
+(.87/.91/.93, confidence .80/.86/.89); retained in crm-example-authority-jev.json.
+The premise that all role-array receiving was already implemented was too strong;
+compiler/Testkit/CF adapters were separately repaired with original semantics.
+Actual captured CLI/default Testkit/D1/Identity now passes all6/82.695s, including
+existing-deal identity and all4 exact rejection/write-absence checks. Source/
+generated closure checks pass; draft-first commit is clean. Reuse this unchanged
+result. This is the selected original workflow, not a full24 emitted app.
 
 **C02 consumed decision CST index (2026-10-15, qualified source component).**
 Index exact checked decision/statement/call/argument/default/derive-body subtrees
@@ -836,11 +822,12 @@ failures remain: `catalog_factories_lower_from_source` and
 Their assertions are preserved; no all-green compiler-suite claim follows.
 The final CLI build, formatting and diff checks pass.
 
-The latest frozen original **24-source** qualification (232b15db,442.73s) exits
+The latest terminal frozen original **24-source** qualification (d4eb297b,411.34s) exits
 **10**, with **582 errors**: **556 E6008**, **26 E6007**, `complete=true`,
 `omitted=0`, and no usable artifact. Source records/input bytes stayed unchanged.
-The pending explicit reader-role source correction is newer and currently stops
-at the separate example caller-array lowering gap before native execution.
+The explicit reader-role correction is captured, and its six-row native
+consumer is separately qualified above. The later current compiler capture
+remains in progress; counts below retain the terminal582 report.
 The preceding module-ownership batch closed the E6006 omissions and its
 recorded admission/lexical-target refusals. The duration batch removes exactly
 eleven diagnostics relative to that 909-error capture: six division, four
