@@ -17416,3 +17416,19 @@ components have their separately recorded executable checks; this count does
 not claim whole workflow or app readiness. Exact argv/diagnostics/result remain
 under /tmp/cancrm-helper-invariants-card-20261015-*. Continue the ready call-chain,
 complete Partner policy intake, role-Boolean admission and remaining root groups.
+
+
+## 2026-10-15 — retain original typed lock fields in checked policy intake
+
+The complete original Partner cohort proves all six invariant profiles match;
+its all-or-none policy publication instead rejected locked Email, Money, Datetime
+and nullable Model references. Checked intake now admits those exact persisted
+owning fields using the existing canonical value profile and nominal lock
+identity proof. Server-populated persisted scalars remain lockable. State's
+existing wire/typed lock comparator and every original lock stay unchanged; raw
+local profiles gain no source authority and File/receipt/container equality is
+not widened. Complete retained original-source6-invariant/3-lock and owner/type/
+source/lock corruption regression passes1/.21s; affected pure-leaf control
+passes1/.42s. The genuine original Partner setup/transaction/page consumers still
+need the fresh compiler snapshot; their earlier two pre-setup refusals provide
+no runtime rule verdict. No new semantic choice or JEV consultation is needed.

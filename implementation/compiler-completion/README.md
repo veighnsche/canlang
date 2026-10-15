@@ -2,6 +2,14 @@
 
 ## Current remainder and finite completion
 
+**C02 complete original Partner lock intake (2026-10-15, source qualified).**
+All6 original invariant profiles already matched; checked lock fields Email/
+Money/Datetime/nullable Model blocked all-or-none publication. Reuse exact owning
+field/canonical value and existing nominal lock proof, preserving all3 locks,
+State comparison and raw-profile refusal. Full retained original source plus
+corruptions passes1/.21s; affected pureleaf1/.42s. Fresh CLI and actual original
+default-owner transactions/page are next; prior2 failures were before setup.
+
 **C02 original24 qualification (2026-10-15, terminal).**
 Frozen CLI29d70739af20 (scalar/helper + query invariants + card) finishes536.29s:
 exit10, complete=true/omitted0,573 diagnostics (547E6008+26E6007), no artifact.
@@ -111,8 +119,8 @@ unchanged checks. Remaining ready work:
 - Qualify the complete original Partner policy cohort. Compiler query producer,
   State bound and CF query receiver components pass; actual original two-case
   native consumer still refuses before setup because modelPolicies is absent.
-  Find the first unsupported owning leaf in that exact retained source, then
-  run its default-owner transaction and unchanged record-page consumers.
+  The exact owning lock-field omissions are now source-qualified above. Run
+  the fresh CLI/default-owner transaction and unchanged record-page consumers.
 - Lower the43 original role-only Boolean operation admissions through existing
   ordered State ByPredicate, including both metadata and native policy receiving.
   Exact source census finds only role OR trees; no data/subject gate is implied.
