@@ -6437,6 +6437,27 @@ pub(super) fn match_stored_contract_field(
     {
         return None;
     }
+    if let Some(contributed) = &original.contributed {
+        if contributed.field != original.id
+            || contributed.canonical != original.canonical
+            || contributed.span != original.span
+            || contributed.source != original.source
+            || contributed.ty != original.ty
+            || contributed.constraints != original.constraints
+            || original.required_array
+            || original.reuse.is_some()
+            || original.min.is_some()
+            || original.max.is_some()
+        {
+            return None;
+        }
+        return super::scenario_create_sources::checked_contributed_field(
+            ir,
+            ir.items.get(original.owner.0 as usize)?,
+            contributed,
+            db,
+        );
+    }
     for (actual, expected) in [
         (&modifiers.min, original.min.as_ref()),
         (&modifiers.max, original.max.as_ref()),
@@ -6992,6 +7013,21 @@ fn match_effect_proofs(
                         || modifiers.machine
                     {
                         return None;
+                    }
+                    if let Some(schema) = checked
+                        .source_facts
+                        .as_deref()
+                        .and_then(|facts| facts.stored_contracts.as_deref())
+                        .and_then(|schemas| schemas.iter().find(|schema| schema.id == *model))
+                    {
+                        if let Some(original) = schema
+                            .fields
+                            .iter()
+                            .find(|field| field.id == *id && field.contributed.is_some())
+                        {
+                            match_stored_contract_schema(ir, schema, db?)?;
+                            match_stored_contract_field(ir, original, db?)?;
+                        }
                     }
                     let mut declared = descriptor.fields.iter().filter(|f| f.name == *name);
                     let emitted = declared.next()?;

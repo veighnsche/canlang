@@ -1,0 +1,49 @@
+{
+  "request": {
+    "model": "jev-latest",
+    "state": {
+      "goal": "Restore default current-authorized changed-record projections for unchanged actual PromptLab archive_entry/restore_entry and corresponding Tag scenarios. Do not weaken browser evidence or introduce a returned scalar/read authority; choose bounded proof integration.",
+      "verified_source": "CanPromptLab defines archive_evidence contributed fields archived:bool=false, archived_by:user?=null, archive_recorded_at:datetime?=null; Entry and Tag attach it. archive_entry(entry:Entry) by=curator requires not entry.archived, then sets archived=true/by=actor/time=now. restore writes false/null/null. Both return void. DESIGN475 requires receipt plus authorized changed records by default; explicit returns are separate. Current runtime response commits but lacks records.",
+      "facts": [
+        "Resolver attaches genuine Given field symbols to model order and TypeTable.given_fields; symbols carry original attachment source span/type rather than a fabricated Field syntax node. EffectTables ModelData.fields contains only authored fields. Type/default/bounds/captions were already checked by Given intake; live saved contracts remain native compiler inputs.",
+        "analysis/scenario_disclosure.rs field_type_id2600 first requires each field in authored effects.models.fields. Reading contributed archived in leading require therefore declines missing checked stored field declaration; contributed set assignments hit same function. checked_stored_contracts4950 independently requires authored FieldData for every model field, so its stored schema census also refuses Given leaves.",
+        "Existing CheckedScenarioContributedField proof retains exact field/canonical/source/span/type/checked Given value/constraints. check_created_model4312 already creates this proof for genuine constructor contributions. codegen/scenario_create_sources.rs validates original contributed default/min/max/type against lowered IR and actual model descriptor using existing given_constant_expr/given_literal_expr and source equality. No need to pretend contributed fields are authored AST.",
+        "Native compiler receipt collection requires complete checked provenance plus fresh sealed source/IR/schema/field validation. Current archive artifact is result:{type:void} without disclosure; this is a real missing producer profile, not optional caller record disclosure. Existing runtime invoke.ts8829 calls State projectScenarioReceipt only for checked disclosure/association. Direct runtime return of raw rows would violate authority and replay rules.",
+        "State existing projectScenarioReceipt owns current viewer grants, original saved association and versioned changed snapshots on fresh and retained replay, including withholding after revocation. Existing actual PromptLab native test already imports current source/saved closure, invokes archive/restore/permission denials and real authenticated worker. It can add changed-record/replay/current-read assertions without a new harness.",
+        "Current ordinary scalar disclosure result domain already includes bool, nullable user and nullable datetime. Proposed fix admits genuine checked contributed leaves in that existing domain only, preserving original owner/module/field identity, exact attachment/saved contribution source/default/bounds and sealed original input; malformed or foreign contributions must decline. No new runtime/public carrier, source syntax, capability or authority, and no arbitrary object/scalar producer reads."
+      ],
+      "acceptance": "Native unchanged Entry/Tag archive and restore yield current-authorized changed records with archived flag, actual actor and exact admitted time; retained replay projects original outcome with current authority and withholds unauthorized row/fields. Compiler genuine contributions complete plan and mismatched owner/type/default/bounds/source/IR refuse. Ordinary authored field behavior and first-failure/source execution order unchanged; no disclosure by source-caption inference.",
+      "options_tradeoff": "Compare complete strategies against the same permission, replay and output requirements. Reusing a checked contribution proof within the existing stored-field provenance path addresses both read/write and census at the defining owner. A separate generated-field receipt lane can preserve isolation but duplicates joins and qualification and adds a profile. Source expansion/ad hoc returns do not preserve the unchanged native generated contribution workflow and are incomplete."
+    },
+    "questions": {
+      "implementation": {
+        "type": "choice",
+        "instructions": "Which bounded implementation best closes this demonstrated changed-record disclosure gap while preserving current viewer projection, original receipt replay and checked source ownership? Assess all options at the same stated outcome.",
+        "criteria": {
+          "reuse_checked_given_proof": "Reuse existing CheckedScenarioContributedField facts in stored-field type/read/write and complete-schema census. Validate exact owner/attachment/source/type/default/bounds and lowered descriptor with existing constructor validation. Consume existing native receipt/projection/replay mechanism. No fabricated FieldData, new runtime carrier or arbitrary value admission; finite existing scalar domain includes bool/user?/datetime?.",
+          "separate_generated_receipt_lane": "Add a distinct finite native disclosure profile for Given archive fields and schema census, with its own source/owner/descriptor joins, then feed existing State projection/replay. Can isolate generated provenance clearly but adds profile selection/validation paths and duplicates some constructor proof logic; identical authority and refusal obligations remain.",
+          "source_workaround": "Replace generated fields with authored schema or change scenarios/returns to manually supply archive evidence. Avoids this producer gap, but changes the unchanged source workflow or default receipt behavior and cannot count as completion of native Given disclosure."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "implementation": {
+        "type": "choice",
+        "choice": "reuse_checked_given_proof",
+        "confidence": 1.0,
+        "probabilities": {
+          "reuse_checked_given_proof": 1.0,
+          "separate_generated_receipt_lane": 0.0,
+          "source_workaround": 0.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1391,
+      "output_tokens": 56
+    }
+  }
+}

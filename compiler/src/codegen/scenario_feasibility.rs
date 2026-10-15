@@ -541,6 +541,7 @@ fn same_create(a: &CheckedScenarioCreate, b: &CheckedScenarioCreate) -> bool {
         && a.definition.source == b.definition.source
         && a.definition.span == b.definition.span
         && same_model(&a.definition.declaration, &b.definition.declaration)
+        && a.definition.contributed == b.definition.contributed
         && same_slice(&a.definition.fields, &b.definition.fields, |a, b| {
             a.field == b.field
                 && a.name == b.name
@@ -629,6 +630,7 @@ fn same_stored_schema(a: &CheckedStoredContractSchema, b: &CheckedStoredContract
                 && a.required_array == b.required_array
                 && a.declared == b.declared
                 && a.constraints == b.constraints
+                && a.contributed == b.contributed
                 && a.reuse == b.reuse
                 && a.trim == b.trim
                 && a.min == b.min
