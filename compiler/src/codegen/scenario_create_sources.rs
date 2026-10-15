@@ -172,6 +172,7 @@ pub(super) fn checked_created_schema(
         text,
         operands: false,
         membership_call: None,
+        query_alias: None,
     };
     for (data, original_field) in declaration.fields.iter().zip(&definition.fields) {
         let field = ir.items.get(data.field.0 as usize)?;
@@ -652,6 +653,7 @@ pub(super) fn checked_create_expression(
         text,
         operands: true,
         membership_call: None,
+        query_alias: None,
     }
     .expression(actual, node, 0)
 }
@@ -763,6 +765,9 @@ struct SourceExpressions<'a> {
     /// Borrow the existing exact transitive membership proof only while
     /// matching the admitted authorization body; ordinary StateRead stays refused.
     membership_call: Option<&'a crate::analysis::scenario_disclosure::CheckedDecisionCall>,
+    /// The checked query's authored alias may normalize to the IR row name.
+    /// This mapping is borrowed only while matching that query's predicate.
+    query_alias: Option<(&'a str, &'a str)>,
 }
 
 impl SourceExpressions<'_> {
@@ -2144,6 +2149,7 @@ impl SourceExpressions<'_> {
             text: defining_text,
             operands: true,
             membership_call: Some(membership),
+            query_alias: None,
         }
         .expression(
             body,
@@ -2413,7 +2419,14 @@ impl SourceExpressions<'_> {
                             }))
             }
             (IrExpr::Name(name), SyntaxKind::NameRef | SyntaxKind::Name) if self.operands => {
-                single_name(node, self.text)? == name
+                let authored = single_name(node, self.text)?;
+                if let Some((source, lowered)) = self.query_alias
+                    && authored == source
+                {
+                    name == lowered
+                } else {
+                    authored == name
+                }
             }
             (IrExpr::Member { base, field }, SyntaxKind::NameRef | SyntaxKind::Name)
                 if self.operands =>
@@ -2666,23 +2679,46 @@ impl SourceExpressions<'_> {
                     };
                     source_argument = inner;
                 }
+                let IrExpr::Query(scan) = &domain.expr else {
+                    return None;
+                };
+                let alias = scan.source.as_ref()?.clauses.first()?;
+                let crate::analysis::types::CheckedQueryClauseKind::As { name: alias_name } =
+                    &alias.kind
+                else {
+                    return None;
+                };
+                if Some(alias.node) != query.alias {
+                    return None;
+                }
                 if NodeKey::of(source_argument) != query.node
                     || source_path(self.nodes.get(&query.domain)?, self.text)?
                         != self.ir.items.get(query.model.0 as usize)?.name
                     || source_path(self.nodes.get(&query.first.as_ref()?.actor)?, self.text)?
                         != "actor"
                     || source_path(self.nodes.get(&query.order.first()?.node)?, self.text)?
-                        != "row.id"
+                        != format!("{alias_name}.id")
                 {
                     return None;
                 }
-                let IrExpr::Query(scan) = &domain.expr else {
-                    return None;
-                };
                 if scan.value_order.is_some() {
                     return None;
                 }
-                self.expression(scan.where_pred.as_ref()?, query.predicate?, depth + 1)?;
+                SourceExpressions {
+                    ir: self.ir,
+                    db: self.db,
+                    original: self.original,
+                    nodes: self.nodes,
+                    text: self.text,
+                    operands: self.operands,
+                    membership_call: self.membership_call,
+                    query_alias: Some((alias_name, &scan.where_param)),
+                }
+                .expression(
+                    scan.where_pred.as_ref()?,
+                    query.predicate?,
+                    depth + 1,
+                )?;
                 true
             }
             (

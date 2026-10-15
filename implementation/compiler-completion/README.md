@@ -310,7 +310,7 @@ disappear and two CanPurchase stored-first correspondence refusals are exposed.
 The CanRefer metadata-order occurrence clears; the CanPurchase native source
 recipes remain a local dependency. Original sources and catalog are unchanged.
 
-**Current C02/C10 batch — direct temporal field ordering (2026-10-15).**
+**Completed C02/C10 batch — direct temporal field ordering (2026-10-15).**
 The next eight original order keys are direct own-row date/datetime fields.
 Compiler lowering and the three existing native receivers now admit those exact
 scalar types. State extends its existing typed order pipeline with Values civil
@@ -336,6 +336,31 @@ no usable artifact. Against the retained 705-error capture, all **eight** direct
 temporal-order refusals disappear and **four** stored-first correspondence
 refusals are exposed. Original sources and catalog remain unchanged.
 
+**Completed C02/C10 batch — first-query alias equivalence (2026-10-15).**
+A direct reuse control found that the accepted first fixture compiles with `row`
+but fails after renaming that query alias consistently to `candidate`. Source
+correspondence now uses the checked alias declaration and its scoped lowering
+mapping, preserving the original predicate/order nodes and native receipt join.
+The shared fresh-IR semantic comparison also compares the predicate parameter:
+a same-span changed binding was accepted by the old comparator and is now refused.
+No source seal, query candidate, result/null consumption or permission is removed.
+This corrects implementation spelling dependence under existing binding rules;
+it introduces no language choice requiring JEV.
+
+All four first-query compiler checks pass, including two renamed aliases,
+changed lowered binding refusal and retained source/declaration/membership
+mutants. The renamed-alias native D1/Identity/Work fixture passes **1/1** in
+**66.82s**, retaining empty selection, policy-hidden candidates, constraints,
+guarded send/provider execution, late rollback, revocation, replay, restored
+authority and final source/installed-byte checks. Frozen original 24-source
+validation exits **10** after **392.08s** with the same **701** diagnostics
+(**675 E6008**, **26 E6007**), complete=true, omitted=0; none are added or removed
+and no usable artifact is produced. Original sources and catalog are unchanged.
+The native fixture retains a separate team owner so its existing caller-revocation
+assertions comply with Identity's last-owner rule. No revocation assertion or
+Identity policy is weakened. Normal owning builds and formatting/diff checks pass.
+
+**Current C02/C10 leaf — canonical first correspondence.**
 The next defining query dependency is canonical checked query→first composition
 correspondence, preserving its exact ordered output and selected-row/null use.
 Existing private runtime query handles already support first selection; source
