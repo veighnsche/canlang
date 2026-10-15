@@ -405,6 +405,27 @@ async function createRowScope(input: CompiledExampleInput, moduleIndex: number, 
           account = accountsOfRow.users[by]!.account;
         } else if (typeof by === "string" && (by === "members" || rowCaller.roles.includes(by))) {
           account = rowCaller.account === "public" ? null : rowCaller.account;
+        } else if (Array.isArray(by)) {
+          // The Testkit has already resolved and provisioned this row caller.
+          // Match its static role selection; this path never installs grants.
+          const length = Object.getOwnPropertyDescriptor(by, "length");
+          const roles: string[] = [];
+          let valid = length !== undefined && "value" in length &&
+            Reflect.ownKeys(by).length === length.value + 1;
+          if (valid) for (let index = 0; index < length!.value; index++) {
+            const entry = Object.getOwnPropertyDescriptor(by, String(index));
+            if (entry === undefined || !("value" in entry) || !entry.enumerable ||
+                typeof entry.value !== "string" || entry.value.length === 0 ||
+                ["self", "other", "outsider", "public"].includes(entry.value)) {
+              valid = false;
+              break;
+            }
+            roles.push(entry.value);
+          }
+          const expected = roles.length === 0 ? ["members"] : roles;
+          if (valid && rowCaller.account === accountsOfRow.self && rowCaller.authenticated &&
+              rowCaller.team === "current" && expected.length === rowCaller.roles.length &&
+              expected.every((role, index) => role === rowCaller.roles[index])) account = accountsOfRow.self;
         } else if (isUserRef(by) && actorAccounts.has(by.id)) {
           account = actorAccounts.get(by.id)!;
         } else if (typeof by === "object" && by !== null) {
