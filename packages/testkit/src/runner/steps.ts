@@ -152,6 +152,20 @@ export function callerFromCell(
     }
     return { kind: "membership", roles: [value] };
   }
+  if (Array.isArray(value)) {
+    const invalid = (): never => { throw new FixtureSetupError(null, "as-cell role array must contain dense own non-empty role strings"); };
+    const length = Object.getOwnPropertyDescriptor(value, "length");
+    if (length === undefined || !("value" in length) || Reflect.ownKeys(value).length !== length.value + 1) return invalid();
+    const roles: string[] = [];
+    for (let index = 0; index < length.value; index++) {
+      const entry = Object.getOwnPropertyDescriptor(value, String(index));
+      if (entry === undefined || !("value" in entry) || !entry.enumerable ||
+          typeof entry.value !== "string" || entry.value.length === 0 ||
+          ["self", "other", "outsider", "public"].includes(entry.value)) return invalid();
+      roles.push(entry.value);
+    }
+    return roles.length === 0 ? { kind: "self" } : { kind: "membership", roles };
+  }
   if (typeof value === "object" && value !== null) {
     const name = suite.rawNames.get(value);
     if (name === undefined) {
