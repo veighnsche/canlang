@@ -1,0 +1,29 @@
+{
+  "decision": "strict_source_access",
+  "accepted_scope": "A present top-level stored field withheld by State raises forbidden on ordinary compiled native source access. Existing source observer leaf checks remain unchanged. Legitimately absent optional fields retain existing carriers; internal data-only State filters retain their existing projected-value rules.",
+  "responses": [
+    {
+      "request": "jev-access-request-1.json",
+      "response": "jev-access-response-1.json",
+      "choice": "strict_source_access",
+      "probability": 0.96,
+      "confidence": 0.94
+    },
+    {
+      "request": "jev-access-request-2.json",
+      "response": "jev-access-response-2.json",
+      "choice": "strict_source_access",
+      "probability": 0.99,
+      "confidence": 0.98
+    },
+    {
+      "request": "jev-access-request-3.json",
+      "response": "jev-access-response-3.json",
+      "choice": "strict_source_access",
+      "probability": 0.99,
+      "confidence": 0.98
+    }
+  ],
+  "rationale": "Uniform source operand meaning matches the read-grant contract and does not add an ordering-specific read mode. A separate strict order reader preserves legacy false outcomes but makes helper/predicate/key evaluation context-sensitive.",
+  "uncertainty": "Advice does not prove correctness. This observably changes two old fixture false/zero results to exact forbidden and must be reported. Positive owner/projection, empty-domain, rollback and revocation assertions must remain. No nested/derived profile completion is implied."
+}

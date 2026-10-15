@@ -1602,6 +1602,13 @@ pub struct IrOrder {
     pub descending: bool,
 }
 
+/// One checked, alias-scoped supplied-array ordering expression.
+#[derive(Debug, Clone)]
+pub struct IrValueOrder {
+    pub key: Box<TypedExpr>,
+    pub descending: bool,
+}
+
 /// Query domain: a stored model (server `records()`) or an in-memory
 /// value (array combinators over the decoded base).
 #[derive(Debug, Clone)]
@@ -1637,6 +1644,8 @@ pub struct IrQuery {
     pub where_async: bool,
     /// Order entries in source order (model domains only).
     pub order: Vec<IrOrder>,
+    /// Supplied-array key; model domains retain their existing field recipes.
+    pub value_order: Option<IrValueOrder>,
     /// Limit value, if any (excess fails, never truncates silently).
     pub limit: Option<Box<TypedExpr>>,
     /// Archived selector, if any (model domains only).
@@ -2893,6 +2902,9 @@ impl CheckedCommittedSources {
                 IrExpr::Query(query) => {
                     if let IrQueryDomain::Value { base, .. } = &query.domain {
                         add(base);
+                    }
+                    if let Some(order) = &query.value_order {
+                        add(&order.key);
                     }
                     for value in [
                         &query.parent,
@@ -6365,6 +6377,7 @@ impl<'a> Cx<'a> {
                         where_pred: None,
                         where_async: false,
                         order: Vec::new(),
+                        value_order: None,
                         limit: None,
                         archived: None,
                         select: None,
@@ -6683,6 +6696,7 @@ impl<'a> Cx<'a> {
                     where_pred: None,
                     where_async: false,
                     order: Vec::new(),
+                    value_order: None,
                     limit: None,
                     archived: None,
                     select: None,
@@ -7152,6 +7166,7 @@ impl<'a> Cx<'a> {
             || query.where_pred.is_some()
             || query.where_async
             || !query.order.is_empty()
+            || query.value_order.is_some()
             || query.limit.is_some()
             || query.archived.is_some()
             || query.select.is_some()
@@ -8158,6 +8173,7 @@ impl<'a> Cx<'a> {
         let mut where_pred = None;
         let mut where_async = false;
         let mut order = Vec::new();
+        let mut value_order = None;
         let mut limit = None;
         let mut archived = None;
         let mut select = None;
@@ -8211,7 +8227,15 @@ impl<'a> Cx<'a> {
                 captures_normalized_row(db, part, scope, bound)
             })
         }
-        let authored_param = alias.clone().unwrap_or_else(|| "row".to_string());
+        // An omitted value alias creates no source binding. Keep the generated
+        // loop parameter out of the source namespace, including outer `row`.
+        let authored_param = alias.clone().unwrap_or_else(|| {
+            if value_domain {
+                format!("$query$value${}", node.span.start)
+            } else {
+                "row".to_string()
+            }
+        });
         let bound = HashSet::from([authored_param.clone()]);
         let captures_row = !value_domain
             && clauses.iter().any(|clause| {
@@ -8285,10 +8309,38 @@ impl<'a> Cx<'a> {
                 }
                 "order" => {
                     if value_domain {
-                        return IrExpr::Unsupported {
-                            what: "value query order".to_string(),
-                            why: "ordering has no array lowering".to_string(),
+                        let Some(value) = clause_parts.iter().find(|n| is_expression(n.kind))
+                        else {
+                            return IrExpr::Unsupported {
+                                what: "value query order".into(),
+                                why: "checked ordering expression is required".into(),
+                            };
                         };
+                        let descending = value.kind == SyntaxKind::Unary
+                            && kids(value).iter().any(|part| {
+                                part.kind == SyntaxKind::Punct && self.text(part.span) == "-"
+                            });
+                        let key_node = if descending {
+                            kids(value)
+                                .into_iter()
+                                .find(|part| is_expression(part.kind))
+                                .unwrap_or(value)
+                        } else {
+                            value
+                        };
+                        let key = self.decode_expr(&inner, key_node);
+                        if !matches!(key.ty.nullable_inner().unwrap_or(&key.ty), ResolvedType::Scalar(scalar) if scalar.is_ordered())
+                        {
+                            return IrExpr::Unsupported {
+                                what: "value query order".into(),
+                                why: "an ordered checked scalar key is required".into(),
+                            };
+                        }
+                        value_order = Some(IrValueOrder {
+                            key: Box::new(key),
+                            descending,
+                        });
+                        continue;
                     }
                     if let Some(value) = clause_parts.iter().find(|n| is_expression(n.kind)) {
                         let term = model_id.zip(alias.as_deref()).and_then(|(model, alias)| {
@@ -8357,7 +8409,13 @@ impl<'a> Cx<'a> {
                         }
                     }
                     let projection = self.decode_expr(&select_inner, proj_node);
-                    select_param = Some(alias.clone().unwrap_or_else(|| "row".to_string()));
+                    select_param = Some(alias.clone().unwrap_or_else(|| {
+                        if value_domain {
+                            where_param.clone()
+                        } else {
+                            "row".to_string()
+                        }
+                    }));
                     select = Some(Box::new(projection));
                 }
                 _ => {}
@@ -8378,7 +8436,7 @@ impl<'a> Cx<'a> {
             Some(model) => IrQueryDomain::Model(model),
             None => IrQueryDomain::Value {
                 base: Box::new(value_base.expect("value domain decodes its head")),
-                alias: alias.unwrap_or_else(|| "row".to_string()),
+                alias: alias.unwrap_or_else(|| where_param.clone()),
             },
         };
         IrExpr::Query(IrQuery {
@@ -8391,6 +8449,7 @@ impl<'a> Cx<'a> {
             where_pred,
             where_async,
             order,
+            value_order,
             limit,
             archived,
             select,
@@ -8682,6 +8741,7 @@ pub fn expr_uses_async(expr: &TypedExpr) -> bool {
                     IrQueryDomain::Model(_) => return true,
                     IrQueryDomain::Value { base, .. } => work.push(base),
                 }
+                work.extend(query.value_order.iter().map(|order| order.key.as_ref()));
                 work.extend(query.parent.iter().map(|v| v.as_ref()));
                 work.extend(query.where_pred.iter().map(|v| v.as_ref()));
                 work.extend(query.limit.iter().map(|v| v.as_ref()));
@@ -8756,6 +8816,7 @@ pub fn expr_async_without_derives(expr: &TypedExpr) -> bool {
                     IrQueryDomain::Model(_) => found_async = true,
                     IrQueryDomain::Value { base, .. } => work.push(base),
                 }
+                work.extend(query.value_order.iter().map(|order| order.key.as_ref()));
                 work.extend(query.parent.iter().map(|v| v.as_ref()));
                 work.extend(query.where_pred.iter().map(|v| v.as_ref()));
                 work.extend(query.limit.iter().map(|v| v.as_ref()));
@@ -19290,6 +19351,9 @@ fn collect_s_refs(expr: &IrExpr, out: &mut Vec<String>) {
         IrExpr::Query(query) => {
             if let IrQueryDomain::Value { base, .. } = &query.domain {
                 collect_s_refs(&base.expr, out);
+            }
+            if let Some(order) = &query.value_order {
+                collect_s_refs(&order.key.expr, out);
             }
             for part in query
                 .parent

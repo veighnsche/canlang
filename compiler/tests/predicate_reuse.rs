@@ -16,11 +16,14 @@ fn ordinary_collection_helpers_preserve_order_authority_and_failures() {
         "predicate-reuse.can".into(),
         r#"app PredicateReuse
 Given
+ role sorter
  contract Flag {enabled:bool}
- Item {enabled:bool}
- policy Item read=members
+ Item {enabled:bool, rank:int=0}
+ policy Item read=members fields=enabled
+ policy Item read=sorter fields=rank
  fixture item=Item {enabled=true}
  derive read_enabled(item:Item):bool = item.enabled
+ derive ordered_items(items:Item[]):Item[] = items as item order=-item.rank
  derive enabled(flag:Flag):bool = flag.enabled
  derive inline_any(flags:Flag[]):bool = any(flags as flag,flag.enabled)
  derive helper_any(flags:Flag[]):bool = any(flags as flag,enabled(flag))
@@ -40,6 +43,20 @@ When
   examples seed=[item]
    as -> result
    members -> [true]
+   public -> error(forbidden)
+ scenario sorted() read=true -> bool[] by=members
+  do return ordered_items(Item) as item select read_enabled(item)
+  examples seed=[item]
+   as -> result
+   sorter -> [true]
+   members -> error(forbidden)
+   public -> error(forbidden)
+ scenario sorted_write() -> bool[] by=members
+  do return ordered_items(Item) as item select read_enabled(item)
+  examples seed=[item]
+   as -> result
+   sorter -> [true]
+   members -> error(forbidden)
    public -> error(forbidden)
 Then
 "#
@@ -150,7 +167,7 @@ const checked=await runCompiledExamples({
  compatibilityDate:'2026-07-15',d1Binding:'DB',testkit,signal:AbortSignal.timeout(30000),
 });
 assert.equal(checked.ok,true,JSON.stringify(checked.report));
-assert.deepEqual(checked.report.summary,{total:2,passed:2,failed:0,setupFailed:0,unsupported:0});
+assert.deepEqual(checked.report.summary,{total:8,passed:8,failed:0,setupFailed:0,unsupported:0});
 "#.replace("__ENTRY__",&serde_json::to_string(&artifact.modules[0].js).unwrap())
  .replace("__ARTIFACT_BYTES__",&serde_json::to_string(&canlang_compiler::codegen::artifact::to_json(&artifact)).unwrap());
     // Miniflare's worker threads must not inherit --input-type=module.

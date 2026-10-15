@@ -1,0 +1,26 @@
+{
+  "decision": "same_directional_nulls",
+  "adopted": "Supplied-array null keys follow the existing model direction rule: null first ascending, last descending. Array ties retain input position.",
+  "responses": [
+    {
+      "request": "jev-null-request-1.json",
+      "response": "jev-null-response-1.json",
+      "choice": "same_directional_nulls",
+      "confidence": 1
+    },
+    {
+      "request": "jev-null-request-2.json",
+      "response": "jev-null-response-2.json",
+      "choice": "same_directional_nulls",
+      "confidence": 1
+    },
+    {
+      "request": "jev-null-request-3.json",
+      "response": "jev-null-response-3.json",
+      "choice": "same_directional_nulls",
+      "confidence": 0.99
+    }
+  ],
+  "uncertainty": "The three choices agree, but model probabilities do not prove correctness or global optimality. Array null-last is convenient for incomplete displays; keeping accepted model behavior and domain-consistent expression semantics outweighs that convenience. No record comparison/profile or authority changes are authorized by this advice.",
+  "verified_scope": "Type checker already admits nullable ordered scalars. Existing State comparator and accepted numeric-order decision preserve directional null placement. Source spec previously omitted that detail."
+}

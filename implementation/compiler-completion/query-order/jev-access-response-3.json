@@ -1,0 +1,50 @@
+{
+  "request": {
+    "state": {
+      "goals": "AI-generated economical CRUD SaaS; compact predictable authoring; equivalent helper refactoring; preserve field permissions, evaluation order, snapshot authority and failures. No per-app exceptions, broad effect system or new syntax without need.",
+      "verified": {
+        "spec": "DESIGN §4 says denied requested leaves are withheld, never represented as null or a silently missing property. Source observer predicates already use State-issued original-field presence to install forbidden getters. Genuinely absent optional stored fields retain their old absence carrier. Viewer projection never exposes withheld raw values.",
+        "new_failure": "New supplied-array ordering evaluates each surviving key once including singleton arrays. A native member with Item.enabled grant but no Item.rank grant successfully sorted a singleton by item.rank because ordinary query rows omit rank and JS property access yields undefined. This violates required order-key read authority; sorter role with rank grant succeeds.",
+        "owner_fix": "State can retain same-snapshot original-field names privately on exact projected query records, associated with model/revision/id/version and rejecting copied rows. CF existing accessor can distinguish present-but-withheld from legitimately absent optional fields without a second read or expanded projection. Withheld getter throws original State forbidden; read/mutation sort checks now pass 8 native rows.",
+        "legacy_conflict": "An existing typed-authorized-reads native fixture deliberately expects all(Entry as entry,entry.secret==\"sensitive\") to return false for auditor granted count but not secret. It also expects where entry.secret==\"sensitive\" to select none. With strict accessor, these authored source reads instead fail forbidden. This is an observable behavior change, not merely a count reduction. Owner success, partial wire projection, field absence, rollback/revocation and no-write assertions must remain.",
+        "boundaries": "This concerns compiled source field evaluation on native projected records. Internal data-only State query predicates retaining projected-missing nonmatch semantics are separate and need not change. Private original-policy evaluation retains owner authority and does not recursively ask its own grant."
+      },
+      "alternatives": {
+        "strict_source_access": "Apply the same present-but-withheld forbidden accessor to all compiled native source field reads, including any/all and where operands. Retain legitimate optional absence and data-only State predicates. Correct the legacy fixture/comment to expect exact forbidden for rows that attempt the denied source field; preserve all positive/projection/rollback/revocation assertions. One source field meaning across helpers, predicates and ordering; changes legacy silent-false behavior.",
+        "retain_legacy_with_explicit_order_reader": "Retain the legacy undefined/nonmatch behavior for ordinary compiled source predicates and aggregates. Give ordering keys a separate explicit permission-checking field-reader integration using the same genuine projection/presence facts, including extracted helper calls and nested references; denied keys fail forbidden. Preserves existing false results and strict sorting but requires context propagation/another read-mode boundary and leaves field failure meaning different by context.",
+        "adopt_uniform_missing_source_values": "Keep missing/undefined for every compiled projected source read and define nullable/missing ordering keys as missing values. Compact and compatible with legacy false outcomes, but hidden rank would again silently influence ordering as a missing key and does not satisfy the newly required denied-key refusal. Reject this if it cannot meet permission semantics."
+      }
+    },
+    "questions": {
+      "field_access": {
+        "type": "choice",
+        "instructions": "For this native array-order blocker, select the source-access policy that best balances accepted behavior, coherent permissions/failures and compact reusable authoring. Account explicitly for the old false-result fixture and the new singleton unauthorized-key success; treat current code and tests as evidence, not final language authority.",
+        "criteria": {
+          "strict_source_access": "Apply the same present-but-withheld forbidden accessor to all compiled native source field reads, including any/all and where operands. Retain legitimate optional absence and data-only State predicates. Correct the legacy fixture/comment to expect exact forbidden for rows that attempt the denied source field; preserve all positive/projection/rollback/revocation assertions. One source field meaning across helpers, predicates and ordering; changes legacy silent-false behavior.",
+          "retain_legacy_with_explicit_order_reader": "Retain the legacy undefined/nonmatch behavior for ordinary compiled source predicates and aggregates. Give ordering keys a separate explicit permission-checking field-reader integration using the same genuine projection/presence facts, including extracted helper calls and nested references; denied keys fail forbidden. Preserves existing false results and strict sorting but requires context propagation/another read-mode boundary and leaves field failure meaning different by context.",
+          "adopt_uniform_missing_source_values": "Keep missing/undefined for every compiled projected source read and define nullable/missing ordering keys as missing values. Compact and compatible with legacy false outcomes, but hidden rank would again silently influence ordering as a missing key and does not satisfy the newly required denied-key refusal. Reject this if it cannot meet permission semantics."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "field_access": {
+        "type": "choice",
+        "choice": "strict_source_access",
+        "confidence": 0.98,
+        "probabilities": {
+          "strict_source_access": 0.99,
+          "retain_legacy_with_explicit_order_reader": 0.01,
+          "adopt_uniform_missing_source_values": 0.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1323,
+      "output_tokens": 55
+    }
+  }
+}

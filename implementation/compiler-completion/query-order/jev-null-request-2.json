@@ -1,0 +1,28 @@
+{
+  "state": {
+    "goal": "Compact predictable AI-authored CRUD SaaS, one coherent ordering primitive, preserve permissions/order/failures and current accepted behavior; implement supplied-array expression order without per-app exceptions.",
+    "verified": {
+      "language": "DESIGN \u00a73: query clauses filter then order then select; one order expression, leading minus is descending direction, not numeric negation. Arrays preserve supplied order absent order; record queries default created,id and append id ties. Type checker admits nullable ordered scalars. No normative nullable-key placement sentence found.",
+      "installed_model": "State compareRowsForOrder currently sorts null/missing first in ascending and last descending, then stable record id ties. Accepted 2026-10-08 numeric ordering decision preserves current null/missing behavior. Changing that would reopen accepted model behavior.",
+      "gap": "12 original supplied-array order refusals include datetime interval/boundary keys, supplied record ids, integer sequences and text group keys. Existing IrOrder is a stored field selector recipe. Value arrays need their own typed authored key, not new syntax or storage authority. Evaluate array once, filter fully, evaluate each surviving key once in input order (including singleton), sort private decorations with original-index ties, then project. Failures propagate before later keys/projections. Existing typed Values comparisons reused."
+    },
+    "alternatives": {
+      "same_directional_nulls": "Use existing model placement also for supplied arrays: null before nonnull ascending, reversed descending; ties preserve original array position. Document this shared null rule. No changed model behavior and no source syntax. NULL may appear first for ascending business display; authors can explicitly order a nonnullable fallback when desired.",
+      "array_nulls_last": "Always place null after nonnull in value arrays in both directions, preserve array ties. Document array versus stored-model distinction. Often convenient for incomplete display keys, but identical nullable order expressions differ by domain. No model behavior change or syntax.",
+      "explicit_nonnull_keys": "Refuse nullable array sort keys until author uses explicit ?? fallback or filtering/narrowing. Keeps null ordering out of new array mechanism, but contradicts current checker admission for that profile, adds source tokens and may require more changes to established intent.",
+      "change_all_to_nulls_last": "Adopt null-last both directions for all expression queries including models, retaining domain-specific tie breakers. Coherent convenient policy, but changes accepted model results and requires State/native qualification beyond these supplied-array fixes."
+    }
+  },
+  "questions": {
+    "null_order": {
+      "type": "choice",
+      "instructions": "For the array ordering repair described here, choose the null-key policy that best balances compact authoring, coherent meaning across domains, existing accepted results and failure guarantees. Treat each alternative as a full contract, not just a patch size.",
+      "criteria": {
+        "same_directional_nulls": "Use existing model placement also for supplied arrays: null before nonnull ascending, reversed descending; ties preserve original array position. Document this shared null rule. No changed model behavior and no source syntax. NULL may appear first for ascending business display; authors can explicitly order a nonnullable fallback when desired.",
+        "array_nulls_last": "Always place null after nonnull in value arrays in both directions, preserve array ties. Document array versus stored-model distinction. Often convenient for incomplete display keys, but identical nullable order expressions differ by domain. No model behavior change or syntax.",
+        "explicit_nonnull_keys": "Refuse nullable array sort keys until author uses explicit ?? fallback or filtering/narrowing. Keeps null ordering out of new array mechanism, but contradicts current checker admission for that profile, adds source tokens and may require more changes to established intent.",
+        "change_all_to_nulls_last": "Adopt null-last both directions for all expression queries including models, retaining domain-specific tie breakers. Coherent convenient policy, but changes accepted model results and requires State/native qualification beyond these supplied-array fixes."
+      }
+    }
+  }
+}

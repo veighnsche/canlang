@@ -81,8 +81,8 @@ failures remain: `catalog_factories_lower_from_source` and
 Their assertions are preserved; no all-green compiler-suite claim follows.
 The final CLI build, formatting and diff checks pass.
 
-The current original **24-source** command below exits **10**, with **718 errors**:
-**692 E6008**, **26 E6007**, `complete=true`, `omitted=0`, and no usable artifact.
+The current original **24-source** command below exits **10**, with **706 errors**:
+**680 E6008**, **26 E6007**, `complete=true`, `omitted=0`, and no usable artifact.
 The preceding module-ownership batch closed the E6006 omissions and its
 recorded admission/lexical-target refusals. The duration batch removes exactly
 eleven diagnostics relative to that 909-error capture: six division, four
@@ -99,7 +99,7 @@ are not independent feature tasks:
 | Root cause / defining mechanism | Occurrences | Remaining scope |
 | --- | ---: | --- |
 | Checked source/inventory publication | 3 | Membership and collection-call correspondence; standard inventory/completions publication is closed at its metadata scope. These include secondary refusals when the original IR closure is incomplete; never bypass the source census to silence them. |
-| Query and predicate lowering | 128 | 85 stored first-query correspondence, ordering/domain/archive profiles; ordinary async any/all, filter/select helper reuse and supplied-array first are closed. Individual source/permission correspondence remains required; not all are independent or secondary. |
+| Query and predicate lowering | 116 | 85 stored first-query correspondence, 15 model expression-order keys, 10 domain and six archive profiles; ordinary async any/all, filter/select, supplied-array first and typed supplied-array ordering are closed. Individual source/permission correspondence remains required; not all are independent or secondary. |
 | UI/server factory profiles | 198 | Original filters/defaults, forms/inputs, calendars and other component payloads. |
 | Outbound/business formatting sinks | 31 | Owning localized sink/admission contract, preserving argument order and recipient context. |
 | Dynamic route normalization | 5 | Original typed route descriptors. |
@@ -199,11 +199,12 @@ push, deployment, training or dataset generation is authorized. The bounded
 review retains private user-mail, post-mutation table context and explicit enum
 qualification/domain conversion on their business/authority rationale. Native
 bool-only/record-bound observation entry points are now labeled implementation
-limits in DESIGN/GRAMMAR. Next: discriminate ordinary direct/helper async
-any/all behavior and repair any demonstrated general lowering gap; preserve
-private policy versus viewer-read authority.
+limits in DESIGN/GRAMMAR. Ordinary direct/helper any/all, filter/select and
+supplied-array ordering are addressed in the batches below. Preserve private
+policy versus viewer-read authority; nonboolean observer and unbound page-entry
+support remain implementation gaps at their defining owners.
 
-**Current C02/C10 batch — ordinary predicate reuse (2026-10-15).** The
+**Completed C02/C10 batch — ordinary predicate reuse (2026-10-15).** The
 discriminating check reproduced an app-independent compositional defect:
 extracting a pure supplied-array predicate into a helper changed compile success
 into E6008 solely because emitted helper functions are async. Select sequential
@@ -223,7 +224,7 @@ preserve helper equivalence and source-order failure behavior. These are ordinar
 lowering gaps; source publication, row grants and genuine external/policy holds
 remain enforced. The persistent goal stays active beyond this checkpoint.
 
-**Current C02/C10 batch — collection helper composition (2026-10-15).**
+**Completed C02/C10 batch — collection helper composition (2026-10-15).**
 Existing sequential awaited loops now serve async array filters/projections and
 model projections, preserving the canonical authorized model reader. Supplied
 array `first` uses the existing Values primitive after the full query completes;
@@ -240,7 +241,7 @@ permission or failure assertion was weakened. The next local dependency is the
 standard-value inventory's association with checked declarations despite unrelated
 executable lowering gaps; its source and tamper checks remain mandatory.
 
-**Current C02 batch — standard-value source association (2026-10-15).**
+**Completed C02 batch — standard-value source association (2026-10-15).**
 Metadata publication no longer depends on unrelated executable lowering success.
 The diagnostic branch independently checks the original source/Given/catalog and
 compares the same complete declaration/import/type/default/constraint/selection
@@ -261,6 +262,44 @@ is closed, not full completion-handler execution. Next ready query group:
 supplied-array ordering (12 occurrences); settle nullable-key placement against
 the existing model contract with JEV before implementing its typed key lowering.
 Keep source correspondence, model recipes, order and failures unchanged.
+
+**Current C02/C10 batch — typed supplied-array ordering (2026-10-15).**
+Retain one checked alias-scoped key and direction, evaluate keys once after the
+whole filter and before projection, preserve input identities and stable ties,
+and use existing Values scalar comparisons. Nullable/legitimately absent keys
+follow the existing record direction rule (first ASC, last DESC); three JEV
+Choice consultations and uncertainty are retained in `query-order/jev-null-*`.
+Unwritten value aliases use private loop names, preserving a checked outer `row`
+through filter/order/select; explicit aliases retain normal shadowing.
+
+The direct native split-grant check initially failed: singleton sorting succeeded
+for a member missing the rank grant. State now privately retains same-snapshot
+source-field presence on exact viewer rows, and Cloudflare reuses its existing
+forbidden getter. No second read, raw-value escape or wider projection is added.
+An older fixture's ungranted secret reads used to produce false/zero; three JEV
+Choice consultations favored consistent source denial. Its two assertions now
+require exact forbidden and unchanged stored rows, retaining all owner, partial
+projection, empty-domain, rollback and revocation checks. This compatibility
+correction and uncertainty are explicit in `query-order/jev-access-*`.
+
+Final focused typed/lexical/failure execution passes **1/1**, actual native D1
+read/mutation examples **8/8**, State source-presence/query checks **6/6**,
+existing read-result checks **2/2** and the changed authorized-read case **1/1**.
+Membership **8/8** and existing model/UI ordering **3/3** pass. State/Cloudflare
+and CLI builds pass. The intermediate 24-source result removed exactly twelve
+value-order refusals, adding none. A later lexical-scope witness invalidated an
+in-progress capture; that task-owned run was explicitly stopped and is not a
+qualification result. Final frozen original 24-source validation exits **10**
+with **706** errors (**680 E6008**, **26 E6007**), complete=true, omitted=0 and
+no usable artifact. Against the retained 718-error inventory capture, exactly
+**12** value-order refusals disappear and **none** are added. Formatting/diff
+checks pass; no original source or Values catalog is changed.
+The next finite defining leaf is explicit own-row `created` ordering (three
+occurrences), already served by State's default `created,id` contract: compiler
+metadata admission plus chronological/native ID-tie checks. Eight direct temporal
+field keys need their typed receiver validation; four computed/reference keys
+remain a separate observation-owned evaluator dependency. No app-specific
+exception, broader observer profile or native CanCRM completion is claimed.
 
 These results close the declared module-lookup, duration, actor-predicate and example-context batches at their tested scopes,
 not native/browser qualification of complete CanCRM. The original reference scope

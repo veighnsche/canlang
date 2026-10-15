@@ -373,6 +373,14 @@ fn rewrite_fixture_names(expr: &mut TypedExpr, aliases: &HashMap<String, String>
                 });
                 rewrite_fixture_names(predicate, &visible);
             }
+            if let Some(order) = &mut query.value_order {
+                let mut visible = aliases.clone();
+                visible.remove(match &query.domain {
+                    IrQueryDomain::Value { alias, .. } => alias.as_str(),
+                    IrQueryDomain::Model(_) => "row",
+                });
+                rewrite_fixture_names(&mut order.key, &visible);
+            }
             if let Some(projection) = &mut query.select {
                 let mut visible = aliases.clone();
                 if let Some(param) = &query.select_param {

@@ -72,7 +72,13 @@ test('compiled aggregates use authorized native row fields and live owner read g
     assert.deepEqual(auditorRows.map((row) => row.data.count).sort(), ['1', '9007199254740993']);
     assert.ok(auditorRows.every((row) => Object.keys(row.data).join() === 'count'));
     assert.equal(committed(await invoker.invokeMutation(envelope('total'), auditorIdentity)).result, '9007199254740994');
-    assert.equal(committed(await invoker.invokeMutation(envelope('hidden'), auditorIdentity)).result, false);
+    // An ungranted source operand is a denial, not an undefined value
+    // that silently makes the comparison false. Wire projection stays partial.
+    const beforeDeniedSource = await store.query({ model: MODEL, authority: 'owner' });
+    const deniedHidden = await invoker.invokeMutation(envelope('hidden'), auditorIdentity);
+    assert.ok('error' in deniedHidden, JSON.stringify(deniedHidden));
+    assert.equal(deniedHidden.error.code, 'forbidden');
+    assert.deepEqual(await store.query({ model: MODEL, authority: 'owner' }), beforeDeniedSource);
     assert.equal(committed(await invoker.invokeMutation(envelope('hidden'), ownerIdentity)).result, true);
     for (const identity of [memberIdentity, anonymous]) {
       const deniedRead = await invoker.invokeRead(read, identity);
@@ -85,7 +91,12 @@ test('compiled aggregates use authorized native row fields and live owner read g
         '9007199254740993');
     }
     assert.equal(committed(await invoker.invokeMutation(envelope('filteredSecret'), ownerIdentity)).result, '2');
-    for (const identity of [auditorIdentity, memberIdentity, anonymous]) {
+    const deniedSecretFilter = await invoker.invokeMutation(envelope('filteredSecret'), auditorIdentity);
+    assert.ok('error' in deniedSecretFilter, JSON.stringify(deniedSecretFilter));
+    assert.equal(deniedSecretFilter.error.code, 'forbidden');
+    assert.deepEqual(await store.query({ model: MODEL, authority: 'owner' }), beforeDeniedSource);
+    // Empty visible domains evaluate no field operand.
+    for (const identity of [memberIdentity, anonymous]) {
       assert.equal(committed(await invoker.invokeMutation(envelope('filteredSecret'), identity)).result, '0');
     }
     assert.equal(committed(await invoker.invokeMutation(envelope('filtered', { minimum: '0' }), memberIdentity)).result, '0');

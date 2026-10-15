@@ -15402,3 +15402,82 @@ OperationOutcome field-schema refusals and 22 dependent event-input refusals.
 The existing source-associated inventory enables those consumers through their
 own existing checks; this does not claim remaining handler execution or complete
 CanCRM acceptance. The persistent goal remains active; no push or training.
+
+
+2026-10-15 — C02/C10: lower supplied-array expression ordering through typed keys.
+
+The original composition has twelve value-array order refusals, including
+interval/boundary datetimes, supplied record IDs, sequences and text keys.
+Keep one authored order expression and existing model field recipes; retain a
+typed alias-scoped value key and direction in IR. After filtering, evaluate each
+surviving key once in encounter order, including singleton arrays, then sort
+private item/key/index entries using owning Values comparisons (BigInt for
+int/duration/byte counts). Equal keys retain input order. Project only after
+sorting; preserve identities, input arrays, original errors and field authority.
+Pure keys stay synchronous; admitted generated helper calls are awaited in order.
+Generic dependency/fixture/semantic traversal includes keys; narrow native source
+recipes reject unexpected value ordering rather than silently ignoring it.
+
+Nullable-key placement was underspecified. Three independent equivalent Choice
+requests compared the same model direction rule, array-only null-last, explicit
+nonnull authoring and changing both domains to null-last. All advise the existing
+model rule (probability/confidence 1/1, 1/1, .99/.99). Adopt null-first ascending,
+null-last descending for arrays too. It preserves accepted stored-model results
+and one expression meaning across domains without extra source syntax. Array
+null-last can be convenient for incomplete display keys, but its domain exception
+is harder to predict; global null-last changes accepted behavior. Advice is not
+proof or authority; exact requests/responses and remaining uncertainty are saved
+in implementation/compiler-completion/query-order/jev-null-*.json.
+
+Focused emitted execution passes typed integer limits, decimal/money, duration,
+date/datetime, Unicode descending text, supplied model IDs, null direction,
+stable identity/ties, pure and extracted helper key evaluation, singleton/later
+key errors, filter→key→projection traces and nested query reuse. The existing
+native helper case adds supplied-model ordering. Its initial four D1 rows pass,
+but a split-grant fifth row exposed a real dependency: the member could read
+`enabled` but not `rank`, yet singleton sorting succeeded because the missing
+property became undefined. Do not ship a key-only permission mode or weaken that
+assertion. State now privately associates the original field names with its exact
+viewer-projected query rows and detached predicate candidates, including model,
+revision and identity/version. Copies cannot borrow the association. Cloudflare
+reuses it in the existing forbidden accessor, with no second read, raw values or
+expanded projection. Genuinely absent optional fields keep their carrier and
+sort alongside null; present-but-withheld fields fail before key capture.
+
+An existing authorized-read fixture expected an auditor's ungranted secret
+comparison/all predicate to succeed with false, and its source where predicate
+to select zero. Strict access makes those attempts fail forbidden. Three
+independent equivalent JEV Choice consultations favored uniform strict source
+access over a separate strict-order reader or uniform missing-value semantics
+(probabilities .96/.99/.99; confidence .94/.98/.98). Adopt the read-grant rule for
+present top-level stored fields consistently across source operands. This is an
+observable compatibility correction, not an unchanged-failure claim. The two old
+assertions now require exact forbidden and unchanged stored rows; owner results,
+partial wire projections, empty-domain results, rollback, revocation and copied
+view refusal remain. Internal data-only State query rules and existing nested
+source-leaf observers are unchanged. Requests/responses and uncertainty are saved
+as query-order/jev-access-*.json; advice is not proof or language authority.
+
+Both read and mutation sort examples now pass eight genuine native D1 rows,
+including denied member field access and public admission. State source-presence
+checks pass six tests, preserving optional absence/null, exact-row association,
+revision refusal and observed query behavior. Two existing native read-result
+checks pass; the changed authorized-read case passes with all retained positive,
+projection, rollback and revocation checks. State and Cloudflare builds pass.
+All eight membership and three existing model/UI ordering checks pass. Mixed-domain
+order IR is rejected explicitly.
+
+A direct lexical witness also exposed accidental binding of an omitted value
+alias to `row`: `items order=row` used the item instead of its checked outer
+parameter. Generated value loops now use a private name when no alias is authored,
+including adjacent filter/select loops. Explicit aliases still shadow normally.
+The focused witness checks the outer parameter through filter/order/select and
+an explicit shadowing alias. This is a mechanical scope correction, not new syntax.
+The in-progress capture was explicitly stopped after this input-invalidating
+finding; it supplies no validation credit. Final CLI build, formatting and diff
+checks pass. Frozen original 24-source validation exits 10 with 706 diagnostics
+(680 E6008, 26 E6007), complete=true, omitted=0 and no usable artifact. Against
+the retained 718-error inventory capture, exactly twelve value-order refusals
+disappear and none are added. Original .can operands and Values catalog remain
+unchanged. The remaining model-order metadata/temporal/computed-key dependencies
+stay explicit; no full CanCRM execution or training-data readiness is claimed.

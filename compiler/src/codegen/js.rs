@@ -4160,6 +4160,11 @@ impl<'a> Emitter<'a> {
                     {
                         pending.push(Visit(value));
                     }
+                    if let Some(order) = &query.value_order {
+                        pending.push(Restore(alias));
+                        pending.push(Visit(&order.key));
+                        pending.push(Bind(alias));
+                    }
                     if let Some(value) = &query.where_pred {
                         pending.push(Restore(alias));
                         pending.push(Visit(value));
@@ -5805,6 +5810,7 @@ impl<'a> Emitter<'a> {
             && query.archived.is_none()
             && !query.where_async
             && matches!(&query.domain,super::ir::IrQueryDomain::Model(name) if name==&source.model_name)
+            && query.value_order.is_none()
             && query.order.len() == 1
             && query.order[0].field == "id"
             && !query.order[0].descending
@@ -5920,6 +5926,7 @@ impl<'a> Emitter<'a> {
                 })
                 && !query.where_async
                 && query.order.is_empty()
+                && query.value_order.is_none()
                 && query.limit.is_none()
                 && query.archived.is_none()
                 && query.select.is_none()
@@ -5973,6 +5980,7 @@ impl<'a> Emitter<'a> {
             && query.where_pred.is_none()
             && !query.where_async
             && query.order.is_empty()
+            && query.value_order.is_none()
             && query.limit.is_none()
             && query.archived.is_none()
             && query.select.is_none()
@@ -6047,6 +6055,7 @@ impl<'a> Emitter<'a> {
             || query.select.is_some()
             || query.select_param.is_some()
             || !query.order.is_empty()
+            || query.value_order.is_some()
             || query.limit.is_some()
             || query.archived.is_some()
             || query.contract_collection_call.is_some()
@@ -7139,6 +7148,17 @@ impl<'a> Emitter<'a> {
     /// limit?, archived?})`: `records()` returns a promise and viewer read
     /// grants apply before filters and projection.
     fn lower_query(&mut self, query: &crate::codegen::ir::IrQuery, span: Span) -> String {
+        if match &query.domain {
+            super::ir::IrQueryDomain::Model(_) => query.value_order.is_some(),
+            super::ir::IrQueryDomain::Value { .. } => !query.order.is_empty(),
+        } {
+            self.unsupported(
+                "query order",
+                "ordering does not belong to its domain",
+                span,
+            );
+            return self.throw_expr("mismatched query order");
+        }
         if let Some(capture) = self.query_capture.clone() {
             if let Some(transcript) = capture.transcripts.iter().find(|fact| {
                 query
@@ -7350,9 +7370,57 @@ impl<'a> Emitter<'a> {
                         format!("{out}.filter(({alias})=>{body})")
                     };
                 }
+                if let Some(order) = &query.value_order {
+                    self.enter_scope();
+                    let alias = self.bind(alias);
+                    let key = self.lower_expr(&order.key);
+                    self.exit_scope();
+                    let asynchronous = expr_uses_async(&order.key) || self.boolean_body;
+                    let (awaited, asynchronous_fn) = if asynchronous {
+                        ("await ", "async")
+                    } else {
+                        ("", "")
+                    };
+                    let compared = self.lower_value_order_comparison(&order.key);
+                    let direction = if order.descending {
+                        "-$compared"
+                    } else {
+                        "$compared"
+                    };
+                    // Decorate once before sorting: authored expressions never run
+                    // inside a comparator, even for singleton or tied domains.
+                    out = format!(
+                        "({awaited} ({asynchronous_fn}($items)=>{{const $keyed=[];for(const {alias} of $items){{$keyed.push({{item:{alias},key:{awaited}({key}),index:$keyed.length}});}}$keyed.sort(($left,$right)=>{{const $a=$left.key,$b=$right.key;const $compared=$a==null?($b==null?0:-1):$b==null?1:({compared});return $compared===0?$left.index-$right.index:{direction};}});return $keyed.map($entry=>$entry.item);}})({out}))"
+                    );
+                }
                 self.append_select(&out, false, query)
             }
         }
+    }
+
+    /// Compare already evaluated keys with their checked Values representation.
+    fn lower_value_order_comparison(&mut self, key: &TypedExpr) -> String {
+        let scalar = key.ty.nullable_inner().unwrap_or(&key.ty);
+        let comparator = match scalar {
+            ResolvedType::Scalar(Scalar::Int | Scalar::Duration | Scalar::Bytes) => {
+                return "$a===$b?0:$a<$b?-1:1".into();
+            }
+            ResolvedType::Scalar(Scalar::Decimal) => "compareDecimal",
+            ResolvedType::Scalar(Scalar::Money) => "compareMoney",
+            ResolvedType::Scalar(Scalar::Date) => "compareDate",
+            ResolvedType::Scalar(Scalar::Datetime) => "compareInstant",
+            ResolvedType::Scalar(scalar) if scalar.is_string_like() => "compareScalar",
+            _ => {
+                self.unsupported(
+                    "value query order",
+                    "an ordered checked scalar key is required",
+                    key.span,
+                );
+                return self.throw_expr("unordered key");
+            }
+        };
+        self.stdlib.insert(comparator.into());
+        format!("{comparator}($a,$b)")
     }
 
     /// Append a `select` projection `.map` to a lowered domain fetch.
@@ -10400,6 +10468,7 @@ fn ui_uses_original_row(node: &IrUi) -> bool {
                     if let crate::codegen::ir::IrQueryDomain::Value { base, .. } = &query.domain {
                         pending.push(base);
                     }
+                    pending.extend(query.value_order.iter().map(|order| order.key.as_ref()));
                     pending.extend(query.parent.as_deref());
                     pending.extend(query.where_pred.as_deref());
                     pending.extend(query.limit.as_deref());
@@ -10455,6 +10524,10 @@ fn page_uses_preferences(page: &IrPage) -> bool {
                     crate::codegen::ir::IrQueryDomain::Value { base, .. } => expr_uses(base),
                 };
                 domain_uses
+                    || query
+                        .value_order
+                        .as_ref()
+                        .is_some_and(|order| expr_uses(&order.key))
                     || query.parent.as_ref().is_some_and(|p| expr_uses(p))
                     || query.where_pred.as_ref().is_some_and(|p| expr_uses(p))
                     || query.limit.as_ref().is_some_and(|p| expr_uses(p))

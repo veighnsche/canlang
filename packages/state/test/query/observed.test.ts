@@ -1,8 +1,9 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import type { StoredRow, QuerySpec } from '@canlang/contracts';
-import { queryRecordsObserved, type ViewerRecordsInput } from '../../src/query/engine.js';
+import { queryRecords, queryRecordsObserved, queryRecordSourcePresence, type ViewerRecordsInput } from '../../src/query/engine.js';
 import { createMemoryStorage } from '../../src/storage/memory.js';
+import { bindInstalledSourceQueryPredicate, type InstalledSourceQueryPredicate } from '../../src/receipt/read-policy-membership.js';
 import { openFenceScope } from '../../src/invocation/admission.js';
 import {
   asModel, asRevision, captureStateError, createMemoryIdentityStore, makeRow,
@@ -128,5 +129,72 @@ describe('internal observed query execution', () => {
     assert.equal(denied.code, 'validation');
     assert.equal(scans.length, 0);
     assert.equal(calls, 0);
+  });
+});
+
+
+describe('private projected query source presence', () => {
+  it('retains only frozen same-snapshot names on exact viewer rows and predicate projections', async () => {
+    const original = makeRow({ id: 'presence', data: { enabled: true, rank: 2, optionalNull: null } });
+    const { input } = setup([original]);
+    const query: ViewerRecordsInput = { ...input,
+      policy: policyTable(modelPolicy(MODEL, {
+        grants: [grant('public', ['enabled', 'optionalNull', 'optionalAbsent'])],
+      })),
+    };
+    const revision = await query.store.readRevision();
+    let predicateRow: unknown;
+    const result = await queryRecords({ ...query, predicate: async record => {
+      predicateRow = record;
+      assert.deepEqual(queryRecordSourcePresence(record, MODEL, revision), ['enabled', 'rank', 'optionalNull']);
+      assert.equal(Object.hasOwn(record.data, 'rank'), false);
+      assert.equal(Object.hasOwn(record.data, 'optionalAbsent'), false);
+      return true;
+    } });
+    const record = result.records[0]!;
+    const fields = queryRecordSourcePresence(record, MODEL, result.revision)!;
+    assert.deepEqual(fields, ['enabled', 'rank', 'optionalNull']);
+    assert.equal(record.data.optionalNull, null);
+    assert.equal(Object.hasOwn(record.data, 'rank'), false);
+    assert.equal(Object.hasOwn(record.data, 'optionalAbsent'), false);
+    assert.equal(Object.isFrozen(fields), true);
+    assert.throws(() => (fields as string[]).push('invented'), TypeError);
+    assert.equal(queryRecordSourcePresence(record, asModel('Acme.Other'), result.revision), undefined);
+    assert.equal(queryRecordSourcePresence(record, MODEL, asRevision(Number(result.revision) + 1)), undefined);
+    assert.equal(queryRecordSourcePresence({ ...record }, MODEL, result.revision), undefined);
+    assert.equal(queryRecordSourcePresence(structuredClone(record), MODEL, result.revision), undefined);
+    assert.equal(queryRecordSourcePresence(original, MODEL, result.revision), undefined);
+    const editable = record as unknown as { id: string; version: number };
+    const id = editable.id, version = editable.version;
+    editable.id = 'other';
+    assert.equal(queryRecordSourcePresence(record, MODEL, result.revision), undefined);
+    editable.id = id;
+    editable.version = version + 1;
+    assert.equal(queryRecordSourcePresence(record, MODEL, result.revision), undefined);
+    editable.version = version;
+    Object.defineProperty(record, 'version', { configurable: true, get: () => { throw new Error('must not execute'); } });
+    assert.equal(queryRecordSourcePresence(record, MODEL, result.revision), undefined);
+    Object.defineProperty(record, 'version', { configurable: true, writable: true, value: version });
+    assert.deepEqual(queryRecordSourcePresence(predicateRow, MODEL, result.revision), fields);
+    const observed = await queryRecordsObserved(query, projected => {
+      assert.deepEqual(queryRecordSourcePresence(projected, MODEL, revision), fields);
+      return true;
+    });
+    assert.deepEqual(queryRecordSourcePresence(observed.candidates[0]!.record, MODEL, revision), fields);
+    let coherentCalls = 0;
+    const coherent: InstalledSourceQueryPredicate = async projected => {
+      coherentCalls++;
+      assert.deepEqual(queryRecordSourcePresence(projected, MODEL, revision), fields);
+      return true;
+    };
+    bindInstalledSourceQueryPredicate(coherent, { source: { path: 'presence.can', sha256: 'a'.repeat(64), module: 'Acme' },
+      rule: 'Acme.Presence' });
+    await queryRecords({ ...query, predicate: coherent });
+    assert.ok(coherentCalls > 0);
+    const owner = await queryRecords({ ...input, authority: 'owner' });
+    assert.equal(queryRecordSourcePresence(owner.rows[0], MODEL, owner.revision), undefined);
+    (original.data as Record<string, unknown>).later = true;
+    assert.deepEqual(queryRecordSourcePresence(record, MODEL, revision), fields);
+    assert.equal(fields.includes('later'), false);
   });
 });

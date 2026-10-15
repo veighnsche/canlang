@@ -1049,6 +1049,9 @@ fn free_inputs(
                 if let IrQueryDomain::Value { base, .. } = &query.domain {
                     pending.push((base, depth + 1));
                 }
+                if let Some(order) = &query.value_order {
+                    pending.push((&order.key, depth + 1));
+                }
                 for value in [
                     &query.parent,
                     &query.where_pred,
