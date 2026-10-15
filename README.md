@@ -6,7 +6,7 @@ The goal is to help companies replace expensive SaaS subscriptions with applicat
 
 Its scope is CRUD-centered business software: tasks, approvals, bookings, invoicing, reporting, files, scheduling, and external synchronization. Bounded provider-backed workflows, such as reviewed model output and authorized company-document answers, belong within the same records, permissions, and business rules.
 
-**Status:** active development. The repository includes a Rust compiler with JavaScript and BDD artifact emission, language-server/editor tooling, and TypeScript runtime packages. Complete application workflows and installed releases still require integration and qualification. The [living ideal file-tree plan](docs/ideal-filetree-plan.md) describes the intended finished product; the architecture below follows that target.
+**Status:** active development. The repository includes a Rust compiler with JavaScript and BDD artifact emission, language-server/editor tooling, and TypeScript runtime packages. Qualified standalone releases are available through the installer below; complete application workflows still need their own integration and qualification. The [living ideal file-tree plan](docs/ideal-filetree-plan.md) describes the intended finished product; the architecture below follows that target.
 
 ## A small app
 
@@ -61,7 +61,19 @@ The [living plan](docs/ideal-filetree-plan.md) brings together original applicat
 
 Required completion work includes durable identity/file/provider joins, complete finite fanout and recovery, owner expiry and sensitive-data disposal, authorized document grounding, browser assets and polling, preferences, CSV intake/export, staged upgrades, and installed release checks. Compiler output or an isolated runtime test establishes only its own scope; supported applications require their complete declared workflows and failure outcomes to be verified.
 
-## Getting the source
+## Install CanLang
+
+```sh
+curl -fsSL https://sodaos.dev/CanLang/install.sh | bash
+```
+
+The installer detects macOS Apple Silicon or Linux x86-64 with glibc and downloads the matching bundle and checksum from one GitHub release version. The v0.1.1 Linux bundle requires glibc 2.39 or newer. It installs under `~/.can` and configures your shell PATH. Open a new terminal, then run `can --version`.
+
+The bundle contains the compiler, language catalog, private Node runtime, local Worker engine and production dependencies. You do not need to install Rust, Node, Bun, npm packages or a browser. Write and run applications in your own folder using the [installation tutorial](docs/public/01-Getting-started/02-installation.md) and [local development guide](docs/public/03-Build-and-operate/01-local-development.md). Browser automation is a [separate optional development add-on](docs/install.md#optional-browser-development-tools).
+
+## Getting the source (optional, for contributors)
+
+The remaining setup and build instructions are for changing CanLang itself. Application authors can use the installation command above without cloning or building this repository. The handbook has a dedicated [optional contributor guide](docs/public/01-Getting-started/03-contributor-setup.md).
 
 Application drafts live in the independent [canlang-drafts](https://github.com/veighnsche/canlang-drafts) repository, included at `draft/` as a Git submodule pinned to a specific commit:
 
@@ -72,7 +84,7 @@ cd canlang
 
 For an existing checkout, run `git submodule update --init --recursive` after pulling changes. Draft edits are committed and pushed inside `draft/`; then commit the updated `draft` pointer in Canlang. Before editing a detached submodule checkout, create a drafts branch from the pinned commit with `git -C draft switch -c <draft-branch>`.
 
-## Build and explore
+## Build and explore (optional, for contributors)
 
 The workspace uses **Bun 1.4.2**, **Turbo 2.11.7**, **Node.js 22+** (Node 24 for the verified runtime test profile), and **Rust 1.99+**. From the repository root:
 

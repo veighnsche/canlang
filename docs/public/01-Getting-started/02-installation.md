@@ -1,77 +1,39 @@
 # Install CanLang and write an app
 
-Set up the `can` compiler, create a complete task application, and check its source before adding more behavior.
+Install the complete CanLang toolchain with one command, create a task application in your own folder, and check its source before adding more behavior.
 
 ## The tools you will use
 
-The compiler is a single `can` binary. Compiler commands such as `check`, `fmt` and `policy` use it directly; platform commands also need the matching `can-platform` runtime, and local development needs `can-dev`. The standalone bundle supplies those tools and the matching language catalog together. The source route below is for contributors.
+The standalone bundle supplies `can`, its matching language catalog, private Node runtime, runtime adapters, local Worker engine and inline-example tools. It runs independently of Soda OS. You do not need to install Rust, Node, Bun, npm packages or a browser separately. Local checking, testing and preview need no Cloudflare account.
 
 ## Install the standalone bundle
 
-The prepared public install command is:
+Run this command in a terminal:
 
 ```sh
 curl -fsSL https://sodaos.dev/CanLang/install.sh | bash
 ```
 
-Deployment is pending: the website owner must host the installer and a matching
-standalone GitHub release must be published first. The script downloads the
-platform bundle and checksum from GitHub Releases.
+The installer detects macOS Apple Silicon or Linux x86-64 with glibc, resolves one GitHub release version, and downloads that platform's matching archive and SHA-256 checksum. The published v0.1.1 Linux bundle requires glibc 2.39 or newer. Both platform bundles belong to the same release; there are no separate version tracks to choose.
 
-Until then, from a downloaded standalone release artifact set, run:
+The installer verifies the checksum, installs under `~/.can`, and configures your shell PATH. Open a new terminal, then confirm the installation:
 
 ```sh
-sh install-local.sh
-```
-
-The installer verifies the bundled archive checksum, installs under `~/.can`,
-and configures your shell PATH. Open a new terminal, then run `can --version`.
-You do not need to install Rust, Node, Bun or npm packages. The complete bundle
-includes the local Worker engine. Chrome, Chromium and Playwright are excluded.
-For browser automation, download and checksum-verify the separate
-`can-browser-development-tools-VERSION.tar.gz` release archive, extract it into
-an empty directory, and run `sh install-browser-tools.sh` there after installing
-Can. The [installation reference](https://github.com/veighnsche/canlang/blob/main/docs/install.md#optional-browser-development-tools)
-has the checksum command. That development installation
-lives outside the core installation; ordinary preview and inline examples do not
-need it. Required browser acceptance fails with installation guidance when the
-add-on is absent.
-
-Release status: macOS arm64 and Linux x64 bundles are locally verified. Linux
-passed all 21 installed checks on Rocky Linux 10.2 x86_64 with glibc 2.39; this
-local archive requires glibc 2.39 or newer. Other Linux distributions and CPU
-generations are not qualified. Public download
-hosting and Homebrew publication are still pending. The checkout's generated
-bundle can be installed with `sh output/install/install-local.sh`; this command
-uses prebuilt files and performs no source build. The Ubuntu 24.04 release CI
-job remains unexecuted here. See the repository's
-[installation reference](https://github.com/veighnsche/canlang/blob/main/docs/install.md)
-for the exact measured sizes and current release scope.
-
-You can write and run the following tutorial in your own application directory.
-
-## Set up a complete source workspace
-
-Use this route to get the compiler, catalog, runtime packages and examples together. Prerequisites are Bun 1.4.2, Node.js 22 or newer and Rust 1.99.0. Node 24 is the verified runtime test profile. Local build and development do not need a Cloudflare account.
-
-```sh
-git clone --recurse-submodules https://github.com/veighnsche/canlang.git
-cd canlang
-bun install --frozen-lockfile
-bun run build
-bun run catalog
-bun run build:compiler
-export PATH="$PWD/compiler/target/debug:$PWD/node_modules/.bin:$PATH"
-export CAN_PLATFORM_BIN="$PWD/packages/cloudflare/dist/cli/platform.js"
-export CAN_DEV_BIN="$PWD/packages/cloudflare/dist/dev/control-cli.js"
 can --version
 ```
 
-For the source-workspace route, run the following tutorial from that repository root so the compiler can discover `packages/values/dist/catalog.json`. In another directory, pass an absolute `--catalog=PATH` to compiler commands or set `CAN_CATALOG`. Keep absolute runtime overrides when changing directories.
+You can now write and run the tutorial in an application directory of your choice. No CanLang source checkout, catalog build or runtime environment overrides are needed.
 
 ## Create Tasks
 
-Save this complete application as `Tasks.can` in the repository root. Each indentation level is exactly one space.
+Create a folder for your application:
+
+```sh
+mkdir canlang-tasks
+cd canlang-tasks
+```
+
+Save this complete application as `Tasks.can` in that folder. Each indentation level is exactly one space.
 
 ```can
 # Track the team's work.
@@ -106,6 +68,16 @@ Next, follow [local development](../03-Build-and-operate/01-local-development.md
 
 ## Editor integration
 
-The Can extension supports VS Code 1.91 or newer and compatible editors such as Cursor. It supplies highlighting, diagnostics, completion, navigation and formatting. When you have a built `canlang-vscode.vsix`, open Extensions, choose **Install from VSIX**, select that file and reload the window. Source and build ownership for the extension lives in `editors/vscode` in this checkout.
+An optional Can extension supports VS Code 1.91 or newer and compatible editors such as Cursor. It supplies highlighting, diagnostics, completion, navigation and formatting. If you are installing a separately supplied `canlang-vscode.vsix`, open Extensions, choose **Install from VSIX**, select the file and reload the window. The shell installer and every terminal step in this tutorial work without an editor extension; building the extension belongs to contributor setup.
 
-Syntax highlighting works without the compiler. For diagnostics and navigation, set the extension's `can.serverPath` to the absolute path of the `compiler/target/debug/can` executable you just built if it is not on the editor's PATH. Trust the workspace to enable language tools. Use **Can: Restart Language Server** after changing the producer catalog. An editor extension is optional for every terminal step in this tutorial.
+Syntax highlighting works without the compiler. For diagnostics and navigation, set the extension's `can.serverPath` to the absolute path of your installed `~/.can/bin/can` if it is not on the editor's PATH. Expand `~` to your home directory when entering an absolute editor setting. Trust the workspace to enable language tools. Use **Can: Restart Language Server** after changing the toolchain. An editor extension is optional for every terminal step in this tutorial.
+
+## Optional browser development tools
+
+Chrome, Chromium and Playwright are separate, optional development tools. Ordinary source checks, inline examples and local previews work without them. If you author browser automation or require browser acceptance, follow the [browser development tools instructions](https://github.com/veighnsche/canlang/blob/main/docs/install.md#optional-browser-development-tools). The add-on lives outside the core installation; a required browser check reports missing tooling rather than silently skipping it.
+
+## Optional contributor setup
+
+### Set up a complete source workspace
+
+Only contributors changing CanLang's compiler or runtime need a source build. Follow [optional contributor setup](03-contributor-setup.md) for the repository, build prerequisites, catalog generation and runtime overrides. Building CanLang is not a prerequisite for writing, checking, testing or previewing an application.

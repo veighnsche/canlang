@@ -17873,3 +17873,24 @@ synchronization/deployment is the remaining external gate, owned by that checkou
 No website source or deployment is changed in this task. Release-only acceptance
 is complete; unrelated application/provider and complete filetree-review holds
 remain at their recorded scopes.
+
+## 2026-10-15 — use the standalone installer throughout public documentation
+
+Accepted owner direction: make `curl -fsSL https://sodaos.dev/CanLang/install.sh | bash`
+the default application setup everywhere. The public v0.1.1 script is deployed;
+its bytes match the pinned GitHub release and its syntax passes `bash -n`.
+The installer selects the supported host's bundle from one resolved release,
+including the catalog, runtime adapters, private Node, local engine and Testkit.
+Application authors work in their own directories without a CanLang checkout,
+source build, manual runtime packages or catalog/runtime overrides. Browser
+automation remains a separately optional development installation.
+
+Move source build prerequisites and commands into an explicitly optional public
+contributor guide, retaining the former source-workspace installation anchor as
+a link to that guide. Align the handbook landing page, installation, local
+development, testing, deployment and CLI reference, plus the repository README
+and installation reference. The website synchronizes a committed source snapshot
+and redeploys it; generated handbook HTML is not edited by hand. No installer,
+release bytes, language semantics or platform support changes are part of this
+documentation update. Link validation covers all 13 handbook pages; existing
+native release qualifications remain the evidence for installed runtime behavior.
