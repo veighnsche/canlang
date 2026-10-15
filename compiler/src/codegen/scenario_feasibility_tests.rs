@@ -174,3 +174,191 @@ fn current_revision_native_subset_borrows_the_original_success_path() {
     );
     assert_eq!(original.returns.len(), 4);
 }
+
+#[test]
+fn dto_capacity_and_reached_body_require_borrow_only_original_successful_branch_rows() {
+    let fields = (1..=16)
+        .map(|i| format!("v{i}:int"))
+        .collect::<Vec<_>>()
+        .join(",");
+    let entries = (1..=16)
+        .map(|i| format!("v{i}=input.v{i}"))
+        .collect::<Vec<_>>()
+        .join(",");
+    let source = format!(
+        "app Feasible\nGiven\n contract Input {{{fields}}}\n Run {{{fields}}}\n Intake {{source:text unique,input:Input,run:Run}}\n policy Run read=members\n policy Intake read=members\nWhen\n scenario pick(source:text,input:Input,a:bool,b:bool,c:bool,d:bool,e:bool,f:bool,g:bool) -> Run by=members\n  require a and b and c and d and e and f and g\n  do\n   let existing=first(Intake as prior where prior.source==source)\n   if existing!=null\n    require existing.input==input and g\n    return existing.run\n   create Run {{{entries}}} as run\n   create Intake {{source,input,run}} as intake\n   return run\nThen\n"
+    );
+    let (db, program, ir, catalog) = checked(&[("capacity-conditional-require.can", &source)]);
+    let owner = ir
+        .items
+        .iter()
+        .find(|item| item.canonical == "Feasible.pick")
+        .unwrap()
+        .id;
+    let ScenarioDisclosure::Complete(original) = &program.scenario_disclosures()[&owner] else {
+        panic!("complete source");
+    };
+    assert_eq!(
+        original.returns.len(),
+        192,
+        "complete original conservative inventory remains under the row bound"
+    );
+    assert!(
+        requires_projection(original, &ir),
+        "the actual DTO node bound requires projection even below 200 rows"
+    );
+    let prepared = prepare(&program, &ir, &db, Some(&catalog)).unwrap();
+    let selected = prepared
+        .returns(&ir, owner)
+        .expect("source-checked native subset");
+    assert_eq!(
+        selected.len(),
+        2,
+        "one existing and one fresh return; no skipped successful body And"
+    );
+    assert_ne!(selected[0].node, selected[1].node);
+    for returned in &selected {
+        assert!(
+            original
+                .returns
+                .iter()
+                .any(|row| std::ptr::eq(row, *returned))
+        );
+        assert!(
+            returned
+                .decisions
+                .iter()
+                .filter(|decision| decision.node.kind == SyntaxKind::Binary as u8)
+                .all(|decision| decision.choice == DisclosureChoice::RhsEvaluated)
+        );
+    }
+    let body_site = original
+        .source_facts
+        .as_ref()
+        .unwrap()
+        .decision_sites
+        .as_ref()
+        .unwrap()
+        .iter()
+        .find(|site| site.stage == CheckedDecisionStage::BodyRequire)
+        .unwrap();
+    let fresh = selected
+        .iter()
+        .find(|returned| {
+            returned.node.start > body_site.statement.end
+                && !returned
+                    .decisions
+                    .iter()
+                    .any(|decision| decision.node == body_site.node)
+        })
+        .unwrap();
+    assert!(
+        !fresh
+            .decisions
+            .iter()
+            .any(|decision| decision.node == body_site.node),
+        "unreached body requirement stays unobserved"
+    );
+    let discarded = original
+        .returns
+        .iter()
+        .position(|returned| !selected.iter().any(|row| row.id == returned.id))
+        .unwrap();
+    for mode in [
+        "body-condition",
+        "site-position",
+        "discarded-choice",
+        "field-name",
+    ] {
+        let mut changed = ir.clone();
+        match mode {
+            "body-condition" => {
+                let IrItemKind::Scenario { effects, .. } =
+                    &mut changed.items[owner.0 as usize].kind
+                else {
+                    panic!("scenario")
+                };
+                let IrStmt::If { then_branch, .. } = &mut effects[1] else {
+                    panic!("first nonnull branch")
+                };
+                let IrStmt::Require { cond, .. } = &mut then_branch[0] else {
+                    panic!("body require")
+                };
+                cond.expr = IrExpr::Bool(true);
+            }
+            "field-name" => {
+                changed
+                    .items
+                    .iter_mut()
+                    .find(|item| item.canonical == "Feasible.Run.v16")
+                    .unwrap()
+                    .name = "foreign".into()
+            }
+            _ => {
+                let ScenarioDisclosure::Complete(proof) =
+                    changed.scenario_disclosures.get_mut(&owner).unwrap()
+                else {
+                    panic!("complete")
+                };
+                if mode == "discarded-choice" {
+                    proof.returns[discarded].decisions.clear();
+                } else {
+                    *proof
+                        .source_facts
+                        .as_mut()
+                        .unwrap()
+                        .decision_sites
+                        .as_mut()
+                        .unwrap()
+                        .iter_mut()
+                        .find(|site| site.stage == CheckedDecisionStage::BodyRequire)
+                        .unwrap()
+                        .position
+                        .last_mut()
+                        .unwrap() = CheckedDecisionPosition::Then(1);
+                }
+            }
+        }
+        assert!(
+            prepare(&program, &changed, &db, Some(&catalog))
+                .as_ref()
+                .and_then(|prepared| prepared.returns(&changed, owner))
+                .is_none(),
+            "{mode} remains sealed before pruning"
+        );
+    }
+    assert_eq!(original.returns.len(), 192);
+}
+
+#[test]
+fn bounded_independent_scalar_require_paths_keep_the_existing_unprojected_inventory() {
+    let (db, program, ir, catalog) = checked(&[(
+        "bounded-independent.can",
+        "app Independent\nGiven\nWhen\n scenario probe(a:bool,b:bool) -> int by=members\n  require a and b\n  do return 9\nThen\n",
+    )]);
+    let owner = ir
+        .items
+        .iter()
+        .find(|item| item.canonical == "Independent.probe")
+        .unwrap()
+        .id;
+    let ScenarioDisclosure::Complete(original) = &program.scenario_disclosures()[&owner] else {
+        panic!("complete scalar")
+    };
+    assert!(!requires_projection(original, &ir));
+    assert!(
+        original
+            .returns
+            .iter()
+            .all(|row| row.dependencies.is_empty() && row.intrinsics.is_empty())
+    );
+    let prepared = prepare(&program, &ir, &db, Some(&catalog)).unwrap();
+    let selected = prepared.returns(&ir, owner).unwrap();
+    assert_eq!(selected.len(), original.returns.len());
+    assert!(
+        selected
+            .iter()
+            .zip(&original.returns)
+            .all(|(selected, original)| std::ptr::eq(*selected, original))
+    );
+}

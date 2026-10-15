@@ -16807,3 +16807,16 @@ not defaults. One focused direct/authored/aliased-reuse test with tamper control
 and eight adjacent source/seal checks pass; formatting/diff checks pass. This
 closes a native schema correspondence gap without changing language decisions,
 permissions or source spelling. Full mixed native CanCRM remains unqualified.
+
+
+### 2026-10-15 — project over-capacity plans using reached Require paths
+
+Reuse one exact native query-plan node-count formula for transport admission and
+projection triggering. Extend existing successful-Require feasibility only to
+source-authenticated conditional If branches reached by the original return.
+Keep all conservative source rows and independent scalar disclosure facts; borrow
+original successful rows rather than reconstructing them or evaluating leaves.
+Four focused checks pass, including 192 original rows reduced to two borrowed
+existing/new paths, source/IR corruption refusals and unchanged independent int
+results. Formatting/diff checks pass. No permission or language change; full
+original mixed native query execution remains a separate required consumer.

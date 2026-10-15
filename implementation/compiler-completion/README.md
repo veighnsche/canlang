@@ -2,6 +2,17 @@
 
 ## Current remainder and finite completion
 
+**C02 feasible Require paths (2026-10-15, component qualified).**
+Use the existing native DTO node budget as well as row/reference limits to trigger
+source-proved projection. Conditional body Requires prune only original return
+paths whose authenticated If choices prove the guard was reached. No expression
+leaf is evaluated and no original row or independent scalar-result fact changes.
+All four focused feasibility checks pass: the 192-row compound leading/body
+fixture borrows exactly two original successful existing/new rows; altered body,
+site position, discarded choice and field names refuse. Bounded independent
+scalar pruning remains unchanged. This is source subset qualification, not a
+mixed native plan or an original24 diagnostic-count reduction.
+
 **C02 native checked Given field traits (2026-10-15, source component qualified).**
 The native create-schema matcher now consumes the checked receiving field's Given
 default and exact receiver/ancestor constraint provenance. Authored receiver
