@@ -1426,6 +1426,11 @@ struct ValuePath {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ReferenceOrigin {
     Parameter(SymbolId),
+    /// Required Model slot reached through the original Contract parameter.
+    ParameterMember {
+        parameter: SymbolId,
+        node: NodeKey,
+    },
     /// Canonical optional input slot; no row/version intrinsic or field promotion.
     NullableParameter(SymbolId),
     Parent {
@@ -4925,6 +4930,135 @@ impl<'a> Closure<'a> {
             .all(|rule| rule.module == data.module && attribute(rule.node, "until", rule.until))
     }
 
+    /// Resolve only required Contract fields rooted at the original parameter.
+    /// The slot is the existing admission path, never a stored-field read.
+    fn checked_contract_input_reference(
+        &self,
+        key: NodeKey,
+        module: ModuleId,
+    ) -> Option<(SymbolId, SymbolId, String)> {
+        let (parameter, ty, path) = self.checked_contract_input_path(key, module, 0)?;
+        let ResolvedType::Record { symbol: target, .. } = ty else {
+            return None;
+        };
+        (!path.is_empty()
+            && matches!(
+                self.resolve.symbols.get(target.0 as usize)?.kind,
+                SymbolKind::Model { .. }
+            ))
+        .then(|| {
+            let name = &self.resolve.symbols[parameter.0 as usize].name;
+            (parameter, target, format!("{name}/{}", path.join("/")))
+        })
+    }
+
+    fn checked_contract_input_path(
+        &self,
+        key: NodeKey,
+        module: ModuleId,
+        depth: usize,
+    ) -> Option<(SymbolId, ResolvedType, Vec<String>)> {
+        if depth >= 16 {
+            return None;
+        }
+        let key = self.query_group(key)?;
+        let node = self.nodes.get(&key)?;
+        if node.kind == SyntaxKind::NameRef {
+            let Binding::Symbol(parameter) = self.query_binding(key)? else {
+                return None;
+            };
+            let symbol = self.resolve.symbols.get(parameter.0 as usize)?;
+            let SymbolKind::Param { owner, index, .. } = symbol.kind else {
+                return None;
+            };
+            let scenario = self.effects.scenarios.get(&owner)?;
+            let param = scenario.params.get(index)?;
+            let ResolvedType::Record {
+                symbol: contract, ..
+            } = self.types.symbol_types.get(parameter)?
+            else {
+                return None;
+            };
+            if symbol.module != module
+                || scenario.module != module
+                || scenario.read
+                || scenario.on.is_some()
+                || param.param != *parameter
+                || param.default.is_some()
+                || key.file != scenario.node.file
+                || key.start < scenario.node.start
+                || key.end > scenario.node.end
+                || self.types.node_types.get(&key) != self.types.symbol_types.get(parameter)
+                || !matches!(
+                    self.resolve.symbols.get(contract.0 as usize)?.kind,
+                    SymbolKind::Contract { .. }
+                )
+            {
+                return None;
+            }
+            return Some((
+                *parameter,
+                self.types.symbol_types.get(parameter)?.clone(),
+                Vec::new(),
+            ));
+        }
+        if node.kind != SyntaxKind::Member {
+            return None;
+        }
+        let mut operands = node.children.iter().filter(|child| expression(child.kind));
+        let base = NodeKey::of(operands.next()?);
+        if operands.next().is_some() {
+            return None;
+        }
+        let (parameter, receiver, mut path) =
+            self.checked_contract_input_path(base, module, depth + 1)?;
+        let ResolvedType::Record {
+            symbol: contract, ..
+        } = receiver
+        else {
+            return None;
+        };
+        let name = self.word(
+            node.children
+                .iter()
+                .rev()
+                .find(|child| child.kind == SyntaxKind::Name)?,
+        )?;
+        let ty = self.types.node_types.get(&key)?;
+        let field = self.contract_member(contract, name, ty)?;
+        let declaration = self
+            .effects
+            .records
+            .get(&contract)?
+            .fields
+            .iter()
+            .find(|data| data.field == field)?;
+        if declaration.required_array
+            || !primitive_type(ty)
+                && !matches!(ty, ResolvedType::Record {symbol, ..}
+                if self.resolve.symbols.get(symbol.0 as usize).is_some_and(|owner|
+                    matches!(owner.kind, SymbolKind::Contract { .. } | SymbolKind::Model { .. })))
+        {
+            return None;
+        }
+        path.push(name.into());
+        Some((parameter, ty.clone(), path))
+    }
+
+    fn contract_input_stored_read(&self, read: &DisclosureDependency, module: ModuleId) -> bool {
+        let Some(node) = self.nodes.get(&read.node) else {
+            return false;
+        };
+        let Some(base) = node.children.iter().find(|node| expression(node.kind)) else {
+            return false;
+        };
+        read.calls.is_empty()
+            && read.query_id.is_none()
+            && self
+                .checked_contract_input_reference(NodeKey::of(base), module)
+                .is_some_and(|(_, model, _)| model == read.model)
+    }
+
     /// Original required Model-valued field, used by expression provenance and
     /// the owning schema census. This prepares source facts, never a row view.
     fn checked_required_model_reference(
@@ -4986,7 +5120,11 @@ impl<'a> Closure<'a> {
                 .checked_required_model_reference_inner(base, module, depth + 1)
                 .is_some_and(|(_, _, target)| target == *model),
         };
-        if !original {
+        if !original
+            && !self
+                .checked_contract_input_reference(base, module)
+                .is_some_and(|(_, target, _)| target == *model)
+        {
             return None;
         }
         let owner = self.resolve.symbols.get(model.0 as usize)?;
@@ -5061,7 +5199,9 @@ impl<'a> Closure<'a> {
             else {
                 continue;
             };
-            if matches!(
+            if is_contract(*symbol) {
+                pending.push((*symbol, false));
+            } else if matches!(
                 self.resolve.symbols.get(symbol.0 as usize)?.kind,
                 SymbolKind::Model { .. }
             ) {
@@ -5106,6 +5246,12 @@ impl<'a> Closure<'a> {
             }
             if node.kind == SyntaxKind::Examples {
                 continue;
+            }
+            if node.kind == SyntaxKind::Member
+                && let Some((_, target, _)) =
+                    self.checked_contract_input_reference(NodeKey::of(node), scenario.module)
+            {
+                pending.push((target, true));
             }
             if node.kind == SyntaxKind::Member
                 && let Some((_, _, target)) =
@@ -8299,7 +8445,74 @@ impl<'a> Closure<'a> {
                 Scalar::Text,
             )?]);
         }
+        if calls.is_empty()
+            && self.loop_node.is_none()
+            && let Some((parameter, ResolvedType::Scalar(scalar), path)) =
+                self.checked_contract_input_path(key, module, 0)
+            && !path.is_empty()
+            && env.contains_key(&Local::Symbol(parameter))
+        {
+            let name = &self.resolve.symbols[parameter.0 as usize].name;
+            return self
+                .input_value(
+                    key,
+                    module,
+                    calls,
+                    ValuePath {
+                        input: Some((parameter, format!("{name}/{}", path.join("/")), scalar)),
+                        ..ValuePath::default()
+                    },
+                )
+                .map(|value| vec![value]);
+        }
+        if calls.is_empty()
+            && self.loop_node.is_none()
+            && let Some((parameter, model, slot)) =
+                self.checked_contract_input_reference(key, module)
+            && env.contains_key(&Local::Symbol(parameter))
+        {
+            let key = self
+                .query_group(key)
+                .ok_or_else(|| self.fail(key, "missing input member"))?;
+            let owner = self
+                .resolve
+                .symbols
+                .get(model.0 as usize)
+                .ok_or_else(|| self.fail(key, "missing input member model"))?;
+            return Ok(vec![ValuePath {
+                record: Some(model),
+                reference_origin: Some(ReferenceOrigin::ParameterMember {
+                    parameter,
+                    node: key,
+                }),
+                reference: Some(DisclosureIntrinsicKind::AdmittedReferenceVersion {
+                    parameter,
+                    parameter_name: slot,
+                    model,
+                    model_name: owner.canonical.clone(),
+                }),
+                ..ValuePath::default()
+            }]);
+        }
         let mut values = self.expr(base_key, module, env, calls)?;
+        if self.types.node_types.get(&base_key) == Some(&ResolvedType::Scalar(Scalar::Money))
+            && matches!(
+                (field_name, ty),
+                ("minor", ResolvedType::Scalar(Scalar::Int))
+                    | ("currency", ResolvedType::Scalar(Scalar::Currency))
+            )
+            && values.iter().all(|value| {
+                value.intrinsics.iter().any(|intrinsic| {
+                    intrinsic.ty == ResolvedType::Scalar(Scalar::Money)
+                        && matches!(
+                            intrinsic.kind,
+                            DisclosureIntrinsicKind::AdmittedInput { .. }
+                        )
+                })
+            })
+        {
+            return Ok(values);
+        }
         for value in &mut values {
             if matches!(
                 value.model_result,
@@ -8410,8 +8623,21 @@ impl<'a> Closure<'a> {
                 .record
                 .ok_or_else(|| self.fail(key, "non-direct stored field traversal"))?;
             if field_name == "id" {
-                let Some(ReferenceOrigin::Parameter(parameter)) = value.reference_origin else {
-                    return Err(self.fail(key, "id needs required original scenario parameter"));
+                let (parameter, member) = match value.reference_origin {
+                    Some(ReferenceOrigin::Parameter(parameter)) => (parameter, false),
+                    Some(ReferenceOrigin::ParameterMember { parameter, node })
+                        if Some(node) == self.query_group(base_key)
+                            && self
+                                .checked_contract_input_reference(node, module)
+                                .is_some_and(|(root, target, _)| {
+                                    root == parameter && target == model
+                                }) =>
+                    {
+                        (parameter, true)
+                    }
+                    _ => {
+                        return Err(self.fail(key, "id needs required original scenario parameter"));
+                    }
                 };
                 let owner = self
                     .resolve
@@ -8438,8 +8664,9 @@ impl<'a> Closure<'a> {
                     .ok_or_else(|| self.fail(key, "missing intrinsic id source scenario"))?;
                 if !calls.is_empty()
                     || self.loop_node.is_some()
-                    || self.checked_call_parent_path(base_key, parameter, 0) != Some((model, 0))
-                    || owner.module != module
+                    || !member
+                        && self.checked_call_parent_path(base_key, parameter, 0) != Some((model, 0))
+                    || !member && owner.module != module
                     || scenario.module != module
                     || scenario.read
                     || scenario.on.is_some()
@@ -8626,6 +8853,11 @@ impl<'a> Closure<'a> {
                         || value.first_query.is_some_and(|(_, binding)| {
                             matches!(self.query_binding(base_key), Some(Binding::Let {node}) if *node == binding)
                         })
+                        || matches!(value.reference_origin,
+                            Some(ReferenceOrigin::ParameterMember {parameter, node})
+                                if Some(node) == self.query_group(base_key)
+                                    && self.checked_contract_input_reference(node, module)
+                                        .is_some_and(|(root, target, _)| root == parameter && target == model))
                         || matches!(value.model_result,
                             Some(DisclosureModelResult::Reference {model: target, node, source_model, field})
                                 if target == model && Some(node) == self.query_group(base_key)
@@ -13150,6 +13382,15 @@ impl<'a> Closure<'a> {
                                     self.fail(value, "stored reference operand cannot be copied")
                                 );
                             }
+                            if evaluated.record.is_some()
+                                && matches!(
+                                    evaluated.reference_origin,
+                                    Some(ReferenceOrigin::ParameterMember { .. })
+                                )
+                            {
+                                return Err(self
+                                    .fail(value, "original input Model member cannot be copied"));
+                            }
                             if !compatible(&flow.evaluated, &evaluated.decisions) {
                                 continue;
                             }
@@ -13208,6 +13449,8 @@ impl<'a> Closure<'a> {
                                         .filter(|dependency| {
                                             self.reference_operand_type_id(&dependency.ty).is_some()
                                                 || self.current_revision_control(dependency, module)
+                                                || self
+                                                    .contract_input_stored_read(dependency, module)
                                                 || self.run_unfinished_control(dependency, module)
                                                 || dependency.field_name == "active"
                                                     && self
@@ -13239,6 +13482,7 @@ impl<'a> Closure<'a> {
                                             .is_some_and(|symbol| matches!(symbol.kind, SymbolKind::Contract { .. })))
                                         || self.reference_operand_type_id(&dependency.ty).is_some()
                                         || self.current_revision_control(dependency,module)
+                                        || self.contract_input_stored_read(dependency,module)
                                         || self.run_unfinished_control(dependency,module)
                                         || dependency.field_name == "active" && self.checked_profile_scalar(dependency.node,module).is_some_and(|(_,_,_,profile,field)| {
                                             dependency.model == profile && dependency.field == field && dependency.calls.is_empty()
@@ -13402,6 +13646,63 @@ impl<'a> Closure<'a> {
                         for mut value in values {
                             if let Some(model) = self.result_model {
                                 let direct = effect.value.and_then(|key| self.query_binding(key));
+                                if let Some(ReferenceOrigin::ParameterMember { parameter, node }) =
+                                    value.reference_origin
+                                    && value.record == Some(model)
+                                    && calls.is_empty()
+                                    && self.loop_node.is_none()
+                                    && effect.value.and_then(|key| self.query_group(key))
+                                        == Some(node)
+                                    && self
+                                        .checked_contract_input_reference(node, module)
+                                        .is_some_and(|(root, target, _)| {
+                                            root == parameter && target == model
+                                        })
+                                {
+                                    let owner =
+                                        self.resolve.symbols.get(model.0 as usize).ok_or_else(
+                                            || self.fail(node, "missing input result model"),
+                                        )?;
+                                    let SymbolKind::Model { fields, .. } = &owner.kind else {
+                                        return Err(
+                                            self.fail(node, "input result needs stored Model")
+                                        );
+                                    };
+                                    if fields.iter().any(|field| {
+                                        self.resolve
+                                            .symbols
+                                            .get(field.0 as usize)
+                                            .is_none_or(|field| field.name == "id")
+                                    }) {
+                                        return Err(
+                                            self.fail(node, "input result identity is reserved")
+                                        );
+                                    }
+                                    value.reads.push(DisclosureDependency {
+                                        query_id: None,
+                                        id: self.opaque(
+                                            "read-data",
+                                            node,
+                                            &self.call_stamp(calls)?,
+                                        )?,
+                                        source: self.source(module, node)?,
+                                        node,
+                                        calls: calls.to_vec(),
+                                        role: DependencyRole::Data,
+                                        model,
+                                        field: model,
+                                        model_name: owner.canonical.clone(),
+                                        field_name: "id".into(),
+                                        ty: ResolvedType::Scalar(Scalar::Text),
+                                        type_id: "text".into(),
+                                    });
+                                    value.observed.push((node, calls.to_vec()));
+                                    value.model_result = Some(DisclosureModelResult::Parameter {
+                                        model,
+                                        parameter,
+                                        node,
+                                    });
+                                }
                                 if let (
                                     Some(Binding::Symbol(parameter)),
                                     Some(ReferenceOrigin::Parameter(origin)),
@@ -13561,6 +13862,23 @@ impl<'a> Closure<'a> {
                                     value.observed.push((operand, calls.to_vec()));
                                 }
                                 let matches = match (direct, value.model_result) {
+                                    (
+                                        _,
+                                        Some(DisclosureModelResult::Parameter {
+                                            model: actual,
+                                            parameter,
+                                            node,
+                                        }),
+                                    ) if effect.value.and_then(|key| self.query_group(key))
+                                        == Some(node)
+                                        && self
+                                            .checked_contract_input_reference(node, module)
+                                            .is_some_and(|(root, target, _)| {
+                                                root == parameter && target == model
+                                            }) =>
+                                    {
+                                        actual == model
+                                    }
                                     (
                                         Some(Binding::Symbol(parameter)),
                                         Some(DisclosureModelResult::Parameter {

@@ -33,7 +33,7 @@ import type { SystemCommandContext, SystemStaging } from '../ports/system.js';
 import { stageAuthoredDelivery, type AuthoredSkippedDelivery } from '../receipt/authored-delivery.js';
 import { RECEIPT_ASSOCIATION_MODEL, RECEIPT_MODEL, readReceiptRow } from '../receipt/tables.js';
 import { stageGeneratedCrudOwnerCall } from '../mutation/crud.js';
-import { isGeneratedOperationDef } from './registry.js';
+import { generatedCallInputDeclarations, isGeneratedOperationDef } from './registry.js';
 import { checkQueries, checkQueryProjection, disclosureType, checkQueryInventory, projectReadQueryProjectionWire, queryProjectionWire, checkSavedQueries, savedQueriesReadable, returnQueryIds } from './scenario-query-plan.js';
 import { checkScenarioReceiptMembershipSites, type ScenarioReceiptMembershipSite } from './scenario-membership-plan.js';
 export type { ScenarioReceiptMembershipSite } from './scenario-membership-plan.js';
@@ -204,13 +204,13 @@ export function checkScenarioResultDisclosurePlan(value: unknown): ScenarioResul
       if (kind === 'operation-id') {
         if (dependency['type'] !== 'text') return invalid('operation identity requires text wire.');
       } else if (kind === 'admitted-input') {
-        if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(text(dependency['parameter'])) || !primitiveInputType(dependency['type'])) {
-          return invalid('admitted input requires a direct parameter and supported primitive type.');
+        if (!/^[A-Za-z_][A-Za-z0-9_]*(\/[A-Za-z_][A-Za-z0-9_]*)*$/.test(text(dependency['parameter'])) || !primitiveInputType(dependency['type'])) {
+          return invalid('admitted input requires a declared singular parameter path and supported primitive type.');
         }
       } else if (kind === 'admitted-reference-version') {
         text(dependency['model']);
-        if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(text(dependency['parameter'])) || dependency['type'] !== 'int') {
-          return invalid('original reference version requires a direct parameter and int wire.');
+        if (!/^[A-Za-z_][A-Za-z0-9_]*(\/[A-Za-z_][A-Za-z0-9_]*)*$/.test(text(dependency['parameter'])) || dependency['type'] !== 'int') {
+          return invalid('original reference version requires a declared singular parameter path and int wire.');
         }
       } else return invalid('unsupported intrinsic dependency.');
       const encoded = stableStringify(dependency);
@@ -1100,8 +1100,54 @@ function primitiveInputType(type: unknown): type is CanTypeId {
   return typeof type === 'string' && /^(text|bool|int|date|datetime|decimal|money|duration|user)$/.test(type);
 }
 
+/** Exact required Contract fields from the original same-load input schema.
+ * A stored Model is a terminal slot: walking its fields would require a stored
+ * observation rather than an admitted-input intrinsic. */
+function contractInputLeaf(def: GeneratedOperationDef, parameter: string): { readonly type: string; readonly model?: string } | undefined {
+  const path = parameter.split('/');
+  if (path.length < 2 || path.length > 65 || path.some(segment => !/^[A-Za-z_][A-Za-z0-9_]*$/.test(segment))) return undefined;
+  const root = def.descriptor.inputs.find(field => field.name === path[0]);
+  const declarations = generatedCallInputDeclarations(def);
+  if (root?.kind !== 'nominal' || !root.required || root.default !== undefined || root.computedDefault === true ||
+      root.valueType === undefined || def.inputArrays[root.name] !== undefined || declarations === undefined) return undefined;
+  let type = parseTypeId(root.valueType);
+  for (const segment of path.slice(1)) {
+    if (type.array || type.nullable || type.requiredArray || type.base.kind !== 'nominal' ||
+        declarations.modelNames.has(type.base.path) || !Object.hasOwn(declarations.valueSchema.contracts, type.base.path)) return undefined;
+    const contract = declarations.valueSchema.contracts[type.base.path]!;
+    const field = Object.hasOwn(contract.fields, segment) ? contract.fields[segment] : undefined;
+    if (field === undefined || !field.required || field.hasDefault || field.serverOnly || field.defaultOrigin !== undefined ||
+        field.type.array || field.type.nullable || field.type.requiredArray) return undefined;
+    type = field.type;
+  }
+  if (type.base.kind === 'nominal') {
+    if (declarations.modelNames.has(type.base.path)) return { type: printTypeId(type), model: type.base.path };
+    const alias = declarations.valueSchema.aliases !== undefined && Object.hasOwn(declarations.valueSchema.aliases, type.base.path)
+      ? declarations.valueSchema.aliases[type.base.path] : undefined;
+    if (alias !== undefined && !alias.type.array && !alias.type.nullable && !alias.type.requiredArray) type = alias.type;
+  }
+  return { type: printTypeId(type) };
+}
+
+/** Read admitted JSON without invoking an accessor or following a prototype. */
+function admittedInputWire(inputs: ClosedInputs, parameter: string): unknown {
+  let value: unknown = inputs;
+  for (const segment of parameter.split('/')) {
+    if (typeof value !== 'object' || value === null || Array.isArray(value) ||
+        ![Object.prototype, null].includes(Object.getPrototypeOf(value))) return invalid('intrinsic input must be an own supplied admitted slot.');
+    const member = Object.getOwnPropertyDescriptor(value, segment);
+    if (member === undefined || !('value' in member) || !member.enumerable) return invalid('intrinsic input must be an own supplied admitted slot.');
+    value = member.value;
+  }
+  return value;
+}
+
 function primitiveInput(def: GeneratedOperationDef, dependency: ScenarioReceiptIntrinsicDependency): boolean {
   if (dependency.kind !== 'admitted-input') return false;
+  if (dependency.parameter.includes('/')) {
+    const leaf = contractInputLeaf(def, dependency.parameter);
+    return leaf !== undefined && leaf.model === undefined && primitiveInputType(leaf.type) && leaf.type === dependency.type;
+  }
   const input = def.descriptor.inputs.find(field => field.name === dependency.parameter);
   if (input === undefined || input.kind === 'ref' || input.kind === 'nominal' || input.kind === 'delivery' ||
       !input.required || input.default !== undefined || input.computedDefault === true ||
@@ -1121,6 +1167,7 @@ function versionedReferenceInput(def: GeneratedOperationDef, dependency: Scenari
   return requiredVersionedReferenceInput(def, dependency.parameter, dependency.model);
 }
 function requiredVersionedReferenceInput(def: GeneratedOperationDef, parameter: string, model: ModelName): boolean {
+  if (parameter.includes('/')) return contractInputLeaf(def, parameter)?.model === model;
   const input = def.descriptor.inputs.find(field => field.name === parameter);
   return input?.kind === 'ref' && input.model === model && input.required && input.versioned &&
     def.inputArrays[parameter] === undefined && def.inputNullableRefs?.[parameter] !== true;
@@ -3614,9 +3661,7 @@ export async function observeScenarioReceiptIntrinsic(call: AdmittedCall, store:
       if (observed.wire !== call.context.operationId) return invalid('intrinsic identity differs from the admitted operation.');
       observation = { dependencyId: dependency.id, kind: dependency.kind, wire: call.context.operationId };
     } else if (dependency.kind === 'admitted-input') {
-      const member = Object.getOwnPropertyDescriptor(call.inputs, dependency.parameter);
-      if (member === undefined || !('value' in member) || !member.enumerable) return invalid('intrinsic input must be an own supplied admitted slot.');
-      const wire = dataCopy(member.value); scalarWire(dependency.type, wire);
+      const wire = dataCopy(admittedInputWire(call.inputs, dependency.parameter)); scalarWire(dependency.type, wire);
       if (stableStringify(wire) !== stableStringify(observed.wire) ||
           stableStringify(encodeValue(dependency.type, decodeValue(dependency.type, wire))) !== stableStringify(wire)) {
         return invalid('intrinsic input differs from its original canonical admitted wire.');

@@ -15839,3 +15839,49 @@ Compiler source correspondence, native hydrated consumers and receipt intrinsics
 remain the next explicit joins. Reuse the preceding original24-source701-error
 capture for unchanged static emission; no full composition/native acceptance
 is claimed by this State admission prerequisite.
+
+
+2026-10-15 — C02/C10: join original Contract input slots to native reads and receipts.
+
+Required singular Contract paths rooted at the original scenario parameter now
+retain their actual declared field/type/source correspondence. Scalar payload
+leaves reuse admitted-input receipt intrinsics with their existing slash paths;
+required Model leaves reuse genuine admitted record views, version intrinsics
+and reserved identity observations. Contract access itself is no stored read.
+Reading a referenced Model field retains its separate actual stored dependency.
+Aliases retain owning constraints; source/IR substitutions, nullable/array and
+copied-reference profiles still refuse at this finite backend boundary. No
+language restriction or app-name exception is introduced; settled Contract and
+reference semantics apply without another JEV decision.
+
+Cloudflare hydrates only declared containers/Model slots from State's exact
+admitted paths, preserving native Values brands and frozen Contract containers.
+Repeated row identity at distinct slots keeps each original version binding.
+Model-result projection now includes scalar dependency owners in its existing
+source-policy census: the actual D1 check exposed withheld results when that
+owner was omitted, despite correctly captured fields. The correction installs
+the genuine current read policies; it does not change any grant. Scalar-only
+calls retain their existing source/projection path.
+
+All30 affected compiler checks pass (six new Contract source/emission/corruption,
+eight created-result, nine first-query and seven reference-result). All85 State
+admission/owner/intrinsic checks pass, reusing83 unchanged passes and the final
+two focused intrinsic outcomes. Thirteen Cloudflare component checks pass;
+the new component includes arrays, repeated references, frozen containers and
+Datetime/int brands. Actual generated-source/CLI/verified assembly/D1/Identity
+Contract-input consumer passes1/1 in16.19s and existing reference-chain consumer
+passes1/1 in23.26s. These retain original guards, normalization, distinct control
+and version observations, early/late rollback, missing/stale/unversioned input
+refusals, ordinary/retained replay and membership denial/restoration. Final source
+and producer capture checks pass. Earlier runs invalidated by overlapping build
+or source changes are not credited. Normal State/Cloudflare and CLI builds,
+changed Rust formatting and diff checks pass. Root TypeScript retains16 errors
+in four unchanged files, none in the new generated consumer.
+
+Frozen original24-source validation exits10 after396.29s with701 diagnostics
+(675 E6008,26 E6007), complete=true, omitted=0, no added/removed diagnostics
+and identical source inventory versus the preceding reference-chain capture.
+Original source/catalog bytes remain unchanged; no usable artifact exists.
+Original can_work query-backed leading/body authorization, adjacent root-model
+create pairing and whole-cohort hook preparation remain local work. This
+prerequisite does not qualify the complete CRM workflow or training readiness.

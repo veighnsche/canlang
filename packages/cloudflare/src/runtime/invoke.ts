@@ -4050,6 +4050,12 @@ function nativeScenarioModelConsumers(loaded: LoadedCanonicalDescriptors, def: G
   for (const guard of nativeSourceSendGuards.get(def)?.values() ?? []) {
     for (const input of guard.guard.inputs) add(input.type);
   }
+  // A model consumer projects all its captured stored dependencies through
+  // genuine source grants, including scalar controls on other owning models.
+  // Scalar-only calls retain their existing producer and projection path.
+  if (models.size !== 0) for (const returned of def.descriptor.result?.disclosure?.returns ?? []) {
+    for (const dependency of returned.dependencies) add(dependency.model, true);
+  }
   return [...models];
 }
 function needsInvocationSourceReads(loaded: LoadedCanonicalDescriptors, operation: string): boolean {
@@ -5186,8 +5192,65 @@ function encodeCanonicalWireField(StateError: StateErrorsProducer, type: CanType
 function scenarioParameters(call: Pick<CanonicalSeamCall, 'def' | 'inputs' | 'recordRefs'>, loaded: LoadedCanonicalDescriptors, recordView: (model: string, row: StoredRow) => Record<string, unknown>, resolvedDefaults?: Record<string, unknown>, receiptFrame?: ScenarioReceiptFrame): Record<string, unknown> {
   const parameters: Record<string, unknown> = Object.assign(Object.create(null), structuredClone(call.inputs));
   const def = generatedScenarioDef(call);
-  const arraySlots = new Map<string, { readonly elements: unknown[]; readonly index: number }>();
+  const arraySlots = new Map<string, { readonly elements: unknown[]; readonly index: number; readonly model: string }>();
   const referenceArrays: unknown[][] = [];
+  const admitted = new Map<string, NonNullable<typeof call.recordRefs>[number]>();
+  const consumed = new Set<string>();
+  const refuse = (): never => { throw new loaded.producers.errors('validation', 'Admitted native nominal reference lacks its exact owning slot.'); };
+  for (const ref of call.recordRefs ?? []) {
+    if (admitted.has(ref.param)) refuse();
+    admitted.set(ref.param, ref);
+  }
+  // Values has no reference resolver: its decoded Contracts/arrays are frozen.
+  // Rebuild only changed declared containers; retain every unrelated native leaf
+  // (including Values brands). Paths are generated from owning declarations,
+  // never interpreted as property access instructions from a claimed ref.
+  let inspected = 0;
+  const hydrateNominal = (typeId: string, value: unknown, path: string, depth = 0): unknown => {
+    if (++inspected > 20_000 || depth > 64) return refuse();
+    const type = parseTypeId(typeId);
+    if (value === null && type.nullable) return value;
+    if (type.array) {
+      if (!Array.isArray(value) || Object.getPrototypeOf(value) !== Array.prototype) return refuse();
+      const elementType = printTypeId({ ...type, array: false, requiredArray: false, nullable: false });
+      const elements: unknown[] = [];
+      let changed = false;
+      for (let index = 0; index < value.length; index++) {
+        const slot = Object.getOwnPropertyDescriptor(value, String(index));
+        if (slot === undefined || !('value' in slot)) return refuse();
+        const next = hydrateNominal(elementType, slot.value, `${path}/${index}`, depth + 1);
+        elements.push(next); changed ||= next !== slot.value;
+      }
+      return changed ? Object.freeze(elements) : value;
+    }
+    if (type.base.kind !== 'nominal') return value;
+    const name = type.base.path;
+    if (loaded.models.some(model => model.name === name)) {
+      const ref = admitted.get(path);
+      if (!isRecordRef(value) || value.model !== name || ref === undefined || ref.model !== name ||
+          ref.row.id !== value.id || value.version !== undefined && value.version !== BigInt(ref.row.version) ||
+          consumed.has(path)) return refuse();
+      const view = recordView(ref.model, ref.row);
+      receiptFrame?.bindAdmittedReference(view, ref);
+      consumed.add(path);
+      return view;
+    }
+    const schema = loaded.valueSchema;
+    const contract = schema !== undefined && Object.hasOwn(schema.contracts, name) ? schema.contracts[name] : undefined;
+    if (contract === undefined) return value; // same-load enum/alias, with no model slots
+    if (def === undefined || loaded.registry.get(def.name) !== def || value === null || typeof value !== 'object' ||
+        Array.isArray(value) || ![Object.prototype, null].includes(Object.getPrototypeOf(value))) return refuse();
+    const entries: Array<[string, unknown]> = [];
+    let changed = false;
+    for (const key of Reflect.ownKeys(value)) {
+      if (typeof key !== 'string' || key.includes('/') || !Object.hasOwn(contract.fields, key)) return refuse();
+      const slot = Object.getOwnPropertyDescriptor(value, key);
+      if (slot === undefined || !('value' in slot) || !slot.enumerable) return refuse();
+      const next = hydrateNominal(contract.fields[key]!.typeId, slot.value, `${path}/${key}`, depth + 1);
+      entries.push([key, next]); changed ||= next !== slot.value;
+    }
+    return changed ? Object.freeze(Object.fromEntries(entries)) : value;
+  };
   for (const field of def?.descriptor.inputs ?? []) {
     if (field.kind === 'ref' && Object.hasOwn(def!.inputArrays, field.name)) {
       const wire = parameters[field.name];
@@ -5199,7 +5262,7 @@ function scenarioParameters(call: Pick<CanonicalSeamCall, 'def' | 'inputs' | 're
         parameters[field.name] = elements;
         referenceArrays.push(elements);
         for (let index = 0; index < wire.length; index += 1) {
-          arraySlots.set(`${field.name}/${index}`, { elements, index });
+          arraySlots.set(`${field.name}/${index}`, { elements, index, model: field.model });
         }
       }
     }
@@ -5215,15 +5278,23 @@ function scenarioParameters(call: Pick<CanonicalSeamCall, 'def' | 'inputs' | 're
         } else if (field.kind === "enum" ? Object.hasOwn(parameters, field.name) : parameters[field.name] !== undefined) {
           parameters[field.name] = decodeCanonicalValue(loaded.valueSchema, field.valueType, parameters[field.name]);
         }
+        if (field.kind === 'nominal' && Object.hasOwn(parameters, field.name)) {
+          if (field.name.includes('/')) refuse();
+          parameters[field.name] = hydrateNominal(field.valueType, parameters[field.name], field.name);
+        }
       } catch (error) {
         throw new loaded.producers.errors("validation", message(error));
       }
     }
   }
   for (const ref of call.recordRefs ?? []) {
+    if (consumed.has(ref.param)) continue;
+    const slot = arraySlots.get(ref.param);
+    const direct = def?.descriptor.inputs.find(field => field.name === ref.param);
+    if (slot === undefined ? direct?.kind !== 'ref' || direct.model !== ref.model ||
+        Object.hasOwn(def!.inputArrays, direct.name) : slot.model !== ref.model) refuse();
     const view = recordView(ref.model, ref.row);
     receiptFrame?.bindAdmittedReference(view, ref);
-    const slot = arraySlots.get(ref.param);
     if (slot === undefined) parameters[ref.param] = view;
     else {
       slot.elements[slot.index] = view;

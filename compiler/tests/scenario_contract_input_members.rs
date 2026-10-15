@@ -1,0 +1,316 @@
+//! Original Contract input member provenance and native emission correspondence.
+use canlang_compiler::analysis::catalog::{Catalog, CatalogRequest, load_catalog};
+use canlang_compiler::analysis::scenario_disclosure::{
+    DependencyRole, DisclosureIntrinsicKind, ScenarioDisclosure,
+};
+use canlang_compiler::analysis::{CheckedProgram, NodeKey, check_program};
+use canlang_compiler::codegen::{EmitOptions, EmitSources, emit, ir, js, to_json_string};
+use canlang_compiler::diagnostic::DiagnosticResult;
+use canlang_compiler::source::{SourceDb, Span};
+use std::path::{Path, PathBuf};
+
+const SOURCE: &str = r#"app InputMembers
+Given
+ Customer {active:bool,name:text}
+ Location {title:text}
+ Result {location:Location,title:text trim min=1,value:money,notes:text}
+ contract Selection {location:Location}
+ contract Lead {customer:Customer,alternate:Customer,selection:Selection,title:Result.title,value:money,notes:text}
+ policy Customer read=members
+ policy Location read=members
+ policy Result read=members
+When
+ scenario promote(input:Lead) -> Result by=members
+  require input.customer.active and input.alternate.active and input.value.minor>=0 and input.value.currency==input.value.currency
+  do
+   create Result {location=input.selection.location,title=input.title,value=input.value,notes=input.notes} as result
+   return result
+Then
+"#;
+
+fn root() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .into()
+}
+fn checked(source: &str) -> (SourceDb, CheckedProgram) {
+    let (db, program, _) = checked_with_catalog(source);
+    (db, program)
+}
+fn checked_with_catalog(source: &str) -> (SourceDb, CheckedProgram, Option<Catalog>) {
+    let mut db = SourceDb::new();
+    let file = db.add("contract-input-members.can".into(), source.into());
+    let path = root().join("packages/values/dist/catalog.json");
+    let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+        flag: Some(&path),
+        env: None,
+        cwd: &root(),
+        primary: Span::new(file, 0, 0),
+    });
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (program, diagnostics) = check_program(&db, &[file], catalog.as_ref());
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    (db, program, catalog)
+}
+fn disclosure(program: &CheckedProgram) -> &ScenarioDisclosure {
+    let owner = program
+        .symbols
+        .iter()
+        .find(|symbol| symbol.name == "promote")
+        .unwrap();
+    program.scenario_disclosures().get(&owner.id).unwrap()
+}
+fn text(db: &SourceDb, node: NodeKey) -> &str {
+    db.get(node.file).unwrap().text[node.start as usize..node.end as usize].trim()
+}
+fn body(source: &str, result: &str, body: &str) -> String {
+    let source = source.replace("-> Result by", &format!("-> {result} by"));
+    let before = source.split("  require ").next().unwrap();
+    format!("{before}  do\n{body}\nThen\n")
+}
+
+fn native_artifact(source: &str) -> serde_json::Value {
+    let (db, program, catalog) = checked_with_catalog(source);
+    let mut result = DiagnosticResult::new("contract-input-members", "1.0", 1);
+    result.add_sources(&db);
+    let (artifact, diagnostics) = emit(
+        &program,
+        &EmitSources {
+            db: &db,
+            result: &result,
+            catalog: catalog.as_ref(),
+            options: EmitOptions {
+                allow_incomplete_test_only: false,
+                native_scenario_receipts: true,
+            },
+        },
+    );
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    serde_json::from_str(&to_json_string(&artifact)).unwrap()
+}
+
+#[test]
+fn actual_native_emission_qualifies_original_renamed_result_and_version_input_paths() {
+    for source in [
+        SOURCE.to_string(),
+        SOURCE
+            .replace("InputMembers", "Renamed")
+            .replace("Lead", "Reviewed")
+            .replace("input", "payload")
+            .replace("customer", "buyer"),
+        body(SOURCE, "Location", "   return input.selection.location"),
+        body(
+            SOURCE,
+            "int",
+            "   return input.customer.version+input.alternate.version",
+        ),
+    ] {
+        let artifact = native_artifact(&source);
+        let operation = artifact["operations"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|operation| {
+                operation["name"]
+                    .as_str()
+                    .is_some_and(|name| name.ends_with(".promote"))
+            })
+            .unwrap();
+        assert!(
+            operation["result"]["disclosure"]["returns"]
+                .as_array()
+                .is_some_and(|returns| !returns.is_empty())
+        );
+        let callable = artifact["callables"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|callable| callable["id"] == operation["name"])
+            .unwrap();
+        let generated = artifact["modules"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|module| module["path"] == callable["module"])
+            .unwrap()["js"]
+            .as_str()
+            .unwrap();
+        assert!(!generated.contains("throw new Error(\"Unsupported"));
+    }
+}
+
+#[test]
+fn native_input_path_correspondence_refuses_same_typed_field_substitution() {
+    let (db, program, catalog) = checked_with_catalog(SOURCE);
+    let (mut lowered, diagnostics) = ir::build(&program, &db, catalog.as_ref());
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let owner = lowered
+        .items
+        .iter_mut()
+        .find(|item| item.canonical == "InputMembers.promote")
+        .unwrap();
+    let ir::IrItemKind::Scenario { effects, .. } = &mut owner.kind else {
+        panic!("scenario");
+    };
+    let ir::IrStmt::Create { input, .. } = &mut effects[0] else {
+        panic!("original create");
+    };
+    let ir::IrExpr::Object(entries) = &mut input.expr else {
+        panic!("input entries");
+    };
+    let value = &mut entries
+        .iter_mut()
+        .find(|(name, _)| name == "title")
+        .unwrap()
+        .1;
+    let ir::IrExpr::Member { field, .. } = &mut value.expr else {
+        panic!("original member");
+    };
+    *field = "notes".into();
+    let output = js::emit_program_with_native_source_receipts(&lowered, true, &db);
+    assert!(
+        output
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "E6008"),
+        "{:?}",
+        output.diagnostics
+    );
+}
+
+#[test]
+fn required_contract_input_members_keep_actual_model_reads_and_scalar_payload_paths() {
+    for source in [
+        SOURCE.to_string(),
+        SOURCE
+            .replace("InputMembers", "Renamed")
+            .replace("Lead", "Reviewed")
+            .replace("input", "payload")
+            .replace("customer", "buyer")
+            .replace("selection", "chosen"),
+    ] {
+        let (db, program) = checked(&source);
+        let ScenarioDisclosure::Complete(complete) = disclosure(&program) else {
+            panic!("{:?}", disclosure(&program));
+        };
+        let root_name = if source.contains("payload:") {
+            "payload"
+        } else {
+            "input"
+        };
+        let field = if root_name == "payload" {
+            "buyer"
+        } else {
+            "customer"
+        };
+        let mut observed = Vec::new();
+        for returned in &complete.returns {
+            for read in &returned.dependencies {
+                assert!(
+                    read.model_name.ends_with(".Customer"),
+                    "Contract input access is not a stored read: {read:?}"
+                );
+                assert_eq!(read.field_name, "active");
+                assert_eq!(read.role, DependencyRole::Control);
+                assert!(read.calls.is_empty() && read.query_id.is_none());
+                observed.push(text(&db, read.node).to_string());
+            }
+            for leaf in ["title", "value", "notes"] {
+                assert!(returned.intrinsics.iter().any(|intrinsic|
+                    matches!(&intrinsic.kind, DisclosureIntrinsicKind::AdmittedInput {parameter,parameter_name}
+                        if program.symbols[parameter.0 as usize].name == root_name && parameter_name == &format!("{root_name}/{leaf}"))
+                        && text(&db, intrinsic.node) == format!("{root_name}.{leaf}")
+                        && intrinsic.role == DependencyRole::Data));
+            }
+        }
+        assert!(observed.contains(&format!("{root_name}.{field}.active")));
+        assert!(observed.contains(&format!("{root_name}.alternate.active")));
+        assert_eq!(complete.effects.len(), 1);
+    }
+}
+
+#[test]
+fn nested_required_model_result_and_explicit_id_keep_the_original_input_member_anchor() {
+    for (result, expression, field) in [
+        ("Location", "input.selection.location", "id"),
+        ("text", "input.customer.id", "id"),
+    ] {
+        let source = body(SOURCE, result, &format!("   return {expression}"));
+        let (db, program) = checked(&source);
+        let ScenarioDisclosure::Complete(complete) = disclosure(&program) else {
+            panic!("{:?}", disclosure(&program));
+        };
+        let [returned] = complete.returns.as_slice() else {
+            panic!("one direct return");
+        };
+        let [read] = returned.dependencies.as_slice() else {
+            panic!("one real model identity read");
+        };
+        assert_eq!(read.field_name, field);
+        assert_eq!(text(&db, read.node), expression);
+        assert_eq!(read.role, DependencyRole::Data);
+        assert!(returned.intrinsics.is_empty());
+    }
+}
+
+#[test]
+fn separate_required_model_slots_keep_separate_original_version_paths() {
+    let source = body(
+        SOURCE,
+        "int",
+        "   return input.customer.version+input.alternate.version",
+    );
+    let (db, program) = checked(&source);
+    let ScenarioDisclosure::Complete(complete) = disclosure(&program) else {
+        panic!("{:?}", disclosure(&program));
+    };
+    let [returned] = complete.returns.as_slice() else {
+        panic!("one version sum");
+    };
+    assert!(returned.dependencies.is_empty());
+    assert_eq!(returned.intrinsics.len(), 2);
+    for (intrinsic, slot) in returned.intrinsics.iter().zip(["customer", "alternate"]) {
+        assert!(
+            matches!(&intrinsic.kind, DisclosureIntrinsicKind::AdmittedReferenceVersion {parameter_name,model_name,..}
+            if parameter_name == &format!("input/{slot}") && model_name == "InputMembers.Customer")
+        );
+        assert_eq!(text(&db, intrinsic.node), format!("input.{slot}.version"));
+    }
+    assert_ne!(returned.intrinsics[0].id, returned.intrinsics[1].id);
+}
+
+#[test]
+fn copied_nullable_array_and_nonmodel_contract_slots_do_not_acquire_required_reference_provenance()
+{
+    let direct = body(SOURCE, "Location", "   return input.selection.location");
+    for source in [
+        direct.replace(
+            "   return input.selection.location",
+            "   let copied=input\n   return copied.selection.location",
+        ),
+        direct.replace(
+            "   return input.selection.location",
+            "   let copied=input.selection.location\n   return copied",
+        ),
+        direct
+            .replace("location:Location}", "location:Location?}")
+            .replace("-> Location by", "-> Location? by"),
+        direct
+            .replace("location:Location}", "location:Location[]}")
+            .replace("-> Location by", "-> Location[] by"),
+        direct
+            .replace(
+                "contract Selection {location:Location}",
+                "contract Shell {title:text}\n contract Selection {location:Shell}",
+            )
+            .replace("-> Location by", "-> Shell by"),
+    ] {
+        let (_, program) = checked(&source);
+        assert!(
+            matches!(disclosure(&program), ScenarioDisclosure::Declined(_)),
+            "{:?}",
+            disclosure(&program)
+        );
+    }
+}

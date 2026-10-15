@@ -249,8 +249,9 @@ pub(super) struct NativeReturn {
     pub span: Span,
     pub decisions: Vec<(String, DisclosureChoice)>,
     pub implicit: bool,
-    /// Target identity is observed after promoting the once-read reference,
-    /// never as another field read on its original source receiver.
+    /// Observe target identity on the genuine result view. Stored references
+    /// first promote their once-read source; admitted Contract slots already
+    /// carry their exact native view.
     pub reference_result: Option<NativeDependency>,
 }
 
@@ -638,6 +639,31 @@ pub(super) fn checked_created_model_result(
                         return None;
                     };
                     let fact = facts.parameters.get(*index)?;
+                    if matches!(value.expr, IrExpr::Member { .. }) {
+                        let (root, _) = checked_contract_parameter_path(ir, item, value, None)?;
+                        if actual != *model
+                            || root != parameter
+                            || value.span != node_span(node)
+                            || value.ty
+                                != (ResolvedType::Record {
+                                    symbol: actual,
+                                    stored: true,
+                                })
+                            || !returned.dependencies.iter().any(|read| {
+                                read.node == node
+                                    && read.model == actual
+                                    && read.field == actual
+                                    && read.field_name == "id"
+                                    && read.type_id == "text"
+                                    && read.role == DependencyRole::Data
+                                    && read.calls.is_empty()
+                                    && read.query_id.is_none()
+                            })
+                        {
+                            return None;
+                        }
+                        continue;
+                    }
                     if actual != *model
                         || *parameter_owner != item.id
                         || fact.parameter != parameter
@@ -1010,6 +1036,10 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
             ) {
                 let target = checked_reference_model_result(ir, item, value, models, db?)?;
                 if target.id != model {
+                    return None;
+                }
+            } else if checked_contract_parameter_path(ir, item, value, db).is_some() {
+                if checked_contract_parameter_row(ir, item, value, models, db?)?.id != model {
                     return None;
                 }
             } else {
@@ -1422,6 +1452,18 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                         if reference.ty != base.ty || scalar.model != dependency.model {
                             return None;
                         }
+                    } else if checked_contract_parameter_path(ir, item, base, db).is_some() {
+                        let schema = checked_contract_parameter_row(ir, item, base, models, db?)?;
+                        let mut originals = schema.fields.iter().filter(|original| {
+                            original.id == dependency.field
+                                && original.name == dependency.field_name
+                                && original.ty == dependency.ty
+                        });
+                        let original = originals.next()?;
+                        if schema.id != dependency.model || originals.next().is_some() {
+                            return None;
+                        }
+                        match_stored_contract_field(ir, original, db?)?;
                     } else if !current_published {
                         let (_, parent) = checked_parent_reference(ir, item, base, db?)?;
                         if parent.id != dependency.model {
@@ -1653,38 +1695,52 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                 }
             }
             let reference_result = result_identity.is_some()
-                && matches!(
+                && (matches!(
                     returned.model_result,
                     Some(DisclosureModelResult::Reference { .. })
-                );
+                ) || result_identity.is_some_and(|value| {
+                    checked_contract_parameter_path(ir, item, value, db).is_some()
+                }));
             if reference_result {
-                let Some(DisclosureModelResult::Reference {
-                    node,
-                    source_model,
-                    field,
-                    ..
-                }) = returned.model_result
-                else {
-                    return None;
-                };
-                let mut reads = returned.dependencies.iter().filter(|read| {
-                    read.node == node
-                        && read.model == source_model
-                        && read.field == field
-                        && read.role == DependencyRole::Data
-                        && read.calls.is_empty()
-                        && read.query_id.is_none()
-                });
-                let read = reads.next()?;
-                if reads.next().is_some() || native_return.reference_result.is_some() {
-                    return None;
+                if !matches!(
+                    returned.model_result,
+                    Some(DisclosureModelResult::Reference { .. })
+                ) {
+                    native_return.reference_result = Some(NativeDependency {
+                        id: dependency.id.clone(),
+                        model: dependency.model_name.clone(),
+                        field: "id".into(),
+                        source_dependency_id: None,
+                    });
+                } else {
+                    let Some(DisclosureModelResult::Reference {
+                        node,
+                        source_model,
+                        field,
+                        ..
+                    }) = returned.model_result
+                    else {
+                        return None;
+                    };
+                    let mut reads = returned.dependencies.iter().filter(|read| {
+                        read.node == node
+                            && read.model == source_model
+                            && read.field == field
+                            && read.role == DependencyRole::Data
+                            && read.calls.is_empty()
+                            && read.query_id.is_none()
+                    });
+                    let read = reads.next()?;
+                    if reads.next().is_some() || native_return.reference_result.is_some() {
+                        return None;
+                    }
+                    native_return.reference_result = Some(NativeDependency {
+                        id: dependency.id.clone(),
+                        model: dependency.model_name.clone(),
+                        field: "id".into(),
+                        source_dependency_id: Some(read.id.clone()),
+                    });
                 }
-                native_return.reference_result = Some(NativeDependency {
-                    id: dependency.id.clone(),
-                    model: dependency.model_name.clone(),
-                    field: "id".into(),
-                    source_dependency_id: Some(read.id.clone()),
-                });
             } else {
                 let observed = recipe.dependencies.entry(site).or_default();
                 if let Some(previous) = observed.iter().find(|read| read.id == dependency.id) {
@@ -1739,12 +1795,13 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                 intrinsic.node.kind != SyntaxKind::NameRef as u8
                     && intrinsic.node.kind != SyntaxKind::Path as u8
                     && intrinsic.node.kind != SyntaxKind::Name as u8
+                    && intrinsic.node.kind != SyntaxKind::Member as u8
             } else {
                 intrinsic.node.kind != SyntaxKind::Member as u8
             } {
                 return None;
             }
-            let expressions = if input {
+            let expressions = if input && intrinsic.node.kind != SyntaxKind::Member as u8 {
                 sites.names.get(&site)?
             } else {
                 sites.members.get(&site)?
@@ -1777,9 +1834,15 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                     parameter,
                     parameter_name,
                 } => {
-                    if !matches!(expression.expr, IrExpr::Name(_))
-                        || !direct_field_name(parameter_name)
-                    {
+                    let nested = checked_contract_parameter_path(ir, item, expression, db);
+                    if !matches!(expression.expr, IrExpr::Name(_)) && nested.is_none() {
+                        return None;
+                    }
+                    if let Some((root, path)) = &nested {
+                        if root != parameter || path != parameter_name {
+                            return None;
+                        }
+                    } else if !direct_field_name(parameter_name) {
                         return None;
                     }
                     let ResolvedType::Scalar(scalar) = &intrinsic.ty else {
@@ -1814,8 +1877,9 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                     if parameter_item.id != *parameter
                         || *parameter_owner != item.id
                         || params.get(*index) != Some(parameter)
-                        || parameter_item.name != *parameter_name
-                        || parameter_ty != &intrinsic.ty
+                        || (nested.is_none()
+                            && (parameter_item.name != *parameter_name
+                                || parameter_ty != &intrinsic.ty))
                         || default.is_some()
                     {
                         return None;
@@ -1833,8 +1897,15 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                     let IrExpr::Member { base, field } = &expression.expr else {
                         return None;
                     };
+                    let nested = checked_contract_parameter_path(ir, item, base, db);
+                    if let Some((root, path)) = &nested {
+                        if root != parameter || path != parameter_name {
+                            return None;
+                        }
+                        checked_contract_parameter_row(ir, item, base, models, db?)?;
+                    }
                     if field != "version"
-                        || !matches!(base.expr, IrExpr::Name(_))
+                        || (!matches!(base.expr, IrExpr::Name(_)) && nested.is_none())
                         || base.ty
                             != (ResolvedType::Record {
                                 symbol: *model,
@@ -1842,7 +1913,7 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                             })
                         || intrinsic.ty != ResolvedType::Scalar(Scalar::Int)
                         || intrinsic.type_id != "int"
-                        || !direct_field_name(parameter_name)
+                        || (nested.is_none() && !direct_field_name(parameter_name))
                     {
                         return None;
                     }
@@ -1860,8 +1931,8 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                     if parameter_item.id != *parameter
                         || *parameter_owner != item.id
                         || params.get(*index) != Some(parameter)
-                        || parameter_item.name != *parameter_name
-                        || parameter_ty != &base.ty
+                        || (nested.is_none()
+                            && (parameter_item.name != *parameter_name || parameter_ty != &base.ty))
                         || default.is_some()
                     {
                         return None;
@@ -4966,6 +5037,253 @@ fn images_source_values(node: &crate::syntax::SyntaxNode) -> Vec<&crate::syntax:
         .collect()
 }
 
+/// Resolve an original required Contract parameter path. Only declaration-owned
+/// Contract fields extend the slot; stored Model fields remain observed reads.
+fn checked_contract_parameter_path(
+    ir: &IrProgram,
+    owner: &IrItem,
+    value: &TypedExpr,
+    db: Option<&SourceDb>,
+) -> Option<(crate::analysis::SymbolId, String)> {
+    fn visit(
+        ir: &IrProgram,
+        owner: &IrItem,
+        value: &TypedExpr,
+        db: Option<&SourceDb>,
+        depth: usize,
+    ) -> Option<(crate::analysis::SymbolId, String)> {
+        if depth >= 16 {
+            return None;
+        }
+        let facts = ir.scenario_disclosures.get(&owner.id)?.source_facts()?;
+        let IrItemKind::Scenario {
+            params,
+            read: false,
+            ..
+        } = &owner.kind
+        else {
+            return None;
+        };
+        match &value.expr {
+            IrExpr::Name(name) => {
+                let mut parameters = params
+                    .iter()
+                    .filter_map(|id| ir.items.get(id.0 as usize))
+                    .filter(|param| param.name == *name);
+                let parameter = parameters.next()?;
+                let IrItemKind::Param {
+                    owner: actual_owner,
+                    index,
+                    ty: IrType::Known(ty),
+                    default: None,
+                    default_node: None,
+                    default_copy_source: None,
+                    array_bounds: None,
+                    ..
+                } = &parameter.kind
+                else {
+                    return None;
+                };
+                let fact = facts.parameters.get(*index)?;
+                let ResolvedType::Record { symbol, .. } = ty else {
+                    return None;
+                };
+                let contract = ir.items.get(symbol.0 as usize)?;
+                if parameters.next().is_some()
+                    || *actual_owner != owner.id
+                    || params.get(*index) != Some(&parameter.id)
+                    || fact.parameter != parameter.id
+                    || fact.ty != *ty
+                    || value.ty != *ty
+                    || fact.default.is_some()
+                    || fact.constraints.is_some()
+                    || parameter.module != owner.module
+                    || parameter.canonical != format!("{}.{}", owner.canonical, name)
+                    || !matches!(contract.kind, IrItemKind::Contract { .. })
+                {
+                    return None;
+                }
+                if let Some(db) = db {
+                    let text = &db.get(value.span.file)?.text;
+                    if text
+                        .get(value.span.start as usize..value.span.end as usize)?
+                        .trim()
+                        != name
+                    {
+                        return None;
+                    }
+                    let declaration = checked_effect_node(ir, owner, fact.node, db)?;
+                    let named = declaration
+                        .children
+                        .iter()
+                        .find(|node| node.kind == SyntaxKind::Name)?;
+                    let named_type = declaration
+                        .children
+                        .iter()
+                        .find(|node| node.kind == SyntaxKind::NamedType)?;
+                    let path = named_type
+                        .children
+                        .iter()
+                        .find(|node| node.kind == SyntaxKind::Path)?;
+                    if named.span != parameter.span
+                        || named.token()?.text(text) != name
+                        || crate::analysis::NodeKey::of(named_type) != fact.type_node
+                        || direct_source_path_name(path, text)? != contract.name
+                    {
+                        return None;
+                    }
+                    let schema = facts
+                        .stored_contracts
+                        .as_deref()?
+                        .iter()
+                        .find(|schema| !schema.model && schema.id == *symbol)?;
+                    match_stored_contract_schema(ir, schema, db)?;
+                }
+                Some((parameter.id, name.clone()))
+            }
+            IrExpr::Member { base, field } => {
+                let (parameter, mut path) = visit(ir, owner, base, db, depth + 1)?;
+                let ResolvedType::Record { symbol, .. } = base.ty else {
+                    return None;
+                };
+                let declaration = ir.items.get(symbol.0 as usize)?;
+                let IrItemKind::Contract { fields, .. } = &declaration.kind else {
+                    return None;
+                };
+                let mut candidates = fields
+                    .iter()
+                    .filter_map(|id| ir.items.get(id.0 as usize))
+                    .filter(|item| item.name == *field);
+                let declared = candidates.next()?;
+                let IrItemKind::Field {
+                    owner: field_owner,
+                    ty: IrType::Known(ty),
+                    default: None,
+                    server: None,
+                    required_array: false,
+                    ..
+                } = &declared.kind
+                else {
+                    return None;
+                };
+                if candidates.next().is_some()
+                    || *field_owner != symbol
+                    || *ty != value.ty
+                    || !matches!(ty, ResolvedType::Scalar(_) | ResolvedType::Record { .. })
+                    || !direct_field_name(field)
+                {
+                    return None;
+                }
+                if let Some(db) = db {
+                    let mut typed = facts
+                        .expression_types
+                        .as_deref()?
+                        .iter()
+                        .filter(|(node, _)| node_span(*node) == value.span);
+                    if !typed.any(|(_, ty)| ty == &value.ty) {
+                        return None;
+                    }
+                    let node = checked_effect_node(
+                        ir,
+                        owner,
+                        crate::analysis::NodeKey {
+                            file: value.span.file,
+                            start: value.span.start,
+                            end: value.span.end,
+                            kind: SyntaxKind::Member as u8,
+                        },
+                        db,
+                    )?;
+                    let name = node
+                        .children
+                        .iter()
+                        .rev()
+                        .find(|node| node.kind == SyntaxKind::Name)?;
+                    let mut receiver = node.children.iter().find(|node| {
+                        matches!(
+                            node.kind,
+                            SyntaxKind::NameRef | SyntaxKind::Member | SyntaxKind::Group
+                        )
+                    })?;
+                    while receiver.kind == SyntaxKind::Group {
+                        receiver = receiver.children.iter().find(|node| {
+                            matches!(
+                                node.kind,
+                                SyntaxKind::NameRef | SyntaxKind::Member | SyntaxKind::Group
+                            )
+                        })?;
+                    }
+                    if receiver.span != base.span
+                        || name.token()?.text(&db.get(value.span.file)?.text) != field
+                    {
+                        return None;
+                    }
+                    let schema = facts
+                        .stored_contracts
+                        .as_deref()?
+                        .iter()
+                        .find(|schema| !schema.model && schema.id == symbol)?;
+                    let original = schema
+                        .fields
+                        .iter()
+                        .find(|field| field.id == declared.id && field.ty == value.ty)?;
+                    match_stored_contract_schema(ir, schema, db)?;
+                    match_stored_contract_field(ir, original, db)?;
+                }
+                path.push('/');
+                path.push_str(field);
+                Some((parameter, path))
+            }
+            _ => None,
+        }
+    }
+    let result = visit(ir, owner, value, db, 0)?;
+    result.1.contains('/').then_some(result)
+}
+
+fn checked_contract_parameter_row<'a>(
+    ir: &'a IrProgram,
+    owner: &IrItem,
+    value: &TypedExpr,
+    models: &[JsModel],
+    db: &SourceDb,
+) -> Option<&'a crate::analysis::scenario_disclosure::CheckedStoredContractSchema> {
+    checked_contract_parameter_path(ir, owner, value, Some(db))?;
+    let ResolvedType::Record {
+        symbol,
+        stored: true,
+    } = value.ty
+    else {
+        return None;
+    };
+    let facts = super::scenario_calls::checked_source(ir, owner, db)?;
+    let mut schemas = facts
+        .stored_contracts
+        .as_deref()?
+        .iter()
+        .filter(|schema| schema.model && schema.id == symbol);
+    let schema = schemas.next()?;
+    if schemas.next().is_some() || schema.fields.iter().any(|field| field.name == "id") {
+        return None;
+    }
+    match_stored_contract_schema(ir, schema, db)?;
+    for field in &schema.fields {
+        match_stored_contract_field(ir, field, db)?;
+    }
+    let expected = super::js::Emitter::source_models(ir, db)?;
+    let mut generated = expected
+        .iter()
+        .filter(|model| model.name == schema.canonical);
+    let mut actual = models.iter().filter(|model| model.name == schema.canonical);
+    if serde_json::to_value(generated.next()?).ok()? != serde_json::to_value(actual.next()?).ok()?
+        || generated.next().is_some()
+        || actual.next().is_some()
+    {
+        return None;
+    }
+    Some(schema)
+}
+
 /// Reserved row IDs belong to the original required model parameter. They
 /// are receipt dependencies, not authored fields or reconstructed references.
 fn checked_parameter_row_id<'a>(
@@ -4975,6 +5293,22 @@ fn checked_parameter_row_id<'a>(
     models: &[JsModel],
     db: &SourceDb,
 ) -> Option<&'a crate::analysis::scenario_disclosure::CheckedStoredContractSchema> {
+    let nested = match &value.expr {
+        IrExpr::Member { base, field }
+            if field == "id"
+                && value.ty == ResolvedType::Scalar(Scalar::Text)
+                && matches!(base.expr, IrExpr::Member { .. }) =>
+        {
+            Some(base.as_ref())
+        }
+        IrExpr::Member { .. } if matches!(value.ty, ResolvedType::Record { stored: true, .. }) => {
+            Some(value)
+        }
+        _ => None,
+    };
+    if let Some(nested) = nested {
+        return checked_contract_parameter_row(ir, owner, nested, models, db);
+    }
     let source = super::scenario_calls::checked_source(ir, owner, db)?;
     let IrItemKind::Scenario { params, .. } = &owner.kind else {
         return None;
@@ -6460,6 +6794,9 @@ fn stored_reference_operand_inner<'a>(
         let models = super::js::Emitter::source_models(ir, db)?;
         checked_parameter_row_id(ir, owner, base, &models, db)
             .or_else(|| checked_first_query_row(ir, owner, base, db))?
+    } else if checked_contract_parameter_path(ir, owner, base, Some(db)).is_some() {
+        let models = super::js::Emitter::source_models(ir, db)?;
+        checked_contract_parameter_row(ir, owner, base, &models, db)?
     } else if let Some((_, parent)) = checked_parent_reference(ir, owner, base, db) {
         parent
     } else {

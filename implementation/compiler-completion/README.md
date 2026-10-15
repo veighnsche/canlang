@@ -552,9 +552,31 @@ backend gap, not a language requirement for a count or containment. Preserve
 both original constructors, reference identity, early guard failure and shared
 rollback. Acceptance is the original guarded existing/fresh workflow through
 checked source, generated invocation and executable authority/recovery checks.
-Contract-input admission already has owner-stage nested reference paths such as
-`input/customer`; root admission, native nested hydration and compiler path
-provenance must join that existing carrier. Direct parameter aliases,
+The Contract-input prerequisite now joins root admission, native nested hydration,
+compiler source correspondence and receipt intrinsic/recovery paths through the
+existing `input/customer` carrier. All30 affected compiler,85 State and13
+Cloudflare component checks pass. Actual generated Contract-input D1 consumer
+passes1/1 (16.19s), including shared row identities in distinct version slots,
+Model result identity, normalization, early/late rollback, replay and current
+membership denial/restoration. Existing reference-chain D1 consumer passes1/1
+(23.26s), both with frozen capture inputs. Normal package/CLI builds and changed
+formatting/diff pass; root TypeScript retains16 unchanged diagnostics. Original
+24-source validation exits10 in396.29s with the same701 diagnostics
+(675 E6008,26 E6007), complete=true, omitted=0, identical source inventory and
+no usable artifact. No diagnostics are added or removed. `can_work` remains a distinct query-backed
+derive closure: the existing nullable-user `can_use` fact and one-field contained
+ANY profile cannot establish its required-user, uncontained Employee domain,
+lazy multi-field predicate, actual argument lineage or body-stage source point.
+Its acceptance must include renamed equivalent reuse, operator-wide/home/listed
+location cases, current source/target/ancestor authority, short-circuit order and
+rollback/recovery. No nullable-user relaxation, fabricated query or guard hoist
+can close it. Required contained-parent access from `input.contact` can reuse the existing
+checked Contract slot and containment path; `Scalar::Currency` stored reads need
+a separate receipt inventory join. The second root constructor's whole hydrated
+Contract snapshot must also rejoin canonical RecordRefs for storage/equality:
+Values cannot infer Cloudflare's private native-view identity. Existing generic
+Contract equality remains the semantic owner, with native conversion still to
+qualify; no alternate equality rule is accepted. Direct parameter aliases,
 nonboolean observer/unbound page-entry support and four computed/reference order
 keys remain their recorded local dependencies. Other hook-context IR failures
 still close whole-cohort fresh preparation;
