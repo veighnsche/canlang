@@ -41,7 +41,7 @@ import { hashAdmittedInputs, stableStringify } from './replay.js';
 import { StateError } from '../errors.js';
 import { appendInputArrayLengthErrors } from './prepared-inputs.js';
 import type { OwnerMutationReadView } from '../mutation/pipeline.js';
-import { decodeValue, encodeValue, isRecordRef, isFileValue, isDeliveryRef, isActionRef, isInvocationRef, parseTypeId, validateValue, type NormalizedSchema } from '@canlang/values';
+import { decodeValue, encodeValue, isRecordRef, isFileValue, isDeliveryRef, isActionRef, isInvocationRef, parseTypeId, printTypeId, validateValue, type NormalizedSchema } from '@canlang/values';
 
 /** One admitted mutation call with its loaded record rows and fence. */
 export interface AdmittedCall {
@@ -399,7 +399,11 @@ function normalizeCallTypedInput(field: Exclude<CanonicalInputDef, { kind: 'ref'
     enum: field.kind === 'enum' ? `enum(${field.enumValues?.join(',')})` : undefined } as Record<string, string | undefined>)[field.kind];
   const valueType = field.valueType ?? (primitive === undefined ? undefined :
     `${primitive}${Object.hasOwn(def.inputArrays, field.name) ? '[]' : ''}`);
-  if (valueType !== undefined) {
+  // CRUD inputs are model fields: their scalar normalization/defaults belong
+  // to the receiving pipeline after hooks. Admission still proves original
+  // nested Model occurrences and their expected versions before execution.
+  const receivingField = !ownerStage && (def.kind === 'create' || def.kind === 'update');
+  if (valueType !== undefined && !receivingField) {
     try {
       const decoded = valueSchema === undefined
         ? decodeValue(valueType, value)
@@ -415,8 +419,6 @@ function normalizeCallTypedInput(field: Exclude<CanonicalInputDef, { kind: 'ref'
     if (ownerStage && (++inspected.count > 4096 || depth > 64)) {
       throw new StateError('limit', 'Owner call composite reference inspection exceeds its finite budget.');
     }
-    if (typeof value !== 'object' || value === null || seen.has(value)) return;
-    seen.add(value);
     // Only the exact owning declaration can make kind/model/id ordinary data.
     // Keep discovery in its existing order, including union metadata visits.
     let declared = type;
@@ -426,7 +428,22 @@ function normalizeCallTypedInput(field: Exclude<CanonicalInputDef, { kind: 'ref'
     }
     const contract = declared !== undefined && !declared.array && declared.base.kind === 'nominal'
       ? valueSchema?.contracts[declared.base.path] : undefined;
-    if (contract === undefined && isRecordRef(value)) {
+    if (receivingField) {
+      if (declared === undefined || declared.array && !Array.isArray(value)) return;
+      const model = !declared.array && declared.base.kind === 'nominal' &&
+        modelNames?.has(declared.base.path) === true;
+      if (model) {
+        // Decode this exact Model leaf only. Do not normalize its containing
+        // Contract or convert business fields before the receiving hooks.
+        if (value === null && declared.nullable) return;
+        try { value = decodeValue(printTypeId(declared), value); }
+        catch { throw new StateError('validation', 'Invalid owner call typed input.'); }
+      } else if (!declared.array && contract === undefined && declared.base.kind !== 'union') return;
+    }
+    if (typeof value !== 'object' || value === null || seen.has(value)) return;
+    seen.add(value);
+    if (contract === undefined && (!receivingField || !declared?.array && declared?.base.kind === 'nominal' &&
+        modelNames?.has(declared.base.path) === true) && isRecordRef(value)) {
       if (field.kind !== 'nominal' || modelNames?.has(value.model) !== true ||
           value.version === undefined || !CANONICAL_VERSION_RE.test(value.version.toString())) {
         throw new StateError('validation', 'Owner calls require checked models and original expected reference versions.');
@@ -449,7 +466,7 @@ function normalizeCallTypedInput(field: Exclude<CanonicalInputDef, { kind: 'ref'
     }
     // Root protected leaves retain their receiving pipeline. Values' typed
     // guards distinguish them from ordinary Contract fields named kind/id.
-    if (contract === undefined && !ownerStage && (isFileValue(value) || isDeliveryRef(value) || isActionRef(value) || isInvocationRef(value))) return;
+    if (!receivingField && contract === undefined && !ownerStage && (isFileValue(value) || isDeliveryRef(value) || isActionRef(value) || isInvocationRef(value))) return;
     for (const [name, nested] of Object.entries(value)) {
       const childType = declared?.array
         ? { ...declared, array: false, requiredArray: false, nullable: false }

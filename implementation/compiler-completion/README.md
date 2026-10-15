@@ -81,8 +81,8 @@ failures remain: `catalog_factories_lower_from_source` and
 Their assertions are preserved; no all-green compiler-suite claim follows.
 The final CLI build, formatting and diff checks pass.
 
-The current original **24-source** command below exits **10**, with **703 errors**:
-**677 E6008**, **26 E6007**, `complete=true`, `omitted=0`, and no usable artifact.
+The current original **24-source** command below exits **10**, with **701 errors**:
+**675 E6008**, **26 E6007**, `complete=true`, `omitted=0`, and no usable artifact.
 The preceding module-ownership batch closed the E6006 omissions and its
 recorded admission/lexical-target refusals. The duration batch removes exactly
 eleven diagnostics relative to that 909-error capture: six division, four
@@ -98,7 +98,7 @@ are not independent feature tasks:
 
 | Root cause / defining mechanism | Occurrences | Remaining scope |
 | --- | ---: | --- |
-| Checked source/inventory publication | 5 | Membership and collection-call correspondence plus two explicit Contract equality schema refusals for AcceptedOffer/QuoteDocument. Their validated email leaves are not in the complete checked ordinary value inventory; this is ready local work, not an external hold. Standard inventory/completions publication is closed at its earlier metadata scope. These include secondary refusals when the original IR closure is incomplete; never bypass the source census to silence them. |
+| Checked source/inventory publication | 3 | Membership and collection-call correspondence. AcceptedOffer/QuoteDocument now publish their validated-email closure; standard inventory/completions publication is closed at its earlier metadata scope. These include secondary refusals when the original IR closure is incomplete; never bypass the source census to silence them. |
 | Query and predicate lowering | 111 | 91 stored first-query correspondence, four computed/reference model expression-order keys, 10 domain and six archive profiles; ordinary async any/all, filter/select, supplied-array first and typed supplied-array ordering are closed. Individual source/permission correspondence remains required; not all are independent or secondary. |
 | UI/server factory profiles | 198 | Original filters/defaults, forms/inputs, calendars and other component payloads. |
 | Outbound/business formatting sinks | 31 | Owning localized sink/admission contract, preserving argument order and recipient context. |
@@ -759,21 +759,36 @@ Assertions remain. No new source spelling, global type-name registry or complete
 application claim. Next ready local leaves are complete validated-email offer
 schema publication and the original query-backed can_work source proof.
 
-**C02/C03 validated-email Contract inventory (implemented; original capture pending).**
+**C02/C03 validated-email Contract inventory (implemented and validated).**
 The existing email codec now survives ordinary Contract publication in scalar,
 nullable and array forms. Five affected compiler checks and captured native
 D1/Identity1/1 (68.33s) pass, retaining original permission/order/failure/recovery
 assertions and adding invalid nested-email refusals. Genuine unsupported closure
 controls use timezone instead of the newly supported email leaf. No new language
-rule or JEV decision is required. Commit this small checked unit before the
-original24-source run; its latest retained report remains703 until that run ends.
+rule or JEV decision is required. Small checked unit committed as80f213d9 before
+original24-source validation. That run exits10 in388.82s with701 diagnostics
+(675 E6008,26 E6007), complete=true, omitted=0 and identical sources: exactly the
+two offer-schema refusals removed, none added. The complete remainder equals the
+retained pre-schema-guard701-diagnostic report; no usable artifact is claimed.
 
-C02 ready receiving regression: e4c4eaab moved malformed nominal CRUD validation
-before execution, losing the original rejected receipt asserted by the ordinary
-Contract runtime check. Preserve that independent assertion and repair the owning
-phase; do not treat it as an external gate. The wider schedule check still stops
-at declared-event input-carrier refusals, the existing46-occurrence group. Both
-remain explicit local work alongside query-backed can_work.
+C02 receiving regression: e4c4eaab moved malformed nominal CRUD validation before
+execution, losing the original rejected receipt asserted by the ordinary Contract
+runtime check. Root create/update now retain raw receiving fields for existing
+post-default hooks and canonical field normalization; admission still decodes
+only exact declared Model leaves and enforces original closed-wire/current-version
+checks. Array/union containers never gain reference identity from runtime tags.
+The original receipt assertion passes unchanged;39 focused admission checks pass,
+including hook repair, malformed scenario early refusal, outsider denial and
+stale/malformed selected refs. Actual captured CLI/verified assembly/D1/Identity1/1
+passes68.54s with original permission, lock, rollback, replay and recovery checks.
+The wider schedule check still stops at declared-event input-carrier refusals (existing46-occurrence
+group); query-backed can_work remains the next compiler source join.
+
+Separate unqualified receiving observation: existing initial composite-reference
+checks do not establish post-hook nested Model reference validity. Model pipeline
+owns final fields. Identify the accepted source/workflow consumer and required
+current-reference outcome before adding a mechanism; this receipt repair does
+not claim that broader closure or authorize a general mutation redesign.
 
 Reproduce the original closure from the repository root; saved roots derive from
 their owning source operands:
