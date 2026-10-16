@@ -24,6 +24,18 @@ session/admission remain local implementation work. Hook guards and ordinary val
 authority; missing parent-read implementation is not a new value-use prohibition. Exact17/18 external/policy holds remain unchanged. Continue ready work
 through these checkpoints; do not mark the overall goal complete.
 
+### Accepted agenda saved-defaults gap (merge34) — 2026-10-17
+
+Main integrates `9a8447df6`: parent-bound `defaults={location=...}` 422 was
+a compiler admit bug — reference-only apps emitted no `bindings.preferences`.
+Fixed with forwarding-only admit at the defining owner; parent-bound `where`
+was already correct (source-first 403). The original defaults shape now
+renders 200 end to end (bare/saved/request/clear/unknown/malformed, denied
+403s, revocation, isolation, pagination). Validation on frozen main producer
+`93ea5761` + native catalog `ca50`: agenda 1/1 (one initial 0/1 not
+reproduced in 3 reruns — recorded flake — plus worker green), row/ref/joint
+green, UI 179/179, factory 33/33, enum 41/41.
+
 ### Accepted referenced-read batch (merge33) — 2026-10-17
 
 Main integrates `59c8c76ec`: authorized referenced-row reads in hooks via
