@@ -243,7 +243,15 @@ guard first, archived-include first; green by default, red under
 `--ignored`). Localized without scope violation: import slice declines in
 `checked_first_query_source` (owner.module gate, Lane C disclosure);
 archive slice is plan-guard/receipt/emitter/runtime join (Lane C runtime).
-Outcome 5 stays OPEN pending those Lane C repairs. Exemplary ownership:
+Lane C repairs integrated: `5dd41318` (Lane C `eef492db`, import
+correspondence — both import `#[ignore]`s removed) and `e5dd178f`
+(Lane C `f7264d38`, archived=include 4-layer join — archive probe
+un-ignored). Parent: `stored_query_profiles` 3/3 with 0 ignored plus
+cross-operation 18/18, call-references 5/5, query-facts 8/8,
+native-first 17/17, native-pair 3/3, codegen-t31-filter 33/33 green.
+One cherry-pick conflict (both-added test file) resolved by taking the
+repaired un-ignored attributes with identical bodies. Outcome 5
+implemented at probe scope (Codex review pending). Exemplary ownership:
 no production files touched outside the lane.
 
 Outcome 9 family A implemented in `55c969d2` (Lane A commit `fac7bd70`):
@@ -321,10 +329,11 @@ the authorized values/dist symlink): on its reconstructed 24-file set the
 at the emission join (static-call join yields no site → §13 unsupported),
 naming `codegen/scenario_calls.rs` as its file. This contrasts with the
 parent test map above (calls die at disclosure Declined); the two runs
-differ in base and input set (A3 total 537 vs retained 573). Both
-observations are preserved for the Lane C owner; no ownership change —
-the disclosure slice stays with C7, which must reconcile the check-stage
-vs emission-stage failure site with evidence before editing either side.
+differ in base and input set (A3 total 537 vs retained 573). Reconciled
+by the integrated Lane C slice `a61a9f82` (Lane C `45875ffa`): D1/D3/D5/
+D7/D8 gates plus emit/schedule/cancel effects admitted — parent
+`cross_operation_calls` now 18/18 (was 7/7) with call-references/membership
+neighbors green. Outcome 11 implemented (Codex review pending).
 
 Outcome 7 compiler slice in `dba896b5` (Lane B commit `8baafab8`): send
 statements to std EmailV1 + AlertsV1 notify lower formatted values inline
