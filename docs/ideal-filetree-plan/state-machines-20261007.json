@@ -73292,5 +73292,48 @@
       "owner": "Compiler completion",
       "allocation": "one existing original-composition diagnostic capture; no new framework/source owner"
     }
+  },
+  "can18_merge_18_20261016": {
+    "incremental_base": "0fee3fc203d0e2463954315b579a3a48df8c428a",
+    "incoming_end": "8096c3f865d539c6c1643c174e95165422b6810c",
+    "retained_coverage": "reuse spec_installer_merge_reconciliation_20261015 and preceding CAN18 incremental merge entries; inherited complete checkpoint unchanged",
+    "changed_path_count": 6,
+    "rows": [
+      [
+        "compiler/src/codegen/ir.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/src/codegen/js.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/factory_profiles.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/ui_adapter.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "packages/interfaces/test/factory-shapes-consumer.test.ts",
+        "interfaces",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/interfaces/test/fixtures/factory-shapes-consumer.can",
+        "interfaces",
+        "existing package source/test owner"
+      ]
+    ],
+    "choice": "Admit the supported original int/decimal multi-stat, URL copy, bool-status steps and indicator slot forms through existing owning factories; retain versioned preference filters and explicit unfinished timeline, calendar-columns and money-stat work.",
+    "validation": "Released B17 f199235be independently reviewed; frozen producer consumer1/1. Canonical main compiler build succeeds, factory_profiles31/31, Interfaces build clean and actual main compiled Can/HTTP/UI/State consumer1/1. Main immutable compiler8bac8725 reports0fee3fc20; no source or permission weakening. Existing neighbor results reused, including two isolated worker dependency gaps; original24 last369 capture predates this batch and awaits the next changed cohort qualification.",
+    "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
+    "checkpoint_advanced": false,
+    "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
   }
 }

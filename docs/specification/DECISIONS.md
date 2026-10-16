@@ -18102,3 +18102,8 @@ label was withdrawn); main build output and its refusal of unmerged multi-stat
 syntax distinguish the intended producer scope. No version-only rebuild or new
 language rule follows. Hook guard/value proposals and native handler framework
 gaps remain unfinished; no new policy hold or source read grant is created.
+
+
+## 2026-10-16 — can18_merge_18_20261016
+
+Accepted: Admit the supported original int/decimal multi-stat, URL copy, bool-status steps and indicator slot forms through existing owning factories; retain versioned preference filters and explicit unfinished timeline, calendar-columns and money-stat work. Merge reviewed tested work incrementally into canonical `main`, preserving installer/specification changes and the active implementation branch. Released B17 f199235be independently reviewed; frozen producer consumer1/1. Canonical main compiler build succeeds, factory_profiles31/31, Interfaces build clean and actual main compiled Can/HTTP/UI/State consumer1/1. Main immutable compiler8bac8725 reports0fee3fc20; no source or permission weakening. Existing neighbor results reused, including two isolated worker dependency gaps; original24 last369 capture predates this batch and awaits the next changed cohort qualification. Reconcile the living file-tree plan/registry over `0fee3fc20..8096c3f86` with existing owners; retain the complete checkpoint and all outstanding acceptance gates. A merged component is not a claim that original24 or the remaining runtime workflows are complete.

@@ -13,10 +13,10 @@ GRAMMAR source structure, and this record finite delivery/qualification. Accepte
 components remain closed at their recorded scopes; historical next/pending notes
 are evidence rather than additional execution queues.
 
-**Current main qualification:** complete preference-filter integration
+**Last original24 capture and accepted components:** complete preference-filter integration
 `9c9060738` (reconciled `d798da070`) passes actual main compiled-Can render/save/
 HTTP/State checks. Enum default helper/import reuse is accepted in `b75b2b332`.
-The unchanged original24 composition still fails: one current main capture,
+Before the UI factory batch below, the unchanged original24 composition failed in one main capture,
 [evidence/original24-main-20261016.json](../../evidence/original24-main-20261016.json),
 complete=true, omitted=0,26 consumed sources, **369 E6008 occurrences**. All24
 authored source hashes match the saved original baseline. The wider unmerged
@@ -27,6 +27,25 @@ session/admission remain local implementation work. Hook value-read semantics
 remain under the bounded owner review; no provisional prohibition is accepted
 here. Exact17/18 external/policy holds remain unchanged. Continue ready work
 through these checkpoints; do not mark the overall goal complete.
+
+### Accepted source UI factory batch — 2026-10-16
+
+Main `8096c3f86` integrates the reviewed finite B17 unit from `f199235be`:
+int/decimal multi-value stats, URL copy, bool-status steps and indicator slots
+use their real owning factories. Source order, public-field reads, revoked-session
+refusal, exact values and emitted predicates pass the actual compiled-Can consumer.
+Main compiler build, factory profiles31/31, Interfaces build and main runtime
+consumer1/1 pass; the released frozen producer consumer independently passes1/1.
+Existing agenda-without-columns behavior and unchanged neighboring results are
+reused. The live main compiler is frozen as `/tmp/can18-main-factory-can`, observed
+label `0fee3fc20`; validation does not infer its label from a later commit.
+
+Timeline collection binding, consumed agenda columns and money-stat conversion
+remain ready implementation at their defining owners; temporary E6008 refusals
+are not completion or new language prohibitions. No draft or grant changed.
+The retained369 original24 capture predates this batch; no new composition count
+is claimed until the next frozen changed-cohort capture. Continue the current
+execution list, including native-handler ownership and deferred membership work.
 
 The named semantic review is resolved at specification scope:
 
