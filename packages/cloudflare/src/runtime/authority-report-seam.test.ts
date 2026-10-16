@@ -796,7 +796,11 @@ export async function sumHelper(c) {
 `;
 }
 
-function mappedOpsMjs(importHelper: boolean, registryOpsJson: string): string {
+function mappedOpsMjs(
+  importHelper: boolean,
+  registryOpsJson: string,
+  appOperationsJson: string = HELPER_AUTHORITY_OPERATIONS_JSON,
+): string {
   return `import { records } from "../stdlib.js";
 ${importHelper ? `import { sumHelper } from "./helpers.mjs";\n` : ""}const readRules = { "Gadget.read.1": () => true };
 export function canApp() {
@@ -827,7 +831,7 @@ export const appDefinition = {
     },
   },
   policy: ${POLICY_JSON},
-  operations: ${HELPER_AUTHORITY_OPERATIONS_JSON},
+  operations: ${appOperationsJson},
 };
 `;
 }
@@ -837,6 +841,7 @@ interface MappedSetupOptions {
   readonly opsMap: Array<{ path: string; text: string }>;
   readonly helpersMap?: Array<{ path: string; text: string }>;
   readonly importHelper?: boolean;
+  readonly appOperationsJson?: string;
 }
 
 async function mappedSeamSetup(options: MappedSetupOptions): Promise<SeamSetup> {
@@ -844,7 +849,11 @@ async function mappedSeamSetup(options: MappedSetupOptions): Promise<SeamSetup> 
   // The canApp() registry operations array must JSON-equal the artifact
   // descriptors (loader pairing); both channels share one array.
   const artifactOps = helperArtifactOperations();
-  const opsJs = mappedOpsMjs(options.importHelper ?? false, JSON.stringify(artifactOps));
+  const opsJs = mappedOpsMjs(
+    options.importHelper ?? false,
+    JSON.stringify(artifactOps),
+    options.appOperationsJson ?? HELPER_AUTHORITY_OPERATIONS_JSON,
+  );
   const opsPath = join(dir, "ops.mjs");
   writeFileSync(opsPath, opsJs);
   const moduleUrls: Record<string, string> = { "ops.mjs": pathToFileURL(opsPath).href };
@@ -1035,4 +1044,80 @@ describe("authority report defining-source selection (REVIEW-9 gap 1)", () => {
     assert.equal(error.code, "validation");
     assert.match(error.message, /tampered/);
   });
+
+  it("prefers the verified emitted defining source when every module map lists every source", async () => {
+    // Lane C (REVIEW-9 gap 2 emission + this seam): the real compiler
+    // emits both module maps listing every source (the Shop-module
+    // segment references helpers.can), so callable/module narrowing
+    // stays ambiguous. The emitted §13 `source` names the declaring
+    // file directly; verified against artifact.sources it selects the
+    // exact owner instead of refusing.
+    const setup = await mappedSeamSetup({
+      sources: [
+        { path: SHOP_CAN_PATH, text: SHOP_CAN_TEXT },
+        { path: HELPERS_CAN_PATH, text: HELPERS_CAN_TEXT },
+      ],
+      opsMap: [
+        { path: SHOP_CAN_PATH, text: SHOP_CAN_TEXT },
+        { path: HELPERS_CAN_PATH, text: HELPERS_CAN_TEXT },
+      ],
+      helpersMap: [
+        { path: SHOP_CAN_PATH, text: SHOP_CAN_TEXT },
+        { path: HELPERS_CAN_PATH, text: HELPERS_CAN_TEXT },
+      ],
+      importHelper: true,
+      appOperationsJson: withEmittedDefiningSource("Shop.totals", {
+        module: "Shop",
+        path: SHOP_CAN_PATH,
+        sha256: shaHex(SHOP_CAN_TEXT),
+      }),
+    });
+    await seedStock(setup.store, setup.seed.now, "first", "3");
+    await seedStock(setup.store, setup.seed.now, "second", "4");
+    const served = (await invokeReadCanonical({
+      ...readOptions(setup, "Shop.totals"),
+      identity: await identityFor(setup.seed, setup.seed.memberToken),
+    })) as { result: unknown };
+    assert.equal(served.result, "7");
+  });
+
+  it("refuses a tampered emitted defining source instead of serving its grant", async () => {
+    // Narrowing alone would bind here (one checked source behind the
+    // module map), so refusal proves the seam reads the emission: the
+    // forged sha matches no checked artifact source.
+    const genuine = shaHex(SHOP_CAN_TEXT);
+    const tampered = `${genuine.slice(0, 63)}${genuine.endsWith("0") ? "1" : "0"}`;
+    const setup = await mappedSeamSetup({
+      sources: [{ path: SHOP_CAN_PATH, text: SHOP_CAN_TEXT }],
+      opsMap: [{ path: SHOP_CAN_PATH, text: SHOP_CAN_TEXT }],
+      appOperationsJson: withEmittedDefiningSource("Shop.totals", {
+        module: "Shop",
+        path: SHOP_CAN_PATH,
+        sha256: tampered,
+      }),
+    });
+    await seedStock(setup.store, setup.seed.now, "hidden", "5");
+    const identity = await identityFor(setup.seed, setup.seed.memberToken);
+    const error = await captureError(() =>
+      invokeReadCanonical({ ...readOptions(setup, "Shop.totals"), identity }),
+    );
+    assert.equal(error.code, "validation");
+    assert.match(error.message, /tampered/);
+  });
 });
+
+/**
+ * Lane C probe helper: the Lane-A emission (`da4f7e68`) carries the
+ * defining-source origin on the §13 authority descriptor as
+ * `source:{module,path,sha256}`; this mirrors that shape onto one
+ * appDefinition operations entry.
+ */
+function withEmittedDefiningSource(
+  operation: string,
+  source: { readonly module: string; readonly path: string; readonly sha256: string },
+): string {
+  const operations = JSON.parse(HELPER_AUTHORITY_OPERATIONS_JSON) as Record<string, Record<string, unknown>>;
+  const entry = operations[operation];
+  assert.ok(entry !== undefined, `want operations entry for ${operation}`);
+  return JSON.stringify({ ...operations, [operation]: { ...entry, source: { ...source } } });
+}

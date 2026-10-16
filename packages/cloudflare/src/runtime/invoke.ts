@@ -12608,6 +12608,16 @@ async function readAuthorityScopeMarker(opts: CanonicalReadOpts): Promise<unknow
  * additional valid sources and composed/imported helper sources in other
  * modules are accepted. Never picks the first source and never weakens
  * the assembler/State seals beside this selection.
+ *
+ * Lane C (REVIEW-9 gap 2 emission): a present §13 emitted origin
+ * (`source:{module,path,sha256}` on the operation descriptor) is
+ * preferred once fully verified — module names the declaring owner,
+ * path/sha match one checked artifact source exactly, and the path
+ * sits behind the callable module's verified map. Real multi-source
+ * compositions list every source in every module map (narrowing stays
+ * ambiguous); the verified emission still selects the exact owner. A
+ * present-but-unverifiable origin refuses and never falls back to
+ * narrowing; an absent origin keeps narrowing byte-identical.
  */
 async function selectAuthorityDefiningSource(
   loaded: LoadedCanonicalDescriptors, opts: CanonicalReadOpts,
@@ -12706,6 +12716,51 @@ async function selectAuthorityDefiningSource(
   const definingPaths = verifiedByModule.get(callableModule);
   if (definingPaths === undefined) {
     throw new StateError("validation", `${name} is an authority report without its defining source module correspondence; refusing.`);
+  }
+  // Lane C: read the emitted §13 origin beside the scope marker (the
+  // `readAuthorityScopeMarker` precedent — verified assemblies stay
+  // verified, capability-less fixtures import directly). A missing
+  // module URL or operation entry means no emission; narrowing below
+  // still refuses what it must.
+  let emitted: { readonly path: string; readonly sha256: string; readonly module: string } | undefined;
+  {
+    const url = opts.asm.moduleUrls[callableModule];
+    if (typeof url === "string" && url !== "") {
+      const where = `Authority source for ${JSON.stringify(opts.operation)}`;
+      let module: unknown;
+      if (!requiresVerifiedAssemblyImports(opts.asm, opts.artifact)) {
+        module = await import(url);
+      } else {
+        await verifyCheckedAssembly(opts.asm, opts.artifact);
+        module = await importVerifiedAssemblyModule(opts.asm, callableModule, opts.artifact);
+      }
+      const own = (value: unknown, key: string): unknown =>
+        isUnknownRecord(value) ? readMetadataMember(value, key, where)?.value : undefined;
+      const entry = own(own(module, "appDefinition"), "operations");
+      const operation = isUnknownRecord(entry) ? own(entry, opts.operation) : undefined;
+      const raw = operation === undefined ? undefined : own(operation, "source");
+      if (raw !== undefined) {
+        if (!isUnknownRecord(raw) || typeof raw["path"] !== "string" || (raw["path"] as string).length === 0 ||
+            typeof raw["module"] !== "string" || (raw["module"] as string).length === 0 ||
+            typeof raw["sha256"] !== "string" || !/^[0-9a-f]{64}$/.test(raw["sha256"] as string)) {
+          throw new StateError("validation", `${name} is an authority report with a malformed checked source origin; refusing.`);
+        }
+        emitted = { path: raw["path"] as string, sha256: raw["sha256"] as string, module: raw["module"] as string };
+      }
+    }
+  }
+  if (emitted !== undefined) {
+    if (emitted.module !== ownerPackage) {
+      throw new StateError("validation", `${name} is an authority report with a tampered checked source origin; refusing.`);
+    }
+    const claimed = byPath.get(emitted.path);
+    if (claimed === undefined || !timingSafeEqualHex(emitted.sha256, claimed.sha256)) {
+      throw new StateError("validation", `${name} is an authority report with a tampered checked source origin; refusing.`);
+    }
+    if (!definingPaths.includes(emitted.path)) {
+      throw new StateError("validation", `${name} is an authority report without its defining source module correspondence; refusing.`);
+    }
+    return { path: claimed.path, sha256: claimed.sha256 };
   }
   if (definingPaths.length !== 1) {
     throw new StateError("validation", `${name} is an authority report with an ambiguous defining source; refusing.`);
