@@ -7780,3 +7780,13 @@ B16 (`01a1445c-...`, evidence 01a14474-823a): owner corrections delivered
 (module+field scoping, preferenceVersions/pollUrl??path pins, explicit
 false-selection preservation) + human end-to-end priority restated.
 Worker ACKs pending; receipt to be verified from their next progress.
+
+**RESOURCE-11 correction delivered, 2026-10-16 (evidence 01a14478-67e8):**
+B16's bare build created a 1.1GiB private target (disk 2.4GiB/99%).
+Delivered: no further private/bare cargo; shared target + stable flags with
+C23 serialization only; preserve current binary/artifacts/commands; after
+terminal + release, copy immutable binary to a small run-owned path, verify
+inactive + no future consumer, then clean ONLY the owned private
+target/debug. Scope corrections (module+field, pins, false preservation)
+required as edits before acceptance. Worker ACK + edits pending verification.
+No deletions of shared/foreign/source/logs/Git; no new allocations.
