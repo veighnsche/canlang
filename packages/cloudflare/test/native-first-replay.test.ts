@@ -72,9 +72,10 @@ test('native replay first returns the same whole row without duplicate effects',
       const { captureIsCurrent, captureSingleFileSource, verifyCompilerSources } = await nodeImport(installed('dev/source-capture.js')) as typeof import('../src/dev/source-capture.js');
       const { compileCapturedSingleFile } = await nodeImport(installed('dev/compiler-check.js')) as typeof import('../src/dev/compiler-check.js');
       const originalSource = await readFile(fixtureSourcePath);
-      const compilerPath = join(root, 'compiler/target/debug/can');
+      const compilerPath = process.env.CAN_COMPILER_BIN ?? join(root, 'compiler/target/debug/can');
+      const catalogPath = process.env.CAN_NATIVE_CATALOG ?? join(root, 'packages/cloudflare/dist/native-catalog.json');
       capture = await captureSingleFileSource({ checkoutRoot: root, appPath: fixtureSourcePath,
-        profile: 'native-first-replay', compilerPath, catalogPath: join(root, 'packages/cloudflare/dist/native-catalog.json'),
+        profile: 'native-first-replay', compilerPath, catalogPath,
         helpIndexPath: join(root, 'docs/specification/CONSTRUCT-HELP.md'),
         ...installedLocalPreviewInputInventory(root, compilerPath), inputInventory: 'installed-local-preview',
         semanticOptions: { nativeScenarioReceipts: 'true' } });
