@@ -227,10 +227,19 @@ Outcome 7 compiler slice in `dba896b5` (Lane B commit `8baafab8`): send
 statements to std EmailV1 + AlertsV1 notify lower formatted values inline
 through the shared formatter, frozen at send construction in authored
 order; guards, stored writes and other positions still refuse; private-mail
-recipient path untouched. `outbound_format_sinks` 7/7 pass; runtime
-schema/adapter acceptance of the `{text,locale}` carrier is sequenced as a
-Lane-C slice and the 31-occurrence regroup needs full composition, so
-outcome 7 stays OPEN.
+recipient path untouched. `outbound_format_sinks` 7/7 pass (now 13/13 with the sink-fix positives/
+negatives); runtime schema/adapter acceptance of the `{text,locale}`
+carrier is sequenced as a Lane-C slice and the 31-occurrence regroup needs
+full composition, so outcome 7 stays OPEN.
+
+Codex REVIEW-6 fix in `af7f23df` (Lane C commit `1601e753`): the notify
+human-text sink is classified on the pinned `catch.AlertsV1` version-1
+declaration (`notify(value:Alert)`, exact Alert schema) instead of
+operation-suffix spelling; unrelated owners, altered versions/schemas and
+non-message paths refuse; imported-alias and let-bound helper positives
+preserve frozen evaluation; std Email matching unchanged.
+`outbound_format_sinks` 13/13, `ui_adapter` 15/15, hook probes 10/10 pass
+in the integrated parent.
 
 Outcome 13 implemented in `9eb4644a` (Lane C commit `5bb44a62`): bound
 capabilities link against their checked versioned declaration instead of
