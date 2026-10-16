@@ -131,8 +131,24 @@ pub(super) fn prepare_with_context(
         return None;
     }
     // Same original execution closure, now borrowed from this invocation.
+    // Only a refusal that touches a checked membership occurrence vetoes the
+    // bridge: unrelated IR refusals elsewhere must not orphan exactly-bound
+    // observations, while an affected source stays refused with its exact
+    // codes. The State receipt/dispatch producers keep their own
+    // exact-occurrence rules on top of this correspondence.
     let fresh = context.fresh();
-    if context.has_ir_diagnostics() || closure(fresh) != closure(ir) {
+    if closure(fresh) != closure(ir) {
+        return None;
+    }
+    if context.has_ir_diagnostics()
+        && context.ir_diagnostics().iter().any(|diagnostic| {
+            calls.keys().any(|node| {
+                node.file == diagnostic.primary.file
+                    && node.start < diagnostic.primary.end
+                    && diagnostic.primary.start < node.end
+            })
+        })
+    {
         return None;
     }
     let read_sources = context;

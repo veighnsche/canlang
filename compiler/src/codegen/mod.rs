@@ -178,7 +178,9 @@ pub fn emit(
     let query_context = source_preparation
         .as_ref()
         .and_then(|result| result.as_ref().ok());
-    // Existing policy/membership consumers retain their strict full-IR gate.
+    // Existing policy/query consumers retain their strict full-IR gate. The
+    // membership producer bridge carries its own occurrence-scoped seal, so it
+    // prepares from the unfiltered context instead.
     let source_context = query_context.filter(|context| !context.has_ir_errors());
     let query_preparation = sources
         .options
@@ -232,7 +234,10 @@ pub fn emit(
             }
         }
     }
-    let membership = source_context.and_then(membership::prepare_with_context);
+    // Membership correspondence is sealed per checked occurrence inside the
+    // bridge, so unrelated IR refusals elsewhere do not orphan it. Query
+    // consumers above keep the strict error-filtered context.
+    let membership = query_context.and_then(membership::prepare_with_context);
     let mailbox_events = mailbox_events::prepare(program, &ir, sources.db, sources.catalog);
     let read_predicates = sources
         .options
