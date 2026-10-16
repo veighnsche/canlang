@@ -1,0 +1,549 @@
+//! Outcome-12 hook lowering (CAN18-v1 Lane C): native hook runners bind
+//! `($candidate, $hookCtx, c)` through the complete owner-policy plan, so
+//! hook queries lower over `event.after`/`event.before` with the trigger's
+//! author/clock, `now` binds the owner clock, derives run with the ambient
+//! context, and emit effects stage in guard order.
+//!
+//! TEST-ONLY: artifacts are produced under the explicit test-only
+//! incomplete-analysis acknowledgment with a hermetic catalog, exactly like
+//! the T31 suite in `codegen.rs`. Nothing here claims runtime success
+//! beyond the bun-driven engine checks, which import workspace sources
+//! directly (always current, no dist staleness).
+//!
+//! Failing-first: each class pins one recorded original24 occurrence shape
+//! (spans in `evidence/original24-20261016.json`). On the base plan they
+//! report the regrouped `E6008`s; after the repair they lower.
+
+use canlang_compiler::analysis::catalog::{Catalog, CatalogRequest, load_catalog};
+use canlang_compiler::analysis::{CheckedProgram, check_program};
+use canlang_compiler::codegen::{EmitOptions, EmitSources, emit};
+use canlang_compiler::diagnostic::{Diagnostic, DiagnosticResult};
+use canlang_compiler::source::{SourceDb, SourceId, Span};
+use canlang_compiler::{LANGUAGE_VERSION, SCHEMA_VERSION};
+use std::path::PathBuf;
+
+/// Span in the single fixture source.
+fn sp(start: u32, end: u32) -> Span {
+    Span::new(SourceId(0), start, end)
+}
+
+fn unique_temp_path(stem: &str) -> PathBuf {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
+    let dir = std::env::temp_dir().join(format!("can-hook-{}", std::process::id()));
+    let _ = std::fs::create_dir_all(&dir);
+    let n = COUNTER.fetch_add(1, Ordering::SeqCst);
+    dir.join(format!("{stem}-{n}.json"))
+}
+
+/// Hermetic catalog: the golden builtins plus the pure temporal builtins
+/// the recorded hooks use (`local_instant`, `local_date`, `max`), with
+/// their real signatures/effects.
+fn hook_catalog() -> (Catalog, PathBuf) {
+    let path = unique_temp_path("hook-catalog");
+    let dir = path.parent().expect("temp dir").to_path_buf();
+    std::fs::write(
+        &path,
+        r#"{"language_version":"1.0","catalog_version":"2.5.0-test","entries":[
+{"id":"count","kind":"builtin","signature":"count(domain:C<T>)->int","effects":"state-read","availability":"implemented","owner":"lane-02"},
+{"id":"first","kind":"builtin","signature":"first(domain:C<T>)->T?","effects":"state-read","availability":"implemented","owner":"lane-02"},
+{"id":"max","kind":"builtin","signature":"max(domain:C<O>)->O?; max(domain:nonempty C<O>)->O","effects":"pure","availability":"implemented","owner":"lane-02"},
+{"id":"local_instant","kind":"builtin","signature":"local_instant(date:date,time:text,zone:timezone,fold:enum(earlier,later))->datetime","effects":"pure","availability":"implemented","owner":"lane-02"},
+{"id":"local_date","kind":"builtin","signature":"local_date(value:datetime,zone:timezone)->date","effects":"pure","availability":"implemented","owner":"lane-02"}
+]}"#,
+    )
+    .expect("write hook catalog");
+    let primary = Span::new(SourceId(0), 0, 0);
+    let request = CatalogRequest {
+        flag: Some(path.as_path()),
+        env: None,
+        cwd: dir.as_path(),
+        primary,
+    };
+    let (catalog, diags) = load_catalog(&request);
+    assert!(diags.is_empty(), "hook catalog loads: {diags:?}");
+    (catalog.expect("catalog"), path)
+}
+
+fn check_hook(src: &str, catalog: &Catalog) -> (SourceDb, CheckedProgram, DiagnosticResult) {
+    let mut db = SourceDb::new();
+    let id = db.add("hook.can".to_string(), src.to_string());
+    let (program, diags) = check_program(&db, &[id], Some(catalog));
+    let mut result = DiagnosticResult::new("test", LANGUAGE_VERSION, SCHEMA_VERSION);
+    result.add_sources(&db);
+    result.diagnostics = diags;
+    result.complete = false;
+    result.finish();
+    (db, program, result)
+}
+
+fn emit_hook(
+    program: &CheckedProgram,
+    db: &SourceDb,
+    result: &DiagnosticResult,
+    catalog: &Catalog,
+) -> (canlang_compiler::codegen::artifact::CompileArtifact, Vec<Diagnostic>) {
+    let sources = EmitSources {
+        db,
+        result,
+        catalog: Some(catalog),
+        options: EmitOptions::test_only(),
+    };
+    emit(program, &sources)
+}
+
+fn hook_js(src: &str) -> (String, Vec<Diagnostic>, PathBuf) {
+    let (catalog, path) = hook_catalog();
+    let (db, program, result) = check_hook(src, &catalog);
+    assert!(
+        result.diagnostics.is_empty(),
+        "hook source checks clean: {:?}",
+        result.diagnostics
+    );
+    let (artifact, diags) = emit_hook(&program, &db, &result, &catalog);
+    let js = artifact.modules[0].js.clone();
+    (js, diags, path)
+}
+
+fn codes(diags: &[Diagnostic]) -> Vec<String> {
+    diags
+        .iter()
+        .map(|d| format!("{}:{}", d.code, d.message))
+        .collect()
+}
+
+/// (Outcome 12, `now` class.) The recorded `due > now` hook shape
+/// (CanSuccess `arm`/`reschedule`, CanMaintain/CanContract timers) binds
+/// the owner clock through the native runner instead of reporting the
+/// owner-policy-plan gap.
+#[test]
+fn hook_now_binds_native_owner_clock() {
+    let src = "app T\nGiven\n M { due:datetime, timer:text }\n event Tick { s:text }\nWhen\n scenario arm on=M.create\n  do\n   if event.after.due>now\n    schedule event.after.id at=event.after.due event=Tick {s=\"tick\"}\nThen\n";
+    let (js, diags, path) = hook_js(src);
+    let _ = std::fs::remove_file(&path);
+    assert!(diags.is_empty(), "now hook lowers: {diags:?}");
+    assert!(
+        js.contains("($candidate,$hookCtx,c)"),
+        "native runner binds ambient context:\n{js}"
+    );
+    assert!(js.contains("c.now"), "owner clock read:\n{js}");
+    assert!(
+        js.contains("$hookCtx.schedule"),
+        "timer stages through the hook context:\n{js}"
+    );
+}
+
+/// (Outcome 12, derive class.) The recorded `resource_evidence(resource)`
+/// shape (CanRent snapshots, `plan_eligible(event.after)`) invokes the
+/// checked derive with the ambient context on native runners.
+#[test]
+fn hook_derive_call_uses_ambient_context() {
+    let src = "app T\nGiven\n M { t:text }\n N in M { u:text }\n derive label(v:text):text = v\nWhen\n scenario snap on=M.create\n  do\n   let resource=event.after\n   create N {parent=resource,u=label(resource.t)} as snap\nThen\n";
+    let (js, diags, path) = hook_js(src);
+    let _ = std::fs::remove_file(&path);
+    assert!(diags.is_empty(), "derive hook lowers: {diags:?}");
+    assert!(
+        js.contains("($candidate,$hookCtx,c)"),
+        "native runner binds ambient context:\n{js}"
+    );
+    assert!(
+        js.contains("(c,"),
+        "derive invoked with ambient context:\n{js}"
+    );
+    assert!(
+        js.contains("$hookCtx.stage"),
+        "snapshot stages through the hook context:\n{js}"
+    );
+}
+
+/// (Outcome 12, value class.) Pure temporal shapes around `now`
+/// (`max([now, due])`, `??`, `now + 1ms`) lower on native runners with no
+/// plan gap.
+#[test]
+fn hook_datetime_max_and_coalesce_lower() {
+    let src = "app T\nGiven\n M { due:datetime, timer:text, tz:text? }\n event Tick { s:text }\nWhen\n scenario arm on=M.create\n  do\n   let at=max([now,event.after.due])\n   let zone=event.after.tz??\"UTC\"\n   if event.after.due>now\n    schedule event.after.id at=at event=Tick {s=zone}\nThen\n";
+    let (js, diags, path) = hook_js(src);
+    let _ = std::fs::remove_file(&path);
+    assert!(diags.is_empty(), "temporal hook lowers: {diags:?}");
+    assert!(js.contains("c.now"), "owner clock read:\n{js}");
+}
+
+/// (Outcome 12, emit class at plan scope.) A hook mixing `now` with `emit`
+/// qualifies for the native runner, so the `now` gap clears while the
+/// emit effect keeps its exact refusal until the emit lowering lands.
+#[test]
+fn hook_emit_keeps_exact_refusal_while_plan_admits() {
+    let src = "app T\nGiven\n M { due:datetime }\n event Changed { revision:int }\nWhen\n scenario changed on=M.update\n  do\n   if event.after.due>now\n    emit Changed {revision=event.after.version}\nThen\n";
+    let (js, diags, path) = hook_js(src);
+    let _ = std::fs::remove_file(&path);
+    assert!(
+        js.contains("($candidate,$hookCtx,c)"),
+        "emit hook qualifies for the native runner:\n{js}"
+    );
+    assert!(
+        !diags.iter().any(|d| d.message.contains("hook contextual binding")),
+        "no contextual-binding gap: {}",
+        codes(&diags).join("\n")
+    );
+    assert!(
+        diags
+            .iter()
+            .any(|d| d.code == "E6008" && d.message.contains("emit effect")),
+        "emit keeps its exact refusal: {}",
+        codes(&diags).join("\n")
+    );
+}
+
+/// (Outcome 12, out-of-scope.) Reads through parent linkage
+/// (`event.after.parent.active`, CanSuccess `arm`, CanMaintain timers)
+/// refuse loud: the engine carries `{model, id}` only, so lowering the
+/// read would evaluate `undefined`. The transitive load is the sequenced
+/// follow-up, never a silent guard.
+#[test]
+fn hook_parent_content_refused_loud() {
+    let src = "app T\nGiven\n M { active:bool }\n C in M { t:text }\nWhen\n scenario arm on=C.create\n  do\n   if event.after.parent.active\n    set event.after {t=\"armed\"}\nThen\n";
+    let (js, diags, path) = hook_js(src);
+    let _ = std::fs::remove_file(&path);
+    assert!(
+        diags.iter().any(|d| d.code == "E6008"
+            && d.message.contains("hook parent content")),
+        "parent content refuses loud: {}",
+        codes(&diags).join("\n")
+    );
+    assert!(
+        js.contains("has no lowering"),
+        "fail-closed placeholder:\n{js}"
+    );
+}
+
+/// (Outcome 12, out-of-scope.) Reads through event references
+/// (`event.after.location.timezone`, CanSuccess `account_created`,
+/// CanMaintain `activate_plan`) refuse loud for the same reason.
+#[test]
+fn hook_reference_traversal_refused_loud() {
+    let src = "app T\nGiven\n L { tz:text }\n M { loc:L, due:datetime }\nWhen\n scenario arm on=M.create\n  do\n   if event.after.due>now\n    set event.after {due=event.after.due}\n   require event.after.loc.tz!=\"\"\nThen\n";
+    let (js, diags, path) = hook_js(src);
+    let _ = std::fs::remove_file(&path);
+    assert!(
+        diags.iter().any(|d| d.code == "E6008"
+            && d.message.contains("hook reference traversal")),
+        "reference traversal refuses loud: {}",
+        codes(&diags).join("\n")
+    );
+    assert!(
+        js.contains("has no lowering"),
+        "fail-closed placeholder:\n{js}"
+    );
+}
+
+/// (Outcome 12, null path.) Nullable comparisons in hooks use the
+/// null-safe equality (CanEmployee `end` change detection): `null`
+/// compares directly instead of reaching a scalar comparator that would
+/// throw on absent values.
+#[test]
+fn hook_nullable_date_equality_null_safe() {
+    let src = "app T\nGiven\n M { start:date, end:date? }\nWhen\n scenario changed on=M.update\n  do\n   if event.before.end!=event.after.end\n    set event.after {start=event.before.start}\nThen\n";
+    let (js, diags, path) = hook_js(src);
+    let _ = std::fs::remove_file(&path);
+    assert!(diags.is_empty(), "nullable hook lowers: {diags:?}");
+    assert!(
+        js.contains("equalValue"),
+        "null-safe equality:\n{js}"
+    );
+    assert!(
+        !js.contains("compareDate"),
+        "no throwing scalar comparator on nulls:\n{js}"
+    );
+}
+
+/// (Outcome 12, negative.) Widening the native plan never weakens the
+/// staged-write bars: a hook creating its own trigger model still refuses
+/// at checking with the exact same-model code.
+#[test]
+fn hook_same_model_staging_still_barred() {
+    let (catalog, path) = hook_catalog();
+    let src = "app T\nGiven\n M { t:text }\nWhen\n scenario h on=M.create\n  do\n   create M {t=\"x\"} as m\nThen\n";
+    let (_db, _program, result) = check_hook(src, &catalog);
+    let _ = std::fs::remove_file(&path);
+    assert!(
+        result
+            .diagnostics
+            .iter()
+            .any(|d| d.code == "E4052"),
+        "same-model bar intact: {:?}",
+        result.diagnostics
+    );
+}
+
+/// Workspace root above the compiler package under test.
+fn workspace_root() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .expect("workspace root")
+        .to_path_buf()
+}
+
+fn stage_dir(stem: &str) -> PathBuf {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
+    let dir = std::env::temp_dir().join(format!(
+        "can-hook-{}-{}-{stem}",
+        std::process::id(),
+        COUNTER.fetch_add(1, Ordering::SeqCst)
+    ));
+    std::fs::create_dir_all(&dir).unwrap();
+    dir
+}
+
+/// (Outcome 12, engine proof.) A native hook using `now`, a derive call,
+/// staged writes and timers drives the REAL owner pipeline through the
+/// checked policy bindings: the runner receives the owning invocation
+/// context as `c` (the schedule lands exactly on the owner clock — a
+/// missing `c` would throw instead), the staged child commits atomically
+/// once with the trigger, cancellation removes the doomed timer, and a
+/// stale fence plus a foreign model refuse without touching the commit.
+#[test]
+fn hook_native_runner_drives_owner_pipeline() {
+    let src = "app T\nGiven\n M { t:text, done:bool }\n C in M { m:text }\n event Due { s:text }\n derive mark():text = \"hooked\"\nWhen\n scenario h on=M.update\n  do\n   if event.after.done==false\n    let tagged=mark()\n    set event.after {t=tagged}\n    create C {parent=event.after,m=tagged} as staged\n    cancel \"deadline:old\"\n    schedule event.after.id at=now event=Due {s=tagged}\nThen\n";
+    let (catalog, catalog_path) = hook_catalog();
+    let (db, program, result) = check_hook(src, &catalog);
+    assert!(
+        result.diagnostics.is_empty(),
+        "hook source checks clean: {:?}",
+        result.diagnostics
+    );
+    let (artifact, diags) = emit_hook(&program, &db, &result, &catalog);
+    let _ = std::fs::remove_file(&catalog_path);
+    assert!(diags.is_empty(), "{diags:?}");
+    let js = &artifact.modules[0].js;
+    for line in js.lines() {
+        assert!(
+            !line.trim_start().starts_with("import "),
+            "emitted hook must import nothing: {line}"
+        );
+    }
+    assert!(
+        js.contains("($candidate,$hookCtx,c)"),
+        "native runner binds ambient context:\n{js}"
+    );
+    let policies = serde_json::to_string(
+        &artifact
+            .model_policies
+            .as_ref()
+            .expect("native owner-policy descriptors"),
+    )
+    .expect("policies serialize");
+    let dir = stage_dir("native-engine");
+    std::fs::write(dir.join("emitted.mjs"), js).unwrap();
+    std::fs::write(dir.join("policies.json"), &policies).unwrap();
+    let root = workspace_root();
+    let fixtures = root.join("packages/state/test/mutation/fixtures.ts");
+    let invocation_fixtures = root.join("packages/state/test/invocation/fixtures.ts");
+    let memory = root.join("packages/state/src/storage/memory.ts");
+    let models = root.join("packages/state/src/mutation/models.ts");
+    let bindings = root.join("packages/state/src/mutation/model-policies.ts");
+    let pipeline = root.join("packages/state/src/mutation/pipeline.ts");
+    for path in [&fixtures, &invocation_fixtures, &memory, &models, &bindings, &pipeline] {
+        assert!(path.exists(), "engine source: {}", path.display());
+    }
+    let driver = r##"
+import { canApp } from './emitted.mjs';
+import { readFileSync } from 'node:fs';
+import { seedRow, makeBatch, asId, asModel } from '@@INVOCATION@@';
+import { modelDef, field, FIXED_NOW, pipelineContext } from '@@FIXTURES@@';
+import { createTestMemoryStorage } from '@@MEMORY@@';
+import { buildModelTable } from '@@MODELS@@';
+import { bindOwnerModelPolicies } from '@@BINDINGS@@';
+import { beginOwnerMutation } from '@@PIPELINE@@';
+const verdict = {};
+try {
+  const registry = canApp();
+  const descriptors = JSON.parse(readFileSync('./policies.json', 'utf8'));
+  const table = buildModelTable([
+    modelDef('T.M', { fields: { t: field(), done: field() } }),
+    modelDef('T.C', { fields: { m: field() } }),
+  ]);
+  const policies = bindOwnerModelPolicies({ table, descriptors, bindings: registry.modelPolicyBindings });
+  const { store } = createTestMemoryStorage();
+  await seedRow(store, asModel('T.M'), { id: 'u-1', data: { t: 'new', done: false } });
+  await seedRow(store, asModel('T.M'), { id: 'u-2', data: { t: 'new', done: false } });
+  {
+    const rev = await store.readRevision();
+    await store.commit(makeBatch(rev, { schedules: [
+      { op: 'replace', key: 'deadline:old', at: FIXED_NOW, event: 'T.Due', payload: {} },
+    ] }));
+  }
+  const rev0 = await store.readRevision();
+  const session = await beginOwnerMutation({ table, store,
+    context: pipelineContext({ operation: 'T.M.update' }),
+    bounds: { maxWork: 1000, maxRows: 20 }, policies });
+  await session.stage({ op: 'update', model: asModel('T.M'), id: asId('u-1'), data: { t: 'go' } },
+    { cause: 'crud', input: { t: 'go' } });
+  const output = await session.finalize();
+  await store.commit(makeBatch(rev0, { writes: output.writes, history: output.history,
+    schedules: output.schedules,
+    uniqueClaims: output.uniqueClaims, uniqueReleases: output.uniqueReleases }));
+  verdict.status = 'committed';
+  verdict.revisionDelta = (await store.readRevision()) - rev0;
+  const m = await store.load(asModel('T.M'), asId('u-1'));
+  verdict.mVersion = m.version;
+  verdict.mData = m.data;
+  const c = await store.load(asModel('T.C'), asId('u-1/staged/0'));
+  verdict.child = c === null ? null : { version: c.version, parent: c.parent, data: c.data };
+  verdict.timer = await store.scheduleGet('u-1');
+  verdict.oldSchedule = await store.scheduleGet('deadline:old');
+  verdict.now = FIXED_NOW;
+  // NOTE (finding for the hook-engine owner): re-running the SAME trigger
+  // stages the same deterministic staged id (`u-1/staged/0`), which now
+  // exists, so the stale path below drives a fresh row to isolate the
+  // revision-fence refusal from staged-id identity. Changing that identity
+  // scheme would rebuild the accepted hook engine, out of this lane.
+  const late = await beginOwnerMutation({ table, store,
+    context: pipelineContext({ operation: 'T.M.update' }),
+    bounds: { maxWork: 1000, maxRows: 20 }, policies });
+  await late.stage({ op: 'update', model: asModel('T.M'), id: asId('u-2'), data: { t: 'stale' } },
+    { cause: 'crud', input: { t: 'stale' } });
+  const lateOut = await late.finalize();
+  let staleRefused = false;
+  try {
+    await store.commit(makeBatch(rev0, { writes: lateOut.writes, history: lateOut.history,
+      schedules: lateOut.schedules,
+      uniqueClaims: lateOut.uniqueClaims, uniqueReleases: lateOut.uniqueReleases }));
+  } catch { staleRefused = true; }
+  verdict.staleRefused = staleRefused;
+  const foreign = await beginOwnerMutation({ table, store,
+    context: pipelineContext({ operation: 'T.M.update' }),
+    bounds: { maxWork: 1000, maxRows: 20 }, policies });
+  let foreignRefused = false;
+  try {
+    await foreign.stage({ op: 'update', model: asModel('T.Nope'), id: asId('x'), data: {} },
+      { cause: 'crud', input: {} });
+  } catch { foreignRefused = true; }
+  verdict.foreignRefused = foreignRefused;
+  verdict.ok = true;
+} catch (error) {
+  verdict.ok = false;
+  verdict.error = String(error?.stack ?? error);
+}
+console.log(JSON.stringify(verdict));
+"##
+    .replace("@@INVOCATION@@", &invocation_fixtures.display().to_string())
+    .replace("@@FIXTURES@@", &fixtures.display().to_string())
+    .replace("@@MEMORY@@", &memory.display().to_string())
+    .replace("@@MODELS@@", &models.display().to_string())
+    .replace("@@BINDINGS@@", &bindings.display().to_string())
+    .replace("@@PIPELINE@@", &pipeline.display().to_string());
+    std::fs::write(dir.join("driver.ts"), driver).unwrap();
+    let out = std::process::Command::new("bun")
+        .arg("driver.ts")
+        .current_dir(&dir)
+        .output()
+        .expect("spawn bun driver");
+    assert!(
+        out.status.success(),
+        "driver failed: stdout={} stderr={}",
+        String::from_utf8_lossy(&out.stdout),
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let verdict: serde_json::Value =
+        serde_json::from_str(stdout.trim()).expect("verdict parses");
+    assert_eq!(
+        verdict.get("ok").and_then(|v| v.as_bool()),
+        Some(true),
+        "verdict: {stdout}"
+    );
+    assert_eq!(
+        verdict.get("status").and_then(|v| v.as_str()),
+        Some("committed"),
+        "{stdout}"
+    );
+    assert_eq!(
+        verdict.get("revisionDelta").and_then(|v| v.as_i64()),
+        Some(1),
+        "one fenced batch: {stdout}"
+    );
+    assert_eq!(
+        verdict.get("mVersion").and_then(|v| v.as_i64()),
+        Some(2),
+        "{stdout}"
+    );
+    assert_eq!(
+        verdict
+            .get("mData")
+            .and_then(|v| v.get("t"))
+            .and_then(|v| v.as_str()),
+        Some("hooked"),
+        "derive ran inside the hook: {stdout}"
+    );
+    let child = verdict.get("child").expect("staged child: {stdout}");
+    assert_eq!(
+        child.get("version").and_then(|v| v.as_i64()),
+        Some(1),
+        "{stdout}"
+    );
+    assert_eq!(
+        child
+            .get("parent")
+            .and_then(|v| v.get("id"))
+            .and_then(|v| v.as_str()),
+        Some("u-1"),
+        "{stdout}"
+    );
+    assert_eq!(
+        child
+            .get("data")
+            .and_then(|v| v.get("m"))
+            .and_then(|v| v.as_str()),
+        Some("hooked"),
+        "{stdout}"
+    );
+    let timer = verdict.get("timer").expect("timer: {stdout}");
+    assert_eq!(
+        timer.get("at").and_then(|v| v.as_i64()),
+        verdict.get("now").and_then(|v| v.as_i64()),
+        "hook `now` is the owner clock: {stdout}"
+    );
+    assert_eq!(
+        timer
+            .get("payload")
+            .and_then(|v| v.get("s"))
+            .and_then(|v| v.as_str()),
+        Some("hooked"),
+        "{stdout}"
+    );
+    assert_eq!(
+        verdict.get("oldSchedule"),
+        Some(&serde_json::Value::Null),
+        "cancelled: {stdout}"
+    );
+    assert_eq!(
+        verdict.get("staleRefused").and_then(|v| v.as_bool()),
+        Some(true),
+        "stale fence refuses: {stdout}"
+    );
+    assert_eq!(
+        verdict.get("foreignRefused").and_then(|v| v.as_bool()),
+        Some(true),
+        "foreign model refuses: {stdout}"
+    );
+}
+
+/// (Outcome 12, negative.) Cross-package mutation from a hook still
+/// refuses at checking: hooks never acquire a foreign owner.
+#[test]
+fn hook_cross_package_mutation_still_barred() {
+    let (catalog, path) = hook_catalog();
+    let src = "app Shop\nGiven\n export Note { title:text }\nWhen\n scenario touch(n:Note) by=members\n  do\n   set n {title=\"t\"}\nThen\npackage Other\n use Shop {Note}\n Given\n  OM { t:text }\n When\n  scenario h on=OM.create\n   do\n    create Note {title=\"x\"} as n\n Then\n";
+    let (_db, _program, result) = check_hook(src, &catalog);
+    let _ = std::fs::remove_file(&path);
+    assert!(
+        result
+            .diagnostics
+            .iter()
+            .any(|d| d.code == "E4001"),
+        "foreign-owner bar intact: {:?}",
+        result.diagnostics
+    );
+    let _ = sp(0, 0);
+}

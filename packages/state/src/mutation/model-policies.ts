@@ -43,7 +43,11 @@ interface BindingIdentity {
 export type OwnerModelPolicyBinding = BindingIdentity & (
   | { readonly kind: 'invariant' | 'lock'; readonly evaluate: (context: OwnerRuleContext, row: StoredRow) => boolean | Promise<boolean> }
   | { readonly kind: 'dependency'; readonly select: (views: OwnerModelPolicyViews, change: OwnerModelChange) => readonly { readonly model: ModelName; readonly id: RecordId }[] | Promise<readonly { readonly model: ModelName; readonly id: RecordId }[]> }
-  | { readonly kind: 'hook'; readonly run: (candidate: Record<string, unknown>, context: OwnerMutationHookContext) => Record<string, unknown> | Promise<Record<string, unknown>> }
+  // Native hook runners bind `($candidate, $hookCtx, c)`: the third argument
+  // carries the owning invocation context (actor/clock) that ambient-context
+  // lowering (`c.now`, derive calls, queries) consumes. It stays optional so
+  // existing two-argument test bindings keep compiling.
+  | { readonly kind: 'hook'; readonly run: (candidate: Record<string, unknown>, context: OwnerMutationHookContext, c?: InvocationContext) => Record<string, unknown> | Promise<Record<string, unknown>> }
 );
 
 export interface CheckedOwnerModelPolicies {
@@ -259,7 +263,10 @@ export function bindOwnerModelPolicies(input: {
       if (binding.kind !== 'hook') return fail('Invalid CRUD hook binding.');
       return Object.freeze({ name: hook.id, ops: Object.freeze([hook.op]), run: (candidate: Record<string, unknown>, context: InterimHookContext) => {
         assertOwnerMutationHookContext(context);
-        return binding.run(candidate, context);
+        // Forward the owning invocation context as the native runner's
+        // ambient `c`: hook queries, `now` and derive calls read the same
+        // author/clock as their triggering operation.
+        return binding.run(candidate, context, context.context);
       } });
     });
     hooks.set(descriptor.model, Object.freeze(modelHooks));
