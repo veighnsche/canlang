@@ -14351,6 +14351,7 @@ impl<'a> Cx<'a> {
             {
                 self.decode_collection(scope, node, word)
             }
+            "filter" => self.decode_standalone_filter(scope, node, word),
             "calendar" => self.decode_date_calendar(scope, node, row_ctx),
             "collapse" => self.decode_disclosure(scope, node, word, row_ctx),
             "dropdown" => self.decode_slotted_group(scope, node, row_ctx, "dropdown", &["trigger", "content"], &[]),
@@ -18159,6 +18160,291 @@ impl<'a> Cx<'a> {
             ));
         }
         Some(props)
+    }
+
+    /// Decode a standalone saved-preference control. It reuses the owned
+    /// finite-choice declaration and the current page's versioned save
+    /// binding; sibling collections retain independent request selectors.
+    /// Unsupported declarations keep the exact E6008 below.
+    fn decode_standalone_filter(
+        &mut self,
+        scope: &Scope,
+        node: &SyntaxNode,
+        word: &str,
+    ) -> Option<IrUi> {
+        self.check_ui_attributes(node, word, &[]);
+        let fail = |this: &mut Self, span: Span| {
+            this.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower filter: filter takes one saved finite-choice preference".to_string(),
+                span,
+            ));
+        };
+        let headers: Vec<&SyntaxNode> = kids(node)
+            .iter()
+            .filter(|n| is_expression(n.kind) || n.kind == SyntaxKind::MessageValue)
+            .copied()
+            .collect();
+        let [header] = headers.as_slice() else {
+            fail(self, node.span);
+            return None;
+        };
+        if !ui_attributes(self.db, node).is_empty()
+            || kids(node).iter().any(|n| is_ui_node(n.kind))
+        {
+            fail(self, node.span);
+            return None;
+        }
+        let mut identity = *header;
+        while identity.kind == SyntaxKind::Group {
+            let Some(inner) = kids(identity)
+                .into_iter()
+                .find(|inner| is_expression(inner.kind))
+            else {
+                break;
+            };
+            identity = inner;
+        }
+        let decoded = self.decode_expr(scope, identity);
+        let Some(pref_id) = self
+            .program
+            .types
+            .preference_field_references
+            .get(&NodeKey::of(identity))
+            .copied()
+        else {
+            fail(self, header.span);
+            return None;
+        };
+        let Some(pref_symbol) = self.program.symbols.get(pref_id.0 as usize).cloned() else {
+            fail(self, header.span);
+            return None;
+        };
+        let SymbolKind::Field { owner: pref_owner, .. } = pref_symbol.kind else {
+            fail(self, header.span);
+            return None;
+        };
+        if pref_symbol.id != pref_id || pref_symbol.module != scope.module
+            || !matches!(&decoded.expr, IrExpr::Member { base, field } if field == &pref_symbol.name && matches!(&base.expr, IrExpr::Name(name) if name == "preferences"))
+            || !self.program.symbols.get(pref_owner.0 as usize).is_some_and(|item| matches!(&item.kind, SymbolKind::Preferences { fields } if fields.contains(&pref_id)))
+        {
+            fail(self, header.span);
+            return None;
+        }
+        // The preference reuses one owned model field; that field owns the
+        // finite-choice column exactly as a collection filter selector does.
+        let Some(model_field_id) = self
+            .program
+            .types
+            .field_reuse_sources
+            .get(&pref_id)
+            .copied()
+        else {
+            fail(self, header.span);
+            return None;
+        };
+        let Some(model_symbol) = self.program.symbols.get(model_field_id.0 as usize).cloned()
+        else {
+            fail(self, header.span);
+            return None;
+        };
+        let SymbolKind::Field { owner: model, .. } = model_symbol.kind else {
+            fail(self, header.span);
+            return None;
+        };
+        let Some(model_ty) = self.program.types.symbol_types.get(&model_field_id).cloned()
+        else {
+            fail(self, header.span);
+            return None;
+        };
+        let nullable = matches!(&decoded.ty, ResolvedType::Nullable(inner) if inner.as_ref() == &model_ty);
+        if model_symbol.id != model_field_id || decoded.ty != model_ty && !nullable
+            || !matches!(model_symbol.kind, SymbolKind::Field { owner, .. } if owner == model)
+            || !self.program.symbols.get(model.0 as usize).is_some_and(|item| item.module == model_symbol.module && matches!(&item.kind, SymbolKind::Model { fields, .. } if fields.contains(&model_field_id)))
+        {
+            fail(self, header.span);
+            return None;
+        }
+        let text = |value: String, span: Span| {
+            TypedExpr::new(
+                IrExpr::Text(value),
+                ResolvedType::Scalar(Scalar::Text),
+                span,
+            )
+        };
+        let cases = match &model_ty {
+            ResolvedType::Enum {
+                cases,
+                owner: Some(enum_owner),
+            } if !cases.is_empty()
+                && cases.iter().collect::<HashSet<_>>().len() == cases.len()
+                && self.program.types.symbol_types.get(enum_owner) == Some(&model_ty) =>
+            {
+                cases.clone()
+            }
+            ResolvedType::Scalar(Scalar::Bool) => {
+                vec!["true".to_string(), "false".to_string()]
+            }
+            _ => {
+                fail(self, header.span);
+                return None;
+            }
+        };
+        // B16: option labels come from the edited preference's own label
+        // parts (the reuse chain already inherits the owned model field's
+        // captions), the same source the page preference descriptor below
+        // carries, so the control and the settings panel caption agree.
+        let pref_label = self.decode_reused_field_label_parts(&pref_symbol);
+        let options = cases
+            .iter()
+            .map(|case| {
+                let caption = pref_label
+                    .as_ref()
+                    .and_then(|label| label.values.iter().find(|(value, _)| value == case))
+                    .map(|(_, caption)| {
+                        TypedExpr::new(
+                            IrExpr::Message(caption.clone()),
+                            ResolvedType::Scalar(Scalar::Text),
+                            header.span,
+                        )
+                    })
+                    .unwrap_or_else(|| text(case.clone(), header.span));
+                TypedExpr::new(
+                    IrExpr::Object(vec![
+                        ("value".to_string(), text(case.clone(), header.span)),
+                        ("label".to_string(), caption),
+                    ]),
+                    ResolvedType::Unknown,
+                    header.span,
+                )
+            })
+            .collect::<Vec<_>>();
+        let binding_caption = pref_label.as_ref().and_then(|label| label.text.clone()).map(|caption| {
+            TypedExpr::new(
+                IrExpr::Message(caption),
+                ResolvedType::Scalar(Scalar::Text),
+                header.span,
+            )
+        });
+        // The saved default registers the owning page preference exactly as
+        // a collection default does; the shell renders both from the same
+        // preference fields.
+        let (_, default, server, _, _, _) = self.decode_field(&pref_symbol, pref_owner);
+        let bool_filter = matches!(model_ty, ResolvedType::Scalar(Scalar::Bool));
+        let enum_cases = match &model_ty {
+            ResolvedType::Enum { cases, .. } => Some(cases),
+            ResolvedType::Scalar(Scalar::Bool) => None,
+            _ => None,
+        };
+        let default_value = match default {
+            Some(IrDefault::Literal(value)) => match value.expr {
+                IrExpr::Text(case)
+                    if enum_cases.is_some_and(|known| known.contains(&case)) =>
+                {
+                    Some(case)
+                }
+                IrExpr::Bool(selected) if bool_filter => Some(selected.to_string()),
+                IrExpr::Null if nullable => None,
+                _ => {
+                    fail(self, header.span);
+                    return None;
+                }
+            },
+            None if nullable => None,
+            _ => {
+                fail(self, header.span);
+                return None;
+            }
+        };
+        if server.is_some() {
+            fail(self, header.span);
+            return None;
+        }
+        if !self
+            .page_preference_fields
+            .iter()
+            .any(|field| field.name == pref_symbol.name)
+        {
+            self.page_preference_fields.push(IrPreferenceField {
+                name: pref_symbol.name.clone(),
+                options: cases.clone(),
+                default_value,
+                nullable,
+                caption: pref_label.as_ref().and_then(|label| label.text.clone()),
+                option_labels: pref_label.map(|label| label.values).unwrap_or_default(),
+            });
+        }
+        // B16: the control edits the owning saved preference through the
+        // existing page-preference save path (the descriptor entry above),
+        // so it carries the bound-tabs binding shape — name, owned
+        // finite-choice options, the saved read, its compare-and-set
+        // version and the caller POST target — never the collection
+        // descriptor the field-owner `filter()` control cannot consume.
+        let ctx = TypedExpr::new(
+            IrExpr::Name("c".to_string()),
+            ResolvedType::Unknown,
+            header.span,
+        );
+        let member = |base: TypedExpr, field: String| {
+            TypedExpr::new(
+                IrExpr::Member {
+                    base: Box::new(base),
+                    field,
+                },
+                ResolvedType::Unknown,
+                header.span,
+            )
+        };
+        let module_name = self
+            .program
+            .modules
+            .iter()
+            .find(|module| module.id == scope.module)?
+            .name
+            .clone();
+        let version = member(
+            member(
+                member(ctx.clone(), "preferenceVersions".to_string()),
+                module_name,
+            ),
+            pref_symbol.name.clone(),
+        );
+        let post_to = TypedExpr::new(
+            IrExpr::Binary {
+                op: IrBinOp::Coalesce,
+                left: Box::new(member(ctx.clone(), "pollUrl".to_string())),
+                right: Box::new(member(ctx, "path".to_string())),
+            },
+            ResolvedType::Scalar(Scalar::Text),
+            header.span,
+        );
+        let binding = TypedExpr::new(
+            IrExpr::Object(vec![
+                ("name".to_string(), text(pref_symbol.name.clone(), header.span)),
+                (
+                    "options".to_string(),
+                    TypedExpr::new(IrExpr::Array(options), ResolvedType::Unknown, header.span),
+                ),
+                ("current".to_string(), decoded),
+                ("version".to_string(), version),
+                ("postTo".to_string(), post_to),
+            ]),
+            ResolvedType::Unknown,
+            header.span,
+        );
+        let mut props = vec![("binding".to_string(), binding)];
+        if let Some(caption) = binding_caption {
+            props.push(("caption".to_string(), caption));
+        }
+        Some(IrUi {
+            view: None,
+            factory: "filter".to_string(),
+            props,
+            children: Vec::new(),
+            row_scope: None,
+            gate: self.decode_gate(scope, node),
+            span: node.span,
+        })
     }
 
     fn decode_calendar_endpoint(

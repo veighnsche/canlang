@@ -23,6 +23,7 @@ import type {
   FileInputProps,
   FileLinkView,
   FileProps,
+  FilterPreferenceProps,
   FilterProps,
   FormFieldDef,
   InputProps,
@@ -50,11 +51,12 @@ import {
   rawText,
 } from "./internal/draft-values.js";
 import type { FieldError } from "@canlang/contracts";
+import { CSRF_FIELD } from "@canlang/contracts";
 import { appearanceClasses } from "./appearance.js";
 import { pickAppearance } from "./internal/appearance-props.js";
 import { renderState } from "./components.js";
 import { EMPTY_COLLECTION, assertSourceFilterRow, prepareSourceFilters, sourceFilterControls } from "./collections.js";
-import { escapeAttr, escapeHtml, safeHref } from "./escape.js";
+import { escapeAttr, escapeHtml, operationPostPath, safeHref } from "./escape.js";
 import {
   assertFieldPath,
   fieldErrorOutletId,
@@ -79,6 +81,8 @@ const RANGE_INVALID = message("Value is outside the allowed range.", {
 const FILE_UNAVAILABLE = message("File unavailable", {
   nl: "Bestand niet beschikbaar",
 });
+
+const SAVE_PREFERENCE_LABEL = message("Save", { nl: "Opslaan" });
 
 /** String-valued scalar input types (mirrors forms.ts). */
 const TEXT_TYPES = new Set(["text", "email", "url", "timezone", "locale", "currency"]);
@@ -436,7 +440,7 @@ export async function select(props: SelectProps): Promise<string> {
  * form and would discard unrelated drafts. The field needs a non-empty
  * option list; otherwise this throws.
  */
-export async function filter(props: FilterProps): Promise<string> {
+async function filterField(props: FieldControlProps): Promise<string> {
   appearanceClasses("filter", "filter", pickAppearance(props));
   const field = props.field;
   assertFieldType(field);
@@ -456,6 +460,103 @@ export async function filter(props: FilterProps): Promise<string> {
     })
     .join("");
   return unit(props, unitCtx, `<div class="filter">${items}</div>`, current ?? "");
+}
+
+/** Non-empty string guard for preference names and POST targets. */
+function requireFilterText(field: string, value: string): string {
+  if (typeof value !== "string" || value.trim() === "") {
+    throw new Error(`filter needs a non-empty ${field}`);
+  }
+  return value;
+}
+
+/**
+ * Standalone saved-preference filter: Filter presentation over the owned
+ * preference binding. Radios carry the preference field name and the form
+ * POSTs name=<value> plus CSRF and the compare-and-set version to the
+ * caller path — the same save shape the bound tabset selector uses, so
+ * the existing preference preparation/save/CSRF/version contract serves
+ * it unchanged and the sibling collection keeps its own occurrence
+ * controls. Native POST only: no settings-panel binder applies outside
+ * the settings frame. An unknown current selection, empty options, a
+ * missing version or a missing POST target throws, never guesses.
+ */
+async function filterPreference(props: FilterPreferenceProps): Promise<string> {
+  if ("field" in props) {
+    throw new TypeError("filter takes either an owned field or a saved-preference binding, never both");
+  }
+  appearanceClasses("filter", "filter", pickAppearance(props));
+  const binding = props.binding;
+  requireFilterText("binding name", binding.name);
+  const postTo = operationPostPath(requireFilterText("binding postTo", binding.postTo));
+  if (binding.options.length === 0) {
+    throw new Error("filter binding needs a nonempty options suite");
+  }
+  const seen = new Set<string>();
+  for (const option of binding.options) {
+    requireFilterText("option value", option.value);
+    if (seen.has(option.value)) {
+      throw new Error(`filter duplicate option ${JSON.stringify(option.value)}`);
+    }
+    seen.add(option.value);
+  }
+  // Decoded bool reads arrive as real booleans while option values
+  // stay the canonical "true"/"false" spellings: compare strictly so an
+  // explicit false stays selected instead of dropping. Anything outside
+  // a listed spelling throws. POST/store stay string-valued.
+  const raw = binding.current ?? null;
+  let selected: string | null;
+  if (typeof raw === "boolean") {
+    selected = raw ? "true" : "false";
+  } else if (typeof raw === "string" || raw === null) {
+    selected = raw;
+  } else {
+    throw new TypeError("filter binding current must be a finite-choice spelling or boolean");
+  }
+  if (selected !== null && !seen.has(selected)) {
+    throw new Error(`filter current ${JSON.stringify(binding.current)} is not a listed option`);
+  }
+  if (binding.version === undefined) {
+    throw new Error("filter binding needs its saved snapshot version");
+  }
+  let legend = "";
+  if (props.caption !== undefined) {
+    const caption = resolveCaption(props.caption, props.context);
+    if (caption === "") {
+      throw new Error("filter caption must not be empty");
+    }
+    legend = `<legend>${escapeHtml(caption)}</legend>`;
+  }
+  const radios = binding.options
+    .map((option) => {
+      const checked = option.value === selected ? " checked" : "";
+      const ariaLabel = escapeAttr(resolveCaption(option.label, props.context));
+      return (
+        `<input class="btn" type="radio" name="${escapeAttr(binding.name)}" ` +
+        `value="${escapeAttr(option.value)}" aria-label="${ariaLabel}"${checked}>`
+      );
+    })
+    .join("");
+  const save = escapeHtml(resolveCaption(SAVE_PREFERENCE_LABEL, props.context));
+  return (
+    `<form action="${escapeAttr(postTo)}" method="post">` +
+    `<input type="hidden" name="${escapeAttr(CSRF_FIELD)}" value="${escapeAttr(props.context.csrfToken)}">` +
+    `<input type="hidden" name="_version" value="${escapeAttr(binding.version)}">` +
+    `<fieldset>${legend}<div class="filter">${radios}</div></fieldset>` +
+    `<div class="flex gap-2"><button type="submit" class="btn btn-primary" data-can-standard-submit>${save}</button></div></form>`
+  );
+}
+
+/**
+ * Finite-choice Filter presentation over either an owned field or a
+ * saved-preference binding (never both). The collection-shaped
+ * descriptor is not accepted here: it never reaches this control.
+ */
+export async function filter(props: FilterProps): Promise<string> {
+  if ("binding" in props) {
+    return filterPreference(props);
+  }
+  return filterField(props);
 }
 
 // ---------------------------------------------------------------------------
