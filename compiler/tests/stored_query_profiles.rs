@@ -168,3 +168,29 @@ fn archived_first_query_same_module() {
     let text = artifact["modules"][0]["js"].as_str().unwrap();
     assert!(text.contains("executionDependencies:["));
 }
+
+/// Otherwise-equivalent archived positive WITHOUT order: the leading
+/// `archived=include` clause with only as/where must close the same way.
+/// Regression for the REVIEW-8 arm-order gap (the unguarded 3-slot arm
+/// swallowed this shape and failed As/Where validation).
+#[test]
+fn archived_first_query_same_module_without_order() {
+    let source = "app FirstSources\nGiven\n Budget {account:user,approved:bool}\n policy Budget read=members\nWhen\n scenario generate() -> bool by=members\n  do\n   let budget=first(Budget archived=include as row where row.account==actor)\n   require budget!=null and budget.approved\n   return true\nThen\n";
+    let (db, program, _, catalog) = fixture_source("archived-first-no-order.can", source);
+    let (artifact, diagnostics) = prepared_artifact(&program, &db, &catalog);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let text = artifact["modules"][0]["js"].as_str().unwrap();
+    assert!(text.contains("executionDependencies:["));
+}
+
+/// Default-exclude control: no archived clause and no order keeps the
+/// default closed shape through the reordered arms (no permission change).
+#[test]
+fn plain_first_query_same_module_without_order_control() {
+    let source = "app FirstSources\nGiven\n Budget {account:user,approved:bool}\n policy Budget read=members\nWhen\n scenario generate() -> bool by=members\n  do\n   let budget=first(Budget as row where row.account==actor)\n   require budget!=null and budget.approved\n   return true\nThen\n";
+    let (db, program, _, catalog) = fixture_source("plain-first-no-order.can", source);
+    let (artifact, diagnostics) = prepared_artifact(&program, &db, &catalog);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let text = artifact["modules"][0]["js"].as_str().unwrap();
+    assert!(text.contains("executionDependencies:["));
+}
