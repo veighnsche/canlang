@@ -74168,5 +74168,88 @@
     "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
     "checkpoint_advanced": false,
     "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
+  },
+  "can18_merge_33_20261017": {
+    "incremental_base": "d4da54ac2991a6b8c49f6a635ef5fe5c6871cd16",
+    "incoming_end": "59c8c76ec1840f15f041dd1e9e2a735cdb494e79",
+    "retained_coverage": "reuse spec_installer_merge_reconciliation_20261015 and preceding CAN18 incremental merge entries; inherited complete checkpoint unchanged",
+    "changed_path_count": 14,
+    "rows": [
+      [
+        "compiler/src/codegen/js.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/src/codegen/model_policy_profile.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/hook_hookrem.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/hook_lowering.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "packages/cloudflare/src/runtime/hook-reference-joint.test.ts",
+        "cloudflare",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/cloudflare/src/runtime/invoke.ts",
+        "cloudflare",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/cloudflare/test/fixtures/hook-reference-joint-helpers.can",
+        "cloudflare",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/cloudflare/test/fixtures/hook-reference-joint.can",
+        "cloudflare",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/state/src/mutation/hook-reference-reads.test.ts",
+        "state",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/state/src/mutation/index.ts",
+        "state",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/state/src/mutation/model-policies.ts",
+        "state",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/state/src/mutation/models.ts",
+        "state",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/state/src/mutation/pipeline.ts",
+        "state",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/state/test/mutation/fixtures.ts",
+        "state",
+        "existing package source/test owner"
+      ]
+    ],
+    "choice": "Authorized referenced-row reads in hooks: loadReference owner with edge-match, snapshot, caller-grant projection; fence intact; tails+staged stay refused.",
+    "validation": "ref joint 10/10, ref reads 13/13, parent 12/12+14/14, hookrem 7/7, hook_lowering 26/26 on frozen 16402def/ca50.",
+    "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
+    "checkpoint_advanced": false,
+    "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
   }
 }

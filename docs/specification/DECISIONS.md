@@ -18239,3 +18239,8 @@ State/Cloudflare query owner and stays outside this binding batch.
 ## 2026-10-16 — can18_merge_32_20261016
 
 Accepted: Calendar-agenda endpoint/columns binding C4: CanShift agenda + CanLeave columns clear; C2/C3 stay refused; parent-bound saved-defaults gap named for runtime owner. Merge reviewed tested work incrementally into canonical `main`, preserving installer/specification changes and the active implementation branch. agenda 1/1, row/ref/joint 1/1, UI 179/179, factory 33/33, enum 41/41 on frozen c416fbf3/ca50. Reconcile the living file-tree plan/registry over `e01604b7..HEAD` with existing owners; retain the complete checkpoint and all outstanding acceptance gates. A merged component is not a claim that original24 or the remaining runtime workflows are complete.
+
+
+## 2026-10-16 — can18_merge_33_20261017
+
+Accepted: Authorized referenced-row reads in hooks: loadReference owner with edge-match, snapshot, caller-grant projection; fence intact; tails+staged stay refused. Merge reviewed tested work incrementally into canonical `main`, preserving installer/specification changes and the active implementation branch. ref joint 10/10, ref reads 13/13, parent 12/12+14/14, hookrem 7/7, hook_lowering 26/26 on frozen 16402def/ca50. Reconcile the living file-tree plan/registry over `d4da54ac..HEAD` with existing owners; retain the complete checkpoint and all outstanding acceptance gates. A merged component is not a claim that original24 or the remaining runtime workflows are complete.
