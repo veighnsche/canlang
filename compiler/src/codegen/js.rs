@@ -8107,19 +8107,22 @@ impl<'a> Emitter<'a> {
         ))
     }
 
-    /// A side-effect-free literal filter value, or `None`. Ints emit JSON
-    /// numbers (never `BigInt`: State stores safe-integer numbers and its
-    /// three-valued comparison ranks by storage class, so a `BigInt`
-    /// value would never match); out-of-range ints stay on the callback
-    /// path instead of losing precision.
+    /// A side-effect-free literal filter value, or `None`. Ints emit the
+    /// canonical Values int wire (decimal strings, never JSON numbers and
+    /// never `BigInt`: stored ints are int64 decimal strings, so a JSON
+    /// number would never match and plain string comparison would
+    /// misorder); the host compares them numerically with no `Number`
+    /// routing. Out-of-int64-range ints stay on the callback path instead
+    /// of losing precision.
     fn data_only_value(value: &TypedExpr) -> Option<String> {
         match &value.expr {
             IrExpr::Int(int) => {
-                const MAX_SAFE: i128 = 9_007_199_254_740_991;
-                if *int < -MAX_SAFE || *int > MAX_SAFE {
+                const MAX: i128 = 9_223_372_036_854_775_807;
+                const MIN: i128 = -9_223_372_036_854_775_808;
+                if *int < MIN || *int > MAX {
                     return None;
                 }
-                Some(int.to_string())
+                Some(js_string(&int.to_string()))
             }
             IrExpr::Text(text) => Some(js_string(text)),
             IrExpr::Bool(bool) => Some(bool.to_string()),

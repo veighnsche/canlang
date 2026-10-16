@@ -373,8 +373,8 @@ fn authority_filtered_query_emits_data_only_ast() {
     let js = emit(FILTERED_AUTHORITY_SOURCE, "scope-authority-filtered.can");
     let body = handler_body(&js, "T.totals").expect("authority handler lowers");
     assert!(
-        body.contains("where:{op:\"gt\",field:\"amount\",value:0}"),
-        "data-only AST selection: {body}"
+        body.contains("where:{op:\"gt\",field:\"amount\",value:\"0\"}"),
+        "data-only AST selection on the canonical int wire: {body}"
     );
     assert!(
         !body.contains("=>"),
@@ -389,7 +389,7 @@ fn authority_text_and_composed_filters_emit_ast() {
     let js = emit(src, "scope-authority-text.can");
     let body = handler_body(&js, "T.totals").expect("authority handler lowers");
     assert!(
-        body.contains("where:{op:\"and\",args:[{op:\"eq\",field:\"title\",value:\"x\"},{op:\"lt\",field:\"stock\",value:10}]}"),
+        body.contains("where:{op:\"and\",args:[{op:\"eq\",field:\"title\",value:\"x\"},{op:\"lt\",field:\"stock\",value:\"10\"}]}"),
         "composed data-only AST: {body}"
     );
     assert!(
@@ -564,6 +564,78 @@ fn authority_defining_source_names_declaring_file_not_first_source() {
     );
     assert!(
         !descriptor.contains("authority-report-helpers.can"),
+        "imported helper file is not the origin: {descriptor}"
+    );
+}
+
+/// REVIEW-10 typed-int filter fix: the real `.can` fixture (local plus
+/// imported equivalent helper) compiles through the actual pipeline; every
+/// Int filter emits the canonical Values int wire (decimal strings, never
+/// JSON numbers), so the host can compare stored-int strings numerically.
+const INT_FILTER_SHOP: &str = include_str!("fixtures/scope-authority-int-filter.can");
+const INT_FILTER_HELPERS: &str = include_str!("fixtures/scope-authority-int-filter-helpers.can");
+
+/// Compile the two-file int-filter fixture exactly as checked sources
+/// (helpers first, so a first-source guess would name the wrong file).
+fn emit_int_filter_fixture() -> String {
+    let mut db = SourceDb::new();
+    let helpers_id = db.add(
+        "scope-authority-int-filter-helpers.can".to_string(),
+        INT_FILTER_HELPERS.to_string(),
+    );
+    let shop_id = db.add(
+        "scope-authority-int-filter.can".to_string(),
+        INT_FILTER_SHOP.to_string(),
+    );
+    let catalog = load(&db, &native_catalog());
+    let (program, diags) = check_program(&db, &[shop_id, helpers_id], Some(&catalog));
+    assert!(diags.is_empty(), "{diags:?}");
+    let (ir, _) = ir::build(&program, &db, Some(&catalog));
+    js::emit_program(&ir).entry.js
+}
+
+/// Equality, ordering (the 2-vs-10 discriminator), a negative bound, and
+/// a beyond-safe-integer literal all emit int-wire strings; no callback
+/// remains for decision mode to refuse.
+#[test]
+fn authority_int_filters_emit_canonical_string_wire() {
+    let js = emit_int_filter_fixture();
+    let body = handler_body(&js, "Shop.stockReport").expect("authority handler lowers");
+    assert!(
+        body.contains("where:{op:\"eq\",field:\"stock\",value:\"10\"}"),
+        "equality on the int wire: {body}"
+    );
+    assert!(
+        body.contains("where:{op:\"gt\",field:\"stock\",value:\"2\"}"),
+        "ordering on the int wire: {body}"
+    );
+    assert!(
+        body.contains("where:{op:\"lt\",field:\"stock\",value:\"0\"}"),
+        "negative bound on the int wire: {body}"
+    );
+    assert!(
+        body.contains("where:{op:\"eq\",field:\"stock\",value:\"9007199254740993\"}"),
+        "beyond-safe-integer exact, never a JSON number: {body}"
+    );
+    assert!(
+        !body.contains("=>"),
+        "no callback predicate remains: {body}"
+    );
+}
+
+/// The fixture origin still names the declaring file, never the imported
+/// helper file.
+#[test]
+fn int_filter_fixture_origin_names_declaring_file() {
+    let js = emit_int_filter_fixture();
+    let descriptor = operation_descriptor(&js, "Shop.stockReport").expect("descriptor lowers");
+    assert!(
+        descriptor
+            .contains("source:{\"module\":\"Shop\",\"path\":\"scope-authority-int-filter.can\""),
+        "origin names the declaring file: {descriptor}"
+    );
+    assert!(
+        !descriptor.contains("scope-authority-int-filter-helpers.can"),
         "imported helper file is not the origin: {descriptor}"
     );
 }
