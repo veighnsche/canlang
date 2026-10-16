@@ -4373,15 +4373,115 @@ impl<'a> Emitter<'a> {
     /// `catch.AlertsV1.notify(value:Alert)` message path (DESIGN §9.1).
     /// Returned paths are send-args field segments; every other formatted
     /// position keeps refusing, including mail `to` and send guards.
-    fn outbound_sink_paths(operation: &str) -> Option<&'static [&'static [&'static str]]> {
+    fn outbound_sink_paths(&self, operation: &str) -> Option<&'static [&'static [&'static str]]> {
         if operation == "std.EmailV1.send" || operation == "std.EmailV1.send_user" {
             return Some(&[&["subject"], &["body"]]);
         }
-        let mut parts = operation.rsplit('.');
-        if parts.next() == Some("notify") && parts.next() == Some("AlertsV1") {
+        if self.pinned_alert_notify(operation) {
             return Some(&[&["value", "message"]]);
         }
         None
+    }
+
+    /// The custom adapter classifies the exact human-text path on the pinned
+    /// capability signature: `catch.AlertsV1` version 1,
+    /// `notify(value:Alert) -> AlertAccepted` with the defining
+    /// `Alert {source:text, destination:url, message:text}` schema. Field
+    /// name alone is insufficient, so an unrelated same-named capability,
+    /// an altered version, or an altered parameter schema keeps refusing.
+    fn pinned_alert_notify(&self, operation: &str) -> bool {
+        if operation != "catch.AlertsV1.notify" {
+            return false;
+        }
+        let Some(op) = self.ir.items.iter().find(|item| {
+            item.canonical == "catch.AlertsV1.notify"
+                && matches!(&item.kind, IrItemKind::CapabilityOp { params, .. } if params.len() == 1)
+        }) else {
+            return false;
+        };
+        let IrItemKind::CapabilityOp { params, result } = &op.kind else {
+            return false;
+        };
+        let Some(cap) = self.ir.items.iter().find(|item| {
+            item.canonical == "catch.AlertsV1"
+                && matches!(
+                    &item.kind,
+                    IrItemKind::Capability {
+                        version: Some(1),
+                        ..
+                    }
+                )
+        }) else {
+            return false;
+        };
+        let IrItemKind::Capability { ops, .. } = &cap.kind else {
+            return false;
+        };
+        if !ops.contains(&op.id) {
+            return false;
+        }
+        let Some(param) = self.ir.items.get(params[0].0 as usize) else {
+            return false;
+        };
+        if param.name != "value" {
+            return false;
+        }
+        let IrItemKind::Param {
+            ty: IrType::Known(ResolvedType::Record { symbol: alert, .. }),
+            ..
+        } = &param.kind
+        else {
+            return false;
+        };
+        let Some(alert_item) = self.ir.items.get(alert.0 as usize) else {
+            return false;
+        };
+        if alert_item.canonical != "catch.Alert" {
+            return false;
+        }
+        let IrType::Known(ResolvedType::Record {
+            symbol: accepted, ..
+        }) = result
+        else {
+            return false;
+        };
+        let Some(accepted_item) = self.ir.items.get(accepted.0 as usize) else {
+            return false;
+        };
+        if accepted_item.canonical != "catch.AlertAccepted" {
+            return false;
+        }
+        let IrItemKind::Contract { fields, .. } = &alert_item.kind else {
+            return false;
+        };
+        let mut actual = Vec::with_capacity(fields.len());
+        for id in fields {
+            let Some(field) = self.ir.items.get(id.0 as usize) else {
+                return false;
+            };
+            let IrItemKind::Field {
+                ty: IrType::Known(ty),
+                ..
+            } = &field.kind
+            else {
+                return false;
+            };
+            let type_id = match ty {
+                ResolvedType::Scalar(scalar) => scalar.as_str().to_string(),
+                ResolvedType::Nullable(inner) => match inner.as_ref() {
+                    ResolvedType::Scalar(scalar) => format!("{}?", scalar.as_str()),
+                    _ => return false,
+                },
+                _ => return false,
+            };
+            actual.push((field.name.clone(), type_id));
+        }
+        actual
+            == [
+                ("source".to_string(), "text".to_string()),
+                ("destination".to_string(), "url".to_string()),
+                ("message".to_string(), "text".to_string()),
+            ]
     }
 
     /// Field-segment paths of formatted values under `expr`, mirroring
@@ -8288,7 +8388,7 @@ impl<'a> Emitter<'a> {
                 return vec![(format!("{pad}{refused};"), guard.span)];
             }
             let positions = self.formatted_positions(args);
-            let admitted = Self::outbound_sink_paths(operation).is_some_and(|allowed| {
+            let admitted = self.outbound_sink_paths(operation).is_some_and(|allowed| {
                 positions.iter().all(|(path, _)| {
                     allowed.iter().any(|ok| {
                         ok.len() == path.len() && ok.iter().zip(path).all(|(a, b)| a == b)
