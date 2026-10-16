@@ -106,7 +106,6 @@ fn item<'a>(ir: &'a IrProgram, canonical: &str) -> &'a IrItem {
 /// (verified 2026-10-16: implicit-app, entry-only and non-entry-pair shapes
 /// pass); the `use lib {Budget}` import refuses E6008 at the first span.
 #[test]
-#[ignore = "outcome 5 OPEN: cross-package first-query correspondence declined at disclosure owner.module gate (Lane C); un-ignore after repair"]
 fn imported_model_first_without_helper_control() {
     let source = "app FirstSources uses=[shop]\npackage lib\n Given\n  export Budget {account:user,approved:bool,active:bool}\n  policy Budget read=members\n When\n Then\npackage shop\n use lib {Budget}\n Given\n When\n  scenario generate() -> bool by=members\n   do\n    let budget=first(Budget as row where row.account==actor order=row.id)\n    require budget!=null and budget.approved\n    return true\n Then\n";
     let (db, program, _, catalog) = fixture_source("imported-first-control.can", source);
@@ -120,7 +119,6 @@ fn imported_model_first_without_helper_control() {
 /// source/type/owner of the imported `allowed` helper must survive into the
 /// emitted consumer; corrupting the helper body must still refuse E6008.
 #[test]
-#[ignore = "outcome 5 OPEN: same disclosure owner.module gate as the control above (Lane C); un-ignore after repair"]
 fn imported_helper_guard_keeps_first_query_source_correspondence() {
     let source = "app FirstSources uses=[shop]\npackage lib\n Given\n  export Budget {account:user,approved:bool,active:bool}\n  policy Budget read=members\n  export derive allowed(record:Budget):bool = record.approved and record.active\n When\n Then\npackage shop\n use lib {Budget,allowed}\n Given\n When\n  scenario generate() -> bool by=members\n   do\n    let budget=first(Budget as row where row.account==actor order=row.id)\n    require budget!=null and allowed(record=budget)\n    return true\n Then\n";
     let (db, program, original, catalog) = fixture_source("imported-first-helper.can", source);

@@ -842,11 +842,20 @@ fn checked_require_helper_consumption(
 ) -> Option<NativeRequireConsumption> {
     use crate::analysis::scenario_disclosure::{CheckedDecisionCall, CheckedDecisionCallTarget};
     let outer = *read.calls.first()?;
+    // Helper field reads keep their declaring-module source; across a
+    // proven import the provider/consumer pair corresponds exactly.
     if read.calls.len() > 16
         || outer.file != site.node.file
         || outer.start < site.node.start
         || outer.end > site.node.end
-        || read.source != site.source
+        || (read.source != site.source
+            && !imported_field_source_corresponds(
+                ir,
+                owner,
+                &read.model_name,
+                &read.source,
+                &site.source,
+            ))
         || read.query_id.is_some()
         || read.role != DependencyRole::Control
         || read.node.kind != SyntaxKind::Member as u8
@@ -875,7 +884,10 @@ fn checked_require_helper_consumption(
         else {
             return None;
         };
-        if derive.module != owner.module
+        // An imported helper arrives through the owner's checked `use`;
+        // its canonical must match one imported provider member exactly.
+        // Same-module helpers keep their existing path.
+        if (derive.module != owner.module && !imported_canonical(ir, owner, &derive.canonical))
             || called.source != site.source
             || !supported_type_id(scalar.as_str())
         {
@@ -941,7 +953,11 @@ fn checked_require_helper_consumption(
         };
         if source.chain.iter().zip(&frames).any(|(frame, prior)| {
             frame.derive != prior.derive.id
-                || frame.module != owner.module
+                || (frame.module != owner.module
+                    && ir
+                        .items
+                        .get(frame.derive.0 as usize)
+                        .is_none_or(|derive| !imported_canonical(ir, owner, &derive.canonical)))
                 || frame.source != site.source
         }) {
             return None;
@@ -955,7 +971,7 @@ fn checked_require_helper_consumption(
         else {
             return None;
         };
-        if derive.module != owner.module
+        if (derive.module != owner.module && !imported_canonical(ir, owner, &derive.canonical))
             || params.len() > 64
             || params.len() != source.slots.len()
             || body.ty != *result
@@ -1003,9 +1019,11 @@ fn checked_require_helper_consumption(
             else {
                 return None;
             };
+            // Helper parameters live with their helper, which may itself be
+            // imported (proven above); they never need the owner's module.
             if *parameter_owner != id
                 || *parameter_index != index
-                || parameter.module != owner.module
+                || parameter.module != derive.module
                 || !(matches!(ty,ResolvedType::Scalar(scalar) if supported_type_id(scalar.as_str()))
                     || matches!(ty,ResolvedType::Record {stored:true,symbol} if matches!(&ir.items.get(symbol.0 as usize)?.kind,IrItemKind::Model {..})))
             {
@@ -1139,7 +1157,14 @@ fn checked_require_helper_consumption(
     match_stored_contract_field(ir, field, db)?;
     if field.ty != read.ty
         || field.name != read.field_name
-        || field.source != read.source
+        || (field.source != read.source
+            && !imported_field_source_corresponds(
+                ir,
+                owner,
+                &read.model_name,
+                &field.source,
+                &read.source,
+            ))
         || field.owner != schema.id
         || field.required_array
         || schema.canonical != read.model_name
@@ -1447,7 +1472,14 @@ pub(super) fn checked_require_consumptions(
             };
             if field.ty != read.ty
                 || field.name != read.field_name
-                || field.source != read.source
+                || (field.source != read.source
+                    && !imported_field_source_corresponds(
+                        ir,
+                        owner,
+                        &read.model_name,
+                        &field.source,
+                        &read.source,
+                    ))
                 || field.owner != schema.id
                 || field.required_array
                 || schema.canonical != read.model_name
@@ -4521,9 +4553,11 @@ fn checked_first_query_schema<'a>(
     let schema = schemas.next()?;
     if schemas.next().is_some()
         || !schema.model
-        || schema.module != owner.module
+        || (schema.module != owner.module
+            && !imported_schema_source(ir, owner, schema))
         || schema.canonical != query.model_name
-        || schema.source != query.source
+        || (schema.source != query.source
+            && !imported_source_corresponds(ir, owner, schema, query))
         || schema.field_order.iter().any(|id| {
             ir.items
                 .get(id.0 as usize)
@@ -4537,6 +4571,86 @@ fn checked_first_query_schema<'a>(
         match_stored_contract_field(ir, field, db)?;
     }
     Some(schema)
+}
+
+/// A cross-package canonical must arrive through the owner's checked `use`:
+/// it matches one imported provider member exactly. Mirrors the disclosure
+/// import correspondence; aliasing never renames the source, so only the
+/// provider-side spelling counts.
+fn imported_canonical(ir: &IrProgram, owner: &IrItem, canonical: &str) -> bool {
+    let Some(module) = ir.modules.get(owner.module.0 as usize) else {
+        return false;
+    };
+    module.imports.iter().any(|import| {
+        import.members.iter().any(|(name, _, _)| {
+            import.provider.len() + 1 + name.len() == canonical.len()
+                && canonical.starts_with(import.provider.as_str())
+                && canonical.as_bytes().get(import.provider.len()) == Some(&b'.')
+                && canonical[import.provider.len() + 1..] == *name
+        })
+    })
+}
+
+/// A cross-package stored schema must arrive through the owner's checked
+/// `use`: the schema canonical matches one imported provider member
+/// exactly. Mirrors the disclosure import correspondence; aliasing never
+/// renames the source, so only the provider-side spelling counts.
+fn imported_schema_source(
+    ir: &IrProgram,
+    owner: &IrItem,
+    schema: &crate::analysis::scenario_disclosure::CheckedStoredContractSchema,
+) -> bool {
+    imported_canonical(ir, owner, &schema.canonical)
+}
+
+/// Same-cohort sources across a proven import: the schema source module
+/// names the canonical provider and the query source module is the
+/// importing consumer. Cohort membership itself is established by the
+/// single checked program both facts come from; the import edge plus the
+/// exact canonical/module triple is the correspondence proof. Same-module
+/// pairs keep their exact equality above and never reach here.
+fn imported_source_corresponds(
+    ir: &IrProgram,
+    owner: &IrItem,
+    schema: &crate::analysis::scenario_disclosure::CheckedStoredContractSchema,
+    query: &crate::analysis::scenario_disclosure::DisclosureQuery,
+) -> bool {
+    imported_field_source_corresponds(
+        ir,
+        owner,
+        &schema.canonical,
+        &schema.source,
+        &query.source,
+    )
+}
+
+/// Same-cohort field sources across a proven import: the field source
+/// module names the model canonical provider and the read source module is
+/// the importing consumer. Cohort membership itself is established by the
+/// single checked program both facts come from.
+fn imported_field_source_corresponds(
+    ir: &IrProgram,
+    owner: &IrItem,
+    model_canonical: &str,
+    field_source: &crate::analysis::scenario_disclosure::DisclosureSource,
+    read_source: &crate::analysis::scenario_disclosure::DisclosureSource,
+) -> bool {
+    if field_source.module == read_source.module {
+        return false;
+    }
+    let Some(dot) = model_canonical.rfind('.') else {
+        return false;
+    };
+    if field_source.module != model_canonical[..dot] {
+        return false;
+    }
+    let Some(consumer) = ir.modules.get(owner.module.0 as usize) else {
+        return false;
+    };
+    if read_source.module != consumer.name {
+        return false;
+    }
+    imported_canonical(ir, owner, model_canonical)
 }
 
 /// The released contained COUNT selector is the original required singular
