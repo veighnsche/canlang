@@ -152,6 +152,11 @@ pub struct DisclosureFirstQuery {
     pub overload: usize,
     pub binding: NodeKey,
     pub operand: NodeKey,
+    /// A true contained Member scans this original required parent parameter.
+    /// An unscoped model scan has no contained parent selector. Mirrors the
+    /// count contained-parent correspondence; the predicate operand keeps its
+    /// own separate input entry.
+    pub contained_parent: Option<(NodeKey, SymbolId)>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -7917,6 +7922,11 @@ impl<'a> Closure<'a> {
         // a present Archived clause always selects archived rows and its
         // absence keeps the default. No value reading is needed or possible.
         let archived = archived.is_some();
+        // The domain names its model plainly, or selects a contained child
+        // through the original required parent parameter (domain
+        // correspondence below). Anything else keeps the closure refusal.
+        let contained_parent =
+            self.checked_first_query_domain(scenario, query, fact.model, owner)?;
         if query.node != fact.query
             || query.projection.is_some()
             || query.domain_type != array
@@ -7925,7 +7935,6 @@ impl<'a> Closure<'a> {
             || self.types.node_types.get(&fact.query) != Some(&array)
             || self.types.node_types.get(&call)
                 != Some(&ResolvedType::Nullable(Box::new(record.clone())))
-            || !matches!(self.query_binding(query.domain), Some(Binding::Symbol(model)) if *model == fact.model)
             || alias.node != fact.alias
             || !matches!(alias.kind, CheckedQueryClauseKind::As { .. })
             || !alias.expressions.is_empty()
@@ -8053,10 +8062,50 @@ impl<'a> Closure<'a> {
                 overload: fact.overload,
                 binding: binding.node,
                 operand,
+                contained_parent,
             }),
             count: None,
             influences,
         })
+    }
+
+    /// A first-query domain names its model plainly, or selects a contained
+    /// child through the original required parent parameter. The qualified
+    /// spelling carries no rename: the receiver names a default-free
+    /// scenario Model parameter, the child stays ChildOf that parent, and
+    /// the spelling names the child itself. Anything else refuses, keeping
+    /// the closure fail-closed. Mirrors the count contained-Member
+    /// correspondence; the predicate operand keeps its own input entry.
+    fn checked_first_query_domain(
+        &self,
+        scenario: &super::effects::ScenarioData,
+        query: &crate::analysis::types::CheckedQuery,
+        model: SymbolId,
+        owner: &super::resolve::Symbol,
+    ) -> Option<Option<(NodeKey, SymbolId)>> {
+        if matches!(self.query_binding(query.domain), Some(Binding::Symbol(actual)) if *actual == model) {
+            return Some(None);
+        }
+        let (receiver, name) = self.count_member(query.domain)?;
+        let parameter = self.query_parameter(scenario, receiver)?;
+        let (parent, hops) = self.checked_call_parent_path(receiver, parameter, 0)?;
+        let SymbolKind::Model {
+            owner: ModelOwner::ChildOf(actual_parent),
+            ..
+        } = &owner.kind
+        else {
+            return None;
+        };
+        if hops != 0
+            || *actual_parent != parent
+            || owner.name != name
+            || !self.original_reference_parameter(receiver, parameter)
+            || self.model_has_field(parent, name)
+            || self.effects.models.get(&model)?.owner != ModelOwner::ChildOf(parent)
+        {
+            return None;
+        }
+        Some(Some((receiver, parameter)))
     }
 
     /// A cross-package query domain must arrive through the consumer's
