@@ -1,0 +1,22 @@
+app StaffWork uses=[shop]
+package shop
+ use employee {staff,can_work,Employee,Location}
+ Given
+  Entry {owner:user,site:Location,hidden:bool}
+  derive crew(person:user,place:Location):bool = can_work(person,place)
+  policy Entry read=members and staff(actor)
+  policy Entry read=members and crew(actor,row.site)
+ When
+  scenario touch(entry:Entry) by=members
+   require entry.owner==actor
+   do let x = 1
+ Then
+  page /entries title="Entries"
+   list Entry as e where actor!=null and staff(actor)
+    text "hi"
+  page /entries/{Entry.id}/access title="Entry access"
+   require actor!=null and crew(actor,row.site)
+   text "Allowed"
+  page /entries/{Entry.id}/hidden title="Hidden access"
+   require actor!=null and row.hidden and crew(actor,row.site)
+   text "Hidden"

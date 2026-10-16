@@ -203,6 +203,141 @@ struct Consumer<'a> {
     steps: usize,
     count: usize,
 }
+
+/// Required page anchors for the read seals: every page the IR sealed.
+/// Unrelated Given/When bulk never spends the finite index budget; a missing
+/// anchor refuses exactly like the previous whole-tree lookup did.
+pub(super) fn page_anchor_keys(ir: &IrProgram) -> HashSet<NodeKey> {
+    let mut required = HashSet::new();
+    for module in &ir.modules {
+        for page in &module.pages {
+            required.insert(NodeKey {
+                file: page.span.file,
+                start: page.span.start,
+                end: page.span.end,
+                kind: SyntaxKind::Page as u8,
+            });
+        }
+    }
+    required
+}
+
+/// Ancestor-pruned page locator with the same finite bounds as the consumer
+/// index: only children containing the required anchor are visited.
+pub(super) fn find_page_root<'t>(
+    tree: &'t SyntaxNode,
+    page: NodeKey,
+    steps: &mut usize,
+) -> Option<&'t SyntaxNode> {
+    let contains = |node: &SyntaxNode| {
+        node.span.file == page.file
+            && node.span.start <= page.start
+            && node.span.end >= page.end
+    };
+    if !contains(tree) {
+        return None;
+    }
+    let mut pending = vec![(tree, 0usize)];
+    while let Some((node, depth)) = pending.pop() {
+        if depth > 256 {
+            return None;
+        }
+        *steps += 1;
+        if *steps > 200000 {
+            return None;
+        }
+        if NodeKey::of(node) == page {
+            return Some(node);
+        }
+        pending.extend(
+            node.children
+                .iter()
+                .filter(|child| contains(child))
+                .map(|child| (child, depth + 1)),
+        );
+    }
+    None
+}
+
+/// Bounded key search inside one sealed page subtree.
+pub(super) fn find_page_key<'t>(
+    root: &'t SyntaxNode,
+    key: NodeKey,
+    steps: &mut usize,
+) -> Option<&'t SyntaxNode> {
+    let mut pending = vec![(root, 0usize)];
+    while let Some((node, depth)) = pending.pop() {
+        if depth > 256 {
+            return None;
+        }
+        *steps += 1;
+        if *steps > 200000 {
+            return None;
+        }
+        if NodeKey::of(node) == key {
+            return Some(node);
+        }
+        pending.extend(node.children.iter().map(|child| (child, depth + 1)));
+    }
+    None
+}
+
+/// The selected helper closure: every derive body the expression join may
+/// descend into from a sealed predicate. Derive bodies are small one-step
+/// helpers; the Given/When bulk around them stays unindexed.
+pub(super) fn helper_closure_keys(program: &CheckedProgram) -> HashSet<NodeKey> {
+    let mut required = HashSet::new();
+    for data in program.effects.derives.values() {
+        required.extend(data.expr);
+        for param in &data.params {
+            required.extend(param.default);
+        }
+    }
+    required
+}
+
+/// Best-effort helper-closure indexing: present bodies join the consumer
+/// map under the same finite bounds; missing anchors stay absent, and their
+/// use sites still refuse downstream exactly as before.
+fn index_helper_closure(
+    consumer: &mut Consumer,
+    trees: &[(crate::source::SourceId, SyntaxNode)],
+    program: &CheckedProgram,
+) {
+    for key in helper_closure_keys(program) {
+        let _ = consumer.index_required(trees, &HashSet::from([key]));
+    }
+}
+
+/// Exact consumed anchors for one rule's checked decision sites: the same
+/// node/depth/call bounds as the decision index, so unrelated source never
+/// spends this seal's finite budget.
+fn required_site_keys(
+    program: &CheckedProgram,
+    sites: &[CheckedDecisionSite],
+) -> Option<HashSet<NodeKey>> {
+    let mut required = HashSet::new();
+    let mut calls = 0usize;
+    if sites.len() > 200 {
+        return None;
+    }
+    for site in sites {
+        required.extend([site.node, site.statement]);
+        for call in &site.calls {
+            calls += 1;
+            if calls > 200 {
+                return None;
+            }
+            required.insert(call.node);
+            required.extend(call.arguments.iter().map(|(node, _)| *node));
+            required.extend(call.defaults.iter().map(|(_, node)| *node));
+            if let CheckedDecisionCallTarget::DeriveFn(id) = call.target {
+                required.insert(program.effects.derives.get(&id)?.expr?);
+            }
+        }
+    }
+    Some(required)
+}
 impl Consumer<'_> {
     fn index_required(
         &mut self,
@@ -242,10 +377,6 @@ impl Consumer<'_> {
             .iter()
             .all(|key| self.nodes.contains_key(key))
             .then_some(())
-    }
-
-    fn index(&mut self, root: &SyntaxNode) -> Option<()> {
-        self.index_at_depth(root, 0)
     }
 
     fn index_at_depth(&mut self, root: &SyntaxNode, depth: usize) -> Option<()> {
@@ -890,6 +1021,20 @@ impl SemanticJoin<'_> {
                 }
             }
             (IrExpr::Message(a), IrExpr::Message(b)) => self.message(a, b, depth + 1)?,
+            // Identical checked placeholders correspond exactly. Both sides
+            // lower to the same throwing placeholder (IR build and codegen
+            // still report their own E6008), so recognizing the
+            // correspondence neither executes the gap nor masks it. `ty` and
+            // `span` equality is established on entry; any differing
+            // `what`/`why` still refuses. The single-tree executability
+            // check keeps refusing every placeholder.
+            (IrExpr::Unsupported { what: x, why: p }, IrExpr::Unsupported { what: y, why: q })
+                if x == y && p == q => {}
+            // A checked page-time predicate is data-only render filtering
+            // (`row.datetime >= now`); its recorded model field,
+            // comparison, spans, and paging support fully determine the
+            // sealed meaning on both sides.
+            (IrExpr::PageTimePredicate(a), IrExpr::PageTimePredicate(b)) if a.corresponds(b) => {}
             (
                 IrExpr::MessageCall {
                     descriptor: a,
@@ -1930,9 +2075,11 @@ fn serialize_read_rule(
         steps: 0,
         count: 0,
     };
-    for (_, tree) in trees {
-        consumer.index(tree)?;
-    }
+    // Only this rule's consumed anchors spend the finite index budget, then
+    // the present helper-closure bodies join best-effort. Unrelated source
+    // remains in the checked/fresh cohort unindexed.
+    consumer.index_required(trees, &required_site_keys(original, &sites)?)?;
+    index_helper_closure(&mut consumer, trees, original);
     consumer.steps = 0;
     let predicates = if policy.where_predicate.is_some() {
         let IrExpr::Binary {
@@ -2007,7 +2154,6 @@ fn serialize_read_predicates(sources: &FreshSourceContext<'_>) -> Option<Vec<Ser
     if ir.modules.len() != fresh.modules.len() {
         return None;
     }
-    let mut nodes = HashMap::new();
     let mut consumer = Consumer {
         program: original,
         ir,
@@ -2017,15 +2163,11 @@ fn serialize_read_predicates(sources: &FreshSourceContext<'_>) -> Option<Vec<Ser
         steps: 0,
         count: 0,
     };
-    for (_, tree) in trees {
-        consumer.index(tree)?;
-        for node in tree.descendants() {
-            if nodes.len() >= 200000 {
-                return None;
-            }
-            nodes.insert(NodeKey::of(node), node);
-        }
-    }
+    // Only the sealed pages spend the finite index budget, then the present
+    // helper-closure bodies join best-effort. Unrelated Given/When bulk
+    // remains in the checked/fresh cohort unindexed.
+    consumer.index_required(trees, &page_anchor_keys(ir))?;
+    index_helper_closure(&mut consumer, trees, original);
     consumer.steps = 0;
     let mut join = SemanticJoin {
         program: original,
@@ -2069,7 +2211,13 @@ fn serialize_read_predicates(sources: &FreshSourceContext<'_>) -> Option<Vec<Ser
                 end: page.span.end,
                 kind: SyntaxKind::Page as u8,
             };
-            if nodes.get(&page_key)?.kind != SyntaxKind::Page {
+            // The sealed page subtree carries this owner's CST; a missing
+            // anchor refuses exactly like the previous whole-tree lookup did.
+            let Some((_, tree)) = trees.iter().find(|(file, _)| *file == page.span.file) else {
+                return None;
+            };
+            let page_node = find_page_root(tree, page_key, &mut consumer.steps)?;
+            if page_node.kind != SyntaxKind::Page {
                 return None;
             }
             let owner = format!("{}.{}", page.owner, page.fn_name);
@@ -2087,8 +2235,13 @@ fn serialize_read_predicates(sources: &FreshSourceContext<'_>) -> Option<Vec<Ser
                     return None;
                 }
                 // Checked data filters are compared by the complete fresh UI
-                // join above and carry no callable decision census.
-                if matches!(&predicate.expr, IrExpr::Object(_)) {
+                // join above and carry no callable decision census. Checked
+                // page-time predicates match the read-predicate seal, which
+                // skips the same data-only shapes.
+                if matches!(
+                    &predicate.expr,
+                    IrExpr::Object(_) | IrExpr::PageTimePredicate(_)
+                ) {
                     continue;
                 }
                 let IrExpr::Lambda { body, .. } = &predicate.expr else {
@@ -2100,7 +2253,7 @@ fn serialize_read_predicates(sources: &FreshSourceContext<'_>) -> Option<Vec<Ser
                     end: ui.span.end,
                     kind: SyntaxKind::Collection as u8,
                 };
-                let source_ui = nodes.get(&ui_key)?;
+                let source_ui = find_page_key(page_node, ui_key, &mut consumer.steps)?;
                 let query = crate::analysis::kids(source_ui)
                     .into_iter()
                     .find(|child| child.kind == SyntaxKind::Query)?;
@@ -2114,6 +2267,10 @@ fn serialize_read_predicates(sources: &FreshSourceContext<'_>) -> Option<Vec<Ser
                     page_key,
                     NodeKey::of(query),
                 )?;
+                // Each collected site is an independent validation unit:
+                // prior units must not spend its finite expression budget.
+                // Total output stays capped below.
+                consumer.steps = 0;
                 if !consumer.same(site.node, body.span)
                     || body.ty != ResolvedType::Scalar(Scalar::Bool)
                     || !consumer.origin(&site.source, site.node, module.id)
@@ -2129,7 +2286,10 @@ fn serialize_read_predicates(sources: &FreshSourceContext<'_>) -> Option<Vec<Ser
                 if output.len() >= 200 || call_count > 200 {
                     return None;
                 }
-                output.extend(serialize_sites(original, ir, db, vec![site], Some(&owner))?);
+                match serialize_sites(original, ir, db, vec![site], Some(&owner)) {
+                    Some(sites) => output.extend(sites),
+                    None => return None,
+                }
             }
         }
     }
@@ -2143,7 +2303,6 @@ pub(super) fn serialize_read_booleans(
 ) -> Option<Vec<(Span, serde_json::Value, Vec<SerialDecisionSite>)>> {
     let original = sources.original();
     let ir = sources.ir();
-    let mut nodes = HashMap::new();
     let mut consumer = Consumer {
         program: original,
         ir,
@@ -2153,12 +2312,11 @@ pub(super) fn serialize_read_booleans(
         steps: 0,
         count: 0,
     };
-    for (_, tree) in sources.trees() {
-        consumer.index(tree)?;
-        for node in tree.descendants() {
-            nodes.insert(NodeKey::of(node), node);
-        }
-    }
+    // Only the sealed pages spend the finite index budget, then the present
+    // helper-closure bodies join best-effort. Unrelated Given/When bulk
+    // remains in the checked/fresh cohort unindexed.
+    consumer.index_required(sources.trees(), &page_anchor_keys(ir))?;
+    index_helper_closure(&mut consumer, sources.trees(), original);
     consumer.steps = 0;
     let mut candidates = Vec::new();
     let mut stateless = Vec::new();
@@ -2170,7 +2328,11 @@ pub(super) fn serialize_read_booleans(
                 end: page.span.end,
                 kind: SyntaxKind::Page as u8,
             };
-            let page_node = nodes.get(&page_key)?;
+            let (_, tree) = sources
+                .trees()
+                .iter()
+                .find(|(file, _)| *file == page.span.file)?;
+            let page_node = find_page_root(tree, page_key, &mut consumer.steps)?;
             let route = crate::analysis::kids(page_node)
                 .into_iter()
                 .find(|n| n.kind == SyntaxKind::Route);
@@ -2289,6 +2451,10 @@ pub(super) fn serialize_read_booleans(
             key,
             statement,
         )?;
+        // Each collected observer is an independent validation unit:
+        // prior units must not spend its finite expression budget.
+        // Total output stays capped below.
+        consumer.steps = 0;
         if !consumer.same(site.node, expr.span) || !consumer.origin(&site.source, site.node, module)
         {
             return None;
@@ -2320,6 +2486,10 @@ pub(super) fn serialize_read_booleans(
             module,
             key,
         )?;
+        // Each collected observer is an independent validation unit:
+        // prior units must not spend its finite expression budget.
+        // Total output stays capped below.
+        consumer.steps = 0;
         if !consumer.same(key, expr.span)
             || !consumer.origin(&collected.source, key, module)
         {
