@@ -1,6 +1,7 @@
 /** Exact installed Email boundary for already committed canonical bound sends. */
 import { STD_EMAIL_V1_VERSION } from "@canlang/contracts";
 import type { CanValue, EmailSendInput, OutboxIntent, ProviderBinding, Membership } from "@canlang/contracts";
+import { normalizeTag } from "@canlang/ui";
 import { encodeValue, normalizeSchema, validateOperationInput } from "@canlang/values";
 import type { FieldDescriptor, SchemaDescriptor } from "@canlang/values";
 import type { InstalledMailSender, ResolveInstalledMailSender } from "@canlang/services";
@@ -18,6 +19,23 @@ function closed(value: unknown, keys: readonly string[]): value is Record<string
 }
 function member(value: unknown, key: string): unknown {
   return record(value) && Object.hasOwn(value, key) ? value[key] : undefined;
+}
+
+/**
+ * Frozen `{text,locale}` carriers produced by the checked message
+ * formatter arrive inline in recorded human-text paths (`subject`,
+ * `body`). Only the exact frozen shape is accepted and only its already
+ * selected text reaches the provider; the locale stays informational.
+ * Mirrors `resolvedText` without resolving or parsing anything else.
+ */
+function carrierText(value: unknown): string | null {
+  if (!closed(value, ["text", "locale"])) return null;
+  const text = value["text"], locale = value["locale"];
+  if (typeof text !== "string" || typeof locale !== "string") return null;
+  try {
+    if (normalizeTag(locale) !== locale) return null;
+  } catch { return null; }
+  return text;
 }
 
 export interface BoundMailAdapterOptions {
@@ -98,12 +116,22 @@ export function createBoundMailAdapter(options: BoundMailAdapterOptions): BoundM
       if (installed === null || installed.binding.deployment !== expected.deployment ||
           installed.binding.capability !== expected.capability || installed.binding.capabilityVersion !== expected.capabilityVersion ||
           installed.binding.account !== expected.account || typeof installed.mail.send !== "function" || typeof installed.mail.reconcile !== "function") return null;
+      // Frozen carriers in recorded human-text paths unwrap to their
+      // already selected text before Values admission; every other value
+      // keeps the existing string-only admission below.
+      const rawArguments = record(request["arguments"]) ? request["arguments"] : null;
+      if (rawArguments === null) return null;
+      const sendArguments: Record<string, unknown> = { ...rawArguments };
+      for (const name of ["subject", "body"] as const) {
+        const carried = carrierText(sendArguments[name]);
+        if (carried !== null) sendArguments[name] = carried;
+      }
       // Values owns normalization and wire admission against the exact emitted
       // operation declaration. Only its nested encoded arguments reach Services.
       const schema = normalizeSchema({
         operations: { [intent.target]: { inputs } },
       } as SchemaDescriptor);
-      const checked = validateOperationInput(schema, intent.target, request["arguments"]);
+      const checked = validateOperationInput(schema, intent.target, sendArguments);
       const args: Record<string, unknown> = Object.create(null);
       for (const [name, value] of Object.entries(checked)) {
         args[name] = encodeValue((inputs[name] as FieldDescriptor).type, value as CanValue, undefined, schema);
