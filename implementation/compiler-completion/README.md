@@ -51,6 +51,16 @@ exact `rule_failed` with no added trigger, TRUE revocation (membership
 removed) `forbidden` with no new rows; prior stranger-only check retained
 as-is, not as revocation proof. No production repair needed.
 
+### Accepted C2 installed closure (merge40) — 2026-10-17
+
+Main integrates `01a24696` (test-only): the installed text consumer passes
+with no production change — real compile → assemble → HTTP worker: owned
+saved/literal defaults, request/clear/unknown, malformed 400s, denied-field
+403s (bare/included/excluded), session + membership revocation. The 2321 gap
+is closed by test evidence. Validation: installed 1/1 (one initial 0/1 not
+reproduced in 3 reruns — same first-run pattern as agenda consumer, cause
+uninvestigated, under watch).
+
 ### Accepted replay-lifetime fix (merge39) — 2026-10-17 (slice-D runtime half)
 
 Main integrates `cc27cb35`: State binds the whole-row first-selected replay
