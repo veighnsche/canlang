@@ -265,28 +265,116 @@ fn coalesced_bool_default_lowers() {
     ));
 }
 
-/// B11: `not` over a non-nullable bool preference read stays refused:
-/// only the reader decodes, and non-nullable reads have no decoding, so
-/// a saved spelling must not enter operator positions.
+/// B13: `not` over a non-nullable bool preference read is admitted: the
+/// checked typed reader decodes the saved spelling before the negation,
+/// so a saved `"false"` selects `true` rows. The strict decoding maps
+/// real booleans and strict spellings only: no nullable passthrough and
+/// no `?? null` wrapper on the non-nullable read, so a missing value
+/// never becomes a nullable success.
 #[test]
-fn not_over_nonnullable_bool_read_refuses() {
-    assert_refuses(
+fn not_over_nonnullable_bool_read_decodes() {
+    let js = emit_js(
         "app Probe\nGiven\n Customer { name:text, active:bool=true }\n policy Customer read=public\nWhen\nThen\n preferences { show:bool=true }\n page /customers title=\"Customers\"\n  list Customer columns=name,active filter=active defaults={active=not(preferences.show)}\n",
-        "E6008",
-        "need distinct checked owned enum fields",
+    );
+    assert!(
+        js.contains("active:!(value=>{if(value===true)return true;"),
+        "negation lowers over the strict non-nullable decoding, got: {js}"
+    );
+    assert!(
+        js.contains(
+            "if(value===\"true\")return true;if(value===\"false\")return false;throw{code:\"validation\",message:\"Invalid bool preference.\"}"
+        ),
+        "only strict spellings map and anything else refuses before any query, got: {js}"
+    );
+    assert!(
+        !js.contains("if(value==null)return null"),
+        "no nullable passthrough on a non-nullable read, got: {js}"
+    );
+    assert!(
+        !js.contains("?? null"),
+        "no nullable wrapper on a non-nullable read, got: {js}"
     );
 }
 
-/// B11: comparisons over a preference read stay refused: bool defaults
-/// admit only `??`-with-literal, `not`, and derive-helper shapes.
+/// B13: a direct non-nullable bool preference default decodes at the
+/// checked typed reader, exactly as nullable reads do. The emission
+/// carries the strict decoding with no nullable wrapper, so a saved
+/// `"false"` reaches the host preparer as a real boolean.
 #[test]
-fn comparison_over_bool_read_refuses() {
-    assert_refuses(
-        &format!(
-            "{HEAD}  list Customer columns=name,active filter=active defaults={{active=preferences.active == true}}\n"
-        ),
-        "E6008",
-        "need distinct checked owned enum fields",
+fn direct_nonnullable_bool_read_decodes() {
+    let js = emit_js(
+        "app Probe\nGiven\n Customer { name:text, active:bool=true }\n policy Customer read=public\nWhen\nThen\n preferences { show:bool=true }\n page /customers title=\"Customers\"\n  list Customer columns=name,active filter=active defaults={active=preferences.show}\n",
+    );
+    assert!(
+        js.contains("active:(value=>{if(value===true)return true;"),
+        "direct non-nullable read carries the strict decoding, got: {js}"
+    );
+    assert!(
+        !js.contains("if(value==null)return null"),
+        "no nullable passthrough on a non-nullable read, got: {js}"
+    );
+    assert!(
+        !js.contains("?? null"),
+        "no nullable wrapper on a non-nullable read, got: {js}"
+    );
+}
+
+/// B13: a derive-helper call over a non-nullable bool preference read is
+/// admitted with the strict decoding at its argument, agreeing with the
+/// inline negation at runtime.
+#[test]
+fn derive_helper_over_nonnullable_bool_read_decodes() {
+    let js = emit_js(
+        "app Probe\nGiven\n Customer { name:text, active:bool=true }\n derive flip(x:bool):bool = not(x)\n policy Customer read=public\nWhen\nThen\n preferences { show:bool=true }\n page /customers title=\"Customers\"\n  list Customer columns=name,active filter=active defaults={active=flip(preferences.show)}\n",
+    );
+    assert!(
+        js.contains("(value=>{if(value===true)return true;"),
+        "the helper argument read decodes strictly at the reader, got: {js}"
+    );
+    assert!(
+        js.contains("await "),
+        "the checked derive helper runs at render, got: {js}"
+    );
+}
+
+/// B13: comparisons over a decoded bool preference read are admitted by
+/// the shared pure-expression rule, not refused as unlisted spellings.
+/// A nullable read compared against a bool literal lowers with the
+/// reader decoding inside and a strict comparison outside.
+#[test]
+fn comparison_over_bool_read_lowers() {
+    let js = emit_js(&format!(
+        "{HEAD}  list Customer columns=name,active filter=active defaults={{active=preferences.active == true}}\n"
+    ));
+    assert!(
+        js.contains("(value=>{if(value==null)return null;"),
+        "the compared read still decodes at the reader, got: {js}"
+    );
+    assert!(
+        js.contains("equalValue(\"bool?\""),
+        "the nullable comparison lowers through the null-safe equality helper, got: {js}"
+    );
+}
+
+/// B13 discriminator (comparison): `((preferences.active ?? false) ==
+/// false)` is admitted and lowers with the decoded read inside, agreeing
+/// with the inline negation and the equivalent helper call at runtime.
+#[test]
+fn discriminator_comparison_default_lowers() {
+    let js = emit_js(&format!(
+        "{HEAD}  list Customer columns=name,active filter=active defaults={{active=(preferences.active ?? false) == false}}\n"
+    ));
+    assert!(
+        js.contains("(value=>{if(value==null)return null;"),
+        "the compared read still decodes at the reader, got: {js}"
+    );
+    assert!(
+        js.contains("??false)") || js.contains("?? false)"),
+        "the null fallback survives lowering, got: {js}"
+    );
+    assert!(
+        js.contains("?? false) === false"),
+        "the defaulted read stays parenthesized under the strict comparison, got: {js}"
     );
 }
 

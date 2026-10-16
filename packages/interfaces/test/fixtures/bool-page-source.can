@@ -10,3 +10,4 @@ Then
   list Customer columns=name,kind,active filter=kind,active defaults={kind=preferences.kind,active=preferences.active} display=split
   list Customer columns=name,active filter=active defaults={active=not(preferences.active ?? false)} display=split
   list Customer columns=name,active filter=active defaults={active=inverted(preferences.active)} display=split
+  list Customer columns=name,active filter=active defaults={active=(preferences.active ?? false) == false} display=split

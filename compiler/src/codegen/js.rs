@@ -3337,31 +3337,32 @@ fn collection_filter_props_are_valid(ir: &IrProgram, node: &IrUi) -> bool {
     true
 }
 
-/// B11: computed bool filter defaults over decoded nullable preference
-/// reads. A bool column default may be `??` with a bool-literal fallback
-/// over a nullable bool preference read, `not` over such a bool, or a
-/// call to a checked derive helper returning bool over such arguments.
-/// Direct nullable reads decode at the typed reader above, so every
-/// other position only consumes already-boolean values and no sink
-/// coercion applies. Bare non-nullable preference reads stay out of
-/// operator positions (their saved spelling has no reader decoding);
-/// anything else keeps the refusal in the caller.
+/// B13: computed bool filter defaults over decoded bool preference
+/// reads. The checked type does the work: the root must type exactly
+/// `bool`, every `preferences.*` leaf must read a (nullable-)bool
+/// preference, and every other node must be a pure value form (a bool
+/// literal, a boolean operator, or a checked derive-helper call
+/// returning bool). Reads decode at the typed reader above, so operator
+/// positions only consume already-boolean values and no sink coercion
+/// applies; anything else keeps the refusal in the caller.
 fn bool_filter_default_shape(ir: &IrProgram, value: &TypedExpr) -> bool {
     match &value.expr {
         IrExpr::Bool(_) => value.ty == ResolvedType::Scalar(Scalar::Bool),
-        IrExpr::Binary {
-            op: IrBinOp::Coalesce,
-            left,
-            right,
-        } => {
-            value.ty == ResolvedType::Scalar(Scalar::Bool)
-                && matches!(&right.expr, IrExpr::Bool(_))
-                && is_nullable_bool_preference_read(left)
+        IrExpr::Member { base, .. } if matches!(&base.expr, IrExpr::Name(name) if name == "preferences") =>
+        {
+            matches!(
+                value.ty.nullable_inner().unwrap_or(&value.ty),
+                ResolvedType::Scalar(Scalar::Bool)
+            )
         }
-        IrExpr::Unary {
-            op: IrUnOp::Not,
-            operand,
-        } => value.ty == ResolvedType::Scalar(Scalar::Bool) && bool_valued_shape(ir, operand),
+        IrExpr::Binary { left, right, .. } => {
+            value.ty == ResolvedType::Scalar(Scalar::Bool)
+                && bool_filter_default_shape(ir, left)
+                && bool_filter_default_shape(ir, right)
+        }
+        IrExpr::Unary { operand, .. } => {
+            value.ty == ResolvedType::Scalar(Scalar::Bool) && bool_filter_default_shape(ir, operand)
+        }
         IrExpr::Call { target, args } => bool_filter_derive_call(ir, target, args, value),
         IrExpr::BoundCall {
             target,
@@ -3373,33 +3374,6 @@ fn bool_filter_default_shape(ir: &IrProgram, value: &TypedExpr) -> bool {
         }
         _ => false,
     }
-}
-
-/// One `??`-eligible leaf: a direct nullable bool preference read.
-fn is_nullable_bool_preference_read(value: &TypedExpr) -> bool {
-    matches!(&value.expr, IrExpr::Member { base, .. } if matches!(&base.expr, IrExpr::Name(name) if name == "preferences"))
-        && matches!(
-            &value.ty,
-            ResolvedType::Nullable(inner) if inner.as_ref() == &ResolvedType::Scalar(Scalar::Bool)
-        )
-}
-
-/// One already-boolean operand: a bool literal, a `??`-defaulted read, a
-/// negation, or a derive-helper call. Bare preference reads never appear
-/// here: only the reader decodes, and non-nullable reads have no decoding.
-fn bool_valued_shape(ir: &IrProgram, value: &TypedExpr) -> bool {
-    match &value.expr {
-        IrExpr::Bool(_) => value.ty == ResolvedType::Scalar(Scalar::Bool),
-        IrExpr::Binary { .. } | IrExpr::Unary { .. } => bool_filter_default_shape(ir, value),
-        IrExpr::Call { .. } | IrExpr::BoundCall { .. } => bool_filter_default_shape(ir, value),
-        _ => false,
-    }
-}
-
-/// One nullable-or-boolean derive-helper argument: the same operand
-/// grammar plus a direct nullable read (which decodes at the reader).
-fn bool_call_arg_shape(ir: &IrProgram, value: &TypedExpr) -> bool {
-    is_nullable_bool_preference_read(value) || bool_valued_shape(ir, value)
 }
 
 /// A derive-helper call returning bool over admitted arguments. The
@@ -3425,7 +3399,7 @@ fn bool_filter_derive_call(
                     }
                 )
         })
-        && args.iter().all(|arg| bool_call_arg_shape(ir, arg))
+        && args.iter().all(|arg| bool_filter_default_shape(ir, arg))
 }
 
 /// Writable selector controls currently admitted by the source lowering.
@@ -6306,23 +6280,32 @@ impl<'a> Emitter<'a> {
                     let optional = if op == "?." { "?." } else { "" };
                     format!("{base_text}{optional}[{}]", js_string(field))
                 };
-                // B11 defining-owner bool decoding: a nullable bool
-                // preference read decodes its string-typed store spelling
-                // at this checked typed reader, before any bool expression
-                // consumes it. Strict: null stays null, real booleans pass
-                // through, "true"/"false" become booleans, and anything
-                // else throws a validation refusal (never truthy, never a
-                // silent filter). Non-bool reads lower verbatim, exactly as
-                // non-nullable bool reads do.
+                // B13 defining-owner bool decoding: a bool preference read
+                // decodes its string-typed store spelling at this checked
+                // typed reader, before any bool expression consumes it.
+                // Nullable reads stay nullable: null stays null, real
+                // booleans pass through, "true"/"false" become booleans,
+                // and anything else throws a validation refusal (never
+                // truthy, never a silent filter). Non-nullable reads keep
+                // their declared absence contract: the strict spelling
+                // decoding maps real booleans and "true"/"false" only, so
+                // a missing value never becomes a nullable success and
+                // malformed spellings still refuse. Non-bool reads lower
+                // verbatim.
                 let member = if matches!(&base.expr, IrExpr::Name(name) if name == "preferences")
-                    && expr.ty.nullable_inner().is_some()
                     && matches!(
                         expr.ty.nullable_inner().unwrap_or(&expr.ty),
                         ResolvedType::Scalar(Scalar::Bool)
                     ) {
-                    format!(
-                        "(value=>{{if(value==null)return null;if(value===true)return true;if(value===false)return false;if(value===\"true\")return true;if(value===\"false\")return false;throw{{code:\"validation\",message:\"Invalid bool preference.\"}}}})({member})"
-                    )
+                    if expr.ty.nullable_inner().is_some() {
+                        format!(
+                            "(value=>{{if(value==null)return null;if(value===true)return true;if(value===false)return false;if(value===\"true\")return true;if(value===\"false\")return false;throw{{code:\"validation\",message:\"Invalid bool preference.\"}}}})({member})"
+                        )
+                    } else {
+                        format!(
+                            "(value=>{{if(value===true)return true;if(value===false)return false;if(value===\"true\")return true;if(value===\"false\")return false;throw{{code:\"validation\",message:\"Invalid bool preference.\"}}}})({member})"
+                        )
+                    }
                 } else {
                     member
                 };
@@ -7904,7 +7887,10 @@ impl<'a> Emitter<'a> {
         r: &str,
     ) -> String {
         let negate = op == IrBinOp::Ne;
-        // `null` against any nullable side compares directly.
+        // `null` against any nullable side compares directly. Composite
+        // operands keep their own parens: `??`/`&&`/`||` bind looser than
+        // `===`, so an unparenthesized `a ?? b === null` would read as
+        // `a ?? (b === null)`.
         if matches!(left.ty, ResolvedType::Null) || matches!(right.ty, ResolvedType::Null) {
             let js_op = if negate { "!==" } else { "===" };
             return format!(
@@ -8038,7 +8024,11 @@ impl<'a> Emitter<'a> {
                     }
                     _ => {
                         let js_op = if negate { "!==" } else { "===" };
-                        format!("{l} {js_op} {r}")
+                        format!(
+                            "{} {js_op} {}",
+                            parenthesize_operand(l, &left.expr),
+                            parenthesize_operand(r, &right.expr)
+                        )
                     }
                 }
             }
@@ -8046,8 +8036,15 @@ impl<'a> Emitter<'a> {
                 Some(ScalarFamily::Bool | ScalarFamily::Text | ScalarFamily::Enum),
                 Some(ScalarFamily::Bool | ScalarFamily::Text | ScalarFamily::Enum),
             ) => {
+                // Composite operands keep their own parens: `??`/`&&`/`||`
+                // bind looser than `===`, so an unparenthesized
+                // `a ?? b === false` would read as `a ?? (b === false)`.
                 let js_op = if negate { "!==" } else { "===" };
-                format!("{l} {js_op} {r}")
+                format!(
+                    "{} {js_op} {}",
+                    parenthesize_operand(l, &left.expr),
+                    parenthesize_operand(r, &right.expr)
+                )
             }
             (Some(ScalarFamily::Reference), Some(ScalarFamily::Reference)) => {
                 self.stdlib.insert("same".to_string());

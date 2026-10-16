@@ -12,8 +12,9 @@
  * Filter parameter names are harvested from the rendered controls, never
  * transcribed, so the emitted occurrence stays the source of truth
  * throughout. Occurrence roles (plain defaults, inline negation, helper
- * call) are labeled from the EMITTED bytes (the `defaults:{...}` shape
- * following each `occurrence:"..."` marker), never from source spans.
+ * call, comparison) are labeled from the EMITTED bytes (the
+ * `defaults:{...}` shape following each `occurrence:"..."` marker), never
+ * from source spans.
  *
  * Staging note: the cloudflare `assembleModules` seam cannot be reused here
  * (`@canlang/cloudflare` depends on `@canlang/interfaces`, so importing it
@@ -33,7 +34,7 @@
  * through the REAL identity fixture store; and the emitted `where`
  * predicates reach the engine unmodified (no handwritten AST). Rendering
  * columns are projected from the COMPILE artifact's canonical model fields
- * and cross-checked against the emitted filter declarations. Three emitted
+ * and cross-checked against the emitted filter declarations. Four emitted
  * lists render per page (one query each), demultiplexed by occurrence.
  *
  * Saved-bool decoding (B11): a SAVED bool preference reaches the emitted
@@ -43,10 +44,12 @@
  * any bool expression consumes them. Malformed spellings throw a
  * validation refusal at the read (never truthy, never a silent filter);
  * the host still requires boolean `bool` defaults (B6 semantics retained).
- * The page carries three lists over the same toggle: plain saved defaults,
- * an inline `not(preferences.active ?? false)`, and an equivalent
- * `inverted(preferences.active)` derive-helper call. Under saved
- * `"false"` the latter two MUST agree and select `true` rows.
+ * The page carries four lists over the same toggle: plain saved defaults,
+ * an inline `not(preferences.active ?? false)`, an equivalent
+ * `inverted(preferences.active)` derive-helper call, and the B13
+ * discriminator `((preferences.active ?? false) == false)` comparison.
+ * Under saved `"false"` the latter three MUST agree and select `true`
+ * rows.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -260,7 +263,7 @@ test('compiled bool toggle page filters real true/false rows through the host se
         names = [];
       }
       assert.ok(names.length === 0, 'every control group closes with a row list');
-      assert.equal(groups.length, 3, 'three emitted lists render three control+row groups');
+      assert.equal(groups.length, 4, 'four emitted lists render four control+row groups');
       return groups;
     };
     // Harvested control names carry the ENCODED occurrence
@@ -278,7 +281,7 @@ test('compiled bool toggle page filters real true/false rows through the host se
 
     // Defaults: nothing saved, no request selectors. The plain list serves
     // every stored row; the negated lists default null through `?? false`
-    // and select true rows.
+    // and select true rows, and the comparison list agrees with them.
     let response = await get(new URLSearchParams());
     assert.equal(response.status, 200);
     const defaultsHtml = await response.text();
@@ -293,26 +296,35 @@ test('compiled bool toggle page filters real true/false rows through the host se
     assert.equal(splitName(plainActiveName).occurrence, plainOccurrence, 'one emitted occurrence');
     const negANames = groups[1]!.names;
     const negBNames = groups[2]!.names;
+    const negCNames = groups[3]!.names;
     assert.deepEqual(negANames.map(splitName).map(part => part.field), ['active']);
     assert.deepEqual(negBNames.map(splitName).map(part => part.field), ['active']);
+    assert.deepEqual(negCNames.map(splitName).map(part => part.field), ['active']);
     const negAOccurrence = splitName(negANames[0]!).occurrence;
     const negBOccurrence = splitName(negBNames[0]!).occurrence;
+    const negCOccurrence = splitName(negCNames[0]!).occurrence;
     assert.ok(plainOccurrence !== negAOccurrence && plainOccurrence !== negBOccurrence &&
-      negAOccurrence !== negBOccurrence, 'three distinct emitted occurrences');
+      plainOccurrence !== negCOccurrence && negAOccurrence !== negBOccurrence &&
+      negAOccurrence !== negCOccurrence && negBOccurrence !== negCOccurrence,
+      'four distinct emitted occurrences');
     // Every phase below reuses these harvested names: the emitted
     // occurrence is never transcribed.
     assert.deepEqual(groups[0]!.ids, ['cust-a1', 'cust-b1', 'cust-c1']);
     assert.deepEqual(groups[1]!.ids, ['cust-a1', 'cust-c1']);
     assert.deepEqual(groups[2]!.ids, ['cust-a1', 'cust-c1']);
-    assert.equal(calls.length, 3);
+    assert.deepEqual(groups[3]!.ids, ['cust-a1', 'cust-c1']);
+    assert.equal(calls.length, 4);
     assert.deepEqual(whereFor(plainOccurrence), [undefined]);
     assert.deepEqual(whereFor(negAOccurrence), [{ op: 'eq', field: 'active', value: true }]);
     assert.deepEqual(whereFor(negBOccurrence), [{ op: 'eq', field: 'active', value: true }]);
+    assert.deepEqual(whereFor(negCOccurrence), [{ op: 'eq', field: 'active', value: true }]);
     assert.equal(typeof (whereFor(negAOccurrence)[0] as unknown as { value: unknown }).value, 'boolean');
+    assert.equal(typeof (whereFor(negCOccurrence)[0] as unknown as { value: unknown }).value, 'boolean');
 
     // Occurrence roles are labeled from the EMITTED bytes: the
     // `defaults:{...}` shape following each `occurrence:"..."` marker.
-    // Render order is source order (plain, inline negation, helper call).
+    // Render order is source order (plain, inline negation, helper call,
+    // comparison).
     const occurrenceSuffix = encodeURIComponent(JSON.stringify([descriptor.path]));
     const emittedShape = (occurrence: string): string => {
       assert.ok(occurrence.endsWith(occurrenceSuffix), 'runtime occurrence extends its emitted prefix');
@@ -322,19 +334,21 @@ test('compiled bool toggle page filters real true/false rows through the host se
       const head = emitted.js.slice(emitted.js.indexOf('defaults:{', at), emitted.js.indexOf('defaults:{', at) + 24);
       if (head.startsWith('defaults:{active:!(')) return 'inline-negation';
       if (head.startsWith('defaults:{active:await')) return 'helper-call';
+      if (head.startsWith('defaults:{active:(((')) return 'comparison';
       if (head.startsWith('defaults:{kind:')) return 'direct-defaults';
       assert.fail(`unrecognized emitted defaults shape after ${marker}: ${head}`);
     };
     assert.equal(emittedShape(plainOccurrence), 'direct-defaults');
     assert.equal(emittedShape(negAOccurrence), 'inline-negation');
     assert.equal(emittedShape(negBOccurrence), 'helper-call');
+    assert.equal(emittedShape(negCOccurrence), 'comparison');
 
     // Request true serves only true rows with a typed boolean predicate.
     calls.length = 0;
     response = await get(new URLSearchParams([[plainActiveName, 'true']]));
     assert.equal(response.status, 200);
     assert.deepEqual(groupsOf(await response.text())[0]!.ids, ['cust-a1', 'cust-c1']);
-    assert.equal(calls.length, 3);
+    assert.equal(calls.length, 4);
     assert.deepEqual(whereFor(plainOccurrence), [{ op: 'eq', field: 'active', value: true }]);
     assert.equal(typeof (whereFor(plainOccurrence)[0] as unknown as { value: unknown }).value, 'boolean');
 
@@ -344,7 +358,7 @@ test('compiled bool toggle page filters real true/false rows through the host se
     assert.equal(response.status, 200);
     const falseHtml = await response.text();
     assert.deepEqual(groupsOf(falseHtml)[0]!.ids, ['cust-b1']);
-    assert.equal(calls.length, 3);
+    assert.equal(calls.length, 4);
     assert.deepEqual(whereFor(plainOccurrence), [{ op: 'eq', field: 'active', value: false }]);
     assert.ok(falseHtml.includes('<option value="false" selected>'));
 
@@ -353,7 +367,7 @@ test('compiled bool toggle page filters real true/false rows through the host se
     response = await get(new URLSearchParams([[plainActiveName, '']]));
     assert.equal(response.status, 200);
     assert.deepEqual(groupsOf(await response.text())[0]!.ids, ['cust-a1', 'cust-b1', 'cust-c1']);
-    assert.equal(calls.length, 3);
+    assert.equal(calls.length, 4);
     assert.deepEqual(whereFor(plainOccurrence), [undefined]);
 
     // Saved enum spelling (string, as the store holds it) filters rows.
@@ -362,7 +376,7 @@ test('compiled bool toggle page filters real true/false rows through the host se
     response = await get(new URLSearchParams());
     assert.equal(response.status, 200);
     assert.deepEqual(groupsOf(await response.text())[0]!.ids, ['cust-b1', 'cust-c1']);
-    assert.equal(calls.length, 3);
+    assert.equal(calls.length, 4);
     assert.deepEqual(whereFor(plainOccurrence), [{ op: 'eq', field: 'kind', value: 'company' }]);
 
     // Explicit request beats the saved enum spelling.
@@ -370,7 +384,7 @@ test('compiled bool toggle page filters real true/false rows through the host se
     response = await get(new URLSearchParams([[kindName, 'individual']]));
     assert.equal(response.status, 200);
     assert.deepEqual(groupsOf(await response.text())[0]!.ids, ['cust-a1']);
-    assert.equal(calls.length, 3);
+    assert.equal(calls.length, 4);
     assert.deepEqual(whereFor(plainOccurrence), [{ op: 'eq', field: 'kind', value: 'individual' }]);
 
     // Saved enum composes with a request bool toggle into one typed query.
@@ -378,7 +392,7 @@ test('compiled bool toggle page filters real true/false rows through the host se
     response = await get(new URLSearchParams([[plainActiveName, 'false']]));
     assert.equal(response.status, 200);
     assert.deepEqual(groupsOf(await response.text())[0]!.ids, ['cust-b1']);
-    assert.equal(calls.length, 3);
+    assert.equal(calls.length, 4);
     const composed = whereFor(plainOccurrence);
     assert.equal(composed.length, 1);
     assert.equal((composed[0] as unknown as { op: unknown }).op, 'and');
@@ -399,18 +413,21 @@ test('compiled bool toggle page filters real true/false rows through the host se
     const savedTrueHtml = await response.text();
     const savedTrue = groupsOf(savedTrueHtml);
     assert.deepEqual(savedTrue[0]!.ids, ['cust-a1', 'cust-c1']);
-    assert.equal(calls.length, 3);
+    assert.equal(calls.length, 4);
     assert.deepEqual(whereFor(plainOccurrence), [{ op: 'eq', field: 'active', value: true }]);
     assert.equal(typeof (whereFor(plainOccurrence)[0] as unknown as { value: unknown }).value, 'boolean');
     assert.ok(savedTrueHtml.includes('<option value="true" selected>'));
     // The negated lists invert the saved spelling and agree.
     assert.deepEqual(savedTrue[1]!.ids, ['cust-b1']);
     assert.deepEqual(savedTrue[2]!.ids, ['cust-b1']);
+    assert.deepEqual(savedTrue[3]!.ids, ['cust-b1']);
     assert.deepEqual(whereFor(negAOccurrence), [{ op: 'eq', field: 'active', value: false }]);
     assert.deepEqual(whereFor(negBOccurrence), [{ op: 'eq', field: 'active', value: false }]);
+    assert.deepEqual(whereFor(negCOccurrence), [{ op: 'eq', field: 'active', value: false }]);
 
-    // B11 DISCRIMINATOR: saved "false" selects TRUE rows through the
-    // inline negation, and the equivalent helper call agrees exactly.
+    // B13 DISCRIMINATOR: saved "false" selects TRUE rows through the
+    // inline negation, and the equivalent helper call and comparison
+    // agree exactly.
     prefs.set('Probe/active', { value: 'false', version: '1' });
     calls.length = 0;
     response = await get(new URLSearchParams());
@@ -421,17 +438,20 @@ test('compiled bool toggle page filters real true/false rows through the host se
     assert.deepEqual(whereFor(plainOccurrence), [{ op: 'eq', field: 'active', value: false }]);
     assert.deepEqual(savedFalse[1]!.ids, ['cust-a1', 'cust-c1']);
     assert.deepEqual(savedFalse[2]!.ids, ['cust-a1', 'cust-c1']);
+    assert.deepEqual(savedFalse[3]!.ids, ['cust-a1', 'cust-c1']);
     assert.deepEqual(whereFor(negAOccurrence), [{ op: 'eq', field: 'active', value: true }]);
     assert.deepEqual(whereFor(negBOccurrence), [{ op: 'eq', field: 'active', value: true }]);
+    assert.deepEqual(whereFor(negCOccurrence), [{ op: 'eq', field: 'active', value: true }]);
     assert.equal(typeof (whereFor(negAOccurrence)[0] as unknown as { value: unknown }).value, 'boolean');
     assert.equal(typeof (whereFor(negBOccurrence)[0] as unknown as { value: unknown }).value, 'boolean');
+    assert.equal(typeof (whereFor(negCOccurrence)[0] as unknown as { value: unknown }).value, 'boolean');
 
     // Explicit request beats the saved bool spelling on the plain list.
     calls.length = 0;
     response = await get(new URLSearchParams([[plainActiveName, 'true']]));
     assert.equal(response.status, 200);
     assert.deepEqual(groupsOf(await response.text())[0]!.ids, ['cust-a1', 'cust-c1']);
-    assert.equal(calls.length, 3);
+    assert.equal(calls.length, 4);
     assert.deepEqual(whereFor(plainOccurrence), [{ op: 'eq', field: 'active', value: true }]);
 
     // Explicit clear beats the saved bool spelling.
@@ -439,7 +459,7 @@ test('compiled bool toggle page filters real true/false rows through the host se
     response = await get(new URLSearchParams([[plainActiveName, '']]));
     assert.equal(response.status, 200);
     assert.deepEqual(groupsOf(await response.text())[0]!.ids, ['cust-a1', 'cust-b1', 'cust-c1']);
-    assert.equal(calls.length, 3);
+    assert.equal(calls.length, 4);
     assert.deepEqual(whereFor(plainOccurrence), [undefined]);
 
     // Saved enum and saved bool compose into one typed query.
@@ -448,7 +468,7 @@ test('compiled bool toggle page filters real true/false rows through the host se
     response = await get(new URLSearchParams());
     assert.equal(response.status, 200);
     assert.deepEqual(groupsOf(await response.text())[0]!.ids, ['cust-b1']);
-    assert.equal(calls.length, 3);
+    assert.equal(calls.length, 4);
     const savedComposed = whereFor(plainOccurrence);
     assert.equal(savedComposed.length, 1);
     assert.equal((savedComposed[0] as unknown as { op: unknown }).op, 'and');
@@ -461,29 +481,34 @@ test('compiled bool toggle page filters real true/false rows through the host se
     prefs.delete('Probe/kind');
 
     // Request precedence through the negation path: an explicit false on
-    // the inline list serves the false row while the helper list keeps
-    // following the saved negation.
+    // the inline list serves the false row while the helper and comparison
+    // lists keep following the saved negation.
     calls.length = 0;
     response = await get(new URLSearchParams([[negANames[0]!, 'false']]));
     assert.equal(response.status, 200);
     const overridden = groupsOf(await response.text());
     assert.deepEqual(overridden[1]!.ids, ['cust-b1']);
     assert.deepEqual(overridden[2]!.ids, ['cust-a1', 'cust-c1']);
-    assert.equal(calls.length, 3);
+    assert.deepEqual(overridden[3]!.ids, ['cust-a1', 'cust-c1']);
+    assert.equal(calls.length, 4);
     assert.deepEqual(whereFor(negAOccurrence), [{ op: 'eq', field: 'active', value: false }]);
     assert.deepEqual(whereFor(negBOccurrence), [{ op: 'eq', field: 'active', value: true }]);
+    assert.deepEqual(whereFor(negCOccurrence), [{ op: 'eq', field: 'active', value: true }]);
 
     // Clear through the negation path: an explicit clear on the helper
-    // list serves every row while the inline list keeps following saved.
+    // list serves every row while the inline and comparison lists keep
+    // following saved.
     calls.length = 0;
     response = await get(new URLSearchParams([[negBNames[0]!, '']]));
     assert.equal(response.status, 200);
     const cleared = groupsOf(await response.text());
     assert.deepEqual(cleared[1]!.ids, ['cust-a1', 'cust-c1']);
     assert.deepEqual(cleared[2]!.ids, ['cust-a1', 'cust-b1', 'cust-c1']);
-    assert.equal(calls.length, 3);
+    assert.deepEqual(cleared[3]!.ids, ['cust-a1', 'cust-c1']);
+    assert.equal(calls.length, 4);
     assert.deepEqual(whereFor(negAOccurrence), [{ op: 'eq', field: 'active', value: true }]);
     assert.deepEqual(whereFor(negBOccurrence), [undefined]);
+    assert.deepEqual(whereFor(negCOccurrence), [{ op: 'eq', field: 'active', value: true }]);
     prefs.delete('Probe/active');
 
     // Malformed selectors refuse before query or body work.
