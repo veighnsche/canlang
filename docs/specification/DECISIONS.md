@@ -18171,3 +18171,8 @@ Accepted: Scope-2 hook parent reads: State loadParent(model,id,site) with scope-
 ## 2026-10-16 — can18_merge_25_20261016
 
 Accepted: Board/calendar filter E5-reuse proof: pure-enum conjunction pinned, model-reference refusals stay loud, real consumer 1/1. Merge reviewed tested work incrementally into canonical `main`, preserving installer/specification changes and the active implementation branch. enum_filter_group 31/31, board-calendar consumer 1/1 on frozen a8fc25e9/ca50. Reconcile the living file-tree plan/registry over `2ae1e03d0..HEAD` with existing owners; retain the complete checkpoint and all outstanding acceptance gates. A merged component is not a claim that original24 or the remaining runtime workflows are complete.
+
+
+## 2026-10-16 — can18_merge_26_20261016
+
+Accepted: Scope-2 per-fire caller value projection + record-helper parent reads: granted private copy succeeds, stranger denied, inline/helper equivalence. Merge reviewed tested work incrementally into canonical `main`, preserving installer/specification changes and the active implementation branch. joint 12/12, State 14/14, hook_lowering 26/26, consumer 7/7, board-calendar 1/1 on frozen d692f60e/ca50. Reconcile the living file-tree plan/registry over `5a47b332d..HEAD` with existing owners; retain the complete checkpoint and all outstanding acceptance gates. A merged component is not a claim that original24 or the remaining runtime workflows are complete.

@@ -104,6 +104,10 @@ Scope-2 hook parent reads: State loadParent(model,id,site) with scope-carried de
 
 Board/calendar filter E5-reuse proof: pure-enum conjunction pinned, model-reference refusals stay loud, real consumer 1/1. Incoming interval `2ae1e03d0..HEAD` accounts for 2 changed paths in `can18_merge_25_20261016` of the existing registry. enum_filter_group 31/31, board-calendar consumer 1/1 on frozen a8fc25e9/ca50. Existing defining owners and target allocations remain; focused new tests stay with Compiler. Reuse prior accumulated coverage; complete checkpoint remains unchanged. Original24 and required executable consumers remain open. Unfinished work stays in the running Muse checkout.
 
+### CAN18 incremental integration — can18_merge_26_20261016
+
+Scope-2 per-fire caller value projection + record-helper parent reads: granted private copy succeeds, stranger denied, inline/helper equivalence. Incoming interval `5a47b332d..HEAD` accounts for 11 changed paths in `can18_merge_26_20261016` of the existing registry. joint 12/12, State 14/14, hook_lowering 26/26, consumer 7/7, board-calendar 1/1 on frozen d692f60e/ca50. Existing defining owners and target allocations remain; focused new tests stay with Compiler. Reuse prior accumulated coverage; complete checkpoint remains unchanged. Original24 and required executable consumers remain open. Unfinished work stays in the running Muse checkout.
+
 ### Specification and installer documentation merge — 2026-10-15
 
 Merge installer commit `02470b74` into canonical `main` at `a70921e3`.
