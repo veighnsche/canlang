@@ -7496,3 +7496,19 @@ closed with one routed gap: saved BOOL spellings refuse safely at validation
 B9's files, honestly recorded, not weakened. Finite successor B10
 (`01a143db-d438-...`) owns the defining-owner coercion repair with B9's test
 as acceptance probe. Sole active lane: B10.
+
+**Coordinator control, 2026-10-16 (B10 ui_adapter classification):**
+ui_adapter at pre-B10 `a6a6601d`: 1 passed / 14 failed (control in /tmp
+worktree with draft submodule linked read-only, since removed). With B10
+`6b3fe355`: 13 passed / 2 failed. Both remaining
+(`unsupported_ui_payloads_refuse_instead_of_losing_authored_meaning`,
+`original_loyalty_bound_panels...`) fail identically at the pre-B10 control:
+pre-existing, not B10 regressions. The 12 fixed were broken by earlier
+admission batches and now pass with the bool decoding in place.
+REVIEW-13 (Codex 08:49Z) dispatched as finite B11 (`01a143e9-1294-...`):
+defining-owner bool decoding at the checked typed preference binding/reader
+(sink-only coercion is too late — saved 'false' is truthy in expressions;
+discriminator: not(preferences.active ?? false) selects true, helper
+agrees), plus replacing B9's handwritten applyWhere engine with the existing
+State/Cloudflare query adapter. C18 hook batch and C20 membership stay ready
+for independent review, ungated on the bool criterion.
