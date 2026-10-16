@@ -7765,3 +7765,18 @@ consumers WITHOUT waiting for C23's tree or any rebuild. B15's wait loop
 the same binary to reproduce, then its own released compiler afterwards. No
 duplicate binary build (disk 3.5GiB). Parent currently holds C23's 8-file
 analysis dirt + B15's 2 untracked test files — untouched.
+
+**Follow-up route correction + B15/B16 delivery, 2026-10-16:**
+Coordinator corrects its "no worker-messaging route" claim: native
+subagent_send_message IS exposed (mode followup) and both deliveries below
+returned accepted with queue evidence — no cancellation, no duplicates, no
+concurrent edits from here on.
+B15 (`01a1445b-...`, evidence 01a14474-557d): stop sleep-280 loop, consume
+frozen /tmp/can18-filter-probe-can via CAN_COMPILER_BIN (verified compiling
+its fixture, complete=true), fixture indentation fixed by coordinator
+(E1204 + cascades gone), open export-model authoring question returned with
+helpers.can precedent, execute + commit + report.
+B16 (`01a1445c-...`, evidence 01a14474-823a): owner corrections delivered
+(module+field scoping, preferenceVersions/pollUrl??path pins, explicit
+false-selection preservation) + human end-to-end priority restated.
+Worker ACKs pending; receipt to be verified from their next progress.
