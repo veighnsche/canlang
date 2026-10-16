@@ -10170,6 +10170,14 @@ impl<'a> Cx<'a> {
             }) if capability == "std.MailboxV1" && event == "received" => {
                 self.mailbox_received_source(symbol.id)
             }
+            // Provider capability events carry the same checked field
+            // payload as declared events (both lower to `Event` items);
+            // the `owner.Cap.event` identity preserves the §13.4
+            // provider-routed form for ingress enrollment downstream.
+            Some(crate::analysis::effects::HandlerSource::CapabilityEvent {
+                event,
+                ..
+            }) => Some(IrEventSource::Declared(self.canonical(*event))),
             Some(crate::analysis::effects::HandlerSource::Committed { model, event }) => {
                 let change = match event.as_str() {
                     "created" => Some(IrCommittedChange::Create),
