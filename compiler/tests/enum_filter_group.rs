@@ -1,28 +1,36 @@
-//! Outcome 6 (Lane B14): the enum-filter group closes at the defining
-//! owner (compiler).
+//! Outcome 6 (Lane B14): computed enum filter defaults admitted at the
+//! defining owner (compiler); the executable consumer lives in Lane B15
+//! (the interfaces enum-page-source test), not here.
 //!
-//! The frozen original24 capture still refuses ~50 enum-filter
-//! occurrences: every table/list/board/calendar filter refusal bottoms
-//! out on a genuinely unsupported selector (model-reference `location`,
-//! text `bucket`/`category`/`skill`, int `year`, date `paid`, datetime
-//! `qualified_at`, dotted paths), a nested calendar agenda with no
-//! factory profile, `archived=include` with no consumed factory profile,
-//! or an expression `order=` with no §13 lowering. None of those is
-//! absorbed here: each keeps its exact named E6008 refusal below (base
-//! control: B6 model-ref/Lambda-where/defaults-key/co-fields/dotted-path
-//! disposition; outcome-5/12 for archived/order).
-//!
-//! The repair reuses the B-team owned-declaration/defaults machinery
+//! What this batch fixes (exactly two shapes, never a general
+//! expression language): a `??` fallback across two saved enum reads,
+//! and a checked derive-helper call (local or imported) returning the
+//! owned enum or its nullable form — both over owned enum preference
+//! reads with the same leaf-registration contract as direct reads. The
+//! repair reuses the B-team owned-declaration/defaults machinery
 //! (matching owned enum declarations, saved-read leaves, typed
-//! predicates) and extends it to enum spellings rather than forking it:
-//! a computed enum default over owned enum preference reads — a `??`
-//! fallback across saved reads or a checked derive-helper call returning
-//! the owned enum — is admitted with the same leaf-registration contract
-//! as direct reads. Saved enum values are already case spellings, so
-//! reads lower verbatim and the host preparer refuses unknown spellings
-//! against the column inventory (no decoding wrapper, no truthiness).
+//! predicates) and extends it to enum spellings rather than forking it.
+//! Saved enum values are already case spellings, so reads lower verbatim
+//! and the host preparer refuses unknown spellings against the column
+//! inventory (no decoding wrapper, no truthiness, no cross-kind
+//! coercion).
+//!
+//! What stays refused with exact codes (28 pins: 10 admission/emission,
+//! 18 refusals): the frozen original24 capture's ~50 enum-filter
+//! occurrences remain refused — every table/list/board/calendar filter
+//! refusal bottoms out on a genuinely unsupported selector
+//! (model-reference `location`, text `bucket`/`category`/`skill`, int
+//! `year`, date `paid`, datetime `qualified_at`, dotted paths), a nested
+//! calendar agenda with no factory profile, `archived=include` with no
+//! consumed factory profile, or an expression `order=` with no §13
+//! lowering. Each keeps its exact named E6008 refusal below (base
+//! control: B6 model-ref/Lambda-where/defaults-key/co-fields/dotted-path
+//! disposition; outcome-5/12 for archived/order); `not` over an enum
+//! keeps E3007 (no implicit truthiness); cross-kind reads and unknown
+//! case literals keep E6008. None of those is absorbed here.
+//!
 //! Catalog-free: every test drives check -> IR build -> per-page JS UI
-//! lowering in process.
+//! lowering in process (string inspection only; execution is B15).
 use canlang_compiler::analysis::check_program;
 use canlang_compiler::codegen::{ir, js};
 use canlang_compiler::diagnostic::Diagnostic;

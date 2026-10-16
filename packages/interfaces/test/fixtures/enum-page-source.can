@@ -1,0 +1,19 @@
+package EnumKindLib
+ Given
+  export Customer { name:text, kind:enum(individual,company)=individual }
+  export derive pickImported(k:Customer.kind?):Customer.kind? = k
+  policy Customer read=public
+ When
+ Then
+app Probe
+use EnumKindLib {Customer, pickImported}
+Given
+ derive pickLocal(k:Customer.kind?):Customer.kind? = k
+When
+Then
+ preferences { kind:Customer.kind?, backup:Customer.kind? }
+ page /customers title="Customers"
+  list Customer columns=name,kind filter=kind defaults={kind=preferences.kind} display=split
+  list Customer columns=name,kind filter=kind defaults={kind=pickLocal(preferences.kind)} display=split
+  list Customer columns=name,kind filter=kind defaults={kind=pickImported(preferences.kind)} display=split
+  list Customer columns=name,kind filter=kind defaults={kind=preferences.kind ?? preferences.backup} display=split
