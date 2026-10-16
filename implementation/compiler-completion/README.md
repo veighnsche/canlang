@@ -364,6 +364,34 @@ via decodeValue+compareInt BigInt, no Number routing; new 2/2). Parent:
 seam 20/20, joint 6/6 green. Null/missing false, undecodable fail-closed,
 viewer paths untouched. REVIEW-10 closed at implementation scope (Codex
 review pending); outcome 9 complete pending review.
+Codex MAIN-4: canonical main `fc25a2d1` includes released `9a32ee03`
+(compiler/packages byte-identical); independent host 6/6 + boundary/int
+22/22 pass. Accepted: reviewed implementation components. NOT accepted at
+that time: filtered real-source host criterion (with C16) and original24.
+Filtered criterion proven in `8c3a2ade` (Lane C16 commit `27fe1c6c`):
+real filtered emission was correct but the serve path compared ints as
+strings (lexicographic: gt "2" matched 2^53+1, missed "10") — root cause
+seam-side, 2-line fix passing `models: loaded.models` into the
+read-scenario invoker (sibling viewer invoker already did) so State's
+descriptor-gated int-wire comparison engages; no compiler/State changes,
+nothing routed to Lane A. New bounded joint test on the real committed
+fixture pair serves eqTen/aboveTwo/belowZero/bigExact exactly with local +
+imported helper reuse. Parent: joint 7/7, seam+t16b 57/57 green; t17b-flip
+3/32 pre-existing by stash+rebuild control. Original24 capture started 05:58Z with frozen binary/catalog/inputs;
+no producer rebuild while it runs.
+Outcome-14 composition capture terminal (`evidence/original24-20261016.json`):
+exit 10, complete=true/omitted=0, 26 sources, diagnostics 573–582 → 347
+(346 E6008 + 1 E6007). The 1 E6007 is the retained post-13 `active_member` producer
+dependency labelled `lane-03` by the compiler. That label does not establish
+an external or policy hold; its defining local owner/release remains to resolve. Catalog: values
+catalog sha 494fe52c (unchanged from old baseline — distinction is the
+compiler binary, which carries all integrated repairs; binary reports
+9a32ee03 = parent head). Regrouped E6008 remainder: native first-query
+correspondence 90 (outcome-5), hooks query/context/derive 71 (outcome-12:
+39+22+10), table/list filters enum/defaults 70 (outcome-6: 19+18+17+14),
+dispatch guard receipt/Rule 23 (outcome-10), collection domain 10,
+formatted business 8 (outcome-7), archived factory 6. Executable
+success/rejection/rollback/replay consumers still to run.
 Serve half proven in `c68500d2` + test-typo fix (Lane C15 commit
 `adf31cc3`): `assembleModules` rewrites bare `@canlang/stdlib` to the
 real data-plane stdlib and registers the assembler-owned capability — no
