@@ -18166,3 +18166,8 @@ Accepted: Paged timeline next-link consumer: 26 admitted rows over actual emitte
 ## 2026-10-16 — can18_merge_24_20261016
 
 Accepted: Scope-2 hook parent reads: State loadParent(model,id,site) with scope-carried decision/value modes, compiler parent-content emission, host transitive row-shape bridge with public value projection, joint 9/9 acceptance. Merge reviewed tested work incrementally into canonical `main`, preserving installer/specification changes and the active implementation branch. hook_lowering 24/24, joint consumer 9/9, State 13/13 on frozen main producer a8fc25e9 + native catalog ca50; per-caller grants and record-typed helpers remain open. Reconcile the living file-tree plan/registry over `8b187b018..HEAD` with existing owners; retain the complete checkpoint and all outstanding acceptance gates. A merged component is not a claim that original24 or the remaining runtime workflows are complete.
+
+
+## 2026-10-16 — can18_merge_25_20261016
+
+Accepted: Board/calendar filter E5-reuse proof: pure-enum conjunction pinned, model-reference refusals stay loud, real consumer 1/1. Merge reviewed tested work incrementally into canonical `main`, preserving installer/specification changes and the active implementation branch. enum_filter_group 31/31, board-calendar consumer 1/1 on frozen a8fc25e9/ca50. Reconcile the living file-tree plan/registry over `2ae1e03d0..HEAD` with existing owners; retain the complete checkpoint and all outstanding acceptance gates. A merged component is not a claim that original24 or the remaining runtime workflows are complete.

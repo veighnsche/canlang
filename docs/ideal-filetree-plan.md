@@ -100,6 +100,10 @@ Paged timeline next-link consumer: 26 admitted rows over actual emitted Can/HTTP
 
 Scope-2 hook parent reads: State loadParent(model,id,site) with scope-carried decision/value modes, compiler parent-content emission, host transitive row-shape bridge with public value projection, joint 9/9 acceptance. Incoming interval `8b187b018..HEAD` accounts for 15 changed paths in `can18_merge_24_20261016` of the existing registry. hook_lowering 24/24, joint consumer 9/9, State 13/13 on frozen main producer a8fc25e9 + native catalog ca50; per-caller grants and record-typed helpers remain open. Existing defining owners and target allocations remain; focused new tests stay with Compiler. Reuse prior accumulated coverage; complete checkpoint remains unchanged. Original24 and required executable consumers remain open. Unfinished work stays in the running Muse checkout.
 
+### CAN18 incremental integration — can18_merge_25_20261016
+
+Board/calendar filter E5-reuse proof: pure-enum conjunction pinned, model-reference refusals stay loud, real consumer 1/1. Incoming interval `2ae1e03d0..HEAD` accounts for 2 changed paths in `can18_merge_25_20261016` of the existing registry. enum_filter_group 31/31, board-calendar consumer 1/1 on frozen a8fc25e9/ca50. Existing defining owners and target allocations remain; focused new tests stay with Compiler. Reuse prior accumulated coverage; complete checkpoint remains unchanged. Original24 and required executable consumers remain open. Unfinished work stays in the running Muse checkout.
+
 ### Specification and installer documentation merge — 2026-10-15
 
 Merge installer commit `02470b74` into canonical `main` at `a70921e3`.
