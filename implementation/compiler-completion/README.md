@@ -7659,3 +7659,19 @@ bool stacks remain Codex intake work, not counted as merged). Original24
 frozen capture running in background against the frozen closure; record
 diagnostics by outcome/root cause at terminal, then continue outcome-14 and
 ready groups. Holds 17/18 retained.
+
+**Original24 frozen re-capture, 2026-10-16 (`evidence/original24-20261016-frozen.json`):**
+Frozen closure: binary 1d0acbc2 (can 0.1.1 @ ecadf351f, post-C22) + native
+catalog ca50fdca + exact saved 24 argv; complete=true, omitted=0, 26
+sources, 351 diagnostics (all E6008; prior E6007 active_member now surfaces
+as E6008-checked-source ×4). Grouped by canonical outcome: first-query
+correspondence 90 (5/11); hook query 39 + parent-content 30 + now/contextual
+22 + derive 10 + reference-traversal 4 + staged-content 2 + emit 5 (12);
+enum filters table/list/board/calendar ~50 + archived/order 10 (6/11);
+dispatch guard/receipt 27 (10); collection domain 10 (11); formatted
+business/call-arg ~9 (7); membership active_member source 4 (13); call
+effects ~8 (11); invoice triggers 5 (9); history/collapse/hero/preferences
+~8. Count delta 347→351 reflects post-fix emission (hook occurrence
+contract, reader decoding) surfacing checked refusals, not new breakage.
+Next: outcome-14 executable consumers + ready-group owners (enum filters,
+first-query engine slice); holds 17/18 retained.
