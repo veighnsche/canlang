@@ -287,7 +287,7 @@ describe("authority report joint serve (real emission through the host seam)", (
     const { store } = createTestMemoryStorage();
     const seed = await seedIdentity();
     await seedGadget(store, seed.now, "hidden", "item-hidden", "5");
-    const error = await captureError(() =>
+    const error = await captureError(async () =>
       invokeReadCanonical({
         ...readOptions({ asm, artifact, store, seed }, "Shop.totals"),
         identity: await identityFor(seed, seed.outsiderToken),
@@ -313,7 +313,7 @@ describe("authority report joint serve (real emission through the host seam)", (
     const { store } = createTestMemoryStorage();
     const seed = await seedIdentity();
     await seedGadget(store, seed.now, "hidden", "item-hidden", "5");
-    const error = await captureError(() =>
+    const error = await captureError(async () =>
       invokeReadCanonical({
         ...readOptions({ asm, artifact: tampered, store, seed }, "Shop.totals"),
         identity: await identityFor(seed, seed.memberToken),
@@ -338,7 +338,7 @@ describe("authority report joint serve (real emission through the host seam)", (
         return rows.map((row) => ({ ...row, data: { ...row.data, stock: "30" } }));
       }) as StoragePort["query"],
     };
-    const error = await captureError(() =>
+    const error = await captureError(async () =>
       invokeReadCanonical({
         ...readOptions({ asm, artifact, store: drifted, seed }, "Shop.totals"),
         identity: await identityFor(seed, seed.memberToken),
