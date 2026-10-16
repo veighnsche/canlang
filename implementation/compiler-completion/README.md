@@ -368,7 +368,17 @@ Codex MAIN-4: canonical main `fc25a2d1` includes released `9a32ee03`
 (compiler/packages byte-identical); independent host 6/6 + boundary/int
 22/22 pass. Accepted: reviewed implementation components. NOT accepted:
 filtered real-source host criterion (with C16) and original24 — both stay
-open. Original24 capture started 05:58Z with frozen binary/catalog/inputs;
+open.
+Filtered criterion proven in `8c3a2ade` (Lane C16 commit `27fe1c6c`):
+real filtered emission was correct but the serve path compared ints as
+strings (lexicographic: gt "2" matched 2^53+1, missed "10") — root cause
+seam-side, 2-line fix passing `models: loaded.models` into the
+read-scenario invoker (sibling viewer invoker already did) so State's
+descriptor-gated int-wire comparison engages; no compiler/State changes,
+nothing routed to Lane A. New bounded joint test on the real committed
+fixture pair serves eqTen/aboveTwo/belowZero/bigExact exactly with local +
+imported helper reuse. Parent: joint 7/7, seam+t16b 57/57 green; t17b-flip
+3/32 pre-existing by stash+rebuild control. Original24 capture started 05:58Z with frozen binary/catalog/inputs;
 no producer rebuild while it runs.
 Outcome-14 composition capture terminal (`evidence/original24-20261016.json`):
 exit 10, complete=true/omitted=0, 26 sources, diagnostics 573–582 → 347
