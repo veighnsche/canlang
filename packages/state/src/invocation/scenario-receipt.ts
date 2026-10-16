@@ -468,6 +468,21 @@ export function assertScenarioReceiptMembershipSource(def: GeneratedOperationDef
   if (stableStringify(actual) !== stableStringify(membershipSource(def, bound))) return invalid('membership source differs from its owning checked callable.');
   membershipSourcesUsed.add(def);
 }
+/** Deferred dispatch-lifetime sibling join; intentionally absent from barrels.
+ * Unlike the other producers, the dispatch producer binds at drive-fence
+ * setup, which inherently follows the staging invoke. The pre-execution veto
+ * therefore does not apply here; the checked-source correspondence still
+ * does. The source association itself remains established once before
+ * execution, so no new correspondence can be invented late. Like the
+ * pre-execution assert, this grants no execution frame. */
+export function assertScenarioReceiptDispatchMembershipSource(def: GeneratedOperationDef,
+  source: ScenarioResultDisclosurePlan['source']): void {
+  const bound = boundPlans.get(def);
+  if (bound === undefined) return invalid('dispatch membership source requires its actual checked definition.');
+  const actual = dataCopy(source); origin(actual);
+  if (stableStringify(actual) !== stableStringify(membershipSource(def, bound))) return invalid('membership source differs from its owning checked callable.');
+  membershipSourcesUsed.add(def);
+}
 /** Bind once before execution at the existing verified source/callable loader
  * boundary. Transport validation is not JavaScript attestation. Handles are
  * returned in recipe/call order for exact active_member occurrences only. */
