@@ -17984,3 +17984,26 @@ Accepted: Integrate reviewed State-read inventory/reuse, original UI bindings an
 ## 2026-10-16 — can18_merge_3_20261016
 
 Accepted: Integrate provider-event handler identity, nullable completion payloads, recurring tick emission and native hook delivery/message lowering. Merge reviewed tested work incrementally into canonical `main`, preserving installer/specification changes and the active implementation branch. Reuse focused capability2/completion2/tick2 and hook12 tests plus recorded neighbor suites. Static review confirms typed identities, nullable envelope agreement, integer interval and existing async native context; legacy refusals and full runtime consumer gates remain. Reconcile the living file-tree plan/registry over `46bbb4ed..5ac99533` with existing owners; retain the complete checkpoint and all outstanding acceptance gates. A merged component is not a claim that original24 or the remaining runtime workflows are complete.
+
+## CAN18 scope=authority grant semantics (2026-10-16, coordinator ruling, Codex AUTHORITY-1)
+
+**Choice.** Family E implementation needs no JEV consultation: the frozen
+text already decides. Per DESIGN §442, body reads inside a
+`read=true scope=authority` scenario run in *decision mode* (bounded
+authority state at the resolved storage owner; helpers retain this mode
+only when consumed by that decision). Per DESIGN §522, the scenario's
+typed result is an *explicit information grant to `by`*. So: decision-mode
+body reads (bounded, no read-policy recursion) + granted result (Alt A in
+the worker's report). "Authority decision data does not become a result
+grant" except through this explicit report boundary; ordinary `read=true`
+stays viewer-filtered.
+
+**Consequence.** Implement the §13 emission marker + runtime authority-mode
+evaluation with fail-closed enforcement (E6008 stays until the runtime
+boundary lands). No broad effect system, no viewer-read privileging, no
+authoring boilerplate.
+
+
+## 2026-10-16 — can18_merge_4_20261016
+
+Accepted: Integrate frozen mail-carrier runtime, bounded standard payment-completion emission, stored-query red probes and fail-closed authority-report compiler marker. Merge reviewed tested work incrementally into canonical `main`, preserving installer/specification changes and the active implementation branch. Reuse carrier package tsc/4 tests plus independent6adapter checks, payment3/negative refusal controls, authority7 and recorded neighbors. Source review retains checked owner/type/binding correspondence, finite completion profile and deliberate authority E6008/stub; queries and runtime authority remain unfinished. Only conflict was independent DECISIONS append blocks; both retained verbatim. Reconcile the living file-tree plan/registry over `5ac99533..f9209893` with existing owners; retain the complete checkpoint and all outstanding acceptance gates. A merged component is not a claim that original24 or the remaining runtime workflows are complete.

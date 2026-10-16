@@ -12965,6 +12965,7 @@ impl<'a> Emitter<'a> {
                     event_source,
                     result,
                     read,
+                    scope_authority,
                     trusted,
                     by,
                     label,
@@ -12976,6 +12977,14 @@ impl<'a> Emitter<'a> {
                         format!("handler:{}", js_string(&item.canonical)),
                         format!("inputs:{{{inputs}}}"),
                     ];
+                    // Family E: the §13 authority-scope marker publishes
+                    // the checked grant boundary. It is fail-closed: the
+                    // `E6008` stays until the Lane-C decision-mode
+                    // runtime boundary lands, and the handler below
+                    // refuses instead of running a viewer-mode body.
+                    if *scope_authority {
+                        members.push("scope:\"authority\"".to_string());
+                    }
                     if let Some(authority) = self.operation_root_authority(item) {
                         members.push(format!("rootAuthority:{}", descriptor_json(&authority)));
                     }
@@ -14346,6 +14355,7 @@ impl<'a> Emitter<'a> {
                 IrItemKind::Scenario {
                     params,
                     read,
+                    scope_authority,
                     trusted,
                     hook,
                     description,
@@ -14359,6 +14369,14 @@ impl<'a> Emitter<'a> {
                     // `expose=none` excludes the operation from
                     // publication (P4); omission exposes it.
                     if *expose_excluded {
+                        continue;
+                    }
+                    // Family E: an explicit information grant is not an
+                    // ordinary callable tool. The operations member
+                    // carries its boundary marker, but MCP publication
+                    // omits it until the Lane-C decision-mode runtime
+                    // boundary lands.
+                    if *scope_authority {
                         continue;
                     }
                     let mut inputs = Vec::new();
@@ -16087,6 +16105,7 @@ impl<'a> Emitter<'a> {
                     params,
                     trusted,
                     read,
+                    scope_authority,
                     hook,
                     cohort,
                     by,
@@ -16131,6 +16150,25 @@ impl<'a> Emitter<'a> {
                             signature
                         }
                     };
+                    // Family E: an authority report never publishes a
+                    // viewer-mode body. Without the Lane-C decision-mode
+                    // runtime, invocation refuses loudly instead of
+                    // computing a grant over viewer-filtered rows.
+                    if *scope_authority {
+                        out.push(
+                            item.span,
+                            Some(item.canonical.clone()),
+                            &format!(
+                                "async {handler}({signature}){{throw new Error({});}},",
+                                js_string(&format!(
+                                    "scope=authority report {} has no runtime authority boundary",
+                                    item.canonical
+                                ))
+                            ),
+                        );
+                        self.exit_scope();
+                        continue;
+                    }
                     // Scenarios without any decoded body keep the failing
                     // stub (the IR build reports the `E6006`).
                     let has_body = !guards.is_empty() || !effects.is_empty();

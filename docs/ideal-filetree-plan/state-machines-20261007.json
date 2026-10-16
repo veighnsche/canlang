@@ -72630,5 +72630,73 @@
     "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
     "checkpoint_advanced": false,
     "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
+  },
+  "can18_merge_4_20261016": {
+    "incremental_base": "5ac99533ddcc6aca9d3e65829e547bbbcb351247",
+    "incoming_end": "f9209893b1af428614be5627ac1472b90a7f47c4",
+    "retained_coverage": "reuse spec_installer_merge_reconciliation_20261015 and preceding CAN18 incremental merge entries; inherited complete checkpoint unchanged",
+    "changed_path_count": 11,
+    "rows": [
+      [
+        "compiler/src/analysis/types.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/src/codegen/ir.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/src/codegen/js.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/payment_completion_handlers.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/scope_authority_reports.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/standard_completion_codegen.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/stored_query_profiles.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "docs/specification/DECISIONS.md",
+        "Specification",
+        "existing accepted design/decision owner"
+      ],
+      [
+        "implementation/compiler-completion/README.md",
+        "Compiler completion",
+        "existing finite execution record"
+      ],
+      [
+        "packages/cloudflare/src/runtime/bound-mail-carrier.test.ts",
+        "cloudflare",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/cloudflare/src/runtime/bound-mail.ts",
+        "cloudflare",
+        "existing package source/test owner"
+      ]
+    ],
+    "choice": "Integrate frozen mail-carrier runtime, bounded standard payment-completion emission, stored-query red probes and fail-closed authority-report compiler marker.",
+    "validation": "Reuse carrier package tsc/4 tests plus independent6adapter checks, payment3/negative refusal controls, authority7 and recorded neighbors. Source review retains checked owner/type/binding correspondence, finite completion profile and deliberate authority E6008/stub; queries and runtime authority remain unfinished. Only conflict was independent DECISIONS append blocks; both retained verbatim.",
+    "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
+    "checkpoint_advanced": false,
+    "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
   }
 }
