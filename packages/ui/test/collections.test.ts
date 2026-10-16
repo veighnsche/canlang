@@ -2044,6 +2044,33 @@ describe("board", () => {
     assert.ok(html.indexOf('data-group="closed"') < html.indexOf('data-group="open"'));
   });
 
+  it("awaits card bodies sequentially: a first-row failure blocks later rows and groups", async () => {
+    const seen: SeenCall[] = [];
+    const executed: string[] = [];
+    const failure = new Error("card read failed first");
+    const context = boardContext(seen, {
+      rows: [row("a", { title: "x", state: "open" }), row("b", { title: "y", state: "closed" })],
+      columns: [titleCol, stateCol],
+    });
+    await assert.rejects(
+      board({
+        context,
+        model: "TeamTasks.Todo",
+        by: "state",
+        columns: ["title"],
+        empty: "No todos",
+        renderRow: async (row) => {
+          executed.push(row.id);
+          await new Promise((resolve) => setTimeout(resolve, 5));
+          if (row.id === "a") throw failure;
+          return [];
+        },
+      }),
+      (error: unknown) => error === failure,
+    );
+    assert.deepStrictEqual(executed, ["a"]);
+  });
+
   it("uses first-seen row order without valueLabels", async () => {
     const seen: SeenCall[] = [];
     const bare: ColumnMeta = { field: "state", label: "State", type: "enum" };

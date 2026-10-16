@@ -1264,15 +1264,21 @@ export async function board(props: BoardProps): Promise<string> {
       bucket.push(row);
     }
   }
-  const sections = await Promise.all([...groups.entries()]
-    .map(async ([key, rows]) => {
-      const labeled = labels?.[key];
-      const heading = escapeHtml(
-        labeled === undefined ? key : resolveCaption(labeled, props.context),
-      );
-      const cards = (await Promise.all(rows.map((row) => boardCard(row, metas, props)))).join("");
-      return `<section data-group="${escapeAttr(key)}"><h2>${heading}</h2><ul>${cards}</ul></section>`;
-    }));
+  // Ordered evaluation: each card body runs sequentially in authored
+  // group/row order so an earlier card's read/failure settles before any
+  // later card executes (same for..of contract as list/table row bodies).
+  const sections: string[] = [];
+  for (const [key, rows] of groups.entries()) {
+    const labeled = labels?.[key];
+    const heading = escapeHtml(
+      labeled === undefined ? key : resolveCaption(labeled, props.context),
+    );
+    const cards: string[] = [];
+    for (const row of rows) {
+      cards.push(await boardCard(row, metas, props));
+    }
+    sections.push(`<section data-group="${escapeAttr(key)}"><h2>${heading}</h2><ul>${cards.join("")}</ul></section>`);
+  }
   const boardHtml = `<div class="flex gap-4">${sections.join("")}</div>`;
   if (props.controls === undefined) {
     return `${filterControls}${boardHtml}${moreNote(props, result.nextCursor)}`;
