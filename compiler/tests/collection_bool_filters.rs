@@ -485,13 +485,12 @@ fn refused_outer_list_keeps_admitted_nested_bool_table_quiet() {
     );
 }
 
-/// Lambda-where plus filter composition stays refused at lowering even
-/// when the selectors themselves are admitted (recorded Repair shape).
+/// E5 (CAN18-v1, DESIGN 434/440/975/977): a Lambda where conjoins with
+/// admitted bool selectors (`{op:and,[where,...filters]}` at the query
+/// adapter) instead of refusing (recorded Repair shape now admitted).
 #[test]
-fn bool_filter_with_lambda_where_refuses_at_lowering() {
-    assert_refuses(
-        &format!("{HEAD}  list Customer as c where c.active columns=name,active filter=active\n"),
-        "E6008",
-        "need matching owned declarations and data-only where",
-    );
+fn bool_filter_with_lambda_where_conjoins_at_lowering() {
+    assert_lowers(&format!(
+        "{HEAD}  list Customer as c where c.active columns=name,active filter=active\n"
+    ));
 }

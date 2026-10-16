@@ -336,15 +336,14 @@ fn dotted_path_selector_refuses() {
     );
 }
 
-/// A field-to-field predicate lowers to a Lambda where, which keeps the
-/// exact lowering-stage E6008 even when the enum selectors themselves
-/// are admitted.
+/// E5 (CAN18-v1, DESIGN 434/440/975/977): a field-to-field predicate
+/// lowers to a Lambda where, which conjoins with the admitted enum
+/// selectors (`{op:and,[where,...filters]}` at the query adapter) instead
+/// of refusing. Column/defaults validation is unchanged.
 #[test]
-fn enum_filter_with_lambda_where_refuses_at_lowering() {
-    assert_refuses(
+fn enum_filter_with_lambda_where_conjoins_at_lowering() {
+    assert_lowers(
         "app Probe\nGiven\n Customer { name:text, nick:text, kind:enum(individual,company)=individual }\n policy Customer read=public\nWhen\nThen\n preferences { kind:Customer.kind? }\n page /customers title=\"Customers\"\n  list Customer as c where c.name==c.nick columns=name,kind filter=kind defaults={kind=preferences.kind}\n",
-        "E6008",
-        "need matching owned declarations and data-only where",
     );
 }
 

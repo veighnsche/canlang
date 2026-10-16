@@ -21,7 +21,9 @@ const entry=Object.entries(assembly.moduleUrls).find(([,url])=>url===assembly.en
 const generated=await importVerifiedAssemblyModule(assembly,entry,loaded.artifact);
 const page=generated.appDefinition.pages[0];
 assert.equal(page.path,'/table-filters');
-assert.deepEqual(page.preferenceFields,[{name:'window_state',options:['open','closed'],defaultValue:null,nullable:true}]);
+assert.deepEqual(page.preferenceFields,[{name:'window_state',options:['open','closed'],defaultValue:null,nullable:true,
+  optionLabels:{open:{source:'Open <window>',variants:{nl:'Open venster'},sourceLocale:'en'},
+    closed:{source:'Closed window',variants:{nl:'Gesloten venster'},sourceLocale:'en'}}}]);
 const identity=makeIdentity({actor:null,team:null,membership:null});
 const catalog=catalogFromArtifactOperations(loaded.artifact);
 const formBindings=await createSourceFormBindings(new Uint8Array(32).fill(49),'table-filter-fixture');

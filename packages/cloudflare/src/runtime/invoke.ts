@@ -13440,6 +13440,29 @@ export async function queryPageRowsCanonical(
   return queryPageRowsInScope(opts);
 }
 
+/**
+ * E5 (CAN18-v1): recognize the UI-composed filter+lambda-where conjunction
+ * `{op:and,[sourceFn,...dataFilters]}`. Exactly one top-level function
+ * operand (the source business restriction) plus at least one data
+ * operand; anything else is not the proven conjunction and keeps the
+ * existing paths and refusals.
+ */
+function splitFilterWhereConjunction(where: unknown): { readonly fn: Function; readonly data: QueryPredicate } | undefined {
+  if (typeof where !== 'object' || where === null || Array.isArray(where)) return undefined;
+  const record = where as Record<string, unknown>;
+  if (record['op'] !== 'and' || !Array.isArray(record['args']) || Object.keys(record).length !== 2) return undefined;
+  const args = record['args'] as unknown[];
+  if (args.length < 2) return undefined;
+  const fns = args.filter((arg): arg is Function => typeof arg === 'function');
+  if (fns.length !== 1) return undefined;
+  const data = args.filter(arg => typeof arg !== 'function');
+  if (data.some(operand => typeof operand !== 'object' || operand === null || Array.isArray(operand) ||
+      (operand as Record<string, unknown>)['op'] === undefined)) return undefined;
+  return { fn: fns[0]!, data: data.length === 1
+    ? data[0] as QueryPredicate
+    : { op: 'and', args: data } as QueryPredicate };
+}
+
 async function queryPageRowsInScope(
   opts: CanonicalPageReadOpts & { readonly model: string; readonly args: ListQueryArgs },
   scope?: NativePagePredicateScope,
@@ -13457,15 +13480,29 @@ async function queryPageRowsInScope(
       direction: term.startsWith('-') ? 'desc' : 'asc' };
   });
   const sourceWhere = opts.args.where;
-  const original = typeof sourceWhere === 'function' ? scope?.originals.get(sourceWhere) : undefined;
-  if (scope !== undefined && typeof sourceWhere === 'function' && original === undefined) {
+  // E5 (CAN18-v1, DESIGN 434/440/975/977): the UI composes typed filter
+  // controls with a function source `where` as `{op:and,[where,...filters]}`.
+  // State consumes data `where` before row predicates, which would reorder a
+  // throwing/denied source read away on control-excluded rows — so the
+  // conjunction splits here. The source predicate runs first on every
+  // granted row (phase A below); the observed domain then travels as
+  // ordinary data alongside the control filters (phase B), so cursor
+  // continuation, revision fencing and the binding digest apply exactly
+  // as for data-only pages. Anything else keeps its existing data-only
+  // path and refusals.
+  const conjunction = splitFilterWhereConjunction(sourceWhere);
+  const whereFn: Function | undefined = conjunction?.fn ??
+    (typeof sourceWhere === 'function' ? sourceWhere : undefined);
+  const conjunctionData: QueryPredicate | undefined = conjunction?.data;
+  const original = whereFn === undefined ? undefined : scope?.originals.get(whereFn);
+  if (scope !== undefined && whereFn !== undefined && original === undefined) {
     throw new AssemblyCorrespondenceError('Native page WHERE was not bound through its original query scope.');
   }
   const expectedRevision = await opts.store.readRevision();
   const sourceReads = createSourceReadPolicyAdapter({ loaded, opts, revision: expectedRevision,
     now: scope === undefined ? opts.now ?? Date.now : () => Date.parse(opts.identity.admitted_at),
     ...(scope === undefined ? {} : { preferences: scope.preferences }) });
-  const navigation = typeof sourceWhere === 'function' && original === undefined ? await createContainmentNavigation({
+  const navigation = whereFn !== undefined && original === undefined ? await createContainmentNavigation({
     loaded, store: opts.store, revision: expectedRevision,
     actorUserId: opts.identity.actor?.user_id ?? null, teamId: opts.identity.team?.team_id ?? null,
     memberships: opts.memberships, authority: 'viewer', sourceReadOpts: opts,
@@ -13473,11 +13510,11 @@ async function queryPageRowsInScope(
   const recordView = (model: string, row: StoredRow | ProjectedRecord): Record<string, unknown> =>
     nativeProjectedRecord(loaded, model, row, navigation, recordView);
   const sourceFilter: import('@canlang/state/receipt').InstalledSourceQueryPredicate | undefined =
-    typeof sourceWhere !== 'function' ? undefined : original === undefined
+    whereFn === undefined ? undefined : original === undefined
     ? async (record: Readonly<ProjectedRecord>): Promise<boolean> => {
       await navigation!.captureQuerySource(opts.model, record);
       await navigation!.prepare(opts.model, record);
-      const matched: unknown = await sourceWhere(recordView(opts.model, record));
+      const matched: unknown = await whereFn(recordView(opts.model, record));
       if (typeof matched !== 'boolean') throw new StateError('validation', 'Collection source filter must return bool.');
       return matched;
     }
@@ -13486,21 +13523,68 @@ async function queryPageRowsInScope(
         throw new AssemblyCorrespondenceError('Native WHERE requires its genuine current State observation.');
       }
       return sourceReads.evaluate(opts.model, [{ owner: original.owner,
-        predicate: (context, row) => sourceWhere(row, context) }], observation, sourceFilter!);
+        predicate: (context, row) => whereFn(row, context) }], observation, sourceFilter!);
     };
   if (original !== undefined && sourceFilter !== undefined) installPagePredicate(loaded, original, sourceFilter);
   const sourcePolicies = sourceReads.policies(opts.model);
+  const dataWhere: QueryPredicate | undefined = conjunctionData ??
+    (whereFn !== undefined || opts.args.where === undefined ? undefined : opts.args.where as QueryPredicate);
+  // Phase A (any function source `where`, alone or conjoined): evaluate
+  // the source predicate over the full granted domain — including rows
+  // the control filters exclude — so a throwing source read or denied
+  // field access (DESIGN 440) surfaces instead of being reordered away.
+  // No data predicate and no limit: every granted row is observed exactly
+  // once, in scan order, before controls. The observed id set is the
+  // genuine phase-A outcome (never fabricated) and travels to phase B as
+  // ordinary data, so cursor state never carries function identity: the
+  // source function stays corresponding through its bound occurrence
+  // (the same verified original re-evaluates it on every read, first
+  // page and follows alike).
+  let matchedIds: readonly string[] | undefined;
+  if (whereFn !== undefined) {
+    const parent = opts.args.parent;
+    const parentModel = opts.artifact.models?.find(model => model.name === opts.model)?.parent;
+    if (parent !== undefined && parentModel === undefined) {
+      throw new StateError('validation', 'Collection parent requires the original contained model declaration.');
+    }
+    const domainFilter: import('@canlang/state/receipt').InstalledSourceQueryPredicate =
+      async (record, observation) => {
+        const recordParent = record.parent;
+        if (parent !== undefined &&
+            (recordParent?.model !== parentModel || recordParent?.id !== parent.id)) return false;
+        return sourceFilter!(record, observation);
+      };
+    if (original !== undefined) installPagePredicate(loaded, original, domainFilter);
+    const createDomainReader = loaded.producers.transact.createReadInvoker;
+    if (createDomainReader === undefined) throw new Error('State producer has no finite viewer read invoker.');
+    const domainReader = createDomainReader({ registry: loaded.registry, models: loaded.models,
+      policy: loaded.policy, store: opts.store, memberships: opts.memberships, sourceReadPolicies: sourcePolicies });
+    const domain = await domainReader({ envelope: { operation: `${opts.model}.read`, inputs: {} },
+      identity: opts.identity, selection: { predicate: domainFilter } });
+    if (domain.revision !== expectedRevision || await opts.store.readRevision() !== expectedRevision) {
+      throw new StateError('conflict', 'Collection changed during the page read; restart pagination.');
+    }
+    matchedIds = domain.records.map(record => record.id);
+  }
+  // Phase B: carry the observed source domain as data. `id` is row
+  // metadata the viewer path grants bypass for, so the set joins the
+  // control filters as an ordinary data predicate: cursor continuation,
+  // revision fencing and the occurrence/actor/team binding digest all
+  // apply exactly as for data-only pages. An empty domain conjoins to an
+  // empty `or`, which matches nothing and keeps the single read path.
+  const idOperands = (matchedIds ?? []).map(id => ({ op: 'eq', field: 'id', value: id }));
+  const idSet: QueryPredicate = idOperands.length === 1 ? idOperands[0] as QueryPredicate
+    : { op: 'or', args: idOperands } as QueryPredicate;
+  const selectionWhere: QueryPredicate | undefined = whereFn === undefined ? dataWhere
+    : dataWhere === undefined ? idSet : { op: 'and', args: [dataWhere, idSet] } as QueryPredicate;
   const selection = {
-    ...(sourceFilter !== undefined || opts.args.where === undefined ? {} : { where: opts.args.where as QueryPredicate }),
+    ...(selectionWhere === undefined ? {} : { where: selectionWhere }),
     ...(order === undefined ? {} : { order }),
     ...(opts.args.search === undefined ? {} : { search: opts.args.search }),
     ...(opts.args.includeCount === undefined ? {} : { includeCount: opts.args.includeCount }),
     ...(opts.args.limit === undefined ? {} : { limit: opts.args.limit }),
   };
   if (opts.args.page === true) {
-    if (sourceFilter !== undefined) {
-      throw new StateError('validation', 'Cursor pages require a stable data-only filter identity.');
-    }
     assertCanonicalStore(opts.store, `${opts.model}.read`);
     assertCanonicalMemberships(opts.memberships, `${opts.model}.read`);
     if (loaded.ruledModels.has(opts.model) && !loaded.sourceReadPolicies.has(opts.model)) throw ruledReadRefusal(StateError, opts.model);
@@ -13593,7 +13677,7 @@ async function queryPageRowsInScope(
       ...(opts.args.parent === undefined ? {} : { parent: {
         model: parentModel as ModelName, id: opts.args.parent.id as RecordId,
       } }),
-    }, ...(sourceFilter === undefined ? {} : { generatedPredicate: sourceFilter }),
+    },
   }, async page => {
     if (page.continuation !== null) {
       throw new StateError('validation',
