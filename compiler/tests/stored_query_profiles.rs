@@ -160,7 +160,6 @@ fn imported_helper_guard_keeps_first_query_source_correspondence() {
 /// plan/emitter layers refuse E6008 (multi-layer archive gap, Lane C runtime
 /// honoring still needed after the compiler join).
 #[test]
-#[ignore = "outcome 5 OPEN: archived-first plan/emitter join missing (compiler bridge + Lane C runtime); un-ignore after repair"]
 fn archived_first_query_same_module() {
     let source = "app FirstSources\nGiven\n Budget {account:user,approved:bool}\n policy Budget read=members\nWhen\n scenario generate() -> bool by=members\n  do\n   let budget=first(Budget archived=include as row where row.account==actor order=row.id)\n   require budget!=null and budget.approved\n   return true\nThen\n";
     let (db, program, _, catalog) = fixture_source("archived-first.can", source);

@@ -12,7 +12,7 @@ use crate::analysis::types::{CheckedQueryProjectionMapping, SelectedCallTarget};
 use crate::analysis::{CheckedProgram, NodeKey, ResolvedType};
 use crate::source::{SourceDb, Span};
 
-use super::ir::{IrExpr, IrItem, IrItemKind, IrProgram, IrQueryDomain, IrStmt, IrType};
+use super::ir::{IrExpr, IrItem, IrItemKind, IrProgram, IrQueryDomain, IrStmt, IrType, TypedExpr};
 use super::scenario_decisions::{same_scenario_semantics, serial_type};
 use super::scenario_receipts::{
     NativeIntrinsicKind, NativeReturn, NativeScenarioReceipt, ReceiptDependency,
@@ -1909,6 +1909,22 @@ fn checked_count_query_plan(
     Some(plan)
 }
 
+/// Archived-first correspondence: the disclosure proves the exact
+/// `archived=include` spelling (the grammar admits no other archived
+/// value) while IR drops the valueless clause, so a disclosed include with
+/// no IR archived value is the genuine shape. Any other combination —
+/// disclosed exclude with an IR value, or an IR non-include value — refuses.
+fn archived_first_matches(disclosed: bool, ir: &Option<Box<TypedExpr>>) -> bool {
+    match (disclosed, ir) {
+        (false, None) => true,
+        (true, None) => true,
+        (true, Some(expr)) => {
+            matches!(&expr.expr, IrExpr::Name(name) if name == "include")
+        }
+        _ => false,
+    }
+}
+
 fn checked_first_query_plan(
     program: &CheckedProgram,
     ir: &IrProgram,
@@ -1983,7 +1999,7 @@ fn checked_first_query_plan(
         || q.projection.is_some()
         || q.cardinality_guard.is_some()
         || q.limit.is_some()
-        || q.archived
+        || !archived_first_matches(q.archived, &query.archived)
         || !matches!(target,IrCallTarget::Builtin {id,awaited:false}
             if id=="first")
         || !matches!(&selected.target,SelectedCallTarget::Builtin {id,overload}
@@ -2012,7 +2028,6 @@ fn checked_first_query_plan(
         || query.select.is_some()
         || query.select_param.is_some()
         || query.limit.is_some()
-        || query.archived.is_some()
         || query.where_async
         || query.contract_collection_call.is_some()
         || query.value_order.is_some()
@@ -2105,7 +2120,7 @@ fn checked_first_query_plan(
                 })
                 .collect(),
             limit: None,
-            archived: "exclude".into(),
+            archived: if q.archived { "include" } else { "exclude" }.into(),
             dependencies: vec![ReceiptQueryDependency {
                 id: dependency.id.clone(),
                 source: origin(&dependency.source, entry),

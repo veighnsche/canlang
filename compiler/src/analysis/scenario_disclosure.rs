@@ -7889,11 +7889,29 @@ impl<'a> Closure<'a> {
             ordered: true,
             nonempty: false,
         };
-        let (alias, predicate, order) = match query.clauses.as_slice() {
-            [alias, predicate] => (alias, predicate, None),
-            [alias, predicate, order] => (alias, predicate, Some(order)),
+        // The grammar orders clauses `archived/as/where/order`: an
+        // `archived=include` clause leads when present (the parser admits
+        // only the exact `include` spelling; absence keeps the default).
+        // Anything else keeps the closure refusal below.
+        let (alias, predicate, order, archived) = match query.clauses.as_slice() {
+            [alias, predicate] => (alias, predicate, None, None),
+            [alias, predicate, order] => (alias, predicate, Some(order), None),
+            [archived, alias, predicate]
+                if matches!(archived.kind, CheckedQueryClauseKind::Archived) =>
+            {
+                (alias, predicate, None, Some(archived))
+            }
+            [archived, alias, predicate, order]
+                if matches!(archived.kind, CheckedQueryClauseKind::Archived) =>
+            {
+                (alias, predicate, Some(order), Some(archived))
+            }
             _ => return None,
         };
+        // The grammar admits only the exact `archived=include` spelling, so
+        // a present Archived clause always selects archived rows and its
+        // absence keeps the default. No value reading is needed or possible.
+        let archived = archived.is_some();
         if query.node != fact.query
             || query.projection.is_some()
             || query.domain_type != array
@@ -8021,7 +8039,7 @@ impl<'a> Closure<'a> {
             inputs,
             order,
             limit: None,
-            archived: false,
+            archived,
             cardinality_guard: None,
             return_node: returned.node,
             projection: None,
