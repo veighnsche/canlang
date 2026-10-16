@@ -136,6 +136,10 @@ Calendar-agenda endpoint/columns binding C4: CanShift agenda + CanLeave columns 
 
 Authorized referenced-row reads in hooks: loadReference owner with edge-match, snapshot, caller-grant projection; fence intact; tails+staged stay refused. Incoming interval `d4da54ac..HEAD` accounts for 14 changed paths in `can18_merge_33_20261017` of the existing registry. ref joint 10/10, ref reads 13/13, parent 12/12+14/14, hookrem 7/7, hook_lowering 26/26 on frozen 16402def/ca50. Existing defining owners and target allocations remain; focused new tests stay with Compiler. Reuse prior accumulated coverage; complete checkpoint remains unchanged. Original24 and required executable consumers remain open. Unfinished work stays in the running Muse checkout.
 
+### CAN18 incremental integration — can18_merge_34_20261017
+
+Parent-bound agenda saved defaults: compiler forwarding-only admit for reference-only apps; original defaults shape renders 200 end to end. Incoming interval `47981322..HEAD` accounts for 2 changed paths in `can18_merge_34_20261017` of the existing registry. agenda 1/1 x4 (one initial 0/1 flake, then 3/3 green + worker green), row/ref/joint green, UI 179/179, factory 33/33, enum 41/41 on frozen 93ea5761/ca50. Existing defining owners and target allocations remain; focused new tests stay with Compiler. Reuse prior accumulated coverage; complete checkpoint remains unchanged. Original24 and required executable consumers remain open. Unfinished work stays in the running Muse checkout.
+
 ### Specification and installer documentation merge — 2026-10-15
 
 Merge installer commit `02470b74` into canonical `main` at `a70921e3`.
