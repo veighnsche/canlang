@@ -24,6 +24,17 @@ session/admission remain local implementation work. Hook guards and ordinary val
 authority; missing parent-read implementation is not a new value-use prohibition. Exact17/18 external/policy holds remain unchanged. Continue ready work
 through these checkpoints; do not mark the overall goal complete.
 
+### Accepted board row/card binding batch (merge28) — 2026-10-16
+
+Main integrates `182c5b648`: board `row_scope` threading + `renderRow` slot
+mirroring table/list; plus review-order fix (sequential card-body await, same
+contract as list/table row bodies, with dedicated failure test). Validation on
+frozen main producer `729d7f41` + native catalog `ca50`: row-children 1/1,
+reference 1/1, joint 12/12, UI 128/128. Operation-bound row actions render the
+same unavailable-form note as table rows (harness has no form service) —
+recorded limitation, not a pass. Interval also covers evidence 481 + checklist
+updates since merge27.
+
 ### Current original24 (frozen main modelref cohort) — 481 E6008 — 2026-10-16
 
 [evidence/original24-main-20261016.json](../../evidence/original24-main-20261016.json):
