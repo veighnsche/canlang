@@ -132,6 +132,10 @@ HOOKREM remainder pins: 0/11 spans covered by 434/442 (stored-reference hops, no
 
 Calendar-agenda endpoint/columns binding C4: CanShift agenda + CanLeave columns clear; C2/C3 stay refused; parent-bound saved-defaults gap named for runtime owner. Incoming interval `e01604b7..HEAD` accounts for 12 changed paths in `can18_merge_32_20261016` of the existing registry. agenda 1/1, row/ref/joint 1/1, UI 179/179, factory 33/33, enum 41/41 on frozen c416fbf3/ca50. Existing defining owners and target allocations remain; focused new tests stay with Compiler. Reuse prior accumulated coverage; complete checkpoint remains unchanged. Original24 and required executable consumers remain open. Unfinished work stays in the running Muse checkout.
 
+### CAN18 incremental integration — can18_merge_33_20261017
+
+Authorized referenced-row reads in hooks: loadReference owner with edge-match, snapshot, caller-grant projection; fence intact; tails+staged stay refused. Incoming interval `d4da54ac..HEAD` accounts for 14 changed paths in `can18_merge_33_20261017` of the existing registry. ref joint 10/10, ref reads 13/13, parent 12/12+14/14, hookrem 7/7, hook_lowering 26/26 on frozen 16402def/ca50. Existing defining owners and target allocations remain; focused new tests stay with Compiler. Reuse prior accumulated coverage; complete checkpoint remains unchanged. Original24 and required executable consumers remain open. Unfinished work stays in the running Muse checkout.
+
 ### Specification and installer documentation merge — 2026-10-15
 
 Merge installer commit `02470b74` into canonical `main` at `a70921e3`.
