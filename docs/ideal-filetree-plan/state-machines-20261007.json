@@ -74077,5 +74077,23 @@
     "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
     "checkpoint_advanced": false,
     "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
+  },
+  "can18_merge_31_20261016": {
+    "incremental_base": "ac4e52873ae52111c5da5fbb74d8c633e6dc98e6",
+    "incoming_end": "4b6632777e34074f170f55378a2ba4fc0d56f1ad",
+    "retained_coverage": "reuse spec_installer_merge_reconciliation_20261015 and preceding CAN18 incremental merge entries; inherited complete checkpoint unchanged",
+    "changed_path_count": 1,
+    "rows": [
+      [
+        "compiler/tests/hook_hookrem.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ]
+    ],
+    "choice": "HOOKREM remainder pins: 0/11 spans covered by 434/442 (stored-reference hops, non-ancestry, no staged loader); refusals pinned, no production change.",
+    "validation": "hook_hookrem 7/7, hook_lowering 26/26 on main.",
+    "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
+    "checkpoint_advanced": false,
+    "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
   }
 }

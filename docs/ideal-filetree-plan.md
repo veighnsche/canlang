@@ -124,6 +124,10 @@ Hook helper selected-variant emission repair: 175 linkage diagnostics gone, genu
 
 Employees active_member source/closure seal: 4 original diagnostics cleared at defining producer with real State/Identity consumer. Incoming interval `a54c86005..HEAD` accounts for 9 changed paths in `can18_merge_30_20261016` of the existing registry. staff consumer 1/1, membership 10/10 + bridge 10/10, originals 0 active_member on frozen bba50116/ca50. Existing defining owners and target allocations remain; focused new tests stay with Compiler. Reuse prior accumulated coverage; complete checkpoint remains unchanged. Original24 and required executable consumers remain open. Unfinished work stays in the running Muse checkout.
 
+### CAN18 incremental integration — can18_merge_31_20261016
+
+HOOKREM remainder pins: 0/11 spans covered by 434/442 (stored-reference hops, non-ancestry, no staged loader); refusals pinned, no production change. Incoming interval `ac4e52873..HEAD` accounts for 1 changed paths in `can18_merge_31_20261016` of the existing registry. hook_hookrem 7/7, hook_lowering 26/26 on main. Existing defining owners and target allocations remain; focused new tests stay with Compiler. Reuse prior accumulated coverage; complete checkpoint remains unchanged. Original24 and required executable consumers remain open. Unfinished work stays in the running Muse checkout.
+
 ### Specification and installer documentation merge — 2026-10-15
 
 Merge installer commit `02470b74` into canonical `main` at `a70921e3`.
