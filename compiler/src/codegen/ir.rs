@@ -3069,6 +3069,7 @@ enum PublicCompletionValue {
     Text(String),
     Bool(bool),
     Null,
+    Array(Vec<PublicCompletionExpression>),
     Name(String),
     Member(Box<PublicCompletionExpression>, String),
     Binary(
@@ -3086,6 +3087,20 @@ enum PublicCompletionStatement {
     Require(PublicCompletionExpression, Span),
     Create(String, PublicCompletionExpression, Option<String>, Span),
     Set(PublicCompletionExpression, PublicCompletionExpression, Span),
+    If(
+        PublicCompletionExpression,
+        Vec<PublicCompletionStatement>,
+        Vec<PublicCompletionStatement>,
+        Span,
+    ),
+    For {
+        item: String,
+        model: String,
+        pred: PublicCompletionExpression,
+        body: Vec<PublicCompletionStatement>,
+        span: Span,
+    },
+    Emit(String, PublicCompletionExpression, Span),
 }
 
 struct PublicCompletionProfile<'a> {
@@ -3094,6 +3109,8 @@ struct PublicCompletionProfile<'a> {
     payload: &'a ResolvedType,
     cohort: Option<&'a IrCohort>,
     locals: HashMap<String, ResolvedType>,
+    /// `for`-bound stored rows in scope (`item` and `where` alias).
+    rows: HashMap<String, SymbolId>,
 }
 
 impl PublicCompletionProfile<'_> {
@@ -3120,6 +3137,146 @@ impl PublicCompletionProfile<'_> {
         Some(model)
     }
 
+    /// Stored model bound to a `for` row name, if any. A `let` local
+    /// shadows the row (mirroring checker scoping); the `for` arm itself
+    /// refuses shadowed bindings, so this is a fail-closed backstop.
+    fn row_binding(&self, name: &str) -> Option<SymbolId> {
+        if name == "event" || self.locals.contains_key(name) {
+            return None;
+        }
+        self.rows.get(name).copied()
+    }
+
+    /// One-level stored-row leaf (`row.delivery`): the base must be a
+    /// bound row and the field a checked leaf of its model with the exact
+    /// decoded type. Model-reference chains (`attempt.parent.state`)
+    /// stay out of the bounded profile.
+    fn row_leaf(&self, base: &TypedExpr, field: &str) -> Option<&ResolvedType> {
+        let IrExpr::Name(name) = &base.expr else {
+            return None;
+        };
+        let model = self.row_binding(name)?;
+        let item = self.ir.items.get(model.0 as usize)?;
+        if item.id != model || item.module != self.module {
+            return None;
+        }
+        let IrItemKind::Model { fields, .. } = &item.kind else {
+            return None;
+        };
+        let decl = fields
+            .iter()
+            .filter_map(|id| self.ir.items.get(id.0 as usize))
+            .find(|decl| decl.name == *field)?;
+        let IrItemKind::Field {
+            owner,
+            ty: IrType::Known(ty),
+            server,
+            modifiers,
+            ..
+        } = &decl.kind
+        else {
+            return None;
+        };
+        if *owner != model
+            || server.is_some()
+            || modifiers.machine
+            || !matches!(
+                ty,
+                ResolvedType::Scalar(_) | ResolvedType::Nullable(_) | ResolvedType::Enum { .. }
+            )
+        {
+            return None;
+        }
+        Some(ty)
+    }
+
+    /// Whether a witnessed expression reads the completion envelope.
+    /// Delivery-correlation queries must mention `event`; uncorrelated
+    /// scans stay out of the bounded profile.
+    fn mentions_event(expr: &PublicCompletionExpression) -> bool {
+        match &expr.value {
+            PublicCompletionValue::Name(name) => name == "event",
+            PublicCompletionValue::Member(base, _) => Self::mentions_event(base),
+            PublicCompletionValue::Binary(_, left, right) => {
+                Self::mentions_event(left) || Self::mentions_event(right)
+            }
+            PublicCompletionValue::Unary(_, operand) => Self::mentions_event(operand),
+            PublicCompletionValue::Object(entries) => {
+                entries.iter().any(|(_, value)| Self::mentions_event(value))
+            }
+            PublicCompletionValue::Array(items) => items.iter().any(Self::mentions_event),
+            PublicCompletionValue::Int(_)
+            | PublicCompletionValue::Text(_)
+            | PublicCompletionValue::Bool(_)
+            | PublicCompletionValue::Null => false,
+        }
+    }
+
+    /// Per-field exact-type row changes for a `for`-bound stored row.
+    /// Unlike [`Self::input`], this does not require every model field to
+    /// be scalar: only the changed leaves are witnessed, each against its
+    /// declared field type, and only scalar/enum leaves are admittable.
+    fn row_input(
+        &mut self,
+        model: SymbolId,
+        input: &TypedExpr,
+    ) -> Option<PublicCompletionExpression> {
+        let IrExpr::Object(entries) = &input.expr else {
+            return None;
+        };
+        let item = self.ir.items.get(model.0 as usize)?;
+        if item.id != model || item.module != self.module {
+            return None;
+        }
+        let IrItemKind::Model { fields, .. } = &item.kind else {
+            return None;
+        };
+        let fields = fields.clone();
+        let mut names = HashSet::new();
+        let mut values = Vec::new();
+        for (name, value) in entries {
+            if !names.insert(name) || matches!(name.as_str(), "id" | "version" | "parent" | "team")
+            {
+                return None;
+            }
+            let field = fields
+                .iter()
+                .filter_map(|id| self.ir.items.get(id.0 as usize))
+                .find(|field| field.name == *name)?;
+            let IrItemKind::Field {
+                owner,
+                ty: IrType::Known(ty),
+                server,
+                modifiers,
+                ..
+            } = &field.kind
+            else {
+                return None;
+            };
+            if *owner != model
+                || server.is_some()
+                || modifiers.machine
+                || (&value.ty != ty
+                    && !(value.ty == ResolvedType::Null && ty.nullable_inner().is_some()))
+                || (value.ty != ResolvedType::Null
+                    && !matches!(
+                        &value.ty,
+                        ResolvedType::Scalar(_)
+                            | ResolvedType::Nullable(_)
+                            | ResolvedType::Enum { .. }
+                    ))
+            {
+                return None;
+            }
+            values.push((name.clone(), self.expression(value)?));
+        }
+        Some(PublicCompletionExpression {
+            ty: input.ty.clone(),
+            span: input.span,
+            value: PublicCompletionValue::Object(values),
+        })
+    }
+
     fn envelope_type<'a>(&'a self, expr: &TypedExpr) -> Option<&'a ResolvedType> {
         match &expr.expr {
             IrExpr::Name(name) if name == "event" && !self.locals.contains_key(name) => {
@@ -3128,8 +3285,13 @@ impl PublicCompletionProfile<'_> {
             IrExpr::Member { base, field } => {
                 let ty = self.envelope_type(base)?;
                 let ty = ty.nullable_inner().unwrap_or(ty);
-                let ResolvedType::Object(fields) = ty else {
-                    return None;
+                // Standard nominal results (PaymentState, EmailAccepted,
+                // ...) expose the same checked leaf table as envelope
+                // objects; anything else stays unadmitted.
+                let fields = match ty {
+                    ResolvedType::Object(fields) => fields,
+                    ResolvedType::StdNominal { fields, .. } => fields,
+                    _ => return None,
                 };
                 fields
                     .iter()
@@ -3176,9 +3338,28 @@ impl PublicCompletionProfile<'_> {
                 PublicCompletionValue::Bool(*value)
             }
             IrExpr::Null if expr.ty == ResolvedType::Null => PublicCompletionValue::Null,
+            IrExpr::Array(items) => PublicCompletionValue::Array(
+                items
+                    .iter()
+                    .map(|item| self.expression(item))
+                    .collect::<Option<Vec<_>>>()?,
+            ),
+            IrExpr::Object(entries) => PublicCompletionValue::Object(
+                entries
+                    .iter()
+                    .map(|(name, value)| Some((name.clone(), self.expression(value)?)))
+                    .collect::<Option<Vec<_>>>()?,
+            ),
             IrExpr::Name(name)
                 if self.locals.get(name) == Some(&expr.ty)
                     || self.envelope_type(expr).is_some()
+                    || self.row_binding(name).is_some_and(|model| {
+                        expr.ty
+                            == (ResolvedType::Record {
+                                symbol: model,
+                                stored: true,
+                            })
+                    })
                     || matches!(&expr.ty, ResolvedType::Enum { cases, .. } if cases.contains(name)) =>
             {
                 PublicCompletionValue::Name(name.clone())
@@ -3188,6 +3369,9 @@ impl PublicCompletionProfile<'_> {
                     Box::new(self.expression_node(base, true)?),
                     field.clone(),
                 )
+            }
+            IrExpr::Member { base, field } if self.row_leaf(base, field) == Some(&expr.ty) => {
+                PublicCompletionValue::Member(Box::new(self.expression(base)?), field.clone())
             }
             IrExpr::Binary { op, left, right } => {
                 let null_test = (left.ty == ResolvedType::Null
@@ -3218,6 +3402,10 @@ impl PublicCompletionProfile<'_> {
                         expr.ty == ResolvedType::Scalar(Scalar::Int)
                             && left.ty == expr.ty
                             && right.ty == expr.ty
+                    }
+                    IrBinOp::In => {
+                        expr.ty == ResolvedType::Scalar(Scalar::Bool)
+                            && matches!(&right.expr, IrExpr::Array(_))
                     }
                     _ => false,
                 };
@@ -3327,32 +3515,168 @@ impl PublicCompletionProfile<'_> {
                     when: None,
                     span,
                 } => {
-                    let cohort = self.cohort?;
                     let IrExpr::Name(name) = &record.expr else {
                         return None;
                     };
-                    if cohort.bind.as_ref() != Some(name)
-                        || self.locals.contains_key(name)
-                        || record.ty
-                            != (ResolvedType::Record {
-                                symbol: cohort.model,
-                                stored: true,
-                            })
-                    {
+                    if self.locals.contains_key(name) {
                         return None;
                     }
-                    let model = self.ir.items.get(cohort.model.0 as usize)?;
-                    self.model(&model.canonical)?;
                     let record_snapshot = PublicCompletionExpression {
                         ty: record.ty.clone(),
                         span: record.span,
                         value: PublicCompletionValue::Name(name.clone()),
                     };
-                    PublicCompletionStatement::Set(
-                        record_snapshot,
-                        self.input(cohort.model, changes)?,
-                        *span,
-                    )
+                    if let Some(cohort) = self.cohort {
+                        if cohort.bind.as_ref() != Some(name)
+                            || record.ty
+                                != (ResolvedType::Record {
+                                    symbol: cohort.model,
+                                    stored: true,
+                                })
+                        {
+                            return None;
+                        }
+                        let model = self.ir.items.get(cohort.model.0 as usize)?;
+                        self.model(&model.canonical)?;
+                        PublicCompletionStatement::Set(
+                            record_snapshot,
+                            self.input(cohort.model, changes)?,
+                            *span,
+                        )
+                    } else {
+                        // Non-cohort write to a `for`-bound stored row.
+                        let model = self.row_binding(name)?;
+                        if record.ty
+                            != (ResolvedType::Record {
+                                symbol: model,
+                                stored: true,
+                            })
+                        {
+                            return None;
+                        }
+                        PublicCompletionStatement::Set(
+                            record_snapshot,
+                            self.row_input(model, changes)?,
+                            *span,
+                        )
+                    }
+                }
+                IrStmt::If {
+                    cond,
+                    then_branch,
+                    else_branch,
+                    span,
+                } if cond.ty == ResolvedType::Scalar(Scalar::Bool) => {
+                    let cond_snapshot = self.expression(cond)?;
+                    // Branch bindings stay branch-local.
+                    let saved_locals = self.locals.clone();
+                    let saved_rows = self.rows.clone();
+                    let then_body = self.statements(then_branch)?;
+                    self.locals = saved_locals.clone();
+                    self.rows = saved_rows.clone();
+                    let else_body = self.statements(else_branch)?;
+                    self.locals = saved_locals;
+                    self.rows = saved_rows;
+                    PublicCompletionStatement::If(cond_snapshot, then_body, else_body, *span)
+                }
+                IrStmt::For {
+                    item,
+                    domain,
+                    limit,
+                    body,
+                    span,
+                } => {
+                    // Bounded delivery-correlation query: one stored-model
+                    // scan with a checked event-correlated predicate and a
+                    // fail-closed `limit=1`.
+                    if item == "event"
+                        || self.locals.contains_key(item)
+                        || self.rows.contains_key(item)
+                    {
+                        return None;
+                    }
+                    let Some(limit) = limit else {
+                        return None;
+                    };
+                    if !matches!(&limit.expr, IrExpr::Int(1)) {
+                        return None;
+                    }
+                    let IrExpr::Query(query) = &domain.expr else {
+                        return None;
+                    };
+                    if query.source.is_none()
+                        || query.collection_call.is_some()
+                        || query.contract_collection_call.is_some()
+                        || query.parent.is_some()
+                        || query.select.is_some()
+                        || !query.order.is_empty()
+                        || query.value_order.is_some()
+                        || query.archived.is_some()
+                        || query.limit.is_some()
+                        || query.where_async
+                    {
+                        return None;
+                    }
+                    let IrQueryDomain::Model(canonical) = &query.domain else {
+                        return None;
+                    };
+                    // Resolve the stored model without the all-scalar
+                    // gate: only the correlated leaves are witnessed.
+                    let model = self
+                        .ir
+                        .items
+                        .iter()
+                        .find(|item| item.canonical == *canonical && item.module == self.module)
+                        .filter(|item| matches!(item.kind, IrItemKind::Model { .. }))?
+                        .id;
+                    if query.where_param == "event"
+                        || self.locals.contains_key(&query.where_param)
+                        || self.rows.contains_key(&query.where_param)
+                    {
+                        return None;
+                    }
+                    let Some(pred) = &query.where_pred else {
+                        return None;
+                    };
+                    self.rows.insert(item.clone(), model);
+                    self.rows.insert(query.where_param.clone(), model);
+                    let pred_snapshot = self.expression(pred)?;
+                    if !Self::mentions_event(&pred_snapshot) {
+                        return None;
+                    }
+                    let body_snapshots = self.statements(body)?;
+                    self.rows.remove(item);
+                    self.rows.remove(&query.where_param);
+                    PublicCompletionStatement::For {
+                        item: item.clone(),
+                        model: canonical.clone(),
+                        pred: pred_snapshot,
+                        body: body_snapshots,
+                        span: *span,
+                    }
+                }
+                IrStmt::Emit {
+                    event,
+                    payload,
+                    span,
+                } => {
+                    // Typed completion-feed emissions only; the receipt
+                    // itself stays Lane C territory (reused, never rebuilt).
+                    let owner = self
+                        .ir
+                        .modules
+                        .iter()
+                        .find(|module| module.id == self.module)?;
+                    if *event != format!("{}.ProviderReceipt", owner.name)
+                        && *event != format!("{}.InvoiceSettlement", owner.name)
+                    {
+                        return None;
+                    }
+                    let payload_snapshot = self.expression(payload)?;
+                    if !matches!(payload_snapshot.value, PublicCompletionValue::Object(_)) {
+                        return None;
+                    }
+                    PublicCompletionStatement::Emit(event.clone(), payload_snapshot, *span)
                 }
                 _ => return None,
             };
@@ -3418,6 +3742,24 @@ impl PublicCompletionBody {
                 return None;
             };
             let completion = &fact.completion;
+            // Bounded public profile covers the standard terminal carriers:
+            // Email send plus the four PaymentsV1 terminal operations. The
+            // pinned (capability, op, result) triple must name the
+            // operation's declared contract result; the checker already
+            // enforces table correspondence, so a renamed result cannot
+            // ride the admission.
+            let terminal = matches!(
+                (
+                    completion.capability.as_str(),
+                    completion.op.as_str(),
+                    completion.result_type.as_str(),
+                ),
+                ("std.EmailV1", "send", "EmailAccepted")
+                    | ("std.PaymentsV1", "collect", "PaymentState")
+                    | ("std.PaymentsV1", "refund", "PaymentState")
+                    | ("std.PaymentsV1", "cancel", "PaymentState")
+                    | ("std.PaymentsV1", "reconcile", "PaymentState")
+            );
             if item.id != fact.id
                 || item.module != fact.module
                 || item.canonical != fact.canonical
@@ -3425,12 +3767,10 @@ impl PublicCompletionBody {
                 || !params.is_empty()
                 || !by.is_empty()
                 || *read
-                || completion.capability != "std.EmailV1"
-                || completion.op != "send"
-                || completion.result_type != "EmailAccepted"
+                || !terminal
                 || event != &completion.source
-                || canonical_operation != "std.EmailV1.send"
-                || result_type != "EmailAccepted"
+                || canonical_operation != &format!("{}.{}", completion.capability, completion.op)
+                || result_type != &completion.result_type
                 || completion.binding.as_ref() != Some(binding)
                 || completion.from.as_ref() != Some(from)
                 || cohort != &fact.cohort
@@ -3454,6 +3794,7 @@ impl PublicCompletionBody {
                 payload: &completion.payload,
                 cohort: cohort.as_ref(),
                 locals: HashMap::new(),
+                rows: HashMap::new(),
             };
             let guards = profile.statements(guards)?;
             let effects = profile.statements(effects)?;
@@ -4573,6 +4914,9 @@ impl<'a> Cx<'a> {
                     PublicCompletionStatement::Require(_, span) => (SyntaxKind::Require, *span),
                     PublicCompletionStatement::Create(_, _, _, span) => (SyntaxKind::Create, *span),
                     PublicCompletionStatement::Set(_, _, span) => (SyntaxKind::Set, *span),
+                    PublicCompletionStatement::If(_, _, _, span) => (SyntaxKind::If, *span),
+                    PublicCompletionStatement::For { span, .. } => (SyntaxKind::For, *span),
+                    PublicCompletionStatement::Emit(_, _, span) => (SyntaxKind::Emit, *span),
                 })
                 .collect();
             if authored != lowered {
