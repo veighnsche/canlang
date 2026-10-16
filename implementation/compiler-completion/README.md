@@ -7636,3 +7636,14 @@ parent-tree hook edits landed ~minutes AFTER the last consumer run — the
 frozen window was clean throughout. Parent now holds C22's uncommitted
 js.rs/hook_lowering/models/pipeline edits (same 4 files as C21's pattern);
 next frozen build waits for C22's release. Active lane: C22.
+
+**Coordinator intake, 2026-10-16 (C22 verified):**
+C22 (`4d99ed56d`, operation-derived staged identity) VERIFIED: hook_lowering
+21/21 incl. BOTH REVIEW-17 discriminators (distinct-hooks-same-update and
+create-then-update stage distinct children; same-hook repeat/replay intact),
+state contained-first 5/5, codegen back to 143 + 4 pre-existing. The transient
+5th codegen failure (module_members) was a missing whole state dist (deleted
+by an unknown actor after the last rebuild) — rebuilt owned dist, test green;
+environmental, not a source regression. No active lanes remain; original24
+frozen re-capture is next (exact saved argv + current catalog + frozen
+binary, single capture, no rebuild mid-run).
