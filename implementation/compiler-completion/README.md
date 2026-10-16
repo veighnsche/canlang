@@ -300,6 +300,14 @@ Helper-consumer proof landed in `5398f931` (Lane C12 commit
 change — new 3/3 block, full seam file 13/13 in parent, t16b 37/0
 unchanged. SCOPE-4 gate satisfied (stored reads + helper consumer through
 the real seam). E6008 removal now unblocked as a finite Lane-A slice.
+E6008 removed in `f516b976` (Lane A12 commit `43417bdf`): only the
+ir.rs authority-report refusal goes; all other E6008 uses stay;
+`scope_authority_reports` 9/9 asserts lowering + advertisement with
+undescribed-E3001/viewer-contrast negatives kept. Parent neighbors green:
+admission 4/4, outbound 13/13, boolean 8/8, cross-operation 18/18,
+stored-query 6/6, capability-event 2/2. Outcome 9 family E complete at
+implementation scope — full chain compiler→State→emission→seam→proof→
+trio removal closed (Codex review pending).
 
 Outcome 9 family A implemented in `55c969d2` (Lane A commit `fac7bd70`):
 45/64 handler profiles (`on=Cap.event`) lower through canonical
