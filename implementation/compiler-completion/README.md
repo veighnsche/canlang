@@ -7737,3 +7737,16 @@ output) + executable consumer proof; no save-dropping overload, no refusal
 retreat. B15's package-test ownership preserved (read-only harness reuse);
 C23 disjoint. Factory batch stays unmerged. Active lanes at cap 3: C23, B15,
 B16.
+
+**Human priority ACK, 2026-10-16 (end-to-end preference filter):**
+Human directs: fix the preference filter end to end with actual compiled Can,
+merge to main, then keep fixing original24 errors without stopping at
+fixtures/checkpoints. Existing B16/B15/C23 continue, no duplicates. NATIVE
+RECEIPT VERIFIED: B16's live log (2937 entries, fresh) shows it reproducing
+the exact TypeError from actual compiled source and planning codegen + UI
+contract changes across the preference save/CSRF path — already aligned with
+the end-to-end priority (emitted render → authorized versioned save →
+subsequent collection selection; success/denial/stale/CSRF/permission at
+scope). No redirect needed; missing local prerequisites to be implemented,
+never externalized. Merge ownership: Codex integrates to main at complete
+B16 handoff (coordinator does not push/merge). Main 47c897f1a clean.
