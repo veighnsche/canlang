@@ -7911,7 +7911,8 @@ impl<'a> Closure<'a> {
             || order.is_some_and(|order| {
                 order.kind != CheckedQueryClauseKind::Order || order.expressions.len() != 1
             })
-            || owner.module != scenario.module
+            || (owner.module != scenario.module
+                && !self.imported_query_source(scenario.module, &owner.canonical))
         {
             return None;
         }
@@ -8032,6 +8033,25 @@ impl<'a> Closure<'a> {
             }),
             count: None,
             influences,
+        })
+    }
+
+    /// A cross-package query domain must arrive through the consumer's
+    /// checked `use`: the owner canonical matches one imported provider
+    /// member exactly. Same-module domains keep their existing path;
+    /// aliasing never renames the source, so only the provider-side
+    /// spelling counts. Nothing else crosses modules here.
+    fn imported_query_source(&self, consumer: ModuleId, canonical: &str) -> bool {
+        let Some(module) = self.resolve.modules.get(consumer.0 as usize) else {
+            return false;
+        };
+        module.imports.iter().any(|import| {
+            import.members.iter().any(|member| {
+                import.provider.len() + 1 + member.name.len() == canonical.len()
+                    && canonical.starts_with(import.provider.as_str())
+                    && canonical.as_bytes().get(import.provider.len()) == Some(&b'.')
+                    && canonical[import.provider.len() + 1..] == member.name
+            })
         })
     }
 
