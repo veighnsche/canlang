@@ -3317,7 +3317,10 @@ fn collection_filter_props_are_valid(ir: &IrProgram, node: &IrUi) -> bool {
                         || matches!(&value.ty, ResolvedType::Nullable(inner) if inner.as_ref() == *expected)
                 }
                 _ if bool_default => bool_filter_default_shape(ir, value),
-                _ => false,
+                // B14: computed enum defaults mirror the bool shape
+                // above over owned enum spellings (see
+                // `enum_filter_default_shape`).
+                _ => enum_cases.is_some_and(|_| enum_filter_default_shape(ir, value, expected)),
             };
             if !valid {
                 return false;
@@ -3390,6 +3393,76 @@ fn bool_filter_derive_call(
                 )
         })
         && args.iter().all(|arg| bool_filter_default_shape(ir, arg))
+}
+
+/// B14: computed enum filter defaults over owned enum preference
+/// reads. The checked type does the work: every node must type as the
+/// filter's owned enum or its nullable form, every `preferences.*` leaf
+/// must read that enum, and every other node must be a pure value form
+/// (a `??` fallback over admitted reads or a checked derive-helper call
+/// returning the enum). Reads lower verbatim — cases are already
+/// spellings, and the host preparer refuses unknown spellings against
+/// the column inventory — so no sink coercion applies; anything else
+/// keeps the refusal in the caller.
+fn enum_filter_default_shape(ir: &IrProgram, value: &TypedExpr, expected: &ResolvedType) -> bool {
+    if !matches!(expected, ResolvedType::Enum { .. }) {
+        return false;
+    }
+    let typed = value.ty == *expected
+        || matches!(&value.ty, ResolvedType::Nullable(inner) if inner.as_ref() == expected);
+    if !typed {
+        return false;
+    }
+    match &value.expr {
+        IrExpr::Member { base, .. } if matches!(&base.expr, IrExpr::Name(name) if name == "preferences") => {
+            true
+        }
+        IrExpr::Binary { left, right, .. } => {
+            enum_filter_default_shape(ir, left, expected)
+                && enum_filter_default_shape(ir, right, expected)
+        }
+        IrExpr::Call { target, args } => enum_filter_derive_call(ir, target, args, value, expected),
+        IrExpr::BoundCall {
+            target,
+            args,
+            slots,
+        } => {
+            slots.iter().all(|slot| slot.is_some())
+                && enum_filter_derive_call(ir, target, args, value, expected)
+        }
+        _ => false,
+    }
+}
+
+/// A derive-helper call returning the filter's owned enum (or its
+/// nullable form) over admitted arguments. The target must resolve to a
+/// checked derive function returning that type; visibility was already
+/// scoped by checking.
+fn enum_filter_derive_call(
+    ir: &IrProgram,
+    target: &IrCallTarget,
+    args: &[TypedExpr],
+    value: &TypedExpr,
+    expected: &ResolvedType,
+) -> bool {
+    let IrCallTarget::DeriveFn(canonical) = target else {
+        return false;
+    };
+    (value.ty == *expected
+        || matches!(&value.ty, ResolvedType::Nullable(inner) if inner.as_ref() == expected))
+        && ir.items.iter().any(|item| {
+            item.canonical.as_str() == canonical.as_str()
+                && matches!(
+                    &item.kind,
+                    IrItemKind::DeriveFn {
+                        result: IrType::Known(ty),
+                        ..
+                    } if ty == &value.ty
+                )
+        })
+        && args
+            .iter()
+            .all(|arg| enum_filter_default_shape(ir, arg, expected))
 }
 
 /// Writable selector controls currently admitted by the source lowering.
