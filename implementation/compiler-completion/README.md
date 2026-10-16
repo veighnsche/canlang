@@ -51,6 +51,21 @@ exact `rule_failed` with no added trigger, TRUE revocation (membership
 removed) `forbidden` with no new rows; prior stranger-only check retained
 as-is, not as revocation proof. No production repair needed.
 
+### Accepted C2 text-equality rule (merge38) — 2026-10-17
+
+Main integrates `84984151`: DESIGN 975 settles text equality (`eq` with
+ordinary equality, typed controls, null = no restriction), not date
+selectors — 8 existing text controls connected through the architecture's
+standard layers with request/default/clear precedence and typed predicate
+values (no truthiness, no implicit conversion). Validation on frozen main
+producer `982e9eda` + native catalog `ca50`: text page 3/3 + collection 3/3
++ UI 2/2, enum 48/48, bool 27/27, pins 8/8, presentation 37/37 + 25/25.
+Intake repaired the dependency environment (restored lock-pinned
+@types/node symlink layout after a self-loop destroyed it) and 6
+pre-existing test-only tuple annotations blocking tsc emit (proven on the
+pre-C2 tree; runtime-identical). Date selectors stay refused with exact
+reasoning; no JEV needed.
+
 ### Accepted filter-remainder pins (merge35) — 2026-10-17
 
 Main integrates `0bcfab3b0` (test-only): all 36 remaining filter diagnostics
