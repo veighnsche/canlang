@@ -24,6 +24,18 @@ session/admission remain local implementation work. Hook guards and ordinary val
 authority; missing parent-read implementation is not a new value-use prohibition. Exact17/18 external/policy holds remain unchanged. Continue ready work
 through these checkpoints; do not mark the overall goal complete.
 
+### Accepted first-query slice D (merge37) — 2026-10-17 (compiler half)
+
+Main integrates `ed672197e`: compiler admission for unscoped Text-equality
+id-ordered same-model whole-row idempotent replay (CanPurchase `receive` /
+`return_goods` shape); 2-cond, event operands, non-id order, contained,
+no-predicate, absence-requires, direct returns stay refused. Validation:
+native_first_replay 4/4, native_first_query 17/17. OPEN runtime half:
+model-returning first-query invocation hits the pre-existing frame gap
+("Query helper requires its active framework context"); State/Cloudflare
+files untouched — branched model-result frame lifetimes are the named next
+prerequisite, not a silent pass.
+
 ### Accepted helper-reuse repair (merge36) — 2026-10-17
 
 Main integrates `5898e5ae2`: hook helper variants are per-use — the same
