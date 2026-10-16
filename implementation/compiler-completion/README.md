@@ -262,6 +262,11 @@ call-references 5/5 green. Lease verified: C10 touched only its two
 files; C9's State commit touches only `packages/state/*` — no overlap.
 Outcome 5 implemented at probe scope (Codex review pending). Exemplary
 ownership: no production files touched outside the lane.
+Codex MAIN-2 (bounded acceptance): REVIEW-8 resolutions accepted at slice
+scope; canonical main `af52825f` merges this run through `80f29102`
+(compiler/packages exact, installer docs preserved, 10 new paths
+reconciled). Refusal trio correctly remains until joined host+compiler
+acceptance; no whole outcome-9/14 claim.
 
 Outcome 9 family A implemented in `55c969d2` (Lane A commit `fac7bd70`):
 45/64 handler profiles (`on=Cap.event`) lower through canonical
