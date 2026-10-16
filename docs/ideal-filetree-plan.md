@@ -112,6 +112,10 @@ Scope-2 per-fire caller value projection + record-helper parent reads: granted p
 
 Board/calendar model-reference filter C1 rule: reference equality controls with source-first failure order, opaque identity rendering; 44 frozen diags fixed, 0 regressions. Incoming interval `2c36843f..HEAD` accounts for 15 changed paths in `can18_merge_27_20261016` of the existing registry. reference consumer 1/1, E5 consumers 2/2, joint 12/12, State 14/14, enum 40/40, bool 27/27, hook_lowering 26/26 on frozen db864475/ca50. Existing defining owners and target allocations remain; focused new tests stay with Compiler. Reuse prior accumulated coverage; complete checkpoint remains unchanged. Original24 and required executable consumers remain open. Unfinished work stays in the running Muse checkout.
 
+### CAN18 incremental integration — can18_merge_28_20261016
+
+Board row/card binding + renderRow slot with sequential failure order; covers evidence481 + checklist updates since merge27. Incoming interval `329fe779..HEAD` accounts for 10 changed paths in `can18_merge_28_20261016` of the existing registry. row-children 1/1, reference 1/1, joint 12/12, UI 128/128 on frozen 729d7f41/ca50. Existing defining owners and target allocations remain; focused new tests stay with Compiler. Reuse prior accumulated coverage; complete checkpoint remains unchanged. Original24 and required executable consumers remain open. Unfinished work stays in the running Muse checkout.
+
 ### Specification and installer documentation merge — 2026-10-15
 
 Merge installer commit `02470b74` into canonical `main` at `a70921e3`.

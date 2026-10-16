@@ -73933,5 +73933,68 @@
     "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
     "checkpoint_advanced": false,
     "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
+  },
+  "can18_merge_28_20261016": {
+    "incremental_base": "329fe779f61503101b2bd64f186f2c0ec21ed2f6",
+    "incoming_end": "2b5f27ee50108ab29a7ebfd7d5dd02f583f23b85",
+    "retained_coverage": "reuse spec_installer_merge_reconciliation_20261015 and preceding CAN18 incremental merge entries; inherited complete checkpoint unchanged",
+    "changed_path_count": 10,
+    "rows": [
+      [
+        "compiler/src/analysis/types.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/src/codegen/ir.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/bgi0910_then.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/enum_filter_group.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "evidence/original24-main-20261016.json",
+        "existing owner",
+        "retain current allocation"
+      ],
+      [
+        "implementation/compiler-completion/README.md",
+        "Compiler completion",
+        "existing finite execution record"
+      ],
+      [
+        "packages/cloudflare/src/runtime/board-row-children.test.ts",
+        "cloudflare",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/contracts/src/presentation.ts",
+        "contracts",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/ui/src/collections.ts",
+        "ui",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/ui/test/collections.test.ts",
+        "ui",
+        "existing package source/test owner"
+      ]
+    ],
+    "choice": "Board row/card binding + renderRow slot with sequential failure order; covers evidence481 + checklist updates since merge27.",
+    "validation": "row-children 1/1, reference 1/1, joint 12/12, UI 128/128 on frozen 729d7f41/ca50.",
+    "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
+    "checkpoint_advanced": false,
+    "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
   }
 }
