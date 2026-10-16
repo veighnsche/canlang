@@ -222,6 +222,15 @@ failures kept. `boolean_operation_admission` 8/8 plus outbound/ui-adapter
 neighbors green in parent. Native policy receiving remains for Codex
 behavioral review. Codex review pending.
 
+Outcome 5 probes in `967d95af` (Lane B5 test-only commit `f6eb5bde`):
+three ignored red probes (cross-package import first, imported-helper
+guard first, archived-include first; green by default, red under
+`--ignored`). Localized without scope violation: import slice declines in
+`checked_first_query_source` (owner.module gate, Lane C disclosure);
+archive slice is plan-guard/receipt/emitter/runtime join (Lane C runtime).
+Outcome 5 stays OPEN pending those Lane C repairs. Exemplary ownership:
+no production files touched outside the lane.
+
 Outcome 9 family A implemented in `55c969d2` (Lane A commit `fac7bd70`):
 45/64 handler profiles (`on=Cap.event`) lower through canonical
 invocation (1-arm `HandlerSource::CapabilityEvent` → `Declared` mapping,
