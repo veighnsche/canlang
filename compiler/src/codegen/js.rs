@@ -6065,10 +6065,10 @@ impl<'a> Emitter<'a> {
                     );
                     return self.throw_expr("unproven callback diagnostics");
                 }
-                if self.in_hook() {
+                if self.in_hook() && !self.hook_native() {
                     return self.hook_gap(
                         "hook delivery read",
-                        "delivery reads need the ambient context, which hooks do not receive",
+                        "delivery reads need the ambient context, which legacy hooks do not receive",
                         span,
                     );
                 }
@@ -6131,10 +6131,10 @@ impl<'a> Emitter<'a> {
                 locale_index,
                 schemas,
             } => {
-                if self.in_hook() {
+                if self.in_hook() && !self.hook_native() {
                     return self.hook_gap(
                         "hook message format",
-                        "message formatting needs the ambient context, which hooks do not receive",
+                        "message formatting needs the ambient context, which legacy hooks do not receive",
                         span,
                     );
                 }
