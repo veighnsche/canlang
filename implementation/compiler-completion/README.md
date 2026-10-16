@@ -262,6 +262,26 @@ call-references 5/5 green. Lease verified: C10 touched only its two
 files; C9's State commit touches only `packages/state/*` — no overlap.
 Outcome 5 implemented at probe scope (Codex review pending). Exemplary
 ownership: no production files touched outside the lane.
+Codex MAIN-2 (bounded acceptance): REVIEW-8 resolutions accepted at slice
+scope; canonical main `af52825f` merges this run through `80f29102`
+(compiler/packages exact, installer docs preserved, 10 new paths
+reconciled). Refusal trio correctly remains until joined host+compiler
+acceptance; no whole outcome-9/14 claim.
+
+Lane-A emission half in `dd974a84` (Lane A commits `a9e41c6e` probe +
+`d2cefc49` implementation): throwing authority stub removed, real
+decision-mode bodies lower via the shared path with a narrow
+authority_body flag (helper calls route to decision variants only where
+dual-emitted; viewer output untouched); MCP omission removed so grants
+advertise with DESIGN-522 description + typed result; E6008 kept naming
+the pending host-seam boundary. Parent: `scope_authority_reports` 9/9,
+`syntax` 61/62 (single failure is the recorded pre-existing legacy-E1211
+golden `contributions.can`, unrelated to authority emission), `codegen`
+143 pass + the same 4 residuals proven pre-existing by a pre-change
+`e258c07c` control (same 4 fail without these commits; control-only extra
+failures are its missing draft/dists), ordinary emission byte-identical
+base-vs-after. E6008 + host seam still pending Lane C11; outcome 9 stays
+OPEN.
 
 Outcome 9 family A implemented in `55c969d2` (Lane A commit `fac7bd70`):
 45/64 handler profiles (`on=Cap.event`) lower through canonical
