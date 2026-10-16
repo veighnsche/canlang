@@ -317,6 +317,17 @@ fixture (stored read + local/imported helper, authority report + ordinary
 viewer) compiled with the real native catalog, real emitted assembly
 through invokeReadCanonical (grant output, viewer filtered/refusal,
 denied-by, mismatch/revocation). Outcome 9 family E stays OPEN.
+Human USER-COMPILED-1 reinforces C13 (no duplicate worker): fix both gaps
+with actual compiled Can source, no hand-reconstructed artifacts as
+language proof; handwritten adapter tests stay at bounded adapter scope
+only. After fix release, validate with the exact saved original24 argv
+(`/private/tmp/cancrm-helper-invariants-card-20261015-argv.json` +
+compile.json: 24 authored paths present, sha256 identical; 26 consumed
+records incl. 2 virtual can.generated via source-owned contributions),
+matching current native catalog/runtime and recording the catalog
+distinction vs the old Values baseline; freeze the consumed closure, reuse
+unchanged evidence. Real source compilation failures route to the
+compiler owner, never synthetic-JS evasion.
 
 Outcome 9 family A implemented in `55c969d2` (Lane A commit `fac7bd70`):
 45/64 handler profiles (`on=Cap.event`) lower through canonical
