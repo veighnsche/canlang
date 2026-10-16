@@ -24,6 +24,16 @@ session/admission remain local implementation work. Hook guards and ordinary val
 authority; missing parent-read implementation is not a new value-use prohibition. Exact17/18 external/policy holds remain unchanged. Continue ready work
 through these checkpoints; do not mark the overall goal complete.
 
+### Accepted HOOKREM refusal pins (merge31) — 2026-10-16
+
+Main integrates `4b6632777` (test-only): 0 of the 11 hook-remainder spans are
+covered by accepted DESIGN 434/442 — parent chains end in stored-reference
+hops outside containment, reference traversals are non-ancestry by
+construction, no staged-content loader exists. All stay loudly refused,
+pinned with exact missing prerequisites; the covered depth-1 prefix still
+lowers via `transitive.load`. Validation: hook_hookrem 7/7, hook_lowering
+26/26. Zero production changes.
+
 ### Accepted Employees seal batch (merge30) — 2026-10-16
 
 Main integrates `93a4fe604`: the four original `active_member` E6008 cleared
