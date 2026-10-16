@@ -2680,6 +2680,10 @@ fn emit_program_with_sources(
     emitter.emit_app_definition(&mut body, entry_id);
     emitter.emit_derive_fns(&mut body);
     emitter.emit_can_app(&mut body, entry_id, &operations, local_policies.as_ref());
+    // Hook-variant definitions come after the hooks registry that selects
+    // them (see `emit_hook_variants`): hook bodies lower inside
+    // `emit_can_app`, so only now is the selected set complete.
+    emitter.emit_hook_variants(&mut body);
     emitter.emit_equality_schema(&mut body, entry_span);
     let mut out = JsWriter::new();
     out.push(
@@ -3968,6 +3972,13 @@ pub struct Emitter<'a> {
     relative: BTreeMap<String, BTreeSet<String>>,
     /// Checked derive calls used by this emitter; example modules link them to their real owner.
     derive_calls: BTreeSet<String>,
+    /// Derive canonicals actually selected for hook-variant calls (a hook
+    /// linkage call site, or a nested linkage call inside another selected
+    /// hook-variant body, resolved to the `Hook` shape). Only these lower
+    /// an `h$…` variant: emitting a variant for every stored-record derive
+    /// would lower hook-only restrictions over ordinary helpers no hook
+    /// ever calls, reporting `E6008` at previously-clean sites.
+    hook_variant_selected: BTreeSet<String>,
     diags: Vec<Diagnostic>,
     builtins: Vec<ReferencedBuiltin>,
     callables: Vec<JsCallable>,
@@ -4208,6 +4219,7 @@ impl<'a> Emitter<'a> {
             original_ui_rows: Vec::new(),
             relative: BTreeMap::new(),
             derive_calls: BTreeSet::new(),
+            hook_variant_selected: BTreeSet::new(),
             diags: Vec::new(),
             builtins: Vec::new(),
             callables: Vec::new(),
@@ -8119,6 +8131,7 @@ impl<'a> Emitter<'a> {
                     }
                     HookDerive::Hook((variant, site)) => {
                         self.derive_calls.insert(canonical.clone());
+                        self.hook_variant_selected.insert(canonical.clone());
                         let mut all = vec!["c".to_string(), site];
                         all.extend(parts.iter().cloned());
                         return format!(
@@ -17565,66 +17578,95 @@ impl<'a> Emitter<'a> {
                 self.boolean_body = false;
                 self.boolean_helper = false;
             }
-            // Hook-variant dual emission: a derive carrying a
-            // stored-record parameter also lowers `h$…(c,$hookSite,…params)`
-            // for hook call sites with linkage arguments. Linkage reads go
-            // through `c.transitive` at the inherited site (helpers inherit
-            // the consuming decision/value site); everything else lowers
-            // exactly like the pure variant. Module-internal (hook call
-            // sites share the scope), so never exported.
-            if let IrItemKind::DeriveFn {
-                params: hook_params,
-                expr: Some(hook_body),
-                ..
-            } = &item.kind.clone()
-            {
-                if self.derive_hook_variant(&item.canonical).is_some() {
-                    let name = binding_ident("hook", &item.canonical);
-                    self.enter_scope();
-                    let mut signature = vec!["c".to_string(), "$hookSite".to_string()];
-                    let mut links = HashMap::new();
-                    for id in hook_params {
-                        let source = self.ir.items[id.0 as usize].name.clone();
-                        signature.push(self.bind(&source));
-                        if let Some((_, symbol, canonical)) = self.derive_hook_link(*id) {
-                            links.insert(source, (symbol, canonical));
-                        }
-                    }
-                    let mut defaults = String::new();
-                    for (id, bound) in hook_params.iter().zip(signature.iter().skip(2)) {
-                        if let IrItemKind::Param {
-                            default: Some(default),
-                            ..
-                        } = &self.ir.items[id.0 as usize].kind.clone()
-                        {
-                            let value = match default {
-                                IrDefault::Literal(expr) | IrDefault::Computed { expr, .. } => {
-                                    self.lower_business_expr(
-                                        expr,
-                                        "formatted derive parameter default",
-                                    )
-                                }
-                            };
-                            defaults.push_str(&format!(
-                                "if({bound}===undefined){{{bound}={value};}}"
-                            ));
-                        }
-                    }
-                    let prior = self.hook_helper_links.replace(links);
-                    let body_text = self.lower_expr(hook_body);
-                    self.hook_helper_links = prior;
-                    out.push(
-                        item.span,
-                        Some(item.canonical.clone()),
-                        &format!(
-                            "async function {name}({}){{{defaults}return {body_text};}}",
-                            signature.join(",")
-                        ),
-                    );
-                    self.exit_scope();
-                }
+        }
+    }
+
+    /// Selected hook-variant emission: only derives actually selected by a
+    /// hook linkage call site lower `h$…(c,$hookSite,…params)`. This runs
+    /// after [`Emitter::emit_can_app`] because hook bodies (the selecting
+    /// call sites) lower inside the hooks registry there, not during page
+    /// lowering. The worklist then runs to a fixpoint in source order:
+    /// nested selections discovered while emitting variants (transitive
+    /// required callees) emit exactly once, and ordinary record helpers no
+    /// hook calls keep only their pure variant with zero hook diagnostics.
+    /// Linkage reads go through `c.transitive` at the inherited site
+    /// (helpers inherit the consuming decision/value site); everything
+    /// else lowers exactly like the pure variant. Module-internal (hook
+    /// call sites share the scope), so never exported. Top-level function
+    /// declarations hoist, so definitions here resolve the earlier hook
+    /// call sites exactly as when they were interleaved.
+    fn emit_hook_variants(&mut self, out: &mut JsWriter) {
+        let mut hook_emitted: BTreeSet<String> = BTreeSet::new();
+        loop {
+            let next = self.ir.items.iter().position(|item| {
+                matches!(&item.kind, IrItemKind::DeriveFn { .. })
+                    && self.hook_variant_selected.contains(&item.canonical)
+                    && !hook_emitted.contains(&item.canonical)
+            });
+            let Some(index) = next else {
+                break;
+            };
+            hook_emitted.insert(self.ir.items[index].canonical.clone());
+            self.emit_hook_variant(out, index);
+        }
+    }
+
+    /// One selected hook-variant body (`h$…(c,$hookSite,…params)` for the
+    /// derive at `index`). Selection and emission share the linkage set
+    /// exactly, so an emitted variant always carries the linkage set its
+    /// call sites selected.
+    fn emit_hook_variant(&mut self, out: &mut JsWriter, index: usize) {
+        let item = &self.ir.items[index];
+        let (span, canonical) = (item.span, item.canonical.clone());
+        let IrItemKind::DeriveFn {
+            params: hook_params,
+            expr: Some(hook_body),
+            ..
+        } = &item.kind.clone()
+        else {
+            return;
+        };
+        if self.derive_hook_variant(&canonical).is_none() {
+            return;
+        }
+        let name = binding_ident("hook", &canonical);
+        self.enter_scope();
+        let mut signature = vec!["c".to_string(), "$hookSite".to_string()];
+        let mut links = HashMap::new();
+        for id in hook_params {
+            let source = self.ir.items[id.0 as usize].name.clone();
+            signature.push(self.bind(&source));
+            if let Some((_, symbol, canonical)) = self.derive_hook_link(*id) {
+                links.insert(source, (symbol, canonical));
             }
         }
+        let mut defaults = String::new();
+        for (id, bound) in hook_params.iter().zip(signature.iter().skip(2)) {
+            if let IrItemKind::Param {
+                default: Some(default),
+                ..
+            } = &self.ir.items[id.0 as usize].kind.clone()
+            {
+                let value = match default {
+                    IrDefault::Literal(expr) | IrDefault::Computed { expr, .. } => {
+                        self.lower_business_expr(expr, "formatted derive parameter default")
+                    }
+                };
+                defaults.push_str(&format!("if({bound}===undefined){{{bound}={value};}}"));
+            }
+        }
+        let prior = self.hook_helper_links.replace(links);
+        let body_text = self.lower_expr(hook_body);
+        self.hook_helper_links = prior;
+        out.push(
+            span,
+            Some(canonical),
+            &format!(
+                "async function {name}({}){{{defaults}return {body_text};}}",
+                signature.join(",")
+            ),
+        );
+        self.exit_scope();
     }
 
     fn emit_handler_fns(&mut self, out: &mut JsWriter) {
