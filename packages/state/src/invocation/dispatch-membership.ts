@@ -6,7 +6,7 @@ import { isUserRef, type UserRef } from '@canlang/values';
 import { StateError } from '../errors.js';
 import type { MembershipReader } from '../policy/roles.js';
 import type { GeneratedOperationDef } from './registry.js';
-import { assertScenarioReceiptMembershipSource, readScenarioCurrentMembership } from './scenario-receipt.js';
+import { assertScenarioReceiptDispatchMembershipSource, readScenarioCurrentMembership } from './scenario-receipt.js';
 import { checkScenarioReceiptMembershipSites, type ScenarioReceiptMembershipSite } from './scenario-membership-plan.js';
 import { stableStringify } from './replay.js';
 
@@ -81,7 +81,7 @@ export function bindScenarioDispatchMembershipProducer<E extends object>(def: Ge
   object(ports, ['source', 'app', 'predicate', 'sites', 'store', 'memberships', 'readExecution', 'registerRevalidation', 'admit', 'capture']);
   const source = object(ports.source, ['path', 'sha256', 'module']);
   const ownedSource = Object.freeze({ path: text(source.path), sha256: text(source.sha256), module: text(source.module) });
-  assertScenarioReceiptMembershipSource(def, ownedSource);
+  assertScenarioReceiptDispatchMembershipSource(def, ownedSource);
   text(ports.app); const predicate = text(ports.predicate);
   const bindings = boundDefinitions.get(def) ?? { predicates: new Set<string>(), occurrences: new Set<string>() };
   if (bindings.predicates.has(predicate) || bindings.predicates.size >= 200) return fail('one bounded owning binding per dispatch predicate required.');
