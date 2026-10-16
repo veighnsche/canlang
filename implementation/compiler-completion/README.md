@@ -85,11 +85,13 @@ refusals clear. All24 authored source hashes remain unchanged. The existing
 evidence file is updated in place; the prior361 result remains in Git history.
 The composition is still not ready.
 
-Native ownership `dca00d411` passed its independent compiled battery8/8 but stays
-out of main pending the demonstrated private guard decision-authority repair
-(REVIEW23). Guard-only private reads must inherit their consuming decision site;
-ordinary viewer/value-copy permissions remain unchanged. This is ready local
-implementation, not an external hold. Remaining original groups continue.
+Native ownership `dca00d411` plus the REVIEW23 decision repair `5467b9ed8` are
+now integrated on canonical main `a69d9033c0` (merge21). Guard-only and
+presence-only private reads in the confined hook slice inherit their consuming
+decision site through per-execution issued-ID decision policies; ordinary
+viewer/value-copy permissions are unchanged, and unmarked shapes keep viewer
+behavior. Retained regression: 6 private stored/presence tests (granted,
+unapproved, empty, foreign-scope, unused-let) alongside the 8-test battery.
 
 ### Original24 qualification after the two main batches — 2026-10-16
 
