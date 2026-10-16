@@ -17504,6 +17504,150 @@ impl<'a> Cx<'a> {
         ))
     }
 
+    /// B11: own one nullable bool preference leaf behind a computed
+    /// filter default. The leaf must name an owned bool preference field
+    /// of this module whose checked read type is exactly nullable bool;
+    /// non-nullable reads are refused here (their saved spelling has no
+    /// reader decoding, so they must not enter operator positions).
+    fn owned_nullable_bool_preference(
+        &self,
+        scope: &Scope,
+        field: &str,
+        ty: &ResolvedType,
+    ) -> Option<(SymbolId, SymbolId)> {
+        let ResolvedType::Nullable(inner) = ty else {
+            return None;
+        };
+        if inner.as_ref() != &ResolvedType::Scalar(Scalar::Bool) {
+            return None;
+        }
+        let found = self.program.symbols.iter().find(|symbol| {
+            symbol.name.as_str() == field
+                && symbol.module == scope.module
+                && matches!(&symbol.kind, SymbolKind::Field { owner, .. }
+                    if self.program.symbols.get(owner.0 as usize).is_some_and(|item| {
+                        item.module == scope.module
+                            && matches!(&item.kind, SymbolKind::Preferences { fields } if fields.contains(&symbol.id))
+                    }))
+        })?;
+        if self.program.types.symbol_types.get(&found.id) != Some(ty) {
+            return None;
+        }
+        let SymbolKind::Field { owner, .. } = &found.kind else {
+            return None;
+        };
+        Some((found.id, *owner))
+    }
+
+    /// B11: admit one direct nullable bool preference read inside a
+    /// computed default, collecting its owned leaf. Pushes only on full
+    /// success.
+    fn bool_default_leaf(
+        &self,
+        scope: &Scope,
+        expr: &TypedExpr,
+        out: &mut Vec<(SymbolId, SymbolId)>,
+    ) -> bool {
+        let IrExpr::Member { base, field } = &expr.expr else {
+            return false;
+        };
+        if !matches!(&base.expr, IrExpr::Name(name) if name == "preferences") {
+            return false;
+        }
+        let Some(leaf) = self.owned_nullable_bool_preference(scope, field, &expr.ty) else {
+            return false;
+        };
+        out.push(leaf);
+        true
+    }
+
+    /// B11: admit one already-boolean operand inside a computed default:
+    /// a bool literal or a nested computed shape. Bare preference reads
+    /// never appear here (only the reader decodes).
+    fn bool_default_operand(
+        &self,
+        scope: &Scope,
+        expr: &TypedExpr,
+        out: &mut Vec<(SymbolId, SymbolId)>,
+    ) -> bool {
+        match &expr.expr {
+            IrExpr::Bool(_) => expr.ty == ResolvedType::Scalar(Scalar::Bool),
+            IrExpr::Binary { .. }
+            | IrExpr::Unary { .. }
+            | IrExpr::Call { .. }
+            | IrExpr::BoundCall { .. } => self.collect_bool_default_leaves(scope, expr, out),
+            _ => false,
+        }
+    }
+
+    /// B11: admit one derive-helper call returning bool over admitted
+    /// arguments. The target must resolve to a checked derive function;
+    /// call-site visibility was already scoped by checking, so imported
+    /// and local helpers agree here.
+    fn bool_default_call(
+        &self,
+        scope: &Scope,
+        target: &IrCallTarget,
+        args: &[TypedExpr],
+        expr: &TypedExpr,
+        out: &mut Vec<(SymbolId, SymbolId)>,
+    ) -> bool {
+        let IrCallTarget::DeriveFn(canonical) = target else {
+            return false;
+        };
+        expr.ty == ResolvedType::Scalar(Scalar::Bool)
+            && self.program.symbols.iter().any(|symbol| {
+                symbol.canonical.as_str() == canonical.as_str()
+                    && matches!(&symbol.kind, SymbolKind::DeriveFn { .. })
+            })
+            && args.iter().all(|arg| {
+                self.bool_default_leaf(scope, arg, out)
+                    || self.bool_default_operand(scope, arg, out)
+            })
+    }
+
+    /// B11: admit one computed bool filter default, collecting the owned
+    /// nullable bool preference leaves it reads. Admitted roots type
+    /// exactly `bool`: `??` with a bool-literal fallback over a nullable
+    /// bool preference read, `not` over an admitted bool, or a checked
+    /// derive-helper call returning bool over admitted arguments. `out`
+    /// is only read when this returns true.
+    fn collect_bool_default_leaves(
+        &self,
+        scope: &Scope,
+        expr: &TypedExpr,
+        out: &mut Vec<(SymbolId, SymbolId)>,
+    ) -> bool {
+        match &expr.expr {
+            IrExpr::Binary {
+                op: IrBinOp::Coalesce,
+                left,
+                right,
+            } => {
+                expr.ty == ResolvedType::Scalar(Scalar::Bool)
+                    && matches!(&right.expr, IrExpr::Bool(_))
+                    && self.bool_default_leaf(scope, left, out)
+            }
+            IrExpr::Unary {
+                op: IrUnOp::Not,
+                operand,
+            } => {
+                expr.ty == ResolvedType::Scalar(Scalar::Bool)
+                    && self.bool_default_operand(scope, operand, out)
+            }
+            IrExpr::Call { target, args } => self.bool_default_call(scope, target, args, expr, out),
+            IrExpr::BoundCall {
+                target,
+                args,
+                slots,
+            } => {
+                slots.iter().all(|slot| slot.is_some())
+                    && self.bool_default_call(scope, target, args, expr, out)
+            }
+            _ => false,
+        }
+    }
+
     fn decode_collection_filters(
         &mut self,
         scope: &Scope,
@@ -17698,7 +17842,68 @@ impl<'a> Cx<'a> {
                         (&decoded.expr, &decoded.ty),
                         (IrExpr::Null, ResolvedType::Null)
                     );
-                if !literal {
+                // B11: a computed bool default over decoded nullable
+                // preference reads (see `collect_bool_default_leaves`).
+                // Pure check: leaf registration below runs only when every
+                // leaf resolved.
+                let mut nested = Vec::new();
+                let computed = bool_filter
+                    && !literal
+                    && self.collect_bool_default_leaves(scope, &decoded, &mut nested);
+                if computed {
+                    for (field_id, owner) in nested {
+                        let Some(symbol) = self.program.symbols.get(field_id.0 as usize).cloned()
+                        else {
+                            fail(self, value.span);
+                            return None;
+                        };
+                        // Every collected leaf is a nullable bool read, so
+                        // the descriptor entry is nullable with bool-case
+                        // options, exactly as a direct nullable read.
+                        let nullable = true;
+                        let (_, default, server, _, _, _) = self.decode_field(&symbol, owner);
+                        let default_value = match default {
+                            Some(IrDefault::Literal(value)) => match value.expr {
+                                IrExpr::Text(case)
+                                    if enum_cases.is_some_and(|known| known.contains(&case)) =>
+                                {
+                                    Some(case)
+                                }
+                                IrExpr::Bool(selected) if bool_filter => Some(selected.to_string()),
+                                IrExpr::Null if nullable => None,
+                                _ => {
+                                    fail(self, value.span);
+                                    return None;
+                                }
+                            },
+                            None if nullable => None,
+                            _ => {
+                                fail(self, value.span);
+                                return None;
+                            }
+                        };
+                        if server.is_some() {
+                            fail(self, value.span);
+                            return None;
+                        }
+                        if !self
+                            .page_preference_fields
+                            .iter()
+                            .any(|field| field.name == symbol.name)
+                        {
+                            let label = self.decode_reused_field_label_parts(&symbol);
+                            self.page_preference_fields.push(IrPreferenceField {
+                                name: symbol.name,
+                                options: field_cases.clone(),
+                                default_value,
+                                nullable,
+                                caption: label.as_ref().and_then(|label| label.text.clone()),
+                                option_labels: label.map(|label| label.values).unwrap_or_default(),
+                            });
+                        }
+                    }
+                }
+                if !literal && !computed {
                     let mut identity = value;
                     while identity.kind == SyntaxKind::Group {
                         let Some(inner) = kids(identity)

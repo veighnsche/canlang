@@ -3326,6 +3326,7 @@ fn collection_filter_props_are_valid(ir: &IrProgram, node: &IrUi) -> bool {
                     value.ty == **expected
                         || matches!(&value.ty, ResolvedType::Nullable(inner) if inner.as_ref() == *expected)
                 }
+                _ if bool_default => bool_filter_default_shape(ir, value),
                 _ => false,
             };
             if !valid {
@@ -3334,6 +3335,97 @@ fn collection_filter_props_are_valid(ir: &IrProgram, node: &IrUi) -> bool {
         }
     }
     true
+}
+
+/// B11: computed bool filter defaults over decoded nullable preference
+/// reads. A bool column default may be `??` with a bool-literal fallback
+/// over a nullable bool preference read, `not` over such a bool, or a
+/// call to a checked derive helper returning bool over such arguments.
+/// Direct nullable reads decode at the typed reader above, so every
+/// other position only consumes already-boolean values and no sink
+/// coercion applies. Bare non-nullable preference reads stay out of
+/// operator positions (their saved spelling has no reader decoding);
+/// anything else keeps the refusal in the caller.
+fn bool_filter_default_shape(ir: &IrProgram, value: &TypedExpr) -> bool {
+    match &value.expr {
+        IrExpr::Bool(_) => value.ty == ResolvedType::Scalar(Scalar::Bool),
+        IrExpr::Binary {
+            op: IrBinOp::Coalesce,
+            left,
+            right,
+        } => {
+            value.ty == ResolvedType::Scalar(Scalar::Bool)
+                && matches!(&right.expr, IrExpr::Bool(_))
+                && is_nullable_bool_preference_read(left)
+        }
+        IrExpr::Unary {
+            op: IrUnOp::Not,
+            operand,
+        } => value.ty == ResolvedType::Scalar(Scalar::Bool) && bool_valued_shape(ir, operand),
+        IrExpr::Call { target, args } => bool_filter_derive_call(ir, target, args, value),
+        IrExpr::BoundCall {
+            target,
+            args,
+            slots,
+        } => {
+            slots.iter().all(|slot| slot.is_some())
+                && bool_filter_derive_call(ir, target, args, value)
+        }
+        _ => false,
+    }
+}
+
+/// One `??`-eligible leaf: a direct nullable bool preference read.
+fn is_nullable_bool_preference_read(value: &TypedExpr) -> bool {
+    matches!(&value.expr, IrExpr::Member { base, .. } if matches!(&base.expr, IrExpr::Name(name) if name == "preferences"))
+        && matches!(
+            &value.ty,
+            ResolvedType::Nullable(inner) if inner.as_ref() == &ResolvedType::Scalar(Scalar::Bool)
+        )
+}
+
+/// One already-boolean operand: a bool literal, a `??`-defaulted read, a
+/// negation, or a derive-helper call. Bare preference reads never appear
+/// here: only the reader decodes, and non-nullable reads have no decoding.
+fn bool_valued_shape(ir: &IrProgram, value: &TypedExpr) -> bool {
+    match &value.expr {
+        IrExpr::Bool(_) => value.ty == ResolvedType::Scalar(Scalar::Bool),
+        IrExpr::Binary { .. } | IrExpr::Unary { .. } => bool_filter_default_shape(ir, value),
+        IrExpr::Call { .. } | IrExpr::BoundCall { .. } => bool_filter_default_shape(ir, value),
+        _ => false,
+    }
+}
+
+/// One nullable-or-boolean derive-helper argument: the same operand
+/// grammar plus a direct nullable read (which decodes at the reader).
+fn bool_call_arg_shape(ir: &IrProgram, value: &TypedExpr) -> bool {
+    is_nullable_bool_preference_read(value) || bool_valued_shape(ir, value)
+}
+
+/// A derive-helper call returning bool over admitted arguments. The
+/// target must resolve to a checked derive function returning bool;
+/// visibility was already scoped by checking.
+fn bool_filter_derive_call(
+    ir: &IrProgram,
+    target: &IrCallTarget,
+    args: &[TypedExpr],
+    value: &TypedExpr,
+) -> bool {
+    let IrCallTarget::DeriveFn(canonical) = target else {
+        return false;
+    };
+    value.ty == ResolvedType::Scalar(Scalar::Bool)
+        && ir.items.iter().any(|item| {
+            item.canonical.as_str() == canonical.as_str()
+                && matches!(
+                    &item.kind,
+                    IrItemKind::DeriveFn {
+                        result: IrType::Known(ResolvedType::Scalar(Scalar::Bool)),
+                        ..
+                    }
+                )
+        })
+        && args.iter().all(|arg| bool_call_arg_shape(ir, arg))
 }
 
 /// Writable selector controls currently admitted by the source lowering.
@@ -4804,42 +4896,6 @@ impl<'a> Emitter<'a> {
         Some(out)
     }
 
-    /// Lower a collection `defaults` object, coercing saved bool-toggle
-    /// spellings to real booleans.
-    ///
-    /// The preference store is string-typed, so a saved bool default
-    /// arrives as the spelling `"true"`/`"false"` while the host
-    /// collection preparer requires real booleans for `bool` columns
-    /// (anything else refuses before any query). Entries whose checked
-    /// type is (nullable) bool are wrapped in a strict spelling
-    /// coercion: `null` stays `null`, real booleans pass through,
-    /// `"true"`/`"false"` become `true`/`false`, and every other value
-    /// passes through untouched so the preparer still refuses it safely.
-    /// Enum entries lower verbatim. `None` when `value` is not the
-    /// dispatched profile (fixed objects lower generically).
-    fn lower_collection_defaults(&mut self, value: &TypedExpr) -> Option<String> {
-        if self.expr_formatted(value) {
-            return None;
-        }
-        let IrExpr::Object(entries) = &value.expr else {
-            return None;
-        };
-        let mut parts = Vec::new();
-        for (name, entry) in entries {
-            let lowered = self.lower_business_expr(entry, "unclassified formatted UI prop");
-            let inner = entry.ty.nullable_inner().unwrap_or(&entry.ty);
-            if *inner == ResolvedType::Scalar(Scalar::Bool) {
-                parts.push(format!(
-                    "{}:(value=>{{if(value==null)return null;if(value===true)return true;if(value===false)return false;if(value===\"true\")return true;if(value===\"false\")return false;return value;}})({lowered})",
-                    object_key(name)
-                ));
-            } else {
-                parts.push(format!("{}:{lowered}", object_key(name)));
-            }
-        }
-        Some(format!("{{{}}}", parts.join(",")))
-    }
-
     /// Enter hook lowering for one trigger model: statements stage through
     /// `$hookCtx` and ambient-context expressions report `E6008`.
     pub fn enter_hook(&mut self, trigger: SymbolId, native: bool) {
@@ -6249,6 +6305,26 @@ impl<'a> Emitter<'a> {
                 } else {
                     let optional = if op == "?." { "?." } else { "" };
                     format!("{base_text}{optional}[{}]", js_string(field))
+                };
+                // B11 defining-owner bool decoding: a nullable bool
+                // preference read decodes its string-typed store spelling
+                // at this checked typed reader, before any bool expression
+                // consumes it. Strict: null stays null, real booleans pass
+                // through, "true"/"false" become booleans, and anything
+                // else throws a validation refusal (never truthy, never a
+                // silent filter). Non-bool reads lower verbatim, exactly as
+                // non-nullable bool reads do.
+                let member = if matches!(&base.expr, IrExpr::Name(name) if name == "preferences")
+                    && expr.ty.nullable_inner().is_some()
+                    && matches!(
+                        expr.ty.nullable_inner().unwrap_or(&expr.ty),
+                        ResolvedType::Scalar(Scalar::Bool)
+                    ) {
+                    format!(
+                        "(value=>{{if(value==null)return null;if(value===true)return true;if(value===false)return false;if(value===\"true\")return true;if(value===\"false\")return false;throw{{code:\"validation\",message:\"Invalid bool preference.\"}}}})({member})"
+                    )
+                } else {
+                    member
                 };
                 if expr.ty.nullable_inner().is_some() {
                     format!("({member} ?? null)")
@@ -11277,14 +11353,6 @@ impl<'a> Emitter<'a> {
                 && let Some(dispatched) = self.lower_dispatched_order(value)
             {
                 dispatched
-            } else if key == "defaults"
-                && matches!(
-                    node.factory.as_str(),
-                    "list" | "table" | "gallery" | "calendar" | "board" | "filter"
-                )
-                && let Some(defaults) = self.lower_collection_defaults(value)
-            {
-                defaults
             } else {
                 self.lower_business_expr(value, "unclassified formatted UI prop")
             };

@@ -153,14 +153,16 @@ fn bool_literal_default_lowers() {
     ));
 }
 
-/// B10: a saved bool preference default coerces its store spelling at
-/// emission. The store is string-typed, so `preferences.active` arrives
-/// as `"true"`/`"false"` while the host preparer requires real booleans.
-/// The bool entry is wrapped in the strict spelling coercion (null stays
-/// null, real booleans pass through, unknown values pass through so the
-/// preparer still refuses them); the enum entry lowers verbatim.
+/// B11: a saved bool preference read decodes its store spelling at the
+/// checked typed reader, before any bool expression consumes it. The
+/// store is string-typed, so `preferences.active` arrives as
+/// `"true"`/`"false"` while bool consumers require real booleans. The
+/// nullable bool read is wrapped in the strict spelling decoding (null
+/// stays null, real booleans pass through, strict spellings map, and
+/// anything else throws a validation refusal, never truthy); the enum
+/// read lowers verbatim, and no collection sink wrapper applies.
 #[test]
-fn saved_bool_preference_default_coerces_strict_spellings() {
+fn saved_bool_preference_read_decodes_strict_spellings() {
     let js = emit_js(&format!(
         "{HEAD}  list Customer columns=name,kind,active filter=kind,active defaults={{kind=preferences.kind,active=preferences.active}}\n"
     ));
@@ -169,40 +171,133 @@ fn saved_bool_preference_default_coerces_strict_spellings() {
         "enum default stays verbatim, got: {js}"
     );
     assert!(
-        js.contains("active:(value=>{if(value==null)return null;"),
-        "bool default is wrapped in the spelling coercion, got: {js}"
+        js.contains("active:((value=>{if(value==null)return null;"),
+        "nullable bool read carries the spelling decoding, got: {js}"
     );
     assert!(
         js.contains(
-            "if(value===\"true\")return true;if(value===\"false\")return false;return value;"
+            "if(value===\"true\")return true;if(value===\"false\")return false;throw{code:\"validation\",message:\"Invalid bool preference.\"}"
         ),
-        "only strict spellings map and anything else passes through for preparer refusal, got: {js}"
+        "only strict spellings map and anything else refuses before any query, got: {js}"
+    );
+    assert!(
+        !js.contains("return value;}"),
+        "no sink passthrough survives: malformed spellings refuse, got: {js}"
     );
 }
 
-/// B10: a bool literal default keeps its typed value through the same
-/// coercion (real booleans pass through unchanged).
+/// B11: a bool literal default lowers verbatim with no coercion of any
+/// kind (it is already a real boolean; decoding applies to reads only).
 #[test]
-fn bool_literal_default_coerces_to_itself() {
+fn bool_literal_default_lowers_verbatim() {
     let js = emit_js(&format!(
         "{HEAD}  list Customer columns=name,active filter=active defaults={{active=true}}\n"
     ));
     assert!(
-        js.contains("active:(value=>{if(value==null)return null;"),
-        "bool literal default carries the same strict coercion, got: {js}"
+        js.contains("active:true"),
+        "bool literal default stays a real boolean, got: {js}"
+    );
+    assert!(
+        !js.contains("value=>{if(value==null)"),
+        "no decoding wrapper on literals, got: {js}"
     );
 }
 
-/// B10: the shared collection pipeline coerces saved bool spellings on
-/// board too, not just list.
+/// B11: the shared collection pipeline decodes saved bool spellings at
+/// the read on board too, not just list.
 #[test]
-fn board_saved_bool_preference_default_coerces() {
+fn board_saved_bool_preference_read_decodes() {
     let js = emit_js(&format!(
         "{HEAD}  board Customer by=kind columns=name,active filter=active defaults={{active=preferences.active}}\n"
     ));
     assert!(
-        js.contains("active:(value=>{if(value==null)return null;"),
-        "board bool default is wrapped in the spelling coercion, got: {js}"
+        js.contains("active:((value=>{if(value==null)return null;"),
+        "board bool read carries the spelling decoding, got: {js}"
+    );
+}
+
+/// B11 discriminator (inline): a negated `??`-defaulted bool preference
+/// read is admitted and lowers with the decoded read inside, so a saved
+/// `"false"` spelling selects `true` rows at runtime. No sink wrapper.
+#[test]
+fn negated_bool_default_with_fallback_lowers() {
+    let js = emit_js(&format!(
+        "{HEAD}  list Customer columns=name,active filter=active defaults={{active=not(preferences.active ?? false)}}\n"
+    ));
+    assert!(
+        js.contains("!(("),
+        "negation lowers over the defaulted read, got: {js}"
+    );
+    assert!(
+        js.contains("(value=>{if(value==null)return null;"),
+        "the inner read still decodes at the reader, got: {js}"
+    );
+    assert!(
+        js.contains("??false)") || js.contains("?? false)"),
+        "the null fallback survives lowering, got: {js}"
+    );
+}
+
+/// B11 discriminator (helper): an equivalent derive-helper call over the
+/// saved preference is admitted and lowers with the decoded read as its
+/// argument, agreeing with the inline negation at runtime.
+#[test]
+fn derive_helper_bool_default_lowers() {
+    let js = emit_js(
+        "app Probe\nGiven\n Customer { name:text, active:bool=true }\n derive inverted(x:bool?):bool = not(x ?? false)\n policy Customer read=public\nWhen\nThen\n preferences { active:bool? }\n page /customers title=\"Customers\"\n  list Customer columns=name,active filter=active defaults={active=inverted(preferences.active)} display=split\n",
+    );
+    assert!(
+        js.contains("(value=>{if(value==null)return null;"),
+        "the helper argument read decodes at the reader, got: {js}"
+    );
+    assert!(
+        js.contains("await "),
+        "the checked derive helper runs at render, got: {js}"
+    );
+}
+
+/// B11: a bare `??`-defaulted bool preference read is admitted without
+/// the negation (null/default handling pins the fallback shape alone).
+#[test]
+fn coalesced_bool_default_lowers() {
+    assert_lowers(&format!(
+        "{HEAD}  list Customer columns=name,active filter=active defaults={{active=preferences.active ?? false}}\n"
+    ));
+}
+
+/// B11: `not` over a non-nullable bool preference read stays refused:
+/// only the reader decodes, and non-nullable reads have no decoding, so
+/// a saved spelling must not enter operator positions.
+#[test]
+fn not_over_nonnullable_bool_read_refuses() {
+    assert_refuses(
+        "app Probe\nGiven\n Customer { name:text, active:bool=true }\n policy Customer read=public\nWhen\nThen\n preferences { show:bool=true }\n page /customers title=\"Customers\"\n  list Customer columns=name,active filter=active defaults={active=not(preferences.show)}\n",
+        "E6008",
+        "need distinct checked owned enum fields",
+    );
+}
+
+/// B11: comparisons over a preference read stay refused: bool defaults
+/// admit only `??`-with-literal, `not`, and derive-helper shapes.
+#[test]
+fn comparison_over_bool_read_refuses() {
+    assert_refuses(
+        &format!(
+            "{HEAD}  list Customer columns=name,active filter=active defaults={{active=preferences.active == true}}\n"
+        ),
+        "E6008",
+        "need distinct checked owned enum fields",
+    );
+}
+
+/// B11: a derive-helper call returning non-bool stays refused even over
+/// an admitted read: defaults entries type exactly `bool`.
+#[test]
+fn non_bool_helper_call_refuses() {
+    assert_refuses(
+        "app Probe\nGiven\n Customer { name:text, active:bool=true }\n derive label(x:bool?):text = \"a\"\n policy Customer read=public\nWhen\nThen\n preferences { active:bool? }\n page /customers title=\"Customers\"\n  list Customer columns=name,active filter=active defaults={active=label(preferences.active)}\n",
+        "E6008",
+        "need distinct checked owned enum fields",
     );
 }
 

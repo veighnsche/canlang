@@ -1,5 +1,5 @@
 /**
- * B9 bounded real-source bool-page test (CAN18-v1 REVIEW-11 item 2).
+ * B11 bounded real-source bool-page test (CAN18-v1 REVIEW-13 item 1).
  *
  * The B6 preparer test transcribes filter columns from the recorded artifact
  * and hand-drives `list` with a hand-written occurrence. This test instead
@@ -8,10 +8,12 @@
  * (`CAN_COMPILER_BIN`, catalog `CAN_NATIVE_CATALOG`), stages the EMITTED
  * module bytes verbatim, imports the page descriptor named by
  * `artifact.pages[0]`, and dispatches it through the real host seam
- * (`handlePageRequest` over `createTestDeps` + a real authorized identity)
- * against stored rows holding actual `true`/`false` values. Filter parameter
- * names are harvested from the rendered controls, never transcribed, so the
- * emitted occurrence stays the source of truth throughout.
+ * (`handlePageRequest` over `createTestDeps` + a real authorized identity).
+ * Filter parameter names are harvested from the rendered controls, never
+ * transcribed, so the emitted occurrence stays the source of truth
+ * throughout. Occurrence roles (plain defaults, inline negation, helper
+ * call) are labeled from the EMITTED bytes (the `defaults:{...}` shape
+ * following each `occurrence:"..."` marker), never from source spans.
  *
  * Staging note: the cloudflare `assembleModules` seam cannot be reused here
  * (`@canlang/cloudflare` depends on `@canlang/interfaces`, so importing it
@@ -22,15 +24,29 @@
  * rules; `ValueError` only on title-construction mismatch), so the render
  * exercises the real UI `list` + host preparer + bound query.
  *
- * Saved-bool coercion (B10): a SAVED bool preference reaches the emitted
+ * Query note: the bound query is served by the EXISTING State query
+ * adapter (`queryRecords` over `createMemoryStorage`), not a handwritten
+ * predicate engine. Canonical rows (real `true`/`false` values) are seeded
+ * through the real storage commit path; the model name is asserted on every
+ * call; viewer grants come from the EMITTED `appDefinition` (the canonical
+ * `readGrants` are asserted, never transcribed); caller membership resolves
+ * through the REAL identity fixture store; and the emitted `where`
+ * predicates reach the engine unmodified (no handwritten AST). Rendering
+ * columns are projected from the COMPILE artifact's canonical model fields
+ * and cross-checked against the emitted filter declarations. Three emitted
+ * lists render per page (one query each), demultiplexed by occurrence.
+ *
+ * Saved-bool decoding (B11): a SAVED bool preference reaches the emitted
  * render as the store spelling `"true"` / `"false"` (the preference store
- * is string-typed), and the compiler emission coerces those strict
- * spellings to real booleans in the `defaults` object before the host
- * preparer sees them. The preparer still requires boolean `bool` defaults
- * (B6 semantics retained: string defaults refuse with zero queries, never
- * truthy coercion, never partial filtering). Saved/request precedence for
- * the bool toggle is proven on the same path below, matching the
- * string-saved enum field.
+ * is string-typed), and the compiler emission decodes those strict
+ * spellings to real booleans AT THE CHECKED TYPED PREFERENCE READ, before
+ * any bool expression consumes them. Malformed spellings throw a
+ * validation refusal at the read (never truthy, never a silent filter);
+ * the host still requires boolean `bool` defaults (B6 semantics retained).
+ * The page carries three lists over the same toggle: plain saved defaults,
+ * an inline `not(preferences.active ?? false)`, and an equivalent
+ * `inverted(preferences.active)` derive-helper call. Under saved
+ * `"false"` the latter two MUST agree and select `true` rows.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -44,45 +60,24 @@ import type {
   ColumnMeta,
   CompileArtifact,
   PageDescriptor,
+  QueryPredicate,
   ResolvedIdentity,
   RowView,
 } from '@canlang/contracts';
+import { queryRecords } from '@canlang/state/query/engine';
+import { createMemoryStorage } from '@canlang/state/storage/memory';
+import { buildPolicyTable } from '@canlang/state/policy/grants';
+import type { PolicyTable } from '@canlang/state/policy/grants';
+import type { MembershipReader } from '@canlang/state/policy/roles';
+import { asModel, seedRows } from '@canlang/state/testing/query/fixtures';
 import { createTestDeps, testRequest } from '../src/testing.js';
 import { handlePageRequest } from '../src/http/pages.js';
 import type { PagePreferenceStore } from '../src/ports.js';
+import type { ListQueryArgs } from '@canlang/contracts';
 
 const execFileAsync = promisify(execFile);
 const FIXTURE = 'packages/interfaces/test/fixtures/bool-page-source.can';
-
-const STORED: RowView[] = [
-  { id: 'cust-a1', version: '1', fields: { name: 'Ada', kind: 'individual', active: true } },
-  { id: 'cust-b1', version: '1', fields: { name: 'Bo', kind: 'company', active: false } },
-  { id: 'cust-c1', version: '1', fields: { name: 'Cy', kind: 'company', active: true } },
-];
-
-/** Query-owner projection: the State runner owns these in production; the
- * filter declarations under test arrive via the emitted render instead. */
-const COLUMNS: ColumnMeta[] = [
-  { field: 'name', label: 'name', type: 'text' },
-  { field: 'kind', label: 'kind', type: 'enum:Probe.Customer.kind',
-    valueLabels: { individual: 'individual', company: 'company' } },
-  { field: 'active', label: 'active', type: 'bool', valueLabels: { true: 'true', false: 'false' } },
-];
-
-function applyWhere(rows: RowView[], where: unknown): RowView[] {
-  if (where === undefined) return rows;
-  assert.equal(typeof where, 'object');
-  const predicate = where as { op?: unknown; field?: unknown; value?: unknown; args?: unknown };
-  if (predicate.op === 'eq') {
-    assert.equal(typeof predicate.field, 'string');
-    return rows.filter(row => row.fields[predicate.field as string] === predicate.value);
-  }
-  if (predicate.op === 'and') {
-    assert.ok(Array.isArray(predicate.args));
-    return (predicate.args as unknown[]).reduce<RowView[]>(applyWhere, rows);
-  }
-  throw new Error(`unexpected where shape ${JSON.stringify(where)}`);
-}
+const MODEL = 'Probe.Customer';
 
 test('compiled bool toggle page filters real true/false rows through the host seam', async () => {
   const testDir = dirname(fileURLToPath(import.meta.url));
@@ -116,6 +111,34 @@ test('compiled bool toggle page filters real true/false rows through the host se
   const emitted = artifact.modules.find(module => module.path === pageRef.module);
   assert.ok(emitted, 'page module present in real artifact');
 
+  // Canonical rendering columns from the COMPILE artifact's model fields,
+  // cross-checked against the emitted filter declarations (never
+  // transcribed: every name, type and case comes from canonical output).
+  const artifactModel = artifact.models?.find(entry => entry.name === MODEL);
+  assert.ok(artifactModel, 'canonical model present in compile artifact');
+  const canonicalColumns: ColumnMeta[] = artifactModel.fields.map(field => {
+    if (field.field.kind === 'string') {
+      return { field: field.name, label: field.name, type: 'text' };
+    }
+    if (field.field.kind === 'boolean') {
+      return {
+        field: field.name, label: field.name, type: 'bool',
+        valueLabels: { true: 'true', false: 'false' },
+      };
+    }
+    if (field.field.kind === 'enum') {
+      return {
+        field: field.name, label: field.name, type: `enum:${MODEL}.${field.name}`,
+        valueLabels: Object.fromEntries(field.field.values.map(value => [value, value])),
+      };
+    }
+    throw new Error(`bool-page fixture needs a mapped column for ${field.name}`);
+  });
+  assert.deepEqual(canonicalColumns.map(column => column.field), ['name', 'kind', 'active']);
+  assert.ok(emitted.js.includes('type:"enum:Probe.Customer.kind"'),
+    'derived enum column matches the emitted filter declaration');
+  assert.ok(emitted.js.includes('type:"bool"'), 'derived bool column matches the emission');
+
   const stageDir = mkdtempSync(join(testDir, 'staged-bool-page-'));
   try {
     const stagedFile = join(stageDir, 'page.mjs');
@@ -128,29 +151,87 @@ test('compiled bool toggle page filters real true/false rows through the host se
     assert.equal(typeof descriptor.admit, 'function');
     assert.equal(typeof descriptor.render, 'function');
 
-    const store = new Map<string, { value: string; version: string }>();
+    // Canonical viewer grants from the EMITTED app definition: the
+    // `readGrants` spellings are asserted, never transcribed.
+    const appDefinition = (namespace as unknown as { appDefinition: {
+      models: Record<string, {
+        readGrants: { rule: string; by: string[] }[];
+        fields: Record<string, unknown>;
+      }>;
+    } }).appDefinition;
+    const canonicalModel = appDefinition.models[MODEL];
+    assert.ok(canonicalModel, 'canonical model present in emitted app definition');
+    assert.equal(canonicalModel.readGrants.length, 1);
+    assert.deepEqual(canonicalModel.readGrants[0]!.by, ['public']);
+    const grantFields = Object.keys(canonicalModel.fields);
+    assert.deepEqual([...grantFields].sort(), ['active', 'kind', 'name']);
+    const policy: PolicyTable = buildPolicyTable([{
+      model: asModel(MODEL),
+      secretFields: [],
+      grants: [{ by: 'public', fields: grantFields }],
+    }]);
+
+    const store = createMemoryStorage();
+    await seedRows(store, asModel(MODEL), [
+      { id: 'cust-a1', data: { name: 'Ada', kind: 'individual', active: true } },
+      { id: 'cust-b1', data: { name: 'Bo', kind: 'company', active: false } },
+      { id: 'cust-c1', data: { name: 'Cy', kind: 'company', active: true } },
+    ]);
+
+    const prefs = new Map<string, { value: string; version: string }>();
     const preferences: PagePreferenceStore = {
-      read: async key => store.get(`${key.owner}/${key.field}`) ?? null,
+      read: async key => prefs.get(`${key.owner}/${key.field}`) ?? null,
       save: async key => {
-        store.set(`${key.owner}/${key.field}`,
+        prefs.set(`${key.owner}/${key.field}`,
           { value: key.value, version: String(Number(key.expectedVersion) + 1) });
         return true;
       },
     };
-    let queries = 0;
-    const wheres: unknown[] = [];
     const { deps, identity } = await createTestDeps({ descriptors: [descriptor] });
+    // The REAL identity fixture store answers caller membership; public
+    // grants admit without consulting it, but every lookup observes live
+    // fixture state (no membership double).
+    const memberships: MembershipReader = {
+      findMembership: (teamId, userId) => identity.store.findMembership(teamId, userId),
+    };
     let principal: ResolvedIdentity | undefined;
+    const calls: { occurrence: unknown; where: unknown }[] = [];
     const scoped = { ...deps, preferences,
       createReadScope: (current: ResolvedIdentity) => {
         principal = current;
-        return { query: async (invocation: unknown, model: string, args: unknown) => {
-          queries++;
+        return { query: async (invocation: unknown, model: string, args: ListQueryArgs) => {
           assert.equal(invocation, principal, 'query runs under the authorized principal');
-          assert.equal(model, 'Probe.Customer');
-          const where = (args as { where?: unknown }).where;
-          wheres.push(where);
-          return { rows: applyWhere(STORED, where), columns: COLUMNS };
+          assert.equal(model, MODEL, 'query serves the canonical model');
+          calls.push({ occurrence: args.occurrence, where: args.where });
+          const caller = invocation as ResolvedIdentity;
+          const viewed = await queryRecords({
+            policy,
+            model: asModel(model),
+            authority: 'viewer',
+            context: {
+              actorUserId: caller.actor?.user_id ?? null,
+              teamId: caller.team?.team_id ?? null,
+            },
+            memberships,
+            store,
+            ...(args.where === undefined ? {} : { where: args.where as QueryPredicate }),
+            ...(args.limit === undefined ? {} : { limit: args.limit }),
+          });
+          // Production projection: declared columns filtered to the
+          // fields actually present in authorized projected rows.
+          const visible = new Set(viewed.records.flatMap(record => Object.keys(record.data)));
+          const rows: RowView[] = viewed.records.map(record => ({
+            id: record.id,
+            version: String(record.version),
+            fields: { ...record.data },
+          }));
+          return {
+            rows,
+            columns: canonicalColumns.filter(column => visible.has(column.field)),
+            ...(viewed.records.length === 0 ? {
+              emptyDeclarations: canonicalColumns.map(({ field, type }) => ({ field, type })),
+            } : {}),
+          };
         } };
       } };
 
@@ -159,164 +240,279 @@ test('compiled bool toggle page filters real true/false rows through the host se
       const request = testRequest(`/customers?${query}`, authed ? { cookie: identity.cookie } : {});
       return handlePageRequest(scoped, request);
     };
-    const ids = (html: string) =>
-      [...new Set([...html.matchAll(/cust-[a-c]1/g)].map(match => match[0]))].sort();
+    // One control+row group per emitted list, in render (source) order:
+    // each list heading carries its filter controls, immediately followed
+    // by its `<ul class="list">` rows.
+    const groupsOf = (html: string): { names: string[]; ids: string[] }[] => {
+      const tokens = [...html.matchAll(
+        /<select[^>]*\bname="(can-filter:[^"]+)"[^>]*>|<ul class="list">([\s\S]*?)<\/ul>/g,
+      )];
+      const groups: { names: string[]; ids: string[] }[] = [];
+      let names: string[] = [];
+      for (const token of tokens) {
+        if (token[1] !== undefined) {
+          names.push(token[1]);
+          continue;
+        }
+        const ids = [...new Set([...(token[2] ?? '').matchAll(/cust-[a-c]1/g)]
+          .map(match => match[0]))].sort();
+        groups.push({ names, ids });
+        names = [];
+      }
+      assert.ok(names.length === 0, 'every control group closes with a row list');
+      assert.equal(groups.length, 3, 'three emitted lists render three control+row groups');
+      return groups;
+    };
+    // Harvested control names carry the ENCODED occurrence
+    // (`can-filter:` + encodeURIComponent(occurrence) + `:` + field, per
+    // the host preparer); decode it back to the raw occurrence the query
+    // owner receives.
+    const splitName = (name: string): { occurrence: string; field: string } => {
+      assert.ok(name.startsWith('can-filter:'), `emitted filter control name: ${name}`);
+      const rest = name.slice('can-filter:'.length);
+      const at = rest.lastIndexOf(':');
+      return { occurrence: decodeURIComponent(rest.slice(0, at)), field: rest.slice(at + 1) };
+    };
+    const whereFor = (occurrence: string): unknown[] =>
+      calls.filter(call => call.occurrence === occurrence).map(call => call.where);
 
-    // Defaults: nothing saved, no request selectors — every stored row serves.
+    // Defaults: nothing saved, no request selectors. The plain list serves
+    // every stored row; the negated lists default null through `?? false`
+    // and select true rows.
     let response = await get(new URLSearchParams());
     assert.equal(response.status, 200);
     const defaultsHtml = await response.text();
-    assert.deepEqual(ids(defaultsHtml), ['cust-a1', 'cust-b1', 'cust-c1']);
-    assert.equal(queries, 1);
-    assert.deepEqual(wheres, [undefined]);
     assert.ok(defaultsHtml.includes('data-can-list-filters'));
-    const names = [...defaultsHtml.matchAll(/<select[^>]*\bname="(can-filter:[^"]+)"[^>]*>/g)]
-      .map(match => match[1]!);
-    assert.equal(names.length, 2);
-    const [kindName, activeName] = [names.find(name => name.endsWith(':kind')),
-      names.find(name => name.endsWith(':active'))];
-    assert.ok(kindName && activeName, 'both emitted filter controls render');
-    assert.equal(kindName.slice(0, kindName.length - ':kind'.length),
-      activeName.slice(0, activeName.length - ':active'.length), 'one emitted occurrence');
-    // Every phase below reuses these harvested names: the emitted occurrence
-    // is never transcribed.
+    const groups = groupsOf(defaultsHtml);
+    const plainNames = groups[0]!.names;
+    assert.equal(plainNames.length, 2);
+    const kindName = plainNames.find(name => name.endsWith(':kind'))!;
+    const plainActiveName = plainNames.find(name => name.endsWith(':active'))!;
+    assert.ok(kindName && plainActiveName, 'plain list renders both emitted filter controls');
+    const plainOccurrence = splitName(kindName).occurrence;
+    assert.equal(splitName(plainActiveName).occurrence, plainOccurrence, 'one emitted occurrence');
+    const negANames = groups[1]!.names;
+    const negBNames = groups[2]!.names;
+    assert.deepEqual(negANames.map(splitName).map(part => part.field), ['active']);
+    assert.deepEqual(negBNames.map(splitName).map(part => part.field), ['active']);
+    const negAOccurrence = splitName(negANames[0]!).occurrence;
+    const negBOccurrence = splitName(negBNames[0]!).occurrence;
+    assert.ok(plainOccurrence !== negAOccurrence && plainOccurrence !== negBOccurrence &&
+      negAOccurrence !== negBOccurrence, 'three distinct emitted occurrences');
+    // Every phase below reuses these harvested names: the emitted
+    // occurrence is never transcribed.
+    assert.deepEqual(groups[0]!.ids, ['cust-a1', 'cust-b1', 'cust-c1']);
+    assert.deepEqual(groups[1]!.ids, ['cust-a1', 'cust-c1']);
+    assert.deepEqual(groups[2]!.ids, ['cust-a1', 'cust-c1']);
+    assert.equal(calls.length, 3);
+    assert.deepEqual(whereFor(plainOccurrence), [undefined]);
+    assert.deepEqual(whereFor(negAOccurrence), [{ op: 'eq', field: 'active', value: true }]);
+    assert.deepEqual(whereFor(negBOccurrence), [{ op: 'eq', field: 'active', value: true }]);
+    assert.equal(typeof (whereFor(negAOccurrence)[0] as unknown as { value: unknown }).value, 'boolean');
+
+    // Occurrence roles are labeled from the EMITTED bytes: the
+    // `defaults:{...}` shape following each `occurrence:"..."` marker.
+    // Render order is source order (plain, inline negation, helper call).
+    const occurrenceSuffix = encodeURIComponent(JSON.stringify([descriptor.path]));
+    const emittedShape = (occurrence: string): string => {
+      assert.ok(occurrence.endsWith(occurrenceSuffix), 'runtime occurrence extends its emitted prefix');
+      const marker = `occurrence:"${occurrence.slice(0, occurrence.length - occurrenceSuffix.length)}"`;
+      const at = emitted.js.indexOf(marker);
+      assert.ok(at >= 0, `emitted occurrence marker present for ${occurrence}`);
+      const head = emitted.js.slice(emitted.js.indexOf('defaults:{', at), emitted.js.indexOf('defaults:{', at) + 24);
+      if (head.startsWith('defaults:{active:!(')) return 'inline-negation';
+      if (head.startsWith('defaults:{active:await')) return 'helper-call';
+      if (head.startsWith('defaults:{kind:')) return 'direct-defaults';
+      assert.fail(`unrecognized emitted defaults shape after ${marker}: ${head}`);
+    };
+    assert.equal(emittedShape(plainOccurrence), 'direct-defaults');
+    assert.equal(emittedShape(negAOccurrence), 'inline-negation');
+    assert.equal(emittedShape(negBOccurrence), 'helper-call');
 
     // Request true serves only true rows with a typed boolean predicate.
-    queries = 0; wheres.length = 0;
-    response = await get(new URLSearchParams([[activeName, 'true']]));
+    calls.length = 0;
+    response = await get(new URLSearchParams([[plainActiveName, 'true']]));
     assert.equal(response.status, 200);
-    assert.deepEqual(ids(await response.text()), ['cust-a1', 'cust-c1']);
-    assert.equal(queries, 1);
-    assert.deepEqual(wheres, [{ op: 'eq', field: 'active', value: true }]);
-    assert.equal(typeof (wheres[0] as unknown as { value: unknown }).value, 'boolean');
+    assert.deepEqual(groupsOf(await response.text())[0]!.ids, ['cust-a1', 'cust-c1']);
+    assert.equal(calls.length, 3);
+    assert.deepEqual(whereFor(plainOccurrence), [{ op: 'eq', field: 'active', value: true }]);
+    assert.equal(typeof (whereFor(plainOccurrence)[0] as unknown as { value: unknown }).value, 'boolean');
 
     // Request false serves only the false row.
-    queries = 0; wheres.length = 0;
-    response = await get(new URLSearchParams([[activeName, 'false']]));
+    calls.length = 0;
+    response = await get(new URLSearchParams([[plainActiveName, 'false']]));
     assert.equal(response.status, 200);
     const falseHtml = await response.text();
-    assert.deepEqual(ids(falseHtml), ['cust-b1']);
-    assert.equal(queries, 1);
-    assert.deepEqual(wheres, [{ op: 'eq', field: 'active', value: false }]);
+    assert.deepEqual(groupsOf(falseHtml)[0]!.ids, ['cust-b1']);
+    assert.equal(calls.length, 3);
+    assert.deepEqual(whereFor(plainOccurrence), [{ op: 'eq', field: 'active', value: false }]);
     assert.ok(falseHtml.includes('<option value="false" selected>'));
 
     // Explicit clear stays cleared.
-    queries = 0; wheres.length = 0;
-    response = await get(new URLSearchParams([[activeName, '']]));
+    calls.length = 0;
+    response = await get(new URLSearchParams([[plainActiveName, '']]));
     assert.equal(response.status, 200);
-    assert.deepEqual(ids(await response.text()), ['cust-a1', 'cust-b1', 'cust-c1']);
-    assert.equal(queries, 1);
-    assert.deepEqual(wheres, [undefined]);
+    assert.deepEqual(groupsOf(await response.text())[0]!.ids, ['cust-a1', 'cust-b1', 'cust-c1']);
+    assert.equal(calls.length, 3);
+    assert.deepEqual(whereFor(plainOccurrence), [undefined]);
 
     // Saved enum spelling (string, as the store holds it) filters rows.
-    store.set('Probe/kind', { value: 'company', version: '1' });
-    queries = 0; wheres.length = 0;
+    prefs.set('Probe/kind', { value: 'company', version: '1' });
+    calls.length = 0;
     response = await get(new URLSearchParams());
     assert.equal(response.status, 200);
-    assert.deepEqual(ids(await response.text()), ['cust-b1', 'cust-c1']);
-    assert.equal(queries, 1);
-    assert.deepEqual(wheres, [{ op: 'eq', field: 'kind', value: 'company' }]);
+    assert.deepEqual(groupsOf(await response.text())[0]!.ids, ['cust-b1', 'cust-c1']);
+    assert.equal(calls.length, 3);
+    assert.deepEqual(whereFor(plainOccurrence), [{ op: 'eq', field: 'kind', value: 'company' }]);
 
     // Explicit request beats the saved enum spelling.
-    queries = 0; wheres.length = 0;
+    calls.length = 0;
     response = await get(new URLSearchParams([[kindName, 'individual']]));
     assert.equal(response.status, 200);
-    assert.deepEqual(ids(await response.text()), ['cust-a1']);
-    assert.equal(queries, 1);
-    assert.deepEqual(wheres, [{ op: 'eq', field: 'kind', value: 'individual' }]);
+    assert.deepEqual(groupsOf(await response.text())[0]!.ids, ['cust-a1']);
+    assert.equal(calls.length, 3);
+    assert.deepEqual(whereFor(plainOccurrence), [{ op: 'eq', field: 'kind', value: 'individual' }]);
 
     // Saved enum composes with a request bool toggle into one typed query.
-    queries = 0; wheres.length = 0;
-    response = await get(new URLSearchParams([[activeName, 'false']]));
+    calls.length = 0;
+    response = await get(new URLSearchParams([[plainActiveName, 'false']]));
     assert.equal(response.status, 200);
-    assert.deepEqual(ids(await response.text()), ['cust-b1']);
-    assert.equal(queries, 1);
-    assert.equal(wheres.length, 1);
-    const composed = wheres[0] as unknown as { op: unknown; args: unknown };
-    assert.equal(composed.op, 'and');
-    assert.ok((composed.args as unknown[]).some(arg =>
+    assert.deepEqual(groupsOf(await response.text())[0]!.ids, ['cust-b1']);
+    assert.equal(calls.length, 3);
+    const composed = whereFor(plainOccurrence);
+    assert.equal(composed.length, 1);
+    assert.equal((composed[0] as unknown as { op: unknown }).op, 'and');
+    assert.ok(((composed[0] as unknown as { args: unknown }).args as unknown[]).some(arg =>
       (arg as { field?: unknown; value?: unknown }).field === 'kind' &&
       (arg as { field?: unknown; value?: unknown }).value === 'company'));
-    assert.ok((composed.args as unknown[]).some(arg =>
+    assert.ok(((composed[0] as unknown as { args: unknown }).args as unknown[]).some(arg =>
       (arg as { field?: unknown; value?: unknown }).field === 'active' &&
       (arg as { field?: unknown; value?: unknown }).value === false));
-    store.delete('Probe/kind');
+    prefs.delete('Probe/kind');
 
-    // Saved bool spelling (string, as the store holds it) coerces at
-    // emission to a typed boolean predicate serving only true rows.
-    store.set('Probe/active', { value: 'true', version: '1' });
-    queries = 0; wheres.length = 0;
+    // Saved bool spelling (string, as the store holds it) decodes at the
+    // checked typed read to a boolean predicate serving true rows.
+    prefs.set('Probe/active', { value: 'true', version: '1' });
+    calls.length = 0;
     response = await get(new URLSearchParams());
     assert.equal(response.status, 200);
     const savedTrueHtml = await response.text();
-    assert.deepEqual(ids(savedTrueHtml), ['cust-a1', 'cust-c1']);
-    assert.equal(queries, 1);
-    assert.deepEqual(wheres, [{ op: 'eq', field: 'active', value: true }]);
-    assert.equal(typeof (wheres[0] as unknown as { value: unknown }).value, 'boolean');
+    const savedTrue = groupsOf(savedTrueHtml);
+    assert.deepEqual(savedTrue[0]!.ids, ['cust-a1', 'cust-c1']);
+    assert.equal(calls.length, 3);
+    assert.deepEqual(whereFor(plainOccurrence), [{ op: 'eq', field: 'active', value: true }]);
+    assert.equal(typeof (whereFor(plainOccurrence)[0] as unknown as { value: unknown }).value, 'boolean');
     assert.ok(savedTrueHtml.includes('<option value="true" selected>'));
+    // The negated lists invert the saved spelling and agree.
+    assert.deepEqual(savedTrue[1]!.ids, ['cust-b1']);
+    assert.deepEqual(savedTrue[2]!.ids, ['cust-b1']);
+    assert.deepEqual(whereFor(negAOccurrence), [{ op: 'eq', field: 'active', value: false }]);
+    assert.deepEqual(whereFor(negBOccurrence), [{ op: 'eq', field: 'active', value: false }]);
 
-    // Saved false serves only the false row.
-    store.set('Probe/active', { value: 'false', version: '1' });
-    queries = 0; wheres.length = 0;
+    // B11 DISCRIMINATOR: saved "false" selects TRUE rows through the
+    // inline negation, and the equivalent helper call agrees exactly.
+    prefs.set('Probe/active', { value: 'false', version: '1' });
+    calls.length = 0;
     response = await get(new URLSearchParams());
     assert.equal(response.status, 200);
-    assert.deepEqual(ids(await response.text()), ['cust-b1']);
-    assert.equal(queries, 1);
-    assert.deepEqual(wheres, [{ op: 'eq', field: 'active', value: false }]);
+    const savedFalseHtml = await response.text();
+    const savedFalse = groupsOf(savedFalseHtml);
+    assert.deepEqual(savedFalse[0]!.ids, ['cust-b1']);
+    assert.deepEqual(whereFor(plainOccurrence), [{ op: 'eq', field: 'active', value: false }]);
+    assert.deepEqual(savedFalse[1]!.ids, ['cust-a1', 'cust-c1']);
+    assert.deepEqual(savedFalse[2]!.ids, ['cust-a1', 'cust-c1']);
+    assert.deepEqual(whereFor(negAOccurrence), [{ op: 'eq', field: 'active', value: true }]);
+    assert.deepEqual(whereFor(negBOccurrence), [{ op: 'eq', field: 'active', value: true }]);
+    assert.equal(typeof (whereFor(negAOccurrence)[0] as unknown as { value: unknown }).value, 'boolean');
+    assert.equal(typeof (whereFor(negBOccurrence)[0] as unknown as { value: unknown }).value, 'boolean');
 
-    // Explicit request beats the saved bool spelling.
-    queries = 0; wheres.length = 0;
-    response = await get(new URLSearchParams([[activeName, 'true']]));
+    // Explicit request beats the saved bool spelling on the plain list.
+    calls.length = 0;
+    response = await get(new URLSearchParams([[plainActiveName, 'true']]));
     assert.equal(response.status, 200);
-    assert.deepEqual(ids(await response.text()), ['cust-a1', 'cust-c1']);
-    assert.equal(queries, 1);
-    assert.deepEqual(wheres, [{ op: 'eq', field: 'active', value: true }]);
+    assert.deepEqual(groupsOf(await response.text())[0]!.ids, ['cust-a1', 'cust-c1']);
+    assert.equal(calls.length, 3);
+    assert.deepEqual(whereFor(plainOccurrence), [{ op: 'eq', field: 'active', value: true }]);
 
     // Explicit clear beats the saved bool spelling.
-    queries = 0; wheres.length = 0;
-    response = await get(new URLSearchParams([[activeName, '']]));
+    calls.length = 0;
+    response = await get(new URLSearchParams([[plainActiveName, '']]));
     assert.equal(response.status, 200);
-    assert.deepEqual(ids(await response.text()), ['cust-a1', 'cust-b1', 'cust-c1']);
-    assert.equal(queries, 1);
-    assert.deepEqual(wheres, [undefined]);
+    assert.deepEqual(groupsOf(await response.text())[0]!.ids, ['cust-a1', 'cust-b1', 'cust-c1']);
+    assert.equal(calls.length, 3);
+    assert.deepEqual(whereFor(plainOccurrence), [undefined]);
 
     // Saved enum and saved bool compose into one typed query.
-    store.set('Probe/kind', { value: 'company', version: '1' });
-    queries = 0; wheres.length = 0;
+    prefs.set('Probe/kind', { value: 'company', version: '1' });
+    calls.length = 0;
     response = await get(new URLSearchParams());
     assert.equal(response.status, 200);
-    assert.deepEqual(ids(await response.text()), ['cust-b1']);
-    assert.equal(queries, 1);
-    assert.equal(wheres.length, 1);
-    const savedComposed = wheres[0] as unknown as { op: unknown; args: unknown };
-    assert.equal(savedComposed.op, 'and');
-    assert.ok((savedComposed.args as unknown[]).some(arg =>
+    assert.deepEqual(groupsOf(await response.text())[0]!.ids, ['cust-b1']);
+    assert.equal(calls.length, 3);
+    const savedComposed = whereFor(plainOccurrence);
+    assert.equal(savedComposed.length, 1);
+    assert.equal((savedComposed[0] as unknown as { op: unknown }).op, 'and');
+    assert.ok(((savedComposed[0] as unknown as { args: unknown }).args as unknown[]).some(arg =>
       (arg as { field?: unknown; value?: unknown }).field === 'kind' &&
       (arg as { field?: unknown; value?: unknown }).value === 'company'));
-    assert.ok((savedComposed.args as unknown[]).some(arg =>
+    assert.ok(((savedComposed[0] as unknown as { args: unknown }).args as unknown[]).some(arg =>
       (arg as { field?: unknown; value?: unknown }).field === 'active' &&
       (arg as { field?: unknown; value?: unknown }).value === false));
-    store.delete('Probe/kind');
-    store.delete('Probe/active');
+    prefs.delete('Probe/kind');
+
+    // Request precedence through the negation path: an explicit false on
+    // the inline list serves the false row while the helper list keeps
+    // following the saved negation.
+    calls.length = 0;
+    response = await get(new URLSearchParams([[negANames[0]!, 'false']]));
+    assert.equal(response.status, 200);
+    const overridden = groupsOf(await response.text());
+    assert.deepEqual(overridden[1]!.ids, ['cust-b1']);
+    assert.deepEqual(overridden[2]!.ids, ['cust-a1', 'cust-c1']);
+    assert.equal(calls.length, 3);
+    assert.deepEqual(whereFor(negAOccurrence), [{ op: 'eq', field: 'active', value: false }]);
+    assert.deepEqual(whereFor(negBOccurrence), [{ op: 'eq', field: 'active', value: true }]);
+
+    // Clear through the negation path: an explicit clear on the helper
+    // list serves every row while the inline list keeps following saved.
+    calls.length = 0;
+    response = await get(new URLSearchParams([[negBNames[0]!, '']]));
+    assert.equal(response.status, 200);
+    const cleared = groupsOf(await response.text());
+    assert.deepEqual(cleared[1]!.ids, ['cust-a1', 'cust-c1']);
+    assert.deepEqual(cleared[2]!.ids, ['cust-a1', 'cust-b1', 'cust-c1']);
+    assert.equal(calls.length, 3);
+    assert.deepEqual(whereFor(negAOccurrence), [{ op: 'eq', field: 'active', value: true }]);
+    assert.deepEqual(whereFor(negBOccurrence), [undefined]);
+    prefs.delete('Probe/active');
 
     // Malformed selectors refuse before query or body work.
-    for (const params of [new URLSearchParams([[activeName, 'yes']]),
+    for (const params of [new URLSearchParams([[plainActiveName, 'yes']]),
       new URLSearchParams([['filter[active]', 'true']])]) {
-      queries = 0; wheres.length = 0;
+      calls.length = 0;
       response = await get(params);
       assert.equal(response.status, 400);
       assert.equal(((await response.json()) as { code?: unknown }).code, 'validation');
-      assert.equal(queries, 0);
-      assert.deepEqual(wheres, []);
+      assert.equal(calls.length, 0);
     }
 
+    // A malformed SAVED spelling never reaches a query: the host rejects
+    // the stored value before admission or render work (`rule_failed`,
+    // well-formed but semantically rejected).
+    prefs.set('Probe/active', { value: 'yes', version: '1' });
+    calls.length = 0;
+    response = await get(new URLSearchParams());
+    assert.equal(response.status, 422);
+    assert.equal(((await response.json()) as { code?: unknown }).code, 'rule_failed');
+    assert.equal(calls.length, 0);
+    prefs.delete('Probe/active');
+
     // Denied caller (no membership) refuses before any query.
-    queries = 0; wheres.length = 0;
+    calls.length = 0;
     response = await get(new URLSearchParams(), false);
     assert.equal(response.status, 403);
     assert.equal(((await response.json()) as { code?: unknown }).code, 'forbidden');
-    assert.equal(queries, 0);
-    assert.deepEqual(wheres, []);
+    assert.equal(calls.length, 0);
   } finally {
     rmSync(stageDir, { recursive: true, force: true });
   }
