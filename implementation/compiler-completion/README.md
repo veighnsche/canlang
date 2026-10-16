@@ -24,6 +24,21 @@ session/admission remain local implementation work. Hook guards and ordinary val
 authority; missing parent-read implementation is not a new value-use prohibition. Exact17/18 external/policy holds remain unchanged. Continue ready work
 through these checkpoints; do not mark the overall goal complete.
 
+### Accepted calendar-agenda batch (merge32) — 2026-10-16
+
+Main integrates `aa645a3a2` (C4): agenda `parent`/`columns` binding — IR
+decodes agenda `columns=` to canonical selectors, JS factory consumes
+`parent`/`columns`, `CalendarAgendaProps` + `calendarAgenda` scope the
+authorized query to the enclosing row and render one owned column line per
+endpoint row. CanShift agenda and CanLeave `columns=` clear; C2/C3 date/text
+selectors stay refused. Validation on frozen main producer `c416fbf3` +
+native catalog `ca50`: agenda 1/1, row/ref/joint 1/1, UI 179/179, factory
+33/33, enum 41/41. Intake resolved a DECISIONS append conflict keeping both
+entries. OPEN runtime gap (next owner dispatched): parent-bound agendas with
+saved-preference `defaults` or source-lambda `where` return 422 — the
+released consumer removed the original `defaults` property, so this is not
+original end-to-end success.
+
 ### Accepted HOOKREM refusal pins (merge31) — 2026-10-16
 
 Main integrates `4b6632777` (test-only): the 11 hook-remainder spans refuse
