@@ -12553,11 +12553,95 @@ export async function consumeCanonicalFileReference(
   return result;
 }
 
+/**
+ * Outcome 9 family E (Lane C host seam): adopt the State runtime
+ * boundary for `read=true scope=authority` reports.
+ *
+ * The compiler publishes the checked fact as the §13 `scope:"authority"`
+ * marker on the emitted `appDefinition.operations` entry (description +
+ * declared result beside it); the artifact carries no scope field, so
+ * the marker alone never binds — it must agree with the checked
+ * `artifact.operations` read descriptor or the seam refuses
+ * fail-closed. `undefined` (no callable, no entry, no marker) keeps
+ * the ordinary viewer path byte-identical.
+ */
+async function readAuthorityScopeMarker(opts: CanonicalReadOpts): Promise<unknown> {
+  const where = `Authority scope for ${JSON.stringify(opts.operation)}`;
+  const callable = opts.artifact.callables.find(entry => entry.kind === "operation" && entry.id === opts.operation);
+  if (callable === undefined) return undefined;
+  const url = opts.asm.moduleUrls[callable.module];
+  if (typeof url !== "string" || url === "") return undefined;
+  // Verified assemblies stay verified; capability-less test assemblies
+  // import directly (the `invokeWith` precedent).
+  let module: unknown;
+  if (!requiresVerifiedAssemblyImports(opts.asm, opts.artifact)) {
+    module = await import(url);
+  } else {
+    await verifyCheckedAssembly(opts.asm, opts.artifact);
+    module = await importVerifiedAssemblyModule(opts.asm, callable.module, opts.artifact);
+  }
+  const own = (value: unknown, key: string): unknown =>
+    isUnknownRecord(value) ? readMetadataMember(value, key, where)?.value : undefined;
+  const entry = own(own(module, "appDefinition"), "operations");
+  const operation = isUnknownRecord(entry) ? own(entry, opts.operation) : undefined;
+  if (operation === undefined) return undefined;
+  return own(operation, "scope");
+}
+
+/**
+ * Bind the checked authority-report fact onto the loaded generated read
+ * def (the State `bindAuthorityReportScope` precedent from `4c6fe535`):
+ * the §13 marker plus the checked read descriptor and the single
+ * checked source origin. Every disagreement refuses with `validation`
+ * before any row is served; an already-bound def stays bound (one bind
+ * per artifact load). Description/result shape refusal stays
+ * State-owned: the bind rechecks the bounded description and the
+ * declared grant type beside the host checks here.
+ */
+async function bindAuthorityReportForRead(
+  loaded: LoadedCanonicalDescriptors, opts: CanonicalReadOpts, scope: unknown,
+): Promise<void> {
+  const StateError = loaded.producers.errors;
+  const name = `Operation ${JSON.stringify(opts.operation)}`;
+  if (scope !== "authority") {
+    throw new StateError("validation", `${name} carries an unknown authority scope marker; refusing.`);
+  }
+  const descriptor = opts.artifact.operations?.find(candidate => candidate.name === opts.operation);
+  if (descriptor === undefined || descriptor.kind !== "read") {
+    throw new StateError("validation", `${name} is an authority report without its checked read descriptor; refusing.`);
+  }
+  const sources = opts.artifact.sources;
+  const single = Array.isArray(sources) && sources.length === 1 ? sources[0] : undefined;
+  if (single === undefined) {
+    throw new StateError("validation", `${name} is an authority report without a single checked source origin; refusing.`);
+  }
+  const separator = opts.operation.lastIndexOf(".");
+  const ownerPackage = separator <= 0 ? "" : opts.operation.slice(0, separator);
+  const def = generatedScenarioDef({ def: loaded.registry.get(opts.operation) });
+  if (def === undefined) {
+    throw new StateError("validation", `${name} is an authority report without its generated read definition; refusing.`);
+  }
+  const invokeMod = await loadProducerModule(STATE_INVOKE_SPECIFIER, "state invoke producer");
+  const scopeOf = requireProducerFn(invokeMod, "authorityReportScopeOf", "state invoke producer") as
+    typeof import("@canlang/state/invocation/invoke").authorityReportScopeOf;
+  if (scopeOf(def) !== undefined) return;
+  const bind = requireProducerFn(invokeMod, "bindAuthorityReportScope", "state invoke producer") as
+    typeof import("@canlang/state/invocation/invoke").bindAuthorityReportScope;
+  bind(def, {
+    description: descriptor.description,
+    source: { path: single.path, sha256: single.sha256, module: ownerPackage },
+  });
+}
+
 /** Source reads have no direct storage access and cannot stage any effect. */
 async function runReadScenarioSeam(
   loaded: LoadedCanonicalDescriptors, opts: CanonicalReadOpts, call: AdmittedReadScenarioCall,
 ): Promise<unknown> {
   const StateError = loaded.producers.errors;
+  // Family E: a bound authority execution (State admitted `by` onto the
+  // checked fact) evaluates body reads in decision mode; ordinary calls
+  // omit `decision` and keep the exact viewer path below.
+  const decision = call.decision;
   const refuse = (): never => {
     throw new StateError('validation', 'Read scenarios cannot perform effects or bypass the viewer read port.');
   };
@@ -12575,7 +12659,7 @@ async function runReadScenarioSeam(
   const navigationFailures = new Map<string, Error>();
   const navigation = await createContainmentNavigation({ loaded, store: opts.store,
     revision: call.revision, actorUserId: call.actorUserId, teamId: call.teamId,
-    memberships: opts.memberships, authority: 'viewer', sourceReadOpts: opts, failure: error => {
+    memberships: opts.memberships, authority: decision === undefined ? 'viewer' : 'owner', sourceReadOpts: opts, failure: error => {
       if (error instanceof Error) navigationFailures.set(error.message, error);
     } });
   const reader = loaded.producers.transact.createReadInvoker({
@@ -12649,6 +12733,26 @@ async function runReadScenarioSeam(
       ? Number(nativeLimit) : nativeLimit;
     if (limit !== undefined && (typeof limit !== 'number' || !Number.isSafeInteger(limit) || limit < 0)) {
       throw new StateError('validation', 'Read scenario limit requires a non-negative safe integer.');
+    }
+    if (decision !== undefined) {
+      // Decision reads are data-only owner scans (DESIGN §442, the
+      // `call.decision` precedent): bounded owner authority at the fence
+      // revision, no read-policy recursion, no callbacks, no
+      // containment filters. The State default cap fails overflow
+      // instead of truncating; the fenced revision check voids the
+      // grant on any concurrent move.
+      if (typeof where === 'function' || nativePredicate !== undefined || query.parent !== undefined) {
+        throw new StateError('validation', 'Authority decision reads require data-only selections.');
+      }
+      const observed = await decision.query(model as ModelName, {
+        ...(where === undefined ? {} : { where: where as QueryPredicate }),
+        ...(order === undefined ? {} : { order }),
+        ...(limit === undefined ? {} : { limit: limit as number }),
+      });
+      if (observed.revision !== call.revision || await opts.store.readRevision() !== call.revision) {
+        throw new StateError('conflict', 'State changed during the read scenario query.');
+      }
+      return { records: observed.rows.map(row => ({ ...row, parent: row.parent ?? null })), revision: observed.revision };
     }
     const selection: CanonicalReadSelection = {
       ...(typeof where === 'function' || nativePredicate !== undefined || parentBinding !== undefined ? { predicate: async (row: Readonly<ProjectedRecord>) => {
@@ -12742,7 +12846,9 @@ async function runReadScenarioSeam(
     readRecords: async (model, query) => {
       const rows = await scope.readModel(model, query);
       for (const row of rows) {
-        await navigation.captureQuerySource(model, row);
+        // Decision rows are full owner rows: nothing is withheld, so
+        // the viewer field-presence capture has no projection to pin.
+        if (decision === undefined) await navigation.captureQuerySource(model, row);
         await navigation.prepare(model, row);
       }
       return rows.map(row => recordView(model, row));
@@ -12861,6 +12967,12 @@ export async function invokeReadCanonical(
     if (opts.selection !== undefined) {
       throw new loaded.producers.errors('validation', 'Read scenarios accept their declared inputs only.');
     }
+    // Family E: route the checked §13 authority fact onto the loaded
+    // def before the State reader admits. Bound reports evaluate in
+    // decision mode with the typed result as the grant to `by`;
+    // unmarked operations skip the bind and stay viewer-filtered.
+    const scope = await readAuthorityScopeMarker(opts);
+    if (scope !== undefined) await bindAuthorityReportForRead(loaded, opts, scope);
     const createReader = loaded.producers.transact.createReadScenarioInvoker;
     if (createReader === undefined) throw new Error('State producer has no generated read scenario invoker.');
     const reader = createReader({
@@ -12874,6 +12986,16 @@ export async function invokeReadCanonical(
   const model = readModelForOperation(opts.operation);
   if (model !== null && loaded.ruledModels.has(model) && !loaded.sourceReadPolicies.has(model)) {
     throw ruledReadRefusal(loaded.producers.errors, model);
+  }
+  // Family E: an authority report never serves through the viewer port.
+  // The scenario branch above binds the grant, so a marker reaching
+  // this port names an incoherent artifact and refuses instead of
+  // serving filtered rows (mirrors the invoke-authority negatives).
+  if (await readAuthorityScopeMarker(opts) !== undefined) {
+    throw new loaded.producers.errors(
+      'validation',
+      `Operation "${opts.operation}" is an authority report; viewer reads cannot serve granted results.`,
+    );
   }
   // Bound per call (never cached): the store + memberships are
   // request-scoped, while the registry + policy ride the artifact
