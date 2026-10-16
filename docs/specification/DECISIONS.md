@@ -18120,3 +18120,8 @@ Exactly8 UI occurrences clear, zero new diagnostics. The separate deferred drive
 fix passes actual main3/3 but does not close Employees4. Existing current evidence
 is updated in place; prior369 is retained in Git. No new language/permission rule
 or overall readiness follows; continue native ownership and remaining ready groups.
+
+
+## 2026-10-16 — can18_merge_20_20261016
+
+Accepted: Source business predicates conjoin with typed enum/bool collection filters at the existing page query owner. Source reads execute before control exclusion; real observed row IDs reuse canonical cursor data and preserve source, current actor/team, selection and revision bindings. No new source syntax or authority grant. Retain the main money-stat refusal and assert existing source-owned preference labels. Merge reviewed tested work incrementally into canonical `main`, preserving installer/specification changes and the active implementation branch. Independent released actual compiled Can HTTP consumer1/1; main compiler build0, UI and Cloudflare build:emit0, main actual compiled Can HTTP consumer1/1, relevant compiler59/59 and UI173/173. Includes denied-field failure on an excluded row, request/default/clear precedence, page2 progression, changed identity/selection/revision refusals and recovery. Frozen main compiler aa1efac926; observed cached version label dca00d411 is not producer attribution. Original24 changed-cohort validation follows using unchanged authored inputs. Reconcile the living file-tree plan/registry over `2dcbf67de..802a4be81` with existing owners; retain the complete checkpoint and all outstanding acceptance gates. A merged component is not a claim that original24 or the remaining runtime workflows are complete.

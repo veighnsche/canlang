@@ -73369,5 +73369,78 @@
       "allocation": "existing single current original24 capture, prior result retained in Git",
       "result": "361E6008,complete/omitted0,26sources,24baselinehashmatches;8removed/0added relative369;463.81s;frozen8bac/catalogca50"
     }
+  },
+  "can18_merge_20_20261016": {
+    "incremental_base": "2dcbf67dea161f68ce9ec93edd775f7e552925a7",
+    "incoming_end": "802a4be81ff5b59a4d01438c67f91f9618741e51",
+    "retained_coverage": "reuse spec_installer_merge_reconciliation_20261015 and preceding CAN18 incremental merge entries; inherited complete checkpoint unchanged",
+    "changed_path_count": 12,
+    "rows": [
+      [
+        "compiler/src/codegen/js.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/b1_join.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/calendar_agenda.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/collection_bool_filters.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/enum_filter_group.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/table_filters.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "implementation/compiler-completion/view-reuse/table-filter-consumer.mjs",
+        "Compiler completion",
+        "existing finite execution record"
+      ],
+      [
+        "packages/cloudflare/src/runtime/filter-where-conjunction.test.ts",
+        "cloudflare",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/cloudflare/src/runtime/invoke.ts",
+        "cloudflare",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/ui/src/collections.ts",
+        "ui",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/ui/test/collections.test.ts",
+        "ui",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/ui/test/controls.test.ts",
+        "ui",
+        "existing package source/test owner"
+      ]
+    ],
+    "choice": "Source business predicates conjoin with typed enum/bool collection filters at the existing page query owner. Source reads execute before control exclusion; real observed row IDs reuse canonical cursor data and preserve source, current actor/team, selection and revision bindings. No new source syntax or authority grant. Retain the main money-stat refusal and assert existing source-owned preference labels.",
+    "validation": "Independent released actual compiled Can HTTP consumer1/1; main compiler build0, UI and Cloudflare build:emit0, main actual compiled Can HTTP consumer1/1, relevant compiler59/59 and UI173/173. Includes denied-field failure on an excluded row, request/default/clear precedence, page2 progression, changed identity/selection/revision refusals and recovery. Frozen main compiler aa1efac926; observed cached version label dca00d411 is not producer attribution. Original24 changed-cohort validation follows using unchanged authored inputs.",
+    "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
+    "checkpoint_advanced": false,
+    "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
   }
 }
