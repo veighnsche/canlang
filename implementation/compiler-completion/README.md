@@ -7482,3 +7482,16 @@ reuse owning compiler27/27 and unchanged neighbors. No sink truthiness, local ap
 exception, grants or source mutation. This closes the finite bool-filter/read
 slice; other enum/factory/query groups, original24 and original workflow gates
 stay open. Unrelated worker source and commits remain preserved.
+
+### CAN18 canonical main — enum-default reuse accepted (2026-10-16)
+
+B14+B15 complete finite batch accepted: independent compiler28/28 and actual
+compiled-source page over real State/HTTP1/1 passed against immutable compiler
+783b66e9 (dc2d5ec20), native catalogca50fdca. Direct saved, local-helper,
+imported-helper and coalesced defaults agree; explicit selection/clear precedence,
+invalid saved/request spellings, denied and revoked callers are exercised. Source
+fixtures preserve source identity and use actual emitted modules, not replacement
+handlers/predicate engines. This fixes enum default expression reuse. The original
+~50 unsupported selector/profile occurrences remain implementation obligations;
+this is not a claim that their group or original24 is complete. The standalone
+preference filter end-to-end repair is active and unmerged pending final release.
