@@ -20,8 +20,10 @@ import type {
   Membership,
   MutationAdmissionMode,
   OperationName,
+  OrderTerm,
   OutboxIntent,
   ProjectedRecord,
+  QueryPredicate,
   Receipt,
   ReceiptOutcome,
   RecordId,
@@ -786,6 +788,79 @@ function generatedReadModel(operation: string): ModelName {
 }
 
 /**
+ * Outcome 9 family E: checked `scope=authority` report fact (DESIGN
+ * §§434/442/522, coordinator ruling AUTHORITY-1). The host binds the
+ * compiler-checked fact — the §13 `scope:"authority"` marker plus the
+ * verbatim `#` description identifying the information exposed and its
+ * checked source origin — onto the loaded generated read def. The binding
+ * is engine-local (like `by`/`when` attachments): it carries no authority
+ * itself and never derives the fact; an unbound def stays an ordinary
+ * viewer read. Until bound, and through every viewer path, authority data
+ * refuses instead of serving filtered rows.
+ */
+export interface AuthorityReportSource {
+  readonly path: string;
+  readonly sha256: string;
+  readonly module: string;
+}
+
+export interface AuthorityReportScope {
+  /** Verbatim checked `#` description; empty refuses (DESIGN §522). */
+  readonly description: string;
+  readonly source: AuthorityReportSource;
+}
+
+const authorityReportScopes = new WeakMap<GeneratedOperationDef, AuthorityReportScope>();
+
+function authorityText(value: unknown, what: string): string {
+  if (typeof value !== 'string' || value.length === 0 || value.length > 4096) {
+    throw new StateError('validation', `Authority report scope requires a bounded ${what}.`);
+  }
+  return value;
+}
+
+function authoritySource(value: unknown): AuthorityReportSource {
+  if (typeof value !== 'object' || value === null || Array.isArray(value) ||
+      ![Object.prototype, null].includes(Object.getPrototypeOf(value)) ||
+      Reflect.ownKeys(value).length !== 3) {
+    throw new StateError('validation', 'Authority report scope requires closed own source data.');
+  }
+  const record = value as Record<string, unknown>;
+  const path = authorityText(record['path'], 'source path');
+  const sha256 = authorityText(record['sha256'], 'source sha256');
+  const module = authorityText(record['module'], 'source module');
+  if (!/^[0-9a-f]{64}$/.test(sha256)) {
+    throw new StateError('validation', 'Authority report source requires the checked 64-hex source sha256.');
+  }
+  return Object.freeze({ path, sha256, module });
+}
+
+/** Bind the checked authority-report fact to its loaded generated read def. */
+export function bindAuthorityReportScope(def: GeneratedOperationDef, scope: AuthorityReportScope): void {
+  if (def.descriptor.kind !== 'read') {
+    throw new StateError('validation', 'Authority reports are read operations with a declared result.');
+  }
+  if (def.descriptor.result === undefined) {
+    throw new StateError('validation', 'Authority reports require a declared result type for the grant.');
+  }
+  if (typeof scope !== 'object' || scope === null || Array.isArray(scope) ||
+      ![Object.prototype, null].includes(Object.getPrototypeOf(scope)) ||
+      Reflect.ownKeys(scope).length !== 2) {
+    throw new StateError('validation', 'Authority report scope requires closed own data.');
+  }
+  const description = authorityText(scope.description, 'description identifying the information exposed');
+  if (authorityReportScopes.has(def)) {
+    throw new StateError('validation', 'Authority report scope is already bound to this operation.');
+  }
+  authorityReportScopes.set(def, Object.freeze({ description, source: authoritySource(scope.source) }));
+}
+
+/** The bound checked fact, or undefined for ordinary viewer reads. */
+export function authorityReportScopeOf(def: GeneratedOperationDef): AuthorityReportScope | undefined {
+  return authorityReportScopes.get(def);
+}
+
+/**
  * T17a: invoke one canonical generated read through admission plus the
  * query port. The interim `records()` data-plane operation (direct
  * `StoragePort.query`, owner rows only, no admission) migrates here; T17b
@@ -834,6 +909,16 @@ export async function invokeRead(input: InvokeReadInput): Promise<AuthorizedReco
       'validation',
       `Operation "${input.envelope.operation}" cannot run through invokeRead; ` +
         'mutations execute through the mutation envelope.',
+    );
+  }
+  // Family E: an authority report never serves through the viewer port. A
+  // viewer-mode read of authority data refuses (fail closed) instead of
+  // serving filtered rows; the grant serves only through invokeReadScenario.
+  if (authorityReportScopeOf(def) !== undefined) {
+    throw new StateError(
+      'validation',
+      `Operation "${input.envelope.operation}" is an authority report; ` +
+        'viewer reads cannot serve granted results.',
     );
   }
   const model = generatedReadModel(input.envelope.operation);
@@ -891,17 +976,53 @@ export async function invokeRead(input: InvokeReadInput): Promise<AuthorizedReco
   });
 }
 
+/** Bounded decision-mode read selection: data-only AST, never callbacks. */
+export interface DecisionReadSelection {
+  readonly where?: QueryPredicate;
+  readonly order?: ReadonlyArray<OrderTerm>;
+  readonly limit?: number;
+}
+
+/** Decision-mode rows: full stored rows at the fence revision, never projected. */
+export interface DecisionReadResult {
+  readonly rows: ReadonlyArray<StoredRow>;
+  readonly revision: Revision;
+}
+
+/**
+ * Outcome 9 family E decision capability (DESIGN §442, AUTHORITY-1):
+ * bounded authority state at the resolved storage owner, enrolled in the
+ * admitted fence revision. No read policy is applied to these scans and no
+ * membership check runs inside them; the capability itself is the admitted
+ * authority and exists only on the admitted authority execution. Pure
+ * queries only — there is no commit, receipt, or effect surface.
+ */
+export interface DecisionReadCapability {
+  readonly scope: 'authority';
+  /** The bound checked description identifying the information exposed. */
+  readonly description: string;
+  query(model: ModelName, selection?: DecisionReadSelection): Promise<DecisionReadResult>;
+}
+
+/** Decision scans stay bounded: the default cap matches the page candidate budget; overflow fails, never truncates. */
+const AUTHORITY_DECISION_DEFAULT_LIMIT = VIEWER_PAGE_MAX_CANDIDATES;
+
 /** Read-only source call: no mutation identity, receipt, or effect staging. */
 export interface AdmittedReadScenarioCall {
   readonly def: GeneratedOperationDef;
   readonly inputs: Record<string, unknown>;
-  /** Rows contain only the caller's currently granted fields. */
+  /** Rows contain only the caller's currently granted fields (full owner rows in decision mode). */
   readonly recordRefs: AdmittedCall['recordRefs'];
   readonly revision: Revision;
   readonly actorUserId: string | null;
   readonly teamId: string | null;
   /** Live identity-store facts; caller-supplied membership claims never enter here. */
   readonly membership: Membership | null;
+  /**
+   * Present only on admitted authority-report executions. Ordinary read
+   * scenario calls omit this member entirely, keeping their exact shape.
+   */
+  readonly decision?: DecisionReadCapability;
 }
 
 export type ReadScenarioHandler<Result = unknown> = (call: AdmittedReadScenarioCall) => Promise<Result>;
@@ -950,6 +1071,13 @@ export async function invokeReadScenario<Result = unknown>(input: InvokeReadScen
   };
   const membership = structuredClone(await readMembership());
   await authorize(membership);
+  // Family E: the bound checked fact selects decision-mode evaluation for
+  // this execution. The description recheck is defense in depth beside the
+  // compiler E3001 and the bind-time refusal: an undescribed grant refuses.
+  const authority = authorityReportScopeOf(def);
+  if (authority !== undefined && authority.description === '') {
+    throw new StateError('validation', 'Authority reports must have a description identifying the information exposed.');
+  }
   const validated = validateCallInputs(def, input.envelope.inputs);
   const projectRef = async (
     ref: Pick<AdmittedCall['recordRefs'][number], 'model' | 'id'>,
@@ -966,8 +1094,17 @@ export async function invokeReadScenario<Result = unknown>(input: InvokeReadScen
     return { ...row, data: record.data };
   };
   // Visibility precedes stale/archive facts; visible refs keep canonical order.
+  // Decision mode skips the row-grant observation below entirely: per DESIGN
+  // §442 decision scans never recursively apply read policies, so refs load
+  // as full owner rows through the shared loader (stale/archive/missing
+  // identity retained) without viewer projection.
   let loadedRefs: AdmittedCall['recordRefs'];
   let revalidateRefAuthority: (() => Promise<void>) | undefined;
+  if (authority !== undefined) {
+    loadedRefs = await loadCallRecordRefs({
+      pending: validated.refs, inputs: validated.normalized, store: input.store, scope: fence,
+    });
+  } else {
   const rowSubjects = validated.refs.some(ref => input.policy.get(ref.model)?.grants.some(grant => byDependsOnRow(grant.by)));
   if (rowSubjects) {
     let discoveredRefs: AdmittedCall['recordRefs'] | undefined;
@@ -1000,13 +1137,62 @@ export async function invokeReadScenario<Result = unknown>(input: InvokeReadScen
     pending: validated.refs, inputs: validated.normalized, store: input.store,
     scope: fence, projectRow: projectRef,
   });
+  }
   const recordRefs = loadedRefs.map((ref) => ({ ...ref, row: structuredClone(ref.row) }));
   const projections = loadedRefs.map((ref) => JSON.stringify(ref.row.data));
   // Capture authority/projection evidence separately from mutable host inputs.
   const membershipSnapshot = JSON.stringify(membership);
+  // Family E decision reads: owner authority at the fence revision, enrolled
+  // in the same fence. Each observation is retained for the post-execution
+  // recheck, mirroring the viewer readings below.
+  const decisionObservations: Array<{
+    readonly model: ModelName; readonly where?: QueryPredicate;
+    readonly order?: ReadonlyArray<OrderTerm>; readonly limit: number; readonly projection: string;
+  }> = [];
+  const runDecisionQuery = async (
+    model: ModelName, where?: QueryPredicate, order?: ReadonlyArray<OrderTerm>, limit?: number,
+  ): Promise<DecisionReadResult> => {
+    const bounded = limit ?? AUTHORITY_DECISION_DEFAULT_LIMIT;
+    const modelDescriptor = input.models?.find((descriptor) => descriptor.name === model);
+    const served = await queryRecords({
+      policy: input.policy, model,
+      ...(modelDescriptor !== undefined ? { modelDescriptor } : {}),
+      authority: 'owner',
+      context: { actorUserId, teamId },
+      memberships: input.memberships,
+      store: input.store,
+      fence,
+      archived: 'exclude',
+      ...(where !== undefined ? { where } : {}),
+      ...(order !== undefined ? { order } : {}),
+      limit: bounded,
+    });
+    if (served.revision !== revision || await input.store.readRevision() !== revision) {
+      throw new StateError('conflict', 'State changed during the read scenario query.');
+    }
+    return { rows: served.rows, revision: served.revision };
+  };
+  const decision = authority === undefined ? undefined : {
+    scope: 'authority' as const,
+    description: authority.description,
+    query: async (model: ModelName, selection: DecisionReadSelection = {}): Promise<DecisionReadResult> => {
+      const observed = await runDecisionQuery(model, selection.where, selection.order, selection.limit);
+      decisionObservations.push({
+        model, ...(selection.where !== undefined ? { where: selection.where } : {}),
+        ...(selection.order !== undefined ? { order: selection.order } : {}),
+        limit: selection.limit ?? AUTHORITY_DECISION_DEFAULT_LIMIT,
+        projection: JSON.stringify(observed.rows),
+      });
+      return observed;
+    },
+  } satisfies DecisionReadCapability;
+  // The typed result serves as the explicit grant to the admitted `by`
+  // (DESIGN §522): no viewer projection touches it; the fence, membership,
+  // and observation rechecks below void it on any authority change.
   const result = await input.execute({
     def, inputs: validated.normalized, recordRefs, revision,
     actorUserId, teamId, membership,
+    ...(decision === undefined ? {} : { decision }),
   });
   const assertRevision = async (): Promise<void> => {
     if (await input.store.readRevision() !== revision) {
@@ -1020,7 +1206,24 @@ export async function invokeReadScenario<Result = unknown>(input: InvokeReadScen
     throw new StateError('forbidden', 'Caller authority changed during the read scenario.');
   }
   if (revalidateRefAuthority !== undefined) await revalidateRefAuthority();
-  else {
+  else if (authority !== undefined) {
+    // Decision revalidation: owner rows and decision observations are
+    // re-read over the original rows; any drift voids the grant. The fence
+    // revision check above already covers committed writes.
+    for (const [index, ref] of loadedRefs.entries()) {
+      const current = await input.store.load(ref.model, ref.id);
+      if (current === null) throw new StateError('not_found', 'Record not found.');
+      if (JSON.stringify(current.data) !== projections[index]) {
+        throw new StateError('forbidden', 'Record read authority changed during the read scenario.');
+      }
+    }
+    for (const observation of decisionObservations) {
+      const fresh = await runDecisionQuery(observation.model, observation.where, observation.order, observation.limit);
+      if (JSON.stringify(fresh.rows) !== observation.projection) {
+        throw new StateError('forbidden', 'Record read authority changed during the read scenario.');
+      }
+    }
+  } else {
     for (const [index, ref] of loadedRefs.entries()) {
       const current = await projectRef(ref, ref.row);
       if (JSON.stringify(current.data) !== projections[index]) {
@@ -1097,6 +1300,16 @@ export async function invokeReadPage(input: InvokeReadPageInput,
     registry: input.registry, policy: input.policy, store: input.store,
     memberships: input.memberships, envelope: input.envelope, identity: input.identity,
     execute: async call => {
+      // Family E: authority grants are single typed results, never viewer
+      // page collections. This check precedes model resolution so the
+      // refusal names the grant boundary rather than the read convention.
+      if (authorityReportScopeOf(call.def) !== undefined) {
+        throw new StateError(
+          'validation',
+          `Operation "${input.envelope.operation}" is an authority report; ` +
+            'paged viewer reads cannot serve granted results.',
+        );
+      }
       const model = generatedReadModel(input.envelope.operation);
       if (call.def.descriptor.inputs.length !== 0) {
         throw new StateError('validation', 'Paged model reads require the supported empty generated input shape.');

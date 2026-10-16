@@ -106,7 +106,6 @@ fn item<'a>(ir: &'a IrProgram, canonical: &str) -> &'a IrItem {
 /// (verified 2026-10-16: implicit-app, entry-only and non-entry-pair shapes
 /// pass); the `use lib {Budget}` import refuses E6008 at the first span.
 #[test]
-#[ignore = "outcome 5 OPEN: cross-package first-query correspondence declined at disclosure owner.module gate (Lane C); un-ignore after repair"]
 fn imported_model_first_without_helper_control() {
     let source = "app FirstSources uses=[shop]\npackage lib\n Given\n  export Budget {account:user,approved:bool,active:bool}\n  policy Budget read=members\n When\n Then\npackage shop\n use lib {Budget}\n Given\n When\n  scenario generate() -> bool by=members\n   do\n    let budget=first(Budget as row where row.account==actor order=row.id)\n    require budget!=null and budget.approved\n    return true\n Then\n";
     let (db, program, _, catalog) = fixture_source("imported-first-control.can", source);
@@ -120,7 +119,6 @@ fn imported_model_first_without_helper_control() {
 /// source/type/owner of the imported `allowed` helper must survive into the
 /// emitted consumer; corrupting the helper body must still refuse E6008.
 #[test]
-#[ignore = "outcome 5 OPEN: same disclosure owner.module gate as the control above (Lane C); un-ignore after repair"]
 fn imported_helper_guard_keeps_first_query_source_correspondence() {
     let source = "app FirstSources uses=[shop]\npackage lib\n Given\n  export Budget {account:user,approved:bool,active:bool}\n  policy Budget read=members\n  export derive allowed(record:Budget):bool = record.approved and record.active\n When\n Then\npackage shop\n use lib {Budget,allowed}\n Given\n When\n  scenario generate() -> bool by=members\n   do\n    let budget=first(Budget as row where row.account==actor order=row.id)\n    require budget!=null and allowed(record=budget)\n    return true\n Then\n";
     let (db, program, original, catalog) = fixture_source("imported-first-helper.can", source);
@@ -162,10 +160,83 @@ fn imported_helper_guard_keeps_first_query_source_correspondence() {
 /// plan/emitter layers refuse E6008 (multi-layer archive gap, Lane C runtime
 /// honoring still needed after the compiler join).
 #[test]
-#[ignore = "outcome 5 OPEN: archived-first plan/emitter join missing (compiler bridge + Lane C runtime); un-ignore after repair"]
 fn archived_first_query_same_module() {
     let source = "app FirstSources\nGiven\n Budget {account:user,approved:bool}\n policy Budget read=members\nWhen\n scenario generate() -> bool by=members\n  do\n   let budget=first(Budget archived=include as row where row.account==actor order=row.id)\n   require budget!=null and budget.approved\n   return true\nThen\n";
     let (db, program, _, catalog) = fixture_source("archived-first.can", source);
+    let (artifact, diagnostics) = prepared_artifact(&program, &db, &catalog);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let text = artifact["modules"][0]["js"].as_str().unwrap();
+    assert!(text.contains("executionDependencies:["));
+}
+
+/// Otherwise-equivalent archived positive WITHOUT order: the leading
+/// `archived=include` clause with only as/where must close the same way.
+/// Regression for the REVIEW-8 arm-order gap (the unguarded 3-slot arm
+/// swallowed this shape and failed As/Where validation).
+#[test]
+fn archived_first_query_same_module_without_order() {
+    let source = "app FirstSources\nGiven\n Budget {account:user,approved:bool}\n policy Budget read=members\nWhen\n scenario generate() -> bool by=members\n  do\n   let budget=first(Budget archived=include as row where row.account==actor)\n   require budget!=null and budget.approved\n   return true\nThen\n";
+    let (db, program, _, catalog) = fixture_source("archived-first-no-order.can", source);
+    let (artifact, diagnostics) = prepared_artifact(&program, &db, &catalog);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let text = artifact["modules"][0]["js"].as_str().unwrap();
+    assert!(text.contains("executionDependencies:["));
+}
+
+/// REVIEW-8 finding 2: a foreign file claiming the PROVIDER path refuses
+/// E6008 through the existing stored-contract source seal, independent of
+/// the helper-expression mutation negative. The multi-file baseline emits
+/// (provider/consumer paths legitimately differ, so the import
+/// correspondence itself compares module/canonical only); duplicating the
+/// provider path breaks `match_stored_contract_source`
+/// (`compiler/src/codegen/scenario_receipts.rs`, via
+/// `checked_first_query_schema` → `match_stored_contract_schema`: owning
+/// module, path equality, sha256 equality, recomputed hash, single db entry
+/// for the path). Consumer-side sealing is untouched: `checked_source`
+/// (`scenario_calls.rs`) plus `query.source == facts.source`
+/// (`checked_owner_first_query_ir`). The helper-inclusive shape was observed
+/// to refuse identically in scratch probing. No repair needed; this test
+/// guards the seal.
+#[test]
+fn foreign_provider_path_refuses_first_query_source_correspondence() {
+    let lib = "package lib\n Given\n  export Budget {account:user,approved:bool,active:bool}\n  policy Budget read=members\n When\n Then\n";
+    let shop = "package shop\n use lib {Budget}\n Given\n When\n  scenario generate() -> bool by=members\n   do\n    let budget=first(Budget as row where row.account==actor order=row.id)\n    require budget!=null and budget.approved\n    return true\n Then\n";
+    let app = "app FirstSources uses=[shop]\n";
+    let mut db = SourceDb::new();
+    let lib_file = db.add("import-lib.can".into(), lib.into());
+    let shop_file = db.add("import-shop.can".into(), shop.into());
+    let app_file = db.add("import-app.can".into(), app.into());
+    let path = native_owner_root().join("packages/cloudflare/dist/native-catalog.json");
+    let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+        flag: Some(&path),
+        env: None,
+        cwd: &root(),
+        primary: Span::new(app_file, 0, 0),
+    });
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let catalog = catalog.unwrap();
+    let (program, diagnostics) = check_program(&db, &[lib_file, shop_file, app_file], Some(&catalog));
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (artifact, diagnostics) = prepared_artifact(&program, &db, &catalog);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let text = artifact["modules"][0]["js"].as_str().unwrap();
+    assert!(text.contains("executionDependencies:["));
+    // Foreign bytes claiming the provider path: the stored-contract source
+    // seal must refuse even though module/canonical still correspond.
+    db.add("import-lib.can".into(), "package lib\n".into());
+    let (_, diagnostics) = prepared_artifact(&program, &db, &catalog);
+    assert!(
+        diagnostics.iter().any(|diagnostic| diagnostic.code == "E6008"),
+        "foreign provider-path source must still refuse"
+    );
+}
+
+/// Default-exclude control: no archived clause and no order keeps the
+/// default closed shape through the reordered arms (no permission change).
+#[test]
+fn plain_first_query_same_module_without_order_control() {
+    let source = "app FirstSources\nGiven\n Budget {account:user,approved:bool}\n policy Budget read=members\nWhen\n scenario generate() -> bool by=members\n  do\n   let budget=first(Budget as row where row.account==actor)\n   require budget!=null and budget.approved\n   return true\nThen\n";
+    let (db, program, _, catalog) = fixture_source("plain-first-no-order.can", source);
     let (artifact, diagnostics) = prepared_artifact(&program, &db, &catalog);
     assert!(diagnostics.is_empty(), "{diagnostics:?}");
     let text = artifact["modules"][0]["js"].as_str().unwrap();

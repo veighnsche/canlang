@@ -6287,7 +6287,7 @@ impl<'a> Emitter<'a> {
             && query.select.is_none()
             && query.select_param.is_none()
             && query.limit.is_none()
-            && query.archived.is_none()
+            && (query.archived.is_none() || source.archived)
             && !query.where_async
             && matches!(&query.domain,super::ir::IrQueryDomain::Model(name) if name==&source.model_name)
             && super::scenario_receipts::checked_first_query_order(source, query).is_some()

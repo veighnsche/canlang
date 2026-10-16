@@ -9,32 +9,19 @@
 //! Admitted sub-shapes (Lane C D2/D6): void children with creates, and
 //! `set` on a bound model-result child, join below with receipt emission.
 //!
-//! Pending contract (the original 7 need disclosure gates owned outside
-//! this lane; each reason below is the observed
-//! `ScenarioDisclosure::Declined` reason on a faithful minimal shape):
-//! - `propose.offer_alternative` → `propose.revise`: bound-result `set`
-//!   ("bound child result consumption needs its owning provenance"),
-//!   member-domain `for` ("loop needs direct admitted array input"),
-//!   `proposal=revision.parent` into a non-nullable slot ("model child
-//!   input lacks original provenance"), `text` into `text?` and the
-//!   `QuoteInterval[]` slot ("child input needs explicit checked
-//!   declaration").
-//! - `rent_fulfillment.request` → `rent_reservations.prepare`: void child
-//!   with branch-nested creates ("create then set/current-field return
-//!   profile required").
-//! - `rent_fulfillment.check_in` → `rent_reservations.arrive` and
-//!   `check_out` → `depart`: void children with top-level creates plus
-//!   `schedule`/`emit` (return-profile gate and "mutation or external
-//!   effect closure").
-//! - `rent_fulfillment.cancel` → `rent_reservations.cancel_booking`:
-//!   `cancel`, member-domain `for`, nested creates (same gates).
-//! - `desk.handoff` → `maintain.report`: only the singular `file?` slot
-//!   remains ("child input needs explicit checked declaration"); the
-//!   call/bind/set/return shape below already joins.
-//! - `field.complete` → `maintain.inspect`: branch-nested call with a
-//!   record input ("model call input needs original root occurrence"),
-//!   child `cancel`, nested creates, array/enum slots (same gates), plus
-//!   the parent `emit`.
+//! Admitted sub-shapes (Lane C D1/D3/D5/D7/D8 plus external effects): each
+//! twin below carries one original gate — nullable widening (`text` into
+//! `text?`, explicit and implicit), singular `file?`, enum and array slots
+//! (including contract arrays and `=name` defaults), single-hop
+//! `param.parent` provenance, branch-nested calls, member-domain loops and
+//! `emit`/`schedule`/`cancel` children — and joins with
+//! `invokeScenarioReceiptCall` emission.
+//!
+//! Remaining original-only shapes (still declined, reasons in parentheses):
+//! filtered `as row where …` loops (not whole-collection member domains),
+//! `send`/`cancel` inside loop bodies, record-carrying `emit` payloads,
+//! nullable-to-required narrowing without an exact supplied type, and
+//! `create` inside loop bodies.
 use canlang_compiler::analysis::catalog::{load_catalog, CatalogRequest};
 use canlang_compiler::analysis::scenario_disclosure::ScenarioDisclosure;
 use canlang_compiler::analysis::{check_program, ResolvedType};
@@ -50,9 +37,13 @@ package t
   Conversation {title:text}
   Branch in Conversation {title:text}
   Leaf in Branch {note:text}
+  Label in Branch {note:text,kind:enum(plain,fancy)=plain}
+  contract Slot {from:datetime,until:datetime}
+  event Ping {note:text}
   policy Conversation read=members
   policy Branch read=members
   policy Leaf read=members
+  policy Label read=members
  When
 "#;
 
@@ -357,6 +348,291 @@ fn skewed_call_inputs_refuse_source_ir_and_interface_match() {
             _ => unreachable!(),
         }
         assert_join_refused(&changed, &db, "t.sk_parent", mode);
+    }
+}
+
+/// D1/D3 twin (`propose.revise` `resource`/`product`): `text` widens into
+/// `text?` with an explicit null default. The declaration keeps its
+/// absence; the supply carries the exact inner type.
+#[test]
+fn widened_nullable_call_joins_and_emits_receipt_call() {
+    let (db, ir) = joined(
+        "widen-null",
+        r#"  export scenario wn_child(branch:Branch,title:text,product:text?=null) by=members
+   do set branch {title}
+  scenario wn_parent(branch:Branch,title:text,product:text) by=members
+   do call wn_child {branch,title,product=title}
+"#,
+        "t.wn_parent",
+    );
+    let owner = item(&ir, "t.wn_parent");
+    assert!(matches!(
+        ir.scenario_disclosures[&owner.id],
+        ScenarioDisclosure::Complete(_)
+    ));
+    let _ = db;
+}
+
+/// D1 twin (`propose.revise` implicit `resource:text?`): absence without an
+/// explicit default still widens from the exact supplied value.
+#[test]
+fn implicit_nullable_call_joins_and_emits_receipt_call() {
+    let (db, ir) = joined(
+        "implicit-null",
+        r#"  export scenario in_child(branch:Branch,title:text,resource:text?) by=members
+   do set branch {title}
+  scenario in_parent(branch:Branch,title:text,resource:text) by=members
+   do call in_child {branch,title,resource}
+"#,
+        "t.in_parent",
+    );
+    let owner = item(&ir, "t.in_parent");
+    assert!(matches!(
+        ir.scenario_disclosures[&owner.id],
+        ScenarioDisclosure::Complete(_)
+    ));
+    let _ = db;
+}
+
+/// D1 twin (`desk.handoff` → `maintain.report` `photo`): the singular
+/// `file?` slot admits the exact nullable supply; no File authority is
+/// issued by the join itself.
+#[test]
+fn singular_file_call_joins_and_emits_receipt_call() {
+    let (db, ir) = joined(
+        "singular-file",
+        r#"  export scenario sf_child(branch:Branch,title:text,photo:file?=null) by=members
+   do set branch {title}
+  scenario sf_parent(branch:Branch,title:text,photo:file?=null) by=members
+   do call sf_child {branch,title,photo}
+"#,
+        "t.sf_parent",
+    );
+    let owner = item(&ir, "t.sf_parent");
+    assert!(matches!(
+        ir.scenario_disclosures[&owner.id],
+        ScenarioDisclosure::Complete(_)
+    ));
+    let _ = db;
+}
+
+/// D1 twin (`maintain.inspect` `result`): enum slots keep their exact
+/// checked domain through field reuse; case spellings are never converted.
+#[test]
+fn enum_call_joins_and_emits_receipt_call() {
+    let (db, ir) = joined(
+        "enum-slot",
+        r#"  export scenario en_child(branch:Branch,title:text,kind:Label.kind) by=members
+   do set branch {title}
+  scenario en_parent(branch:Branch,title:text,kind:Label.kind) by=members
+   do call en_child {branch,title,kind}
+"#,
+        "t.en_parent",
+    );
+    let owner = item(&ir, "t.en_parent");
+    assert!(matches!(
+        ir.scenario_disclosures[&owner.id],
+        ScenarioDisclosure::Complete(_)
+    ));
+    let _ = db;
+}
+
+/// D1 twin (`maintain.inspect` `answers`, `propose.revise` `intervals`):
+/// scalar and contract arrays keep their exact element shape; only required
+/// slots or an empty-array literal default are eligible.
+#[test]
+fn array_calls_join_and_emit_receipt_call() {
+    for (name, child_param, parent_param) in [
+        ("scalar-array", "titles:text[]=[]", "titles:text[]"),
+        ("contract-array", "slots:Slot[]=[]", "slots:Slot[]"),
+    ] {
+        let (db, ir) = joined(
+            name,
+            &format!(
+                r#"  export scenario ax_child(branch:Branch,title:text,{child_param}) by=members
+   do set branch {{title}}
+  scenario ax_parent(branch:Branch,title:text,{parent_param}) by=members
+   do call ax_child {{branch,title,{slot}}}
+"#,
+                slot = child_param.split(':').next().unwrap(),
+            ),
+            "t.ax_parent",
+        );
+        let owner = item(&ir, "t.ax_parent");
+        assert!(matches!(
+            ir.scenario_disclosures[&owner.id],
+            ScenarioDisclosure::Complete(_)
+        ));
+        let _ = db;
+    }
+}
+
+/// D1 twin (`propose.revise` `refund_before:datetime=from`): a genuine
+/// `=name` default names an earlier required same-type parameter. The CALL
+/// supplies every slot, so the default never evaluates there.
+#[test]
+fn param_reference_default_call_joins_and_emits_receipt_call() {
+    let (db, ir) = joined(
+        "paramref-default",
+        r#"  export scenario pr_child(branch:Branch,title:text,from:datetime,until:datetime=from) by=members
+   do set branch {title}
+  scenario pr_parent(branch:Branch,title:text,from:datetime,until:datetime) by=members
+   do call pr_child {branch,title,from,until}
+"#,
+        "t.pr_parent",
+    );
+    let owner = item(&ir, "t.pr_parent");
+    assert!(matches!(
+        ir.scenario_disclosures[&owner.id],
+        ScenarioDisclosure::Complete(_)
+    ));
+    let _ = db;
+}
+
+/// D3/D5 twin (`proposal=revision.parent`): one checked `param.parent` hop
+/// into a required slot. The base stays the caller's original required
+/// model parameter; the hop is the checked containment edge.
+#[test]
+fn parent_member_call_joins_and_emits_receipt_call() {
+    let (db, ir) = joined(
+        "parent-member",
+        r#"  export scenario pm_child(conv:Conversation,title:text) by=members
+   do set conv {title}
+  scenario pm_parent(branch:Branch,title:text) by=members
+   do call pm_child {conv=branch.parent,title}
+"#,
+        "t.pm_parent",
+    );
+    let owner = item(&ir, "t.pm_parent");
+    assert!(matches!(
+        ir.scenario_disclosures[&owner.id],
+        ScenarioDisclosure::Complete(_)
+    ));
+    let _ = db;
+}
+
+/// D7 twin (`field.complete` → `record_inspection`): a branch-nested call
+/// keeps the caller's original parameter value; shadowing still resolves
+/// through the lexical binding check and derived/call/loop positions refuse.
+#[test]
+fn branch_nested_call_joins_and_emits_receipt_call() {
+    let (db, ir) = joined(
+        "nested-call",
+        r#"  export scenario nc_child(branch:Branch,title:text) by=members
+   do set branch {title}
+  scenario nc_parent(branch:Branch,title:text) by=members
+   do
+    if title!=""
+     call nc_child {branch,title}
+"#,
+        "t.nc_parent",
+    );
+    let owner = item(&ir, "t.nc_parent");
+    assert!(matches!(
+        ir.scenario_disclosures[&owner.id],
+        ScenarioDisclosure::Complete(_)
+    ));
+    let _ = db;
+}
+
+/// D8 twin (`propose.offer_alternative` loop shape): a member-domain loop
+/// scans the caller's whole contained collection in source order next to a
+/// joined call. Filtered `as row where …` loops still refuse below.
+#[test]
+fn member_domain_loop_with_call_joins_and_emits_receipt_call() {
+    let (db, ir) = joined(
+        "member-loop",
+        r#"  export scenario ml_child(branch:Branch,title:text) by=members
+   do set branch {title}
+  scenario ml_parent(branch:Branch,title:text) by=members
+   do
+    call ml_child {branch,title}
+    for leaf in branch.Leaf limit=10
+     set leaf {note=title}
+"#,
+        "t.ml_parent",
+    );
+    let owner = item(&ir, "t.ml_parent");
+    assert!(matches!(
+        ir.scenario_disclosures[&owner.id],
+        ScenarioDisclosure::Complete(_)
+    ));
+    let _ = db;
+}
+
+/// `_`-arm twins (`arrive`/`depart`/`cancel_booking`/`complete` shapes):
+/// `emit`, `schedule` and `cancel` evaluate their exact authored value
+/// operands once in source order inside the owner transaction. Record
+/// reads never hide inside payloads or keys.
+#[test]
+fn external_effect_children_join_and_emit_receipt_call() {
+    for (name, body) in [
+        ("emit-child", "set branch {title}\n    emit Ping {note=title}"),
+        (
+            "sched-child",
+            "set branch {title}\n    schedule title at=now event=Ping {note=title}\n    cancel title",
+        ),
+    ] {
+        let (db, ir) = joined(
+            name,
+            &format!(
+                r#"  export scenario xe_child(branch:Branch,title:text) by=members
+   do
+    {body}
+  scenario xe_parent(branch:Branch,title:text) by=members
+   do call xe_child {{branch,title}}
+"#
+            ),
+            "t.xe_parent",
+        );
+        let owner = item(&ir, "t.xe_parent");
+        assert!(matches!(
+            ir.scenario_disclosures[&owner.id],
+            ScenarioDisclosure::Complete(_)
+        ));
+        let _ = db;
+    }
+}
+
+/// Widening and provenance keep their refusals: an explicit null supply
+/// (no exact inner value), a double-hop `parent.parent` chain and a
+/// filtered member loop never join.
+#[test]
+fn widened_and_provenance_mismatches_refuse_join() {
+    for (name, scenarios, parent) in [
+        (
+            "null-supply",
+            r#"  export scenario mm_child(branch:Branch,title:text,product:text?=null) by=members
+   do set branch {title}
+  scenario mm_parent(branch:Branch,title:text) by=members
+   do call mm_child {branch,title,product=null}
+"#,
+            "t.mm_parent",
+        ),
+        (
+            "double-hop",
+            r#"  export scenario dh_child(conv:Conversation,title:text) by=members
+   do set conv {title}
+  scenario dh_parent(leaf:Leaf,title:text) by=members
+   do call dh_child {conv=leaf.parent.parent,title}
+"#,
+            "t.dh_parent",
+        ),
+        (
+            "filtered-loop",
+            r#"  export scenario fl_child(branch:Branch,title:text) by=members
+   do set branch {title}
+  scenario fl_parent(branch:Branch,title:text) by=members
+   do
+    call fl_child {branch,title}
+    for leaf in branch.Leaf as row where row.note!="" limit=10
+     set leaf {note=title}
+"#,
+            "t.fl_parent",
+        ),
+    ] {
+        let (db, ir) = lowered(name, scenarios);
+        assert_join_refused(&ir, &db, parent, name);
     }
 }
 

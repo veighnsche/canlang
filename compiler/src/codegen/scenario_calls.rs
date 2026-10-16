@@ -436,7 +436,6 @@ fn explicit_scalar_input(
         || input.array_required.is_some()
         || input.min.is_some()
         || input.max.is_some()
-        || input.computed_default
         || db
             .get(parameter.span.file)?
             .text
@@ -446,14 +445,72 @@ fn explicit_scalar_input(
         return None;
     }
     match (default, default_node, &input.default) {
-        (None, None, None) => {}
+        (None, None, None) => {
+            if input.computed_default {
+                return None;
+            }
+        }
         (Some(IrDefault::Literal(value)), Some(node), Some(actual)) => {
-            if node.kind != SyntaxKind::Literal as u8
+            if input.computed_default
+                || node.kind != SyntaxKind::Literal as u8
                 || value.ty != *ty
                 || value.span != Span::new(node.file, node.start, node.end)
                 || !source_scalar_literal(value, db)
                 || actual.to_json()
                     != super::js::js_field_default(default.as_ref(), None)?.to_json()
+            {
+                return None;
+            }
+        }
+        // A genuine `=name` default names an earlier required same-type
+        // parameter. Static CALL supplies every slot, so the default never
+        // evaluates there; the descriptor preserves omission for direct
+        // invocation while the join seals the exact reference.
+        (Some(IrDefault::Computed { expr, .. }), Some(node), None) => {
+            if !input.computed_default {
+                return None;
+            }
+            let IrExpr::Name(target) = &expr.expr else {
+                return None;
+            };
+            if expr.ty != *ty
+                || expr.span.file != node.file
+                || expr.span.start < node.start
+                || expr.span.end > node.end
+                || db
+                    .get(node.file)?
+                    .text
+                    .get(node.start as usize..node.end as usize)?
+                    != target.as_str()
+            {
+                return None;
+            }
+            let IrItemKind::Scenario { params, .. } = &child.kind else {
+                return None;
+            };
+            let Some(earlier) = params.iter().position(|id| id == &parameter.id) else {
+                return None;
+            };
+            let mut referenced = params[..earlier].iter().filter_map(|id| ir.items.get(id.0 as usize)).filter(|item| item.name == *target);
+            let source = referenced.next()?;
+            if referenced.next().is_some() {
+                return None;
+            }
+            let IrItemKind::Param {
+                owner: source_owner,
+                ty: IrType::Known(source_ty),
+                default: None,
+                default_node: None,
+                array_bounds: None,
+                ..
+            } = &source.kind
+            else {
+                return None;
+            };
+            if source.id == parameter.id
+                || *source_owner != child.id
+                || source.module != child.module
+                || source_ty != ty
             {
                 return None;
             }
@@ -500,6 +557,226 @@ fn explicit_scalar_input(
         )
     {
         return None;
+    }
+    Some(())
+}
+
+/// Nullable value slots (`text?`, `file?`, …) widen from their exact inner
+/// supply or carry their exact nullable value. The declaration keeps its
+/// implicit absence or explicit literal-null default; nothing else becomes
+/// a supplied-input admission.
+fn explicit_nullable_value_input(
+    ir: &IrProgram,
+    child: &IrItem,
+    parameter: &IrItem,
+    input: &JsOperationField,
+    db: &SourceDb,
+) -> Option<()> {
+    let source = checked_source(ir, child, db)?;
+    let (position, _) = source
+        .parameters
+        .iter()
+        .enumerate()
+        .find(|(_, fact)| fact.parameter == parameter.id)?;
+    let IrItemKind::Param {
+        owner,
+        index,
+        ty: IrType::Known(ty),
+        array_bounds: None,
+        default,
+        default_node,
+        ..
+    } = &parameter.kind
+    else {
+        return None;
+    };
+    let ResolvedType::Nullable(inner) = ty else {
+        return None;
+    };
+    let ResolvedType::Scalar(scalar) = inner.as_ref() else {
+        return None;
+    };
+    if *owner != child.id
+        || *index != position
+        || parameter.module != child.module
+        || parameter.canonical != format!("{}.{}", child.canonical, parameter.name)
+        || input.name != parameter.name
+        || input.required
+        || !input.nullable
+        || input.array_required.is_some()
+        || input.min.is_some()
+        || input.max.is_some()
+        || input.computed_default
+        || db
+            .get(parameter.span.file)?
+            .text
+            .get(parameter.span.start as usize..parameter.span.end as usize)?
+            != parameter.name
+    {
+        return None;
+    }
+    match (default, default_node, &input.default) {
+        (None, None, None) => {}
+        (Some(IrDefault::Literal(value)), Some(node), Some(actual)) => {
+            if node.kind != SyntaxKind::Literal as u8
+                || value.ty != ResolvedType::Null
+                || !matches!(value.expr, IrExpr::Null)
+                || value.span != Span::new(node.file, node.start, node.end)
+                || db
+                    .get(node.file)?
+                    .text
+                    .get(node.start as usize..node.end as usize)?
+                    != "null"
+                || actual.to_json()
+                    != super::js::js_field_default(default.as_ref(), None)?.to_json()
+            {
+                return None;
+            }
+        }
+        _ => return None,
+    }
+    let expected_value_type = format!("{}?", scalar.as_str());
+    if input.value_type.as_deref() != Some(expected_value_type.as_str()) {
+        return None;
+    }
+    match (&input.field, scalar) {
+        (JsMcpField::String, Scalar::Text) => {}
+        (JsMcpField::File, Scalar::File) => {}
+        _ => return None,
+    }
+    Some(())
+}
+
+/// Enum slots keep their exact checked domain: case order and spelling in
+/// the descriptor match the declaration, and only required slots join here.
+fn explicit_enum_input(
+    ir: &IrProgram,
+    child: &IrItem,
+    parameter: &IrItem,
+    input: &JsOperationField,
+    db: &SourceDb,
+) -> Option<()> {
+    let source = checked_source(ir, child, db)?;
+    let (position, _) = source
+        .parameters
+        .iter()
+        .enumerate()
+        .find(|(_, fact)| fact.parameter == parameter.id)?;
+    let IrItemKind::Param {
+        owner,
+        index,
+        ty: IrType::Known(ty),
+        array_bounds: None,
+        default: None,
+        default_node: None,
+        ..
+    } = &parameter.kind
+    else {
+        return None;
+    };
+    let ResolvedType::Enum { cases, .. } = ty else {
+        return None;
+    };
+    if cases.is_empty()
+        || *owner != child.id
+        || *index != position
+        || parameter.module != child.module
+        || parameter.canonical != format!("{}.{}", child.canonical, parameter.name)
+        || input.name != parameter.name
+        || input.required != true
+        || input.nullable
+        || input.array_required.is_some()
+        || input.min.is_some()
+        || input.max.is_some()
+        || input.computed_default
+        || input.default.is_some()
+        || db
+            .get(parameter.span.file)?
+            .text
+            .get(parameter.span.start as usize..parameter.span.end as usize)?
+            != parameter.name
+    {
+        return None;
+    }
+    let expected_value_type = format!("enum({})", cases.join(","));
+    if input.value_type.as_deref() != Some(expected_value_type.as_str()) {
+        return None;
+    }
+    match &input.field {
+        JsMcpField::Enum { values } if values == cases => {}
+        _ => return None,
+    }
+    Some(())
+}
+
+/// Non-file array slots keep their exact element shape. Only required slots
+/// or an empty-array literal default join; the supply is the owner's own
+/// array parameter under its original spelling.
+fn explicit_array_input(
+    ir: &IrProgram,
+    child: &IrItem,
+    parameter: &IrItem,
+    input: &JsOperationField,
+    db: &SourceDb,
+) -> Option<()> {
+    let source = checked_source(ir, child, db)?;
+    let (position, _) = source
+        .parameters
+        .iter()
+        .enumerate()
+        .find(|(_, fact)| fact.parameter == parameter.id)?;
+    let IrItemKind::Param {
+        owner,
+        index,
+        ty: IrType::Known(ty),
+        array_bounds: None,
+        default,
+        default_node,
+        ..
+    } = &parameter.kind
+    else {
+        return None;
+    };
+    let ResolvedType::Array { .. } = ty else {
+        return None;
+    };
+    if ordinary_file_array(ty)
+        || *owner != child.id
+        || *index != position
+        || parameter.module != child.module
+        || parameter.canonical != format!("{}.{}", child.canonical, parameter.name)
+        || input.name != parameter.name
+        || input.required
+        || input.nullable
+        || input.array_required != Some(false)
+        || input.min.is_some()
+        || input.max.is_some()
+        || input.computed_default
+        || db
+            .get(parameter.span.file)?
+            .text
+            .get(parameter.span.start as usize..parameter.span.end as usize)?
+            != parameter.name
+    {
+        return None;
+    }
+    match (default, default_node, &input.default) {
+        (None, None, None) => {}
+        (Some(IrDefault::Literal(value)), Some(node), Some(actual)) => {
+            let IrExpr::Array(items) = &value.expr else {
+                return None;
+            };
+            if node.kind != SyntaxKind::Array as u8
+                || !items.is_empty()
+                || value.ty != *ty
+                || value.span != Span::new(node.file, node.start, node.end)
+                || actual.to_json()
+                    != super::js::js_field_default(default.as_ref(), None)?.to_json()
+            {
+                return None;
+            }
+        }
+        _ => return None,
     }
     Some(())
 }
@@ -1078,11 +1355,9 @@ fn explicit_reference_input(
         return None;
     }
     if matches!(value.expr, IrExpr::Member { .. }) {
-        // The nullable declaration consumes the exact original checked parent
-        // chain. Its literal null default stays metadata and is never visited.
-        if !nullable {
-            return None;
-        }
+        // The declaration consumes the exact original checked parent chain,
+        // required or nullable alike. Its literal null default stays metadata
+        // and is never visited.
         let (_, parent) = super::scenario_receipts::checked_parent_reference(ir, owner, value, db)?;
         return (parent.id == model).then_some(None);
     }
@@ -1627,6 +1902,27 @@ fn collect_owner(
                             return None;
                         }
                         explicit_scalar_input(ir, child, param, input, db)?;
+                    } else if let ResolvedType::Nullable(inner) = ty
+                        && matches!(inner.as_ref(), ResolvedType::Scalar(_))
+                        && (value.ty == *inner.as_ref() || value.ty == *ty)
+                        && (simple_value(value)
+                            || matches!(
+                                value.expr,
+                                IrExpr::Name(_) | IrExpr::Member { .. }
+                            ))
+                    {
+                        explicit_nullable_value_input(ir, child, param, input, db)?;
+                    } else if matches!(ty, ResolvedType::Enum { .. })
+                        && value.ty == *ty
+                        && matches!(value.expr, IrExpr::Name(_) | IrExpr::Member { .. })
+                    {
+                        explicit_enum_input(ir, child, param, input, db)?;
+                    } else if matches!(ty, ResolvedType::Array { .. })
+                        && !ordinary_file_array(ty)
+                        && value.ty == *ty
+                        && matches!(value.expr, IrExpr::Name(_))
+                    {
+                        explicit_array_input(ir, child, param, input, db)?;
                     } else if ordinary_file_array(ty) {
                         let dependency_id = explicit_stored_file_input(
                             ir,
@@ -1732,6 +2028,51 @@ fn collect_owner(
             | IrStmt::Set { .. }
             | IrStmt::Send { .. }
             | IrStmt::Transition { .. } => {}
+            // Proven owner effects traverse in source order without joining
+            // sites of their own. Unproven statements keep the refusal below.
+            IrStmt::Emit { span, .. }
+            | IrStmt::Schedule { span, .. }
+            | IrStmt::Cancel { span, .. } => {
+                let ScenarioDisclosure::Complete(proven) =
+                    ir.scenario_disclosures.get(&owner.id)?
+                else {
+                    return None;
+                };
+                if !proven.effects.iter().any(|proof| {
+                    proof.node.file == span.file
+                        && proof.node.start == span.start
+                        && proof.node.end == span.end
+                        && matches!(
+                            &proof.kind,
+                            DisclosureEffectKind::Emit { .. }
+                                | DisclosureEffectKind::Schedule { .. }
+                                | DisclosureEffectKind::Cancel { .. }
+                        )
+                }) {
+                    return None;
+                }
+            }
+            IrStmt::For { body, span, .. } => {
+                let ScenarioDisclosure::Complete(proven) =
+                    ir.scenario_disclosures.get(&owner.id)?
+                else {
+                    return None;
+                };
+                if !proven.effects.iter().any(|proof| {
+                    proof.node.file == span.file
+                        && proof.node.start == span.start
+                        && proof.node.end == span.end
+                        && matches!(
+                            &proof.kind,
+                            DisclosureEffectKind::For { .. } | DisclosureEffectKind::ForMember { .. }
+                        )
+                }) {
+                    return None;
+                }
+                for next in body.iter().rev() {
+                    pending.push((next, depth + 1));
+                }
+            }
             _ => return None,
         }
     }

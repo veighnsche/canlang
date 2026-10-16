@@ -370,6 +370,22 @@ pub enum DisclosureEffectKind {
         model: SymbolId,
         body: Vec<NodeKey>,
     },
+    ForMember {
+        domain: NodeKey,
+        limit: NodeKey,
+        maximum: u16,
+        item: String,
+        parameter: SymbolId,
+        model: SymbolId,
+        body: Vec<NodeKey>,
+    },
+    Emit {
+        event: SymbolId,
+    },
+    Schedule {
+        event: SymbolId,
+    },
+    Cancel {},
     Call {
         operation: SymbolId,
         input_keys: Vec<String>,
@@ -7873,11 +7889,34 @@ impl<'a> Closure<'a> {
             ordered: true,
             nonempty: false,
         };
-        let (alias, predicate, order) = match query.clauses.as_slice() {
-            [alias, predicate] => (alias, predicate, None),
-            [alias, predicate, order] => (alias, predicate, Some(order)),
+        // The grammar orders clauses `archived/as/where/order`: an
+        // `archived=include` clause leads when present (the parser admits
+        // only the exact `include` spelling; absence keeps the default).
+        // Anything else keeps the closure refusal below.
+        // Guarded archived arms lead: the unguarded `[alias, predicate,
+        // order]` arm below would otherwise swallow a 3-clause
+        // `[archived, alias, predicate]` shape (binding archived as the
+        // alias) and fail As/Where validation, leaving the archived-3 arm
+        // unreachable. Length-4 archived shapes never reach the plain arms.
+        let (alias, predicate, order, archived) = match query.clauses.as_slice() {
+            [archived, alias, predicate]
+                if matches!(archived.kind, CheckedQueryClauseKind::Archived) =>
+            {
+                (alias, predicate, None, Some(archived))
+            }
+            [archived, alias, predicate, order]
+                if matches!(archived.kind, CheckedQueryClauseKind::Archived) =>
+            {
+                (alias, predicate, Some(order), Some(archived))
+            }
+            [alias, predicate] => (alias, predicate, None, None),
+            [alias, predicate, order] => (alias, predicate, Some(order), None),
             _ => return None,
         };
+        // The grammar admits only the exact `archived=include` spelling, so
+        // a present Archived clause always selects archived rows and its
+        // absence keeps the default. No value reading is needed or possible.
+        let archived = archived.is_some();
         if query.node != fact.query
             || query.projection.is_some()
             || query.domain_type != array
@@ -7895,7 +7934,8 @@ impl<'a> Closure<'a> {
             || order.is_some_and(|order| {
                 order.kind != CheckedQueryClauseKind::Order || order.expressions.len() != 1
             })
-            || owner.module != scenario.module
+            || (owner.module != scenario.module
+                && !self.imported_query_source(scenario.module, &owner.canonical))
         {
             return None;
         }
@@ -8004,7 +8044,7 @@ impl<'a> Closure<'a> {
             inputs,
             order,
             limit: None,
-            archived: false,
+            archived,
             cardinality_guard: None,
             return_node: returned.node,
             projection: None,
@@ -8016,6 +8056,25 @@ impl<'a> Closure<'a> {
             }),
             count: None,
             influences,
+        })
+    }
+
+    /// A cross-package query domain must arrive through the consumer's
+    /// checked `use`: the owner canonical matches one imported provider
+    /// member exactly. Same-module domains keep their existing path;
+    /// aliasing never renames the source, so only the provider-side
+    /// spelling counts. Nothing else crosses modules here.
+    fn imported_query_source(&self, consumer: ModuleId, canonical: &str) -> bool {
+        let Some(module) = self.resolve.modules.get(consumer.0 as usize) else {
+            return false;
+        };
+        module.imports.iter().any(|import| {
+            import.members.iter().any(|member| {
+                import.provider.len() + 1 + member.name.len() == canonical.len()
+                    && canonical.starts_with(import.provider.as_str())
+                    && canonical.as_bytes().get(import.provider.len()) == Some(&b'.')
+                    && canonical[import.provider.len() + 1..] == member.name
+            })
         })
     }
 
@@ -9911,6 +9970,11 @@ impl<'a> Closure<'a> {
         let ResolvedType::Array { element, .. } = base else {
             return Err(self.fail(key, "unsupported array expression type"));
         };
+        // An empty literal carries no element provenance; any element shape
+        // is admitted here and the declaration gate stays at the parameter.
+        if children.is_empty() {
+            return Ok(vec![ValuePath::default()]);
+        }
         let composite = matches!(element.as_ref(), ResolvedType::Object(_))
             || checked_standard_nominal_name(element) == Some("TextMessage");
         let empty_files =
@@ -11675,17 +11739,21 @@ impl<'a> Closure<'a> {
     fn explicit_scalar_call_parameter(
         &self,
         parameter: &super::effects::ParamData,
-        module: ModuleId,
+        child: &super::effects::ScenarioData,
         scalar: Scalar,
     ) -> bool {
-        if parameter.default.is_some_and(|default| {
-            self.nodes
+        if let Some(default) = parameter.default {
+            let literal = self
+                .nodes
                 .get(&default)
-                .is_none_or(|node| node.kind != SyntaxKind::Literal)
-                || self.types.node_types.get(&default) != Some(&ResolvedType::Scalar(scalar))
-        }) {
-            return false;
+                .is_some_and(|node| node.kind == SyntaxKind::Literal)
+                && self.types.node_types.get(&default)
+                    == Some(&ResolvedType::Scalar(scalar));
+            if !literal && !self.explicit_param_reference_default(parameter, child, default) {
+                return false;
+            }
         }
+        let module = child.module;
         if self.direct_builtin_parameter_type(parameter.type_node, scalar) {
             return true;
         }
@@ -11863,6 +11931,275 @@ impl<'a> Closure<'a> {
             && self.types.node_types.get(&default) == Some(ty)
     }
 
+    /// A genuine `=name` scalar default names an earlier required same-type
+    /// parameter. Static CALL supplies every slot, so the default never
+    /// evaluates there; this keeps the declaration's own genuine default
+    /// rather than admitting arbitrary default expressions.
+    fn explicit_param_reference_default(
+        &self,
+        parameter: &super::effects::ParamData,
+        child: &super::effects::ScenarioData,
+        default: NodeKey,
+    ) -> bool {
+        let Some(node) = self.nodes.get(&default) else {
+            return false;
+        };
+        if node.kind != SyntaxKind::NameRef {
+            return false;
+        }
+        let Some(Binding::Symbol(target)) = self.resolve.node_binding.get(&default) else {
+            return false;
+        };
+        let target = *target;
+        let Some(position) = child.params.iter().position(|param| param.param == parameter.param)
+        else {
+            return false;
+        };
+        let Some(earlier) = child.params.iter().position(|param| param.param == target) else {
+            return false;
+        };
+        if earlier >= position {
+            return false;
+        }
+        let referenced = &child.params[earlier];
+        if referenced.default.is_some() {
+            return false;
+        }
+        let Some(expected) = self.types.symbol_types.get(&parameter.param) else {
+            return false;
+        };
+        if self.types.symbol_types.get(&target) != Some(expected) {
+            return false;
+        }
+        let Some(declaration) = self.resolve.symbols.get(target.0 as usize) else {
+            return false;
+        };
+        if declaration.module != child.module {
+            return false;
+        }
+        matches!(declaration.kind, super::resolve::SymbolKind::Param { owner, .. } if owner == child.scenario)
+            && self.types.node_types.get(&default) == Some(expected)
+    }
+
+    /// Implicit `T?` absence is null; only an explicit literal null may also
+    /// appear. Server-owned or constrained slots stay ineligible.
+    fn nullable_value_default_ok(&self, parameter: &super::effects::ParamData) -> bool {
+        match parameter.default {
+            None => true,
+            Some(default) => {
+                self.nodes.get(&default).is_some_and(|node| {
+                    node.kind == SyntaxKind::Literal
+                        && self.types.node_types.get(&default) == Some(&ResolvedType::Null)
+                        && self
+                            .db
+                            .get(default.file)
+                            .and_then(|file| {
+                                file.text.get(default.start as usize..default.end as usize)
+                            })
+                            == Some("null")
+                })
+            }
+        }
+    }
+
+    /// Nullable scalar/enum/file slots (`text?`, `file?`, …) widen from their
+    /// exact supplied inner value. Stored-model nullables keep the existing
+    /// model rule; only value nullables land here.
+    fn explicit_nullable_value_call_parameter(
+        &self,
+        parameter: &super::effects::ParamData,
+    ) -> bool {
+        let Some(ty) = self.types.symbol_types.get(&parameter.param) else {
+            return false;
+        };
+        let ResolvedType::Nullable(inner) = ty else {
+            return false;
+        };
+        match inner.as_ref() {
+            ResolvedType::Scalar(scalar) => {
+                if !(primitive_type(inner.as_ref()) || *scalar == Scalar::File) {
+                    return false;
+                }
+            }
+            ResolvedType::Enum { cases, .. } => {
+                if cases.is_empty() {
+                    return false;
+                }
+            }
+            _ => return false,
+        }
+        if self.types.value_constraints.contains_key(&parameter.param)
+            || self
+                .types
+                .field_reuse_sources
+                .contains_key(&parameter.param)
+        {
+            return false;
+        }
+        let Some(node) = self.nodes.get(&parameter.type_node) else {
+            return false;
+        };
+        if node.kind != SyntaxKind::NullableType {
+            return false;
+        }
+        let named = node
+            .children
+            .iter()
+            .find(|node| node.kind == SyntaxKind::NamedType);
+        let Some(named) = named else {
+            return false;
+        };
+        let Some(path) = named
+            .children
+            .iter()
+            .find(|node| node.kind == SyntaxKind::Path)
+        else {
+            return false;
+        };
+        let direct = match inner.as_ref() {
+            ResolvedType::Scalar(scalar) => self.direct_builtin_parameter_type(
+                NodeKey::of(named),
+                *scalar,
+            ) && matches!(
+                self.resolve.node_typeref.get(&NodeKey::of(path)),
+                Some(TypeRef::Scalar(name)) if name == scalar.as_str()
+            ),
+            ResolvedType::Enum { .. } => {
+                self.resolve.node_typeref.get(&NodeKey::of(path)).is_some()
+            }
+            _ => false,
+        };
+        direct && self.nullable_value_default_ok(parameter)
+    }
+
+    /// Enum slots keep their exact checked domain through field reuse or a
+    /// checked alias. Case spellings are never converted or widened here.
+    fn explicit_enum_call_parameter(&self, parameter: &super::effects::ParamData) -> bool {
+        let Some(ty) = self.types.symbol_types.get(&parameter.param) else {
+            return false;
+        };
+        let ResolvedType::Enum { cases, .. } = ty else {
+            return false;
+        };
+        if cases.is_empty() {
+            return false;
+        }
+        if parameter.default.is_some_and(|default| {
+            self.nodes
+                .get(&default)
+                .is_none_or(|node| node.kind != SyntaxKind::Literal)
+                || self.types.node_types.get(&default) != Some(ty)
+        }) {
+            return false;
+        }
+        if self.types.value_constraints.contains_key(&parameter.param) {
+            return false;
+        }
+        let Some(node) = self.nodes.get(&parameter.type_node) else {
+            return false;
+        };
+        if node.kind != SyntaxKind::NamedType {
+            return false;
+        }
+        let Some(path) = node
+            .children
+            .iter()
+            .find(|node| node.kind == SyntaxKind::Path)
+        else {
+            return false;
+        };
+        match self.resolve.node_typeref.get(&NodeKey::of(path)) {
+            Some(TypeRef::FieldChain { fields, .. }) if fields.len() == 1 => {
+                self.types.field_reuse_sources.get(&parameter.param) == fields.first()
+                    && self.types.symbol_types.get(&fields[0]) == Some(ty)
+            }
+            Some(TypeRef::Symbol(alias)) => self
+                .resolve
+                .judgment_value_constraints
+                .get(alias)
+                .is_some_and(|constraints| {
+                    constraints.alias == Some(*alias)
+                        && self.types.value_constraints.get(&parameter.param) == Some(constraints)
+                        && self.types.symbol_types.get(alias) == Some(ty)
+                }),
+            _ => false,
+        }
+    }
+
+    /// Non-file array slots (`text[]`, `Slot[]`, …) keep their exact element
+    /// shape. Only required slots or an empty-array literal default are
+    /// eligible; stored-model element arrays stay declined.
+    fn explicit_array_call_parameter(&self, parameter: &super::effects::ParamData) -> bool {
+        let Some(ty) = self.types.symbol_types.get(&parameter.param) else {
+            return false;
+        };
+        let ResolvedType::Array { element, ordered: true, .. } = ty else {
+            return false;
+        };
+        if ordinary_file_array(ty) {
+            return false;
+        }
+        match element.as_ref() {
+            element if primitive_type(element) => {}
+            ResolvedType::Scalar(Scalar::File) => {}
+            ResolvedType::Enum { cases, .. } if !cases.is_empty() => {}
+            ResolvedType::Record { stored: false, .. } => {}
+            // Declared contracts/events are value types without row
+            // authority, even though they resolve stored. Stored models
+            // keep their row authority and stay declined as array slots.
+            ResolvedType::Record { symbol, .. }
+                if !matches!(
+                    self.resolve.symbols.get(symbol.0 as usize).map(|symbol| &symbol.kind),
+                    Some(super::resolve::SymbolKind::Model { .. }) | None
+                ) => {}
+            ResolvedType::Object(_) => {}
+            _ => return false,
+        }
+        if self.types.value_constraints.contains_key(&parameter.param) {
+            return false;
+        }
+        if let Some(default) = parameter.default {
+            let Some(value) = self.nodes.get(&default) else {
+                return false;
+            };
+            if value.kind != SyntaxKind::Array
+                || value.children.iter().any(|node| expression(node.kind))
+                || self.types.node_types.get(&default) != Some(ty)
+            {
+                return false;
+            }
+        }
+        let Some(node) = self.nodes.get(&parameter.type_node) else {
+            return false;
+        };
+        if node.kind == SyntaxKind::ArrayType {
+            return true;
+        }
+        let Some(path) = node
+            .children
+            .iter()
+            .find(|node| node.kind == SyntaxKind::Path)
+        else {
+            return false;
+        };
+        match self.resolve.node_typeref.get(&NodeKey::of(path)) {
+            Some(TypeRef::FieldChain { fields, .. }) if fields.len() == 1 => {
+                self.types.field_reuse_sources.get(&parameter.param) == fields.first()
+                    && self.types.symbol_types.get(&fields[0]) == Some(ty)
+            }
+            Some(TypeRef::Symbol(alias)) => self
+                .resolve
+                .judgment_value_constraints
+                .get(alias)
+                .is_some_and(|constraints| {
+                    constraints.alias == Some(*alias)
+                        && self.types.value_constraints.get(&parameter.param) == Some(constraints)
+                        && self.types.symbol_types.get(alias) == Some(ty)
+                }),
+            _ => false,
+        }
+    }
+
     /// Original required caller parameters remain source operands, not copied
     /// lexical values which happen to carry the same resolved model type.
     fn original_call_model_parameter(
@@ -11900,6 +12237,108 @@ impl<'a> Closure<'a> {
             && key.end <= statement.end
             && self.types.node_types.get(&key) == self.types.symbol_types.get(parameter))
         .then_some((*parameter, model))
+    }
+
+    /// One checked `param.parent` hop into a required non-null model slot.
+    /// The base remains the caller's original required model parameter and
+    /// the hop is the checked containment edge, never a copied row.
+    fn original_call_parent_parameter(
+        &self,
+        key: NodeKey,
+        statement: NodeKey,
+        module: ModuleId,
+    ) -> Option<(SymbolId, SymbolId)> {
+        let node = self.nodes.get(&key)?;
+        if node.kind != SyntaxKind::Member {
+            return None;
+        }
+        let mut operands = node.children.iter().filter(|child| expression(child.kind));
+        let base = NodeKey::of(operands.next()?);
+        if operands.next().is_some() {
+            return None;
+        }
+        if node
+            .children
+            .iter()
+            .rev()
+            .find(|child| child.kind == SyntaxKind::Name)
+            .and_then(|child| self.word(child))
+            != Some("parent")
+        {
+            return None;
+        }
+        let (parameter, child) = self.original_call_model_parameter(base, statement, module)?;
+        let declaration = self.resolve.symbols.get(child.0 as usize)?;
+        let SymbolKind::Model {
+            owner: ModelOwner::ChildOf(parent),
+            ..
+        } = &declaration.kind
+        else {
+            return None;
+        };
+        (self.checked_call_parent_path(key, parameter, 0) == Some((*parent, 1)))
+            .then_some((parameter, *parent))
+    }
+
+    /// One contained-collection domain (`param.Child`) over the caller's
+    /// original required model parameter. Returns the root parameter and
+    /// the contained child model proven through the checked containment
+    /// edge and the domain's own array type.
+    fn original_loop_member_root(
+        &self,
+        domain: NodeKey,
+        statement: NodeKey,
+        module: ModuleId,
+    ) -> Result<(SymbolId, SymbolId), DisclosureDecline> {
+        let fail = || self.fail(domain, "loop needs original admitted member domain");
+        let node = self.nodes.get(&domain).ok_or_else(fail)?;
+        if node.kind != SyntaxKind::Member {
+            return Err(fail());
+        }
+        let mut operands = node.children.iter().filter(|child| expression(child.kind));
+        let base = NodeKey::of(operands.next().ok_or_else(fail)?);
+        if operands.next().is_some() {
+            return Err(fail());
+        }
+        let (parameter, root) = self
+            .original_call_model_parameter(base, statement, module)
+            .ok_or_else(fail)?;
+        let expected_domain = self
+            .types
+            .node_types
+            .get(&domain)
+            .ok_or_else(fail)?;
+        let ResolvedType::Array { element, ordered: true, .. } = expected_domain else {
+            return Err(fail());
+        };
+        let ResolvedType::Record {
+            symbol: model,
+            stored: true,
+        } = element.as_ref()
+        else {
+            return Err(fail());
+        };
+        let model = *model;
+        let declaration = self.resolve.symbols.get(model.0 as usize).ok_or_else(fail)?;
+        let SymbolKind::Model {
+            owner: ModelOwner::ChildOf(parent),
+            ..
+        } = &declaration.kind
+        else {
+            return Err(fail());
+        };
+        if *parent != root
+            || declaration.module != module
+            || self.effects.models.get(&model).ok_or_else(fail)?.owner != ModelOwner::ChildOf(root)
+            || self.types.node_types.get(&base)
+                != Some(&ResolvedType::Record {
+                    symbol: root,
+                    stored: true,
+                })
+        {
+            return Err(fail());
+        }
+        Ok((parameter, model))
     }
 
     fn preceding_call_create(
@@ -13171,6 +13610,93 @@ impl<'a> Closure<'a> {
         Ok((paths, effect.binding.as_ref().map(|_| delivery)))
     }
 
+    /// Durable owner effects (`emit`, `schedule`, `cancel`) evaluate their
+    /// exact authored value operands once in source order and persist them
+    /// in the owner transaction. Only pure value operands are admitted:
+    /// record reads keep their own observation paths and never hide inside
+    /// an event payload or schedule key.
+    fn external_effect(
+        &mut self,
+        effect: &Effect,
+        module: ModuleId,
+        env: &Env,
+        calls: &[NodeKey],
+    ) -> Result<Vec<ValuePath>, DisclosureDecline> {
+        if !calls.is_empty() {
+            return Err(self.fail(
+                effect.node,
+                "bound or nested operand call outside source profile",
+            ));
+        }
+        let node = self
+            .nodes
+            .get(&effect.node)
+            .ok_or_else(|| self.fail(effect.node, "missing external effect anchor"))?;
+        let event = match effect.verb {
+            EffectVerb::Emit | EffectVerb::Schedule => match &effect.target {
+                Some(EffectTarget::Event(event)) => Some(*event),
+                _ => {
+                    return Err(self.fail(effect.node, "external effect needs its event target"));
+                }
+            },
+            EffectVerb::Cancel => None,
+            _ => return Err(self.fail(effect.node, "unsupported external effect")),
+        };
+        if let Some(event) = event {
+            let declaration = self
+                .resolve
+                .symbols
+                .get(event.0 as usize)
+                .ok_or_else(|| self.fail(effect.node, "missing external event declaration"))?;
+            if !matches!(declaration.kind, super::resolve::SymbolKind::Event { .. })
+                || declaration.module != module
+            {
+                return Err(self.fail(effect.node, "external effect needs its event target"));
+            }
+        }
+        let expected_kind = match effect.verb {
+            EffectVerb::Emit => SyntaxKind::Emit,
+            EffectVerb::Schedule => SyntaxKind::Schedule,
+            EffectVerb::Cancel => SyntaxKind::Cancel,
+            _ => return Err(self.fail(effect.node, "unsupported external effect")),
+        };
+        if node.kind != expected_kind {
+            return Err(self.fail(effect.node, "checked external effect mismatch"));
+        }
+        let mut keys = vec![effect.key, effect.at, effect.value];
+        let mut paths = vec![ValuePath::default()];
+        for key in keys.drain(..).flatten() {
+            let values = self.expr(key, module, env, calls)?;
+            if values
+                .iter()
+                .any(|value| value.record.is_some() || value.delivery.is_some())
+            {
+                return Err(self.fail(key, "opaque external effect input"));
+            }
+            paths = self.product(effect.node, &paths, &values)?;
+        }
+        for argument in &effect.args {
+            let key = argument.value.unwrap_or(argument.key_node);
+            let values = match argument.value {
+                Some(value) => self.expr(value, module, env, calls)?,
+                None => self.lexical(argument.key_node, module, env, calls)?,
+            };
+            if values.iter().any(|value| {
+                value.record.is_some() || value.delivery.is_some() || value.members.is_some()
+            }) {
+                return Err(self.fail(key, "opaque external effect input"));
+            }
+            paths = self.product(effect.node, &paths, &values)?;
+        }
+        let kind = match effect.verb {
+            EffectVerb::Emit => DisclosureEffectKind::Emit { event: event.unwrap() },
+            EffectVerb::Schedule => DisclosureEffectKind::Schedule { event: event.unwrap() },
+            _ => DisclosureEffectKind::Cancel {},
+        };
+        self.proof(effect, module, kind)?;
+        Ok(paths)
+    }
+
     /// Prepare the State-owned child lifetime; only direct cardinality uses of
     /// its exact returned wire can consume the bound result.
     fn static_call(
@@ -13237,12 +13763,17 @@ impl<'a> Closure<'a> {
             let eligible = match ty {
                 ResolvedType::Scalar(scalar) => {
                     primitive_type(ty)
-                        && self.explicit_scalar_call_parameter(parameter, child.module, *scalar)
+                        && self.explicit_scalar_call_parameter(parameter, &child, *scalar)
                 }
                 ResolvedType::Record { .. } | ResolvedType::Nullable(_) => {
                     self.explicit_model_call_parameter(parameter).is_some()
+                        || self.explicit_nullable_value_call_parameter(parameter)
                 }
+                ResolvedType::Enum { .. } => self.explicit_enum_call_parameter(parameter),
                 ty if ordinary_file_array(ty) => self.explicit_file_array_call_parameter(parameter),
+                ty if matches!(ty, ResolvedType::Array { .. }) => {
+                    self.explicit_array_call_parameter(parameter)
+                }
                 _ => false,
             };
             if !eligible {
@@ -13279,8 +13810,20 @@ impl<'a> Closure<'a> {
                 })
                 .ok_or_else(|| self.fail(key, "missing checked child slot"))?;
             let model_slot = self.explicit_model_call_parameter(parameter);
+            // A supplied non-null value fills a nullable value slot exactly;
+            // stored-model nullables keep their own provenance rule above.
+            // Anything else (including null or a mismatched scalar) still
+            // refuses at the exact-type gate below.
             let supplied_type = match (model_slot, expected) {
                 (Some((_, true)), ResolvedType::Nullable(inner)) => inner.as_ref(),
+                (None, ResolvedType::Nullable(inner))
+                    if !matches!(
+                        inner.as_ref(),
+                        ResolvedType::Record { stored: true, .. }
+                    ) && self.types.node_types.get(&key) == Some(inner.as_ref()) =>
+                {
+                    inner.as_ref()
+                }
                 _ => expected,
             };
             if self.types.node_types.get(&key) != Some(supplied_type) {
@@ -13295,7 +13838,12 @@ impl<'a> Closure<'a> {
                 }
             };
             if let Some((model, nullable)) = model_slot {
-                if !calls.is_empty() || self.loop_node.is_some() || self.statement_depth != 1 {
+                // Branch-nested calls keep the caller's original parameter
+                // value: shadowing still resolves through the lexical
+                // binding check below, and derived/call/loop positions stay
+                // refused. Only the top-level statement requirement is
+                // relaxed; the provenance proof is unchanged.
+                if !calls.is_empty() || self.loop_node.is_some() || self.statement_depth < 1 {
                     return Err(self.fail(key, "model call input needs original root occurrence"));
                 }
                 for value in &values {
@@ -13310,6 +13858,13 @@ impl<'a> Closure<'a> {
                             || matches!(value.model_result,
                                 Some(DisclosureModelResult::Create { model: actual, node })
                                 if actual == model && self.preceding_call_create(effect, module, key, model, node))
+                            // One `param.parent` hop into the required slot:
+                            // the base stays the caller's original required
+                            // model parameter and the hop is the checked
+                            // containment edge, never a copied row.
+                            || matches!(value.reference_origin,
+                                Some(ReferenceOrigin::Parent { parameter, model: actual, depth: 1 })
+                                if actual == model && self.original_call_parent_parameter(key, effect.node, module) == Some((parameter, model)))
                     };
                     if !original
                         || value.record != Some(model)
@@ -13766,58 +14321,77 @@ impl<'a> Closure<'a> {
             .nodes
             .get(&domain)
             .ok_or_else(|| self.fail(domain, "missing loop domain"))?;
-        if node.kind != SyntaxKind::NameRef {
+        // A contained-collection domain (`param.Child`) scans the caller's
+        // original required model parameter through its checked containment
+        // edge. Query filters stay declined: only the whole contained
+        // collection in source order is disclosed here.
+        let member_root = if node.kind == SyntaxKind::Member {
+            if effect.cond.is_some() {
+                return Err(self.fail(domain, "loop needs unfiltered member domain"));
+            }
+            Some(self.original_loop_member_root(domain, effect.node, module)?)
+        } else {
+            None
+        };
+        if node.kind != SyntaxKind::NameRef && member_root.is_none() {
             return Err(self.fail(domain, "loop needs direct admitted array input"));
         }
-        let binding = self.resolve.node_binding.get(&domain).or_else(|| {
-            node.children
-                .iter()
-                .find_map(|child| self.resolve.node_binding.get(&NodeKey::of(child)))
-        });
-        let Some(Binding::Symbol(parameter)) = binding else {
-            return Err(self.fail(domain, "unestablished loop input"));
+        let (model, parameter) = match member_root {
+            Some((root, model)) => (model, root),
+            None => {
+                let binding = self.resolve.node_binding.get(&domain).or_else(|| {
+                    node.children
+                        .iter()
+                        .find_map(|child| self.resolve.node_binding.get(&NodeKey::of(child)))
+                });
+                let Some(Binding::Symbol(parameter)) = binding else {
+                    return Err(self.fail(domain, "unestablished loop input"));
+                };
+                let parameter = *parameter;
+                let declared = self
+                    .resolve
+                    .symbols
+                    .get(parameter.0 as usize)
+                    .ok_or_else(|| self.fail(domain, "missing loop parameter"))?;
+                let SymbolKind::Param { owner, .. } = declared.kind else {
+                    return Err(self.fail(domain, "loop domain is not a parameter"));
+                };
+                let scenario = self
+                    .effects
+                    .scenarios
+                    .get(&owner)
+                    .ok_or_else(|| self.fail(domain, "loop domain is not a scenario input"))?;
+                if declared.module != module
+                    || !flow.env.contains_key(&Local::Symbol(parameter))
+                    || scenario
+                        .params
+                        .iter()
+                        .find(|param| param.param == parameter)
+                        .is_none_or(|param| param.default.is_some())
+                {
+                    return Err(self.fail(domain, "loop needs original admitted array input"));
+                }
+                let Some(ResolvedType::Array { element, .. }) =
+                    self.types.symbol_types.get(&parameter)
+                else {
+                    return Err(self.fail(domain, "loop needs nonnullable stored-reference array"));
+                };
+                let ResolvedType::Record {
+                    symbol: model,
+                    stored: true,
+                } = element.as_ref()
+                else {
+                    return Err(self.fail(domain, "loop needs stored-reference elements"));
+                };
+                let model = *model;
+                if self.types.node_types.get(&domain) != self.types.symbol_types.get(&parameter)
+                    || !matches!(self.resolve.symbols.get(model.0 as usize), Some(symbol) if symbol.module == module && matches!(symbol.kind, SymbolKind::Model {..}))
+                {
+                    return Err(self.fail(domain, "loop stored model correspondence"));
+                }
+                (model, parameter)
+            }
         };
-        let parameter = *parameter;
-        let declared = self
-            .resolve
-            .symbols
-            .get(parameter.0 as usize)
-            .ok_or_else(|| self.fail(domain, "missing loop parameter"))?;
-        let SymbolKind::Param { owner, .. } = declared.kind else {
-            return Err(self.fail(domain, "loop domain is not a parameter"));
-        };
-        let scenario = self
-            .effects
-            .scenarios
-            .get(&owner)
-            .ok_or_else(|| self.fail(domain, "loop domain is not a scenario input"))?;
-        if declared.module != module
-            || !flow.env.contains_key(&Local::Symbol(parameter))
-            || scenario
-                .params
-                .iter()
-                .find(|param| param.param == parameter)
-                .is_none_or(|param| param.default.is_some())
-        {
-            return Err(self.fail(domain, "loop needs original admitted array input"));
-        }
-        let Some(ResolvedType::Array { element, .. }) = self.types.symbol_types.get(&parameter)
-        else {
-            return Err(self.fail(domain, "loop needs nonnullable stored-reference array"));
-        };
-        let ResolvedType::Record {
-            symbol: model,
-            stored: true,
-        } = element.as_ref()
-        else {
-            return Err(self.fail(domain, "loop needs stored-reference elements"));
-        };
-        let model = *model;
-        if self.types.node_types.get(&domain) != self.types.symbol_types.get(&parameter)
-            || !matches!(self.resolve.symbols.get(model.0 as usize), Some(symbol) if symbol.module == module && matches!(symbol.kind, SymbolKind::Model {..}))
-        {
-            return Err(self.fail(domain, "loop stored model correspondence"));
-        }
         let limit = effect
             .limit
             .ok_or_else(|| self.fail(effect.node, "loop needs literal finite limit"))?;
@@ -13927,7 +14501,19 @@ impl<'a> Closure<'a> {
             let value = alternatives
                 .pop()
                 .ok_or_else(|| self.fail(child.node, "missing loop body alternative"))?;
-            if !value.decisions.is_empty() || !value.intrinsics.is_empty() {
+            // A constant admitted scalar input is the same value on every
+            // element and is counted once in the total observation bound
+            // below. Branch decisions and model-reference intrinsics keep
+            // their per-element refusal: only the loop item is an admitted
+            // row inside the body.
+            if !value.decisions.is_empty()
+                || value.intrinsics.iter().any(|intrinsic| {
+                    !matches!(
+                        intrinsic.kind,
+                        DisclosureIntrinsicKind::AdmittedInput { .. }
+                    )
+                })
+            {
                 return Err(self.fail(
                     child.node,
                     "per-element loop decisions or intrinsics unsupported",
@@ -13939,9 +14525,20 @@ impl<'a> Closure<'a> {
         if body.reads.len().saturating_add(repeated) > 200 {
             return Err(self.fail(effect.node, "loop observation bound"));
         }
-        self.proof(
-            effect,
-            module,
+        let body_nodes: Vec<NodeKey> = effect.then_effects.iter().map(|child| child.node).collect();
+        // Member domains scan the caller's contained collection rather than
+        // a supplied array parameter; the root parameter owns the domain.
+        let kind = if member_root.is_some() {
+            DisclosureEffectKind::ForMember {
+                domain,
+                limit,
+                maximum,
+                item,
+                parameter,
+                model,
+                body: body_nodes,
+            }
+        } else {
             DisclosureEffectKind::For {
                 domain,
                 limit,
@@ -13949,9 +14546,10 @@ impl<'a> Closure<'a> {
                 item,
                 parameter,
                 model,
-                body: effect.then_effects.iter().map(|child| child.node).collect(),
-            },
-        )?;
+                body: body_nodes,
+            }
+        };
+        self.proof(effect, module, kind)?;
         let mut empty = flow.clone();
         empty.writes.join(&empty.controls);
         empty.evaluated.push(DisclosureDecision {
@@ -15210,6 +15808,37 @@ impl<'a> Closure<'a> {
                     }
                     EffectVerb::For => {
                         next.extend(self.bounded_input_loop(effect, module, flow, calls)?);
+                    }
+                    EffectVerb::Emit | EffectVerb::Schedule | EffectVerb::Cancel => {
+                        let alternatives = self.external_effect(effect, module, &flow.env, calls)?;
+                        self.effect_visits += 1;
+                        for evaluated in alternatives {
+                            if !compatible(&flow.evaluated, &evaluated.decisions) {
+                                continue;
+                            }
+                            let mut path = flow.clone();
+                            path.executed_effect = true;
+                            path.writes.join(&flow.effect_guards);
+                            path.writes.join(&flow.controls);
+                            path.writes.join(&evaluated);
+                            if path.writes.reads.len() + path.writes.intrinsics.len() > 200 {
+                                return Err(self.fail(effect.node, "effect write dependency bound"));
+                            }
+                            for read in &evaluated.observed {
+                                if !path.observed.contains(read) {
+                                    path.observed.push(read.clone());
+                                }
+                            }
+                            for decision in &evaluated.decisions {
+                                if !path.evaluated.contains(decision) {
+                                    path.evaluated.push(decision.clone());
+                                }
+                            }
+                            next.push(path);
+                            if next.len() > 1024 {
+                                return Err(self.fail(effect.node, "effect evaluation path bound"));
+                            }
+                        }
                     }
                     _ => return Err(self.fail(effect.node, "mutation or external effect closure")),
                 }

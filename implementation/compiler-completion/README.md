@@ -243,8 +243,25 @@ guard first, archived-include first; green by default, red under
 `--ignored`). Localized without scope violation: import slice declines in
 `checked_first_query_source` (owner.module gate, Lane C disclosure);
 archive slice is plan-guard/receipt/emitter/runtime join (Lane C runtime).
-Outcome 5 stays OPEN pending those Lane C repairs. Exemplary ownership:
-no production files touched outside the lane.
+Lane C repairs integrated: `5dd41318` (Lane C `eef492db`, import
+correspondence — both import `#[ignore]`s removed) and `e5dd178f`
+(Lane C `f7264d38`, archived=include 4-layer join — archive probe
+un-ignored). Parent: `stored_query_profiles` 3/3 with 0 ignored plus
+cross-operation 18/18, call-references 5/5, query-facts 8/8,
+native-first 17/17, native-pair 3/3, codegen-t31-filter 33/33 green.
+One cherry-pick conflict (both-added test file) resolved by taking the
+repaired un-ignored attributes with identical bodies. REVIEW-8 findings
+resolved: `41ec5dc5` (Lane C10 `6bfe6ac0`) orders guarded archived arms
+before plain arity arms — archived-without-order shapes now reach the
+archived arm, with a no-order positive + default-exclude control;
+`05a81205` (Lane C10 `3f341b60`, test-only) pins foreign provider-path
+refusal through the existing `match_stored_contract_source` seal
+(path/sha256/uniqueness), no repair needed. Parent:
+`stored_query_profiles` 6/6 with 0 ignored, cross-operation 18/18,
+call-references 5/5 green. Lease verified: C10 touched only its two
+files; C9's State commit touches only `packages/state/*` — no overlap.
+Outcome 5 implemented at probe scope (Codex review pending). Exemplary
+ownership: no production files touched outside the lane.
 
 Outcome 9 family A implemented in `55c969d2` (Lane A commit `fac7bd70`):
 45/64 handler profiles (`on=Cap.event`) lower through canonical
@@ -295,10 +312,24 @@ no-runtime-boundary handler (fail-closed) and MCP omits the grant; E6008
 kept with message naming the pending runtime boundary. New
 `scope_authority_reports` 7/7 plus admission 4/4, outbound 13/13, boolean
 8/8, cross-operation 7/7, capability-event 2/2, ui-original 31/31 green in
-parent. Runtime half OPEN: decision-mode body evaluation + result-as-grant
-in `packages/state` `invoke.ts` (hardcodes viewer) — routed to Lane C as
-C7's next batch after its current disclosure/12-rest/5-repair scope, no
-new lane. Outcome 9 stays OPEN pending that runtime boundary.
+parent. Runtime half landed in `4c6fe535` (Lane C9 commit `fd895268`,
+byte-identical cherry-pick): `bindAuthorityReportScope` (engine-local
+checked-fact binding, WeakMap side-table), decision-mode branch in
+`invokeReadScenario` (owner-bounded fenced reads, no read-policy
+recursion, `call.decision.query` capped at 1000 overflow-fails, typed
+result unprojected as grant to admitted `by`), fail-closed validation
+refusals in `invokeRead`/`invokeReadPage`; admission/receipt/membership
+reused unchanged. Parent: new `invoke-authority` 11/11, `invoke-read`
+26/26 byte-identical, invocation dir 260/262 (2 failures in
+input-default + scenario-receipt are C9's unmodified-base-reproduced
+pre-existing; third b2-durable-env failure passes here), tsc clean.
+Deliberate trio retained by design: E6008/throwing-stub/MCP-omission stay
+until Lane A emission (decision-mode body lowering, MCP advertisement)
+plus host-seam adoption (`runReadScenarioSeam` hardcodes viewer) land —
+named follow-ups, not this slice. (Integration note: replaced the
+`packages/state/dist` foreign-main symlink with an owned built dist;
+shared/main dists untouched.) Outcome 9 stays OPEN pending trio removal
++ Codex review.
 
 Outcome 11 test map in parent (Lane A commit, 5/5 join positives +
 refusal surface incl. E3005 recursion): all 7 original calls die at
@@ -321,10 +352,11 @@ the authorized values/dist symlink): on its reconstructed 24-file set the
 at the emission join (static-call join yields no site → §13 unsupported),
 naming `codegen/scenario_calls.rs` as its file. This contrasts with the
 parent test map above (calls die at disclosure Declined); the two runs
-differ in base and input set (A3 total 537 vs retained 573). Both
-observations are preserved for the Lane C owner; no ownership change —
-the disclosure slice stays with C7, which must reconcile the check-stage
-vs emission-stage failure site with evidence before editing either side.
+differ in base and input set (A3 total 537 vs retained 573). Reconciled
+by the integrated Lane C slice `a61a9f82` (Lane C `45875ffa`): D1/D3/D5/
+D7/D8 gates plus emit/schedule/cancel effects admitted — parent
+`cross_operation_calls` now 18/18 (was 7/7) with call-references/membership
+neighbors green. Outcome 11 implemented (Codex review pending).
 
 Outcome 7 compiler slice in `dba896b5` (Lane B commit `8baafab8`): send
 statements to std EmailV1 + AlertsV1 notify lower formatted values inline
