@@ -93,6 +93,17 @@ viewer/value-copy permissions are unchanged, and unmarked shapes keep viewer
 behavior. Retained regression: 6 private stored/presence tests (granted,
 unapproved, empty, foreign-scope, unused-let) alongside the 8-test battery.
 
+### Accepted bound-timeline batch — 2026-10-16
+
+Bound timeline collection `5d0a7bdd` (merge22) restores the activation B17
+withdrew as premature: single-template bound sequences lower through the
+shared collection pipeline with plain field order and parent/order admission,
+and the UI collection adapter serves authorized rows through the shared items
+path. Money/calendar/agenda-columns refusals are untouched. Validation on
+freshly built `e36eea15`/`ca50`: factory 33/33, emitted timeline HTTP
+consumer 1/1, timeline units 6/6, neighbors green, C24/A15/contained suites
+green.
+
 ### Original24 qualification after the two main batches — 2026-10-16
 
 The frozen main UI compiler8bac8725 with catalogca50 completed in463.81s,

@@ -73570,5 +73570,63 @@
     "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
     "checkpoint_advanced": false,
     "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
+  },
+  "can18_merge_22_20261016": {
+    "incremental_base": "c688dca085cd57448a6ceb47175bf8e1526aeb31",
+    "incoming_end": "5d0a7bddf3b58838a540d070e9003da409c739fb",
+    "retained_coverage": "reuse spec_installer_merge_reconciliation_20261015 and preceding CAN18 incremental merge entries; inherited complete checkpoint unchanged",
+    "changed_path_count": 9,
+    "rows": [
+      [
+        "compiler/src/codegen/ir.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/src/codegen/js.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/factory_profiles.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/ui_adapter.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "docs/specification/DECISIONS.md",
+        "Specification",
+        "existing accepted design/decision owner"
+      ],
+      [
+        "packages/cloudflare/src/runtime/timeline-emitted-serve.test.ts",
+        "cloudflare",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/contracts/src/presentation.ts",
+        "contracts",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/ui/src/groups.ts",
+        "ui",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/ui/test/timeline-collection.test.ts",
+        "ui",
+        "existing package source/test owner"
+      ]
+    ],
+    "choice": "Bound timeline collection activation the B17 withdrawal held back as premature: decode_collection for single-template bound sequences with plain field order and parent/order admission, js factory allowlist plus page-occurrence emission, and the UI collection adapter serving authorized rows through the shared items path with empty, failure and cursor behavior. Money/calendar/agenda-columns refusals are untouched.",
+    "validation": "Main validation on freshly built e36eea15 with frozen ca50 catalog: factory 33/33, emitted timeline HTTP consumer 1/1 (fails on the pre-fix producer), timeline units 6/6, hook/enum/bool/b1/agenda/table/ui_adapter suites green, C24 batteries 14/14, contained 10/10, A15 drive 3/3; all builds exit 0.",
+    "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
+    "checkpoint_advanced": false,
+    "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
   }
 }
