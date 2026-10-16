@@ -614,6 +614,26 @@ function typedOrderTypes(
   return { types, arrays };
 }
 
+/**
+ * Declared top-level `int` data fields (REVIEW-10 typed-int filter fix):
+ * their stored wire is an int64 decimal string, so owner-path predicate
+ * comparisons on these fields decode through the canonical int wire and
+ * compare numerically. Derived only from the checked owning descriptor
+ * (never request input); array fields stay out, like the order types.
+ */
+function intWireFields(
+  descriptor: CanonicalModelDescriptor | undefined,
+  model: ModelName,
+): ReadonlySet<string> | undefined {
+  if (descriptor === undefined || descriptor.name !== model) return undefined;
+  const fields = new Set<string>();
+  for (const [name, field] of Object.entries(descriptor.fields)) {
+    if (field.array !== undefined || name.includes('.')) continue;
+    if (field.valueType?.replace(/\?$/, '') === 'int') fields.add(name);
+  }
+  return fields;
+}
+
 /** Decode projected values once, including singleton results; keep existing null/missing order. */
 function decodeTypedOrder(
   rows: ReadonlyArray<StoredRow>,
@@ -1062,6 +1082,7 @@ async function runAuthorizedQuery(
   // Copy only the selected scalar type claims before any asynchronous reads.
   const modelDescriptorMismatch = input.modelDescriptor !== undefined && input.modelDescriptor.name !== input.model;
   const numericTypes = typedOrderTypes(input.modelDescriptor, input.model, order);
+  const decisionIntFields = intWireFields(input.modelDescriptor, input.model);
 
   if (eventual && input.fence !== undefined) {
     throw new StateError(
@@ -1289,7 +1310,7 @@ async function runAuthorizedQuery(
   const matched: StoredRow[] = [];
   if (input.authority === 'owner') {
     for (const row of scanned) {
-      if (input.where !== undefined && !evalPredicateForRow(input.where, row)) {
+      if (input.where !== undefined && !evalPredicateForRow(input.where, row, decisionIntFields)) {
         continue;
       }
       matched.push(row);

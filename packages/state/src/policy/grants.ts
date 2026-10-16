@@ -21,6 +21,7 @@ import type {
 } from '@canlang/contracts';
 import type { Membership } from '@canlang/contracts';
 import { StateError } from '../errors.js';
+import { compareInt, decodeValue, SchemaError, ValueError } from '@canlang/values';
 import {
   byDependsOnRow,
   evaluateBy,
@@ -449,31 +450,82 @@ function compareScalars(left: unknown, right: unknown): number | null {
 }
 
 /**
+ * Canonical int-wire comparison for declared `int` fields (REVIEW-10
+ * typed-int filter fix): stored ints are int64 decimal strings, so the
+ * same-type `compareScalars` above fails closed on JSON-number predicate
+ * values and misorders string pairs (`'10' < '2'` lexicographically).
+ * Values owns the exact numeric comparison — both sides decode through
+ * the canonical int wire and compare as bigints, with no `Number`
+ * routing (beyond-safe-integer exact). Anything undecodable is a
+ * non-match (null), never an error: the same fail-closed outcome that
+ * mismatched types already produce.
+ */
+function compareIntWire(actual: unknown, expected: unknown): number | null {
+  try {
+    return compareInt(
+      decodeValue('int', actual) as bigint,
+      decodeValue('int', expected) as bigint,
+    );
+  } catch (error) {
+    if (error instanceof SchemaError || error instanceof ValueError) {
+      return null;
+    }
+    throw error;
+  }
+}
+
+/**
+ * True when `field` names a declared `int` data field eligible for
+ * canonical int-wire comparison: a top-level declared name (never row
+ * metadata, which the descriptor does not declare, and never a dotted
+ * path into a nested value).
+ */
+function isIntWireField(field: string, intFields: ReadonlySet<string> | undefined): boolean {
+  return (
+    intFields !== undefined &&
+    !isMetadataPath(field) &&
+    !field.includes('.') &&
+    intFields.has(field)
+  );
+}
+
+/**
  * Evaluate a predicate against one stored row (two-valued: a row either
  * matches or it does not). Comparisons against null/missing field values are
  * false for all six operators (matching SQL three-valued filtering, where
  * NULL comparisons never match, including under `ne`); scalar type mismatches
  * are likewise false, never errors. Rich or non-scalar operands are caller
  * errors per `checkComparisonOperand`.
+ *
+ * The optional `intFields` names the query model's declared top-level
+ * `int` data fields (from the checked owning descriptor, never request
+ * input). Comparisons on those fields decode both sides through the
+ * canonical int wire and compare numerically; every other field keeps the
+ * exact same-type semantics below. Omitted, evaluation is byte-identical
+ * to the legacy behavior on all inputs.
  */
-export function evalPredicateForRow(predicate: QueryPredicate, row: StoredRow): boolean {
+export function evalPredicateForRow(
+  predicate: QueryPredicate,
+  row: StoredRow,
+  intFields?: ReadonlySet<string>,
+): boolean {
   switch (predicate.op) {
     case 'and':
       for (const arg of predicate.args) {
-        if (!evalPredicateForRow(arg, row)) {
+        if (!evalPredicateForRow(arg, row, intFields)) {
           return false;
         }
       }
       return true;
     case 'or':
       for (const arg of predicate.args) {
-        if (evalPredicateForRow(arg, row)) {
+        if (evalPredicateForRow(arg, row, intFields)) {
           return true;
         }
       }
       return false;
     case 'not':
-      return !evalPredicateForRow(predicate.arg, row);
+      return !evalPredicateForRow(predicate.arg, row, intFields);
     case 'eq':
     case 'ne':
     case 'lt':
@@ -486,7 +538,9 @@ export function evalPredicateForRow(predicate: QueryPredicate, row: StoredRow): 
       if (isNullish(actual)) {
         return false;
       }
-      const compared = compareScalars(actual, predicate.value);
+      const compared = isIntWireField(predicate.field, intFields)
+        ? compareIntWire(actual, predicate.value)
+        : compareScalars(actual, predicate.value);
       if (compared === null) {
         return false;
       }
@@ -512,6 +566,11 @@ export function evalPredicateForRow(predicate: QueryPredicate, row: StoredRow): 
       const actual = resolveRowPath(row, predicate.field);
       if (isNullish(actual)) {
         return false;
+      }
+      if (isIntWireField(predicate.field, intFields)) {
+        const lo = compareIntWire(actual, predicate.lo);
+        const hi = compareIntWire(actual, predicate.hi);
+        return lo !== null && hi !== null && lo >= 0 && hi <= 0;
       }
       const lo = compareScalars(actual, predicate.lo);
       const hi = compareScalars(actual, predicate.hi);
