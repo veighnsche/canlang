@@ -45,10 +45,15 @@ const unavailablePageRecords: PageRecordsReader = async () => {
 
 /**
  * Request selectors choose only admitted values from the owning readable
- * inventory: enum case names, or strict booleans for `bool` toggle columns.
- * Conditions carry typed predicate values (booleans stay booleans; the
- * spellings `"true"`/`"false"` only travel in column metadata and request
- * text, never as truthy filter values).
+ * inventory: enum case names, strict booleans for `bool` toggle columns, or
+ * typed opaque identities for `user`/`member`/`ref:` reference columns
+ * (DESIGN 977: reference equality is not an enum spelling, so no case
+ * inventory applies; unknown or inaccessible references simply match nothing,
+ * DESIGN 1027). Conditions carry typed predicate values (booleans stay
+ * booleans; reference identities stay `{id}` objects; the spellings
+ * `"true"`/`"false"` only travel in column metadata and request text, never
+ * as truthy filter values). Defaults initialize only declared controls
+ * (DESIGN 975); explicit request selection or clear wins per control.
  */
 function collectionFilterPreparer(params: URLSearchParams): NonNullable<PresentationContext['prepareCollectionFilters']> {
   const selectors = [...params];
@@ -58,10 +63,24 @@ function collectionFilterPreparer(params: URLSearchParams): NonNullable<Presenta
       const property = Object.getOwnPropertyDescriptor(value, key);
       return property !== undefined && property.enumerable && 'value' in property ? property.value : refuse();
     };
+    // Opaque reference text from request/defaults: a non-empty string
+    // without control characters, bounded like search input. Well-formed
+    // but unknown ids match nothing downstream; malformed input refuses.
+    const opaqueId = (value: unknown): string => {
+      if (typeof value !== 'string' || value === '' || value.length > 200 ||
+          /[\u0000-\u001f\u007f]/.test(value)) refuse();
+      return value as string;
+    };
+    const referenceIdentity = (value: unknown): { readonly id: string } => {
+      if (typeof value !== 'object' || value === null || Array.isArray(value)) refuse();
+      const property = Object.getOwnPropertyDescriptor(value, 'id');
+      if (property === undefined || !property.enumerable || !('value' in property)) refuse();
+      return Object.freeze({ id: opaqueId(property.value) });
+    };
     if (typeof occurrence !== 'string' || occurrence.length === 0) refuse();
     let prefix: string;
     try { prefix = `${COLLECTION_FILTER_PREFIX}${encodeURIComponent(occurrence)}:`; } catch { return refuse(); }
-    const inventories = new Map<string, { readonly kind: 'enum' | 'bool'; readonly cases: Set<string> }>();
+    const inventories = new Map<string, { readonly kind: 'enum' | 'bool' | 'ref'; readonly cases: Set<string> }>();
     for (const column of fields) {
       if (typeof column !== 'object' || column === null) refuse();
       const field = own(column, 'field'), type = own(column, 'type'), labels = own(column, 'valueLabels');
@@ -74,12 +93,20 @@ function collectionFilterPreparer(params: URLSearchParams): NonNullable<Presenta
         inventories.set(field, { kind: 'bool', cases: new Set(cases) });
         continue;
       }
+      if (type === 'user' || type === 'member' || (typeof type === 'string' && type.startsWith('ref:'))) {
+        // Reference controls carry no spellings: the descriptor must not
+        // smuggle an enum inventory alongside the opaque identity.
+        if (cases.length !== 0) refuse();
+        try { collectionFilterName(occurrence, field); } catch { return refuse(); }
+        inventories.set(field, { kind: 'ref', cases: new Set() });
+        continue;
+      }
       if (typeof type !== 'string' || !type.startsWith('enum:') || type.slice(5).trim().length === 0 ||
           cases.length === 0 || cases.some(value => value.length === 0)) refuse();
       try { collectionFilterName(occurrence, field); } catch { return refuse(); }
       inventories.set(field, { kind: 'enum', cases: new Set(cases) });
     }
-    const selected = new Map<string, string | boolean | null>();
+    const selected = new Map<string, string | boolean | { readonly id: string } | null>();
     if (defaults !== undefined) {
       if (typeof defaults !== 'object' || defaults === null || Array.isArray(defaults)) refuse();
       for (const field of Object.keys(defaults)) {
@@ -88,6 +115,16 @@ function collectionFilterPreparer(params: URLSearchParams): NonNullable<Presenta
         const value = own(defaults, field);
         if (entry.kind === 'bool') {
           if (value !== null && typeof value !== 'boolean') refuse();
+        } else if (entry.kind === 'ref') {
+          if (value !== null) {
+            // Saved reference identities arrive either decoded (`{id}`)
+            // or as the checked saved string the page preference capture
+            // owns; both normalize to the opaque identity.
+            selected.set(field, typeof value === 'string'
+              ? Object.freeze({ id: opaqueId(value) })
+              : referenceIdentity(value));
+            continue;
+          }
         } else if (value !== null && (typeof value !== 'string' || !entry.cases.has(value))) refuse();
         selected.set(field, value as string | boolean | null);
       }
@@ -104,6 +141,11 @@ function collectionFilterPreparer(params: URLSearchParams): NonNullable<Presenta
         if (value !== '' && value !== 'true' && value !== 'false') refuse();
         seen.add(field);
         selected.set(field, value === '' ? null : value === 'true');
+        continue;
+      }
+      if (entry.kind === 'ref') {
+        seen.add(field);
+        selected.set(field, value === '' ? null : Object.freeze({ id: opaqueId(value) }));
         continue;
       }
       if (value !== '' && !entry.cases.has(value)) refuse();

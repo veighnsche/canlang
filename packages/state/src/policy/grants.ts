@@ -307,12 +307,17 @@ function isNullish(value: unknown): boolean {
 
 /**
  * Validate one comparison operand (INTERIM until L2 exact-equality join).
- * Only number/string/boolean operands are accepted; anything else is a caller
- * error, never a silent mismatch — rich values must not silently misorder.
+ * Only number/string/boolean operands are accepted, plus a typed opaque
+ * reference identity (`{id}`) for `eq`/`ne` on user/member/model reference
+ * fields (DESIGN 977); anything else is a caller error, never a silent
+ * mismatch — rich values must not silently misorder.
  */
 function checkComparisonOperand(op: string, field: string, value: unknown): void {
   const kind = typeof value;
   if (kind === 'number' || kind === 'string' || kind === 'boolean') {
+    return;
+  }
+  if ((op === 'eq' || op === 'ne') && isReferenceIdentity(value)) {
     return;
   }
   if (value === null || value === undefined) {
@@ -323,7 +328,7 @@ function checkComparisonOperand(op: string, field: string, value: unknown): void
   }
   throw new StateError(
     'validation',
-    `Predicate ${op} on ${JSON.stringify(field)} rejected: non-scalar comparison operands must be number, string, or boolean.`,
+    `Predicate ${op} on ${JSON.stringify(field)} rejected: non-scalar comparison operands must be number, string, boolean, or a reference identity for eq/ne.`,
   );
 }
 
@@ -428,7 +433,43 @@ export function collectPredicateFields(predicate: QueryPredicate): string[] {
 }
 
 /**
+ * Typed opaque identity for user/member/model reference equality (DESIGN 977:
+ * `eq`, `ne`, using typed opaque identity and authorized lookup). A plain
+ * object with an own enumerable non-empty string `id`; extra keys are ignored,
+ * mirroring reference equality elsewhere. Never an enum spelling: no case
+ * inventory applies, and unknown or inaccessible references simply match
+ * nothing (DESIGN 1027 grants no directory/target access).
+ */
+export function isReferenceIdentity(value: unknown): value is { readonly id: string } {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return false;
+  }
+  const property = Object.getOwnPropertyDescriptor(value, 'id');
+  return (
+    property !== undefined &&
+    property.enumerable === true &&
+    'value' in property &&
+    typeof property.value === 'string' &&
+    property.value !== ''
+  );
+}
+
+/**
+ * Compare two typed opaque identities by target id. Returns 0 for equal ids,
+ * nonzero otherwise, or null when either side is not an identity — fail
+ * closed, never coercing across shapes. Null rows never match non-null
+ * comparisons, including `ne` (DESIGN 1023); the caller enforces that.
+ */
+export function compareReferenceIds(left: unknown, right: unknown): number | null {
+  if (!isReferenceIdentity(left) || !isReferenceIdentity(right)) {
+    return null;
+  }
+  return left.id === right.id ? 0 : -1;
+}
+
+/**
  * Compare two same-type scalars. Booleans order as 1/0, mirroring storage.
+ * Reference identities compare by opaque target id (never enum spellings).
  * Returns null when the pair is not an ordered same-type scalar pair.
  */
 function compareScalars(left: unknown, right: unknown): number | null {
@@ -445,6 +486,9 @@ function compareScalars(left: unknown, right: unknown): number | null {
     const a = left ? 1 : 0;
     const b = right ? 1 : 0;
     return a < b ? -1 : a > b ? 1 : 0;
+  }
+  if (isReferenceIdentity(left) || isReferenceIdentity(right)) {
+    return compareReferenceIds(left, right);
   }
   return null;
 }

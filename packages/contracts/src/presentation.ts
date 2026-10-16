@@ -197,6 +197,23 @@ export interface PageSourceContext {
   };
 }
 
+/**
+ * Typed opaque identity for user/member/model reference filter controls
+ * (DESIGN 977: `eq` using typed opaque identity and authorized lookup).
+ * Never an enum spelling: no case inventory applies, and unknown or
+ * inaccessible references simply match nothing (DESIGN 1027).
+ */
+export interface ReferenceFilterIdentity {
+  readonly id: string;
+}
+
+/**
+ * Initial collection filter selections (DESIGN 975: each value must match its
+ * control type). Enum case spellings, bool toggles, reference identities, or
+ * null for no initial restriction. Explicit request selection or clear wins.
+ */
+export type CollectionFilterDefault = string | boolean | ReferenceFilterIdentity | null;
+
 /** Dispatcher-owned presentation view; raw principal stays opaque to UI. */
 export interface PresentationContext extends Partial<PageSourceContext> {
   /**
@@ -207,11 +224,11 @@ export interface PresentationContext extends Partial<PageSourceContext> {
   readonly deploymentBase?: string;
   /** Exact-operation form preparation supplied by the request dispatcher. */
   readonly prepareForm?: OperationFormPreparer;
-  /** Current request selection over checked owning enum/bool declarations; no query authority. */
+  /** Current request selection over checked owning enum/bool/reference declarations; no query authority. */
   readonly prepareCollectionFilters?: (
     occurrence: string,
     fields: readonly ColumnMeta[],
-    defaults?: Readonly<Record<string, string | boolean | null>>,
+    defaults?: Readonly<Record<string, CollectionFilterDefault>>,
   ) => readonly FilterCondition[];
   /** Viewer locale preference: saved preference, then language priority list. */
   readonly preferredLocales: readonly string[];
@@ -292,6 +309,13 @@ export interface PageDescriptor {
     /** Only the original nullable enum initial default; saved values stay cases. */
     readonly nullable?: true;
     readonly defaultValue: string | null;
+    /**
+     * Reference preference leaf behind a filter default (DESIGN 977):
+     * no case options, no literal default; the saved identity stays
+     * opaque and validates as an opaque string. Reference fields carry
+     * no save control: storage accepts enum cases only.
+     */
+    readonly reference?: true;
   }[];
   readonly admit: AdmitFn;
   readonly render: RenderFn;
@@ -658,10 +682,10 @@ export interface ListProps {
   readonly columns?: readonly string[];
   readonly parent?: { readonly id: string };
   readonly where?: unknown;
-  /** Checked owning enum/bool filter declarations, not granted row metadata. */
+  /** Checked owning enum/bool/reference filter declarations, not granted row metadata. */
   readonly filter?: readonly ColumnMeta[];
   /** Initial selections only; explicit request selection or clear wins. */
-  readonly defaults?: Readonly<Record<string, string | boolean | null>>;
+  readonly defaults?: Readonly<Record<string, CollectionFilterDefault>>;
   readonly order?: readonly string[];
   readonly search?: readonly string[];
   /** One source-owned list summary, outside renderRow. */
@@ -691,7 +715,7 @@ export interface GalleryProps extends Omit<ListProps, "columns" | "display" | "r
   /** Stable checked source occurrence for this collection's preview dialog. */
   readonly occurrence: string;
   readonly filter?: readonly ColumnMeta[];
-  readonly defaults?: Readonly<Record<string, string | boolean | null>>;
+  readonly defaults?: Readonly<Record<string, CollectionFilterDefault>>;
   readonly renderRow?: ListProps["renderRow"];
 }
 
@@ -701,10 +725,10 @@ export interface TableProps {
   readonly parent?: { readonly id: string };
   readonly where?: unknown;
   readonly search?: readonly string[];
-  /** Checked owning enum/bool filter declarations, not granted row metadata. */
+  /** Checked owning enum/bool/reference filter declarations, not granted row metadata. */
   readonly filter?: readonly ColumnMeta[];
   /** Initial selections only; explicit request selection or clear wins. */
-  readonly defaults?: Readonly<Record<string, string | boolean | null>>;
+  readonly defaults?: Readonly<Record<string, CollectionFilterDefault>>;
   readonly order?: readonly string[];
   readonly limit?: number;
   readonly cursor?: string;
@@ -1009,10 +1033,10 @@ export interface CalendarAgendaProps {
   readonly startField: string;
   readonly endField: string;
   readonly where?: unknown;
-  /** Checked owning enum/bool filter declarations, not granted row metadata. */
+  /** Checked owning enum/bool/reference filter declarations, not granted row metadata. */
   readonly filter?: readonly ColumnMeta[];
   /** Initial selections only; explicit request selection or clear wins. */
-  readonly defaults?: Readonly<Record<string, string | boolean | null>>;
+  readonly defaults?: Readonly<Record<string, CollectionFilterDefault>>;
   readonly order?: readonly string[];
   readonly limit?: number;
   readonly cursor?: string;
@@ -1922,10 +1946,10 @@ export interface BoardProps {
   readonly columns: readonly string[];
   readonly parent?: { readonly id: string };
   readonly where?: unknown;
-  /** Checked owning enum/bool filter declarations, not granted row metadata. */
+  /** Checked owning enum/bool/reference filter declarations, not granted row metadata. */
   readonly filter?: readonly ColumnMeta[];
   /** Initial selections only; explicit request selection or clear wins. */
-  readonly defaults?: Readonly<Record<string, string | boolean | null>>;
+  readonly defaults?: Readonly<Record<string, CollectionFilterDefault>>;
   readonly limit?: number;
   readonly cursor?: string;
   /** Stable source collection occurrence; required when filter controls or pagination apply. */

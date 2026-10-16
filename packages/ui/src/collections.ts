@@ -463,6 +463,19 @@ export function sourceFilterControls(
     const meta = byField.get(field.field);
     if (meta === undefined) throw new Error(`${factory}: missing authorized filter field "${field.field}"`);
     const name = collectionFilterName(occurrence, field.field);
+    // Reference controls take an opaque identity (the DESIGN 1034
+    // fallback: opaque-reference entry without a candidate directory),
+    // never an enum spelling. Descriptor value labels, if any, are
+    // ignored by construction.
+    if (field.type === "user" || field.type === "member" ||
+        (typeof field.type === "string" && field.type.startsWith("ref:"))) {
+      const selectedValue = selected.get(field.field);
+      const current = typeof selectedValue === "object" && selectedValue !== null &&
+        typeof (selectedValue as { readonly id?: unknown }).id === "string"
+        ? (selectedValue as { readonly id: string }).id : "";
+      return `<label for="${escapeAttr(name)}">${escapeHtml(resolveCaption(meta.label, props.context))}</label>` +
+        `<input type="text" id="${escapeAttr(name)}" name="${escapeAttr(name)}" value="${escapeAttr(current)}" class="input">`;
+    }
     // Conditions carry typed values (bool toggles arrive as booleans);
     // controls compare against the stable option spellings ("true"/case).
     const selectedValue = selected.get(field.field);

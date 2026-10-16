@@ -44,6 +44,7 @@ import {
   evalPredicateForRow,
   isEqualOrUnder,
   isMetadataPath,
+  isReferenceIdentity,
   isSecretValue,
   resolveRowPath,
   validatePredicateShape,
@@ -211,9 +212,12 @@ export function viewerPagePredicateTuple(predicate: QueryPredicate): ViewerPageT
   if ((predicate.op === 'and' || predicate.op === 'or') && !Array.isArray(predicate.args)) {
     throw new StateError('validation', 'Page predicate combinators require AST arrays.');
   }
-  const scalar = (value: unknown): string | number | boolean => {
+  const scalar = (value: unknown): string | number | boolean | ViewerPageTuple => {
     if (typeof value === 'string' || typeof value === 'boolean' ||
         (typeof value === 'number' && Number.isFinite(value))) return value;
+    // Reference identities travel as opaque target ids (DESIGN 977), never
+    // enum spellings; the tuple carries no directory access (DESIGN 1027).
+    if (isReferenceIdentity(value)) return ['ref', value.id];
     throw new StateError('validation', 'Page predicates require finite scalar operands.');
   };
   switch (predicate.op) {

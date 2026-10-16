@@ -3452,8 +3452,29 @@ fn collection_filter_props_are_valid(ir: &IrProgram, node: &IrUi) -> bool {
                     Some(cases)
                 }
                 ResolvedType::Scalar(Scalar::Bool) if text("type") == Some("bool") => None,
+                ResolvedType::Record { symbol, .. }
+                    if text("type")
+                        == ir
+                            .items
+                            .get(symbol.0 as usize)
+                            .filter(|item| matches!(&item.kind, IrItemKind::Model { .. }))
+                            .map(|item| format!("ref:{}", item.canonical))
+                            .as_deref() =>
+                {
+                    None
+                }
+                ResolvedType::Scalar(Scalar::User) if text("type") == Some("user") => None,
+                ResolvedType::Scalar(Scalar::Member) if text("type") == Some("member") => None,
                 _ => return false,
             };
+            // A reference column compares by typed opaque identity
+            // (DESIGN 977), never enum spellings: its descriptor carries
+            // no value labels.
+            let is_reference = matches!(
+                ty,
+                ResolvedType::Record { .. }
+                    | ResolvedType::Scalar(Scalar::User | Scalar::Member)
+            );
             if selected.insert(name, ty).is_some() {
                 return false;
             }
@@ -3463,17 +3484,21 @@ fn collection_filter_props_are_valid(ir: &IrProgram, node: &IrUi) -> bool {
             let IrExpr::Object(labels) = &labels.expr else {
                 return false;
             };
-            let labels_match = match expected_cases {
-                Some(cases) => {
-                    labels.iter().map(|(key, _)| key).collect::<Vec<_>>()
-                        == cases.iter().collect::<Vec<_>>()
-                }
-                None => {
-                    labels
-                        .iter()
-                        .map(|(key, _)| key.as_str())
-                        .collect::<Vec<_>>()
-                        == vec!["true", "false"]
+            let labels_match = if is_reference {
+                labels.is_empty()
+            } else {
+                match expected_cases {
+                    Some(cases) => {
+                        labels.iter().map(|(key, _)| key).collect::<Vec<_>>()
+                            == cases.iter().collect::<Vec<_>>()
+                    }
+                    None => {
+                        labels
+                            .iter()
+                            .map(|(key, _)| key.as_str())
+                            .collect::<Vec<_>>()
+                            == vec!["true", "false"]
+                    }
                 }
             };
             if !labels_match || !parts.iter().any(|(key, _)| key == "label") {
@@ -3494,9 +3519,14 @@ fn collection_filter_props_are_valid(ir: &IrProgram, node: &IrUi) -> bool {
                 return false;
             }
             let bool_default = matches!(expected, ResolvedType::Scalar(Scalar::Bool));
+            // Reference defaults admit only direct saved reads (or null)
+            // through the Member arm below: no literal spellings and no
+            // computed forms (DESIGN 977).
             let enum_cases = match expected {
                 ResolvedType::Enum { cases, .. } => Some(cases),
                 ResolvedType::Scalar(Scalar::Bool) => None,
+                ResolvedType::Record { .. }
+                | ResolvedType::Scalar(Scalar::User | Scalar::Member) => None,
                 _ => return false,
             };
             let valid = match &value.expr {
@@ -12574,7 +12604,7 @@ impl<'a> Emitter<'a> {
                         labels.push_str(&format!(",optionLabels:{{{values}}}"));
                     }
                     format!(
-                        "{{name:{},options:[{}],defaultValue:{}{}{labels}}}",
+                        "{{name:{},options:[{}],defaultValue:{}{}{}{labels}}}",
                         js_string(&field.name),
                         field
                             .options
@@ -12588,6 +12618,10 @@ impl<'a> Emitter<'a> {
                             .map(|value| js_string(value))
                             .unwrap_or_else(|| "null".to_string()),
                         if field.nullable { ",nullable:true" } else { "" },
+                        // A reference preference leaf carries no case
+                        // options: the saved identity stays opaque and is
+                        // validated as an opaque string downstream.
+                        if field.reference { ",reference:true" } else { "" },
                     )
                 })
                 .collect::<Vec<_>>()

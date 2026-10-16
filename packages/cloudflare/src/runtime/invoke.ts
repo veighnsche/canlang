@@ -13645,6 +13645,17 @@ function resolvePageQueryTime(
   // the owning nonnullable Datetime comparison, without executing any accessor.
   const value = node.value;
   if (value !== null && typeof value === 'object') {
+    // Reference identities travel as opaque target ids (DESIGN 977: `eq`
+    // using typed opaque identity, never an enum spelling). The shape mirrors
+    // the owning State rule (`isReferenceIdentity`); comparison and grants
+    // stay with State, and unknown references match nothing (DESIGN 1027).
+    if ((node.op === 'eq' || node.op === 'ne') && !Array.isArray(value)) {
+      const id = Object.getOwnPropertyDescriptor(value, 'id');
+      if (id !== undefined && id.enumerable && 'value' in id &&
+          typeof id.value === 'string' && id.value !== '') {
+        return predicate;
+      }
+    }
     const keys = Reflect.ownKeys(value), kind = Object.getOwnPropertyDescriptor(value, 'kind');
     const field = typeof node.field === 'string' ? fields[node.field] : undefined;
     if (queryTimeMs === undefined || keys.length !== 1 || keys[0] !== 'kind' || kind?.value !== 'page-query-now' ||

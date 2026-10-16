@@ -146,7 +146,19 @@ function checkedPreferenceFields(descriptor: PageDescriptor): NonNullable<PageDe
   const fields = descriptor.preferenceFields ?? [];
   const names = new Set<string>();
   for (const field of fields) {
-    if (typeof field.name !== 'string' || !/^[A-Za-z][A-Za-z0-9_]*$/u.test(field.name) ||
+    // Reference preference leaves carry no case options and no literal
+    // default (DESIGN 977: reference equality is not an enum spelling);
+    // the saved identity validates as an opaque string at read time.
+    if (field.reference === true) {
+      if (typeof field.name !== 'string' || !/^[A-Za-z][A-Za-z0-9_]*$/u.test(field.name) ||
+          names.has(field.name) || !Array.isArray(field.options) || field.options.length !== 0 ||
+          field.defaultValue !== null || field.nullable !== true) {
+        throw new Error('Invalid source preference descriptor.');
+      }
+      names.add(field.name);
+      continue;
+    }
+    if (field.reference !== undefined || typeof field.name !== 'string' || !/^[A-Za-z][A-Za-z0-9_]*$/u.test(field.name) ||
         names.has(field.name) || !Array.isArray(field.options) || field.options.length === 0 ||
         field.options.some(value => typeof value !== 'string' || value === '') ||
         new Set(field.options).size !== field.options.length ||
@@ -189,7 +201,16 @@ async function preferenceSource(
       teamId: identity.team.team_id, owner: descriptor.owner, field: field.name,
     };
     const saved = await deps.preferences.read(key);
-    if (saved !== null && (!field.options.includes(saved.value) || !checkedPreferenceVersion(saved.version) || saved.version === '0')) {
+    // Reference identities validate as opaque strings (bounded like
+    // search input), never against a case inventory: unknown references
+    // simply match nothing downstream (DESIGN 1027).
+    const savedOk = saved === null || !checkedPreferenceVersion(saved.version) || saved.version === '0'
+      ? saved === null
+      : field.reference === true
+        ? typeof saved.value === 'string' && saved.value !== '' && saved.value.length <= 200 &&
+          !/[\u0000-\u001f\u007f]/.test(saved.value)
+        : field.options.includes(saved.value);
+    if (!savedOk) {
       throw new Error('Invalid saved page preference.');
     }
     values[field.name] = saved?.value ?? field.defaultValue;
