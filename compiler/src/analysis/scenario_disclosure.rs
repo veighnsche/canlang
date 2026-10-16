@@ -966,11 +966,24 @@ pub(super) fn analyze_scenario_disclosure_with_catalog<'a>(
                 if returns.is_empty() {
                     return Err(cx.fail(scenario.node, "no established return path"));
                 }
+                // Finite first-query slice D (CAN18-v1): allow exactly one
+                // whole-row replay (`return <first-let>`, proven narrow at
+                // its return arm) alongside a same-model create. All other
+                // provenance gaps (including bare direct returns) stay refused.
                 if let Some(model) = cx.result_model
-                    && returns.iter().any(|returned| {
-                        returned
-                            .model_result
-                            .is_none_or(|origin| origin.model() != model)
+                    && returns.iter().any(|returned| match returned.model_result
+                    {
+                        Some(origin) => origin.model() != model,
+                        None => {
+                            !(returns.len() == 2
+                                && returns
+                                    .iter()
+                                    .filter(|returned| {
+                                        returned.model_result.is_none()
+                                    })
+                                    .count()
+                                    == 1)
+                        }
                     })
                 {
                     return Err(cx.fail(
@@ -16002,6 +16015,95 @@ impl<'a> Closure<'a> {
                                         model == actual
                                             && effect.value.and_then(|key| self.query_group(key))
                                                 == Some(node)
+                                    }
+                                    // Finite first-query slice D (CAN18-v1):
+                                    // whole-row idempotent replay
+                                    // (`if previous!=null ... return previous`
+                                    // alongside a same-model create) for one
+                                    // unscoped single-Text-equality
+                                    // id-ordered family. All other Let returns
+                                    // (including bare absence and direct
+                                    // returns) stay refused below.
+                                    (
+                                        Some(Binding::Let { node: let_node }),
+                                        None,
+                                    ) if value.record == Some(model)
+                                        && value.first_query.is_some()
+                                        && value.influences.len() == 4 =>
+                                    {
+                                        self.effects
+                                            .scenarios
+                                            .values()
+                                            .find(|scenario| {
+                                                scenario.module == module
+                                                    && scenario.node.file
+                                                        == effect.node.file
+                                                    && scenario.node.start
+                                                        <= effect.node.start
+                                                    && effect.node.end
+                                                        <= scenario.node.end
+                                            })
+                                            .is_some_and(|scenario| {
+                                            let Some(let_effect) = scenario
+                                                .effects
+                                                .iter()
+                                                .find(|binding| {
+                                                    binding.verb
+                                                        == EffectVerb::Let
+                                                        && binding.node
+                                                            == *let_node
+                                                })
+                                            else {
+                                                return false;
+                                            };
+                                            let Some(query) = self
+                                                .checked_first_query_source(
+                                                    scenario,
+                                                    let_effect,
+                                                )
+                                            else {
+                                                return false;
+                                            };
+                                            let Some(first) = query.first.as_ref()
+                                            else {
+                                                return false;
+                                            };
+                                            query.model == model
+                                                && first.contained_parent.is_none()
+                                                && first.binding == *let_node
+                                                && value.first_query.is_some_and(
+                                                    |(call, binding)| {
+                                                        call == first.call
+                                                            && binding
+                                                                == first.binding
+                                                    },
+                                                )
+                                                && query.dependencies.len()
+                                                    == 1
+                                                && query.dependencies[0].role
+                                                    == DependencyRole::Control
+                                                && query.dependencies[0].model
+                                                    == model
+                                                && query.dependencies[0].type_id
+                                                    == "text"
+                                                && query.dependencies[0].ty
+                                                    == ResolvedType::Scalar(
+                                                        Scalar::Text,
+                                                    )
+                                                && query.inputs.len() == 1
+                                                && !query.archived
+                                                && query.limit.is_none()
+                                                && query.projection.is_none()
+                                                && query
+                                                    .cardinality_guard
+                                                    .is_none()
+                                                && query.count.is_none()
+                                                && query.order.len() == 1
+                                                && query.order[0].field.is_none()
+                                                && query.order[0].field_name
+                                                    == "id"
+                                                && !query.order[0].descending
+                                        })
                                     }
                                     _ => false,
                                 };

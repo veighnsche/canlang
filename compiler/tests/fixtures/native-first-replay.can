@@ -1,0 +1,15 @@
+app WholeSources
+Given
+ Receipt {source:text unique, accepted:int min=0}
+ policy Receipt read=members
+When
+ crud Receipt by=members fields=source,accepted
+ scenario receive(source:text,accepted:int) -> Receipt by=members
+  do
+   let previous=first(Receipt as receipt where receipt.source==source order=receipt.id)
+   if previous!=null
+    require previous.accepted==accepted
+    return previous
+   create Receipt {source,accepted} as receipt
+   return receipt
+Then

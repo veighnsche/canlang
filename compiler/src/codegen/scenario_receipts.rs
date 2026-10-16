@@ -564,7 +564,100 @@ pub(super) fn checked_created_model_result(
         {
             return None;
         }
+        // Finite first-query slice D (CAN18-v1): whole-row idempotent replay
+        // (`if previous!=null ... return previous` alongside a same-model
+        // create) for one unscoped single-Text-equality id-ordered family.
+        // All other shapes (including bare `require ...==null` absence and
+        // direct `return <first>` without a create) stay refused below.
+        if checked.returns.iter().any(|returned| returned.model_result.is_none())
+            && (checked.returns.len() != 2
+                || checked
+                    .returns
+                    .iter()
+                    .filter(|returned| returned.model_result.is_none())
+                    .count()
+                    != 1)
+        {
+            return None;
+        }
         for returned in &checked.returns {
+            if returned.model_result.is_none() {
+                // Whole-row replay return: `return <first-let>` for the same
+                // model. The creating return below anchors `model`; this path
+                // only proves the replayed row is the admitted first query.
+                let IrStmt::Return {
+                    value: Some(value), ..
+                } = result_statement_at(effects, node_span(returned.node))?
+                else {
+                    return None;
+                };
+                if returned.source != checked.source {
+                    return None;
+                }
+                let IrExpr::Name(binding) = &value.expr else {
+                    return None;
+                };
+                if value.ty
+                    != (ResolvedType::Record {
+                        symbol: *model,
+                        stored: true,
+                    })
+                {
+                    return None;
+                }
+                let queries = facts.queries.as_deref()?;
+                if queries.len() != 1 {
+                    return None;
+                }
+                let query = &queries[0];
+                let first = query.first.as_ref()?;
+                if query.model != *model
+                    || query.count.is_some()
+                    || first.contained_parent.is_some()
+                    || query.dependencies.len() != 1
+                {
+                    return None;
+                }
+                let dependency = &query.dependencies[0];
+                if dependency.role != DependencyRole::Control
+                    || dependency.model != *model
+                    || dependency.type_id != "text"
+                    || dependency.ty != ResolvedType::Scalar(Scalar::Text)
+                {
+                    return None;
+                }
+                let (let_name, let_value) = effects.iter().find_map(|statement| match statement {
+                    IrStmt::Let { name, value, span }
+                        if *span == node_span(first.binding) =>
+                    {
+                        Some((name, value))
+                    }
+                    _ => None,
+                })?;
+                if let_name != binding {
+                    return None;
+                }
+                let (IrExpr::Call { args, .. } | IrExpr::BoundCall { args, .. }) =
+                    &let_value.expr
+                else {
+                    return None;
+                };
+                let [domain] = args.as_slice() else {
+                    return None;
+                };
+                let IrExpr::Query(scan) = &domain.expr else {
+                    return None;
+                };
+                checked_first_query_order(query, scan)?;
+                checked_first_query_predicate(ir, item, query, scan)?;
+                if first.binding.file != returned.node.file
+                    || first.binding.end > returned.node.start
+                    || returned.influences.len() != 4
+                {
+                    return None;
+                }
+                continue;
+            }
             let origin = returned.model_result?;
             if origin.model() != *model || returned.source != checked.source {
                 return None;
