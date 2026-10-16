@@ -73447,5 +73447,128 @@
       "owner": "Compiler completion",
       "result": "Frozen aa1efac926 +ca50 original24:359E6008 complete=true/omitted0,26sources,24authoredhashes unchanged;2removed0added vs361;469.92s exit10. Original CanDesk list/CanMaintain table E5 refusals cleared; rest stays open."
     }
+  },
+  "can18_merge_21_20261016": {
+    "incremental_base": "802a4be81ff5b59a4d01438c67f91f9618741e51",
+    "incoming_end": "a69d9033c0d6276906838909459189a83c425a42",
+    "retained_coverage": "reuse spec_installer_merge_reconciliation_20261015 and preceding CAN18 incremental merge entries; inherited complete checkpoint unchanged",
+    "changed_path_count": 22,
+    "rows": [
+      [
+        "compiler/src/analysis/scenario_disclosure.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/src/codegen/js.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/src/codegen/scenario_decisions.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/src/codegen/scenario_feasibility.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/src/codegen/scenario_receipts.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/hook_first_query.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "docs/ideal-filetree-plan.md",
+        "existing owner",
+        "retain current allocation"
+      ],
+      [
+        "docs/ideal-filetree-plan/state-machines-20261007.json",
+        "existing owner",
+        "retain current allocation"
+      ],
+      [
+        "docs/specification/DECISIONS.md",
+        "Specification",
+        "existing accepted design/decision owner"
+      ],
+      [
+        "evidence/original24-main-20261016.json",
+        "existing owner",
+        "retain current allocation"
+      ],
+      [
+        "implementation/compiler-completion/README.md",
+        "Compiler completion",
+        "existing finite execution record"
+      ],
+      [
+        "packages/cloudflare/src/runtime/hook-first-delivery-private.test.ts",
+        "cloudflare",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/cloudflare/src/runtime/hook-first-delivery.test.ts",
+        "cloudflare",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/cloudflare/src/runtime/invoke.ts",
+        "cloudflare",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/cloudflare/test/fixtures/hook-first-delivery-private-presence.can",
+        "cloudflare",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/cloudflare/test/fixtures/hook-first-delivery-private-unused.can",
+        "cloudflare",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/cloudflare/test/fixtures/hook-first-delivery-private.can",
+        "cloudflare",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/cloudflare/test/fixtures/hook-first-delivery.can",
+        "cloudflare",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/state/src/invocation/index.ts",
+        "state",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/state/src/invocation/registry.ts",
+        "state",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/state/src/invocation/scenario-owner-receipt.test.ts",
+        "state",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/state/src/invocation/scenario-receipt.ts",
+        "state",
+        "existing package source/test owner"
+      ]
+    ],
+    "choice": "Native due Work invocation/store/fence association plus guard/presence-consumed owner decision for the confined hook first-query slice (DESIGN442): declared Require control reads evaluate as a recorded owner decision with issued-ID decision policies, secrets excluded and null actor untouched; unmarked shapes keep viewer behavior.",
+    "validation": "Main validation on the freshly built main compiler 4d22de4c with frozen ca50 catalog: hook-first batteries 14/14 (public 8/8 plus private 6/6), contained suites 10/10, A15 membership drive 3/3, compiler hook/enum/bool/b1/agenda/table suites green; main and Cloudflare/State builds exit 0 with only the pre-existing unreachable-pattern warning. Frozen intake pair 4d22de4c/ca50.",
+    "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
+    "checkpoint_advanced": false,
+    "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
   }
 }
