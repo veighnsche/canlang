@@ -1,0 +1,13 @@
+app DomainProbe
+Given
+ Term {name:text}
+ Seat in Term {account:user,active:bool}
+ policy Term read=members
+ policy Seat read=members
+When
+ scenario assign(term:Term,account:user) -> bool by=members
+  do
+   let seat=first(term.Seat as seat where seat.account==account order=seat.id)
+   require seat!=null and seat.active
+   return true
+Then
