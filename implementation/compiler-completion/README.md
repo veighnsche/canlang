@@ -207,6 +207,31 @@ legacy E1211s, pre-existing); rebuilt CLI on the exact probe reports only
 E6008 missing saved generation output — the separately distinguished
 non-syntax matter. Outcome 6 is implemented (Codex review pending).
 
+Outcome 8 implemented in `46bbb4ed` (Lane A commit `56bf091d`): original
+43 role-OR operation sites emit matching ordered State ByPredicate trees
+through the operations member and policy manifest, reusing the State AST
+read-only; lone role gates byte-identical, subject/expression gates keep
+refusal, CRUD `when` sealed; short-circuit, roles, authority, resolver
+failures kept. `boolean_operation_admission` 8/8 plus outbound/ui-adapter
+neighbors green in parent. Native policy receiving remains for Codex
+behavioral review. Codex review pending.
+
+Outcome 9 family A implemented in `55c969d2` (Lane A commit `fac7bd70`):
+45/64 handler profiles (`on=Cap.event`) lower through canonical
+invocation (1-arm `HandlerSource::CapabilityEvent` → `Declared` mapping,
+§13.4 provider-routed form, typed invocation; no task spawning).
+`capability_event_handlers` 2/2 plus admission/completion/call/membership/
+sink neighbors green. Remaining families classified: B (reconcile source
+`None`), C (cron `every` event source), D (native terminal carrier),
+E (`scope=authority` needs an authority-marker design decision — Codex
+input required before implementation). Outcome 9 stays OPEN.
+Families B+C implemented in `473272cd`/`7546c157`: nullable-result
+adapter completions and `every(duration)` handlers lower through canonical
+invocation (delivery/completion + recurring-tick suites 2/2 each, family-A
+suite green). Per Codex AUTHORITY-1, family E is NOT a design hold (DESIGN
+434/442/522 already define the grant); the missing §13 emission/runtime
+marker is an implementation gap now assigned with family D's named repair.
+
 Outcome 11 test map in parent (Lane A commit, 5/5 join positives +
 refusal surface incl. E3005 recursion): all 7 original calls die at
 `ScenarioDisclosure::Declined` via gates D1-D8 (param eligibility, void

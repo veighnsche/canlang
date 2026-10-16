@@ -12,6 +12,10 @@ Integrate admission-default checking, checked versioned producer contracts, and 
 
 Integrate reviewed State-read inventory/reuse, original UI bindings and styles, native hook context, checked email dispatch, cross-operation D2/D6, pinned outbound classification and Boolean admission. Incoming interval `35ca092e..46bbb4ed` accounts for 25 changed paths in `can18_merge_2_20261016` of the existing registry. Reuse recorded focused compiler suites, UI69/124/35, comparable-base codegen controls, and independent collection6/style-original1/Boolean-receiver7 checks. No production merge conflicts; four identical pre-existing codegen residuals and original composition/native-consumer gates remain explicitly open. Existing defining owners and target allocations remain; focused new tests stay with Compiler. Reuse prior accumulated coverage; complete checkpoint remains unchanged. Original24 and required executable consumers remain open. Unfinished work stays in the running Muse checkout.
 
+### CAN18 incremental integration — can18_merge_3_20261016
+
+Integrate provider-event handler identity, nullable completion payloads, recurring tick emission and native hook delivery/message lowering. Incoming interval `46bbb4ed..5ac99533` accounts for 7 changed paths in `can18_merge_3_20261016` of the existing registry. Reuse focused capability2/completion2/tick2 and hook12 tests plus recorded neighbor suites. Static review confirms typed identities, nullable envelope agreement, integer interval and existing async native context; legacy refusals and full runtime consumer gates remain. Existing defining owners and target allocations remain; focused new tests stay with Compiler. Reuse prior accumulated coverage; complete checkpoint remains unchanged. Original24 and required executable consumers remain open. Unfinished work stays in the running Muse checkout.
+
 ### Specification and installer documentation merge — 2026-10-15
 
 Merge installer commit `02470b74` into canonical `main` at `a70921e3`.
