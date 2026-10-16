@@ -292,6 +292,16 @@ disclosure; receipts skip call-consumption linkage for void owners.
 `cross_operation_calls` 7/7 (2 new joins with emission) plus
 call-references/membership neighbors green in parent. Remaining: D1/D3/D5/
 D7/D8 and downstream collect_owner arms.
+Stale A3 pre-edit report (terminal, no edits, worktree retained with only
+the authorized values/dist symlink): on its reconstructed 24-file set the
+7 calls check as valid `DisclosureEffectKind::Call` and fail downstream
+at the emission join (static-call join yields no site → §13 unsupported),
+naming `codegen/scenario_calls.rs` as its file. This contrasts with the
+parent test map above (calls die at disclosure Declined); the two runs
+differ in base and input set (A3 total 537 vs retained 573). Both
+observations are preserved for the Lane C owner; no ownership change —
+the disclosure slice stays with C7, which must reconcile the check-stage
+vs emission-stage failure site with evidence before editing either side.
 
 Outcome 7 compiler slice in `dba896b5` (Lane B commit `8baafab8`): send
 statements to std EmailV1 + AlertsV1 notify lower formatted values inline
