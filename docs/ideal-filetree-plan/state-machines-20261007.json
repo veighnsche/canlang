@@ -73128,5 +73128,73 @@
     "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
     "checkpoint_advanced": false,
     "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
+  },
+  "can18_merge_15_20261016": {
+    "incremental_base": "5ff39d12817104317effe2a9b1eaa7a66f88fe23",
+    "incoming_end": "9c6a2ba679f473f7756cbda76784a0ef61849bbc",
+    "retained_coverage": "reuse spec_installer_merge_reconciliation_20261015 and preceding CAN18 incremental merge entries; inherited complete checkpoint unchanged",
+    "changed_path_count": 11,
+    "rows": [
+      [
+        "compiler/src/codegen/ir.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/src/codegen/js.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/collection_bool_filters.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "packages/contracts/src/presentation.ts",
+        "contracts",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/interfaces/src/http/presentation.ts",
+        "interfaces",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/interfaces/test/bool-page-source.test.ts",
+        "interfaces",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/interfaces/test/fixtures/bool-page-source.can",
+        "interfaces",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/interfaces/test/fixtures/bool-toggle-filters-compiled.json",
+        "interfaces",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/interfaces/test/http-presentation.test.ts",
+        "interfaces",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/ui/src/collections.ts",
+        "ui",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/ui/test/collections.test.ts",
+        "ui",
+        "existing package source/test owner"
+      ]
+    ],
+    "choice": "Accept complete owning boolean collection filters and strict typed preference reads across Compiler, Contracts, Interfaces and UI, preserving equivalent pure defaults and canonical source authority.",
+    "validation": "Independent immutable-compiler compiled-source real-State page plus HTTP38/38 pass; final defining bool source/tests match reviewed ecadf351f; compiler27/27 and unchanged owner neighbors reused. Nullable/nonnullable false, inline/helper/comparison equivalence, selection/clear, malformed spelling, caller denial and revocation remain covered. Other factory profiles and original24 remain open.",
+    "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
+    "checkpoint_advanced": false,
+    "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
   }
 }

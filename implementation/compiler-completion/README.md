@@ -7469,3 +7469,16 @@ once-only replay. The first sandboxed attempt could not create the generated-inp
 lock in the run checkout; the authorized rerun with that filesystem access passed.
 No handwritten replacement handler or production changes. These finite consumers
 do not close original24, Partner capture or production lock-edit acceptance.
+
+### CAN18 canonical main — boolean filters and typed reads accepted (2026-10-16)
+
+Complete B6/B9/B10/B11/B13 repair accepted at defining Compiler/Contracts/
+Interfaces/UI owners. Independent immutable-compiler actual-source page plus HTTP
+suite38/38 passed, including real State queries, nullable/nonnullable false,
+inline negation/helper/comparison equivalence, request precedence/clear, malformed
+saved spelling before query, denied caller and current membership revocation.
+Final bool IR/emission, package owners and source tests match reviewed ecadf351f;
+reuse owning compiler27/27 and unchanged neighbors. No sink truthiness, local app
+exception, grants or source mutation. This closes the finite bool-filter/read
+slice; other enum/factory/query groups, original24 and original workflow gates
+stay open. Unrelated worker source and commits remain preserved.
