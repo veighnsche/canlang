@@ -525,6 +525,28 @@ describe("link", () => {
     assert.equal(html, `<a class="link" href="https://example.com/x">https://example.com/x</a>`);
   });
 
+  it("renders an absent nullable URL with no href and the shared unavailable label", async () => {
+    const html = await link({ context: makeContext(), target: null, absentUrl: true });
+    assert.ok(html.includes('role="link" aria-disabled="true"'), html);
+    assert.ok(!html.includes("href="), html);
+    assert.ok(html.includes(">Unavailable<"), html);
+    const nl = await link({ context: makeContext({ preferredLocales: ["nl"] }), target: null, absentUrl: true });
+    assert.ok(nl.includes(">Niet beschikbaar<"), nl);
+    assert.ok(!nl.includes("href="), nl);
+  });
+
+  it("prefers an authored caption over the absent-URL fallback", async () => {
+    const html = await link({ context: makeContext(), target: null, absentUrl: true, caption: "Source" });
+    assert.ok(html.includes('aria-disabled="true">Source<'), html);
+    assert.ok(!html.includes("href="), html);
+  });
+
+  it("keeps the File caption default for null targets without the URL marker", async () => {
+    const html = await link({ context: makeContext(), target: null });
+    assert.ok(html.includes('aria-disabled="true">Open file<'), html);
+    assert.ok(!html.includes("href="), html);
+  });
+
   it("maps every admitted tone", async () => {
     for (const tone of ALL_TONES) {
       const html = await link({ context: makeContext(), target: "/x", tone });

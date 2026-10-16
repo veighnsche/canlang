@@ -86,6 +86,40 @@ retained context only.
 | 17 / C13,C16,C22 | Retained host/data qualification gates | Defining host/Values owner; exact account/executor or release-pinned ICU/tzdb/CLDR/GUI tuple | Original G3/A7 account protocol and named release/host consumers close only on their actual missing tuple/output; no model substitution, fabricated dataset membership, unselected-host expansion or repeated accepted local units. Keep each released ready leaf independent of the held tuple. |
 | 18 / C14,C23 | Preserve exact human/policy holds | Human/policy owner; original recipient/action-specific release | C14 holds only its recorded BDD3 returned/result/payload/as/disclosure/live/context/input-slot scope; C23 holds only Task22 OUTBOX target/binding/deploy/source/revision lookup. Consultation does not lift either hold. Neither can block independent local implementation. |
 
+**Coordinator integration (2026-10-15, CAN18-v1).** Outcome 1 implemented in
+`11d615d1` (Lane A commit `7a086e07`): `check_by_explicit_defaults` in
+`compiler/src/analysis/types.rs` reports E3011 per `by` reference to an
+explicit-default parameter, direct and helper-transitive; required inputs,
+absence values, admitted defaults and denied-call/default order unchanged.
+Focused `compiler/tests/admission_default_boundary.rs` passes 4/4.
+`scenario_call_defaults` 3 failures are pre-existing at base (missing
+`packages/values/dist` catalog in this checkout, E6002), not a regression.
+Codex independent review pending; no other row is closed by this commit.
+
+Outcome 2 implemented in `b27cd734` (Lane B commit `847798e1`): checker and
+JS emission admit `Nullable(Url)` for link only, static absent-URL marker,
+no href plus shared localized label on null; denied/presenter failures still
+throw; gate/operand/failure order unchanged. Focused
+`compiler/tests/nullable_url_link.rs` passes 3/3. TS render coverage
+(`packages/ui` leaves test, `ui_adapter` absent-URL cases) is authored but
+unrun: the shared main `node_modules` links resolve into main sources, and
+this run authorizes no private install — TS validation awaits a Codex
+decision on install ownership.
+
+Outcome 13 implemented in `9eb4644a` (Lane C commit `5bb44a62`): bound
+capabilities link against their checked versioned declaration instead of
+demanding a lane-02 catalog entry (25 E6007s); unversioned declarations and
+planned/external entries still refuse; the `active_member` E6007 needs only
+the installed native catalog at compile time. Focused
+`compiler/tests/bound_producer_contracts.rs` passes 4/4.
+
+Codex CAN18-CODEX-REVIEW-1 action 1 applied in `7364d76b`: the E3011 message
+no longer presents `require` as an equivalent fix for a permission check —
+it keeps authorization on admission-available inputs and reserves leading
+`require` for business validation needing resolved defaults
+(`by=false` forbidden vs `require=false` rule_failed). No behavior change;
+all 11 focused tests (4+3+4) pass in the integrated parent.
+
 The last unmasked backend run has 573 occurrences grouped above; the newer run
 stops earlier on the optional URL check. Counts are historical until the same
 original compile reaches emission again. The normative contract is now separate

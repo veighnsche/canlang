@@ -10007,7 +10007,9 @@ impl<'a> Emitter<'a> {
                         value.ty,
                         ResolvedType::Scalar(Scalar::Text | Scalar::Url | Scalar::File)
                     ) || matches!(&value.ty, ResolvedType::Nullable(inner)
-                            if inner.as_ref() == &ResolvedType::Scalar(Scalar::File))
+                            if inner.as_ref() == &ResolvedType::Scalar(Scalar::File)
+                                || (node.factory == "link"
+                                    && inner.as_ref() == &ResolvedType::Scalar(Scalar::Url)))
                 }
                 "regionId" | "target" | "opens" => {
                     matches!(value.ty, ResolvedType::Scalar(Scalar::Text))
@@ -10402,6 +10404,19 @@ impl<'a> Emitter<'a> {
                 "operationId:{}()",
                 binding_ident("u", "mintOperationId")
             ));
+        }
+        if node.factory == "link"
+            && node.props.iter().any(|(key, value)| {
+                key == "target"
+                    && matches!(&value.ty, ResolvedType::Nullable(inner)
+                        if inner.as_ref() == &ResolvedType::Scalar(Scalar::Url))
+            })
+        {
+            // A statically nullable-URL destination renders the shared
+            // unavailable label (not the File caption default) when absent.
+            // This static marker carries no evaluation: authored operand
+            // order and gate/failure behavior are unchanged.
+            props.push("absentUrl:true".to_string());
         }
         match &node.row_scope {
             Some((row, view)) => {

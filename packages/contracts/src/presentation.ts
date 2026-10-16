@@ -1326,6 +1326,13 @@ export interface LinkProps {
   readonly target: string | FileValue | null;
   readonly caption?: MessageValue;
   readonly tone?: AppearanceTone;
+  /**
+   * Static destination kind: true when the checked target is a nullable
+   * URL. An absent URL then renders the shared unavailable label, while a
+   * null/withheld File keeps its existing File caption default. Present
+   * destinations ignore this marker.
+   */
+  readonly absentUrl?: boolean;
 }
 
 /**

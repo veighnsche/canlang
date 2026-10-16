@@ -51,9 +51,12 @@ import {
   canonicalDefaultTag,
   canonicalPreferredTags,
   formatScalar,
+  message,
   resolveCaption,
   resolvedText,
 } from "./messages.js";
+
+const LINK_UNAVAILABLE = message("Unavailable", { nl: "Niet beschikbaar" });
 
 function joinClasses(base: string, modifiers: string): string {
   return modifiers === "" ? base : `${base} ${modifiers}`;
@@ -208,7 +211,11 @@ export async function link(props: LinkProps): Promise<string> {
   const modifiers = appearanceClasses("link", "link", pickAppearance(props));
   const cls = escapeAttr(joinClasses("link", modifiers));
   const override = props.caption === undefined ? undefined : escapeHtml(captionText(props.caption, props.context));
-  const unavailable = () => `<span class="${cls}" role="link" aria-disabled="true">${override ?? escapeHtml(resolveCaption(OPEN_FILE, props.context))}</span>`;
+  // An absent nullable URL falls back to the shared unavailable label; a
+  // null/withheld File keeps its existing File caption default. Denied
+  // fields and presenter failures throw before reaching this state.
+  const absent = props.absentUrl === true ? LINK_UNAVAILABLE : OPEN_FILE;
+  const unavailable = () => `<span class="${cls}" role="link" aria-disabled="true">${override ?? escapeHtml(resolveCaption(absent, props.context))}</span>`;
   if (props.target === null) return unavailable();
   if (typeof props.target === "string") {
     return `<a class="${cls}" href="${escapeAttr(safeHref(props.target))}">${override ?? escapeHtml(props.target)}</a>`;
