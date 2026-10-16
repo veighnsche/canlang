@@ -7808,3 +7808,12 @@ materialization (corrected assumption now pinned), anonymous/revoked 403s,
 zero-query refusals; B14 header corrected comment-only (verified no code
 lines changed). Follow-up receipt confirmed by worker ACK + stopped sleep
 loop. Active lanes: B16, C23.
+
+**REVIEW-20 dispatch, 2026-10-16 (evidence 01a14484-d4a7):**
+C23's hook-first-delivery terminal test asserts generic failed on an
+approved/granted row where plain mode succeeds — a characterized native
+consumer failure, not proof. Routed: diagnose exact failure at the defining
+runtime/query binding owner, smallest connection, real success + meaningful
+refusals required; no weakened assertions, honest gap retained if not yet
+executable. B16 filter repair stays independent for prompt merge at its
+corrected handoff. No duplicate original24 capture; main 019e8c30c clean.
