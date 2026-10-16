@@ -18259,3 +18259,8 @@ Accepted: Filter-remainder pins: 36 diagnostics classified (C2/C3 followers + 8 
 ## 2026-10-16 — can18_merge_36_20261017
 
 Accepted: Per-use parent/reference hook helper variants: same helper across linkages emits loader-correct variants; fences/sites preserved. Merge reviewed tested work incrementally into canonical `main`, preserving installer/specification changes and the active implementation branch. shared+separate discriminators 0 diags, ref 10/10+13/13, parent 12/12, hook suites 26+7+11 on frozen 730bf47e/ca50. Reconcile the living file-tree plan/registry over `a7b36044..HEAD` with existing owners; retain the complete checkpoint and all outstanding acceptance gates. A merged component is not a claim that original24 or the remaining runtime workflows are complete.
+
+
+## 2026-10-16 — can18_merge_37_20261017
+
+Accepted: First-query slice D compiler admission: unscoped Text id-ordered same-model replay (CanPurchase receive/return_goods); runtime model-result frame gap named as next prerequisite. Merge reviewed tested work incrementally into canonical `main`, preserving installer/specification changes and the active implementation branch. native_first_replay 4/4, native_first_query 17/17 on main build. Reconcile the living file-tree plan/registry over `3b3f6c0f..HEAD` with existing owners; retain the complete checkpoint and all outstanding acceptance gates. A merged component is not a claim that original24 or the remaining runtime workflows are complete.

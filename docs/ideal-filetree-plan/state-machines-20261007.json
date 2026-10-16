@@ -74310,5 +74310,38 @@
     "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
     "checkpoint_advanced": false,
     "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
+  },
+  "can18_merge_37_20261017": {
+    "incremental_base": "3b3f6c0f9ab7cde8596cdf4a96d551e50549e3d7",
+    "incoming_end": "ed672197eb148d8ba9db73228d355bf9948b8472",
+    "retained_coverage": "reuse spec_installer_merge_reconciliation_20261015 and preceding CAN18 incremental merge entries; inherited complete checkpoint unchanged",
+    "changed_path_count": 4,
+    "rows": [
+      [
+        "compiler/src/analysis/scenario_disclosure.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/src/codegen/scenario_receipts.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/fixtures/native-first-replay.can",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/native_first_replay.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ]
+    ],
+    "choice": "First-query slice D compiler admission: unscoped Text id-ordered same-model replay (CanPurchase receive/return_goods); runtime model-result frame gap named as next prerequisite.",
+    "validation": "native_first_replay 4/4, native_first_query 17/17 on main build.",
+    "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
+    "checkpoint_advanced": false,
+    "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
   }
 }

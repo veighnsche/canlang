@@ -148,6 +148,10 @@ Filter-remainder pins: 36 diagnostics classified (C2/C3 followers + 8 genuinely-
 
 Per-use parent/reference hook helper variants: same helper across linkages emits loader-correct variants; fences/sites preserved. Incoming interval `a7b36044..HEAD` accounts for 1 changed paths in `can18_merge_36_20261017` of the existing registry. shared+separate discriminators 0 diags, ref 10/10+13/13, parent 12/12, hook suites 26+7+11 on frozen 730bf47e/ca50. Existing defining owners and target allocations remain; focused new tests stay with Compiler. Reuse prior accumulated coverage; complete checkpoint remains unchanged. Original24 and required executable consumers remain open. Unfinished work stays in the running Muse checkout.
 
+### CAN18 incremental integration — can18_merge_37_20261017
+
+First-query slice D compiler admission: unscoped Text id-ordered same-model replay (CanPurchase receive/return_goods); runtime model-result frame gap named as next prerequisite. Incoming interval `3b3f6c0f..HEAD` accounts for 4 changed paths in `can18_merge_37_20261017` of the existing registry. native_first_replay 4/4, native_first_query 17/17 on main build. Existing defining owners and target allocations remain; focused new tests stay with Compiler. Reuse prior accumulated coverage; complete checkpoint remains unchanged. Original24 and required executable consumers remain open. Unfinished work stays in the running Muse checkout.
+
 ### Specification and installer documentation merge — 2026-10-15
 
 Merge installer commit `02470b74` into canonical `main` at `a70921e3`.
