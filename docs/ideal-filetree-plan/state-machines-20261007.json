@@ -73196,5 +73196,43 @@
     "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
     "checkpoint_advanced": false,
     "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
+  },
+  "can18_merge_16_20261016": {
+    "incremental_base": "47c897f1aa6589687dab2e4d755d35bbdf72cf92",
+    "incoming_end": "b75b2b3322fd6227edfb4411b724d68ec6da3872",
+    "retained_coverage": "reuse spec_installer_merge_reconciliation_20261015 and preceding CAN18 incremental merge entries; inherited complete checkpoint unchanged",
+    "changed_path_count": 5,
+    "rows": [
+      [
+        "compiler/src/codegen/ir.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/src/codegen/js.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/enum_filter_group.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "packages/interfaces/test/enum-page-source.test.ts",
+        "interfaces",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/interfaces/test/fixtures/enum-page-source.can",
+        "interfaces",
+        "existing package source/test owner"
+      ]
+    ],
+    "choice": "Accept the finite computed enum-preference default repair with actual local/imported helper reuse at Compiler and Interfaces owners; unrelated factory and selector obligations stay open.",
+    "validation": "Independent enum_filter_group28/28 plus actual compiled-source real-State HTTP consumer1/1 pass on immutable compiler783b66e9 versiondc2d5ec20/native catalogca50fdca. Direct/local/imported/coalesced meaning, precedence/clear, malformed refusal before query and denial/revocation verified. Standalone filter repair remains active, original24 still351E6008 until the next released frozen cohort capture.",
+    "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
+    "checkpoint_advanced": false,
+    "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
   }
 }
