@@ -64,6 +64,41 @@ fn assert_refuses(source: &str, code: &str, fragment: &str) {
     );
 }
 
+/// Lowered page-render JS for one source (panics on any diagnostic, so
+/// the returned text is the admitted emission).
+fn emit_js(source: &str) -> String {
+    let mut db = SourceDb::new();
+    let file = db.add("probe.can".into(), source.into());
+    let (checked, check_diags) = check_program(&db, &[file], None);
+    assert!(
+        check_diags.is_empty(),
+        "unexpected check diagnostics: {:?}",
+        codes(&check_diags)
+    );
+    let (program, build_diags) = ir::build(&checked, &db, None);
+    assert!(
+        build_diags.is_empty(),
+        "unexpected IR diagnostics: {:?}",
+        codes(&build_diags)
+    );
+    let mut out = String::new();
+    for module in &program.modules {
+        for page in &module.pages {
+            for node in &page.render {
+                let mut emitter = js::Emitter::new(&program);
+                out.push_str(&emitter.lower_ui(node));
+                let (diags, _, _, _) = emitter.finish();
+                assert!(
+                    diags.is_empty(),
+                    "unexpected lowering diagnostics: {:?}",
+                    codes(&diags)
+                );
+            }
+        }
+    }
+    out
+}
+
 const HEAD: &str = "app Probe\nGiven\n Customer { name:text, kind:enum(individual,company), active:bool=true }\n policy Customer read=public\nWhen\nThen\n preferences { kind:Customer.kind?, active:bool? }\n page /customers title=\"Customers\"\n";
 
 /// Recorded CanCustomer shape: enum + bool filters with matching owned
@@ -116,6 +151,59 @@ fn bool_literal_default_lowers() {
     assert_lowers(&format!(
         "{HEAD}  list Customer columns=name,active filter=active defaults={{active=true}}\n"
     ));
+}
+
+/// B10: a saved bool preference default coerces its store spelling at
+/// emission. The store is string-typed, so `preferences.active` arrives
+/// as `"true"`/`"false"` while the host preparer requires real booleans.
+/// The bool entry is wrapped in the strict spelling coercion (null stays
+/// null, real booleans pass through, unknown values pass through so the
+/// preparer still refuses them); the enum entry lowers verbatim.
+#[test]
+fn saved_bool_preference_default_coerces_strict_spellings() {
+    let js = emit_js(&format!(
+        "{HEAD}  list Customer columns=name,kind,active filter=kind,active defaults={{kind=preferences.kind,active=preferences.active}}\n"
+    ));
+    assert!(
+        js.contains("kind:(preferences.kind ?? null)"),
+        "enum default stays verbatim, got: {js}"
+    );
+    assert!(
+        js.contains("active:(value=>{if(value==null)return null;"),
+        "bool default is wrapped in the spelling coercion, got: {js}"
+    );
+    assert!(
+        js.contains(
+            "if(value===\"true\")return true;if(value===\"false\")return false;return value;"
+        ),
+        "only strict spellings map and anything else passes through for preparer refusal, got: {js}"
+    );
+}
+
+/// B10: a bool literal default keeps its typed value through the same
+/// coercion (real booleans pass through unchanged).
+#[test]
+fn bool_literal_default_coerces_to_itself() {
+    let js = emit_js(&format!(
+        "{HEAD}  list Customer columns=name,active filter=active defaults={{active=true}}\n"
+    ));
+    assert!(
+        js.contains("active:(value=>{if(value==null)return null;"),
+        "bool literal default carries the same strict coercion, got: {js}"
+    );
+}
+
+/// B10: the shared collection pipeline coerces saved bool spellings on
+/// board too, not just list.
+#[test]
+fn board_saved_bool_preference_default_coerces() {
+    let js = emit_js(&format!(
+        "{HEAD}  board Customer by=kind columns=name,active filter=active defaults={{active=preferences.active}}\n"
+    ));
+    assert!(
+        js.contains("active:(value=>{if(value==null)return null;"),
+        "board bool default is wrapped in the spelling coercion, got: {js}"
+    );
 }
 
 /// The committed int refusal stays: rank is not a finite-choice field.

@@ -4804,6 +4804,42 @@ impl<'a> Emitter<'a> {
         Some(out)
     }
 
+    /// Lower a collection `defaults` object, coercing saved bool-toggle
+    /// spellings to real booleans.
+    ///
+    /// The preference store is string-typed, so a saved bool default
+    /// arrives as the spelling `"true"`/`"false"` while the host
+    /// collection preparer requires real booleans for `bool` columns
+    /// (anything else refuses before any query). Entries whose checked
+    /// type is (nullable) bool are wrapped in a strict spelling
+    /// coercion: `null` stays `null`, real booleans pass through,
+    /// `"true"`/`"false"` become `true`/`false`, and every other value
+    /// passes through untouched so the preparer still refuses it safely.
+    /// Enum entries lower verbatim. `None` when `value` is not the
+    /// dispatched profile (fixed objects lower generically).
+    fn lower_collection_defaults(&mut self, value: &TypedExpr) -> Option<String> {
+        if self.expr_formatted(value) {
+            return None;
+        }
+        let IrExpr::Object(entries) = &value.expr else {
+            return None;
+        };
+        let mut parts = Vec::new();
+        for (name, entry) in entries {
+            let lowered = self.lower_business_expr(entry, "unclassified formatted UI prop");
+            let inner = entry.ty.nullable_inner().unwrap_or(&entry.ty);
+            if *inner == ResolvedType::Scalar(Scalar::Bool) {
+                parts.push(format!(
+                    "{}:(value=>{{if(value==null)return null;if(value===true)return true;if(value===false)return false;if(value===\"true\")return true;if(value===\"false\")return false;return value;}})({lowered})",
+                    object_key(name)
+                ));
+            } else {
+                parts.push(format!("{}:{lowered}", object_key(name)));
+            }
+        }
+        Some(format!("{{{}}}", parts.join(",")))
+    }
+
     /// Enter hook lowering for one trigger model: statements stage through
     /// `$hookCtx` and ambient-context expressions report `E6008`.
     pub fn enter_hook(&mut self, trigger: SymbolId, native: bool) {
@@ -11241,6 +11277,14 @@ impl<'a> Emitter<'a> {
                 && let Some(dispatched) = self.lower_dispatched_order(value)
             {
                 dispatched
+            } else if key == "defaults"
+                && matches!(
+                    node.factory.as_str(),
+                    "list" | "table" | "gallery" | "calendar" | "board" | "filter"
+                )
+                && let Some(defaults) = self.lower_collection_defaults(value)
+            {
+                defaults
             } else {
                 self.lower_business_expr(value, "unclassified formatted UI prop")
             };

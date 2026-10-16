@@ -22,15 +22,15 @@
  * rules; `ValueError` only on title-construction mismatch), so the render
  * exercises the real UI `list` + host preparer + bound query.
  *
- * Routed gap (no owned fix; B6 boolean-default semantics retained): a SAVED
- * bool preference reaches the emitted render as the store spelling `"true"`
- * / `"false"` (the preference store is string-typed), while the preparer
- * requires boolean `bool` defaults. The compiler emission must coerce bool
- * preference spellings at emission. Until then the saved-bool phases below
- * pin the safe boundary: validation refusal with zero queries (never truthy
- * coercion, never partial filtering), and an explicit request cannot rescue
- * the poisoned defaults. Saved/request precedence IS proven on the same
- * path for the string-saved enum field.
+ * Saved-bool coercion (B10): a SAVED bool preference reaches the emitted
+ * render as the store spelling `"true"` / `"false"` (the preference store
+ * is string-typed), and the compiler emission coerces those strict
+ * spellings to real booleans in the `defaults` object before the host
+ * preparer sees them. The preparer still requires boolean `bool` defaults
+ * (B6 semantics retained: string defaults refuse with zero queries, never
+ * truthy coercion, never partial filtering). Saved/request precedence for
+ * the bool toggle is proven on the same path below, matching the
+ * string-saved enum field.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -242,18 +242,61 @@ test('compiled bool toggle page filters real true/false rows through the host se
       (arg as { field?: unknown; value?: unknown }).value === false));
     store.delete('Probe/kind');
 
-    // Routed gap: a saved bool spelling cannot serve until the compiler
-    // emission coerces it. The boundary refuses safely before any query.
+    // Saved bool spelling (string, as the store holds it) coerces at
+    // emission to a typed boolean predicate serving only true rows.
     store.set('Probe/active', { value: 'true', version: '1' });
-    for (const params of [new URLSearchParams(), new URLSearchParams([[activeName, 'false']]),
-      new URLSearchParams([[activeName, '']])]) {
-      queries = 0; wheres.length = 0;
-      response = await get(params);
-      assert.equal(response.status, 400);
-      assert.equal(((await response.json()) as { code?: unknown }).code, 'validation');
-      assert.equal(queries, 0, 'saved bool spelling refuses before query or body work');
-      assert.deepEqual(wheres, []);
-    }
+    queries = 0; wheres.length = 0;
+    response = await get(new URLSearchParams());
+    assert.equal(response.status, 200);
+    const savedTrueHtml = await response.text();
+    assert.deepEqual(ids(savedTrueHtml), ['cust-a1', 'cust-c1']);
+    assert.equal(queries, 1);
+    assert.deepEqual(wheres, [{ op: 'eq', field: 'active', value: true }]);
+    assert.equal(typeof (wheres[0] as unknown as { value: unknown }).value, 'boolean');
+    assert.ok(savedTrueHtml.includes('<option value="true" selected>'));
+
+    // Saved false serves only the false row.
+    store.set('Probe/active', { value: 'false', version: '1' });
+    queries = 0; wheres.length = 0;
+    response = await get(new URLSearchParams());
+    assert.equal(response.status, 200);
+    assert.deepEqual(ids(await response.text()), ['cust-b1']);
+    assert.equal(queries, 1);
+    assert.deepEqual(wheres, [{ op: 'eq', field: 'active', value: false }]);
+
+    // Explicit request beats the saved bool spelling.
+    queries = 0; wheres.length = 0;
+    response = await get(new URLSearchParams([[activeName, 'true']]));
+    assert.equal(response.status, 200);
+    assert.deepEqual(ids(await response.text()), ['cust-a1', 'cust-c1']);
+    assert.equal(queries, 1);
+    assert.deepEqual(wheres, [{ op: 'eq', field: 'active', value: true }]);
+
+    // Explicit clear beats the saved bool spelling.
+    queries = 0; wheres.length = 0;
+    response = await get(new URLSearchParams([[activeName, '']]));
+    assert.equal(response.status, 200);
+    assert.deepEqual(ids(await response.text()), ['cust-a1', 'cust-b1', 'cust-c1']);
+    assert.equal(queries, 1);
+    assert.deepEqual(wheres, [undefined]);
+
+    // Saved enum and saved bool compose into one typed query.
+    store.set('Probe/kind', { value: 'company', version: '1' });
+    queries = 0; wheres.length = 0;
+    response = await get(new URLSearchParams());
+    assert.equal(response.status, 200);
+    assert.deepEqual(ids(await response.text()), ['cust-b1']);
+    assert.equal(queries, 1);
+    assert.equal(wheres.length, 1);
+    const savedComposed = wheres[0] as unknown as { op: unknown; args: unknown };
+    assert.equal(savedComposed.op, 'and');
+    assert.ok((savedComposed.args as unknown[]).some(arg =>
+      (arg as { field?: unknown; value?: unknown }).field === 'kind' &&
+      (arg as { field?: unknown; value?: unknown }).value === 'company'));
+    assert.ok((savedComposed.args as unknown[]).some(arg =>
+      (arg as { field?: unknown; value?: unknown }).field === 'active' &&
+      (arg as { field?: unknown; value?: unknown }).value === false));
+    store.delete('Probe/kind');
     store.delete('Probe/active');
 
     // Malformed selectors refuse before query or body work.
