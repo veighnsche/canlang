@@ -18254,3 +18254,8 @@ Accepted: Parent-bound agenda saved defaults: compiler forwarding-only admit for
 ## 2026-10-16 — can18_merge_35_20261017
 
 Accepted: Filter-remainder pins: 36 diagnostics classified (C2/C3 followers + 8 genuinely-new selectors), refusals pinned test-only. Merge reviewed tested work incrementally into canonical `main`, preserving installer/specification changes and the active implementation branch. filter_remainder_pins 8/8 on main. Reconcile the living file-tree plan/registry over `24b6ad04..HEAD` with existing owners; retain the complete checkpoint and all outstanding acceptance gates. A merged component is not a claim that original24 or the remaining runtime workflows are complete.
+
+
+## 2026-10-16 — can18_merge_36_20261017
+
+Accepted: Per-use parent/reference hook helper variants: same helper across linkages emits loader-correct variants; fences/sites preserved. Merge reviewed tested work incrementally into canonical `main`, preserving installer/specification changes and the active implementation branch. shared+separate discriminators 0 diags, ref 10/10+13/13, parent 12/12, hook suites 26+7+11 on frozen 730bf47e/ca50. Reconcile the living file-tree plan/registry over `a7b36044..HEAD` with existing owners; retain the complete checkpoint and all outstanding acceptance gates. A merged component is not a claim that original24 or the remaining runtime workflows are complete.

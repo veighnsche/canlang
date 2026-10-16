@@ -74292,5 +74292,23 @@
     "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
     "checkpoint_advanced": false,
     "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
+  },
+  "can18_merge_36_20261017": {
+    "incremental_base": "a7b3604498e8975d79395c501ba1f3c8a9871342",
+    "incoming_end": "5898e5ae25be7d6606c736da99eac77fd8249e8a",
+    "retained_coverage": "reuse spec_installer_merge_reconciliation_20261015 and preceding CAN18 incremental merge entries; inherited complete checkpoint unchanged",
+    "changed_path_count": 1,
+    "rows": [
+      [
+        "compiler/src/codegen/js.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ]
+    ],
+    "choice": "Per-use parent/reference hook helper variants: same helper across linkages emits loader-correct variants; fences/sites preserved.",
+    "validation": "shared+separate discriminators 0 diags, ref 10/10+13/13, parent 12/12, hook suites 26+7+11 on frozen 730bf47e/ca50.",
+    "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
+    "checkpoint_advanced": false,
+    "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
   }
 }

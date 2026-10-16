@@ -144,6 +144,10 @@ Parent-bound agenda saved defaults: compiler forwarding-only admit for reference
 
 Filter-remainder pins: 36 diagnostics classified (C2/C3 followers + 8 genuinely-new selectors), refusals pinned test-only. Incoming interval `24b6ad04..HEAD` accounts for 1 changed paths in `can18_merge_35_20261017` of the existing registry. filter_remainder_pins 8/8 on main. Existing defining owners and target allocations remain; focused new tests stay with Compiler. Reuse prior accumulated coverage; complete checkpoint remains unchanged. Original24 and required executable consumers remain open. Unfinished work stays in the running Muse checkout.
 
+### CAN18 incremental integration — can18_merge_36_20261017
+
+Per-use parent/reference hook helper variants: same helper across linkages emits loader-correct variants; fences/sites preserved. Incoming interval `a7b36044..HEAD` accounts for 1 changed paths in `can18_merge_36_20261017` of the existing registry. shared+separate discriminators 0 diags, ref 10/10+13/13, parent 12/12, hook suites 26+7+11 on frozen 730bf47e/ca50. Existing defining owners and target allocations remain; focused new tests stay with Compiler. Reuse prior accumulated coverage; complete checkpoint remains unchanged. Original24 and required executable consumers remain open. Unfinished work stays in the running Muse checkout.
+
 ### Specification and installer documentation merge — 2026-10-15
 
 Merge installer commit `02470b74` into canonical `main` at `a70921e3`.
