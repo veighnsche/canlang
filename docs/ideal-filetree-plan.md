@@ -152,6 +152,10 @@ Per-use parent/reference hook helper variants: same helper across linkages emits
 
 First-query slice D compiler admission: unscoped Text id-ordered same-model replay (CanPurchase receive/return_goods); runtime model-result frame gap named as next prerequisite. Incoming interval `3b3f6c0f..HEAD` accounts for 4 changed paths in `can18_merge_37_20261017` of the existing registry. native_first_replay 4/4, native_first_query 17/17 on main build. Existing defining owners and target allocations remain; focused new tests stay with Compiler. Reuse prior accumulated coverage; complete checkpoint remains unchanged. Original24 and required executable consumers remain open. Unfinished work stays in the running Muse checkout.
 
+### CAN18 incremental integration — can18_merge_38_20261017
+
+C2 text-equality rule: DESIGN 975 scalar eq with request/default/clear precedence; date selectors stay refused with reasoning. Incoming interval `a7b36044..HEAD` accounts for 23 changed paths in `can18_merge_38_20261017` of the existing registry. text page 3/3 + collection 3/3 + UI 2/2, enum 48/48, bool 27/27, pins 8/8, presentation 37/37+25/25 on frozen 982e9eda/ca50. Existing defining owners and target allocations remain; focused new tests stay with Compiler. Reuse prior accumulated coverage; complete checkpoint remains unchanged. Original24 and required executable consumers remain open. Unfinished work stays in the running Muse checkout.
+
 ### Specification and installer documentation merge — 2026-10-15
 
 Merge installer commit `02470b74` into canonical `main` at `a70921e3`.

@@ -74343,5 +74343,133 @@
     "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
     "checkpoint_advanced": false,
     "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
+  },
+  "can18_merge_38_20261017": {
+    "incremental_base": "a7b3604498e8975d79395c501ba1f3c8a9871342",
+    "incoming_end": "2b18dc2f16a4f31c888473526b05de1d290493ea",
+    "retained_coverage": "reuse spec_installer_merge_reconciliation_20261015 and preceding CAN18 incremental merge entries; inherited complete checkpoint unchanged",
+    "changed_path_count": 23,
+    "rows": [
+      [
+        "compiler/src/analysis/scenario_disclosure.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/src/codegen/ir.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/src/codegen/js.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/src/codegen/scenario_receipts.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/collection_bool_filters.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/enum_filter_group.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/filter_remainder_pins.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/fixtures/native-first-replay.can",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/native_first_replay.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "docs/ideal-filetree-plan.md",
+        "existing owner",
+        "retain current allocation"
+      ],
+      [
+        "docs/ideal-filetree-plan/state-machines-20261007.json",
+        "existing owner",
+        "retain current allocation"
+      ],
+      [
+        "docs/specification/DECISIONS.md",
+        "Specification",
+        "existing accepted design/decision owner"
+      ],
+      [
+        "implementation/compiler-completion/README.md",
+        "Compiler completion",
+        "existing finite execution record"
+      ],
+      [
+        "packages/contracts/src/presentation.ts",
+        "contracts",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/interfaces/src/http/pages.ts",
+        "interfaces",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/interfaces/src/http/presentation.ts",
+        "interfaces",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/interfaces/test/fixtures/text-page-source.can",
+        "interfaces",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/interfaces/test/http-presentation.test.ts",
+        "interfaces",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/interfaces/test/t20a-presentation.test.ts",
+        "interfaces",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/interfaces/test/text-collection-filters.test.ts",
+        "interfaces",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/interfaces/test/text-page-source.test.ts",
+        "interfaces",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/ui/src/collections.ts",
+        "ui",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/ui/test/text-filter-controls.test.ts",
+        "ui",
+        "existing package source/test owner"
+      ]
+    ],
+    "choice": "C2 text-equality rule: DESIGN 975 scalar eq with request/default/clear precedence; date selectors stay refused with reasoning.",
+    "validation": "text page 3/3 + collection 3/3 + UI 2/2, enum 48/48, bool 27/27, pins 8/8, presentation 37/37+25/25 on frozen 982e9eda/ca50.",
+    "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
+    "checkpoint_advanced": false,
+    "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
   }
 }
