@@ -28,6 +28,19 @@ session/admission remain local implementation work. Hook guards and ordinary val
 authority; missing parent-read implementation is not a new value-use prohibition. Exact17/18 external/policy holds remain unchanged. Continue ready work
 through these checkpoints; do not mark the overall goal complete.
 
+### Accepted model-reference filter batch (merge27) — 2026-10-16
+
+Main integrates `e86fb1583` (C1 reference-equality rule): board/calendar
+reference filters validate as opaque identities with source-first failure
+order (DESIGN 434/977). Validation on frozen main producer `db864475` +
+native catalog `ca50`: reference consumer 1/1, E5 consumers 2/2, joint 12/12,
+State 14/14, enum 40/40, bool 27/27, hook_lowering 26/26. Frozen original24:
+44 fixed, 0 regressions; each board/calendar shape retains a named
+non-reference remainder (card-content row_scope, contained-agenda endpoints,
+C2 text/C3 date ranges, ref save control). Intake note: main package dists
+(interfaces/contracts/ui) must be rebuilt alongside state/cloudflare before
+running consumers — stale dists fail, not source.
+
 ### Accepted scope-2 per-fire projection batch (merge26) — 2026-10-16
 
 Main integrates `f24306ab1`: per-fire caller authority into the host viewer
