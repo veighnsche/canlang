@@ -277,6 +277,19 @@ supported Corpus workflow release. Future 15/16 batches would touch
 checker/emission (A10) and disclosure (C7) paths; do not dispatch until
 a named consumer above is released.
 
+Outcome 9 family E compiler slice in `bc5bc188` (Lane A commit `662826a7`):
+`read=true scope=authority` without a `#` description refuses E3001;
+`IrItemKind::Scenario.scope_authority` carries the checked fact; JS
+operations descriptor gains `scope:"authority"` with a throwing
+no-runtime-boundary handler (fail-closed) and MCP omits the grant; E6008
+kept with message naming the pending runtime boundary. New
+`scope_authority_reports` 7/7 plus admission 4/4, outbound 13/13, boolean
+8/8, cross-operation 7/7, capability-event 2/2, ui-original 31/31 green in
+parent. Runtime half OPEN: decision-mode body evaluation + result-as-grant
+in `packages/state` `invoke.ts` (hardcodes viewer) — routed to Lane C as
+C7's next batch after its current disclosure/12-rest/5-repair scope, no
+new lane. Outcome 9 stays OPEN pending that runtime boundary.
+
 Outcome 11 test map in parent (Lane A commit, 5/5 join positives +
 refusal surface incl. E3005 recursion): all 7 original calls die at
 `ScenarioDisclosure::Declined` via gates D1-D8 (param eligibility, void
