@@ -282,6 +282,21 @@ golden `contributions.can`, unrelated to authority emission), `codegen`
 failures are its missing draft/dists), ordinary emission byte-identical
 base-vs-after. E6008 + host seam still pending Lane C11; outcome 9 stays
 OPEN.
+Codex MAIN-3: `dd974a84` reviewed at slice scope and merged — canonical
+main `a420a864` through `45f26d5a` (compiler/packages exact, installer
+docs preserved). SCOPE-4 direction applied: native instruction delivery
+failed honestly (wrong recipient ID — spawn output carried the task ID,
+correct C11 ID per C11-ID; plus C11 HEAD moved → lease invalid) and stays
+rejected as undelivered; C11's terminal handoff collected instead.
+Host seam integrated in `882daadc` (Lane C11 commit `7af821fb`): parent
+`authority-report-seam` 10/10, State neighbors 11/11 + 26/26 stand;
+t17b files 31/35 with 4 failures proven pre-existing by a without-seam
+`882daadc^` control (identical 4 fail; no novel failures). Integration
+hygiene: `packages/work/dist` foreign-main symlink replaced with an owned
+build (work/src unchanged since `2eeefdd4`) curing a TS2345 dual
+type-identity with the owned state dist; shared/main outputs untouched.
+Helper-consumer proof still missing (0 helper mentions in the suite) —
+E6008 removal stays gated on a finite successor test slice.
 
 Outcome 9 family A implemented in `55c969d2` (Lane A commit `fac7bd70`):
 45/64 handler profiles (`on=Cap.event`) lower through canonical
