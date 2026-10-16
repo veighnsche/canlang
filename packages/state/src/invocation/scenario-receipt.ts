@@ -4104,10 +4104,54 @@ function modelResultObservedRow(returned: ScenarioResultDisclosurePlan['returns'
     observation.row.id === id && observation.row.archivedAt === null)?.row;
 }
 
+/** Influence-linked first-selected lifetime for whole-row idempotent replay.
+ * An admitted replay return carries influences but no data-ID dependency, so
+ * no separate defining observation exists. State's own completed first
+ * selection — the genuine owner row at the live stage, checked source
+ * authority, installed commit guard — defines the existing model result
+ * lifetime instead. Unselected candidates, foreign rows, other models and
+ * unlinked queries keep the refusal at the call sites. */
+function firstSelectedExecutionRow(returned: ScenarioResultDisclosurePlan['returns'][number],
+  state: Capture, owner: ReceiptOwnerSession, model: ModelName, row: StoredRow): StoredRow | undefined {
+  for (const execution of state.queries) {
+    if (!execution.complete || !execution.firstSelected) continue;
+    if (execution.owner !== owner || execution.stage !== owner.stage) continue;
+    if (!returnQueryIds(returned).includes(execution.plan.id)) continue;
+    if (execution.plan.model !== model) continue;
+    const selected = execution.selectedIndices[0];
+    const candidate = selected === undefined ? undefined : execution.candidates[selected];
+    if (candidate === undefined || candidate.row.id !== row.id) continue;
+    if (!sameModelLifetime(candidate.row, row)) continue;
+    return candidate.row;
+  }
+  return undefined;
+}
+
+/** Saved form of the replay lifetime above: the retained influence-linked
+ * query's actually selected candidate row, still present and unarchived.
+ * Current grants are rechecked by the saved projection, never here. */
+function firstSelectedSavedRow(plan: ScenarioResultDisclosurePlan,
+  returned: ScenarioResultDisclosurePlan['returns'][number],
+  queries: readonly ScenarioReceiptQueryObservation[],
+  model: string, id: RecordId): StoredRow | undefined {
+  for (const queryId of returnQueryIds(returned)) {
+    if (plan.queries?.find(query => query.id === queryId)?.model !== model) continue;
+    const saved = queries.find(query => query.queryId === queryId);
+    if (saved === undefined) continue;
+    const selected = saved.selectedIndices[0];
+    const candidate = selected === undefined ? undefined : saved.candidates[selected];
+    if (candidate === undefined || candidate.row.id !== id || candidate.row.archivedAt !== null) continue;
+    return candidate.row;
+  }
+  return undefined;
+}
+
 /** Bind a once-evaluated stored-model return, not a structural reference or raw
  * native object. The genuine host supplies its exact current owner row.
  * A created result survives net effects; an existing result requires the
- * original data-ID observation and retains that lifetime without a write. */
+ * original data-ID observation — or, for whole-row idempotent replay, the
+ * influence-linked completed first selection — and retains that lifetime
+ * without a write. */
 export async function bindScenarioReceiptModelResult(call: AdmittedCall, store: StoragePort,
   input: { readonly returnId: string; readonly row: StoredRow }): Promise<Readonly<{ id: RecordId }>> {
   const state = capture(call, store), owner = ownerSessions.get(call);
@@ -4135,7 +4179,8 @@ export async function bindScenarioReceiptModelResult(call: AdmittedCall, store: 
     const policyDomains = ownerPolicyDomains(owner, healthy);
     const previous = await owner.session.views.entry.get(model, row.id); healthy();
     const existing = previous !== null;
-    const observed = modelResultObservedRow(returned, state.observations, model, row.id);
+    const observed = modelResultObservedRow(returned, state.observations, model, row.id) ??
+      firstSelectedExecutionRow(returned, state, owner, model, row);
     if (existing && (observed === undefined || !sameModelLifetime(observed, row))) {
       return invalid('existing row result requires its separate defining lifetime profile.');
     }
@@ -4605,7 +4650,8 @@ function readSavedScenarioAssociation(receipt: Receipt,
   if (resultModel !== undefined) {
     const id = modelResultWire(receipt.outcome.result);
     const matches = witnesses.filter(change => change.model === resultModel && change.row.id === id);
-    const observed = modelResultObservedRow(returned, observations as ScenarioReceiptAssociation['observations'], resultModel, id);
+    const observed = modelResultObservedRow(returned, observations as ScenarioReceiptAssociation['observations'], resultModel, id) ??
+      firstSelectedSavedRow(plan, returned, (value['queries'] ?? []) as ScenarioReceiptQueryObservation[], resultModel, id);
     if (matches.length > 0 ? matches.length !== 1 || matches[0]!.row.archivedAt !== null : observed === undefined) {
       return invalid('saved model result lacks its enclosing surviving committed row.');
     }
@@ -4861,7 +4907,8 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
       const id = modelResultWire(result), model = bound.resultModel;
       const returned = scope.plan.returns.find(returned => returned.id === scope.returnId);
       const witness = association.changed.find(change => change.model === model && change.row.id === id)?.row ??
-        (returned === undefined ? undefined : modelResultObservedRow(returned, scope.observations, model, id));
+        (returned === undefined ? undefined : modelResultObservedRow(returned, scope.observations, model, id) ??
+          firstSelectedSavedRow(scope.plan, returned, association.queries ?? [], model, id));
       const producer = referenceProducers.get(def);
       if (witness === undefined || producer?.app !== input.app || producer.readPolicies === undefined) return false;
       const current = await currentSavedRow(model, witness);
