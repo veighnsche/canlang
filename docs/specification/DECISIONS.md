@@ -18234,3 +18234,8 @@ render 200 through the UI factory with stubbed queries, and top-level
 agendas prove defaults/conjunction/discrimination end to end. The
 parent-scoped predicate/default evaluation gap belongs to the
 State/Cloudflare query owner and stays outside this binding batch.
+
+
+## 2026-10-16 — can18_merge_32_20261016
+
+Accepted: Calendar-agenda endpoint/columns binding C4: CanShift agenda + CanLeave columns clear; C2/C3 stay refused; parent-bound saved-defaults gap named for runtime owner. Merge reviewed tested work incrementally into canonical `main`, preserving installer/specification changes and the active implementation branch. agenda 1/1, row/ref/joint 1/1, UI 179/179, factory 33/33, enum 41/41 on frozen c416fbf3/ca50. Reconcile the living file-tree plan/registry over `e01604b7..HEAD` with existing owners; retain the complete checkpoint and all outstanding acceptance gates. A merged component is not a claim that original24 or the remaining runtime workflows are complete.
