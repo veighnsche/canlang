@@ -7799,3 +7799,12 @@ binary/catalog reserved (single shared-cache build post-freeze, no private
 builds). B16's old private binary is stale for corrected behavior (kept only
 for fail-before evidence, cleanup after owner release). Main intake at
 complete B16 handoff, no whole-plan wait.
+
+**Coordinator intake, 2026-10-16 (B15 verified):**
+B15 (`0624afb70`, REVIEW-18 consumer) VERIFIED 1/1 with the frozen probe
+binary (sha 783b66e9): direct + local/imported helper + coalesced enum
+defaults over real rows with precedence, malformed 400, unknown-saved 422 at
+materialization (corrected assumption now pinned), anonymous/revoked 403s,
+zero-query refusals; B14 header corrected comment-only (verified no code
+lines changed). Follow-up receipt confirmed by worker ACK + stopped sleep
+loop. Active lanes: B16, C23.
