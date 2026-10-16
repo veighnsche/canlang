@@ -56,6 +56,9 @@ import {
   type InterimHookContext,
   type InterimHookSchedule,
   type InterimHookStagedWrite,
+  type OwnerMutationHookParentRead,
+  type OwnerMutationHookParentReads,
+  type OwnerMutationHookParentSite,
   type InterimModelDef,
   type InterimServerInit,
   type ModelTable,
@@ -178,6 +181,15 @@ export interface OwnerMutationHookContext extends InterimHookContext {
   readonly context: InvocationContext;
   readonly input: Readonly<Record<string, unknown>>;
   readonly after: StoredRow | null;
+  /**
+   * Scope-2 parent loader at this defining owner: exact-ID loads over the
+   * trigger's containment ancestry, served from the owner transaction
+   * snapshot (staged own-writes win). `decision` loads serve hook
+   * firing/guard expressions as bounded owner decision reads; `value`
+   * loads require the host viewer projection and refuse with their exact
+   * requirement. Loader failures are hook failures: the batch voids.
+   */
+  readonly loadParent: OwnerMutationHookParentReads['load'];
 }
 const ownerHookContexts = new WeakSet<object>();
 
@@ -1183,6 +1195,25 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
     if (owner !== undefined && new Set(hooks.map(hook => hook.name)).size !== hooks.length) {
       throw new StateError('validation', 'Duplicate owner mutation hook identity.');
     }
+    // Scope-2 hook parent reads: the trigger's containment ancestry, bounded
+    // like navigation (32 hops, cycle-checked). Computed once per trigger;
+    // every load additionally walks the exact parent chain, so only the
+    // genuine ancestors of this trigger ever serve.
+    const ancestorModels = ((): ReadonlySet<ModelName> => {
+      const models = new Set<ModelName>();
+      const seen = new Set<string>([def.model as string]);
+      let current: ModelName | undefined = table.get(def.model)?.containment?.parent;
+      while (current !== undefined) {
+        if (seen.has(current as string) || models.size >= 32) {
+          throw new StateError('validation', 'Hook parent read exceeds its trigger containment bound.');
+        }
+        seen.add(current as string);
+        models.add(current);
+        current = table.get(current)?.containment?.parent;
+      }
+      return models;
+    })();
+    const triggerParent: RecordParent | null = before?.parent ?? pendingParent ?? null;
     for (const hook of hooks) {
       if (!hook.ops.includes(op)) {
         continue;
@@ -1221,6 +1252,58 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
         }
         catch (error) { if (owner !== undefined) poisoned = true; throw error; }
       };
+      // Scope-2 hook parent loader for this fire. Decision loads serve the
+      // trigger's exact parent chain from the owner transaction snapshot
+      // (staged own-writes win via getRow, never raw committed storage);
+      // value loads require the host viewer projection and refuse with
+      // their exact requirement. Expected refusals never poison the session:
+      // the hook may catch them as control flow (like any authored guard);
+      // uncaught failures void the batch through the existing hook-error
+      // path. Only the liveness/scope checks below run before the read.
+      const loadParent = (
+        model: ModelName, id: RecordId, site: OwnerMutationHookParentSite,
+      ): Promise<OwnerMutationHookParentRead> => (async () => {
+        if (owner !== undefined && !hookActive) {
+          throw new StateError('validation', 'Owner hook scope is closed.');
+        }
+        healthy();
+        consumeWork();
+        if (site !== 'decision' && site !== 'value') {
+          throw new StateError('validation', 'Hook parent read requires its decision or value site.');
+        }
+        if (!table.has(model) || typeof id !== 'string' || id === '') {
+          throw new StateError('validation', 'Owner mutation reads require a known model and record identity.');
+        }
+        if (site !== 'decision') {
+          throw new StateError('validation', 'Hook parent value reads require the host viewer projection.');
+        }
+        // Exact-chain walk from the trigger's parent link through the owner
+        // transaction snapshot. Only genuine ancestors serve; anything else
+        // (foreign models, guessed ids, the trigger itself) exceeds the
+        // trigger containment bound without distinguishing which part was
+        // wrong. Bounded like navigation (32 hops).
+        let cursor: RecordParent | null = triggerParent;
+        const chain = new Set<string>();
+        let hops = 0;
+        while (cursor !== null) {
+          if (hops >= 32 || !ancestorModels.has(cursor.model)) {
+            throw new StateError('validation', 'Hook parent read exceeds its trigger containment bound.');
+          }
+          hops += 1;
+          chain.add(keyOf(cursor.model, cursor.id));
+          if (cursor.model === model && cursor.id === id) break;
+          const intermediate = await getRow(cursor.model, cursor.id);
+          if (intermediate === null) throw new StateError('not_found', 'Parent record not found.');
+          cursor = intermediate.parent ?? null;
+        }
+        if (!chain.has(keyOf(model, id))) {
+          throw new StateError('validation', 'Hook parent read exceeds its trigger containment bound.');
+        }
+        const row = await getRow(model, id);
+        if (row === null) throw new StateError('not_found', 'Parent record not found.');
+        return Object.freeze({ model, row: deepFreeze(structuredClone(row)) as StoredRow,
+          withheld: Object.freeze(new Set<string>()) });
+      })();
       const ctx: InterimHookContext = {
         before: frozenBefore,
         op,
@@ -1275,7 +1358,7 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
       // mutate the pipeline candidate nor smuggle uncloneable values forward
       // (or retain an alias and mutate it after returning).
       const carrier: InterimHookContext | OwnerMutationHookContext = owner === undefined ? ctx : Object.freeze({
-        ...ctx, context: stageContext, input: options.input!,
+        ...ctx, context: stageContext, input: options.input!, loadParent,
         after: op === 'remove' ? null : deepFreeze({
           id: triggerId, version: before === null ? 1 as RecordVersion : nextVersion(def.model, triggerId, before),
           created: before?.created ?? now, updated: now, createdBy: before?.createdBy ?? actor,

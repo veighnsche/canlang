@@ -1,0 +1,55 @@
+app HookParentReads
+Given
+ Site { region:text }
+ Location in Site { active:bool, timezone:text }
+ Reading in Location { taken:bool }
+ derive isActive(loc:Location):bool = loc.active
+ policy Site read=public
+ policy Location read=public
+ policy Reading read=public
+When
+ crud Site by=owner fields=region
+ crud Location by=owner fields=active,timezone
+ crud Reading by=owner fields=taken
+ ## Same-transaction discriminator: parent + child are created in one owner
+ ## transaction and the child hook-equivalent read observes the staged
+ ## parent (read-own-writes), never raw committed storage.
+ scenario arm(active:bool) -> bool by=owner
+  do
+   create Site {region="eu"} as site
+   create Location {parent=site,active=active,timezone="UTC"} as loc
+   create Reading {parent=loc,taken=true} as reading
+   require reading.parent.active == active
+   return reading.parent.active
+ ## Committed-parent case: the identical `reading.parent.active` spelling
+ ## observes committed state when nothing is staged in-batch.
+ scenario check(reading:Reading) -> bool by=owner
+  do
+   return reading.parent.active
+ ## In-batch parent update before the child read serves the staged row.
+ scenario flip(reading:Reading,active:bool) -> bool by=owner
+  do
+   set reading.parent {active=active}
+   return reading.parent.active
+ ## Imported/local helper equivalence: the same site meaning through a helper.
+ scenario helper(reading:Reading) -> bool by=owner
+  do
+   return isActive(reading.parent)
+ ## Failure atomicity: a false guard voids the whole batch.
+ scenario armStrict(active:bool) -> bool by=owner
+  do
+   create Site {region="eu"} as site
+   create Location {parent=site,active=active,timezone="UTC"} as loc
+   create Reading {parent=loc,taken=true} as reading
+   require reading.parent.active
+   return true
+ ## Guard denial on committed state.
+ scenario demand(reading:Reading) -> bool by=owner
+  do
+   require reading.parent.active
+   return true
+ ## Grandparent chain reads walk the exact containment ancestry.
+ scenario locale(reading:Reading) -> text by=owner
+  do
+   return reading.parent.parent.region
+Then

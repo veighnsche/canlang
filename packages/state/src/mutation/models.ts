@@ -215,6 +215,49 @@ export interface InterimHookTransitive {
 }
 
 /**
+ * Scope-2 hook parent reads (DESIGN434/442): which use a parent load serves,
+ * classified by consuming site per the existing rule — never by statement
+ * keyword. `decision` — hook firing/guard/decision expressions (Require
+ * guards and If-condition workflows alike, e.g.
+ * `if event.after.parent.active and not event.after.done`) inspect bounded
+ * authority state at the resolved storage owner; decision scans never
+ * recursively apply read policies. `value` — ordinary business-value reads
+ * (body copies) under the triggering caller's row/field permissions, with
+ * explicit 522 grants when privileged values are truly needed. Pure helpers
+ * inherit their consuming site, so an inline read, a local helper and an
+ * imported helper consume the same meaning; the loader returns rows, never
+ * a boolean verdict (no Boolean-result privilege). Denied, withheld and
+ * missing-required reads throw their precise failure BEFORE value access:
+ * silently normalizing withheld raw-data undefined stays forbidden, while
+ * legitimate authored `??` over genuinely absent (non-withheld) values keeps
+ * its meaning (`??` never catches a thrown refusal).
+ */
+export type OwnerMutationHookParentSite = 'decision' | 'value';
+
+/**
+ * One served hook parent read: the observed owner row plus the value-mode
+ * fields the caller may not read. Decision reads carry no withheld fields;
+ * restricted denied values stay precise failures (never a null/empty
+ * fallback, no new grants).
+ */
+export interface OwnerMutationHookParentRead {
+  readonly model: ModelName;
+  readonly row: StoredRow;
+  readonly withheld: ReadonlySet<string>;
+}
+
+/**
+ * Scope-2 parent loader at the defining State owner: exact-ID loads over
+ * the trigger's containment ancestry only, served from the owner
+ * transaction snapshot (staged own-writes win, never raw committed
+ * storage). State serves `decision` loads; `value` loads require the host
+ * viewer projection and refuse here with their exact requirement.
+ */
+export interface OwnerMutationHookParentReads {
+  load(model: ModelName, id: RecordId, site: OwnerMutationHookParentSite): Promise<OwnerMutationHookParentRead>;
+}
+
+/**
  * Hook run context: provisional-before row, caller intent, attribution.
  *
  * T31 (Rule A): `before` is a deep-frozen snapshot — hook mutation attempts
