@@ -63,6 +63,30 @@ compiler-source observations. Those, native-handler ownership and the remaining
 canonical groups stay open. The last original24 capture predates these batches;
 no new count or full-composition readiness is asserted. Continue ready work.
 
+### Source predicates with collection filters integrated — 2026-10-16
+
+Canonical main `802a4be81` integrates released B19 `4941a4a20`: authored business
+`where` predicates conjoin with typed enum/bool controls through the existing
+page query adapter. The actual source predicate runs before control exclusion,
+so denied field reads retain `forbidden`. Its observed row IDs reuse canonical
+data cursor binding; the emitted next link is followable, with current identity,
+selection and revision checks and restart recovery. No actor-specific spelling,
+new source primitive or permission grant was added.
+
+Independent released and main compiled-Can assembled HTTP consumers each pass
+1/1; main compiler59/59 and UI173/173 pass, with UI/Cloudflare builds successful.
+Main test reconciliation preserves the existing money-stat refusal and checks
+source-owned preference labels exactly. The frozen main compiler is
+`aa1efac926` (its cached version label `dca00d411` does not identify its source).
+A changed-cohort original24 capture follows; the prior361 count is not a new
+qualification of this batch.
+
+Native ownership `dca00d411` passed its independent compiled battery8/8 but stays
+out of main pending the demonstrated private guard decision-authority repair
+(REVIEW23). Guard-only private reads must inherit their consuming decision site;
+ordinary viewer/value-copy permissions remain unchanged. This is ready local
+implementation, not an external hold. Remaining original groups continue.
+
 ### Original24 qualification after the two main batches — 2026-10-16
 
 The frozen main UI compiler8bac8725 with catalogca50 completed in463.81s,
