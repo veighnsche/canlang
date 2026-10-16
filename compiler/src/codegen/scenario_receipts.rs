@@ -842,11 +842,20 @@ fn checked_require_helper_consumption(
 ) -> Option<NativeRequireConsumption> {
     use crate::analysis::scenario_disclosure::{CheckedDecisionCall, CheckedDecisionCallTarget};
     let outer = *read.calls.first()?;
+    // Helper field reads keep their declaring-module source; across a
+    // proven import the provider/consumer pair corresponds exactly.
     if read.calls.len() > 16
         || outer.file != site.node.file
         || outer.start < site.node.start
         || outer.end > site.node.end
-        || read.source != site.source
+        || (read.source != site.source
+            && !imported_field_source_corresponds(
+                ir,
+                owner,
+                &read.model_name,
+                &read.source,
+                &site.source,
+            ))
         || read.query_id.is_some()
         || read.role != DependencyRole::Control
         || read.node.kind != SyntaxKind::Member as u8
@@ -875,7 +884,10 @@ fn checked_require_helper_consumption(
         else {
             return None;
         };
-        if derive.module != owner.module
+        // An imported helper arrives through the owner's checked `use`;
+        // its canonical must match one imported provider member exactly.
+        // Same-module helpers keep their existing path.
+        if (derive.module != owner.module && !imported_canonical(ir, owner, &derive.canonical))
             || called.source != site.source
             || !supported_type_id(scalar.as_str())
         {
@@ -941,7 +953,11 @@ fn checked_require_helper_consumption(
         };
         if source.chain.iter().zip(&frames).any(|(frame, prior)| {
             frame.derive != prior.derive.id
-                || frame.module != owner.module
+                || (frame.module != owner.module
+                    && ir
+                        .items
+                        .get(frame.derive.0 as usize)
+                        .is_none_or(|derive| !imported_canonical(ir, owner, &derive.canonical)))
                 || frame.source != site.source
         }) {
             return None;
@@ -955,7 +971,7 @@ fn checked_require_helper_consumption(
         else {
             return None;
         };
-        if derive.module != owner.module
+        if (derive.module != owner.module && !imported_canonical(ir, owner, &derive.canonical))
             || params.len() > 64
             || params.len() != source.slots.len()
             || body.ty != *result
@@ -1003,9 +1019,11 @@ fn checked_require_helper_consumption(
             else {
                 return None;
             };
+            // Helper parameters live with their helper, which may itself be
+            // imported (proven above); they never need the owner's module.
             if *parameter_owner != id
                 || *parameter_index != index
-                || parameter.module != owner.module
+                || parameter.module != derive.module
                 || !(matches!(ty,ResolvedType::Scalar(scalar) if supported_type_id(scalar.as_str()))
                     || matches!(ty,ResolvedType::Record {stored:true,symbol} if matches!(&ir.items.get(symbol.0 as usize)?.kind,IrItemKind::Model {..})))
             {
@@ -1139,7 +1157,14 @@ fn checked_require_helper_consumption(
     match_stored_contract_field(ir, field, db)?;
     if field.ty != read.ty
         || field.name != read.field_name
-        || field.source != read.source
+        || (field.source != read.source
+            && !imported_field_source_corresponds(
+                ir,
+                owner,
+                &read.model_name,
+                &field.source,
+                &read.source,
+            ))
         || field.owner != schema.id
         || field.required_array
         || schema.canonical != read.model_name
@@ -1447,7 +1472,14 @@ pub(super) fn checked_require_consumptions(
             };
             if field.ty != read.ty
                 || field.name != read.field_name
-                || field.source != read.source
+                || (field.source != read.source
+                    && !imported_field_source_corresponds(
+                        ir,
+                        owner,
+                        &read.model_name,
+                        &field.source,
+                        &read.source,
+                    ))
                 || field.owner != schema.id
                 || field.required_array
                 || schema.canonical != read.model_name
@@ -4397,7 +4429,7 @@ fn checked_native_first_query_source_plan(
         || query.id.is_empty()
         || first.binding.kind != SyntaxKind::Let as u8
         || query.limit.is_some()
-        || query.archived
+        || (query.archived && scan.archived.is_some())
         || dependency.id.is_empty()
         || dependency.source != query.source
         || dependency.model != query.model
@@ -4470,7 +4502,7 @@ fn checked_native_first_query_source_plan(
                 })
                 .collect(),
             limit: None,
-            archived: "exclude".into(),
+            archived: if query.archived { "include" } else { "exclude" }.into(),
             dependencies: vec![ReceiptQueryDependency {
                 id: dependency.id.clone(),
                 source: transport_source(&dependency.source, entry_module)?,
@@ -4521,9 +4553,11 @@ fn checked_first_query_schema<'a>(
     let schema = schemas.next()?;
     if schemas.next().is_some()
         || !schema.model
-        || schema.module != owner.module
+        || (schema.module != owner.module
+            && !imported_schema_source(ir, owner, schema))
         || schema.canonical != query.model_name
-        || schema.source != query.source
+        || (schema.source != query.source
+            && !imported_source_corresponds(ir, owner, schema, query))
         || schema.field_order.iter().any(|id| {
             ir.items
                 .get(id.0 as usize)
@@ -4537,6 +4571,86 @@ fn checked_first_query_schema<'a>(
         match_stored_contract_field(ir, field, db)?;
     }
     Some(schema)
+}
+
+/// A cross-package canonical must arrive through the owner's checked `use`:
+/// it matches one imported provider member exactly. Mirrors the disclosure
+/// import correspondence; aliasing never renames the source, so only the
+/// provider-side spelling counts.
+fn imported_canonical(ir: &IrProgram, owner: &IrItem, canonical: &str) -> bool {
+    let Some(module) = ir.modules.get(owner.module.0 as usize) else {
+        return false;
+    };
+    module.imports.iter().any(|import| {
+        import.members.iter().any(|(name, _, _)| {
+            import.provider.len() + 1 + name.len() == canonical.len()
+                && canonical.starts_with(import.provider.as_str())
+                && canonical.as_bytes().get(import.provider.len()) == Some(&b'.')
+                && canonical[import.provider.len() + 1..] == *name
+        })
+    })
+}
+
+/// A cross-package stored schema must arrive through the owner's checked
+/// `use`: the schema canonical matches one imported provider member
+/// exactly. Mirrors the disclosure import correspondence; aliasing never
+/// renames the source, so only the provider-side spelling counts.
+fn imported_schema_source(
+    ir: &IrProgram,
+    owner: &IrItem,
+    schema: &crate::analysis::scenario_disclosure::CheckedStoredContractSchema,
+) -> bool {
+    imported_canonical(ir, owner, &schema.canonical)
+}
+
+/// Same-cohort sources across a proven import: the schema source module
+/// names the canonical provider and the query source module is the
+/// importing consumer. Cohort membership itself is established by the
+/// single checked program both facts come from; the import edge plus the
+/// exact canonical/module triple is the correspondence proof. Same-module
+/// pairs keep their exact equality above and never reach here.
+fn imported_source_corresponds(
+    ir: &IrProgram,
+    owner: &IrItem,
+    schema: &crate::analysis::scenario_disclosure::CheckedStoredContractSchema,
+    query: &crate::analysis::scenario_disclosure::DisclosureQuery,
+) -> bool {
+    imported_field_source_corresponds(
+        ir,
+        owner,
+        &schema.canonical,
+        &schema.source,
+        &query.source,
+    )
+}
+
+/// Same-cohort field sources across a proven import: the field source
+/// module names the model canonical provider and the read source module is
+/// the importing consumer. Cohort membership itself is established by the
+/// single checked program both facts come from.
+fn imported_field_source_corresponds(
+    ir: &IrProgram,
+    owner: &IrItem,
+    model_canonical: &str,
+    field_source: &crate::analysis::scenario_disclosure::DisclosureSource,
+    read_source: &crate::analysis::scenario_disclosure::DisclosureSource,
+) -> bool {
+    if field_source.module == read_source.module {
+        return false;
+    }
+    let Some(dot) = model_canonical.rfind('.') else {
+        return false;
+    };
+    if field_source.module != model_canonical[..dot] {
+        return false;
+    }
+    let Some(consumer) = ir.modules.get(owner.module.0 as usize) else {
+        return false;
+    };
+    if read_source.module != consumer.name {
+        return false;
+    }
+    imported_canonical(ir, owner, model_canonical)
 }
 
 /// The released contained COUNT selector is the original required singular
@@ -5367,12 +5481,35 @@ pub(super) fn checked_first_query_order(
         source.clauses.as_slice(),
     ) {
         ([], [], [_, _]) => Some(()),
+        ([], [], [archived, _, _])
+            if matches!(
+                archived.kind,
+                crate::analysis::types::CheckedQueryClauseKind::Archived
+            ) =>
+        {
+            Some(())
+        }
         ([original], [actual], [_, _, clause])
             if original.field.is_none()
                 && original.field_name == "id"
                 && !original.descending
                 && actual.field == original.field_name
                 && actual.descending == original.descending
+                && clause.kind == crate::analysis::types::CheckedQueryClauseKind::Order
+                && clause.expressions.as_slice() == [original.node] =>
+        {
+            Some(())
+        }
+        ([original], [actual], [archived, _, _, clause])
+            if original.field.is_none()
+                && original.field_name == "id"
+                && !original.descending
+                && actual.field == original.field_name
+                && actual.descending == original.descending
+                && matches!(
+                    archived.kind,
+                    crate::analysis::types::CheckedQueryClauseKind::Archived
+                )
                 && clause.kind == crate::analysis::types::CheckedQueryClauseKind::Order
                 && clause.expressions.as_slice() == [original.node] =>
         {
@@ -5579,7 +5716,25 @@ fn checked_owner_first_query_ir<'a>(
         ordered: true,
         nonempty: false,
     };
-    let [alias, predicate, ..] = source.clauses.as_slice() else {
+    // A leading Archived clause pairs only with a disclosed include: the
+    // valueless include drops from IR, so any other combination refuses.
+    let clauses = source.clauses.as_slice();
+    let clauses = match clauses {
+        [archived, rest @ ..]
+            if matches!(
+                archived.kind,
+                crate::analysis::types::CheckedQueryClauseKind::Archived
+            ) =>
+        {
+            if !query.archived || scan.archived.is_some() {
+                return None;
+            }
+            rest
+        }
+        _ if query.archived => return None,
+        _ => clauses,
+    };
+    let [alias, predicate, ..] = clauses else {
         return None;
     };
     checked_first_query_order(query, scan)?;
@@ -5594,7 +5749,7 @@ fn checked_owner_first_query_ir<'a>(
         || query.projection.is_some()
         || query.cardinality_guard.is_some()
         || query.limit.is_some()
-        || query.archived
+        || (query.archived && scan.archived.is_some())
         || source.node != query.node
         || source.domain != query.domain
         || source.domain_type != array
@@ -9052,7 +9207,7 @@ fn match_effect_proofs(
                         || node.kind != SyntaxKind::Set as u8
                         || record.ty != expected_record
                         || !matches!(&record.expr, IrExpr::Name(name) if name == item)
-                        || !closed_loop_changes(changes, item, &expected_record)
+                        || !closed_loop_changes(changes, item, &expected_record, &[])
                     {
                         return None;
                     }
@@ -9264,6 +9419,195 @@ fn match_effect_proofs(
             }
             (DisclosureEffectKind::Send { .. }, statement @ IrStmt::Send { .. }) => {
                 checked_send_guard(ir, owner, proof, statement, send_guards)?;
+            }
+            (
+                DisclosureEffectKind::ForMember {
+                    domain: checked_domain,
+                    limit: checked_limit,
+                    maximum,
+                    item: checked_item,
+                    parameter,
+                    model,
+                    body: checked_body,
+                },
+                IrStmt::For {
+                    item,
+                    domain,
+                    limit: Some(limit),
+                    body,
+                    ..
+                },
+            ) => {
+                let parameter_item = ir.items.get(parameter.0 as usize)?;
+                let IrItemKind::Param {
+                    owner: parameter_owner,
+                    index,
+                    ty: IrType::Known(parameter_type),
+                    default: None,
+                    ..
+                } = &parameter_item.kind
+                else {
+                    return None;
+                };
+                let IrItemKind::Scenario { params, .. } = &owner.kind else {
+                    return None;
+                };
+                let ResolvedType::Record {
+                    symbol: root,
+                    stored: true,
+                } = parameter_type
+                else {
+                    return None;
+                };
+                let expected_record = ResolvedType::Record {
+                    symbol: *model,
+                    stored: true,
+                };
+                let expected_domain = ResolvedType::Array {
+                    element: Box::new(expected_record.clone()),
+                    ordered: true,
+                    nonempty: false,
+                };
+                let root_item = ir.items.get(root.0 as usize)?;
+                let model_item = ir.items.get(model.0 as usize)?;
+                // Member domains lower to a whole-collection contained scan:
+                // the model domain with the root parameter as parent and no
+                // filter, order, limit or projection of its own.
+                let IrExpr::Query(query) = &domain.expr else {
+                    return None;
+                };
+                let parent = query.parent.as_deref()?;
+                let IrExpr::Name(base_name) = &parent.expr else {
+                    return None;
+                };
+                if proof.node.kind != SyntaxKind::For as u8
+                    || !direct_field_name(item)
+                    || item != checked_item
+                    || *maximum == 0
+                    || *maximum > 200
+                    || parameter_item.id != *parameter
+                    || *parameter_owner != owner.id
+                    || params.get(*index) != Some(parameter)
+                    || parameter_item.module != owner.module
+                    || root_item.id != *root
+                    || !matches!(root_item.kind, IrItemKind::Model { .. })
+                    || base_name != &parameter_item.name
+                    || parent.ty
+                        != (ResolvedType::Record {
+                            symbol: *root,
+                            stored: true,
+                        })
+                    || parent.span.file != domain.span.file
+                    || parent.span.start < domain.span.start
+                    || parent.span.end > domain.span.end
+                    || domain.ty != expected_domain
+                    || limit.span != node_span(*checked_limit)
+                    || limit.ty != ResolvedType::Scalar(Scalar::Int)
+                    || !matches!(limit.expr, IrExpr::Int(value) if value == i128::from(*maximum))
+                    || model_item.id != *model
+                    || model_item.module != owner.module
+                    || !matches!(model_item.kind, IrItemKind::Model { .. })
+                    || domain.span != node_span(*checked_domain)
+                    || body.is_empty()
+                    || body.len() != checked_body.len()
+                {
+                    return None;
+                }
+                let super::ir::IrQueryDomain::Model(name) = &query.domain else {
+                    return None;
+                };
+                if name != &model_item.canonical
+                    || query.source.is_some()
+                    || query.collection_call.is_some()
+                    || query.contract_collection_call.is_some()
+                    || query.where_pred.is_some()
+                    || query.where_async
+                    || !query.order.is_empty()
+                    || query.value_order.is_some()
+                    || query.limit.is_some()
+                    || query.archived.is_some()
+                    || query.select.is_some()
+                    || query.select_param.is_some()
+                {
+                    return None;
+                }
+                // Only value-typed owner parameters are element-constant;
+                // stored rows keep their per-element refusal above.
+                let constants: Vec<String> = params
+                    .iter()
+                    .filter_map(|id| ir.items.get(id.0 as usize))
+                    .filter(|param| {
+                        !matches!(
+                            &param.kind,
+                            IrItemKind::Param {
+                                ty: IrType::Known(
+                                    ResolvedType::Record { stored: true, .. }
+                                        | ResolvedType::Nullable(_)
+                                ),
+                                ..
+                            }
+                        )
+                    })
+                    .map(|param| param.name.clone())
+                    .collect();
+                for (statement, node) in body.iter().zip(checked_body) {
+                    let IrStmt::Set {
+                        record,
+                        changes,
+                        when: None,
+                        span,
+                    } = statement
+                    else {
+                        return None;
+                    };
+                    if *span != node_span(*node)
+                        || node.kind != SyntaxKind::Set as u8
+                        || record.ty != expected_record
+                        || !matches!(&record.expr, IrExpr::Name(name) if name == item)
+                        || !closed_loop_changes(changes, item, &expected_record, &constants)
+                    {
+                        return None;
+                    }
+                }
+            }
+            (
+                DisclosureEffectKind::Emit { event },
+                IrStmt::Emit {
+                    event: actual, span, ..
+                },
+            ) => {
+                let event_item = ir.items.get(event.0 as usize)?;
+                if proof.node.kind != SyntaxKind::Emit as u8
+                    || !matches!(event_item.kind, IrItemKind::Event { .. })
+                    || event_item.id != *event
+                    || event_item.module != owner.module
+                    || actual != &event_item.canonical
+                {
+                    return None;
+                }
+                let _ = span;
+            }
+            (
+                DisclosureEffectKind::Schedule { event },
+                IrStmt::Schedule {
+                    event: actual, span, ..
+                },
+            ) => {
+                let event_item = ir.items.get(event.0 as usize)?;
+                if proof.node.kind != SyntaxKind::Schedule as u8
+                    || !matches!(event_item.kind, IrItemKind::Event { .. })
+                    || event_item.id != *event
+                    || event_item.module != owner.module
+                    || actual != &event_item.canonical
+                {
+                    return None;
+                }
+                let _ = span;
+            }
+            (DisclosureEffectKind::Cancel {}, IrStmt::Cancel { .. }) => {
+                if proof.node.kind != SyntaxKind::Cancel as u8 {
+                    return None;
+                }
             }
             _ => return None,
         }
@@ -10648,7 +10992,7 @@ fn ordered_root_effects(
         return None;
     };
     created_record_name_matches(record, &record_type, binding, *set_span, db)?;
-    if !closed_loop_changes(changes, binding, &record_type) {
+    if !closed_loop_changes(changes, binding, &record_type, &[]) {
         return None;
     }
     let IrExpr::Object(entries) = &changes.expr else {
@@ -10795,7 +11139,15 @@ fn direct_source_path_name<'a>(node: &crate::syntax::SyntaxNode, text: &'a str) 
 /// The initial loop profile reads only its current element through direct
 /// fields and eager scalar expressions. A different receiver or helper cannot
 /// inherit the source loop's per-element provenance by sharing a record type.
-fn closed_loop_changes(changes: &TypedExpr, item: &str, record: &ResolvedType) -> bool {
+/// `constants` names owner parameters whose value is fixed for every loop
+/// element (the disclosure proves the matching constant intrinsic). Other
+/// bare names keep their refusal: only the loop item reads per-element rows.
+fn closed_loop_changes(
+    changes: &TypedExpr,
+    item: &str,
+    record: &ResolvedType,
+    constants: &[String],
+) -> bool {
     let IrExpr::Object(entries) = &changes.expr else {
         return false;
     };
@@ -10807,6 +11159,11 @@ fn closed_loop_changes(changes: &TypedExpr, item: &str, record: &ResolvedType) -
             return false;
         }
         match &value.expr {
+            IrExpr::Name(name) => {
+                if !constants.iter().any(|constant| constant == name) {
+                    return false;
+                }
+            }
             IrExpr::Member { base, .. } => {
                 if base.ty != *record || !matches!(&base.expr, IrExpr::Name(name) if name == item) {
                     return false;
@@ -11150,7 +11507,16 @@ impl<'a> Sites<'a> {
                         {
                             return None;
                         }
-                        push!(Visit::Expression(domain));
+                        // A proven member domain scans the whole contained
+                        // collection: visit only its root parameter. Other
+                        // queries keep the strict collection-query walk below.
+                        if let Some(parent) =
+                            contained_member_scan_parent(ir, owner, domain, *span)
+                        {
+                            push!(Visit::Expression(parent));
+                        } else {
+                            push!(Visit::Expression(domain));
+                        }
                         push!(Visit::Expression(limit));
                         extend!(body.iter().map(Visit::Statement));
                     }
@@ -11221,6 +11587,28 @@ impl<'a> Sites<'a> {
                             .or_default()
                             .push(statement);
                         push!(Visit::Expression(record));
+                    }
+                    IrStmt::Emit { payload, span, .. } => {
+                        if out.effects.insert(context.site(*span), statement).is_some() {
+                            return None;
+                        }
+                        push!(Visit::Expression(payload));
+                    }
+                    IrStmt::Schedule {
+                        key, at, payload, span, ..
+                    } => {
+                        if out.effects.insert(context.site(*span), statement).is_some() {
+                            return None;
+                        }
+                        push!(Visit::Expression(key));
+                        push!(Visit::Expression(at));
+                        push!(Visit::Expression(payload));
+                    }
+                    IrStmt::Cancel { key, span, .. } => {
+                        if out.effects.insert(context.site(*span), statement).is_some() {
+                            return None;
+                        }
+                        push!(Visit::Expression(key));
                     }
                     IrStmt::Let { value, .. } => push!(Visit::Expression(value)),
                     IrStmt::Require { cond, .. } => push!(Visit::Expression(cond)),
@@ -11556,6 +11944,73 @@ impl<'a> Sites<'a> {
         }
         Some(out)
     }
+}
+
+/// The root parameter of a proven member-loop domain: a whole-collection
+/// contained scan (`Model` domain with the root parameter as parent and no
+/// filter, order, limit or projection). Anything else keeps the strict
+/// collection-query walk, so filtered/projected scans never borrow this path.
+fn contained_member_scan_parent<'a>(
+    ir: &'a IrProgram,
+    owner: &IrItem,
+    domain: &'a TypedExpr,
+    span: Span,
+) -> Option<&'a TypedExpr> {
+    let ScenarioDisclosure::Complete(checked) = ir.scenario_disclosures.get(&owner.id)? else {
+        return None;
+    };
+    let proof = checked.effects.iter().find(|proof| {
+        node_span(proof.node) == span
+            && matches!(
+                &proof.kind,
+                DisclosureEffectKind::ForMember { .. }
+            )
+    })?;
+    let DisclosureEffectKind::ForMember {
+        domain: checked_domain,
+        parameter,
+        model,
+        ..
+    } = &proof.kind
+    else {
+        return None;
+    };
+    if node_span(*checked_domain) != domain.span {
+        return None;
+    }
+    let parameter_item = ir.items.get(parameter.0 as usize)?;
+    let model_item = ir.items.get(model.0 as usize)?;
+    let IrExpr::Query(query) = &domain.expr else {
+        return None;
+    };
+    if query.source.is_some()
+        || query.collection_call.is_some()
+        || query.contract_collection_call.is_some()
+        || query.where_pred.is_some()
+        || query.where_async
+        || !query.order.is_empty()
+        || query.value_order.is_some()
+        || query.limit.is_some()
+        || query.archived.is_some()
+        || query.select.is_some()
+        || query.select_param.is_some()
+    {
+        return None;
+    }
+    let super::ir::IrQueryDomain::Model(name) = &query.domain else {
+        return None;
+    };
+    if name != &model_item.canonical || model_item.id != *model {
+        return None;
+    }
+    let parent = query.parent.as_deref()?;
+    let IrExpr::Name(base) = &parent.expr else {
+        return None;
+    };
+    if base != &parameter_item.name || parameter_item.id != *parameter {
+        return None;
+    }
+    Some(parent)
 }
 
 fn retained_contract_predicate<'a>(

@@ -72698,5 +72698,68 @@
     "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
     "checkpoint_advanced": false,
     "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
+  },
+  "can18_merge_5_20261016": {
+    "incremental_base": "f9209893b1af428614be5627ac1472b90a7f47c4",
+    "incoming_end": "80f29102fcb4e1dd964580278a7e2892db0298c7",
+    "retained_coverage": "reuse spec_installer_merge_reconciliation_20261015 and preceding CAN18 incremental merge entries; inherited complete checkpoint unchanged",
+    "changed_path_count": 10,
+    "rows": [
+      [
+        "compiler/src/analysis/scenario_disclosure.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/src/codegen/js.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/src/codegen/scenario_calls.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/src/codegen/scenario_queries.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/src/codegen/scenario_receipts.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/cross_operation_calls.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/stored_query_profiles.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "implementation/compiler-completion/README.md",
+        "Compiler completion",
+        "existing finite execution record"
+      ],
+      [
+        "packages/state/src/invocation/invoke-authority.test.ts",
+        "state",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/state/src/invocation/invoke.ts",
+        "state",
+        "existing package source/test owner"
+      ]
+    ],
+    "choice": "Integrate released cross-operation gates, imported and archived first-query correspondence with REVIEW8 corrections, and the State authority-report boundary.",
+    "validation": "Reuse query6 with zero ignored, cross-operation18 and focused neighbors, authority11/viewer26 plus existing baseline controls. Independent source review verifies guarded archive arms lead, imported provider/consumer paths remain source-sealed, slot/containment/effect provenance remains checked, and authority scans reuse fenced owner reads with membership/revision revalidation. Compiler refusal/stub/MCP omission remains until host and emission follow-ups pass; original24 and executable consumers remain open.",
+    "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
+    "checkpoint_advanced": false,
+    "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
   }
 }
