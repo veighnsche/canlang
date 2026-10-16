@@ -300,14 +300,23 @@ Helper-consumer proof landed in `5398f931` (Lane C12 commit
 change — new 3/3 block, full seam file 13/13 in parent, t16b 37/0
 unchanged. SCOPE-4 gate satisfied (stored reads + helper consumer through
 the real seam). E6008 removal now unblocked as a finite Lane-A slice.
-E6008 removed in `f516b976` (Lane A12 commit `43417bdf`): only the
-ir.rs authority-report refusal goes; all other E6008 uses stay;
-`scope_authority_reports` 9/9 asserts lowering + advertisement with
-undescribed-E3001/viewer-contrast negatives kept. Parent neighbors green:
-admission 4/4, outbound 13/13, boolean 8/8, cross-operation 18/18,
-stored-query 6/6, capability-event 2/2. Outcome 9 family E complete at
-implementation scope — full chain compiler→State→emission→seam→proof→
-trio removal closed (Codex review pending).
+E6008 removal `f516b976` (Lane A12 commit `43417bdf`) REVERTED in
+`0872fb13` per Codex REVIEW-9 — deliberate refusal restored until tested
+support lands; the removal commit is preserved in history, unintegrated.
+REVIEW-9 gaps (both must close before E6008 removal): (1) `882daadc`
+`bindAuthorityReportForRead` requires `artifact.sources.length===1` —
+incidental size restriction contradicting source-owned multi-source
+composition; must select the defining source via existing
+callable/module/checked-origin correspondence (path/hash/owner),
+fail closed on missing/ambiguous/tampered, accept additional valid +
+composed/imported helper sources; test standalone vs real multi-source
+composition. (2) `5398f931` exercises the real seam but with hand-written
+mirrors (opsModule/HELPER_PRELUDE/reconstructed operations), not an
+emitted source consumer as SCOPE-4 required — need one small actual .can
+fixture (stored read + local/imported helper, authority report + ordinary
+viewer) compiled with the real native catalog, real emitted assembly
+through invokeReadCanonical (grant output, viewer filtered/refusal,
+denied-by, mismatch/revocation). Outcome 9 family E stays OPEN.
 
 Outcome 9 family A implemented in `55c969d2` (Lane A commit `fac7bd70`):
 45/64 handler profiles (`on=Cap.event`) lower through canonical
