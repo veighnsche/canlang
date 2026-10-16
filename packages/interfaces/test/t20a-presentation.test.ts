@@ -672,7 +672,7 @@ test('protected source update submits only editable values and restores its exac
   assert.equal((await submit(envelope)).status, 200);
   assert.deepEqual(calls[1]!.inputs, calls[0]!.inputs, 'retry retains exact canonical inputs');
   const native = new URLSearchParams([...html.matchAll(/<input\b[^>]*name="([^"]*)"[^>]*value="([^"]*)"[^>]*>/g)]
-    .map(match => [match[1]!, match[2]!]));
+    .map((match): [string, string] => [match[1]!, match[2]!]));
   native.set('inputs[changes][title]', 'Native edit');
   const nativeSubmit = (fields: URLSearchParams) => handleOperationRequest(protectedDeps,
     testRequest('/forms', { method: 'POST', cookie: identity.cookie,
@@ -710,7 +710,7 @@ test('native boolean presence distinguishes checked, unchecked and unrendered pr
   });
   const successfulControls = (html: string) => new URLSearchParams([...html.matchAll(/<input\b[^>]*>/g)]
     .filter(([tag]) => !/\sdisabled(?:\s|>)/.test(tag) && (!/type="checkbox"/.test(tag) || /\schecked(?:\s|>)/.test(tag)))
-    .flatMap(([tag]) => { const name = /name="([^"]*)"/.exec(tag), value = /value="([^"]*)"/.exec(tag);
+    .flatMap(([tag]): [string, string][] => { const name = /name="([^"]*)"/.exec(tag), value = /value="([^"]*)"/.exec(tag);
       return name !== null && value !== null ? [[name[1]!, value[1]!]] : []; }));
   const submit = (params: URLSearchParams) => handleOperationRequest({ ...t.deps, catalog, formBindings },
     testRequest('/forms', { method: 'POST', cookie: t.identity.cookie,
@@ -809,7 +809,7 @@ test('native projection refusals retain valid text and ref drafts in rendered HT
     fields: generatedFields(derived, 'update'), submit: 'Save', idPrefix: 'native-drafts', timeZone: 'UTC' }));
   const successfulControls = (html: string) => new URLSearchParams([...html.matchAll(/<input\b[^>]*>/g)]
     .filter(([tag]) => !/\sdisabled(?:\s|>)/.test(tag) && (!/type="checkbox"/.test(tag) || /\schecked(?:\s|>)/.test(tag)))
-    .flatMap(([tag]) => { const name = /name="([^"]*)"/.exec(tag), value = /value="([^"]*)"/.exec(tag);
+    .flatMap(([tag]): [string, string][] => { const name = /name="([^"]*)"/.exec(tag), value = /value="([^"]*)"/.exec(tag);
       return name !== null && value !== null ? [[name[1]!, value[1]!]] : []; }));
   const submit = (params: URLSearchParams) => handleOperationRequest({ ...t.deps, catalog, formBindings },
     testRequest('/forms', { method: 'POST', cookie: t.identity.cookie,
@@ -890,7 +890,7 @@ test('expired signed CRUD and scenario forms dispatch only the dedicated retaine
         arguments: { record: { id: 'g1', version: 7n, title: 'Exact retry' } } });
       assert.equal(prepared.status, 'ready'); if (prepared.status !== 'ready') throw new Error('expected signed form');
       const native = new URLSearchParams([...((await form(prepared.props)).matchAll(/<input\b[^>]*name="([^"]*)"[^>]*value="([^"]*)"[^>]*>/g))]
-        .map(match => [match[1]!, match[2]!]));
+        .map((match): [string, string] => [match[1]!, match[2]!]));
       native.set(operation.kind === 'scenario' ? 'inputs[title]' : 'inputs[changes][title]', 'Exact retry');
       const json = { operation: operation.name, operation_id: prepared.props.operationId,
         form_binding: prepared.props.sourceBinding, inputs: { title: 'Exact retry' } };
