@@ -207,6 +207,15 @@ legacy E1211s, pre-existing); rebuilt CLI on the exact probe reports only
 E6008 missing saved generation output — the separately distinguished
 non-syntax matter. Outcome 6 is implemented (Codex review pending).
 
+Outcome 8 implemented in `46bbb4ed` (Lane A commit `56bf091d`): original
+43 role-OR operation sites emit matching ordered State ByPredicate trees
+through the operations member and policy manifest, reusing the State AST
+read-only; lone role gates byte-identical, subject/expression gates keep
+refusal, CRUD `when` sealed; short-circuit, roles, authority, resolver
+failures kept. `boolean_operation_admission` 8/8 plus outbound/ui-adapter
+neighbors green in parent. Native policy receiving remains for Codex
+behavioral review. Codex review pending.
+
 Outcome 11 test map in parent (Lane A commit, 5/5 join positives +
 refusal surface incl. E3005 recursion): all 7 original calls die at
 `ScenarioDisclosure::Declined` via gates D1-D8 (param eligibility, void
