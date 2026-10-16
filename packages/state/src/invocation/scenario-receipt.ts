@@ -1172,6 +1172,25 @@ function requiredVersionedReferenceInput(def: GeneratedOperationDef, parameter: 
   return input?.kind === 'ref' && input.model === model && input.required && input.versioned &&
     def.inputArrays[parameter] === undefined && def.inputNullableRefs?.[parameter] !== true;
 }
+/** A first-query parent edge is honored only for the exact checked admitted
+ * containment: the same checked source, the declared required versioned
+ * parent parameter, the model's actual containment parent, and installed
+ * viewer authority over the parent. A foreign, denied or tampered parent
+ * keeps the first refusal. */
+function checkedFirstQueryParent(bound: BoundPlan, def: GeneratedOperationDef,
+  query: NonNullable<BoundPlan['plan']['queries']>[number],
+  policy: PolicyTable, readPolicies: ReadonlyMap<ModelName, ViewerSourceReadPolicy> | undefined): boolean {
+  const parent = query.parent;
+  if (parent === undefined) return true;
+  if (parent.origin.kind !== 'admitted-reference' ||
+      stableStringify(parent.source) !== stableStringify(query.source) ||
+      stableStringify(parent.source) !== stableStringify(bound.plan.source) ||
+      !requiredVersionedReferenceInput(def, parent.origin.parameter, parent.model) ||
+      bound.artifactModels.get(query.model)?.parent !== parent.model) return false;
+  if (policy.has(parent.model)) return true;
+  const read = readPolicies?.get(parent.model);
+  return read !== undefined && 'grants' in read;
+}
 
 type IntrinsicObservation = NonNullable<ScenarioReceiptAssociation['intrinsics']>[number];
 
@@ -1405,7 +1424,7 @@ export function bindScenarioReceiptQueryProducer(def: GeneratedOperationDef, pro
     const queryId = text(metadata.queryId), query = bound.plan.queries.find(query => query.id === queryId);
     origin(metadata.source);
     const interval = firstQueryNode(metadata.query), node = firstQueryNode(metadata.node), statement = firstQueryNode(metadata.statement);
-    if (query === undefined || query.parent !== undefined || query.limit !== null || query.archived !== 'exclude' ||
+    if (query === undefined || !checkedFirstQueryParent(bound, def, query, policy, readPolicies) || query.limit !== null || query.archived !== 'exclude' ||
         query.dependencies.length !== 1 || query.dependencies[0]!.role !== 'control' ||
         !['bool','int','decimal','text','money','date','datetime','duration','currency','user'].includes(query.dependencies[0]!.type) ||
         query.order.some(order => order.field !== 'id' || order.direction !== 'asc') ||
