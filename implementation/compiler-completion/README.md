@@ -181,11 +181,21 @@ native hook runners lower `await delivery(c,..)` and
 E6008; judgment specifications keep pinned refusal in both flavors.
 `t31_hook*` 12/12 pass in the integrated parent; codegen 143 pass with only
 the 4 known pre-existing residuals.
-Outcome-7 runtime carrier committed but NOT verified: `a7fcbf09` unwraps
-exact-shaped carriers in bound-mail.ts, yet its new test file fails
-package `tsc` (mock shapes vs real BoundMailAdapterOptions/OutboxIntent
-types), so no dist emits here. Test-typing repair routed back to Lane C
-(assertions frozen); outcome 7 stays OPEN.
+Outcome-7 runtime carrier verified: test-typing repair (exact contract
+shapes, `bound-mail.ts` untouched) makes owned `tsc` clean and
+`bound-mail-carrier.test.js` passes 4/4 in the integrated parent (carrier
+resolution, plain-string stability, private-mail path, malformed
+refusals). Outcome 7 is implemented: compiler lowering 13/13 + runtime
+carrier 4/4 (Codex review pending; 31-occurrence regroup belongs to
+outcome-14 composition).
+
+Outcome 9 family D implemented: bounded PaymentsV1 terminal completions
+admitted with correlation queries and receipt emission; `payment_*
+3/3` plus `standard_completion*` neighbors green in parent (worker-
+worktree failures were missing-overlay environmental, confirmed by
+parent-overlay green). Whole-program gates still fail on original24 until
+remaining composition diagnostics clear (safety gate, not relaxed).
+Outcome 9 stays OPEN pending family E grant implementation.
 
 Outcome 6 checker slice in `b164788b` (recovered B2 commit `4cab6503`):
 slotted groups, selection headers and original payload shapes lower;
