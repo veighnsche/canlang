@@ -7817,3 +7817,12 @@ runtime/query binding owner, smallest connection, real success + meaningful
 refusals required; no weakened assertions, honest gap retained if not yet
 executable. B16 filter repair stays independent for prompt merge at its
 corrected handoff. No duplicate original24 capture; main 019e8c30c clean.
+
+**Coordinator intake, 2026-10-16 (B16 verified, ready for Codex intake):**
+B16 (`85aa467bb`, 8 files) VERIFIED: standalone-filter-preference consumer
+1/1 on immutable /tmp/can18-b16-can (sha 30f83ffd), neighbors factory 28,
+bool 27, hooks 21 green. C23's 4 analysis files correctly excluded from the
+commit (remain as the only parent dirt). RESOURCE-11 closed: 1.1GiB private
+target cleaned by owner, disk healthy, evidence binary preserved. Scoped
+commit ready for Codex intake (filter prerequisite + repair only). Sole
+active lane: C23.
