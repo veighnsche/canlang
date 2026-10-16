@@ -364,6 +364,12 @@ via decodeValue+compareInt BigInt, no Number routing; new 2/2). Parent:
 seam 20/20, joint 6/6 green. Null/missing false, undecodable fail-closed,
 viewer paths untouched. REVIEW-10 closed at implementation scope (Codex
 review pending); outcome 9 complete pending review.
+Codex MAIN-4: canonical main `fc25a2d1` includes released `9a32ee03`
+(compiler/packages byte-identical); independent host 6/6 + boundary/int
+22/22 pass. Accepted: reviewed implementation components. NOT accepted:
+filtered real-source host criterion (with C16) and original24 — both stay
+open. Original24 capture started 05:58Z with frozen binary/catalog/inputs;
+no producer rebuild while it runs.
 Serve half proven in `c68500d2` + test-typo fix (Lane C15 commit
 `adf31cc3`): `assembleModules` rewrites bare `@canlang/stdlib` to the
 real data-plane stdlib and registers the assembler-owned capability — no
