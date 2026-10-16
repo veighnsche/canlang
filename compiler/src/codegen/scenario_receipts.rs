@@ -4485,6 +4485,33 @@ fn checked_native_first_query_source_plan(
             })
         })
         .collect::<Option<Vec<_>>>()?;
+    // A contained domain carries its admitted parent edge; unscoped first
+    // queries keep no parent. Re-proves the disclosure receiver here, so a
+    // mismatched parent keeps the source-plan refusal.
+    let parent = match first.contained_parent {
+        None => None,
+        Some(_) => {
+            let parameter = checked_first_query_parent(ir, owner, query, db)?;
+            let IrItemKind::Param {
+                ty:
+                    IrType::Known(ResolvedType::Record {
+                        symbol: parent_id,
+                        stored: true,
+                    }),
+                ..
+            } = &parameter.kind
+            else {
+                return None;
+            };
+            Some(ReceiptQueryParent {
+                source: transport_source(&query.source, entry_module)?,
+                model: ir.items.get(parent_id.0 as usize)?.canonical.clone(),
+                origin: ReceiptQueryParentOrigin::AdmittedReference {
+                    parameter: parameter.name.clone(),
+                },
+            })
+        }
+    };
     let expected = ReceiptDisclosurePlan {
         version: 1,
         source: transport_source(&checked.source, entry_module)?,
@@ -4492,7 +4519,7 @@ fn checked_native_first_query_source_plan(
             id: query.id.clone(),
             source: transport_source(&query.source, entry_module)?,
             model: query.model_name.clone(),
-            parent: None,
+            parent,
             order: query
                 .order
                 .iter()
@@ -4651,6 +4678,104 @@ fn imported_field_source_corresponds(
         return false;
     }
     imported_canonical(ir, owner, model_canonical)
+}
+
+/// A contained FIRST domain scans the original required parent parameter's
+/// children. The receiver names the same default-free scenario Model
+/// parameter the disclosure proved, and the child stays ChildOf it. Mirrors
+/// the count contained-parent proof; unscoped first queries have no
+/// contained parent and never reach here.
+pub(super) fn checked_first_query_parent<'a>(
+    ir: &'a IrProgram,
+    owner: &IrItem,
+    query: &crate::analysis::scenario_disclosure::DisclosureQuery,
+    db: &SourceDb,
+) -> Option<&'a IrItem> {
+    let first = query.first.as_ref()?;
+    let (receiver, parameter_id) = first.contained_parent?;
+    let facts = super::scenario_calls::checked_source(ir, owner, db)?;
+    let parameter = ir.items.get(parameter_id.0 as usize)?;
+    let IrItemKind::Scenario {
+        params,
+        read: false,
+        ..
+    } = &owner.kind
+    else {
+        return None;
+    };
+    let IrItemKind::Param {
+        owner: parameter_owner,
+        index,
+        ty:
+            IrType::Known(ResolvedType::Record {
+                symbol: parent_id,
+                stored: true,
+            }),
+        array_bounds: None,
+        default: None,
+        default_node: None,
+        default_copy_source: None,
+        ..
+    } = &parameter.kind
+    else {
+        return None;
+    };
+    let fact = facts.parameters.get(*index)?;
+    let child = checked_first_query_schema(ir, owner, query, db)?;
+    let mut parents = facts
+        .stored_contracts
+        .as_deref()?
+        .iter()
+        .filter(|schema| schema.model && schema.id == *parent_id);
+    let parent = parents.next()?;
+    let source_receiver = checked_effect_node(ir, owner, receiver, db)?;
+    let authored_parameter = checked_effect_node(ir, owner, fact.node, db)?;
+    let parameter_name = authored_parameter
+        .children
+        .iter()
+        .find(|node| node.kind == SyntaxKind::Name)?;
+    let text = &db.get(receiver.file)?.text;
+    if parents.next().is_some()
+        || parameter.id != parameter_id
+        || *parameter_owner != owner.id
+        || params.get(*index) != Some(&parameter_id)
+        || params.iter().filter(|id| **id == parameter_id).count() != 1
+        || fact.parameter != parameter_id
+        || fact.ty
+            != (ResolvedType::Record {
+                symbol: *parent_id,
+                stored: true,
+            })
+        || fact.default.is_some()
+        || fact.constraints.is_some()
+        || parameter.module != owner.module
+        || parameter.canonical != format!("{}.{}", owner.canonical, parameter.name)
+        || parameter.span != parameter_name.span
+        || parameter_name.token()?.text(text) != parameter.name
+        || source_receiver.kind != SyntaxKind::NameRef
+        || text.get(receiver.start as usize..receiver.end as usize)? != parameter.name
+        || child.parent != Some(*parent_id)
+        || child.owner != Some(crate::analysis::resolve::ModelOwner::ChildOf(*parent_id))
+        || parent.source != query.source
+        || parent.module != owner.module
+        || parent.field_order.iter().any(|id| {
+            ir.items
+                .get(id.0 as usize)
+                .is_none_or(|field| field.name == ir.items[query.model.0 as usize].name)
+        })
+        || child.field_order.iter().any(|id| {
+            ir.items
+                .get(id.0 as usize)
+                .is_none_or(|field| field.name == "parent")
+        })
+    {
+        return None;
+    }
+    match_stored_contract_schema(ir, parent, db)?;
+    for field in &parent.fields {
+        match_stored_contract_field(ir, field, db)?;
+    }
+    Some(parameter)
 }
 
 /// The released contained COUNT selector is the original required singular
@@ -5739,6 +5864,26 @@ fn checked_owner_first_query_ir<'a>(
     };
     checked_first_query_order(query, scan)?;
     checked_first_query_predicate(ir, owner, query, scan)?;
+    // A contained domain pairs the IR parent value with the admitted
+    // receiver; unscoped scans keep no parent. Any other combination
+    // refuses, keeping the owner-first join fail-closed.
+    let first_parent = match first.contained_parent {
+        None => scan.parent.is_none(),
+        Some((receiver, _)) => {
+            let parameter = checked_first_query_parent(ir, owner, query, db)?;
+            let IrItemKind::Param {
+                ty: IrType::Known(parent_type),
+                ..
+            } = &parameter.kind
+            else {
+                return None;
+            };
+            let parent = scan.parent.as_deref()?;
+            parent.span == node_span(receiver)
+                && &parent.ty == parent_type
+                && matches!(&parent.expr, IrExpr::Name(name) if name == &parameter.name)
+        }
+    };
     if id != "first"
         || first.call != node
         || actual.span != node_span(node)
@@ -5769,7 +5914,7 @@ fn checked_owner_first_query_ir<'a>(
         || predicate.kind != crate::analysis::types::CheckedQueryClauseKind::Where
         || predicate.expressions.as_slice() != [source_predicate]
         || !matches!(&scan.domain, super::ir::IrQueryDomain::Model(model) if model == &query.model_name)
-        || scan.parent.is_some()
+        || !first_parent
         || scan.where_async
         || scan.select.is_some()
         || scan.select_param.is_some()

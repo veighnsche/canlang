@@ -6269,6 +6269,26 @@ impl<'a> Emitter<'a> {
             ordered: true,
             nonempty: false,
         };
+        // A contained domain pairs the admitted receiver with the IR parent
+        // value; unscoped scans keep no parent on either side. Any other
+        // combination keeps the unprepared refusal below.
+        let parent_matches = match source
+            .first
+            .as_ref()
+            .and_then(|first| first.contained_parent)
+        {
+            None => query.parent.is_none(),
+            Some((receiver, parameter)) => query.parent.as_deref().is_some_and(|parent| {
+                parent.span == Span::new(receiver.file, receiver.start, receiver.end)
+                    && matches!(&parent.expr, IrExpr::Name(name)
+                        if Some(name)
+                            == self
+                                .ir
+                                .items
+                                .get(parameter.0 as usize)
+                                .map(|item| &item.name))
+            }),
+        };
         first.call.file == at.file
             && first.call.start == at.start
             && first.call.end == at.end
@@ -6291,7 +6311,7 @@ impl<'a> Emitter<'a> {
             && source.cardinality_guard.is_none()
             && fact.projection.is_none()
             && query.contract_collection_call.is_none()
-            && query.parent.is_none()
+            && parent_matches
             && query.select.is_none()
             && query.select_param.is_none()
             && query.limit.is_none()

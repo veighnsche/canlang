@@ -1026,7 +1026,7 @@ fn checked_query_plan_full(
         super::scenario_receipts::checked_native_query_influences(queries)?;
         let mut plans = queries.iter().map(|query| {
             if query.first.is_some() {
-                checked_first_query_plan(program, ir, owner, query, entry_module)
+                checked_first_query_plan(program, ir, owner, query, db, entry_module)
             } else {
                 checked_count_query_plan(program, ir, owner, query, db, entry_module)
             }
@@ -1684,7 +1684,7 @@ fn checked_transcript_query_plan(
             super::scenario_receipts::checked_native_any_query_plan(ir, owner, any, db, entry)?;
         let mut ancestor =
             checked_count_query_plan(program, ir, owner, ancestor, db, entry)?.queries;
-        let mut selected = checked_first_query_plan(program, ir, owner, selected, entry)?.queries;
+        let mut selected = checked_first_query_plan(program, ir, owner, selected, db, entry)?.queries;
         let mut counted = checked_count_query_plan(program, ir, owner, count, db, entry)?.queries;
         if ancestor.len() != 1 || selected.len() != 1 || counted.len() != 1 || queries.len() != 2 {
             return None;
@@ -1930,6 +1930,7 @@ fn checked_first_query_plan(
     ir: &IrProgram,
     owner: &IrItem,
     q: &crate::analysis::scenario_disclosure::DisclosureQuery,
+    db: &SourceDb,
     entry: &str,
 ) -> Option<ReceiptDisclosurePlan> {
     use super::ir::IrCallTarget;
@@ -1993,6 +1994,29 @@ fn checked_first_query_plan(
     };
     super::scenario_receipts::checked_first_query_order(q, query)?;
     super::scenario_receipts::checked_first_query_predicate(ir, owner, q, query)?;
+    // A contained domain pairs the IR parent value with the admitted
+    // receiver; unscoped scans keep no parent. Any other combination
+    // refuses, keeping the plan fail-closed.
+    let first_parent = match q.first.as_ref()?.contained_parent {
+        None => query.parent.is_none(),
+        Some((receiver, _)) => {
+            let parameter =
+                super::scenario_receipts::checked_first_query_parent(ir, owner, q, db)?;
+            let IrItemKind::Param {
+                ty: IrType::Known(parent_type),
+                ..
+            } = &parameter.kind
+            else {
+                return None;
+            };
+            let parent = query.parent.as_deref()?;
+            parent.span.file == receiver.file
+                && parent.span.start == receiver.start
+                && parent.span.end == receiver.end
+                && &parent.ty == parent_type
+                && matches!(&parent.expr, IrExpr::Name(name) if name == &parameter.name)
+        }
+    };
     if q.id.is_empty()
         || q.model_name != model.canonical
         || declared != actual
@@ -2024,7 +2048,7 @@ fn checked_first_query_plan(
         || domain.ty != array
         || call.ty != ResolvedType::Nullable(Box::new(record.clone()))
         || !matches!(&query.domain,IrQueryDomain::Model(name) if name==&model.canonical)
-        || query.parent.is_some()
+        || !first_parent
         || query.select.is_some()
         || query.select_param.is_some()
         || query.limit.is_some()
@@ -2103,6 +2127,35 @@ fn checked_first_query_plan(
     {
         return None;
     }
+    // A contained domain carries its admitted parent edge; unscoped first
+    // queries keep no parent. The edge re-proves the disclosure's receiver
+    // against the immutable IR owner (sealed parent schema included), so a
+    // mismatched parent keeps the plan refusal below.
+    let parent = match q.first.as_ref()?.contained_parent {
+        None => None,
+        Some(_) => {
+            let parameter =
+                super::scenario_receipts::checked_first_query_parent(ir, owner, q, db)?;
+            let IrItemKind::Param {
+                ty:
+                    IrType::Known(ResolvedType::Record {
+                        symbol: parent_id,
+                        stored: true,
+                    }),
+                ..
+            } = &parameter.kind
+            else {
+                return None;
+            };
+            Some(ReceiptQueryParent {
+                source: origin(&q.source, entry),
+                model: ir.items.get(parent_id.0 as usize)?.canonical.clone(),
+                origin: ReceiptQueryParentOrigin::AdmittedReference {
+                    parameter: parameter.name.clone(),
+                },
+            })
+        }
+    };
     Some(ReceiptDisclosurePlan {
         version: 1,
         source: origin(&q.source, entry),
@@ -2110,7 +2163,7 @@ fn checked_first_query_plan(
             id: q.id.clone(),
             source: origin(&q.source, entry),
             model: model.canonical.clone(),
-            parent: None,
+            parent,
             order: q
                 .order
                 .iter()
