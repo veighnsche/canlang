@@ -435,6 +435,13 @@ compiler join needs State honoring — scenario-receipt.ts ~1408 rejects
 query.parent!==undefined; routed to C19 (finite receiver scope with C18
 lease check: honor AdmittedReference parent edge, validate real compiled
 parent-child first scenario over actual rows incl. foreign/denied/tampered).
+Closed in `e5e6b65a` (Lane C19 `f19a5f8f`, C18 worktree verified clean):
+`checkedFirstQueryParent` admits exactly the checked edge (same source,
+declared versioned parent param, containment parent, viewer/source grants;
+foreign/denied/tampered keep refusal); new real-emission suite 5/5 in
+parent (term-a true with owner scan pinned, term-b binds own domain,
+empty-null/rule_failed, denial/marker/source refusals). Neighbors 37/37 +
+receipt-durable 4/4 green.
 (2) 5945b1c9 transcribes columns + hand-writes occurrence (component
 evidence only) — bounded real-source bool test queued as B7's next batch
 (emitted page/collection through verified assembly/presentation seam, real
