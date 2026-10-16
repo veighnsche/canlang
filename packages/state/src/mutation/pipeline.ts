@@ -493,6 +493,12 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
   const transitiveTriggerRevision = input.trigger?.revision ?? null;
   const transitiveOwner = input.trigger?.owner ?? context.team?.teamId ?? context.app;
   const provisional = new Map<string, ProvisionalEntry>();
+  /**
+   * C21: prior hook fires per (trigger, hook) in this operation. Each fire
+   * consumes exactly one occurrence slot, so a repeated trigger in one
+   * batch (or across hooks) never restages an earlier fire's staged id.
+   */
+  const hookFireCounts = new Map<string, number>();
   const outWrites: DomainWrite[] = [];
   const outHistory: HistoryEntry[] = [];
   const outClaims: UniqueClaim[] = [];
@@ -1184,6 +1190,20 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
       consumeWork();
       const hookTag =
         `Hook ${JSON.stringify(hook.name)} on model ${JSON.stringify(def.model as string)}`;
+      // C22: per-operation hook-fire ordinal for this fire. Counts this
+      // operation's prior fires of the same hook on the same trigger, so
+      // a repeated trigger in one batch never restages an earlier fire's
+      // staged id. The full staged identity is derived downstream from the
+      // owning operation identity plus the emitter-embedded hook site plus
+      // this ordinal (no committed-history read per fire, no
+      // birth/create discounts): C21's scan could not distinguish two
+      // hooks on one fire, and its birth discount zeroed the first update
+      // after a staged birth. Remove fires cannot stage, so they take only
+      // the session slot.
+      const fireKey = JSON.stringify([def.model, triggerId, hook.name]);
+      const priorFires = hookFireCounts.get(fireKey) ?? 0;
+      hookFireCounts.set(fireKey, priorFires + 1);
+      const hookOccurrence = priorFires;
       const forbidStagingOnRemove = (what: string): void => {
         if (op === 'remove') {
           throw new StateError(
@@ -1208,6 +1228,8 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
         now,
         triggerModel: def.model,
         triggerId,
+        operationId: stageContext.operationId,
+        hookOccurrence,
         stage: (staged) => effect(() => {
           forbidStagingOnRemove('secondary writes');
           consumeWork();

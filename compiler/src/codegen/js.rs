@@ -3583,6 +3583,10 @@ pub struct Emitter<'a> {
     /// [`Emitter::exit_hook`]. Statements and expressions consult it to
     /// stage through the hook context instead of the ambient `c`.
     hook: Option<HookState>,
+    /// Event-rooted hook aliases by lexical scope (mirrors `bindings`).
+    /// `Some` classifies the binding; `None` shadows an outer alias with a
+    /// plain value. Consulted only while hook lowering is active.
+    hook_aliases: Vec<HashMap<String, Option<HookAlias>>>,
     /// Bounded-loop sequence: each `for ... limit` binds its own
     /// `$forRowsN` fetch, so sequential loops never redeclare one
     /// binding (source order keeps numbering deterministic).
@@ -3669,6 +3673,41 @@ struct HookState {
     /// Native hooks receive the ambient operation context (`c`) from the
     /// owning engine frame; legacy hooks bind no `c`.
     native: bool,
+    /// Checked hook site: the scenario canonical (e.g. `T.h`), embedded
+    /// in staged-create ids so distinct hooks on one fire stage distinct
+    /// children. Matches the runtime hook name by construction (the
+    /// descriptor id is the same canonical).
+    site: String,
+}
+
+/// Event-rooted alias class for hook bindings. Snapshots carry the full
+/// trigger row; parent steps carry only the engine's `{model, id}` linkage
+/// identity; staged create bindings carry the bound `{id}` identity;
+/// other event-derived values (leaf and reference reads) gap on deeper
+/// access. Untracked names lower normally.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum HookAlias {
+    Snapshot,
+    Parent,
+    Staged,
+    Value,
+}
+
+/// Event-chain base classes for hook member lowering. Depth-1 snapshot
+/// reads and parent-linkage identities lower; anything through them gaps
+/// loud instead of reading `undefined` off an identity object.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum HookBase {
+    Event,
+    Root,
+    Snapshot,
+    Parent,
+    Staged,
+    Shallow,
+    DeepParent,
+    DeepStaged,
+    DeepRef,
+    Plain,
 }
 
 impl<'a> Emitter<'a> {
@@ -3743,6 +3782,7 @@ impl<'a> Emitter<'a> {
             callables: Vec::new(),
             pages: Vec::new(),
             hook: None,
+            hook_aliases: vec![HashMap::new()],
             loop_seq: 0,
             bindings: vec![HashMap::new()],
             binding_seq: 0,
@@ -4330,11 +4370,13 @@ impl<'a> Emitter<'a> {
     fn enter_scope(&mut self) {
         self.bindings.push(HashMap::new());
         self.formatted_bindings.push(HashMap::new());
+        self.hook_aliases.push(HashMap::new());
     }
 
     fn exit_scope(&mut self) {
         self.bindings.pop().expect("lexical scope");
         self.formatted_bindings.pop().expect("lexical scope");
+        self.hook_aliases.pop().expect("lexical scope");
     }
 
     fn bind(&mut self, name: &str) -> String {
@@ -4733,14 +4775,22 @@ impl<'a> Emitter<'a> {
     }
 
     /// Enter hook lowering for one trigger model: statements stage through
-    /// `$hookCtx` and ambient-context expressions report `E6008`.
-    pub fn enter_hook(&mut self, trigger: SymbolId, native: bool) {
-        self.hook = Some(HookState { trigger, native });
+    /// `$hookCtx` and ambient-context expressions report `E6008`. The site
+    /// is the hook scenario canonical, embedded in staged-create ids.
+    pub fn enter_hook(&mut self, trigger: SymbolId, native: bool, site: &str) {
+        self.hook = Some(HookState {
+            trigger,
+            native,
+            site: site.to_string(),
+        });
     }
 
     /// Leave hook lowering, restoring scenario lowering.
     pub fn exit_hook(&mut self) {
         self.hook = None;
+        for scope in &mut self.hook_aliases {
+            scope.clear();
+        }
     }
 
     /// Drain diagnostics, builtin references, callables and pages.
@@ -4867,6 +4917,168 @@ impl<'a> Emitter<'a> {
     fn hook_gap(&mut self, what: &str, why: &str, span: Span) -> String {
         self.unsupported(what, why, span);
         self.throw_expr(&format!("{what} has no lowering"))
+    }
+
+    /// Innermost hook-alias classification for a source name: `Some(Some)`
+    /// is event-rooted, `Some(None)` shadows an outer alias with a plain
+    /// value, `None` was never event-rooted.
+    fn hook_alias_lookup(&self, name: &str) -> Option<Option<HookAlias>> {
+        self.hook_aliases
+            .iter()
+            .rev()
+            .find_map(|scope| scope.get(name).copied())
+    }
+
+    /// Classify an event-chain base inside hooks. Depth-1 snapshot reads
+    /// and parent-linkage identities lower; anything through them is a
+    /// traversal the engine cannot serve (identities carry `{model, id}`
+    /// only, and hook snapshots resolve no reference content).
+    fn hook_base_class(&self, expr: &TypedExpr) -> HookBase {
+        match &expr.expr {
+            IrExpr::Name(name) => {
+                if name == "event" {
+                    return HookBase::Event;
+                }
+                match self.hook_alias_lookup(name) {
+                    Some(Some(HookAlias::Snapshot)) => HookBase::Snapshot,
+                    Some(Some(HookAlias::Parent)) => HookBase::Parent,
+                    Some(Some(HookAlias::Staged)) => HookBase::Staged,
+                    Some(Some(HookAlias::Value)) | Some(None) | None => {
+                        // Event-derived values and plain names expose no
+                        // further event content; ordinary lowering owns them.
+                        // A `Value` alias read deeper below still gaps.
+                        if matches!(
+                            self.hook_alias_lookup(name),
+                            Some(Some(HookAlias::Value))
+                        ) {
+                            HookBase::Shallow
+                        } else {
+                            HookBase::Plain
+                        }
+                    }
+                }
+            }
+            IrExpr::Member { base, field } => match self.hook_base_class(base) {
+                HookBase::Event => {
+                    if field == "after" || field == "before" {
+                        HookBase::Root
+                    } else {
+                        HookBase::DeepRef
+                    }
+                }
+                HookBase::Root | HookBase::Snapshot => {
+                    if field == "parent" {
+                        HookBase::Parent
+                    } else {
+                        HookBase::Shallow
+                    }
+                }
+                HookBase::Parent => HookBase::DeepParent,
+                HookBase::Staged => HookBase::DeepStaged,
+                HookBase::Shallow | HookBase::DeepRef => HookBase::DeepRef,
+                HookBase::DeepParent => HookBase::DeepParent,
+                HookBase::DeepStaged => HookBase::DeepStaged,
+                HookBase::Plain => HookBase::Plain,
+            },
+            _ => HookBase::Plain,
+        }
+    }
+
+    /// Classify a hook `let` value for alias tracking. Snapshots and
+    /// parent steps track; other event-derived values track as `Value` so
+    /// deeper reads gap; everything else shadows with `None`.
+    fn hook_alias_class(&self, value: &TypedExpr) -> Option<HookAlias> {
+        if let IrExpr::Member { base, field } = &value.expr {
+            if matches!(&base.expr, IrExpr::Name(name) if name == "event")
+                && (field == "after" || field == "before")
+            {
+                return Some(HookAlias::Snapshot);
+            }
+            if field == "parent" {
+                match self.hook_base_class(base) {
+                    HookBase::Root | HookBase::Snapshot | HookBase::Parent => {
+                        return Some(HookAlias::Parent);
+                    }
+                    _ => {}
+                }
+            }
+            if matches!(
+                self.hook_base_class(base),
+                HookBase::Root | HookBase::Snapshot
+            ) {
+                return Some(HookAlias::Value);
+            }
+            return None;
+        }
+        if let IrExpr::Name(name) = &value.expr {
+            return self.hook_alias_lookup(name).flatten();
+        }
+        None
+    }
+
+    /// Traversal guard for hook member reads. Returns the throwing
+    /// placeholder (after reporting `E6008`) exactly when the read passes
+    /// through parent linkage or event reference content, which the hook
+    /// engine exposes as identity/`undefined` rather than rows. Depth-1
+    /// snapshot reads, linkage identities and ordinary names lower as
+    /// before.
+    fn hook_member_gap(
+        &mut self,
+        base: &TypedExpr,
+        field: &str,
+        span: Span,
+    ) -> Option<String> {
+        match self.hook_base_class(base) {
+            HookBase::Event => {
+                if field == "after" || field == "before" {
+                    None
+                } else {
+                    Some(self.hook_gap(
+                        "hook event traversal",
+                        "the hook event exposes after/before only; deeper event paths need the transitive load and have no hook lowering",
+                        span,
+                    ))
+                }
+            }
+            HookBase::Root | HookBase::Snapshot | HookBase::Plain => None,
+            HookBase::Parent => {
+                if field == "id" || field == "model" {
+                    None
+                } else {
+                    Some(self.hook_gap(
+                        "hook parent content",
+                        "parent linkage carries identity only (`{model, id}`); parent field reads need the transitive load and have no hook lowering",
+                        span,
+                    ))
+                }
+            }
+            HookBase::Staged => {
+                if field == "id" {
+                    None
+                } else {
+                    Some(self.hook_gap(
+                        "hook staged content",
+                        "staged bindings carry identity only (`{id}`); staged field reads have no hook lowering",
+                        span,
+                    ))
+                }
+            }
+            HookBase::Shallow | HookBase::DeepRef => Some(self.hook_gap(
+                "hook reference traversal",
+                "reads through event references need the transitive load and have no hook lowering",
+                span,
+            )),
+            HookBase::DeepParent => Some(self.hook_gap(
+                "hook parent content",
+                "parent linkage carries identity only (`{model, id}`); parent field reads need the transitive load and have no hook lowering",
+                span,
+            )),
+            HookBase::DeepStaged => Some(self.hook_gap(
+                "hook staged content",
+                "staged bindings carry identity only (`{id}`); staged field reads have no hook lowering",
+                span,
+            )),
+        }
     }
 
     /// Test-only callers reuse the exact production registry functions, whose
@@ -5942,6 +6154,10 @@ impl<'a> Emitter<'a> {
                 format!("judgmentSpecification(c,{}{options})", js_string(judgment))
             }
             IrExpr::Member { base, field } => {
+                if self.in_hook() && let Some(gap) = self.hook_member_gap(base, field, span)
+                {
+                    return gap;
+                }
                 // IR context reads synthesize an unknown-typed `c` base.
                 // A source parameter named c owns a different, checked value.
                 let ambient = matches!(&base.expr, IrExpr::Name(name) if name == "c")
@@ -6034,13 +6250,18 @@ impl<'a> Emitter<'a> {
                 format!("{{{}}}", parts.join(","))
             }
             IrExpr::Query(query) => {
-                if self.in_hook() {
+                if self.in_hook() && !self.hook_native() {
                     return self.hook_gap(
                         "hook query",
                         "hooks read event.after/event.before; queries have no hook lowering",
                         span,
                     );
                 }
+                // Native hooks lower contained reads over the event
+                // snapshots through the accepted query engine with the
+                // trigger's author/clock (`c`); the owner-policy plan
+                // admits only event-rooted contained queries. Snapshots
+                // stay intact and reads observe committed rows.
                 self.lower_query(query, span)
             }
             IrExpr::DeliveryRead {
@@ -7546,7 +7767,10 @@ impl<'a> Emitter<'a> {
         r: &str,
     ) -> String {
         let negate = op == IrBinOp::Ne;
-        // `null` against any nullable side compares directly.
+        // `null` against any nullable side compares directly. Composite
+        // operands keep their own parens: `??`/`&&`/`||` bind looser than
+        // `===`, so an unparenthesized `a ?? b === null` would read as
+        // `a ?? (b === null)`.
         if matches!(left.ty, ResolvedType::Null) || matches!(right.ty, ResolvedType::Null) {
             let js_op = if negate { "!==" } else { "===" };
             return format!(
@@ -7556,9 +7780,16 @@ impl<'a> Emitter<'a> {
             );
         }
         // Nullable values must apply the owning null rules before a scalar
-        // comparator or reference helper sees either operand. Hook carrier
-        // qualification remains on its existing lowering paths.
-        if !self.in_hook()
+        // comparator or reference helper sees either operand. Hooks reuse
+        // the same null-safe path except where decimal/money keep their
+        // existing hook qualification below.
+        let decimal_money = [left, right].iter().any(|side| {
+            matches!(
+                scalar_family(&side.ty),
+                Some(ScalarFamily::Decimal | ScalarFamily::Money)
+            )
+        });
+        if (!self.in_hook() || !decimal_money)
             && (matches!(left.ty, ResolvedType::Nullable(_))
                 || matches!(right.ty, ResolvedType::Nullable(_)))
         {
@@ -7673,7 +7904,11 @@ impl<'a> Emitter<'a> {
                     }
                     _ => {
                         let js_op = if negate { "!==" } else { "===" };
-                        format!("{l} {js_op} {r}")
+                        format!(
+                            "{} {js_op} {}",
+                            parenthesize_operand(l, &left.expr),
+                            parenthesize_operand(r, &right.expr)
+                        )
                     }
                 }
             }
@@ -7681,8 +7916,15 @@ impl<'a> Emitter<'a> {
                 Some(ScalarFamily::Bool | ScalarFamily::Text | ScalarFamily::Enum),
                 Some(ScalarFamily::Bool | ScalarFamily::Text | ScalarFamily::Enum),
             ) => {
+                // Composite operands keep their own parens: `??`/`&&`/`||`
+                // bind looser than `===`, so an unparenthesized
+                // `a ?? b === false` would read as `a ?? (b === false)`.
                 let js_op = if negate { "!==" } else { "===" };
-                format!("{l} {js_op} {r}")
+                format!(
+                    "{} {js_op} {}",
+                    parenthesize_operand(l, &left.expr),
+                    parenthesize_operand(r, &right.expr)
+                )
             }
             (Some(ScalarFamily::Reference), Some(ScalarFamily::Reference)) => {
                 self.stdlib.insert("same".to_string());
@@ -8781,12 +9023,22 @@ impl<'a> Emitter<'a> {
                     )];
                 }
                 let formatted = self.expr_formatted(value);
+                let alias = if self.in_hook() {
+                    Some(self.hook_alias_class(value))
+                } else {
+                    None
+                };
                 let value_text = self.lower_expr(value);
                 let emitted = self.bind(name);
                 self.formatted_bindings
                     .last_mut()
                     .expect("lexical scope")
                     .insert(name.clone(), formatted);
+                if let Some(alias) = alias {
+                    if let Some(scope) = self.hook_aliases.last_mut() {
+                        scope.insert(name.clone(), alias);
+                    }
+                }
                 vec![(format!("{pad}const {emitted} = {value_text};"), *span)]
             }
             IrStmt::Create {
@@ -9029,7 +9281,7 @@ impl<'a> Emitter<'a> {
                 payload,
                 span,
             } => {
-                if self.hook.is_some() {
+                if self.in_hook() && !self.hook_native() {
                     self.unsupported(
                         "emit effect",
                         "Rule A stages no outbox writes from hooks; emit has no hook lowering",
@@ -9043,6 +9295,12 @@ impl<'a> Emitter<'a> {
                         *span,
                     )];
                 }
+                // Native hooks emit through the same deferred pipeline as
+                // scenarios (`await emit(c, …)` with the ambient context):
+                // guards lower ahead in source order, staged writes and
+                // timers commit atomically alongside, null payload paths
+                // are preserved, and post-commit handlers run in later
+                // transactions that never undo the committed source.
                 self.stdlib.insert("emit".to_string());
                 let payload_text = self.lower_expr(payload);
                 vec![(
@@ -9386,7 +9644,16 @@ impl<'a> Emitter<'a> {
                     awaited
                 };
                 self.enter_scope();
+                let in_hook = self.in_hook();
+                let item_source = item.clone();
                 let item = self.bind(item);
+                if in_hook {
+                    // Loop rows are full stored rows from the lowered domain,
+                    // never parent linkage: shadow any outer hook alias.
+                    if let Some(scope) = self.hook_aliases.last_mut() {
+                        scope.insert(item_source, None);
+                    }
+                }
                 lines.push((format!("{pad}for (const {item} of {over}) {{"), *span));
                 for stmt in body {
                     lines.extend(self.lower_stmt(stmt, indent + 1));
@@ -9504,20 +9771,61 @@ impl<'a> Emitter<'a> {
             span,
         ));
         let id_ref = binding.clone().map(|name| self.bind(&name));
-        let bind_line = match &id_ref {
+        if self.in_hook() {
+            // Staged bindings carry the bound `{id}` identity: bare and
+            // `.id` uses lower; field reads gap loud (see hook_member_gap).
+            if let Some(source) = binding {
+                if let Some(scope) = self.hook_aliases.last_mut() {
+                    scope.insert(source.clone(), Some(HookAlias::Staged));
+                }
+            }
+        }
+        // C22 staged identity: `triggerId/staged/<operationId>/<site>/`
+        // `<occurrence>` for the first create of a fire, with `/<counter>`
+        // after. The operation id is the owning runtime's immutable
+        // invocation identity (`$hookCtx.operationId`, recorded on every
+        // history entry), so distinct operations stage distinct children
+        // while replaying one operation restages its same ids; the site is
+        // this hook's checked canonical, so distinct hooks on one fire
+        // stage distinct children; the occurrence is this operation's
+        // prior-fire ordinal for the hook (`$hookCtx.hookOccurrence`), so
+        // a repeated trigger in one batch never restages an earlier fire.
+        // The `??` fallbacks keep hand-built contexts on a stable identity.
+        let slot = binding_ident("n", &self.binding_seq.to_string());
+        self.binding_seq += 1;
+        let site = js_string(
+            &self
+                .hook
+                .as_ref()
+                .map(|hook| hook.site.clone())
+                .unwrap_or_default(),
+        );
+        let id_value = format!(
+            "$hookCtx.triggerId+\"/staged/\"+(($hookCtx.operationId??\"0\"))+\"/\"+{site}+\"/\"+(($hookCtx.hookOccurrence??0))+({slot}===0?\"\":\"/\"+{slot})"
+        );
+        let mut lines: Vec<(String, Span)> = match &id_ref {
             Some(name) => {
-                format!("{pad}const {name}={{id:$hookCtx.triggerId+\"/staged/\"+($stagedNext++)}};")
+                vec![
+                    (format!("{pad}const {slot}=$stagedNext++;"), span),
+                    (format!("{pad}const {name}={{id:{id_value}}};"), span),
+                ]
             }
             None => {
-                format!("{pad}$pending={{id:$hookCtx.triggerId+\"/staged/\"+($stagedNext++)}};")
+                vec![
+                    (format!("{pad}const {slot}=$stagedNext++;"), span),
+                    (format!("{pad}$pending={{id:{id_value}}};"), span),
+                ]
             }
         };
         let id_ref = id_ref.unwrap_or_else(|| "$pending".to_string());
-        let stage_line = format!(
-            "{pad}$hookCtx.stage({{op:\"create\",model:{},id:{id_ref}.id{parent_text},data:{data}}});",
-            js_string(model)
-        );
-        vec![(bind_line, span), (stage_line, span)]
+        lines.push((
+            format!(
+                "{pad}$hookCtx.stage({{op:\"create\",model:{},id:{id_ref}.id{parent_text},data:{data}}});",
+                js_string(model)
+            ),
+            span,
+        ));
+        lines
     }
 
     /// Lower a `set` inside a hook: `set event.after` assigns the same
@@ -16257,7 +16565,7 @@ impl<'a> Emitter<'a> {
             );
             out.push(item.span, Some(item.canonical.clone()), "let $pending;");
             self.enter_scope();
-            self.enter_hook(hook.model, native);
+            self.enter_hook(hook.model, native, &item.canonical);
             for guard in guards {
                 for (line, span) in self.lower_stmt(guard, 0) {
                     out.push(span, Some(item.canonical.clone()), &line);
