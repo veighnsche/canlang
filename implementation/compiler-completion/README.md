@@ -7700,3 +7700,10 @@ stay ready obligations, occurrence counts are not progress. Ready obligations
 restated: 70 on= query-authority shapes, hook parent/traversal/staged
 content, enum filters, dispatch receipt, active_member checked source.
 Do not merge main into B14's active inputs.
+
+**MAIN-10 acceptance, 2026-10-16:** bool-filter/typed-preference stack
+accepted `9c6a2ba67`, reconciled `47c897f1a` (c053/539/594/ef3/721/6b3/79/a3
+only; factory-788 extensions await intake, not merged). Independent page +
+HTTP 38/38 on immutable compiler. Supersedes MAIN-9 bool-not-accepted.
+Original24 still 351 failing; scoped consumers don't close whole workflows.
+B14 inputs unchanged.
