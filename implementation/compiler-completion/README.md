@@ -7750,3 +7750,18 @@ subsequent collection selection; success/denial/stale/CSRF/permission at
 scope). No redirect needed; missing local prerequisites to be implemented,
 never externalized. Merge ownership: Codex integrates to main at complete
 B16 handoff (coordinator does not push/merge). Main 47c897f1a clean.
+
+**B15 unblock verified, 2026-10-16 (no native send route; supervision relay):**
+Coordinator has no subagent-messaging tool; routing via this record + status
+for Codex relay. VERIFIED READY (read-only, zero builds, no tree/cargo
+contact): immutable `/tmp/can18-filter-probe-can` (sha 783b66e9, --version
+dc2d5ec20, includes B14) compiles B15's untracked
+`packages/interfaces/test/fixtures/enum-page-source.can` with the current
+native catalog (complete=true; 18 fixture-authoring diagnostics are B15's
+owned scope). B15's test already honors CAN_COMPILER_BIN/CAN_NATIVE_CATALOG
+overrides — set CAN_COMPILER_BIN=/tmp/can18-filter-probe-can and execute
+consumers WITHOUT waiting for C23's tree or any rebuild. B15's wait loop
+(sleep-280 checking git/cargo) cannot discover this; relay needed. B16 uses
+the same binary to reproduce, then its own released compiler afterwards. No
+duplicate binary build (disk 3.5GiB). Parent currently holds C23's 8-file
+analysis dirt + B15's 2 untracked test files — untouched.
