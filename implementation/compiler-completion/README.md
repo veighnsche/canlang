@@ -47,6 +47,23 @@ The retained369 original24 capture predates this batch; no new composition count
 is claimed until the next frozen changed-cohort capture. Continue the current
 execution list, including native-handler ownership and deferred membership work.
 
+### Accepted deferred membership drive batch — 2026-10-16
+
+Main `ced21de11` integrates finite A15 `e2383464d`: the dispatch producer binds
+at drive-fence setup after staging, retaining the exact checked source/closure
+and immutable source association. Other producers retain pre-execution binding.
+Independent frozen-producer actual Can drive3/3 and main State/Cloudflare builds
+plus actual main Can drive3/3 pass: granted delivery once; revocation after staging
+returns exact `not-claimed/guard-false` with no provider call; never-member stages
+nothing. The real compiled source, assembly, installed File inventory and Work
+fence are used. Main runtime setup restored17 missing direct SDK1.32.0 dependency
+links from its matching existing cache; no install, lockfile or version changed.
+
+This runtime fix does not clear the original four Employees `staff`/`can_work`
+compiler-source observations. Those, native-handler ownership and the remaining
+canonical groups stay open. The last original24 capture predates these batches;
+no new count or full-composition readiness is asserted. Continue ready work.
+
 The named semantic review is resolved at specification scope:
 
 - **C02/C03 — contextual reads and reuse:** a State-dependent pure expression
