@@ -9939,9 +9939,11 @@ impl<'a> Cx<'a> {
     /// The identity is the canonical `capability.op` path; the result
     /// name renders the op's declared result for the invocation
     /// descriptor (records by canonical name, std nominals by name,
-    /// scalars and enums by declared spelling). Anything else yields
-    /// `None` and keeps the §13 refusal: the completion payload would
-    /// be unnameable.
+    /// scalars and enums by declared spelling, nullable results by
+    /// their inner shape — the §8 envelope already marks the result
+    /// nullable and the JS carrier re-applies the `?`). Anything else
+    /// yields `None` and keeps the §13 refusal: the completion payload
+    /// would be unnameable.
     fn delivery_completion_source(
         &self,
         capability: SymbolId,
@@ -9953,7 +9955,11 @@ impl<'a> Cx<'a> {
             return None;
         };
         let result = self.completion_result_type(op)?;
-        let result_type = match &result {
+        let mut result = &result;
+        while let ResolvedType::Nullable(inner) = result {
+            result = inner;
+        }
+        let result_type = match result {
             ResolvedType::Record { symbol, .. } => self
                 .program
                 .symbols
