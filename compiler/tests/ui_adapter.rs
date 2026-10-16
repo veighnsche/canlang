@@ -938,7 +938,12 @@ fn unsupported_ui_payloads_refuse_instead_of_losing_authored_meaning() {
             "  tabs \"Unused\"@{nl=\"Ongebruikt\"}\n   tab \"One\"\n    text \"Body\"\n",
             "bound tab panels",
         ),
-        ("  stat 1,2\n", "stat"),
+        // Page-level `stat 1,2` is admitted by the outcome-6/B17 factory
+        // slice (DESIGN s9 multi-value stat: int literals lower header by
+        // header through the single-value stat profile and render via the
+        // real stat factory; twin refusal coverage for unrenderable money
+        // headers lives in factory_profiles), so it no longer belongs in
+        // this refusal list.
         // Bare `metrics 1` is admitted by the outcome-6 payload slice
         // (DESIGN s9 `metrics expr,...`: one typed scalar through the
         // shared stat contract; a constant needs no row grant), so it no

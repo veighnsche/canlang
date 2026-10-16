@@ -8,9 +8,13 @@
 //! stat profile (metrics-style visual join), `copy` takes string-carried
 //! text/URL values, `radial_progress` takes body-free int/decimal values
 //! with an int max, `steps` item slots take one text stage or one owning
-//! status stage, `indicator` takes its content/indicator slots, agenda
-//! `calendar` takes `columns=`, `timeline` renders its bound sequence
-//! through the shared collection pipeline with one item template, and a
+//! status stage, `indicator` takes its content/indicator slots, and agenda
+//! `calendar` without `columns=` keeps lowering. `timeline` bound
+//! sequences and agenda `calendar columns=` have NO supported
+//! source-to-factory profile: the owning TimelineProps takes prebuilt
+//! items only (a bound emission throws reading items.length in the real
+//! factory, REVIEW-21), and calendarAgenda never reads columns
+//! (byte-identical output either way). Both stay loud E6008. A
 //! standalone `filter preferences.field` carries the same collection
 //! filter/default descriptor the view-preference production consumes.
 //! `collapse` and headed `hero` with nonempty suites already lower (locked
@@ -83,12 +87,23 @@ fn multi_value_stat_lowers_as_single_value_stats() {
     );
 }
 
-/// Recorded CanStock shape: the shared metric contract also covers money
-/// values header by header.
+/// Recorded CanMember shape: decimal values lower header by header.
 #[test]
-fn multi_value_money_stat_lowers() {
+fn multi_value_decimal_stat_lowers() {
     assert_lowers(
+        "app Probe\nGiven\n Allowance { granted:decimal, available:decimal }\n policy Allowance read=public\nWhen\nThen\n page /a title=\"A\"\n  list Allowance columns=granted,available\n   stat row.granted,row.available\n",
+    );
+}
+
+/// Recorded CanRefer/CanPurchase shape: money values have no stat value
+/// profile (the owning stat factory renders TextValue only; raw money
+/// row values throw), so multi-value money stats keep their refusal.
+#[test]
+fn multi_value_money_stat_refuses() {
+    assert_refuses(
         "app Probe\nGiven\n Budget { total:money, spent:money }\n policy Budget read=public\nWhen\nThen\n page /b title=\"B\"\n  list Budget columns=total,spent\n   stat row.total,row.spent\n",
+        "E6008",
+        "only one value header",
     );
 }
 
@@ -163,20 +178,35 @@ fn collapse_with_suite_lowers() {
     );
 }
 
-/// Recorded CanStock timeline: a bound child sequence with one item
-/// template through the shared collection pipeline.
+/// Recorded CanStock timeline: a bound child sequence has no items-based
+/// factory profile. The owning TimelineProps takes prebuilt items only,
+/// so the bound shape stays refused (its former emission threw reading
+/// items.length in the real factory, REVIEW-21).
 #[test]
-fn timeline_sequence_with_item_template_lowers() {
-    assert_lowers(
+fn timeline_bound_sequence_refuses() {
+    assert_refuses(
         "app Probe\nGiven\n Account { title:text }\n Movement in Account { reason:text, quantity:int }\n policy Account read=public\nWhen\nThen\n page /a title=\"A\"\n  list Account columns=title\n   timeline row.Movement order=-quantity\n    slot item\n     badge row.quantity\n     text row.reason\n",
+        "E6008",
+        "no supported source-to-factory profile",
     );
 }
 
-/// Recorded CanLeave agenda: option columns on the date-grouped calendar.
+/// Recorded CanLeave agenda: option columns on the date-grouped calendar
+/// has no consumed factory profile (calendarAgenda never reads columns).
 #[test]
-fn agenda_calendar_with_columns_lowers() {
-    assert_lowers(
+fn agenda_calendar_with_columns_refuses() {
+    assert_refuses(
         "app Probe\nGiven\n Request { state:enum(open,closed) label={text=\"S\",values={open=\"Open\",closed=\"Closed\"}}, from:date, until:date, location:text }\n policy Request read=public\nWhen\nThen\n page /l title=\"L\"\n  calendar Request as request where request.state==open start=from end=until columns=location,state empty=\"None\"\n   badge row.state\n",
+        "E6008",
+        "option columns has no consumed factory profile",
+    );
+}
+
+/// The same agenda without columns= keeps lowering.
+#[test]
+fn agenda_calendar_without_columns_lowers() {
+    assert_lowers(
+        "app Probe\nGiven\n Request { state:enum(open,closed) label={text=\"S\",values={open=\"Open\",closed=\"Closed\"}}, from:date, until:date, location:text }\n policy Request read=public\nWhen\nThen\n page /l title=\"L\"\n  calendar Request as request where request.state==open start=from end=until empty=\"None\"\n   badge row.state\n",
     );
 }
 
@@ -260,23 +290,42 @@ fn agenda_calendar_unknown_option_refuses() {
     );
 }
 
-/// A timeline without exactly one item template keeps its refusal.
+/// A timeline with extra suites keeps its refusal.
 #[test]
 fn timeline_with_two_slots_refuses() {
     assert_refuses(
         "app Probe\nGiven\n Account { title:text }\n Movement in Account { reason:text, quantity:int }\n policy Account read=public\nWhen\nThen\n page /a title=\"A\"\n  list Account columns=title\n   timeline row.Movement\n    slot item\n     text row.reason\n    slot note\n     text row.quantity\n",
         "E6008",
-        "one item slot template",
+        "no supported source-to-factory profile",
     );
 }
 
-/// A second sequence header has no timeline profile.
+/// Recorded CanExpense cascade: a collapse whose only content is a bound
+/// timeline keeps both refusals, each at its owning node.
+#[test]
+fn collapse_over_bound_timeline_cascades() {
+    let diags = emit_all(
+        "app Probe\nGiven\n Account { title:text }\n Decision in Account { reason:text }\n policy Account read=public\nWhen\nThen\n page /a title=\"A\"\n  list Account columns=title\n   collapse \"Decisions\"\n    timeline row.Decision\n     slot item\n      text row.reason\n",
+    );
+    assert!(
+        diags.iter().any(|d| d.contains("cannot lower timeline")
+            && d.contains("no supported source-to-factory profile")),
+        "timeline keeps its refusal, got: {diags:?}"
+    );
+    assert!(
+        diags.iter().any(|d| d.contains("cannot lower collapse")
+            && d.contains("nonempty content suite")),
+        "collapse keeps its cascade refusal, got: {diags:?}"
+    );
+}
+
+/// A second sequence header keeps its refusal.
 #[test]
 fn timeline_with_two_headers_refuses() {
     assert_refuses(
         "app Probe\nGiven\n Account { title:text }\n Movement in Account { reason:text, quantity:int }\n policy Account read=public\nWhen\nThen\n page /a title=\"A\"\n  list Account columns=title\n   timeline row.Movement,row.title\n    slot item\n     text row.reason\n",
         "E6008",
-        "extra collection headers",
+        "no supported source-to-factory profile",
     );
 }
 

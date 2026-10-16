@@ -14384,11 +14384,11 @@ impl<'a> Cx<'a> {
             {
                 self.decode_collection(scope, node, word)
             }
-            // A timeline renders its bound sequence through the shared
-            // collection pipeline: one sequence header, an optional order,
-            // and exactly one item template (see the UI catalog timeline
-            // collection profile).
-            "timeline" => self.decode_collection(scope, node, word),
+            // A bound timeline has no items-based factory profile: the
+            // owning TimelineProps takes prebuilt items only, with no
+            // model/query/renderRow path (REVIEW-21: the bound emission
+            // throws reading items.length in the real factory). Bound
+            // timelines stay a loud E6008 at the catalog fallback below.
             "calendar" => self.decode_date_calendar(scope, node, row_ctx),
             "collapse" => self.decode_disclosure(scope, node, word, row_ctx),
             "dropdown" => self.decode_slotted_group(scope, node, row_ctx, "dropdown", &["trigger", "content"], &[]),
@@ -16507,20 +16507,32 @@ impl<'a> Cx<'a> {
             [header] if children.is_empty() => props.push(("value".to_string(), self.decode_ui_header_value(scope, header))),
             // `stat a,b,...` shares the metrics visual-join contract: each
             // value header lowers through the single-value stat profile.
+            // Money is excluded: the owning stat factory renders TextValue
+            // only, and a raw money row value throws in renderTextValue
+            // (REVIEW-21 family execution proof), so money headers keep the
+            // exact refusal instead of compiling to a runtime throw.
             [_, _, ..] if children.is_empty() && ui_attributes(self.db, node).is_empty() => {
                 let gate = self.decode_gate(scope, node);
-                let stats = headers
-                    .iter()
-                    .map(|header| IrUi {
+                let mut stats = Vec::new();
+                for header in headers {
+                    let value = self.decode_ui_header_value(scope, header);
+                    if matches!(
+                        value.ty.nullable_inner().unwrap_or(&value.ty),
+                        ResolvedType::Scalar(Scalar::Money)
+                    ) {
+                        self.diags.push(Diagnostic::error("E6008", "cannot lower stat: only one value header without a slotted suite has an owning factory profile".to_string(), node.span));
+                        return None;
+                    }
+                    stats.push(IrUi {
                         view: None,
                         factory: "stat".to_string(),
-                        props: vec![("value".to_string(), self.decode_ui_header_value(scope, header))],
+                        props: vec![("value".to_string(), value)],
                         children: Vec::new(),
                         row_scope: None,
                         gate: None,
                         span: header.span,
-                    })
-                    .collect();
+                    });
+                }
                 return Some(IrUi {
                     view: None,
                     factory: "join".to_string(),
@@ -19273,7 +19285,7 @@ impl<'a> Cx<'a> {
                 }
             }
         }
-        if !matches!(word, "list" | "table" | "calendar" | "gallery" | "board" | "timeline") {
+        if !matches!(word, "list" | "table" | "calendar" | "gallery" | "board") {
             self.diags.push(Diagnostic::error(
                 "E6008",
                 format!(
@@ -19283,11 +19295,13 @@ impl<'a> Cx<'a> {
             ));
             return None;
         }
-        let admitted: &[&str] = if word == "timeline" {
-            &["parent", "order"]
-        } else if word == "calendar" {
+        // Agenda `columns=` has no consumed factory profile: the owning
+        // calendarAgenda factory never reads columns (REVIEW-21 family:
+        // the emitted prop rendered byte-identical output either way, so
+        // the option stays a loud E6008 via check_ui_attributes below).
+        let admitted: &[&str] = if word == "calendar" {
             &[
-                "parent", "empty", "limit", "cursor", "start", "end", "columns", "filter",
+                "parent", "empty", "limit", "cursor", "start", "end", "filter",
                 "defaults", "order",
             ]
         } else if word == "gallery" {
@@ -19519,56 +19533,6 @@ impl<'a> Cx<'a> {
                         continue;
                     }
                     if name == "order" && value.kind != SyntaxKind::Selectors {
-                        // Timelines author one plain field order as an
-                        // expression (the catalog item shape carries no
-                        // Selectors wrapper); resolve the field against the
-                        // bound model. Anything else keeps the refusal below.
-                        if word == "timeline" {
-                            let mut key_node = value.clone();
-                            let mut descending = false;
-                            if key_node.kind == SyntaxKind::Unary
-                                && kids(&key_node).iter().any(|part| {
-                                    part.kind == SyntaxKind::Punct && self.text(part.span) == "-"
-                                })
-                            {
-                                let parts = kids(&key_node);
-                                if let Some(operand) = parts
-                                    .iter()
-                                    .find(|part| is_expression(part.kind))
-                                    .map(|part| (*part).clone())
-                                {
-                                    descending = true;
-                                    key_node = operand;
-                                }
-                            }
-                            let field = if key_node.kind == SyntaxKind::Path {
-                                path_text(self.db, &key_node)
-                            } else if key_node.kind == SyntaxKind::NameRef {
-                                self.text(key_node.span).to_string()
-                            } else {
-                                String::new()
-                            };
-                            if !field.is_empty()
-                                && self.fields.get(&(id, field.clone())).is_some()
-                            {
-                                let order =
-                                    format!("{}{}", if descending { "-" } else { "" }, field);
-                                let span = value.span;
-                                props.push((
-                                    name,
-                                    TypedExpr::new(
-                                        IrExpr::Array(vec![TypedExpr::new(
-                                            IrExpr::Text(order),
-                                            ResolvedType::Scalar(Scalar::Text),
-                                            span,
-                                        )]),
-                                        ResolvedType::Unknown,
-                                        span,
-                                    ),
-                                ));
-                                continue;
-                            }
-                        }
                         self.diags.push(Diagnostic::error(
                             "E6008",
                             "cannot lower collection order: preference-dispatched ordering has no query profile".to_string(),
@@ -19675,31 +19639,6 @@ impl<'a> Cx<'a> {
             .filter(|n| is_ui_node(n.kind))
             .copied()
             .collect();
-        if word == "timeline" {
-            // The timeline template is the single item slot's suite; other
-            // suites and bare children have no timeline profile.
-            let template = child_nodes
-                .iter()
-                .copied()
-                .filter(|child| {
-                    child.kind == SyntaxKind::Slot
-                        && slot_name(self.db, child).as_deref() == Some("item")
-                })
-                .collect::<Vec<_>>();
-            if template.len() != 1 || child_nodes.len() != 1 {
-                self.diags.push(Diagnostic::error(
-                    "E6008",
-                    "cannot lower timeline: timeline takes one item slot template".to_string(),
-                    node.span,
-                ));
-                return None;
-            }
-            child_nodes = kids(template[0])
-                .iter()
-                .filter(|n| is_ui_node(n.kind))
-                .copied()
-                .collect();
-        }
         let counts: Vec<_> = child_nodes
             .iter()
             .copied()
@@ -19866,7 +19805,7 @@ impl<'a> Cx<'a> {
             .filter_map(|n| self.decode_ui(&unowned, n, row_ctx.clone()))
             .collect();
         let gate = self.decode_gate(scope, node);
-        let row_scope = (matches!(word, "list" | "calendar" | "timeline")
+        let row_scope = (matches!(word, "list" | "calendar")
             || ((matches!(word, "table" | "gallery") || split) && !children.is_empty()))
         .then_some((row_name, "rowView".to_string()));
         Some(IrUi {

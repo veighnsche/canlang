@@ -2884,10 +2884,6 @@ fn ui_prop_is_admitted(factory: &str, key: &str) -> bool {
                 | "defaults"
                 | "by"
         ),
-        "timeline" => matches!(
-            key,
-            "model" | "parent" | "order" | "page"
-        ),
         "filter" => matches!(key, "binding" | "caption"),
         "copy" => matches!(key, "value" | "label" | "id"),
         "toggle" => key == "field",
@@ -2960,7 +2956,6 @@ fn ui_prop_is_admitted(factory: &str, key: &str) -> bool {
                 | "cursor"
                 | "empty"
                 | "page"
-                | "columns"
                 | "filter"
                 | "defaults"
         ),
@@ -11313,7 +11308,7 @@ impl<'a> Emitter<'a> {
                 "page"
                     if matches!(
                         node.factory.as_str(),
-                        "list" | "table" | "calendar" | "gallery" | "timeline"
+                        "list" | "table" | "calendar" | "gallery"
                     ) =>
                 {
                     matches!(value.expr, IrExpr::Bool(true))
