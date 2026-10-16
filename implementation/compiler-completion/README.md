@@ -91,6 +91,17 @@ one stale pin: model-reference board filters assert admitted per accepted C1
 (merge27) instead of loud. membership 10/10, bridge 10/10, hook_lowering
 26/26. No trapped predicates; forged-source/order negatives retained.
 
+### Current original24 (frozen main agap cohort) — 288 E6008 — 2026-10-17
+
+[evidence/original24-main-20261016.json](../../evidence/original24-main-20261016.json):
+frozen main producer `93ea5761` + native catalog `ca50`, saved argv, exit 10,
+420.10s, complete=true, omitted=0, 26 sources, all authored hashes match.
+−10 vs 298 (reference-traversal 4, active_member 4, agenda 1, option-columns
+1); zero added. 298 retained in git history. Next ready groups: first-query
+90, hook query 39, dispatch guard 23, hook `now` 22, collection domain 10,
+hook derive 10, table filters 18, archived 6, parent content 5, list
+filters 8, staged remainder, C2/C3 text/date.
+
 ### Current original24 (frozen main regress cohort) — 298 E6008 — 2026-10-16
 
 [evidence/original24-main-20261016.json](../../evidence/original24-main-20261016.json):
