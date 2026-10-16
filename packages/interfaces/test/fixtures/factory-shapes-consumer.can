@@ -1,0 +1,37 @@
+app Probe
+Given
+ Account { title:text, done:int, total:int }
+ Allowance { granted:decimal, available:decimal }
+ Advocate { name:text }
+ Term { executed:bool=false, expired:bool=false }
+ Job { address:text, state:enum(open,closed) label={text="S",values={open="Open",closed="Closed"}} }
+ Request { state:enum(open,closed) label={text="S",values={open="Open",closed="Closed"}}, from:date, until:date, location:text }
+ policy Account read=public
+ policy Allowance read=public
+ policy Advocate read=public
+ policy Term read=public
+ policy Job read=public
+ policy Request read=public
+When
+Then
+ page /shapes title="Shapes"
+  list Account columns=title
+   stat row.done,row.total
+  list Allowance columns=granted,available
+   stat row.granted,row.available
+  list Advocate columns=name
+   copy app_url(format("/referrals/share/{id}",{id=row.id}))
+  list Term columns=executed
+   steps
+    slot item
+     status row.executed
+    slot item
+     status row.expired
+  list Job columns=address
+   indicator
+    slot content
+     text row.address
+    slot indicator
+     badge row.state
+  calendar Request as request where request.state==open start=from end=until empty="None"
+   badge row.state

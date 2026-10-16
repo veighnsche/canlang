@@ -13964,7 +13964,6 @@ impl<'a> Cx<'a> {
         node: &SyntaxNode,
         row_ctx: Option<(SymbolId, String)>,
     ) -> Option<IrUi> {
-        let _ = row_ctx;
         self.check_ui_attributes(node, "steps", &[]);
         if kids(node)
             .into_iter()
@@ -14010,6 +14009,8 @@ impl<'a> Cx<'a> {
                 .into_iter()
                 .filter(|n| {
                     (n.kind == SyntaxKind::UiLeaf && ui_word(self.db, n) == "text")
+                        || ((n.kind == SyntaxKind::UiLeaf || n.kind == SyntaxKind::CatalogItem)
+                            && ui_word(self.db, n) == "status")
                         || n.kind == SyntaxKind::MessageValue
                 })
                 .collect();
@@ -14023,6 +14024,38 @@ impl<'a> Cx<'a> {
             }
             let label = if texts[0].kind == SyntaxKind::MessageValue {
                 self.decode_ui_header_value(scope, texts[0])
+            } else if ui_word(self.db, texts[0]) == "status" {
+                // A recorded lifecycle stage shows its live flag beside the
+                // frozen record: the owning status profile supplies the
+                // text-bearing value, with no stage options or suite.
+                if !ui_attributes(self.db, texts[0]).is_empty() {
+                    self.diags.push(Diagnostic::error(
+                        "E6008",
+                        "cannot lower steps: each item slot takes one text stage".to_string(),
+                        texts[0].span,
+                    ));
+                    return None;
+                }
+                let Some(stage) = self.decode_status(scope, texts[0], row_ctx.clone()) else {
+                    return None;
+                };
+                if stage.gate.is_some() {
+                    self.diags.push(Diagnostic::error(
+                        "E6008",
+                        "cannot lower steps: each item slot takes one text stage".to_string(),
+                        texts[0].span,
+                    ));
+                    return None;
+                }
+                let Some((_, value)) = stage.props.into_iter().find(|(key, _)| key == "value") else {
+                    self.diags.push(Diagnostic::error(
+                        "E6008",
+                        "cannot lower steps: each item slot takes one text stage".to_string(),
+                        texts[0].span,
+                    ));
+                    return None;
+                };
+                value
             } else {
                 let headers: Vec<&SyntaxNode> = kids(texts[0])
                     .into_iter()
@@ -14351,10 +14384,16 @@ impl<'a> Cx<'a> {
             {
                 self.decode_collection(scope, node, word)
             }
-            "filter" => self.decode_standalone_filter(scope, node, word),
+            // A bound timeline has no items-based factory profile: the
+            // owning TimelineProps takes prebuilt items only, with no
+            // model/query/renderRow path (REVIEW-21: the bound emission
+            // throws reading items.length in the real factory). Bound
+            // timelines stay a loud E6008 at the catalog fallback below.
             "calendar" => self.decode_date_calendar(scope, node, row_ctx),
             "collapse" => self.decode_disclosure(scope, node, word, row_ctx),
             "dropdown" => self.decode_slotted_group(scope, node, row_ctx, "dropdown", &["trigger", "content"], &[]),
+            "filter" => self.decode_standalone_filter(scope, node, word),
+            "indicator" => self.decode_slotted_group(scope, node, row_ctx, "indicator", &["content", "indicator"], &[]),
             "swap" => self.decode_swap(scope, node, row_ctx),
             "diff" => self.decode_slotted_group(scope, node, row_ctx, "diff", &["before", "after"], &[]),
             "steps" => self.decode_steps(scope, node, row_ctx),
@@ -16466,6 +16505,44 @@ impl<'a> Cx<'a> {
         let children = self.decode_ui_children(scope, node, row_ctx);
         match headers.as_slice() {
             [header] if children.is_empty() => props.push(("value".to_string(), self.decode_ui_header_value(scope, header))),
+            // `stat a,b,...` shares the metrics visual-join contract: each
+            // value header lowers through the single-value stat profile.
+            // Money is excluded: the owning stat factory renders TextValue
+            // only, and a raw money row value throws in renderTextValue
+            // (REVIEW-21 family execution proof), so money headers keep the
+            // exact refusal instead of compiling to a runtime throw.
+            [_, _, ..] if children.is_empty() && ui_attributes(self.db, node).is_empty() => {
+                let gate = self.decode_gate(scope, node);
+                let mut stats = Vec::new();
+                for header in headers {
+                    let value = self.decode_ui_header_value(scope, header);
+                    if matches!(
+                        value.ty.nullable_inner().unwrap_or(&value.ty),
+                        ResolvedType::Scalar(Scalar::Money)
+                    ) {
+                        self.diags.push(Diagnostic::error("E6008", "cannot lower stat: only one value header without a slotted suite has an owning factory profile".to_string(), node.span));
+                        return None;
+                    }
+                    stats.push(IrUi {
+                        view: None,
+                        factory: "stat".to_string(),
+                        props: vec![("value".to_string(), value)],
+                        children: Vec::new(),
+                        row_scope: None,
+                        gate: None,
+                        span: header.span,
+                    });
+                }
+                return Some(IrUi {
+                    view: None,
+                    factory: "join".to_string(),
+                    props: Vec::new(),
+                    children: stats,
+                    row_scope: None,
+                    gate,
+                    span: node.span,
+                });
+            }
             _ => {
                 self.diags.push(Diagnostic::error("E6008", "cannot lower stat: only one value header without a slotted suite has an owning factory profile".to_string(), node.span));
                 return None;
@@ -19217,9 +19294,14 @@ impl<'a> Cx<'a> {
             ));
             return None;
         }
+        // Agenda `columns=` has no consumed factory profile: the owning
+        // calendarAgenda factory never reads columns (REVIEW-21 family:
+        // the emitted prop rendered byte-identical output either way, so
+        // the option stays a loud E6008 via check_ui_attributes below).
         let admitted: &[&str] = if word == "calendar" {
             &[
-                "parent", "empty", "limit", "cursor", "start", "end", "filter", "defaults", "order",
+                "parent", "empty", "limit", "cursor", "start", "end", "filter",
+                "defaults", "order",
             ]
         } else if word == "gallery" {
             &[
@@ -20035,10 +20117,16 @@ impl<'a> Cx<'a> {
             return None;
         };
         let value = self.decode_ui_header_value(scope, header);
-        let plain_text = value.ty == ResolvedType::Scalar(Scalar::Text);
+        // Copy renders a string-carried value: text, or a URL (the recorded
+        // `app_url(...)` shapes), each plain or nullable.
+        let plain_text = matches!(
+            value.ty,
+            ResolvedType::Scalar(Scalar::Text | Scalar::Url)
+        );
         let nullable_text = matches!(
             &value.ty,
-            ResolvedType::Nullable(inner) if inner.as_ref() == &ResolvedType::Scalar(Scalar::Text)
+            ResolvedType::Nullable(inner)
+                if matches!(inner.as_ref(), ResolvedType::Scalar(Scalar::Text | Scalar::Url))
         );
         if !plain_text && !nullable_text {
             self.diags.push(Diagnostic::error(

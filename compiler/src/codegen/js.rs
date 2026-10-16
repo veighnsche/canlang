@@ -2811,6 +2811,7 @@ fn is_ui_factory(factory: &str) -> bool {
             | "footer"
             | "hero"
             | "history"
+            | "indicator"
             | "input"
             | "join"
             | "label"
@@ -2886,6 +2887,7 @@ fn ui_prop_is_admitted(factory: &str, key: &str) -> bool {
         "copy" => matches!(key, "value" | "label" | "id"),
         "toggle" => key == "field",
         "swap" => key == "active",
+        "indicator" => matches!(key, "content" | "indicator"),
         "steps" => key == "items",
         "countdown" => matches!(key, "value" | "caption"),
         "radialProgress" => matches!(key, "value" | "max" | "caption"),
@@ -11920,7 +11922,7 @@ impl<'a> Emitter<'a> {
                         })
                         .collect();
                     props.push(format!("actions:[{}]", rest.join(",")));
-                } else if matches!(node.factory.as_str(), "chatBubble" | "modal" | "drawer" | "dropdown" | "swap" | "diff") {
+                } else if matches!(node.factory.as_str(), "chatBubble" | "modal" | "drawer" | "dropdown" | "indicator" | "swap" | "diff") {
                     // The actual factories consume named slot props, not
                     // children or a standalone slot factory. Keep authored
                     // slot order and evaluate each descendant exactly once.
