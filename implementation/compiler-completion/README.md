@@ -67,6 +67,19 @@ neighbor checks. The last original24 capture remains 347 diagnostics;
 this checkpoint does not qualify the whole composition or its remaining
 source consumers. Continue the existing finite execution queue.
 
+### Accepted membership bridge checkpoint — 2026-10-16
+
+Outcome 13 compiler membership bridge is accepted at its recorded scope:
+`7a0f394b` / `8bf1bf38` are integrated on main as `993d0c10` /
+`5918e68c`. Independent focused checks pass 9/9, including planned,
+tampered-source and original helper/composition cases. Exact bound
+occurrences resolve to the existing State producer; unrelated IR errors
+do not erase their original checked correspondence. Unbound observations
+retain their availability/refusal behavior. This is compiler qualification;
+original24 and required executable consumers remain open. The last
+composition capture is still 347 diagnostic occurrences, not a current
+post-fix count. Continue the existing finite execution queue.
+
 ### Finite conformance gaps
 
 There are **18 recorded outcomes**, not 18 patches or 573 independent features.
