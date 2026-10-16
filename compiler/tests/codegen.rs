@@ -7669,6 +7669,97 @@ fn t31_hook_ambient_call_native_context() {
     }
 }
 
+/// (T31/outcome 12) Delivery reads and message formatting inside hooks:
+/// native runners are `async` and bind `($candidate,$hookCtx,c)` (see
+/// `emit_hooks_map`), so `await delivery(c,..)` and
+/// `h_localized_format(c,..)` — both lowered with a leading `c` — must
+/// lower in native hooks instead of reporting `E6008`. Legacy runners bind
+/// no `c`, so both gaps stay.
+#[test]
+fn t31_hook_delivery_format_native_context() {
+    let ir = fixture_ir();
+    let delivery = typed(
+        IrExpr::DeliveryRead {
+            record: Box::new(text_lit("r")),
+            field: "f".to_string(),
+            props: vec!["status".to_string()],
+            callback: None,
+        },
+        ResolvedType::Unknown,
+    );
+    let format = typed(
+        IrExpr::Format {
+            args: vec![text_lit("m"), typed(IrExpr::Null, ResolvedType::Null)],
+            descriptor_index: 0,
+            locale_index: 1,
+            schemas: vec![canlang_compiler::codegen::ir::IrFormatSchema {
+                source_lang: "en".to_string(),
+                param_types: vec![],
+            }],
+        },
+        ResolvedType::Scalar(Scalar::Text),
+    );
+    for (what, expr, fragment) in [
+        ("hook delivery read", &delivery, "await delivery(c,"),
+        ("hook message format", &format, "(c,"),
+    ] {
+        // Legacy hook: still a gap.
+        let mut legacy = Emitter::new(&ir);
+        legacy.enter_hook(SymbolId(0), false);
+        assert!(
+            legacy.lower_expr(expr).contains("throw"),
+            "legacy hook placeholder: {what}"
+        );
+        let (diags, _, _, _) = legacy.finish();
+        assert!(
+            diags
+                .iter()
+                .any(|d| d.code == "E6008" && d.message.contains(what)),
+            "legacy hook gap: {what}: {diags:?}"
+        );
+        // Native hook: lowers with the ambient context, no gap.
+        let mut native = Emitter::new(&ir);
+        native.enter_hook(SymbolId(0), true);
+        let text = native.lower_expr(expr);
+        let (diags, _, _, _) = native.finish();
+        assert!(
+            diags.iter().all(|d| d.code != "E6008"),
+            "native hook lowers: {what}: {diags:?}"
+        );
+        assert!(text.contains(fragment), "ambient context: {what}: {text}");
+    }
+}
+
+/// (T31/outcome 12) Judgment specifications keep their pinned refusal in
+/// both hook flavors: the pinned invocation declaration is unavailable in
+/// hooks, and no native carrier binds it. Carrier/design decision required,
+/// not a binding fix.
+#[test]
+fn t31_hook_judgment_specification_unsupported() {
+    let ir = fixture_ir();
+    let judgment = typed(
+        IrExpr::JudgmentSpecification {
+            judgment: "demo.Judge".to_string(),
+            options: None,
+        },
+        ResolvedType::Unknown,
+    );
+    for native in [false, true] {
+        let mut emitter = Emitter::new(&ir);
+        emitter.enter_hook(SymbolId(0), native);
+        assert!(
+            emitter.lower_expr(&judgment).contains("throw"),
+            "hook placeholder (native={native})"
+        );
+        let (diags, _, _, _) = emitter.finish();
+        assert!(
+            diags.iter().any(|d| d.code == "E6008"
+                && d.message.contains("judgment specification")),
+            "hook gap (native={native}): {diags:?}"
+        );
+    }
+}
+
 /// Fresh unique stage directory under the system temp dir for T31
 /// engine drivers (emitted module plus driver script).
 fn t31_stage_dir(stem: &str) -> PathBuf {
