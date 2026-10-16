@@ -172,16 +172,30 @@ fn prepare_owner(
     let IrItemKind::Scenario {
         guards,
         effects,
-        trusted: false,
+        trusted,
         read: false,
-        event_source: None,
-        hook: None,
-        cohort: None,
+        event_source,
+        hook,
+        cohort,
         ..
     } = &owner.kind
     else {
         return None;
     };
+    // C23 hook slice: the declared-event void single-first handler shares
+    // the generic decision/return inventory below; every other trusted
+    // shape keeps the refusal (mirrors the native receipt gate).
+    let hook_feasible = *trusted
+        && matches!(
+            event_source,
+            Some(crate::codegen::ir::IrEventSource::Declared(_))
+        )
+        && hook.is_none()
+        && cohort.is_none();
+    if !hook_feasible && (*trusted || event_source.is_some() || hook.is_some() || cohort.is_some())
+    {
+        return None;
+    }
     super::scenario_decisions::same_scenario_semantics(program, ir, fresh, owner)?;
     super::scenario_decisions::same_scenario_semantics(
         program,

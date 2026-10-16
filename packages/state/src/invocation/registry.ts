@@ -2749,7 +2749,13 @@ export function artifactToDescriptorSet(
         for (const key of ['kind', 'id', 'module']) if (callable[key] === undefined || !('value' in callable[key]!)) {
           fail('malformed_descriptor', 'Scenario callable identity requires own data.');
         }
-        if (callable['kind']!.value === 'operation' && callable['id']!.value === operation.name && callable['module']!.value === source.module) matches += 1;
+        // C24 scope-1: an internal trusted-handler registration carries
+        // its checked disclosure inside the private invocation only.
+        // Public `artifact.operations` still excludes every trusted
+        // handler; this admits the exact handler callable (kind
+        // `handler`) with the same single-match/module/source checks,
+        // never a second public operation.
+        if ((callable['kind']!.value === 'operation' || callable['kind']!.value === 'handler') && callable['id']!.value === operation.name && callable['module']!.value === source.module) matches += 1;
       }
       const origins = [source, ...result.disclosure.returns.flatMap(returned =>
         [returned.source, ...returned.dependencies.map(dependency => dependency.source),
