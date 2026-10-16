@@ -7893,9 +7893,12 @@ impl<'a> Closure<'a> {
         // `archived=include` clause leads when present (the parser admits
         // only the exact `include` spelling; absence keeps the default).
         // Anything else keeps the closure refusal below.
+        // Guarded archived arms lead: the unguarded `[alias, predicate,
+        // order]` arm below would otherwise swallow a 3-clause
+        // `[archived, alias, predicate]` shape (binding archived as the
+        // alias) and fail As/Where validation, leaving the archived-3 arm
+        // unreachable. Length-4 archived shapes never reach the plain arms.
         let (alias, predicate, order, archived) = match query.clauses.as_slice() {
-            [alias, predicate] => (alias, predicate, None, None),
-            [alias, predicate, order] => (alias, predicate, Some(order), None),
             [archived, alias, predicate]
                 if matches!(archived.kind, CheckedQueryClauseKind::Archived) =>
             {
@@ -7906,6 +7909,8 @@ impl<'a> Closure<'a> {
             {
                 (alias, predicate, Some(order), Some(archived))
             }
+            [alias, predicate] => (alias, predicate, None, None),
+            [alias, predicate, order] => (alias, predicate, Some(order), None),
             _ => return None,
         };
         // The grammar admits only the exact `archived=include` spelling, so
