@@ -40,7 +40,7 @@
 //! [`ModuleId`] index both tables.
 
 use crate::analysis::catalog::{Availability, Catalog, Effects, SigType, std_capability};
-use crate::analysis::effects::{EffectVerb, PolicyRule};
+use crate::analysis::effects::{CapabilityData, EffectVerb, PolicyRule};
 use crate::analysis::migrate_check::{self, OwnerModelView};
 use crate::analysis::resolve::{
     CheckedJudgmentKind, CheckedValueConstraints, CrudOp, FixtureTarget, ModelOwner, ModuleId,
@@ -11746,6 +11746,12 @@ impl<'a> Cx<'a> {
     /// `E6007` for deployment-bound capabilities that are not available
     /// (G6): missing, `planned` or `external` catalog entries, or no
     /// catalog to verify against. Never a silent emit.
+    ///
+    /// A bound capability whose owning checked declaration pins an integer
+    /// `version=` is its own producer contract: bound imports resolve
+    /// through the compiler-derived index and deployment binds the adapter
+    /// from that versioned interface, so no lane-02 catalog entry exists to
+    /// consult. Only an unversioned declaration keeps the `None` refusal.
     fn check_bound_capabilities(&mut self) {
         for module in self.program.modules.clone() {
             for import in &module.imports {
@@ -11759,18 +11765,20 @@ impl<'a> Cx<'a> {
                         .and_then(|id| self.by_name.get(&(id, member.name.clone())).copied());
                     let Some(target) = target else { continue };
                     let symbol = self.program.symbols.get(target.0 as usize).cloned();
-                    let (availability, noun) = match symbol.as_ref().map(|s| &s.kind) {
-                        Some(SymbolKind::Capability { .. }) => (
-                            self.program
-                                .effects
-                                .capabilities
-                                .get(&target)
-                                .and_then(|data| data.availability),
-                            "capability",
-                        ),
-                        Some(SymbolKind::CapabilityOp { .. }) => {
-                            (self.op_availability(target), "capability operation")
+                    let (availability, noun, versioned) = match symbol.as_ref().map(|s| &s.kind) {
+                        Some(SymbolKind::Capability { .. }) => {
+                            let data = self.program.effects.capabilities.get(&target);
+                            (
+                                data.and_then(|data| data.availability),
+                                "capability",
+                                data.and_then(|data| data.version),
+                            )
                         }
+                        Some(SymbolKind::CapabilityOp { .. }) => (
+                            self.op_availability(target),
+                            "capability operation",
+                            self.capability_of_op(target).and_then(|data| data.version),
+                        ),
                         _ => continue,
                     };
                     let canonical = self.canonical(target);
@@ -11794,6 +11802,9 @@ impl<'a> Cx<'a> {
                                 member.span,
                             ));
                         }
+                        // A checked versioned declaration is the producer
+                        // contract; only an unversioned one cannot be pinned.
+                        None if versioned.is_some() => {}
                         None => {
                             self.diags.push(Diagnostic::error(
                                 "E6007",
@@ -11807,6 +11818,15 @@ impl<'a> Cx<'a> {
                 }
             }
         }
+    }
+
+    /// Owning checked capability declaration of one capability operation.
+    fn capability_of_op(&self, op: SymbolId) -> Option<&CapabilityData> {
+        self.program
+            .effects
+            .capabilities
+            .values()
+            .find(|capability| capability.ops.iter().any(|data| data.op == op))
     }
 
     /// Catalog availability of one capability operation, if published.

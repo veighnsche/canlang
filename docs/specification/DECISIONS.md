@@ -17969,3 +17969,8 @@ Reconcile the existing filetree plan incrementally from retained coverage; keep
 its complete checkpoint and open review gates unchanged. Focused local link/anchor,
 exact parent-content preservation and diff-whitespace checks validate the combined
 documentation. Existing runtime/release evidence is reused; nothing is pushed.
+
+
+## 2026-10-16 — can18_merge_1_20261016
+
+Accepted: Integrate admission-default checking, checked versioned producer contracts, and nullable URL links. Merge reviewed tested work incrementally into canonical `main`, preserving installer/specification changes and the active implementation branch. Reuse focused compiler tests4+4+3, UI leaves69, independent admission5 and link runtime6 passing checks; merge has no production conflict or source changes beyond the reviewed endpoint. Reconcile the living file-tree plan/registry over `a70921e3..35ca092e` with existing owners; retain the complete checkpoint and all outstanding acceptance gates. A merged component is not a claim that original24 or the remaining runtime workflows are complete.
