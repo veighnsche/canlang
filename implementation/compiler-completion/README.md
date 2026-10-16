@@ -7495,3 +7495,36 @@ handlers/predicate engines. This fixes enum default expression reuse. The origin
 ~50 unsupported selector/profile occurrences remain implementation obligations;
 this is not a claim that their group or original24 is complete. The standalone
 preference filter end-to-end repair is active and unmerged pending final release.
+
+### CAN18 canonical main — preference filter end to end accepted (2026-10-16)
+
+`9c9060738` integrates the complete standalone filter prerequisite and corrected
+B16 `85aa467bb` at its defining owners; other788 factory profiles and C23 source
+remain on the implementation branch. `filter preferences.field` now binds to the
+owning versioned page-preference save contract, renders at its authored position,
+and preserves the sibling collection's independent current request selectors.
+Module+field identity, exact version/POST paths and strict bool false selection
+were independently reviewed and corrected before acceptance. This implements
+existing saved-preference semantics; no new grants, null-reset rule or language
+primitive was introduced.
+
+Independent actual CAN validation: immutable released binary30f83ffd consumer1/1,
+then build the focused main compiler with the compatible shared target/flags and
+freeze binaryb69b9d25; actual main compiled source + main HTTP/UI/State consumer1/1
+passes. Three authored pages exercise enum, explicit false and a second app's
+same-named state; authorized save, selected rows, request override/clear, stale
+version, CSRF, malformed values and anonymous denial are asserted. Main Contracts,
+UI and Interfaces builds pass. Interfaces initially failed because its installed
+SDK lacked declarations; restored174 missing .d.ts files (1.4MB) from matching
+1.32.0 cache after checking operational metadata and174 existing JS files equal.
+No dependency/lock, runtime JS, source or compiler-check weakening. The compiler's
+existing unreachable-pattern warning remains unchanged. Reuse released owning
+compiler/UI/HTTP neighbors, including known four codegen residuals; no unchanged
+reruns or broad repair included.
+
+Original24 still has its last complete351E6008 capture; the next frozen capture is
+owned by the coordinator after the ready producer cohort releases. Native query
+REVIEW20 still needs successful execution on granted rows; current local runtime
+implementation gaps and other selectors/factories remain ready obligations. Keep
+implementation active after this checkpoint and merge further coherent tested
+batches; holds17/18 remain at their exact external/policy scopes.
