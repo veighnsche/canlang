@@ -7556,3 +7556,15 @@ REVIEW-16 (Codex 09:14Z) dispatched as finite B12 (`01a14401-e9f1-...`):
 radialProgress BigInt max vs UI number contract at the defining numeric
 presentation boundary, with actual-compiled-source consumer proof. Active
 lanes: C21, B12 (2 of 3).
+
+**RECOVERY-8 intake, 2026-10-16 (Codex direction):**
+table_filters control handle finished and preserved: clean-tree failure is
+E6002 (missing values catalog in the probe tree — environment setup gap, not
+a source signal); parent run 1/1 green but on the dirty-built binary, so its
+clean rerun stays deferred to C21's release + clean rebuild alongside the
+other binary-dependent suites. No assertion weakened, no regression ignored.
+REVIEW-15 dispatched as finite B13 (`01a14403-2cda-...`, isolated worktree at
+clean HEAD, bool-reader region only, C21-dirt avoidance + C21-first
+integration order explicit). REVIEW-16 stays with active B12 (no duplicate).
+Lanes at cap 3: C21 (hook repeat), B12 (radial numeric), B13 (bool reader).
+Shared-target writers serialized; original24 frozen closure preserved.
