@@ -609,6 +609,227 @@ console.log(JSON.stringify(verdict));
     );
 }
 
+/// (Outcome 12, C26-record-helper, engine proof.) A native child-create
+/// hook calling record-typed helpers over the bare parent linkage
+/// (`isActive(event.after.parent)`, same `h$…(c,site,…)` equivalence as
+/// inline parent loads) drives the REAL owning pipeline: the If-condition
+/// and Require inherit the guard's `"decision"` site through the helper
+/// (`c.transitive` on the adapted ambient context), while a body-value
+/// copy through the same helper shape inherits `"value"` and refuses
+/// precisely in a direct State frame (no caller grant authority there —
+/// the host viewer projection authorizes granted copies). No rewritten
+/// helper, no Boolean-result privilege, no new carrier.
+#[test]
+fn hook_hp_record_helper_linkage_drives_owner_pipeline() {
+    let src = "app T\nGiven\n M { active:bool, tag:text }\n C in M { t:text }\n D in M { t:text }\n derive isActive(loc:M):bool = loc.active\n derive pick(loc:M):text = loc.tag\nWhen\n scenario arm on=C.create\n  do\n   if isActive(event.after.parent)\n    require isActive(event.after.parent)\n    set event.after {t=\"armed\"}\n scenario copy on=D.create\n  do\n   let t=pick(event.after.parent)\n   set event.after {t=t}\nThen\n";
+    let (catalog, catalog_path) = hook_catalog();
+    let (db, program, result) = check_hook(src, &catalog);
+    assert!(
+        result.diagnostics.is_empty(),
+        "hp-record-helper source checks clean: {:?}",
+        result.diagnostics
+    );
+    let (artifact, diags) = emit_hook(&program, &db, &result, &catalog);
+    let _ = std::fs::remove_file(&catalog_path);
+    assert!(diags.is_empty(), "{diags:?}");
+    let js = &artifact.modules[0].js;
+    assert!(
+        js.contains("($candidate,$hookCtx,c)"),
+        "native runner binds ambient context:\n{js}"
+    );
+    assert!(
+        js.contains("async function $can$hook$"),
+        "record helpers dual-emit their hook variant:\n{js}"
+    );
+    assert!(
+        js.contains("c.transitive.openScope($hookSite)"),
+        "hook variant loads through the ambient transitive path:\n{js}"
+    );
+    assert!(
+        js.contains("\"decision\",event.after.parent"),
+        "guard helper call inherits the decision site:\n{js}"
+    );
+    assert!(
+        js.contains("\"value\",event.after.parent"),
+        "body helper call inherits the value site:\n{js}"
+    );
+    assert!(
+        !js.contains("has no lowering"),
+        "no fail-closed placeholder:\n{js}"
+    );
+    let policies = serde_json::to_string(
+        &artifact
+            .model_policies
+            .as_ref()
+            .expect("native owner-policy descriptors"),
+    )
+    .expect("policies serialize");
+    let dir = stage_dir("hp-record-helper-engine");
+    std::fs::write(dir.join("emitted.mjs"), js).unwrap();
+    std::fs::write(dir.join("policies.json"), &policies).unwrap();
+    // The emitted hook imports the stdlib check/set surface (`require`
+    // lowers to `check`); stage the same recording stub the codegen
+    // engine suite uses so the driver resolves it from its temp dir.
+    let stub_dir = dir.join("node_modules").join("@canlang").join("stdlib");
+    std::fs::create_dir_all(&stub_dir).unwrap();
+    std::fs::write(
+        stub_dir.join("package.json"),
+        "{\"name\":\"@canlang/stdlib\",\"version\":\"0.0.0-test\",\"type\":\"module\",\"main\":\"index.mjs\"}",
+    )
+    .unwrap();
+    std::fs::write(
+        stub_dir.join("index.mjs"),
+        "export const __calls = [];\n\
+         const rec = (name) => (...args) => { __calls.push([name, ...args]); return {}; };\n\
+         export const require = (cond, code) => { if (!cond) throw new Error(\"check:\" + code); };\n\
+         export const create = rec(\"create\");\n\
+         export const deleteRecord = rec(\"deleteRecord\");\n\
+         export const hasRole = () => true;\n\
+         export const set = rec(\"set\");\n",
+    )
+    .unwrap();
+    let root = workspace_root();
+    let fixtures = root.join("packages/state/test/mutation/fixtures.ts");
+    let invocation_fixtures = root.join("packages/state/test/invocation/fixtures.ts");
+    let memory = root.join("packages/state/src/storage/memory.ts");
+    let models = root.join("packages/state/src/mutation/models.ts");
+    let bindings = root.join("packages/state/src/mutation/model-policies.ts");
+    let pipeline = root.join("packages/state/src/mutation/pipeline.ts");
+    for path in [&fixtures, &invocation_fixtures, &memory, &models, &bindings, &pipeline] {
+        assert!(path.exists(), "engine source: {}", path.display());
+    }
+    let driver = r##"
+import { canApp } from './emitted.mjs';
+import { readFileSync } from 'node:fs';
+import { seedRow, makeBatch, asId, asModel } from '@@INVOCATION@@';
+import { modelDef, field, pipelineContext } from '@@FIXTURES@@';
+import { createTestMemoryStorage } from '@@MEMORY@@';
+import { buildModelTable } from '@@MODELS@@';
+import { bindOwnerModelPolicies } from '@@BINDINGS@@';
+import { beginOwnerMutation } from '@@PIPELINE@@';
+const verdict = {};
+try {
+  const registry = canApp();
+  const descriptors = JSON.parse(readFileSync('./policies.json', 'utf8'));
+  const table = buildModelTable([
+    modelDef('T.M', { fields: { active: field(), tag: field() } }),
+    { ...modelDef('T.C', { fields: { t: field() } }), containment: { parent: asModel('T.M') } },
+    { ...modelDef('T.D', { fields: { t: field() } }), containment: { parent: asModel('T.M') } },
+  ]);
+  const policies = bindOwnerModelPolicies({ table, descriptors, bindings: registry.modelPolicyBindings });
+  const { store } = createTestMemoryStorage();
+  await seedRow(store, asModel('T.M'), { id: 'p-on', data: { active: true, tag: 'armed-on' } });
+  await seedRow(store, asModel('T.M'), { id: 'p-off', data: { active: false, tag: 'armed-off' } });
+  async function createChild(model, id, parentId) {
+    const rev = await store.readRevision();
+    const session = await beginOwnerMutation({ table, store,
+      context: pipelineContext({ operation: `T.${model}.create` }),
+      bounds: { maxWork: 1000, maxRows: 20 }, policies });
+    await session.stage({ op: 'create', model: asModel(`T.${model}`), id: asId(id),
+      parent: { model: asModel('T.M'), id: asId(parentId) }, data: { t: 'new' } },
+      { cause: 'crud', input: { t: 'new' } });
+    const output = await session.finalize();
+    await store.commit(makeBatch(rev, { writes: output.writes, history: output.history,
+      schedules: output.schedules, uniqueClaims: output.uniqueClaims, uniqueReleases: output.uniqueReleases }));
+  }
+  await createChild('C', 'c-on', 'p-on');
+  await createChild('C', 'c-off', 'p-off');
+  const on = await store.load(asModel('T.C'), asId('c-on'));
+  const off = await store.load(asModel('T.C'), asId('c-off'));
+  verdict.on = on === null ? null : on.data;
+  verdict.off = off === null ? null : off.data;
+  // A body-value copy through a record helper inherits `value`: with no
+  // caller grant authority in a direct State frame it refuses precisely
+  // (the host viewer projection authorizes granted copies).
+  try {
+    await createChild('D', 'd-on', 'p-on');
+    verdict.value = 'served';
+  } catch (error) {
+    verdict.value = String(error?.message ?? error);
+  }
+  const d = await store.load(asModel('T.D'), asId('d-on'));
+  verdict.dRow = d === null ? null : d.data;
+  verdict.ok = true;
+} catch (error) {
+  verdict.ok = false;
+  verdict.error = String(error?.stack ?? error);
+}
+console.log(JSON.stringify(verdict));
+"##
+    .replace("@@INVOCATION@@", &invocation_fixtures.display().to_string())
+    .replace("@@FIXTURES@@", &fixtures.display().to_string())
+    .replace("@@MEMORY@@", &memory.display().to_string())
+    .replace("@@MODELS@@", &models.display().to_string())
+    .replace("@@BINDINGS@@", &bindings.display().to_string())
+    .replace("@@PIPELINE@@", &pipeline.display().to_string());
+    std::fs::write(dir.join("driver.ts"), driver).unwrap();
+    let out = std::process::Command::new("bun")
+        .arg("driver.ts")
+        .current_dir(&dir)
+        .output()
+        .expect("spawn bun driver");
+    assert!(
+        out.status.success(),
+        "driver failed: stdout={} stderr={}",
+        String::from_utf8_lossy(&out.stdout),
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let verdict: serde_json::Value =
+        serde_json::from_str(stdout.trim()).expect("verdict parses");
+    assert_eq!(
+        verdict.get("ok").and_then(|v| v.as_bool()),
+        Some(true),
+        "verdict: {stdout}"
+    );
+    assert_eq!(
+        verdict
+            .get("on")
+            .and_then(|v| v.get("t"))
+            .and_then(|v| v.as_str()),
+        Some("armed"),
+        "active parent arms through the record helper: {stdout}"
+    );
+    assert_eq!(
+        verdict
+            .get("off")
+            .and_then(|v| v.get("t"))
+            .and_then(|v| v.as_str()),
+        Some("new"),
+        "inactive parent leaves the child untouched: {stdout}"
+    );
+    assert_eq!(
+        verdict.get("value").and_then(|v| v.as_str()),
+        Some("Record field is not readable."),
+        "direct-frame value copy refuses precisely: {stdout}"
+    );
+    assert_eq!(
+        verdict.get("dRow"),
+        Some(&serde_json::Value::Null),
+        "refused value copy stages nothing: {stdout}"
+    );
+}
+
+/// (Outcome 12, C26-record-helper negative.) A staged binding is an `{id}`
+/// identity, not the row a record helper reads: admission refuses and
+/// lowering stays loud (`E6008`), exactly like before.
+#[test]
+fn hook_record_helper_staged_linkage_refused_loud() {
+    let src = "app T\nGiven\n M { active:bool }\n C in M { t:text }\n derive isActive(loc:M):bool = loc.active\nWhen\n scenario arm on=C.create\n  do\n   create M {active=true} as m\n   if isActive(m)\n    set event.after {t=\"armed\"}\nThen\n";
+    let (js, diags, path) = hook_js(src);
+    let _ = std::fs::remove_file(&path);
+    assert!(
+        diags.iter().any(|d| d.code == "E6008"
+            && d.message.contains("hook derive call")),
+        "staged linkage refuses loud: {}",
+        codes(&diags).join("\n")
+    );
+    assert!(
+        js.contains("has no lowering"),
+        "fail-closed placeholder:\n{js}"
+    );
+}
+
 /// (Outcome 12, out-of-scope.) Reads through event references
 /// (`event.after.location.timezone`, CanSuccess `account_created`,
 /// CanMaintain `activate_plan`) refuse loud for the same reason.

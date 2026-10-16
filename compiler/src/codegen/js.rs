@@ -3968,6 +3968,14 @@ pub struct Emitter<'a> {
     /// arity and all scope/fence/source checks are preserved; only the
     /// scope object carries the mode.
     hook_decision_depth: usize,
+    /// Hook-variant helper emission: record-typed parameter source name to
+    /// its declared model (symbol plus canonical) for transitive loads
+    /// through `c.transitive` at the inherited site (`$hookSite`). `Some`
+    /// exactly while emitting one `h$…` helper body; `None` elsewhere. The
+    /// call-site scope object and fence checks are unchanged — only the
+    /// context path differs (`c.transitive`, the ambient context the
+    /// module-scope helper receives, rather than `$hookCtx.transitive`).
+    hook_helper_links: Option<HashMap<String, (SymbolId, String)>>,
     /// Bounded-loop sequence: each `for ... limit` binds its own
     /// `$forRowsN` fetch, so sequential loops never redeclare one
     /// binding (source order keeps numbering deterministic).
@@ -4093,6 +4101,16 @@ enum HookBase {
     Plain,
 }
 
+/// Record-helper call shape for one derive target: the pure variant
+/// (`AsIs`), the hook variant with its verbatim inherited-site expression
+/// (`Hook` of emitted function name plus site), or a loud refusal
+/// (`Refuse`, reported as `E6008` by the caller).
+enum HookDerive {
+    AsIs,
+    Hook((String, String)),
+    Refuse,
+}
+
 impl<'a> Emitter<'a> {
     /// Create an emitter over `ir`.
     pub fn new(ir: &'a IrProgram) -> Self {
@@ -4168,6 +4186,7 @@ impl<'a> Emitter<'a> {
             hook_aliases: vec![HashMap::new()],
             hook_closure_depth: 0,
             hook_decision_depth: 0,
+            hook_helper_links: None,
             loop_seq: 0,
             bindings: vec![HashMap::new()],
             binding_seq: 0,
@@ -5292,6 +5311,13 @@ impl<'a> Emitter<'a> {
         self.hook.is_some()
     }
 
+    /// Whether nested closures suspend inline transitive loads: inside
+    /// hook lowering, and inside hook-variant helper bodies (where
+    /// linkage reads lower through `c.transitive` at the top level only).
+    fn hook_closure_tracked(&self) -> bool {
+        self.in_hook() || self.hook_helper_links.is_some()
+    }
+
     /// Whether hook lowering may consume the ambient operation context.
     /// Only native hooks receive `c`; legacy hooks fail these reads closed.
     fn hook_native(&self) -> bool {
@@ -5605,6 +5631,160 @@ impl<'a> Emitter<'a> {
                 "staged bindings carry identity only (`{id}`); staged field reads have no hook lowering",
                 span,
             )),
+        }
+    }
+
+    /// Whether a call argument carries a hook parent linkage: the trigger's
+    /// parent linkage inside hook lowering (aliases included), or a
+    /// record-typed helper parameter inside hook-variant emission. The
+    /// profile admits the strict subset (direct-parent model, checked
+    /// body); anything it refused never reaches native emission, and any
+    /// residual mismatch fails loud at the loader's containment bound —
+    /// never a silent wrong row.
+    fn hook_linkage_arg(&self, arg: &TypedExpr) -> bool {
+        if let Some(links) = &self.hook_helper_links {
+            if matches!(&arg.expr, IrExpr::Name(name) if links.contains_key(name)) {
+                return true;
+            }
+        }
+        self.in_hook() && self.hook_base_class(arg) == HookBase::Parent
+    }
+
+    /// Record-helper call shape for one derive target: pure (`AsIs`), the
+    /// hook variant with its verbatim inherited-site expression (`Hook`),
+    /// or a loud refusal (`Refuse`). Callers consult this only for derive
+    /// targets inside native hooks (top-level linkage) or hook-variant
+    /// bodies (nested linkage, site passed through as `$hookSite`).
+    fn hook_derive_call(&self, target: &IrCallTarget, args: &[TypedExpr]) -> HookDerive {
+        let helper = self.hook_helper_links.is_some();
+        if !((self.in_hook() && self.hook_native()) || helper) {
+            return HookDerive::AsIs;
+        }
+        let IrCallTarget::DeriveFn(canonical) = target else {
+            return HookDerive::AsIs;
+        };
+        if !args.iter().any(|arg| self.hook_linkage_arg(arg)) {
+            return HookDerive::AsIs;
+        }
+        // Linkage inside a nested closure has no async carrier: refuse
+        // loud rather than reading `undefined` off the linkage object.
+        if self.hook_closure_depth != 0 {
+            return HookDerive::Refuse;
+        }
+        let Some(variant) = self.derive_hook_variant(canonical) else {
+            return HookDerive::Refuse;
+        };
+        if helper {
+            return HookDerive::Hook((variant, "$hookSite".to_string()));
+        }
+        let site = if self.hook_decision_depth > 0 {
+            "\"decision\""
+        } else {
+            "\"value\""
+        };
+        HookDerive::Hook((variant, site.to_string()))
+    }
+
+    /// One stored-record parameter's hook linkage: source name plus the
+    /// declared model (symbol and canonical for the transitive load).
+    /// Shared exactly by call-site selection (`hook_derive_call`) and
+    /// hook-variant emission below, so a selected variant is always
+    /// emitted with the same linkage set.
+    fn derive_hook_link(&self, param: SymbolId) -> Option<(String, SymbolId, String)> {
+        let item = self.ir.items.get(param.0 as usize)?;
+        if item.id != param {
+            return None;
+        }
+        let IrItemKind::Param {
+            ty: IrType::Known(ResolvedType::Record { symbol, stored: true }),
+            ..
+        } = &item.kind
+        else {
+            return None;
+        };
+        let model = self.ir.items.get(symbol.0 as usize)?;
+        if model.id != *symbol {
+            return None;
+        }
+        Some((item.name.clone(), *symbol, model.canonical.clone()))
+    }
+
+    /// Hook-variant name for one derive canonical, when it carries a
+    /// stored-record parameter. Selection and emission share this
+    /// predicate exactly: a selected variant is always emitted.
+    fn derive_hook_variant(&self, canonical: &str) -> Option<String> {
+        let index = self.by_canonical.get(canonical)?;
+        let item = self.ir.items.get(*index)?;
+        if item.canonical != *canonical {
+            return None;
+        }
+        let IrItemKind::DeriveFn { params, .. } = &item.kind else {
+            return None;
+        };
+        params
+            .iter()
+            .any(|id| self.derive_hook_link(*id).is_some())
+            .then(|| binding_ident("hook", &item.canonical))
+    }
+
+    /// Linkage reads inside hook-variant helper bodies (`loc.field` where
+    /// `loc` is a record-typed parameter): identity (`.id`) lowers
+    /// ordinarily; declared fields load through `c.transitive` at the
+    /// inherited `$hookSite` (same declared-field correspondence and
+    /// nullable normalization as inline parent loads, same arity and
+    /// fence checks — only the context path differs, since module-scope
+    /// helpers receive `c`, not `$hookCtx`). Anything else (closures,
+    /// undeclared fields) gaps loud with `E6008`.
+    fn hook_helper_member(
+        &mut self,
+        base: &TypedExpr,
+        field: &str,
+        span: Span,
+        expr_ty: &ResolvedType,
+    ) -> Option<String> {
+        let entry = self
+            .hook_helper_links
+            .as_ref()?
+            .get(match &base.expr {
+                IrExpr::Name(name) => name,
+                _ => return None,
+            })?
+            .clone();
+        if field == "id" {
+            return None;
+        }
+        if self.hook_closure_depth > 0 {
+            return Some(self.hook_gap(
+                "hook helper linkage",
+                "linkage field reads inside helper closures have no hook lowering",
+                span,
+            ));
+        }
+        let (model, canonical) = entry;
+        if !self.hook_parent_field_allowed(model, field, expr_ty) {
+            return Some(self.hook_gap(
+                "hook helper linkage",
+                "record helpers read only declared parent fields through the transitive load",
+                span,
+            ));
+        }
+        let link = self.reference(match &base.expr {
+            IrExpr::Name(name) => name,
+            _ => return None,
+        });
+        let access = if object_key(field) == field {
+            format!(".{field}")
+        } else {
+            format!("[{}]", js_string(field))
+        };
+        let read = format!(
+            "(await (async($hookLink)=>{{if($hookLink==null)throw new Error(\"hook parent content missing\");const $hookScope=await c.transitive.openScope($hookSite);const $hookRow=await c.transitive.load($hookScope,{},$hookLink.id);if($hookRow===null)throw new Error(\"hook parent content missing\");return $hookRow.data{access};}})({link}))",
+            js_string(&canonical),
+        );
+        if expr_ty.nullable_inner().is_some() {
+            Some(format!("({read} ?? null)"))
+        } else {
+            Some(read)
         }
     }
 
@@ -6681,6 +6861,9 @@ impl<'a> Emitter<'a> {
                 format!("judgmentSpecification(c,{}{options})", js_string(judgment))
             }
             IrExpr::Member { base, field } => {
+                if let Some(linked) = self.hook_helper_member(base, field, span, &expr.ty) {
+                    return linked;
+                }
                 if self.in_hook()
                     && let Some(gap) = self.hook_member_gap(base, field, span, &expr.ty)
                 {
@@ -6990,7 +7173,7 @@ impl<'a> Emitter<'a> {
             IrExpr::Lambda { param, body } => {
                 self.enter_scope();
                 let param = self.bind(param);
-                let in_hook = self.in_hook();
+                let in_hook = self.hook_closure_tracked();
                 if in_hook {
                     self.hook_closure_depth += 1;
                 }
@@ -7517,6 +7700,7 @@ impl<'a> Emitter<'a> {
             return format!("await countQuery(c,{query})");
         }
         let async_scoped = self.async_scoped_predicate(target, args, None);
+        let hook_derive = self.hook_derive_call(target, args);
         let parts: Vec<_> = args.iter().map(|arg| self.lower_expr(arg)).collect();
         self.lower_call_rendered(
             target,
@@ -7525,6 +7709,7 @@ impl<'a> Emitter<'a> {
             span,
             true,
             async_scoped,
+            hook_derive,
         )
     }
 
@@ -7550,6 +7735,17 @@ impl<'a> Emitter<'a> {
         }
         let native_count = self.native_count_query(target, args, Some(slots), span, result);
         let async_scoped = self.async_scoped_predicate(target, args, Some(slots));
+        // Bound linkage reordering has no hook lowering: a linkage-carrying
+        // bound derive call inside hook lowering refuses loud instead of
+        // reading `undefined` off a reordered linkage.
+        if !matches!(self.hook_derive_call(target, args), HookDerive::AsIs) {
+            self.unsupported(
+                "hook derive call",
+                "linkage arguments to a bound derive call have no hook lowering",
+                span,
+            );
+            return self.throw_expr("unsupported bound hook derive linkage");
+        }
         let values: Vec<_> = args.iter().map(|arg| self.lower_expr(arg)).collect();
         let capture = binding_ident("a", &self.binding_seq.to_string());
         self.binding_seq += 1;
@@ -7577,7 +7773,7 @@ impl<'a> Emitter<'a> {
             self.stdlib.insert("countQuery".into());
             format!("countQuery(c,{})", ordered[0])
         } else {
-            self.lower_call_rendered(target, &ordered, domain_type, span, false, async_scoped)
+            self.lower_call_rendered(target, &ordered, domain_type, span, false, async_scoped, HookDerive::AsIs)
         };
         let awaited = native_first
             || native_count
@@ -7751,6 +7947,7 @@ impl<'a> Emitter<'a> {
         span: Span,
         await_result: bool,
         async_scoped: bool,
+        hook_derive: HookDerive,
     ) -> String {
         match target {
             IrCallTarget::Builtin { id, awaited } => {
@@ -7880,6 +8077,28 @@ impl<'a> Emitter<'a> {
                         "derive calls need the ambient context (c), which legacy hooks do not receive",
                         span,
                     );
+                }
+                match hook_derive {
+                    HookDerive::Refuse => {
+                        self.unsupported(
+                            "hook derive call",
+                            "linkage arguments need their record-parameter hook variant",
+                            span,
+                        );
+                        return self.throw_expr("unsupported hook derive linkage");
+                    }
+                    HookDerive::Hook((variant, site)) => {
+                        self.derive_calls.insert(canonical.clone());
+                        let mut all = vec!["c".to_string(), site];
+                        all.extend(parts.iter().cloned());
+                        return format!(
+                            "{}{}({})",
+                            if await_result { "await " } else { "" },
+                            variant,
+                            all.join(",")
+                        );
+                    }
+                    HookDerive::AsIs => {}
                 }
                 let name = match self.by_canonical.get(canonical) {
                     Some(index) => binding_ident(
@@ -9157,7 +9376,7 @@ impl<'a> Emitter<'a> {
                     } else {
                         self.enter_scope();
                         let row = self.bind(&query.where_param);
-                        let in_hook = self.in_hook();
+                        let in_hook = self.hook_closure_tracked();
                         if in_hook {
                             self.hook_closure_depth += 1;
                         }
@@ -9308,7 +9527,7 @@ impl<'a> Emitter<'a> {
         };
         self.enter_scope();
         let param = self.bind(param);
-        let in_hook = self.in_hook();
+        let in_hook = self.hook_closure_tracked();
         if in_hook {
             self.hook_closure_depth += 1;
         }
@@ -17311,6 +17530,65 @@ impl<'a> Emitter<'a> {
                 self.exit_scope();
                 self.boolean_body = false;
                 self.boolean_helper = false;
+            }
+            // Hook-variant dual emission: a derive carrying a
+            // stored-record parameter also lowers `h$…(c,$hookSite,…params)`
+            // for hook call sites with linkage arguments. Linkage reads go
+            // through `c.transitive` at the inherited site (helpers inherit
+            // the consuming decision/value site); everything else lowers
+            // exactly like the pure variant. Module-internal (hook call
+            // sites share the scope), so never exported.
+            if let IrItemKind::DeriveFn {
+                params: hook_params,
+                expr: Some(hook_body),
+                ..
+            } = &item.kind.clone()
+            {
+                if self.derive_hook_variant(&item.canonical).is_some() {
+                    let name = binding_ident("hook", &item.canonical);
+                    self.enter_scope();
+                    let mut signature = vec!["c".to_string(), "$hookSite".to_string()];
+                    let mut links = HashMap::new();
+                    for id in hook_params {
+                        let source = self.ir.items[id.0 as usize].name.clone();
+                        signature.push(self.bind(&source));
+                        if let Some((_, symbol, canonical)) = self.derive_hook_link(*id) {
+                            links.insert(source, (symbol, canonical));
+                        }
+                    }
+                    let mut defaults = String::new();
+                    for (id, bound) in hook_params.iter().zip(signature.iter().skip(2)) {
+                        if let IrItemKind::Param {
+                            default: Some(default),
+                            ..
+                        } = &self.ir.items[id.0 as usize].kind.clone()
+                        {
+                            let value = match default {
+                                IrDefault::Literal(expr) | IrDefault::Computed { expr, .. } => {
+                                    self.lower_business_expr(
+                                        expr,
+                                        "formatted derive parameter default",
+                                    )
+                                }
+                            };
+                            defaults.push_str(&format!(
+                                "if({bound}===undefined){{{bound}={value};}}"
+                            ));
+                        }
+                    }
+                    let prior = self.hook_helper_links.replace(links);
+                    let body_text = self.lower_expr(hook_body);
+                    self.hook_helper_links = prior;
+                    out.push(
+                        item.span,
+                        Some(item.canonical.clone()),
+                        &format!(
+                            "async function {name}({}){{{defaults}return {body_text};}}",
+                            signature.join(",")
+                        ),
+                    );
+                    self.exit_scope();
+                }
             }
         }
     }

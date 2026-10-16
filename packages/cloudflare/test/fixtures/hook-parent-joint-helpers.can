@@ -1,6 +1,7 @@
 package hpjointhelpers
+ use HookParentJoint {Location}
  Given
-  export derive isActiveExt(v:bool):bool = v
-  export derive zoneExt(v:text):text = v
+  export derive isActiveExt(loc:Location):bool = loc.active
+  export derive zoneExt(loc:Location):text = loc.timezone
  When
  Then

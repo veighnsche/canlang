@@ -4765,11 +4765,11 @@ async function loadCanonicalDescriptorsInternal(
     }
   }
   const policy = producers.grants.buildPolicyTable(policyInputs, loaded.models);
-  // Scope-2 hook value-mode public projection: attach the install-time
-  // unconditional-public fields so the owner-hook bridge can serve them
-  // without a per-fire viewer observation.
-  ownerPolicyControl?.setPublicParentFields(buildPublicParentFields(
-    policy as import('@canlang/state/policy/grants').PolicyTable));
+  // Scope-2 hook per-fire caller projection: attach the install read-grant
+  // policy table so the owner-hook bridge can evaluate the triggering
+  // caller's row/field grants per fire (live membership, secrets carved).
+  ownerPolicyControl?.setParentValuePolicies(
+    policy as import('@canlang/state/policy/grants').PolicyTable);
   const collectionColumns = new Map<string, readonly ColumnMeta[]>();
   for (const [index, model] of loaded.models.entries()) {
     const name = canonicalModelName(model, index);
@@ -6262,36 +6262,16 @@ function nativeProjectedRecord(loaded: NativeRecordScope, modelName: string, row
 }
 
 /**
- * Scope-2 hook value-mode public projection. The install scope computes,
- * per model, the fields covered by an UNCONDITIONAL public grant
- * (`by: 'public'` with no `when`, mirroring `evaluateBy('public') === true`
- * exactly); secret-declared fields stay excluded. The bridge serves exactly
- * those fields from the exact owner row; every other field reads through a
- * throwing getter with the exact navigation denial (`forbidden`), never a
- * null-mask. Per-caller grants (owner/members/roles, row conditions) stay
- * conservatively withheld until a per-fire viewer observation is plumbed;
- * models missing from the install map project to all-withheld.
+ * Scope-2 hook value-mode caller projection. The bridge serves exactly the
+ * parent-row fields the TRIGGERING caller's grants authorize (non-secret
+ * top-level fields of the per-fire matched grants, row conditions
+ * included); every other field reads through a throwing getter with the
+ * exact navigation denial (`forbidden`), never a null-mask. The served set
+ * is computed per fire from the install policy table (models missing from
+ * it — ruled models included — project to all-withheld): no model-wide
+ * grants, ever.
  */
-function buildPublicParentFields(
-  policy: import('@canlang/state/policy/grants').PolicyTable,
-): ReadonlyMap<string, ReadonlySet<string>> {
-  const served = new Map<string, Set<string>>();
-  for (const [model, entry] of policy) {
-    const secrets = new Set(entry.secretFields);
-    const fields = new Set<string>();
-    for (const grant of entry.grants) {
-      if (grant.by !== 'public' || grant.when !== undefined) continue;
-      for (const path of grant.fields) {
-        const top = path.split('.')[0]!;
-        if (!secrets.has(top)) fields.add(top);
-      }
-    }
-    served.set(model as string, fields);
-  }
-  return served;
-}
-
-function projectPublicParentRow(
+function projectHookParentValueRow(
   errors: new (code: string, message: string) => Error,
   served: ReadonlySet<string> | undefined,
   row: StoredRow,
@@ -6340,10 +6320,10 @@ function nativeScenarioQueryRecord(loaded: NativeRecordScope, model: string, row
 interface LocalOwnerPolicyControl {
   readonly policies: CheckedOwnerModelPolicies;
   readonly hookCallables: ReadonlySet<string>;
-  /** Install attaches the value-mode public fields once the policy table exists. */
-  setPublicParentFields(fields: ReadonlyMap<string, ReadonlySet<string>>): void;
+  /** Install attaches the read-grant policy table once it exists; per-fire value projection reads it. */
+  setParentValuePolicies(policy: import('@canlang/state/policy/grants').PolicyTable): void;
   verifyAssembly(asm: AssembledModules, artifact: CompileArtifact): Promise<void>;
-  createOwnerFrame(input: { readonly deploymentBase?: string; readonly call: CanonicalSeamCall; readonly session: Pick<OwnerMutationSession, 'views' | 'read' | 'stage'> }): { close(): void };
+  createOwnerFrame(input: { readonly deploymentBase?: string; readonly call: CanonicalSeamCall; readonly session: Pick<OwnerMutationSession, 'views' | 'read' | 'stage'>; readonly memberships?: CanonicalMembershipReader }): { close(): void };
   createFixtureFrame(input: { readonly deploymentBase?: string; readonly context: InvocationContext; readonly session: Pick<OwnerMutationSession, 'views' | 'read' | 'stage'> }): { close(): void };
 }
 const localOwnerPolicyControls = new WeakMap<LoadedCanonicalDescriptors, LocalOwnerPolicyControl>();
@@ -6512,12 +6492,11 @@ async function loadLocalOwnerPolicyControl(input: {
       throw new Error('Local owner policies require nonempty claims.');
     }
   }
-  const activeFrames = new WeakMap<InvocationContext, { active: boolean; readonly deploymentBase?: string }>();
+  const activeFrames = new WeakMap<InvocationContext, { active: boolean; readonly deploymentBase?: string; readonly memberships?: CanonicalMembershipReader }>();
   const hookCallables = new Set<string>();
-  // Install-attached value-mode public fields per model (set once from the
-  // canonical policy table after this control is built; unset reads as
-  // all-withheld).
-  const publicParentFields: { current: ReadonlyMap<string, ReadonlySet<string>> } = { current: new Map() };
+  // Install-attached read-grant policy table (set once from the canonical
+  // table after this control is built; unset reads as all-withheld).
+  const parentValuePolicies: { current: import('@canlang/state/policy/grants').PolicyTable | undefined } = { current: undefined };
   const modules: { path: string; registry: unknown }[] = [];
   for (const emitted of input.artifact.modules) {
     const imported: unknown = await importVerifiedAssemblyModule(input.asm, emitted.path, input.artifact);
@@ -6606,6 +6585,89 @@ async function loadLocalOwnerPolicyControl(input: {
               memberships: Object.freeze([]) as unknown as string[], preferences: Object.freeze(Object.create(null)) as Record<string, Record<string, unknown>>,
               qualified: original.context,
             });
+            // Per-fire caller value projection: the triggering caller's
+            // row/field grants over the exact owner row. Actor/team come
+            // from the admitted call itself (never substituted); the
+            // membership is re-read live through the frame reader so a
+            // revoked caller loses granted fields on the next fire. Absent
+            // table entries (ruled models included) grant nothing.
+            const callerValueFields = async (model: unknown, row: StoredRow): Promise<ReadonlySet<string>> => {
+              const entry = typeof model === 'string' ? parentValuePolicies.current?.get(model as ModelName) : undefined;
+              if (entry === undefined) return new Set<string>();
+              const actorUserId = original.context.actor?.userId ?? null;
+              const teamId = original.context.team?.teamId ?? null;
+              const memberships = frame?.memberships ?? { findMembership: async () => null };
+              const membership = actorUserId !== null && teamId !== null
+                ? await memberships.findMembership(teamId, actorUserId) : null;
+              const matched = await input.native.producers.grants.matchGrants(entry,
+                { actorUserId, teamId, membership, memberships }, row);
+              if (!Array.isArray(matched)) {
+                throw new Error('Hook parent value projection served no grant array (invoke/dist skew?).');
+              }
+              const secrets = new Set(entry.secretFields);
+              const served = new Set<string>();
+              for (const grant of matched) {
+                if (!isUnknownRecord(grant) || !Array.isArray(grant.fields) ||
+                    (grant.fields as readonly unknown[]).some(field => typeof field !== 'string' || field === '')) {
+                  throw new Error('Hook parent value projection grant lacks its field list (invoke/dist skew?).');
+                }
+                for (const path of grant.fields as readonly string[]) {
+                  const top = path.split('.')[0]!;
+                  if (!secrets.has(top)) served.add(top);
+                }
+              }
+              return served;
+            };
+            // Scope-2 hook parent reads (DESIGN434/442): the emitter calls
+            // transitive.load with the EXISTING (scope, model, id) arity;
+            // the consuming-site mode travels INSIDE the scope object
+            // (openScope threads it; no new primitive, no arity change,
+            // all scope/fence/source checks preserved). decision scopes
+            // serve bounded owner decision reads over staged-plus-
+            // committed rows through the defining State loader; value
+            // scopes load the same exact row and project it to the
+            // triggering caller's row/field grants (per-fire evaluation
+            // above; withheld fields throw the exact navigation
+            // `forbidden` on access — never null, never a silent owner
+            // upgrade). Helpers inherit their consuming site, so inline,
+            // local and imported loads share one meaning. The same object
+            // also serves record-typed helpers through `c.transitive`.
+            const hookTransitive = (() => {
+              const issued = new Set<object>();
+              const openScope = (site: unknown): object => guarded(() => {
+                if (site !== 'decision' && site !== 'value') {
+                  throw new input.native.producers.errors('validation',
+                    'Hook parent read requires its decision or value site.');
+                }
+                const scope = Object.freeze({ mode: site });
+                issued.add(scope);
+                return scope;
+              });
+              const load = (scope: unknown, model: unknown, id: unknown): Promise<unknown> => guarded(() => {
+                if (typeof scope !== 'object' || scope === null || !issued.has(scope)) {
+                  throw new input.native.producers.errors('validation',
+                    'Native hook parent scope is closed or foreign.');
+                }
+                // The emitter consumes the transitive row shape
+                // (`$hookRow.data.FIELD`, null for a missing row); the
+                // defining State loader returns the owner read carrier
+                // (`{model, row, withheld}`). Project to the row here so
+                // both runtimes share one shape. Denied/missing reads
+                // still throw inside the loader before this projection.
+                const mode = (scope as { mode: 'decision' | 'value' }).mode;
+                if (mode !== 'value') {
+                  return original.loadParent(model as ModelName, id as RecordId, mode)
+                    .then(read => read.row);
+                }
+                return original.loadParent(model as ModelName, id as RecordId, 'value')
+                  .then(async read => projectHookParentValueRow(
+                    input.native.producers.errors,
+                    await callerValueFields(model, read.row as StoredRow),
+                    read.row as StoredRow));
+              });
+              return Object.freeze({ openScope, load });
+            })();
+            Object.assign(c, { transitive: hookTransitive });
             freezeScenarioSnapshot(c);
             const bridge = Object.freeze({ before: view(original.before), after: view(original.after),
               triggerId: original.triggerId, triggerModel: original.triggerModel, op: original.op,
@@ -6629,53 +6691,10 @@ async function loadLocalOwnerPolicyControl(input: {
               // Declared event/schedule projection is an owning prerequisite;
               // native payloads cannot be passed as an unchecked wire object.
               schedule: refuse, cancel: (key: string) => guarded(() => original.cancel(key)),
-              // Scope-2 hook parent reads (DESIGN434/442): the emitter calls
-              // transitive.load with the EXISTING (scope, model, id) arity;
-              // the consuming-site mode travels INSIDE the scope object
-              // (openScope threads it; no new primitive, no arity change,
-              // all scope/fence/source checks preserved). decision scopes
-              // serve bounded owner decision reads over staged-plus-
-              // committed rows through the defining State loader; value
-              // scopes load the same exact row and project it to the static
-              // unconditional-public grants (withheld fields throw the exact
-              // navigation `forbidden` on access — never null, never a
-              // silent owner upgrade; per-caller grants stay withheld).
-              // Helpers inherit their consuming site, so inline, local and
-              // imported loads share one meaning.
-              transitive: (() => {
-                const issued = new Set<object>();
-                const openScope = (site: unknown): object => guarded(() => {
-                  if (site !== 'decision' && site !== 'value') {
-                    throw new input.native.producers.errors('validation',
-                      'Hook parent read requires its decision or value site.');
-                  }
-                  const scope = Object.freeze({ mode: site });
-                  issued.add(scope);
-                  return scope;
-                });
-                const load = (scope: unknown, model: unknown, id: unknown): Promise<unknown> => guarded(() => {
-                  if (typeof scope !== 'object' || scope === null || !issued.has(scope)) {
-                    throw new input.native.producers.errors('validation',
-                      'Native hook parent scope is closed or foreign.');
-                  }
-                  // The emitter consumes the transitive row shape
-                  // (`$hookRow.data.FIELD`, null for a missing row); the
-                  // defining State loader returns the owner read carrier
-                  // (`{model, row, withheld}`). Project to the row here so
-                  // both runtimes share one shape. Denied/missing reads
-                  // still throw inside the loader before this projection.
-                  const mode = (scope as { mode: 'decision' | 'value' }).mode;
-                  return original.loadParent(model as ModelName, id as RecordId,
-                    mode === 'value' ? 'decision' : mode).then(read => {
-                    if (mode !== 'value') return read.row;
-                    return projectPublicParentRow(
-                      input.native.producers.errors,
-                      publicParentFields.current.get(model as string),
-                      read.row as StoredRow);
-                  });
-                });
-                return Object.freeze({ openScope, load });
-              })(),
+              // The per-fire hook transitive (built above): parent reads at
+              // the inheriting decision/value site, shared with
+              // record-typed helpers through `c.transitive`.
+              transitive: hookTransitive,
             });
             try {
               const answer: unknown = await (run as (candidate: Record<string, unknown>, bridge: unknown, c: HandlerContext) => unknown)(fields(candidate), bridge, c);
@@ -6980,18 +6999,19 @@ async function loadLocalOwnerPolicyControl(input: {
   // carrier is verified. The issuer checks the whole JS/map closure even
   // when this module namespace is already in the ESM import cache.
   const verificationPath = modules[0]!.path;
-  const openFrame = ({ context: source, session, deploymentBase }: { readonly deploymentBase?: string; readonly context: InvocationContext;
-    readonly session: Pick<OwnerMutationSession, 'views' | 'read' | 'stage'> }) => {
+  const openFrame = ({ context: source, session, deploymentBase, memberships }: { readonly deploymentBase?: string; readonly context: InvocationContext;
+    readonly session: Pick<OwnerMutationSession, 'views' | 'read' | 'stage'>; readonly memberships?: CanonicalMembershipReader }) => {
     const context = session.views.context;
     if (!Object.isFrozen(context) || localPolicyContextFacts(context) !== localPolicyContextFacts(source) || activeFrames.has(context)) {
       throw new input.native.producers.errors('validation', 'Owner model frame requires its exact fresh session context.');
     }
-    const frame = { active: true, ...(deploymentBase === undefined ? {} : { deploymentBase }) };
+    const frame = { active: true, ...(deploymentBase === undefined ? {} : { deploymentBase }),
+      ...(memberships === undefined ? {} : { memberships }) };
     activeFrames.set(context, frame);
     return Object.freeze({ close() { frame.active = false; } });
   };
-  return Object.freeze({ policies, hookCallables, setPublicParentFields(fields: ReadonlyMap<string, ReadonlySet<string>>) {
-    publicParentFields.current = fields;
+  return Object.freeze({ policies, hookCallables, setParentValuePolicies(policy: import('@canlang/state/policy/grants').PolicyTable) {
+    parentValuePolicies.current = policy;
   }, async verifyAssembly(asm: AssembledModules, artifact: CompileArtifact) {
     if (asm !== input.asm) {
       throw new input.native.producers.errors('validation', 'Native owner policies require their original verified assembly.');
@@ -7000,8 +7020,9 @@ async function loadLocalOwnerPolicyControl(input: {
     catch {
       throw new input.native.producers.errors('validation', 'Native owner assembly no longer matches its captured artifact or module closure.');
     }
-  }, createOwnerFrame({ call, session, deploymentBase }: { readonly deploymentBase?: string; call: CanonicalSeamCall; session: Pick<OwnerMutationSession, 'views' | 'read' | 'stage'> }) {
-    return openFrame({ context: call.context, session, ...(deploymentBase === undefined ? {} : { deploymentBase }) });
+  }, createOwnerFrame({ call, session, deploymentBase, memberships }: { readonly deploymentBase?: string; call: CanonicalSeamCall; session: Pick<OwnerMutationSession, 'views' | 'read' | 'stage'>; readonly memberships?: CanonicalMembershipReader }) {
+    return openFrame({ context: call.context, session, ...(deploymentBase === undefined ? {} : { deploymentBase }),
+      ...(memberships === undefined ? {} : { memberships }) });
   }, createFixtureFrame({ context, session, deploymentBase }: { readonly deploymentBase?: string; context: InvocationContext;
     session: Pick<OwnerMutationSession, 'views' | 'read' | 'stage'> }) {
     if (context.kind !== 'test' || session.views.context.kind !== 'test') {
@@ -7470,7 +7491,7 @@ async function runScenarioExecution(
   let nativeMembershipFrame: NativeMembershipFrame | undefined;
   try {
   if (ownerSession !== undefined && ownerControl !== undefined) {
-    ownerPolicyFrame = ownerControl.createOwnerFrame({ call, session: ownerSession,
+    ownerPolicyFrame = ownerControl.createOwnerFrame({ call, session: ownerSession, memberships: opts.memberships,
       ...(opts.deploymentBase === undefined ? {} : { deploymentBase: opts.deploymentBase }) });
   }
   const staged: Map<string, StoredRow | null> = new Map();
@@ -9647,7 +9668,7 @@ async function invokeCanonicalMutation(
         ...(ownerControl === undefined ? {} : { ownerPolicies: ownerControl.policies }),
         ownerBounds: Object.freeze({ maxRows: 1_000, maxWork: 10_000 }),
         createOwnerFrame: async ({ call, session }) => {
-          const ordinary = ownerControl?.createOwnerFrame({ call, session,
+          const ordinary = ownerControl?.createOwnerFrame({ call, session, memberships: opts.memberships,
             ...(opts.deploymentBase === undefined ? {} : { deploymentBase: opts.deploymentBase }) });
           const binding = candidateBindings?.get(call.context.operation);
           try {

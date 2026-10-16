@@ -236,9 +236,13 @@ export type OwnerMutationHookParentSite = 'decision' | 'value';
 
 /**
  * One served hook parent read: the observed owner row plus the value-mode
- * fields the caller may not read. Decision reads carry no withheld fields;
- * restricted denied values stay precise failures (never a null/empty
- * fallback, no new grants).
+ * fields withheld from the triggering caller. Decision reads carry no
+ * withheld fields; value reads carry every data field withheld by default
+ * — State holds no caller read grants, so the host viewer projection (or
+ * any transitive-load wrapper) narrows this set per the triggering
+ * caller's row/field authority before serving values. Restricted denied
+ * values stay precise failures (never a null/empty fallback, no new
+ * grants).
  */
 export interface OwnerMutationHookParentRead {
   readonly model: ModelName;
@@ -250,8 +254,9 @@ export interface OwnerMutationHookParentRead {
  * Scope-2 parent loader at the defining State owner: exact-ID loads over
  * the trigger's containment ancestry only, served from the owner
  * transaction snapshot (staged own-writes win, never raw committed
- * storage). State serves `decision` loads; `value` loads require the host
- * viewer projection and refuse here with their exact requirement.
+ * storage). State serves `decision` loads at owner authority and `value`
+ * loads as the exact row with every data field withheld; the host viewer
+ * projection authorizes per-caller fields from that baseline.
  */
 export interface OwnerMutationHookParentReads {
   load(model: ModelName, id: RecordId, site: OwnerMutationHookParentSite): Promise<OwnerMutationHookParentRead>;

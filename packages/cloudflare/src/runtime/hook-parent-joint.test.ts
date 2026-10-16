@@ -29,22 +29,28 @@ import { buildInvoker } from '@canlang/cloudflare/worker/assembly';
  * loadParent (staged-plus-committed snapshot, exact containment chain).
  *
  * Covered: (a) private-guard (`read=owner`) success on If-condition +
- * Require + local/imported helper-inherited decision reads; (b) public
- * body-value copy succeeds through the value-mode public projection, while
- * non-public granted/withheld copies refuse precisely (`forbidden`, thrown
- * on access, never a null-mask) with atomic void; (c) inline/local/imported
- * equivalence in both guard directions; (d) rollback on denied and
- * guard-failed writes with atomic effects (trigger plus hook-staged kin
- * absent); (e) committed-parent control across updates; (f)
- * guessed/tampered/foreign parents and stranger callers refused.
+ * Require + local/imported record-helper-inherited decision reads; (b)
+ * per-fire caller value projection: the owner-granted timezone copy
+ * commits for the granted owner through local and imported record
+ * helpers (agreeing), public region copy commits, while withheld
+ * (member/stranger/secret) copies refuse precisely (`forbidden`, thrown
+ * on access, never a null-mask) with atomic void; (c)
+ * inline/local/imported equivalence in both guard directions; (d)
+ * rollback on denied and guard-failed writes with atomic effects
+ * (trigger plus hook-staged kin absent); (e) committed-parent control
+ * across updates; (f) guessed/tampered/foreign parents and stranger
+ * callers refused; (g) revocation: a removed member loses the granted
+ * copy on the next fire.
  * Scenario-cause stages skip hooks by design (T31 flat, no cascade), so
  * in-scenario creates never fire crud hooks; same-transaction staged-parent
  * visibility through COMPILED hooks stays on the loader-level suite.
  *
- * Explicitly open (not asserted here): per-caller value grants
- * (owner/members/roles stay conservatively withheld until a per-fire viewer
- * observation is plumbed) and row-typed helper parameters over the parent
- * linkage (loud E6008 by C27 seal).
+ * Closed here: per-fire caller value projection (the owner-granted
+ * timezone copy commits for the granted owner through local AND imported
+ * record helpers, while member, stranger and revoked callers get the
+ * precise `forbidden` with atomic void) and row-typed helper parameters
+ * over the parent linkage (decision If + Require plus body copy, inline
+ * and helper spellings agreeing).
  */
 
 const execFileAsync = promisify(execFile);
@@ -98,7 +104,7 @@ async function setup(extraArgs: readonly string[] = []) {
     assert.ok('result' in outcome, JSON.stringify(outcome));
     return outcome.result;
   };
-  return { artifact, asm, dir, store, memberships, invoker, identity, invoke, committed };
+  return { artifact, asm, dir, store, memberships, team, membership, invoker, identity, invoke, committed };
 }
 
 async function teardown(world: Awaited<ReturnType<typeof setup>>) {
@@ -203,17 +209,87 @@ test('public body-value copy succeeds through the value projection', async () =>
   }
 });
 
-test('owner-granted body-value copy refuses forbidden with atomic void', async () => {
+test('owner-granted body-value copy commits through local and imported record helpers', async () => {
   const world = await setup();
   try {
     const { locRow } = await stageFamily(world, true);
-    const failed = await world.invoke('Copy.create',
+    const copied = await world.committed('Copy.create',
       { parent: ref(locRow), taken: true, snapshot: 'new' });
+    assert.equal(copied.status, 'committed');
+    // Local and imported helpers agree (the hook requires z==w): the
+    // granted timezone lands verbatim, never a null-mask.
+    const copies = await rowsOf(world, 'Copy');
+    assert.equal(copies.length, 1);
+    assert.equal((copies[0]!.data as Record<string, unknown>)['snapshot'], 'UTC');
+  } finally {
+    await teardown(world);
+  }
+});
+
+test('withheld member copy refuses forbidden with atomic void', async () => {
+  const world = await setup();
+  try {
+    const { locRow } = await stageFamily(world, true);
+    // Same-team non-owner: CRUD admits (authenticated) but the
+    // owner-gated timezone stays withheld for this caller.
+    const memberUser = await world.memberships.createUser({ email: 'joint-member@example.test',
+      email_verified: true, password_hash: 'unused' });
+    const memberMembership = await world.memberships.createMembership({ team_id: world.team.team_id,
+      user_id: memberUser.user_id, is_owner: false, roles: [] });
+    const memberIdentity = makeIdentity({ membership: memberMembership, team: world.team, email: memberUser.email });
+    const failed = await world.invoke('Copy.create',
+      { parent: ref(locRow), taken: true, snapshot: 'new' }, memberIdentity);
     assert.ok('error' in failed, JSON.stringify(failed));
     assert.equal(failed.error.code, 'forbidden');
     assert.equal(failed.error.message, 'Record field is not readable.');
     // Precise refusal, never a null-masked copy: no row survives.
     assert.deepEqual(await rowsOf(world, 'Copy'), []);
+  } finally {
+    await teardown(world);
+  }
+});
+
+test('stranger copy refuses forbidden with atomic void', async () => {
+  const world = await setup();
+  try {
+    const { locRow } = await stageFamily(world, true);
+    const stranger = await world.memberships.createUser({ email: 'joint-copy-stranger@example.test',
+      email_verified: true, password_hash: 'unused' });
+    const team = await world.memberships.createTeam({ timezone: 'UTC' });
+    const membership = await world.memberships.createMembership({ team_id: team.team_id,
+      user_id: stranger.user_id, is_owner: false, roles: [] });
+    const identity = makeIdentity({ membership, team, email: stranger.email });
+    const failed = await world.invoke('Copy.create',
+      { parent: ref(locRow), taken: true, snapshot: 'new' }, identity);
+    assert.ok('error' in failed, JSON.stringify(failed));
+    assert.equal(failed.error.code, 'forbidden');
+    assert.equal(failed.error.message, 'Record field is not readable.');
+    assert.deepEqual(await rowsOf(world, 'Copy'), []);
+  } finally {
+    await teardown(world);
+  }
+});
+
+test('revoked caller loses the granted copy on the next fire', async () => {
+  const world = await setup();
+  try {
+    const { locRow } = await stageFamily(world, true);
+    // Granted while the membership holds.
+    const first = await world.committed('Copy.create',
+      { parent: ref(locRow), taken: true, snapshot: 'new' });
+    assert.equal(first.status, 'committed');
+    // Revoke the owner's membership; the same caller is withheld now:
+    // CRUD still admits (authenticated) but the value load refuses.
+    await world.memberships.removeMembership(world.membership.membership_id);
+    const failed = await world.invoke('Copy.create',
+      { parent: ref(locRow), taken: true, snapshot: 'new' });
+    assert.ok('error' in failed, JSON.stringify(failed));
+    assert.equal(failed.error.code, 'forbidden');
+    assert.equal(failed.error.message, 'Record field is not readable.');
+    // Only the pre-revocation copy survives.
+    const copies = await rowsOf(world, 'Copy');
+    assert.equal(copies.length, 1);
+    assert.equal((copies[0]!.data as Record<string, unknown>)['snapshot'], 'UTC');
   } finally {
     await teardown(world);
   }

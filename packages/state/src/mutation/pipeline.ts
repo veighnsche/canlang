@@ -1252,14 +1252,18 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
         }
         catch (error) { if (owner !== undefined) poisoned = true; throw error; }
       };
-      // Scope-2 hook parent loader for this fire. Decision loads serve the
+      // Scope-2 hook parent loader for this fire. Both sites serve the
       // trigger's exact parent chain from the owner transaction snapshot
-      // (staged own-writes win via getRow, never raw committed storage);
-      // value loads require the host viewer projection and refuse with
-      // their exact requirement. Expected refusals never poison the session:
-      // the hook may catch them as control flow (like any authored guard);
-      // uncaught failures void the batch through the existing hook-error
-      // path. Only the liveness/scope checks below run before the read.
+      // (staged own-writes win via getRow, never raw committed storage).
+      // Decision loads serve at owner authority with no withheld fields;
+      // value loads serve the exact row with every data field withheld —
+      // State holds no caller read grants, so the host viewer projection
+      // narrows the baseline per the triggering caller's row/field
+      // authority before serving values. Expected refusals never poison
+      // the session: the hook may catch them as control flow (like any
+      // authored guard); uncaught failures void the batch through the
+      // existing hook-error path. Only the liveness/scope checks below
+      // run before the read.
       const loadParent = (
         model: ModelName, id: RecordId, site: OwnerMutationHookParentSite,
       ): Promise<OwnerMutationHookParentRead> => (async () => {
@@ -1273,9 +1277,6 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
         }
         if (!table.has(model) || typeof id !== 'string' || id === '') {
           throw new StateError('validation', 'Owner mutation reads require a known model and record identity.');
-        }
-        if (site !== 'decision') {
-          throw new StateError('validation', 'Hook parent value reads require the host viewer projection.');
         }
         // Exact-chain walk from the trigger's parent link through the owner
         // transaction snapshot. Only genuine ancestors serve; anything else
@@ -1301,8 +1302,9 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
         }
         const row = await getRow(model, id);
         if (row === null) throw new StateError('not_found', 'Parent record not found.');
+        const withheld = site === 'decision' ? new Set<string>() : new Set<string>(Object.keys(row.data));
         return Object.freeze({ model, row: deepFreeze(structuredClone(row)) as StoredRow,
-          withheld: Object.freeze(new Set<string>()) });
+          withheld: Object.freeze(withheld) });
       })();
       const ctx: InterimHookContext = {
         before: frozenBefore,
