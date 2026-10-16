@@ -7534,3 +7534,25 @@ accepted only (not whole membership runtime / original24). Main clean
 historical capture. REVIEW-13 (bool) and REVIEW-14 (hook repeat) remain open
 and do not gate this bridge. Next original24 scheduled at a released/frozen
 closure after relevant fixes.
+
+**Coordinator verification + REVIEW-15/16 intake, 2026-10-16:**
+B11 clean-HEAD verification (/tmp probe, since removed; C21 dirt contaminates
+parent runs): in-process suites green clean — collection_bool_filters 24/24,
+factory_profiles 28/28, b1_join 2/2; nominal_preference_runtime 1 failure is
+the same test pre/post (pre-existing). t31_hook_run_shape PASSES at clean
+HEAD — the parent-tree failure is C21's uncommitted hook work, not B11.
+Binary-dependent suites (calendar_agenda, gallery_runtime, table_filters,
+bool-page node 38/38) pass in parent but the shared `can` binary is
+currently dirty-built (C21 edits present); their CLEAN rerun is DEFERRED to
+C21's release + clean rebuild, explicitly not claimed. Parent tree holds
+C21's uncommitted js.rs/hook_lowering/models/pipeline edits — untouched.
+REVIEW-15 (Codex 09:14Z+) ACKed as queued finite correction behind C21
+release (js.rs shared lease): non-nullable bool reads must decode at the
+reader too (B10 covered both; B11 requires nullable_inner), and the 200+
+lines of one-off AST recognizers must be reduced toward existing typed pure
+expression machinery with discriminator ((preferences.active ?? false)==false
+== not(...) == helper). No new carrier/effect system.
+REVIEW-16 (Codex 09:14Z) dispatched as finite B12 (`01a14401-e9f1-...`):
+radialProgress BigInt max vs UI number contract at the defining numeric
+presentation boundary, with actual-compiled-source consumer proof. Active
+lanes: C21, B12 (2 of 3).
