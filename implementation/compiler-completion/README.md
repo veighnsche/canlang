@@ -7790,3 +7790,12 @@ inactive + no future consumer, then clean ONLY the owned private
 target/debug. Scope corrections (module+field, pins, false preservation)
 required as edits before acceptance. Worker ACK + edits pending verification.
 No deletions of shared/foreign/source/logs/Git; no new allocations.
+
+**Capture sequencing, 2026-10-16 (evidence 01a1447c-1fea):**
+C23 directed: no whole24 capture (no script exists; duplicates invalidate) —
+release coherent tested handoff + writer handle at criterion pass; root owns
+the ONE frozen recapture after the C23+B16 cohort releases with final
+binary/catalog reserved (single shared-cache build post-freeze, no private
+builds). B16's old private binary is stale for corrected behavior (kept only
+for fail-before evidence, cleanup after owner release). Main intake at
+complete B16 handoff, no whole-plan wait.
