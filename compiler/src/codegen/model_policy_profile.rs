@@ -46,6 +46,7 @@ pub fn local_hook_supported(program: &IrProgram, scenario: SymbolId) -> bool {
         op: hook.op,
         module: item.module,
         remaining: 4096,
+        hook_body_derives: Vec::new(),
     };
     if !profile.model_supported(hook.model) {
         return false;
@@ -64,6 +65,10 @@ struct HookProfile<'a> {
     op: CrudOp,
     module: ModuleId,
     remaining: usize,
+    /// Checked derive canonicals on the current record-helper body stack.
+    /// A linkage-carrying helper whose body reaches itself (directly or
+    /// through another linkage helper) refuses instead of recursing.
+    hook_body_derives: Vec<String>,
 }
 
 /// Row-binding class for hook locals. A snapshot alias
@@ -645,7 +650,11 @@ impl HookProfile<'_> {
     /// derives (pure functions of their arguments, invoked with the native
     /// ambient context) and the recorded pure temporal/aggregate builtins.
     /// Parent-identity arguments refuse — a `{model, id}` linkage is not
-    /// the row a derive reads. Store reads keep their query-layer join.
+    /// the row a derive reads — except into a stored-record parameter of a
+    /// checked derive whose body reads only admitted parent fields (see
+    /// `hook_derive_call`): the emitted hook variant loads those fields
+    /// through `c.transitive` at the inheriting site. Store reads keep
+    /// their query-layer join.
     fn hook_call(
         &mut self,
         target: &IrCallTarget,
@@ -655,7 +664,9 @@ impl HookProfile<'_> {
         depth: usize,
     ) -> Option<()> {
         match target {
-            IrCallTarget::DeriveFn(_) => {}
+            IrCallTarget::DeriveFn(canonical) => {
+                return self.hook_derive_call(canonical, args, locals, aliases, depth);
+            }
             IrCallTarget::Builtin { id, .. } if Self::pure_hook_builtin(id) => {}
             IrCallTarget::Builtin { id, .. } if id == "count" => {
                 // `count` over an admitted contained query lowers through
@@ -679,6 +690,145 @@ impl HookProfile<'_> {
             }
         }
         Some(())
+    }
+
+    /// Trigger's direct containment parent: the only linkage model a
+    /// record-typed helper parameter may carry. Deeper ancestry keeps its
+    /// existing refusal (loud `E6008`, never a silent wrong row).
+    fn hook_direct_parent(&self) -> Option<SymbolId> {
+        let trigger = self.program.items.get(self.model.0 as usize)?;
+        if trigger.id != self.model {
+            return None;
+        }
+        let IrItemKind::Model {
+            owner: IrOwner::ChildOf(parent),
+            ..
+        } = &trigger.kind
+        else {
+            return None;
+        };
+        let parent_item = self.program.items.get(parent.0 as usize)?;
+        if parent_item.id != *parent || parent_item.module != self.module {
+            return None;
+        }
+        Some(*parent)
+    }
+
+    /// Record-typed helper admission for hook calls. Without a linkage
+    /// argument the existing scalar rule holds (staged/linkage values stay
+    /// out). With one, every linkage argument must fill the trigger's
+    /// direct-parent model in a stored-record parameter, and the callee
+    /// body must admit over that linkage (helpers inherit the consuming
+    /// site; no Boolean-result privilege — the loader returns rows).
+    fn hook_derive_call(
+        &mut self,
+        canonical: &str,
+        args: &[TypedExpr],
+        locals: &HashMap<String, ResolvedType>,
+        aliases: &HashMap<String, (SymbolId, EventAlias)>,
+        depth: usize,
+    ) -> Option<()> {
+        for arg in args {
+            self.expr(arg, locals, aliases, depth + 1)?;
+        }
+        if !args.iter().any(|arg| {
+            self.event_class(arg, aliases).is_some_and(|(_, class)| {
+                matches!(
+                    class,
+                    EventAlias::ParentIdentity | EventAlias::Staged
+                )
+            })
+        }) {
+            return Some(());
+        }
+        let mut callees = self.program.items.iter().filter(|item| {
+            item.canonical == *canonical && matches!(&item.kind, IrItemKind::DeriveFn { .. })
+        });
+        let callee = callees.next()?;
+        if callees.next().is_some() {
+            return None;
+        }
+        if self.hook_body_derives.iter().any(|seen| seen == canonical) {
+            return None;
+        }
+        let IrItemKind::DeriveFn {
+            params,
+            expr: Some(body),
+            ..
+        } = &callee.kind
+        else {
+            return None;
+        };
+        if params.len() != args.len() {
+            return None;
+        }
+        let direct_parent = self.hook_direct_parent()?;
+        if Self::hook_body_has_closure(body) {
+            return None;
+        }
+        let body = body.clone();
+        let mut inner_locals = HashMap::new();
+        let mut inner_aliases = HashMap::new();
+        for (param_id, arg) in params.iter().zip(args.iter()) {
+            let param = self.program.items.get(param_id.0 as usize)?;
+            if param.id != *param_id {
+                return None;
+            }
+            let IrItemKind::Param {
+                ty: IrType::Known(ty),
+                ..
+            } = &param.kind
+            else {
+                return None;
+            };
+            match self.event_class(arg, aliases) {
+                Some((model, EventAlias::ParentIdentity)) => {
+                    let ResolvedType::Record { symbol, stored: true } = ty else {
+                        return None;
+                    };
+                    if *symbol != model || model != direct_parent {
+                        return None;
+                    }
+                    inner_aliases.insert(param.name.clone(), (model, EventAlias::ParentIdentity));
+                }
+                Some((_, EventAlias::Staged)) => return None,
+                _ => {
+                    inner_locals.insert(param.name.clone(), ty.clone());
+                }
+            }
+        }
+        self.hook_body_derives.push(canonical.to_string());
+        let admitted = self.expr(&body, &inner_locals, &inner_aliases, depth + 1);
+        self.hook_body_derives.pop();
+        admitted
+    }
+
+    /// Closures (lambdas, queries) inside a record-helper body refuse: the
+    /// hook-variant emission lowers linkage reads inline, which has no
+    /// async carrier inside a nested closure. Loud refusal, never silent.
+    fn hook_body_has_closure(expr: &TypedExpr) -> bool {
+        match &expr.expr {
+            IrExpr::Call { args, .. }
+            | IrExpr::BoundCall { args, .. }
+            | IrExpr::MessageCall { args, .. }
+            | IrExpr::Format { args, .. } => args.iter().any(Self::hook_body_has_closure),
+            IrExpr::Member { base, .. }
+            | IrExpr::Unary { operand: base, .. }
+            | IrExpr::DeliveryRead { record: base, .. } => Self::hook_body_has_closure(base),
+            IrExpr::Binary { left, right, .. } => {
+                Self::hook_body_has_closure(left) || Self::hook_body_has_closure(right)
+            }
+            IrExpr::Array(items) => items.iter().any(Self::hook_body_has_closure),
+            IrExpr::Object(entries) => entries.iter().any(|(_, value)| Self::hook_body_has_closure(value)),
+            IrExpr::JudgmentSpecification { options, .. } => options
+                .as_ref()
+                .is_some_and(|option| Self::hook_body_has_closure(option)),
+            IrExpr::HasRole { person, .. } => person
+                .as_ref()
+                .is_some_and(|subject| Self::hook_body_has_closure(subject)),
+            IrExpr::Query(_) | IrExpr::Lambda { .. } => true,
+            _ => false,
+        }
     }
 
     /// Model descriptor by canonical identity within this hook's module.

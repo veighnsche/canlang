@@ -56,6 +56,33 @@ export interface CheckedOwnerModelPolicies {
   /** Source-ordered hooks; only genuine CRUD causes run these. */
   readonly hooks: ReadonlyMap<ModelName, readonly InterimHook[]>;
 }
+
+/**
+ * Scope-2 transitive projection over one served parent read: served fields
+ * keep their values while withheld fields read through a throwing getter
+ * with the exact navigation denial (`forbidden`), never a null-mask. The
+ * served set is the loader row minus its withheld baseline, so a
+ * fail-closed baseline — no caller grant authority in a direct State frame
+ * — refuses every value read precisely while decision reads serve whole.
+ */
+export function projectOwnerHookParentRow(input: {
+  readonly row: StoredRow;
+  readonly withheld: ReadonlySet<string>;
+}): StoredRow {
+  const data: Record<string, unknown> = Object.create(null);
+  for (const field of Object.keys(input.row.data)) {
+    if (!input.withheld.has(field)) {
+      data[field] = (input.row.data as Record<string, unknown>)[field];
+    } else {
+      Object.defineProperty(data, field, { enumerable: true,
+        get: (): never => {
+          throw new StateError('forbidden', 'Record field is not readable.');
+        },
+      });
+    }
+  }
+  return Object.freeze({ ...input.row, data });
+}
 const checkedPolicies = new WeakSet<object>();
 export function assertCheckedOwnerModelPolicies(value: CheckedOwnerModelPolicies): void {
   if (!checkedPolicies.has(value)) throw new StateError('validation', 'Unverified owning model-policy bindings.');
@@ -265,8 +292,31 @@ export function bindOwnerModelPolicies(input: {
         assertOwnerMutationHookContext(context);
         // Forward the owning invocation context as the native runner's
         // ambient `c`: hook queries, `now` and derive calls read the same
-        // author/clock as their triggering operation.
-        return binding.run(candidate, context, context.context);
+        // author/clock as their triggering operation. The `c.transitive`
+        // path serves record-typed helper linkage through the defining
+        // owner loader at the inheriting site (same arity as the host
+        // bridge; only the projection baseline differs — with no caller
+        // grant authority in a direct State frame, value reads stay
+        // precisely refused while decision reads serve whole).
+        const transitive = Object.freeze({
+          openScope: (site: unknown): object => {
+            if (site !== 'decision' && site !== 'value') {
+              throw new StateError('validation', 'Hook parent read requires its decision or value site.');
+            }
+            return Object.freeze({ mode: site });
+          },
+          load: async (scope: unknown, model: unknown, id: unknown): Promise<StoredRow> => {
+            if (typeof scope !== 'object' || scope === null ||
+              ((scope as { readonly mode: unknown }).mode !== 'decision' &&
+                (scope as { readonly mode: unknown }).mode !== 'value')) {
+              throw new StateError('validation', 'Hook parent scope is closed or foreign.');
+            }
+            const read = await context.loadParent(model as ModelName, id as RecordId,
+              (scope as { readonly mode: 'decision' | 'value' }).mode);
+            return projectOwnerHookParentRow(read);
+          },
+        });
+        return binding.run(candidate, context, Object.freeze({ ...context.context, transitive }));
       } });
     });
     hooks.set(descriptor.model, Object.freeze(modelHooks));

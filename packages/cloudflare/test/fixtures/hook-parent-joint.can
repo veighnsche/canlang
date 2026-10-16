@@ -2,7 +2,7 @@ app HookParentJoint
 use hpjointhelpers {isActiveExt as importedIsActive, zoneExt as importedZone}
 Given
  Site { region:text }
- Location in Site { active:bool, timezone:text, secret:text }
+ export Location in Site { active:bool, timezone:text, secret:text }
  Reading in Location { taken:bool, snapshot:text }
  Copy in Location { taken:bool, snapshot:text }
  Steal in Location { taken:bool, snapshot:text }
@@ -10,8 +10,8 @@ Given
  Kin in Location { taken:bool, snapshot:text }
  Beacon in Site { label:text }
  Other { note:text }
- derive isActive(v:bool):bool = v
- derive zone(v:text):text = v
+ derive isActive(loc:Location):bool = loc.active
+ derive zone(loc:Location):text = loc.timezone
  policy Site read=public
  policy Location read=owner fields=active,timezone
  policy Reading read=public
@@ -25,7 +25,7 @@ When
  crud Site by=owner fields=region
  crud Location by=owner fields=active,timezone,secret
  crud Reading by=owner fields=taken,snapshot
- crud Copy by=owner fields=taken,snapshot
+ crud Copy by=authenticated fields=taken,snapshot
  crud Steal by=owner fields=taken,snapshot
  crud Strict by=owner fields=taken,snapshot
  crud Kin by=owner fields=taken,snapshot
@@ -39,18 +39,21 @@ When
   do
    if event.after.parent.active
     require event.after.parent.active
-    require isActive(event.after.parent.active)
-    require importedIsActive(event.after.parent.active)
+    require isActive(event.after.parent)
+    require importedIsActive(event.after.parent)
     create Kin {parent=event.after.parent,taken=true,snapshot="kin"} as kin
     set event.after {snapshot="armed"}
- ## (b) Owner-granted body-value copy: helper over the granted timezone
- ## field. Per-caller grants stay withheld, so the value-mode load throws
- ## the exact navigation forbidden on access (no null-mask); the batch
- ## voids atomically.
+ ## (b) Owner-granted body-value copy: local and imported record helpers
+ ## over the granted timezone field. The per-fire caller projection serves
+ ## granted fields to the granted caller, while withheld callers get the
+ ## exact navigation forbidden on access (no null-mask); the batch voids
+ ## atomically.
  scenario copyzone on=Copy.create
   do
    if event.after.parent.active
-    let z=zone(event.after.parent.timezone)
+    let z=zone(event.after.parent)
+    let w=importedZone(event.after.parent)
+    require z==w
     set event.after {snapshot=z}
  ## (b)(d) Denied body-value copy: the secret field is outside every public
  ## grant. The read throws forbidden mid-batch (no null-mask) after kin

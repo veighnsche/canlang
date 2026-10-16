@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import type { ModelName, RecordId } from '@canlang/contracts';
+import type { ModelName, RecordId, RecordVersion, StoredRow } from '@canlang/contracts';
 import { assertOwnerMutationHookContext, beginOwnerMutation, type MutationWritesResult, type MutationWrite, type OwnerMutationSession } from './pipeline.js';
+import { projectOwnerHookParentRow } from './model-policies.js';
 import { buildModelTable, type InterimHookContext, type OwnerMutationHookParentReads } from './models.js';
 import { createTestMemoryStorage } from '../storage/memory.js';
 import { StateError } from '../errors.js';
@@ -202,17 +203,22 @@ test('a parent-load failure voids the batch atomically', async () => {
   assert.equal(await store.load(LOC, asId('loc-1')), null);
 });
 
-test('value-site loads refuse with the exact host-viewer requirement', async () => {
+test('value-site loads serve the exact row with every data field withheld', async () => {
   const { store } = createTestMemoryStorage();
   const table = tableWith([hook('value', ['create'], async (candidate, ctx) => {
     assertOwnerMutationHookContext(ctx);
-    await assert.rejects(ctx.loadParent(LOC, asId('loc-1'), 'value'),
-      (error: unknown) => {
-        assert.ok(error instanceof StateError);
-        assert.equal(error.code, 'validation');
-        assert.equal(error.message, 'Hook parent value reads require the host viewer projection.');
-        return true;
-      });
+    const read = await ctx.loadParent(LOC, asId('loc-1'), 'value');
+    assert.equal(read.model, LOC);
+    assert.equal(read.row.data.active, true);
+    assert.equal(read.row.data.timezone, 'UTC');
+    // State holds no caller read grants: every data field stays withheld
+    // until the host viewer projection narrows the baseline per caller.
+    assert.deepEqual([...read.withheld].sort(), ['active', 'timezone']);
+    assert.ok(Object.isFrozen(read.row));
+    // The same row at decision site carries nothing withheld.
+    const decision = await ctx.loadParent(LOC, asId('loc-1'), 'decision');
+    assert.deepEqual([...decision.withheld], []);
+    assert.deepEqual({ ...decision.row.data }, { ...read.row.data });
     return candidate;
   })]);
   const session = await beginOwnerMutation({ table, store, context: context(), bounds });
@@ -220,6 +226,24 @@ test('value-site loads refuse with the exact host-viewer requirement', async () 
   await stage(session, locationCreate('loc-1', { active: true, timezone: 'UTC' }));
   await stage(session, readingCreate('read-1', 'loc-1'));
   await commit(store, await session.finalize());
+});
+
+test('value projection serves granted fields and refuses withheld precisely', async () => {
+  const row = {
+    id: asId('loc-1'), version: 1 as RecordVersion, created: 1, updated: 1,
+    createdBy: 'tester', updatedBy: 'tester', archivedAt: null,
+    parent: { model: SITE, id: asId('site-1') }, data: { active: true, timezone: 'UTC' },
+  } as unknown as StoredRow;
+  const projected = projectOwnerHookParentRow({ row, withheld: new Set(['timezone']) });
+  assert.equal((projected.data as Record<string, unknown>).active, true);
+  // Withheld reads throw the exact navigation denial — never a null-mask.
+  assert.throws(() => (projected.data as Record<string, unknown>).timezone,
+    (error: unknown) => {
+      assert.ok(error instanceof StateError);
+      assert.equal(error.code, 'forbidden');
+      assert.equal(error.message, 'Record field is not readable.');
+      return true;
+    });
 });
 
 test('malformed parent reads refuse before touching storage', async () => {
