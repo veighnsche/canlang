@@ -13,20 +13,31 @@ GRAMMAR source structure, and this record finite delivery/qualification. Accepte
 components remain closed at their recorded scopes; historical next/pending notes
 are evidence rather than additional execution queues.
 
-**Current main original24 qualification:** complete preference-filter integration
-`9c9060738` (reconciled `d798da070`) passes actual main compiled-Can render/save/
-HTTP/State checks. Enum default helper/import reuse is accepted in `b75b2b332`.
-After UI `8096c3f86` and deferred membership `ced21de11`, the unchanged original24 composition still fails in one frozen main capture,
-[evidence/original24-main-20261016.json](../../evidence/original24-main-20261016.json),
-complete=true, omitted=0,26 consumed sources, **359 E6008 occurrences**. All24
-authored source hashes match the saved original baseline (2 removed vs the
-earlier 361: CanDesk list and CanMaintain table filter/where via E5). The wider
-unmerged implementation branch's earlier351 count is a different producer scope
-and is not a main-to-main comparison.
+**Current main original24 qualification:** now the frozen modelref cohort at
+481 E6008 — see "Current original24" below. History: preference-filter
+`9c9060738`, enum helper/import reuse `b75b2b332`, UI `8096c3f86`, deferred
+membership `ced21de11`, E5 (359, −2 vs 361). The wider unmerged implementation
+branch's earlier351 count is a different producer scope and is not a
+main-to-main comparison.
 Membership checked-source joins, factory runtime contracts and native handler
 session/admission remain local implementation work. Hook guards and ordinary value reads retain their existing consuming-site
 authority; missing parent-read implementation is not a new value-use prohibition. Exact17/18 external/policy holds remain unchanged. Continue ready work
 through these checkpoints; do not mark the overall goal complete.
+
+### Current original24 (frozen main modelref cohort) — 481 E6008 — 2026-10-16
+
+[evidence/original24-main-20261016.json](../../evidence/original24-main-20261016.json):
+frozen main producer `db864475` + native catalog `ca50`, saved argv, exit 10,
+464.59s, complete=true, omitted=0, 26 sources, all authored hashes match.
+75 removed / 197 added vs prior 359 (net +122; old 359 retained in git history).
+Partition (occurrences, not patches): hooks/helper/context/effects 264; stored
+queries/domains/order/archive 117; UI 46 (32 filter/default + 14 other);
+dispatch correspondence 27; formatting sinks 9; crossop calls 7;
+membership/Boolean 6; invoice triggers 5. No composition error currently
+requires external input. Known active regression: +175 hook-helper-linkage
+refusals at previously-clean sites from merge26 eager hook-variant dual
+emission (`emit_derive_fns`); defining-owner repair dispatched, no blanket
+revert — accepted hook value/grants/runtime/filter components preserved.
 
 ### Accepted model-reference filter batch (merge27) — 2026-10-16
 
