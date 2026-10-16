@@ -7423,3 +7423,17 @@ Coordinator defining review CLEAR and source/component intake; actual changed MA
 **Human-directed local checkpoint, 2026-10-12:** Human-directed wind-down: preserve all current coherent and explicitly unfinished local work in main. Compiler stopped at clean c68d90e0 with every Cargo/CLI/SDK run terminal and cleanup complete. Exact15 defining source/control paths across243 imported-required-parent,628 complete original Chat policies,fe13 membership-context fixture,4aa Mailbox source/private handler andc68 current-definition are intaken as labelled checkpoints.30ac was already accepted and is not repeated. No worker worktree/branch mutation, merge/rebase/reset, push or activation/publication.
 
 Reuse owning bounded source reviews CLEAR and checks: Chat actual unchanged CLI/SDK1/51.75s plus source1/7.14/current2/legacy17/strict11.86; Mailbox unit3/.03+composedCLI/SDK1/.59/codegen121/IR2/completion5/enum1/strict8.91; current-definition2/.70+current4/144.28/strict11.18/fmt0. Changed primary locked/offline CLI build0 in18.45s. No new whole native or application run. Full original Creative remains last612.85s exit10/eight findings/no artifact; native Chat/verified Mailbox durable once and File ingress/current definition receiving remain unfinished, original conversation_revoked first/limit10 loop and four held C14 example errors/C23/publication holds remain.
+
+### CAN18 canonical main — radial boundary accepted (2026-10-16)
+
+`553b1fc44` integrates the complete focused `c039673e2` radial fix and only its
+`788e3661` decimal IR prerequisite. Independent released compiled-source consumer
+passed 1/1 against reserved compiler `ecadf351f` (post-C22, no active workers or
+compiler writers), using actual emitted pages and real UI. Literal integer and
+decimal values, nullable/invalid/unsafe values and maximum-first failure checks
+pass. This replaces the withdrawn mutable-binary qualification; no other factory
+profiles are accepted by this checkpoint. Existing independent production review
+covers this conversion and unchanged numeric contract. Original24 is currently
+running with the same reserved binary/catalog; its previous 347 diagnostics are
+historical, not a current result. All other finite outcome gates remain open at
+their recorded scopes.

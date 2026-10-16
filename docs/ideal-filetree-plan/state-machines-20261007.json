@@ -73029,5 +73029,38 @@
     "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
     "checkpoint_advanced": false,
     "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
+  },
+  "can18_merge_12_20261016": {
+    "incremental_base": "96b901447104f659d2c790598cde3125f61174ab",
+    "incoming_end": "553b1fc44a0b09b112393c163a447978eb2c8c6c",
+    "retained_coverage": "reuse spec_installer_merge_reconciliation_20261015 and preceding CAN18 incremental merge entries; inherited complete checkpoint unchanged",
+    "changed_path_count": 4,
+    "rows": [
+      [
+        "compiler/src/codegen/ir.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/src/codegen/js.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/fixtures/radial-progress-boundary.can",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/radial_progress_runtime.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ]
+    ],
+    "choice": "Accept the complete radial-progress numeric boundary at its Compiler owner: focused int/decimal IR admission plus canonical numeric presentation conversion, retaining unrelated factory work on the implementation branch.",
+    "validation": "Independent released actual-source consumer passed 1/1 against reserved can ecadf351f during the coordinator frozen read window; literal int and decimal pages render through real UI, invalid values alert, unsafe or zero maximum throws first. This supersedes the withdrawn mutable-binary intake; original24 capture remains running.",
+    "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
+    "checkpoint_advanced": false,
+    "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
   }
 }
