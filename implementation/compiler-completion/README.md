@@ -51,6 +51,18 @@ exact `rule_failed` with no added trigger, TRUE revocation (membership
 removed) `forbidden` with no new rows; prior stranger-only check retained
 as-is, not as revocation proof. No production repair needed.
 
+### Current original24 (frozen main c2 cohort) — 282 E6008 — 2026-10-17
+
+[evidence/original24-main-20261016.json](../../evidence/original24-main-20261016.json):
+frozen main producer `982e9eda` + native catalog `ca50`, saved argv, exit 10,
+430.70s, complete=true, omitted=0, 26 sources, all authored hashes match.
+−6 net vs 288 (C2 text rule fixes 9: table 4, list 2, board 2, calendar 1;
+unmasks 2 next gaps at CanField `page` + collapse — progress, not
+regression). 288 retained in git history. Next ready groups: first-query 90,
+hook query 39, dispatch guard 23, hook `now` 22, collection domain 10, hook
+derive 10, table filters 14, archived 6, parent content 5, list filters 6,
+C3 dates, staged remainder, collapse/page follow-ons.
+
 ### Accepted C2 installed closure (merge40) — 2026-10-17
 
 Main integrates `01a24696` (test-only): the installed text consumer passes
