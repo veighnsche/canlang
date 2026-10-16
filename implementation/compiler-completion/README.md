@@ -78,8 +78,12 @@ Independent released and main compiled-Can assembled HTTP consumers each pass
 Main test reconciliation preserves the existing money-stat refusal and checks
 source-owned preference labels exactly. The frozen main compiler is
 `aa1efac926` (its cached version label `dca00d411` does not identify its source).
-A changed-cohort original24 capture follows; the prior361 count is not a new
-qualification of this batch.
+The changed-cohort original24 capture completes in469.92s, exit10,
+complete=true/omitted=0,26sources: **359 E6008 occurrences**, exactly2 removed
+and0 added versus361. The CanDesk list and CanMaintain table filter/where
+refusals clear. All24 authored source hashes remain unchanged. The existing
+evidence file is updated in place; the prior361 result remains in Git history.
+The composition is still not ready.
 
 Native ownership `dca00d411` passed its independent compiled battery8/8 but stays
 out of main pending the demonstrated private guard decision-authority repair
