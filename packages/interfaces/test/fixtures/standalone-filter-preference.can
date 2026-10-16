@@ -1,0 +1,24 @@
+app Probe
+Given
+ Job { location:text, state:enum(open,closed) label={text="S",values={open="Open",closed="Closed"}}, archived:bool=false }
+ policy Job read=public
+When
+Then
+ preferences { state:Job.state?, archived:Job.archived? }
+ page /d title="D"
+  filter preferences.state
+  list Job columns=location filter=state defaults={state=preferences.state} display=split
+ page /e title="E"
+  filter preferences.archived
+  list Job columns=location filter=archived defaults={archived=preferences.archived} display=split
+
+app Other
+Given
+ Task { title:text, state:enum(open,closed) label={text="T",values={open="Open",closed="Closed"}} }
+ policy Task read=public
+When
+Then
+ preferences { state:Task.state? }
+ page /other title="O"
+  filter preferences.state
+  list Task columns=title filter=state defaults={state=preferences.state} display=split
