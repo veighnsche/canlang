@@ -295,8 +295,11 @@ t17b files 31/35 with 4 failures proven pre-existing by a without-seam
 hygiene: `packages/work/dist` foreign-main symlink replaced with an owned
 build (work/src unchanged since `2eeefdd4`) curing a TS2345 dual
 type-identity with the owned state dist; shared/main outputs untouched.
-Helper-consumer proof still missing (0 helper mentions in the suite) —
-E6008 removal stays gated on a finite successor test slice.
+Helper-consumer proof landed in `5398f931` (Lane C12 commit
+`ebd095dc`, test-only): the seam serves helper consumers with no source
+change — new 3/3 block, full seam file 13/13 in parent, t16b 37/0
+unchanged. SCOPE-4 gate satisfied (stored reads + helper consumer through
+the real seam). E6008 removal now unblocked as a finite Lane-A slice.
 
 Outcome 9 family A implemented in `55c969d2` (Lane A commit `fac7bd70`):
 45/64 handler profiles (`on=Cap.event`) lower through canonical
