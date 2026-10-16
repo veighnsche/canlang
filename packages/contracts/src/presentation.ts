@@ -207,11 +207,11 @@ export interface PresentationContext extends Partial<PageSourceContext> {
   readonly deploymentBase?: string;
   /** Exact-operation form preparation supplied by the request dispatcher. */
   readonly prepareForm?: OperationFormPreparer;
-  /** Current request selection over checked owning enum declarations; no query authority. */
+  /** Current request selection over checked owning enum/bool declarations; no query authority. */
   readonly prepareCollectionFilters?: (
     occurrence: string,
     fields: readonly ColumnMeta[],
-    defaults?: Readonly<Record<string, string | null>>,
+    defaults?: Readonly<Record<string, string | boolean | null>>,
   ) => readonly FilterCondition[];
   /** Viewer locale preference: saved preference, then language priority list. */
   readonly preferredLocales: readonly string[];
@@ -658,10 +658,10 @@ export interface ListProps {
   readonly columns?: readonly string[];
   readonly parent?: { readonly id: string };
   readonly where?: unknown;
-  /** Checked owning enum filter declarations, not granted row metadata. */
+  /** Checked owning enum/bool filter declarations, not granted row metadata. */
   readonly filter?: readonly ColumnMeta[];
   /** Initial selections only; explicit request selection or clear wins. */
-  readonly defaults?: Readonly<Record<string, string | null>>;
+  readonly defaults?: Readonly<Record<string, string | boolean | null>>;
   readonly order?: readonly string[];
   readonly search?: readonly string[];
   /** One source-owned list summary, outside renderRow. */
@@ -691,7 +691,7 @@ export interface GalleryProps extends Omit<ListProps, "columns" | "display" | "r
   /** Stable checked source occurrence for this collection's preview dialog. */
   readonly occurrence: string;
   readonly filter?: readonly ColumnMeta[];
-  readonly defaults?: Readonly<Record<string, string | null>>;
+  readonly defaults?: Readonly<Record<string, string | boolean | null>>;
   readonly renderRow?: ListProps["renderRow"];
 }
 
@@ -701,10 +701,10 @@ export interface TableProps {
   readonly parent?: { readonly id: string };
   readonly where?: unknown;
   readonly search?: readonly string[];
-  /** Checked owning enum filter declarations, not granted row metadata. */
+  /** Checked owning enum/bool filter declarations, not granted row metadata. */
   readonly filter?: readonly ColumnMeta[];
   /** Initial selections only; explicit request selection or clear wins. */
-  readonly defaults?: Readonly<Record<string, string | null>>;
+  readonly defaults?: Readonly<Record<string, string | boolean | null>>;
   readonly order?: readonly string[];
   readonly limit?: number;
   readonly cursor?: string;
@@ -963,10 +963,10 @@ export interface CalendarAgendaProps {
   readonly startField: string;
   readonly endField: string;
   readonly where?: unknown;
-  /** Checked owning enum filter declarations, not granted row metadata. */
+  /** Checked owning enum/bool filter declarations, not granted row metadata. */
   readonly filter?: readonly ColumnMeta[];
   /** Initial selections only; explicit request selection or clear wins. */
-  readonly defaults?: Readonly<Record<string, string | null>>;
+  readonly defaults?: Readonly<Record<string, string | boolean | null>>;
   readonly order?: readonly string[];
   readonly limit?: number;
   readonly cursor?: string;
@@ -1853,10 +1853,10 @@ export interface BoardProps {
   readonly columns: readonly string[];
   readonly parent?: { readonly id: string };
   readonly where?: unknown;
-  /** Checked owning enum filter declarations, not granted row metadata. */
+  /** Checked owning enum/bool filter declarations, not granted row metadata. */
   readonly filter?: readonly ColumnMeta[];
   /** Initial selections only; explicit request selection or clear wins. */
-  readonly defaults?: Readonly<Record<string, string | null>>;
+  readonly defaults?: Readonly<Record<string, string | boolean | null>>;
   readonly limit?: number;
   readonly cursor?: string;
   /** Stable source collection occurrence; required when filter controls or pagination apply. */
