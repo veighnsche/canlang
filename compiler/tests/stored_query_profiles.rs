@@ -25,7 +25,7 @@
 //! source/type/owner still refuse E6008.
 use canlang_compiler::analysis::catalog::{Catalog, CatalogRequest, load_catalog};
 use canlang_compiler::analysis::{CheckedProgram, check_program};
-use canlang_compiler::codegen::ir::{self, IrItem, IrItemKind, IrProgram};
+use canlang_compiler::codegen::ir::{self, IrItem, IrItemKind, IrProgram, IrStmt};
 use canlang_compiler::codegen::js;
 use canlang_compiler::diagnostic::{Diagnostic, DiagnosticResult};
 use canlang_compiler::source::{SourceDb, Span};
@@ -241,4 +241,146 @@ fn plain_first_query_same_module_without_order_control() {
     assert!(diagnostics.is_empty(), "{diagnostics:?}");
     let text = artifact["modules"][0]["js"].as_str().unwrap();
     assert!(text.contains("executionDependencies:["));
+}
+
+const CONTAINED_DOMAIN_SOURCE: &str = "app DomainProbe\nGiven\n Term {name:text}\n Seat in Term {account:user,active:bool}\n policy Term read=members\n policy Seat read=members\nWhen\n scenario assign(term:Term,account:user) -> bool by=members\n  do\n   let seat=first(term.Seat as seat where seat.account==account order=seat.id)\n   require seat!=null and seat.active\n   return true\nThen\n";
+
+fn contained_operation(artifact: &serde_json::Value) -> &serde_json::Value {
+    artifact["operations"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|operation| operation["name"] == "DomainProbe.assign")
+        .unwrap()
+}
+
+/// Contained-domain first-query correspondence (CAN18-v1 Lane C native
+/// first/domain slice): `term.Seat` scans the required parent parameter's
+/// children against their actual native owner. Disclosure records the
+/// contained parent; the query plan, native receipt, owner-first IR join and
+/// emitter each re-prove the receiver, and the emitted plan carries the
+/// admitted-reference parent edge. Native first lowering (not the pure
+/// builtin) executes the call.
+#[test]
+fn contained_domain_first_query_same_module() {
+    let (db, program, _, catalog) = fixture_source("contained-first.can", CONTAINED_DOMAIN_SOURCE);
+    let (artifact, diagnostics) = prepared_artifact(&program, &db, &catalog);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let text = artifact["modules"][0]["js"].as_str().unwrap();
+    assert!(text.contains("executionDependencies:["));
+    assert!(text.contains("firstQuery("), "contained first lowers natively");
+    assert!(
+        text.contains("\"field\":\"active\",\"type\":\"bool\""),
+        "contained row field keeps its checked bool profile"
+    );
+    let plan = &contained_operation(&artifact)["result"]["disclosure"];
+    assert_eq!(plan["queries"][0]["model"], "DomainProbe.Seat");
+    assert_eq!(plan["queries"][0]["parent"]["model"], "DomainProbe.Term");
+    assert_eq!(
+        plan["queries"][0]["parent"]["origin"]["parameter"],
+        "term"
+    );
+    assert_eq!(
+        plan["queries"][0]["order"],
+        serde_json::json!([{"field":"id","direction":"asc"}])
+    );
+}
+
+/// Otherwise-equivalent contained first WITHOUT order: the default
+/// created/id engine ordering keeps the same admitted parent edge.
+#[test]
+fn contained_domain_first_query_same_module_without_order() {
+    let source = CONTAINED_DOMAIN_SOURCE.replace(
+        "first(term.Seat as seat where seat.account==account order=seat.id)",
+        "first(term.Seat as seat where seat.account==account)",
+    );
+    let (db, program, _, catalog) = fixture_source("contained-first-no-order.can", &source);
+    let (artifact, diagnostics) = prepared_artifact(&program, &db, &catalog);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let text = artifact["modules"][0]["js"].as_str().unwrap();
+    assert!(text.contains("firstQuery("), "contained first lowers natively");
+    let plan = &contained_operation(&artifact)["result"]["disclosure"];
+    assert_eq!(plan["queries"][0]["parent"]["model"], "DomainProbe.Term");
+    assert_eq!(
+        plan["queries"][0]["parent"]["origin"]["parameter"],
+        "term"
+    );
+    assert_eq!(plan["queries"][0]["order"], serde_json::json!([]));
+}
+
+/// Contained-domain refusals stay fail-closed with E6008: a receiver that is
+/// not the required parent parameter, a non-child spelling, and IR-level
+/// parent add/drop tampering must all refuse even though the plain shape
+/// emits.
+#[test]
+fn contained_domain_first_query_refusals_stay_fail_closed() {
+    // A non-child spelling already refuses at check with E2013 (unknown
+    // member); only checked shapes reach the native join below.
+    // Receiver is a let-bound alias, not the original required parameter.
+    let source = "app DomainProbe\nGiven\n Term {name:text}\n Seat in Term {account:user,active:bool}\n policy Term read=members\n policy Seat read=members\nWhen\n scenario assign(term:Term,account:user) -> bool by=members\n  do\n   let holder=term\n   let seat=first(holder.Seat as seat where seat.account==account order=seat.id)\n   require seat!=null and seat.active\n   return true\nThen\n";
+    let (db, program, _, catalog) = fixture_source("contained-first-let-receiver.can", source);
+    let (_, diagnostics) = prepared_artifact(&program, &db, &catalog);
+    assert!(
+        diagnostics.iter().any(|diagnostic| diagnostic.code == "E6008"),
+        "let-bound receiver must refuse"
+    );
+    // IR tampering: dropping the admitted parent lets an unscoped scan ride
+    // the contained plan, and renaming it rebinds another parameter. Both
+    // must refuse at the native join.
+    let (db, _, ir, _) = fixture_source("contained-first.can", CONTAINED_DOMAIN_SOURCE);
+    let owner = item(&ir, "DomainProbe.assign").id;
+    let mut tampered = ir.clone();
+    let IrItemKind::Scenario { effects, .. } = &mut tampered.items[owner.0 as usize].kind else {
+        panic!("scenario");
+    };
+    let IrStmt::Let { value, .. } = &mut effects[0] else {
+        panic!("let");
+    };
+    let ir_expr = match &mut value.expr {
+        canlang_compiler::codegen::ir::IrExpr::Call { args, .. } => &mut args[0].expr,
+        canlang_compiler::codegen::ir::IrExpr::BoundCall { args, .. } => &mut args[0].expr,
+        other => panic!("call {other:?}"),
+    };
+    let canlang_compiler::codegen::ir::IrExpr::Query(scan) = ir_expr else {
+        panic!("query");
+    };
+    assert!(scan.parent.is_some(), "fixture carries the admitted parent");
+    scan.parent = None;
+    assert!(
+        js::emit_program_with_native_source_receipts(&tampered, true, &db)
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "E6008"),
+        "dropped IR parent must still refuse"
+    );
+    let mut renamed = ir.clone();
+    let IrItemKind::Scenario { effects, .. } = &mut renamed.items[owner.0 as usize].kind else {
+        panic!("scenario");
+    };
+    let IrStmt::Let { value, .. } = &mut effects[0] else {
+        panic!("let");
+    };
+    let ir_expr = match &mut value.expr {
+        canlang_compiler::codegen::ir::IrExpr::Call { args, .. } => &mut args[0].expr,
+        canlang_compiler::codegen::ir::IrExpr::BoundCall { args, .. } => &mut args[0].expr,
+        other => panic!("call {other:?}"),
+    };
+    let canlang_compiler::codegen::ir::IrExpr::Query(scan) = ir_expr else {
+        panic!("query");
+    };
+    let Some(parent) = scan.parent.as_deref_mut() else {
+        panic!("parent");
+    };
+    let canlang_compiler::codegen::ir::IrExpr::Name(name) = &mut parent.expr else {
+        panic!("name");
+    };
+    assert_eq!(name, "term");
+    *name = "account".into();
+    assert!(
+        js::emit_program_with_native_source_receipts(&renamed, true, &db)
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "E6008"),
+        "renamed IR parent must still refuse"
+    );
 }
