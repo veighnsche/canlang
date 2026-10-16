@@ -328,6 +328,19 @@ matching current native catalog/runtime and recording the catalog
 distinction vs the old Values baseline; freeze the consumed closure, reuse
 unchanged evidence. Real source compilation failures route to the
 compiler owner, never synthetic-JS evasion.
+REVIEW-9 gaps integrated: `4ef5985d` (Lane C13 `d07d048a`, defining-source
+selection via callable/module/checked-origin with path/hash/owner —
+missing/ambiguous/tampered refuse, extra valid + helper sources accepted;
+seam 18/18, t16b 37/0 in parent) and `9fad717b` (Lane C13 `bae13ddb`,
+real two-file .can fixture pair committed; compiled with the real native
+catalog → exit 10 sole E6008 on Shop.totals as expected while refusal
+stands; viewer-only positive control serves end-to-end through
+invokeReadCanonical). Three Lane-A mismatches routed with file-level
+evidence (no compiler-side evasion): (1) re-land E6008 removal `f516b976`
+after gaps close; (2) per-operation defining-source origin (or narrowed
+per-module maps) — real multi-source maps list every source in each map;
+(3) data-only AST selections for authority-body queries (callback
+where-predicates refused by decision mode; beyond-fixture).
 
 Outcome 9 family A implemented in `55c969d2` (Lane A commit `fac7bd70`):
 45/64 handler profiles (`on=Cap.event`) lower through canonical
