@@ -18051,3 +18051,8 @@ compiler at pre-fix `e46013cb`. Production source is unchanged from the
 accepted `98b7f48c`; all work remains preserved. Qualify the complete
 focused radial IR/emission boundary against the released frozen compiler
 input before reintake. This changes no language rule or acceptance scope.
+
+
+## 2026-10-16 — can18_merge_12_20261016
+
+Accepted: Accept the complete radial-progress numeric boundary at its Compiler owner: focused int/decimal IR admission plus canonical numeric presentation conversion, retaining unrelated factory work on the implementation branch. Merge reviewed tested work incrementally into canonical `main`, preserving installer/specification changes and the active implementation branch. Independent released actual-source consumer passed 1/1 against reserved can ecadf351f during the coordinator frozen read window; literal int and decimal pages render through real UI, invalid values alert, unsafe or zero maximum throws first. This supersedes the withdrawn mutable-binary intake; original24 capture remains running. Reconcile the living file-tree plan/registry over `96b901447..553b1fc44` with existing owners; retain the complete checkpoint and all outstanding acceptance gates. A merged component is not a claim that original24 or the remaining runtime workflows are complete.
