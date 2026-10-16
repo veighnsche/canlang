@@ -528,6 +528,41 @@ describe("list", () => {
     } } }), /missing authorized filter field "state"/);
     assert.equal(queries, 2); assert.deepEqual(bodies, []);
   });
+
+  it("renders recorded bool toggle list filters with typed conditions", async () => {
+    const filter: readonly ColumnMeta[] = [{ field: "active", type: "bool",
+      label: "Active", valueLabels: { true: "Yes", false: "No" } }];
+    const defaults = { active: true };
+    const first: RowView = { id: "todo-1", version: "1", fields: { title: "First", active: true } };
+    const second: RowView = { id: "todo-2", version: "2", fields: { title: "Second", active: true } };
+    let queries = 0, preparations = 0;
+    const context = makeContext({
+      path: "/todos",
+      prepareCollectionFilters: (occurrence, fields, actualDefaults) => {
+        preparations++;
+        assert.equal(occurrence, "todos-list");
+        assert.equal(fields, filter);
+        assert.equal(actualDefaults, defaults);
+        return [{ field: "active", op: "eq", value: true }];
+      },
+      query: async (invocation, model, args) => {
+        queries++;
+        assert.equal(invocation, context.invocation);
+        assert.equal(model, "TeamTasks.Todo");
+        assert.deepEqual(args, { where: { op: "eq", field: "active", value: true },
+          occurrence: "todos-list" });
+        return { rows: [first, second], columns: [{ field: "title", label: "Title", type: "text" }, ...filter] };
+      },
+    });
+    const props = { context, model: "TeamTasks.Todo", columns: ["title"], filter, defaults,
+      occurrence: "todos-list",
+      renderRow: (record: RowView) => [`<p>body-${record.id}</p>`] };
+    const html = await list(props);
+    assert.ok(html.includes("data-can-list-filters"), html);
+    assert.ok(html.includes('<option value="true" selected>Yes</option>'), html);
+    assert.ok(html.includes('<option value="false">No</option>'), html);
+    assert.equal(queries, 1); assert.equal(preparations, 1);
+  });
 });
 
 describe("table", () => {

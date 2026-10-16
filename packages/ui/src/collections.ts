@@ -403,7 +403,7 @@ export function prepareSourceFilters(props: SourceFilterProps, factory: SourceFi
     conditions = props.context.prepareCollectionFilters(props.occurrence, props.filter, props.defaults);
   }
   const filters: QueryPredicate[] = conditions.map(condition => {
-    if (condition.op !== "eq") throw new Error(`${factory}: owning enum equality selection required`);
+    if (condition.op !== "eq") throw new Error(`${factory}: owning finite-choice equality selection required`);
     return { op: "eq", field: condition.field, value: condition.value };
   });
   if (filters.length !== 0 && typeof props.where === "function") {
@@ -460,7 +460,10 @@ export function sourceFilterControls(
     const meta = byField.get(field.field);
     if (meta === undefined) throw new Error(`${factory}: missing authorized filter field "${field.field}"`);
     const name = collectionFilterName(occurrence, field.field);
-    const value = selected.get(field.field) ?? "";
+    // Conditions carry typed values (bool toggles arrive as booleans);
+    // controls compare against the stable option spellings ("true"/case).
+    const selectedValue = selected.get(field.field);
+    const value = selectedValue === undefined || selectedValue === null ? "" : String(selectedValue);
     const options = `<option value=""${value === "" ? " selected" : ""}>${escapeHtml(resolveCaption(CLEAR_FILTER, props.context))}</option>` +
       Object.entries(field.valueLabels!).map(([choice, label]) => `<option value="${escapeAttr(choice)}"${choice === value ? " selected" : ""}>${escapeHtml(resolveCaption(meta.valueLabels?.[choice] ?? label, props.context))}</option>`).join("");
     return `<label for="${escapeAttr(name)}">${escapeHtml(resolveCaption(meta.label, props.context))}</label>` +

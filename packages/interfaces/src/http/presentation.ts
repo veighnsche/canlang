@@ -43,7 +43,13 @@ const unavailablePageRecords: PageRecordsReader = async () => {
   throw buildBusinessError('validation', 'Authorized page source reads are not configured.');
 };
 
-/** Request selectors choose only cases from the owning readable enum inventory. */
+/**
+ * Request selectors choose only admitted values from the owning readable
+ * inventory: enum case names, or strict booleans for `bool` toggle columns.
+ * Conditions carry typed predicate values (booleans stay booleans; the
+ * spellings `"true"`/`"false"` only travel in column metadata and request
+ * text, never as truthy filter values).
+ */
 function collectionFilterPreparer(params: URLSearchParams): NonNullable<PresentationContext['prepareCollectionFilters']> {
   const selectors = [...params];
   return (occurrence, fields, defaults) => {
@@ -55,25 +61,35 @@ function collectionFilterPreparer(params: URLSearchParams): NonNullable<Presenta
     if (typeof occurrence !== 'string' || occurrence.length === 0) refuse();
     let prefix: string;
     try { prefix = `${COLLECTION_FILTER_PREFIX}${encodeURIComponent(occurrence)}:`; } catch { return refuse(); }
-    const inventories = new Map<string, Set<string>>();
+    const inventories = new Map<string, { readonly kind: 'enum' | 'bool'; readonly cases: Set<string> }>();
     for (const column of fields) {
       if (typeof column !== 'object' || column === null) refuse();
       const field = own(column, 'field'), type = own(column, 'type'), labels = own(column, 'valueLabels');
       if (typeof field !== 'string' || field.trim().length === 0 || inventories.has(field) ||
-          typeof type !== 'string' || !type.startsWith('enum:') || type.slice(5).trim().length === 0 ||
           typeof labels !== 'object' || labels === null || Array.isArray(labels)) refuse();
-      try { collectionFilterName(occurrence, field); } catch { return refuse(); }
       const cases = Object.keys(labels);
-      if (cases.length === 0 || cases.some(value => value.length === 0)) refuse();
-      inventories.set(field, new Set(cases));
+      if (type === 'bool') {
+        if (cases.length !== 2 || !cases.includes('true') || !cases.includes('false')) refuse();
+        try { collectionFilterName(occurrence, field); } catch { return refuse(); }
+        inventories.set(field, { kind: 'bool', cases: new Set(cases) });
+        continue;
+      }
+      if (typeof type !== 'string' || !type.startsWith('enum:') || type.slice(5).trim().length === 0 ||
+          cases.length === 0 || cases.some(value => value.length === 0)) refuse();
+      try { collectionFilterName(occurrence, field); } catch { return refuse(); }
+      inventories.set(field, { kind: 'enum', cases: new Set(cases) });
     }
-    const selected = new Map<string, string | null>();
+    const selected = new Map<string, string | boolean | null>();
     if (defaults !== undefined) {
       if (typeof defaults !== 'object' || defaults === null || Array.isArray(defaults)) refuse();
       for (const field of Object.keys(defaults)) {
+        const entry = inventories.get(field);
+        if (entry === undefined) refuse();
         const value = own(defaults, field);
-        if (!inventories.has(field) || (value !== null && (typeof value !== 'string' || !inventories.get(field)!.has(value)))) refuse();
-        selected.set(field, value as string | null);
+        if (entry.kind === 'bool') {
+          if (value !== null && typeof value !== 'boolean') refuse();
+        } else if (value !== null && (typeof value !== 'string' || !entry.cases.has(value))) refuse();
+        selected.set(field, value as string | boolean | null);
       }
     }
     const seen = new Set<string>();
@@ -82,8 +98,15 @@ function collectionFilterPreparer(params: URLSearchParams): NonNullable<Presenta
       if (!key.startsWith(prefix)) continue;
       let field: string;
       try { field = decodeURIComponent(key.slice(prefix.length)); } catch { return refuse(); }
-      if (!inventories.has(field) || collectionFilterName(occurrence, field) !== key || seen.has(field) ||
-          (value !== '' && !inventories.get(field)!.has(value))) refuse();
+      const entry = inventories.get(field);
+      if (entry === undefined || collectionFilterName(occurrence, field) !== key || seen.has(field)) refuse();
+      if (entry.kind === 'bool') {
+        if (value !== '' && value !== 'true' && value !== 'false') refuse();
+        seen.add(field);
+        selected.set(field, value === '' ? null : value === 'true');
+        continue;
+      }
+      if (value !== '' && !entry.cases.has(value)) refuse();
       seen.add(field);
       selected.set(field, value === '' ? null : value);
     }
