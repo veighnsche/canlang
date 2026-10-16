@@ -53,6 +53,20 @@ our choice: shared absence avoids mandatory repeated setup without deleting a
 business condition; explicit visibility remains authored. No new nullable-text,
 array, callback or permission mechanism follows from this choice.
 
+### Accepted contained-first execution checkpoint — 2026-10-16
+
+Outcome 5 contained-domain slice is accepted at its recorded scope:
+`7b7b14e6` compiler + `e5e6b65a` State receiver + `7bd77f9e` actual
+emitted-handler consumer, independently checked 5/5 through canonical
+invocation. Owning and alternate parent domains, empty/rule failure,
+denied caller and tampered source retain their outcomes. These three
+released commits are integrated separately on canonical main as
+`edab85f4`, `2e9c0686`, `792d722c`; the remaining Boolean-page and hook
+batches do not gate this completed slice. Reuse unchanged component and
+neighbor checks. The last original24 capture remains 347 diagnostics;
+this checkpoint does not qualify the whole composition or its remaining
+source consumers. Continue the existing finite execution queue.
+
 ### Finite conformance gaps
 
 There are **18 recorded outcomes**, not 18 patches or 573 independent features.
