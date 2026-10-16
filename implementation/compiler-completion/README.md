@@ -13,12 +13,12 @@ GRAMMAR source structure, and this record finite delivery/qualification. Accepte
 components remain closed at their recorded scopes; historical next/pending notes
 are evidence rather than additional execution queues.
 
-**Current main original24 qualification:** now the frozen modelref cohort at
-481 E6008 — see "Current original24" below. History: preference-filter
-`9c9060738`, enum helper/import reuse `b75b2b332`, UI `8096c3f86`, deferred
-membership `ced21de11`, E5 (359, −2 vs 361). The wider unmerged implementation
-branch's earlier351 count is a different producer scope and is not a
-main-to-main comparison.
+**Current main original24 qualification:** now the frozen regress cohort at
+298 E6008 — see "Current original24" below. History: modelref 481 (linkage
+regression, repaired), preference-filter `9c9060738`, enum helper/import reuse
+`b75b2b332`, UI `8096c3f86`, deferred membership `ced21de11`, E5 (359, −2 vs
+361). The wider unmerged implementation branch's earlier351 count is a
+different producer scope and is not a main-to-main comparison.
 Membership checked-source joins, factory runtime contracts and native handler
 session/admission remain local implementation work. Hook guards and ordinary value reads retain their existing consuming-site
 authority; missing parent-read implementation is not a new value-use prohibition. Exact17/18 external/policy holds remain unchanged. Continue ready work
