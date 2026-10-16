@@ -13964,7 +13964,6 @@ impl<'a> Cx<'a> {
         node: &SyntaxNode,
         row_ctx: Option<(SymbolId, String)>,
     ) -> Option<IrUi> {
-        let _ = row_ctx;
         self.check_ui_attributes(node, "steps", &[]);
         if kids(node)
             .into_iter()
@@ -14010,6 +14009,8 @@ impl<'a> Cx<'a> {
                 .into_iter()
                 .filter(|n| {
                     (n.kind == SyntaxKind::UiLeaf && ui_word(self.db, n) == "text")
+                        || ((n.kind == SyntaxKind::UiLeaf || n.kind == SyntaxKind::CatalogItem)
+                            && ui_word(self.db, n) == "status")
                         || n.kind == SyntaxKind::MessageValue
                 })
                 .collect();
@@ -14023,6 +14024,38 @@ impl<'a> Cx<'a> {
             }
             let label = if texts[0].kind == SyntaxKind::MessageValue {
                 self.decode_ui_header_value(scope, texts[0])
+            } else if ui_word(self.db, texts[0]) == "status" {
+                // A recorded lifecycle stage shows its live flag beside the
+                // frozen record: the owning status profile supplies the
+                // text-bearing value, with no stage options or suite.
+                if !ui_attributes(self.db, texts[0]).is_empty() {
+                    self.diags.push(Diagnostic::error(
+                        "E6008",
+                        "cannot lower steps: each item slot takes one text stage".to_string(),
+                        texts[0].span,
+                    ));
+                    return None;
+                }
+                let Some(stage) = self.decode_status(scope, texts[0], row_ctx.clone()) else {
+                    return None;
+                };
+                if stage.gate.is_some() {
+                    self.diags.push(Diagnostic::error(
+                        "E6008",
+                        "cannot lower steps: each item slot takes one text stage".to_string(),
+                        texts[0].span,
+                    ));
+                    return None;
+                }
+                let Some((_, value)) = stage.props.into_iter().find(|(key, _)| key == "value") else {
+                    self.diags.push(Diagnostic::error(
+                        "E6008",
+                        "cannot lower steps: each item slot takes one text stage".to_string(),
+                        texts[0].span,
+                    ));
+                    return None;
+                };
+                value
             } else {
                 let headers: Vec<&SyntaxNode> = kids(texts[0])
                     .into_iter()
@@ -14205,7 +14238,14 @@ impl<'a> Cx<'a> {
         };
         let value = self.decode_expr(scope, header);
         let maximum = self.decode_expr(scope, maximum);
-        if value.ty.nullable_inner().unwrap_or(&value.ty) != &ResolvedType::Scalar(Scalar::Int)
+        // Progress renders a number: an int, or a decimal fraction such as
+        // the recorded completion percentage. The explicit max stays an
+        // int; other types keep the refusal below.
+        let numeric = matches!(
+            value.ty.nullable_inner().unwrap_or(&value.ty),
+            ResolvedType::Scalar(Scalar::Int | Scalar::Decimal)
+        );
+        if !numeric
             || maximum.ty != ResolvedType::Scalar(Scalar::Int)
             || !self.decode_ui_children(scope, node, row_ctx).is_empty()
         {
@@ -14344,9 +14384,16 @@ impl<'a> Cx<'a> {
             {
                 self.decode_collection(scope, node, word)
             }
+            // A timeline renders its bound sequence through the shared
+            // collection pipeline: one sequence header, an optional order,
+            // and exactly one item template (see the UI catalog timeline
+            // collection profile).
+            "timeline" => self.decode_collection(scope, node, word),
             "calendar" => self.decode_date_calendar(scope, node, row_ctx),
             "collapse" => self.decode_disclosure(scope, node, word, row_ctx),
             "dropdown" => self.decode_slotted_group(scope, node, row_ctx, "dropdown", &["trigger", "content"], &[]),
+            "filter" => self.decode_standalone_filter(scope, node, word),
+            "indicator" => self.decode_slotted_group(scope, node, row_ctx, "indicator", &["content", "indicator"], &[]),
             "swap" => self.decode_swap(scope, node, row_ctx),
             "diff" => self.decode_slotted_group(scope, node, row_ctx, "diff", &["before", "after"], &[]),
             "steps" => self.decode_steps(scope, node, row_ctx),
@@ -16458,6 +16505,32 @@ impl<'a> Cx<'a> {
         let children = self.decode_ui_children(scope, node, row_ctx);
         match headers.as_slice() {
             [header] if children.is_empty() => props.push(("value".to_string(), self.decode_ui_header_value(scope, header))),
+            // `stat a,b,...` shares the metrics visual-join contract: each
+            // value header lowers through the single-value stat profile.
+            [_, _, ..] if children.is_empty() && ui_attributes(self.db, node).is_empty() => {
+                let gate = self.decode_gate(scope, node);
+                let stats = headers
+                    .iter()
+                    .map(|header| IrUi {
+                        view: None,
+                        factory: "stat".to_string(),
+                        props: vec![("value".to_string(), self.decode_ui_header_value(scope, header))],
+                        children: Vec::new(),
+                        row_scope: None,
+                        gate: None,
+                        span: header.span,
+                    })
+                    .collect();
+                return Some(IrUi {
+                    view: None,
+                    factory: "join".to_string(),
+                    props: Vec::new(),
+                    children: stats,
+                    row_scope: None,
+                    gate,
+                    span: node.span,
+                });
+            }
             _ => {
                 self.diags.push(Diagnostic::error("E6008", "cannot lower stat: only one value header without a slotted suite has an owning factory profile".to_string(), node.span));
                 return None;
@@ -17719,6 +17792,263 @@ impl<'a> Cx<'a> {
         Some(props)
     }
 
+    /// Decode a standalone `filter preferences.field`: an in-context saved
+    /// default for a sibling collection filter. It carries the same
+    /// collection filter/default descriptor the view-preference production
+    /// consumes (one owned finite-choice column plus its saved default);
+    /// anything else keeps the exact E6008 below.
+    fn decode_standalone_filter(
+        &mut self,
+        scope: &Scope,
+        node: &SyntaxNode,
+        word: &str,
+    ) -> Option<IrUi> {
+        self.check_ui_attributes(node, word, &[]);
+        let fail = |this: &mut Self, span: Span| {
+            this.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower filter: filter takes one saved finite-choice preference".to_string(),
+                span,
+            ));
+        };
+        let headers: Vec<&SyntaxNode> = kids(node)
+            .iter()
+            .filter(|n| is_expression(n.kind) || n.kind == SyntaxKind::MessageValue)
+            .copied()
+            .collect();
+        let [header] = headers.as_slice() else {
+            fail(self, node.span);
+            return None;
+        };
+        if !ui_attributes(self.db, node).is_empty()
+            || kids(node).iter().any(|n| is_ui_node(n.kind))
+        {
+            fail(self, node.span);
+            return None;
+        }
+        let mut identity = *header;
+        while identity.kind == SyntaxKind::Group {
+            let Some(inner) = kids(identity)
+                .into_iter()
+                .find(|inner| is_expression(inner.kind))
+            else {
+                break;
+            };
+            identity = inner;
+        }
+        let decoded = self.decode_expr(scope, identity);
+        let Some(pref_id) = self
+            .program
+            .types
+            .preference_field_references
+            .get(&NodeKey::of(identity))
+            .copied()
+        else {
+            fail(self, header.span);
+            return None;
+        };
+        let Some(pref_symbol) = self.program.symbols.get(pref_id.0 as usize).cloned() else {
+            fail(self, header.span);
+            return None;
+        };
+        let SymbolKind::Field { owner: pref_owner, .. } = pref_symbol.kind else {
+            fail(self, header.span);
+            return None;
+        };
+        if pref_symbol.id != pref_id || pref_symbol.module != scope.module
+            || !matches!(&decoded.expr, IrExpr::Member { base, field } if field == &pref_symbol.name && matches!(&base.expr, IrExpr::Name(name) if name == "preferences"))
+            || !self.program.symbols.get(pref_owner.0 as usize).is_some_and(|item| matches!(&item.kind, SymbolKind::Preferences { fields } if fields.contains(&pref_id)))
+        {
+            fail(self, header.span);
+            return None;
+        }
+        // The preference reuses one owned model field; that field owns the
+        // finite-choice column exactly as a collection filter selector does.
+        let Some(model_field_id) = self
+            .program
+            .types
+            .field_reuse_sources
+            .get(&pref_id)
+            .copied()
+        else {
+            fail(self, header.span);
+            return None;
+        };
+        let Some(model_symbol) = self.program.symbols.get(model_field_id.0 as usize).cloned()
+        else {
+            fail(self, header.span);
+            return None;
+        };
+        let SymbolKind::Field { owner: model, .. } = model_symbol.kind else {
+            fail(self, header.span);
+            return None;
+        };
+        let Some(model_ty) = self.program.types.symbol_types.get(&model_field_id).cloned()
+        else {
+            fail(self, header.span);
+            return None;
+        };
+        let nullable = matches!(&decoded.ty, ResolvedType::Nullable(inner) if inner.as_ref() == &model_ty);
+        if model_symbol.id != model_field_id || decoded.ty != model_ty && !nullable
+            || !matches!(model_symbol.kind, SymbolKind::Field { owner, .. } if owner == model)
+            || !self.program.symbols.get(model.0 as usize).is_some_and(|item| item.module == model_symbol.module && matches!(&item.kind, SymbolKind::Model { fields, .. } if fields.contains(&model_field_id)))
+        {
+            fail(self, header.span);
+            return None;
+        }
+        let text = |value: String, span: Span| {
+            TypedExpr::new(
+                IrExpr::Text(value),
+                ResolvedType::Scalar(Scalar::Text),
+                span,
+            )
+        };
+        let (type_text, cases) = match &model_ty {
+            ResolvedType::Enum {
+                cases,
+                owner: Some(enum_owner),
+            } if !cases.is_empty()
+                && cases.iter().collect::<HashSet<_>>().len() == cases.len()
+                && self.program.types.symbol_types.get(enum_owner) == Some(&model_ty) =>
+            {
+                (format!("enum:{}", self.type_id(&model_ty)), cases.clone())
+            }
+            ResolvedType::Scalar(Scalar::Bool) => (
+                "bool".to_string(),
+                vec!["true".to_string(), "false".to_string()],
+            ),
+            _ => {
+                fail(self, header.span);
+                return None;
+            }
+        };
+        let label = self.decode_reused_field_label_parts(&model_symbol);
+        let caption = label
+            .as_ref()
+            .and_then(|label| label.text.as_ref())
+            .map(|caption| {
+                TypedExpr::new(
+                    IrExpr::Message(caption.clone()),
+                    ResolvedType::Scalar(Scalar::Text),
+                    header.span,
+                )
+            })
+            .unwrap_or_else(|| text(model_symbol.name.clone(), header.span));
+        let value_labels = cases
+            .iter()
+            .map(|case| {
+                let caption = label
+                    .as_ref()
+                    .and_then(|label| label.values.iter().find(|(value, _)| value == case))
+                    .map(|(_, caption)| {
+                        TypedExpr::new(
+                            IrExpr::Message(caption.clone()),
+                            ResolvedType::Scalar(Scalar::Text),
+                            header.span,
+                        )
+                    })
+                    .unwrap_or_else(|| text(case.clone(), header.span));
+                (case.clone(), caption)
+            })
+            .collect();
+        let column = TypedExpr::new(
+            IrExpr::Object(vec![
+                ("field".to_string(), text(model_symbol.name.clone(), header.span)),
+                ("label".to_string(), caption),
+                ("type".to_string(), text(type_text, header.span)),
+                (
+                    "valueLabels".to_string(),
+                    TypedExpr::new(
+                        IrExpr::Object(value_labels),
+                        ResolvedType::Unknown,
+                        header.span,
+                    ),
+                ),
+            ]),
+            ResolvedType::Unknown,
+            header.span,
+        );
+        // The saved default registers the owning page preference exactly as
+        // a collection default does; the shell renders both from the same
+        // preference fields.
+        let (_, default, server, _, _, _) = self.decode_field(&pref_symbol, pref_owner);
+        let bool_filter = matches!(model_ty, ResolvedType::Scalar(Scalar::Bool));
+        let enum_cases = match &model_ty {
+            ResolvedType::Enum { cases, .. } => Some(cases),
+            ResolvedType::Scalar(Scalar::Bool) => None,
+            _ => None,
+        };
+        let default_value = match default {
+            Some(IrDefault::Literal(value)) => match value.expr {
+                IrExpr::Text(case)
+                    if enum_cases.is_some_and(|known| known.contains(&case)) =>
+                {
+                    Some(case)
+                }
+                IrExpr::Bool(selected) if bool_filter => Some(selected.to_string()),
+                IrExpr::Null if nullable => None,
+                _ => {
+                    fail(self, header.span);
+                    return None;
+                }
+            },
+            None if nullable => None,
+            _ => {
+                fail(self, header.span);
+                return None;
+            }
+        };
+        if server.is_some() {
+            fail(self, header.span);
+            return None;
+        }
+        if !self
+            .page_preference_fields
+            .iter()
+            .any(|field| field.name == pref_symbol.name)
+        {
+            let label = self.decode_reused_field_label_parts(&pref_symbol);
+            self.page_preference_fields.push(IrPreferenceField {
+                name: pref_symbol.name.clone(),
+                options: cases.clone(),
+                default_value,
+                nullable,
+                caption: label.as_ref().and_then(|label| label.text.clone()),
+                option_labels: label.map(|label| label.values).unwrap_or_default(),
+            });
+        }
+        Some(IrUi {
+            view: None,
+            factory: "filter".to_string(),
+            props: vec![
+                (
+                    "model".to_string(),
+                    TypedExpr::new(
+                        IrExpr::Text(self.canonical(model)),
+                        ResolvedType::Scalar(Scalar::Text),
+                        header.span,
+                    ),
+                ),
+                (
+                    "filter".to_string(),
+                    TypedExpr::new(IrExpr::Array(vec![column]), ResolvedType::Unknown, header.span),
+                ),
+                (
+                    "defaults".to_string(),
+                    TypedExpr::new(
+                        IrExpr::Object(vec![(model_symbol.name.clone(), decoded)]),
+                        ResolvedType::Unknown,
+                        header.span,
+                    ),
+                ),
+            ],
+            children: Vec::new(),
+            row_scope: None,
+            gate: self.decode_gate(scope, node),
+            span: node.span,
+        })
+    }
+
     fn decode_calendar_endpoint(
         &mut self,
         scope: &Scope,
@@ -18479,7 +18809,7 @@ impl<'a> Cx<'a> {
                 }
             }
         }
-        if !matches!(word, "list" | "table" | "calendar" | "gallery" | "board") {
+        if !matches!(word, "list" | "table" | "calendar" | "gallery" | "board" | "timeline") {
             self.diags.push(Diagnostic::error(
                 "E6008",
                 format!(
@@ -18489,9 +18819,12 @@ impl<'a> Cx<'a> {
             ));
             return None;
         }
-        let admitted: &[&str] = if word == "calendar" {
+        let admitted: &[&str] = if word == "timeline" {
+            &["parent", "order"]
+        } else if word == "calendar" {
             &[
-                "parent", "empty", "limit", "cursor", "start", "end", "filter", "defaults", "order",
+                "parent", "empty", "limit", "cursor", "start", "end", "columns", "filter",
+                "defaults", "order",
             ]
         } else if word == "gallery" {
             &[
@@ -18722,6 +19055,56 @@ impl<'a> Cx<'a> {
                         continue;
                     }
                     if name == "order" && value.kind != SyntaxKind::Selectors {
+                        // Timelines author one plain field order as an
+                        // expression (the catalog item shape carries no
+                        // Selectors wrapper); resolve the field against the
+                        // bound model. Anything else keeps the refusal below.
+                        if word == "timeline" {
+                            let mut key_node = value.clone();
+                            let mut descending = false;
+                            if key_node.kind == SyntaxKind::Unary
+                                && kids(&key_node).iter().any(|part| {
+                                    part.kind == SyntaxKind::Punct && self.text(part.span) == "-"
+                                })
+                            {
+                                let parts = kids(&key_node);
+                                if let Some(operand) = parts
+                                    .iter()
+                                    .find(|part| is_expression(part.kind))
+                                    .map(|part| (*part).clone())
+                                {
+                                    descending = true;
+                                    key_node = operand;
+                                }
+                            }
+                            let field = if key_node.kind == SyntaxKind::Path {
+                                path_text(self.db, &key_node)
+                            } else if key_node.kind == SyntaxKind::NameRef {
+                                self.text(key_node.span).to_string()
+                            } else {
+                                String::new()
+                            };
+                            if !field.is_empty()
+                                && self.fields.get(&(id, field.clone())).is_some()
+                            {
+                                let order =
+                                    format!("{}{}", if descending { "-" } else { "" }, field);
+                                let span = value.span;
+                                props.push((
+                                    name,
+                                    TypedExpr::new(
+                                        IrExpr::Array(vec![TypedExpr::new(
+                                            IrExpr::Text(order),
+                                            ResolvedType::Scalar(Scalar::Text),
+                                            span,
+                                        )]),
+                                        ResolvedType::Unknown,
+                                        span,
+                                    ),
+                                ));
+                                continue;
+                            }
+                        }
                         self.diags.push(Diagnostic::error(
                             "E6008",
                             "cannot lower collection order: preference-dispatched ordering has no query profile".to_string(),
@@ -18828,6 +19211,31 @@ impl<'a> Cx<'a> {
             .filter(|n| is_ui_node(n.kind))
             .copied()
             .collect();
+        if word == "timeline" {
+            // The timeline template is the single item slot's suite; other
+            // suites and bare children have no timeline profile.
+            let template = child_nodes
+                .iter()
+                .copied()
+                .filter(|child| {
+                    child.kind == SyntaxKind::Slot
+                        && slot_name(self.db, child).as_deref() == Some("item")
+                })
+                .collect::<Vec<_>>();
+            if template.len() != 1 || child_nodes.len() != 1 {
+                self.diags.push(Diagnostic::error(
+                    "E6008",
+                    "cannot lower timeline: timeline takes one item slot template".to_string(),
+                    node.span,
+                ));
+                return None;
+            }
+            child_nodes = kids(template[0])
+                .iter()
+                .filter(|n| is_ui_node(n.kind))
+                .copied()
+                .collect();
+        }
         let counts: Vec<_> = child_nodes
             .iter()
             .copied()
@@ -18994,7 +19402,7 @@ impl<'a> Cx<'a> {
             .filter_map(|n| self.decode_ui(&unowned, n, row_ctx.clone()))
             .collect();
         let gate = self.decode_gate(scope, node);
-        let row_scope = (matches!(word, "list" | "calendar")
+        let row_scope = (matches!(word, "list" | "calendar" | "timeline")
             || ((matches!(word, "table" | "gallery") || split) && !children.is_empty()))
         .then_some((row_name, "rowView".to_string()));
         Some(IrUi {
@@ -19307,10 +19715,16 @@ impl<'a> Cx<'a> {
             return None;
         };
         let value = self.decode_ui_header_value(scope, header);
-        let plain_text = value.ty == ResolvedType::Scalar(Scalar::Text);
+        // Copy renders a string-carried value: text, or a URL (the recorded
+        // `app_url(...)` shapes), each plain or nullable.
+        let plain_text = matches!(
+            value.ty,
+            ResolvedType::Scalar(Scalar::Text | Scalar::Url)
+        );
         let nullable_text = matches!(
             &value.ty,
-            ResolvedType::Nullable(inner) if inner.as_ref() == &ResolvedType::Scalar(Scalar::Text)
+            ResolvedType::Nullable(inner)
+                if matches!(inner.as_ref(), ResolvedType::Scalar(Scalar::Text | Scalar::Url))
         );
         if !plain_text && !nullable_text {
             self.diags.push(Diagnostic::error(

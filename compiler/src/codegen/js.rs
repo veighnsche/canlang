@@ -2806,10 +2806,12 @@ fn is_ui_factory(factory: &str) -> bool {
             | "fieldset"
             | "form"
             | "fileInput"
+            | "filter"
             | "gallery"
             | "footer"
             | "hero"
             | "history"
+            | "indicator"
             | "input"
             | "join"
             | "label"
@@ -2831,6 +2833,7 @@ fn is_ui_factory(factory: &str) -> bool {
             | "tabs"
             | "text"
             | "textarea"
+            | "timeline"
             | "title"
             | "toggle"
             | "tooltip"
@@ -2881,9 +2884,15 @@ fn ui_prop_is_admitted(factory: &str, key: &str) -> bool {
                 | "defaults"
                 | "by"
         ),
+        "timeline" => matches!(
+            key,
+            "model" | "parent" | "order" | "page"
+        ),
+        "filter" => matches!(key, "model" | "filter" | "defaults"),
         "copy" => matches!(key, "value" | "label" | "id"),
         "toggle" => key == "field",
         "swap" => key == "active",
+        "indicator" => matches!(key, "content" | "indicator"),
         "steps" => key == "items",
         "countdown" => matches!(key, "value" | "caption"),
         "radialProgress" => matches!(key, "value" | "max" | "caption"),
@@ -2951,6 +2960,7 @@ fn ui_prop_is_admitted(factory: &str, key: &str) -> bool {
                 | "cursor"
                 | "empty"
                 | "page"
+                | "columns"
                 | "filter"
                 | "defaults"
         ),
@@ -10823,6 +10833,14 @@ impl<'a> Emitter<'a> {
             );
             return self.throw_expr("unsupported table filter profile");
         }
+        if node.factory == "filter" && !collection_filter_props_are_valid(self.ir, node) {
+            self.unsupported(
+                "standalone filter",
+                "enum fields and defaults need matching owned declarations",
+                node.span,
+            );
+            return self.throw_expr("unsupported standalone filter profile");
+        }
         if matches!(node.factory.as_str(), "list" | "board")
             && node
                 .props
@@ -10869,7 +10887,7 @@ impl<'a> Emitter<'a> {
                 "page"
                     if matches!(
                         node.factory.as_str(),
-                        "list" | "table" | "calendar" | "gallery"
+                        "list" | "table" | "calendar" | "gallery" | "timeline"
                     ) =>
                 {
                     matches!(value.expr, IrExpr::Bool(true))
@@ -11463,7 +11481,7 @@ impl<'a> Emitter<'a> {
                         })
                         .collect();
                     props.push(format!("actions:[{}]", rest.join(",")));
-                } else if matches!(node.factory.as_str(), "chatBubble" | "modal" | "drawer" | "dropdown" | "swap" | "diff") {
+                } else if matches!(node.factory.as_str(), "chatBubble" | "modal" | "drawer" | "dropdown" | "indicator" | "swap" | "diff") {
                     // The actual factories consume named slot props, not
                     // children or a standalone slot factory. Keep authored
                     // slot order and evaluate each descendant exactly once.
