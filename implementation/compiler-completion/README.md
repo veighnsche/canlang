@@ -7469,3 +7469,17 @@ factory work stays preserved/held; B8 must distinguish intentional accepted
 behavior from real regression. Shared-target slot discipline: C20 holds the
 active slot (membership suite with stable flags); B8/B9 queue behind release,
 no private cache, no foreign interruption.
+
+**Coordinator intake, 2026-10-16 (C20 + B8):**
+C20 membership batch INTEGRATED (`88b8be9f` feat + `90895003` rustfmt): 4
+membership observations lower with checked source/closure and the
+`active_member` builtin resolves to its defining State producer (OWNER-1
+internal dependency closed at implementation scope; no external hold).
+Suites: membership_producer_bridge + membership_codegen + 3 neighbors green.
+B8 pin reconciliation INTEGRATED (B7's 4 + repair `71ce9a0f` as `2a539a02`
+stack): b1_join 2/2 green alongside factory_profiles 28, calendar_agenda,
+table_filters — the B7 regression is closed. Repair substance reviewed:
+remaining refusals pinned by exact gate message (bool-field list filter),
+loud-degradation pins (throwing placeholder + absent order descriptor),
+stat canary kept, preference/suite shapes pinned; no blanket zeroing. B9
+bool-page test still running (sole active lane).
