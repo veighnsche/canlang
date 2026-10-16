@@ -7581,3 +7581,14 @@ from the clean tree: calendar_agenda 1/1, gallery_runtime 3/3, table_filters
 1/1, bool-page+http 38/38, contained-first joint + joint-serve 12/12, state
 contained-first 5/5. All prior "deferred" items now verified clean; no
 dirty-binary caveat remains. Active lanes: B12 (radial), B13 (bool reader).
+
+**Coordinator intake, 2026-10-16 (B12 verified):**
+B12 (`c039673e`, radialProgress numeric boundary) VERIFIED: new
+radial_progress_runtime suite drives literal/decimal-completion/bounds pages
+through the real UI via CARGO_BIN_EXE_can (current-source binary, valid
+proof), 1/1; neighbors factory_profiles 28/28, b1_join 2/2,
+collection_bool_filters 24/24, hook_lowering 19/19 green; codegen stays 143 +
+the same 4 pre-existing names (no swap). Fix reuses shared Number/
+isSafeInteger + wire-canonical decimal text at the defining presentation
+boundary; max-throw vs value-alert order preserved. Sole active lane: B13
+(bool reader, isolated worktree; integrates after B12, already landed).
