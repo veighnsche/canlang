@@ -3614,6 +3614,13 @@ pub struct Emitter<'a> {
     boolean_rules: HashSet<String>,
     boolean_body: bool,
     boolean_helper: bool,
+    /// True while lowering a `scope=authority` report body (DESIGN §442
+    /// decision mode): helper calls resolve to the decision variant where
+    /// dual-emitted, falling back to the emitted variant otherwise.
+    /// Viewer lowering never sets this; query authority, bounds and
+    /// recursion-freedom come from the host decision boundary, never
+    /// from emitted syntax.
+    authority_body: bool,
     record_page_render: bool,
     native_source_predicates: bool,
     send_guards: Option<&'a HashMap<Span, super::send_guards::PreparedSendGuard>>,
@@ -3755,6 +3762,7 @@ impl<'a> Emitter<'a> {
             boolean_rules: HashSet::new(),
             boolean_body: false,
             boolean_helper: false,
+            authority_body: false,
             record_page_render: false,
             native_source_predicates: false,
             send_guards: None,
@@ -7050,7 +7058,9 @@ impl<'a> Emitter<'a> {
                 }
                 let name = match self.by_canonical.get(canonical) {
                     Some(index) => binding_ident(
-                        if self.boolean_body && self.boolean_derives.contains(canonical) {
+                        if (self.boolean_body || self.authority_body)
+                            && self.boolean_derives.contains(canonical)
+                        {
                             "b"
                         } else {
                             "s"
@@ -12978,10 +12988,10 @@ impl<'a> Emitter<'a> {
                         format!("inputs:{{{inputs}}}"),
                     ];
                     // Family E: the §13 authority-scope marker publishes
-                    // the checked grant boundary. It is fail-closed: the
-                    // `E6008` stays until the Lane-C decision-mode
-                    // runtime boundary lands, and the handler below
-                    // refuses instead of running a viewer-mode body.
+                    // the checked grant boundary. The `E6008` stays until
+                    // the host-seam decision-mode runtime boundary lands;
+                    // the handler below lowers the decision-mode body and
+                    // MCP advertises the grant.
                     if *scope_authority {
                         members.push("scope:\"authority\"".to_string());
                     }
@@ -14355,7 +14365,6 @@ impl<'a> Emitter<'a> {
                 IrItemKind::Scenario {
                     params,
                     read,
-                    scope_authority,
                     trusted,
                     hook,
                     description,
@@ -14371,14 +14380,11 @@ impl<'a> Emitter<'a> {
                     if *expose_excluded {
                         continue;
                     }
-                    // Family E: an explicit information grant is not an
-                    // ordinary callable tool. The operations member
-                    // carries its boundary marker, but MCP publication
-                    // omits it until the Lane-C decision-mode runtime
-                    // boundary lands.
-                    if *scope_authority {
-                        continue;
-                    }
+                    // Family E: the explicit information grant
+                    // advertises with its required DESIGN-522
+                    // description identifying the information exposed
+                    // (checker-enforced `E3001`, so the grant never
+                    // publishes undescribed).
                     let mut inputs = Vec::new();
                     let mut mappable = true;
                     for param_id in params {
@@ -16150,25 +16156,6 @@ impl<'a> Emitter<'a> {
                             signature
                         }
                     };
-                    // Family E: an authority report never publishes a
-                    // viewer-mode body. Without the Lane-C decision-mode
-                    // runtime, invocation refuses loudly instead of
-                    // computing a grant over viewer-filtered rows.
-                    if *scope_authority {
-                        out.push(
-                            item.span,
-                            Some(item.canonical.clone()),
-                            &format!(
-                                "async {handler}({signature}){{throw new Error({});}},",
-                                js_string(&format!(
-                                    "scope=authority report {} has no runtime authority boundary",
-                                    item.canonical
-                                ))
-                            ),
-                        );
-                        self.exit_scope();
-                        continue;
-                    }
                     // Scenarios without any decoded body keep the failing
                     // stub (the IR build reports the `E6006`).
                     let has_body = !guards.is_empty() || !effects.is_empty();
@@ -16184,6 +16171,18 @@ impl<'a> Emitter<'a> {
                         self.exit_scope();
                         continue;
                     }
+                    // Family E: an authority report lowers its real body
+                    // for decision-mode evaluation at the host boundary
+                    // (DESIGN §442: helpers keep decision mode only when
+                    // consumed by the decision). The checked
+                    // `scope_authority` fact selects this; nothing is
+                    // re-derived here. Query authority, bounds and
+                    // recursion-freedom come from the host decision
+                    // boundary, never from emitted syntax (§13), so body
+                    // queries keep their ordinary shape. `E6008` stays
+                    // until the host seam adopts the boundary.
+                    let previous_authority_body =
+                        std::mem::replace(&mut self.authority_body, *scope_authority);
                     self.receipt_calls.clear();
                     self.current_revision_binding = None;
                     self.receipt_capture = self.native_receipts.get(&item.id).cloned();
@@ -16283,6 +16282,7 @@ impl<'a> Emitter<'a> {
                     self.query_capture = None;
                     self.receipt_call_sites.clear();
                     self.receipt_calls.clear();
+                    self.authority_body = previous_authority_body;
                     out.push(item.span, Some(item.canonical.clone()), "},");
                     self.exit_scope();
                 }

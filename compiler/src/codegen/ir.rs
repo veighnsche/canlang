@@ -10462,14 +10462,15 @@ impl<'a> Cx<'a> {
             .and_then(|key| self.decode_message_value(symbol.module, key));
         let description = self.owner_description(symbol.module, &data.node);
         if data.scope_authority {
-            // Family E keeps its `E6008` until the Lane-C decision-mode
-            // runtime boundary lands: the §13 record below publishes the
-            // checked marker, but no boundary yet evaluates decision-mode
-            // body reads or serves the typed result as a grant.
+            // Family E keeps its `E6008` until the host-seam (Lane-C)
+            // decision-mode runtime boundary lands: emission already
+            // carries the §13 marker, the decision-mode body and the
+            // grant advertisement, but no host boundary yet evaluates
+            // decision-mode body reads or serves the typed result.
             self.diags.push(Diagnostic::error(
                 "E6008",
                 format!(
-                    "cannot lower scenario {}: scope=authority awaits its runtime authority boundary; emitting the fail-closed §13 marker only",
+                    "cannot lower scenario {}: scope=authority awaits its host-seam runtime authority boundary; emitting the §13 marker, decision-mode body and grant advertisement",
                     symbol.canonical,
                 ),
                 symbol.span,

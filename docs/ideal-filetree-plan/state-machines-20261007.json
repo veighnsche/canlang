@@ -72761,5 +72761,38 @@
     "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
     "checkpoint_advanced": false,
     "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
+  },
+  "can18_merge_6_20261016": {
+    "incremental_base": "80f29102fcb4e1dd964580278a7e2892db0298c7",
+    "incoming_end": "45f26d5a52f0a45a1b0ec502e4b7167449abd28c",
+    "retained_coverage": "reuse spec_installer_merge_reconciliation_20261015 and preceding CAN18 incremental merge entries; inherited complete checkpoint unchanged",
+    "changed_path_count": 4,
+    "rows": [
+      [
+        "compiler/src/codegen/ir.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/src/codegen/js.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/scope_authority_reports.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "implementation/compiler-completion/README.md",
+        "Compiler completion",
+        "existing finite execution record"
+      ]
+    ],
+    "choice": "Integrate authority-report compiler body lowering and typed MCP grant advertisement, retaining the host-boundary compilation refusal.",
+    "validation": "Reuse authority-report9 tests, ordinary-emission byte equality and recorded neighbor/base-control results. Independent review confirms authority_body is scoped/restored per report, helper routing changes only decision variants, and E6008 remains until host integration passes. No production conflict or new source edits; original24 and executable authority consumer acceptance remain open.",
+    "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
+    "checkpoint_advanced": false,
+    "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
   }
 }
