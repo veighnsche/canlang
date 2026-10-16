@@ -852,13 +852,14 @@ fn data_only_gaps_keep_membership_seal_without_masking() {
             options,
         },
     );
-    // The board filter over a model reference has no owned-enum profile, so
-    // its own E6008 stays loud; the membership seal must still succeed.
+    // The board filter over a model reference is admitted by the accepted C1
+    // reference-equality rule (merge27), so no board-filters E6008 remains;
+    // the membership seal must still succeed.
     assert!(
         diagnostics
             .iter()
-            .any(|diagnostic| diagnostic.message.contains("board filters")),
-        "unsupported board filter stays reported: {diagnostics:?}"
+            .all(|diagnostic| !diagnostic.message.contains("board filters")),
+        "board reference filter admitted per C1, no board-filters refusal: {diagnostics:?}"
     );
     let membership: Vec<_> = diagnostics
         .iter()
