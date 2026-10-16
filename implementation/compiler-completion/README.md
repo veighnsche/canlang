@@ -265,6 +265,18 @@ Coordinator ruling recorded in DECISIONS.md (no JEV: frozen text decides):
 decision-mode body reads (§442) + explicit result grant to `by` (§522);
 fail-closed E6008 until the runtime boundary lands.
 
+Outcomes 15/16 scouted read-only (Lane C8, no builds/edits): both HELD,
+no ready batch. Outcome 15 waits on the released predecessor/desired-
+revision tuple (Compiler snapshot + State/activation host), the retained-
+work inventory, and activation-host output/authorization (none authorized
+by this spec edit). Outcome 16 waits on Dev/Interfaces verified-ingress
+(C06), Work/Dev provider+dispatch+receipt outputs and the Capability
+instance matcher (C08), the Dev authentic tuple + key correction (C18),
+frozen options/request/association + provider tuple (C20), and the
+supported Corpus workflow release. Future 15/16 batches would touch
+checker/emission (A10) and disclosure (C7) paths; do not dispatch until
+a named consumer above is released.
+
 Outcome 11 test map in parent (Lane A commit, 5/5 join positives +
 refusal surface incl. E3005 recursion): all 7 original calls die at
 `ScenarioDisclosure::Declined` via gates D1-D8 (param eligibility, void
