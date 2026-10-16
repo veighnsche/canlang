@@ -276,6 +276,16 @@ frozen options/request/association + provider tuple (C20), and the
 supported Corpus workflow release. Future 15/16 batches would touch
 checker/emission (A10) and disclosure (C7) paths; do not dispatch until
 a named consumer above is released.
+Local-vs-external review (HANDOFF-2, before final closure): outcome-15
+missing tuple is external — a real predecessor/desired-revision tuple
+cannot be invented locally (fabrication), and activation output is
+explicitly unauthorized by this spec edit; the S9-Q08 leg is internally
+blocked on unreleased CF/State wire/disclosure outputs. Outcome-16 gaps
+are all held on unreleased cross-row outputs (Dev/Interfaces ingress,
+Work/Dev provider+dispatch, Capability matcher/key correction, Corpus
+workflow) outside current canonical scope — retained-held, not ready
+local work. Neither row converts to local implementation without its
+named release.
 
 Outcome 9 family E compiler slice in `bc5bc188` (Lane A commit `662826a7`):
 `read=true scope=authority` without a `#` description refuses E3001;
