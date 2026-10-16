@@ -652,3 +652,9 @@ Compiler JS, its radial fixture and consumer test with zero net source
 change. Existing owners/allocations and complete checkpoint remain.
 Membership coverage through `98b7f48c` is retained; radial qualification
 is deferred for the correct frozen compiler closure.
+
+Current main qualification (2026-10-16): the single generated artifact
+`evidence/original24-main-20261016.json` belongs to the existing Compiler completion
+owner, recorded with merge17 coverage.369E6008 remain on unchanged24 authored
+sources (26 consumed, complete/omitted0). Existing source/target allocations and
+complete checkpoint are retained; this validation artifact adds no audit framework.
