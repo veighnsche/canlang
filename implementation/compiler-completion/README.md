@@ -7682,3 +7682,21 @@ frozen binary: success/rejection/rollback/replay consumers over accepted
 batches (443 lines, 71 exact assertions, fixtures reused verbatim, zero
 production changes). Coordinator reproduced green. B14 (enum filters) sole
 active lane.
+
+**MAIN-9 acceptance + delta attribution correction, 2026-10-16:**
+Main clean `5ff39d128`: hook stack `25577dc45` (C18/C21/C22 + ONLY B13
+equality-grouping prerequisite), D14 `6038148a0` (reproduced 4/4 on immutable
+copied compiler). Coordinator retracts "not new breakage" as unattributed:
+concrete old(347)→new(351) attribution — resolved: factory shapes
+(calendar/calendar-option 1, collapse 2, copy 3, filter 4, indicator 1,
+steps 1, timeline 4, stat-refusal 6, radial 1, active_member E6007 1) and
+finer filter splits (list/table ±); new: hook parent-content 30, reference
+traversal 4, staged content 2 (36 total, zero hook-message decreases).
+Overlap evidence (file 20: 6 new sub-diagnostics attach to hooks already
+refused 8× on contextual-`now`; same pattern dominates): the new messages
+are finer-grained checked refusals on already-failing shapes from the
+stricter hook pipeline, not newly broken shapes — but the underlying shapes
+stay ready obligations, occurrence counts are not progress. Ready obligations
+restated: 70 on= query-authority shapes, hook parent/traversal/staged
+content, enum filters, dispatch receipt, active_member checked source.
+Do not merge main into B14's active inputs.
