@@ -7716,3 +7716,14 @@ green, hooks 21/21, codegen 143 + same 4 pre-existing names. Unsupported
 shapes (model-ref/text/int/date/datetime selectors, nested agenda, archived,
 expression order) keep exact refusals — extension, not absorption. Sole
 active lane: C23 (first-query).
+
+**REVIEW-18 dispatch, 2026-10-16 (Codex direction):**
+B14 held from main intake pending an actual compiled-source consumer (string
+inspection is not execution; runtime-agreement comments are unexecuted
+claims). Finite B15 (`01a1445b-9736-...`) owns one consumer reusing the B9
+harness pattern (direct + local/imported helper + coalesced enum defaults,
+real rows, precedence, invalid-refusal) plus correcting B14's "group
+closes" header to what the batch actually fixes (~50 original occurrences
+remain refused). Frozen-binary discipline required (no CARGO_BIN_EXE proof);
+C23 isolation/serialization explicit. MAIN-10 ACK verified; main 47c897f1a
+unchanged; factory-788 still awaiting intake. Active lanes: C23, B15.
