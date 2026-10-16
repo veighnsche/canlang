@@ -17496,20 +17496,34 @@ impl<'a> Cx<'a> {
                 fail(self, path.span);
                 return None;
             };
-            let ResolvedType::Enum {
-                cases,
-                owner: Some(enum_owner),
-            } = &ty
-            else {
-                fail(self, path.span);
-                return None;
+            // A filter selector is a distinct owned finite-choice field: an
+            // owned enum, or a plain bool (the recorded `active`/`done`
+            // toggle shapes). Anything else keeps the exact E6008 below.
+            let (type_text, cases) = match &ty {
+                ResolvedType::Enum {
+                    cases,
+                    owner: Some(enum_owner),
+                } if !cases.is_empty()
+                    && cases.iter().collect::<HashSet<_>>().len() == cases.len()
+                    && self.program.types.symbol_types.get(enum_owner) == Some(&ty) =>
+                {
+                    (format!("enum:{}", self.type_id(&ty)), cases.clone())
+                }
+                ResolvedType::Scalar(Scalar::Bool) => (
+                    "bool".to_string(),
+                    vec!["true".to_string(), "false".to_string()],
+                ),
+                _ => {
+                    fail(self, path.span);
+                    return None;
+                }
             };
             if symbol.id != field_id || symbol.name != *name
                 || !matches!(symbol.kind, SymbolKind::Field { owner, .. } if owner == model)
                 || !self.program.symbols.get(model.0 as usize).is_some_and(|item| item.module == symbol.module && matches!(&item.kind, SymbolKind::Model { fields, .. } if fields.contains(&field_id)))
-                || cases.is_empty() || cases.iter().collect::<HashSet<_>>().len() != cases.len()
-                || self.program.types.symbol_types.get(enum_owner) != Some(&ty)
-                || selected.insert(name.clone(), ty.clone()).is_some()
+                || selected
+                    .insert(name.clone(), (ty.clone(), cases.clone()))
+                    .is_some()
             { fail(self,path.span); return None; }
             let label = self.decode_reused_field_label_parts(&symbol);
             let caption = label
@@ -17544,10 +17558,7 @@ impl<'a> Cx<'a> {
                 IrExpr::Object(vec![
                     ("field".to_string(), text(name.clone(), path.span)),
                     ("label".to_string(), caption),
-                    (
-                        "type".to_string(),
-                        text(format!("enum:{}", self.type_id(&ty)), path.span),
-                    ),
+                    ("type".to_string(), text(type_text, path.span)),
                     (
                         "valueLabels".to_string(),
                         TypedExpr::new(
@@ -17590,7 +17601,7 @@ impl<'a> Cx<'a> {
                     fail(self, entry.span);
                     return None;
                 };
-                let Some(expected) = selected.get(&name) else {
+                let Some((expected, field_cases)) = selected.get(&name) else {
                     fail(self, entry.span);
                     return None;
                 };
@@ -17599,10 +17610,17 @@ impl<'a> Cx<'a> {
                     return None;
                 }
                 let decoded = self.decode_expr(scope, value);
-                let ResolvedType::Enum { cases, .. } = expected else {
-                    return None;
+                let bool_filter = matches!(expected, ResolvedType::Scalar(Scalar::Bool));
+                let enum_cases = match expected {
+                    ResolvedType::Enum { cases, .. } => Some(cases),
+                    ResolvedType::Scalar(Scalar::Bool) => None,
+                    _ => return None,
                 };
-                let literal = matches!(&decoded.expr, IrExpr::Text(case) if cases.contains(case) && (decoded.ty == *expected || matches!(decoded.ty, ResolvedType::Scalar(Scalar::Text))))
+                let literal = enum_cases.is_some_and(|cases| {
+                    matches!(&decoded.expr, IrExpr::Text(case) if cases.contains(case) && (decoded.ty == *expected || matches!(decoded.ty, ResolvedType::Scalar(Scalar::Text))))
+                }) || (bool_filter
+                    && matches!(&decoded.expr, IrExpr::Bool(_))
+                    && decoded.ty == *expected)
                     || matches!(
                         (&decoded.expr, &decoded.ty),
                         (IrExpr::Null, ResolvedType::Null)
@@ -17647,7 +17665,14 @@ impl<'a> Cx<'a> {
                     let (_, default, server, _, _, _) = self.decode_field(&symbol, owner);
                     let default_value = match default {
                         Some(IrDefault::Literal(value)) => match value.expr {
-                            IrExpr::Text(case) if cases.contains(&case) => Some(case),
+                            IrExpr::Text(case)
+                                if enum_cases.is_some_and(|known| known.contains(&case)) =>
+                            {
+                                Some(case)
+                            }
+                            IrExpr::Bool(selected) if bool_filter => {
+                                Some(selected.to_string())
+                            }
                             IrExpr::Null if nullable => None,
                             _ => {
                                 fail(self, value.span);
@@ -17672,7 +17697,7 @@ impl<'a> Cx<'a> {
                         let label = self.decode_reused_field_label_parts(&symbol);
                         self.page_preference_fields.push(IrPreferenceField {
                             name: symbol.name,
-                            options: cases.clone(),
+                            options: field_cases.clone(),
                             default_value,
                             nullable,
                             caption: label.as_ref().and_then(|label| label.text.clone()),

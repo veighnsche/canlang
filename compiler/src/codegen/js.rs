@@ -3222,27 +3222,33 @@ fn collection_filter_props_are_valid(ir: &IrProgram, node: &IrUi) -> bool {
             let Some(item) = field(name) else {
                 return false;
             };
+            // A filter column selects a distinct owned finite-choice model
+            // field: an owned enum or a plain bool toggle. Anything else
+            // keeps the refusal below.
             let IrItemKind::Field {
-                ty:
-                    IrType::Known(
-                        ty @ ResolvedType::Enum {
-                            owner: Some(owner),
-                            cases,
-                        },
-                    ),
+                ty: IrType::Known(ty),
                 ..
             } = &item.kind
             else {
                 return false;
             };
-            if text("type")
-                != ir
-                    .items
-                    .get(owner.0 as usize)
-                    .map(|item| format!("enum:{}", item.canonical))
-                    .as_deref()
-                || selected.insert(name, ty).is_some()
-            {
+            let expected_cases: Option<&[String]> = match ty {
+                ResolvedType::Enum {
+                    owner: Some(owner),
+                    cases,
+                } if text("type")
+                    == ir
+                        .items
+                        .get(owner.0 as usize)
+                        .map(|item| format!("enum:{}", item.canonical))
+                        .as_deref() =>
+                {
+                    Some(cases)
+                }
+                ResolvedType::Scalar(Scalar::Bool) if text("type") == Some("bool") => None,
+                _ => return false,
+            };
+            if selected.insert(name, ty).is_some() {
                 return false;
             }
             let Some((_, labels)) = parts.iter().find(|(key, _)| key == "valueLabels") else {
@@ -3251,10 +3257,20 @@ fn collection_filter_props_are_valid(ir: &IrProgram, node: &IrUi) -> bool {
             let IrExpr::Object(labels) = &labels.expr else {
                 return false;
             };
-            if labels.iter().map(|(key, _)| key).collect::<Vec<_>>()
-                != cases.iter().collect::<Vec<_>>()
-                || !parts.iter().any(|(key, _)| key == "label")
-            {
+            let labels_match = match expected_cases {
+                Some(cases) => {
+                    labels.iter().map(|(key, _)| key).collect::<Vec<_>>()
+                        == cases.iter().collect::<Vec<_>>()
+                }
+                None => {
+                    labels
+                        .iter()
+                        .map(|(key, _)| key.as_str())
+                        .collect::<Vec<_>>()
+                        == vec!["true", "false"]
+                }
+            };
+            if !labels_match || !parts.iter().any(|(key, _)| key == "label") {
                 return false;
             }
         }
@@ -3271,15 +3287,24 @@ fn collection_filter_props_are_valid(ir: &IrProgram, node: &IrUi) -> bool {
             if !seen.insert(name) {
                 return false;
             }
-            let ResolvedType::Enum { cases, .. } = expected else {
-                return false;
+            let bool_default = matches!(expected, ResolvedType::Scalar(Scalar::Bool));
+            let enum_cases = match expected {
+                ResolvedType::Enum { cases, .. } => Some(cases),
+                ResolvedType::Scalar(Scalar::Bool) => None,
+                _ => return false,
             };
             let valid = match &value.expr {
                 IrExpr::Text(case) => {
-                    cases.contains(case)
+                    enum_cases.is_some_and(|cases| {
+                        cases.contains(case)
+                            && (value.ty == **expected
+                                || matches!(value.ty, ResolvedType::Scalar(Scalar::Text)))
+                    }) || (bool_default
+                        && (case == "true" || case == "false")
                         && (value.ty == **expected
-                            || matches!(value.ty, ResolvedType::Scalar(Scalar::Text)))
+                            || matches!(value.ty, ResolvedType::Scalar(Scalar::Text))))
                 }
+                IrExpr::Bool(_) => bool_default && value.ty == **expected,
                 IrExpr::Null => true,
                 IrExpr::Member { base, .. } if matches!(&base.expr, IrExpr::Name(name) if name == "preferences") => {
                     value.ty == **expected
