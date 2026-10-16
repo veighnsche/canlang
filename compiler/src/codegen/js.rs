@@ -1335,6 +1335,10 @@ pub struct JsOutput {
     pub diagnostics: Vec<Diagnostic>,
     /// Catalog builtins the lowering references (for `E6007` checks).
     pub referenced_builtins: Vec<ReferencedBuiltin>,
+    /// Checked membership occurrences bound to the State producer by this
+    /// lowering. Assembly resolves their builtin references to that defining
+    /// owner instead of reporting the generic catalog's external marker.
+    pub membership_bound: Vec<Span>,
     /// Callable registry entries in source order.
     pub callables: Vec<JsCallable>,
     /// Page descriptors in source order.
@@ -2711,12 +2715,14 @@ fn emit_program_with_sources(
         }
         packages.push(emitter.emit_package_module(module.id));
     }
+    let membership_bound = emitter.membership_bound.clone();
     let (diagnostics, referenced_builtins, callables, pages) = emitter.finish();
     JsOutput {
         entry,
         packages,
         diagnostics,
         referenced_builtins,
+        membership_bound,
         callables,
         pages,
         operations,
@@ -3609,6 +3615,11 @@ pub struct Emitter<'a> {
     membership_calls: HashMap<Span, serde_json::Value>,
     membership_sites: Option<&'a BTreeMap<String, serde_json::Value>>,
     membership_predicates: HashMap<Span, serde_json::Value>,
+    /// Checked membership occurrences this lowering bound to the State
+    /// producer (exact checked source + selected call closure). Their
+    /// builtin references resolve to that defining owner, never the
+    /// generic catalog's external marker.
+    membership_bound: Vec<Span>,
     boolean_sources: HashMap<Span, serde_json::Value>,
     boolean_derives: HashSet<String>,
     boolean_rules: HashSet<String>,
@@ -3757,6 +3768,7 @@ impl<'a> Emitter<'a> {
             membership_calls: HashMap::new(),
             membership_sites: None,
             membership_predicates: HashMap::new(),
+            membership_bound: Vec::new(),
             boolean_sources: HashMap::new(),
             boolean_derives: HashSet::new(),
             boolean_rules: HashSet::new(),
@@ -6997,6 +7009,14 @@ impl<'a> Emitter<'a> {
                             );
                             return self.throw_expr("unsupported helper membership occurrence");
                         }
+                    }
+                    // Bound here: the exact checked source and selected call
+                    // closure travel with this observation to the State
+                    // producer, which resolves the defining owner. Only this
+                    // success path marks the span; every refusal above keeps
+                    // its exact E6008 and the catalog's external E6007.
+                    if !self.membership_bound.contains(&span) {
+                        self.membership_bound.push(span);
                     }
                     parts.insert(0, "c".to_string());
                     parts.push(descriptor_json(&source));
