@@ -73110,5 +73110,23 @@
     "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
     "checkpoint_advanced": false,
     "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
+  },
+  "can18_merge_14_20261016": {
+    "incremental_base": "d6250c41f7530b76694cc342aedf4a5c91327e9a",
+    "incoming_end": "6038148a0059adfd3b3a7f8d4486dc4312263507",
+    "retained_coverage": "reuse spec_installer_merge_reconciliation_20261015 and preceding CAN18 incremental merge entries; inherited complete checkpoint unchanged",
+    "changed_path_count": 1,
+    "rows": [
+      [
+        "packages/cloudflare/src/runtime/outcome-14-consumers.test.ts",
+        "cloudflare",
+        "existing package source/test owner"
+      ]
+    ],
+    "choice": "Accept the finite D14 actual-source runtime consumers under the existing Cloudflare runtime test owner, with no production changes.",
+    "validation": "Independent4/4 passed using frozen copied compiler7c2abe03 at bbaf30100 and unchanged native catalog; actual compiled fixture handlers execute through canonical invocation and real worker assembly, covering success receipt, forbidden caller, late hook rollback and committed/rejected replay. Source fixtures and runtime production match reviewed main hook integration; original24 still fails351E6008.",
+    "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
+    "checkpoint_advanced": false,
+    "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
   }
 }

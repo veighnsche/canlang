@@ -7456,3 +7456,16 @@ complete=true, omitted=0,26 sources,351 E6008. It still fails. The prior347 is
 historical. Root-cause fixes and original executable workflow gates remain open;
 no inference of readiness follows from the supported-case checks. Enum-filter
 work is active; D14 actual-source runtime consumers are released for review.
+
+### CAN18 canonical main — finite outcome14 consumers accepted (2026-10-16)
+
+`6038148a0` accepts D14 at its declared fixture scope. Independent4/4 passed
+using an immutable copied compiler (sha2567c2abe03,version bbaf30100) and native
+catalog after matching fixture and production runtime sources to main. The
+actual `.can` fixtures compile and their emitted handlers use canonical invocation
+and worker assembly: successful receipt/fence, exact forbidden refusal with no
+side effects, late hook rejection preserving rows/history, and committed/rejected
+once-only replay. The first sandboxed attempt could not create the generated-input
+lock in the run checkout; the authorized rerun with that filesystem access passed.
+No handwritten replacement handler or production changes. These finite consumers
+do not close original24, Partner capture or production lock-edit acceptance.
