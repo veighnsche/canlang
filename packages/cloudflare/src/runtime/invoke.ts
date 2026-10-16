@@ -1395,6 +1395,7 @@ interface StateInvokeProducer {
   readonly observeScenarioReceiptFileAssignment?: typeof import('@canlang/state/invocation').observeScenarioReceiptFileAssignment;
   readonly projectReadScenarioQueryResult?: typeof import('@canlang/state/invocation').projectReadScenarioQueryResult;
   readonly bindScenarioReceiptCallProducer?: typeof import('@canlang/state/invocation').bindScenarioReceiptCallProducer;
+  readonly noteDueWorkAdmission?: typeof import('@canlang/state/invocation').noteDueWorkAdmission;
   readonly invokeScenarioReceiptCall?: typeof import('@canlang/state/invocation').invokeScenarioReceiptCall;
   readonly assertScenarioReceiptCallExecution?: typeof import('@canlang/state/invocation').assertScenarioReceiptCallExecution;
   readonly readScenarioReceiptStoredReferenceRow?: typeof import('@canlang/state/invocation').readScenarioReceiptStoredReferenceRow;
@@ -1762,6 +1763,9 @@ async function loadCanonicalStateProducers(): Promise<CanonicalStateProducers> {
       }),
       ...(typeof scenarioMod['bindScenarioReceiptCallProducer'] !== 'function' ? {} : {
         bindScenarioReceiptCallProducer: scenarioMod['bindScenarioReceiptCallProducer'] as NonNullable<StateInvokeProducer['bindScenarioReceiptCallProducer']>,
+      }),
+      ...(typeof scenarioMod['noteDueWorkAdmission'] !== 'function' ? {} : {
+        noteDueWorkAdmission: scenarioMod['noteDueWorkAdmission'] as NonNullable<StateInvokeProducer['noteDueWorkAdmission']>,
       }),
       ...(typeof scenarioMod['invokeScenarioReceiptCall'] !== 'function' ? {} : {
         invokeScenarioReceiptCall: scenarioMod['invokeScenarioReceiptCall'] as NonNullable<StateInvokeProducer['invokeScenarioReceiptCall']>,
@@ -4092,7 +4096,7 @@ async function bindNativeScenarioQueries(asm: AssembledModules, artifact: Compil
     const operation = isUnknownRecord(operations) ? readMetadataMember(operations, def.name, where)?.value : undefined;
     const rawFirst = isUnknownRecord(operation) ? readMetadataMember(operation, 'queryFirst', where)?.value : undefined;
     const first = rawFirst === undefined ? [] : await Promise.all(nativeCallArray(rawFirst, plan.queries.length).map(async value => {
-      const metadata = localPolicyObject(value, ['queryId', 'source', 'query', 'node', 'statement']);
+      const metadata = localPolicyObject(value, ['queryId', 'source', 'query', 'node', 'statement', 'guardConsumed', 'presenceConsumed']);
       const source = localPolicyObject(metadata.source, ['path', 'sha256', 'module']);
       const queryNode = localPolicyObject(metadata.query, ['start', 'end']);
       const node = localPolicyObject(metadata.node, ['start', 'end']);
@@ -4100,7 +4104,13 @@ async function bindNativeScenarioQueries(asm: AssembledModules, artifact: Compil
       const interval = (value: Record<string, unknown>) => Object.keys(value).length === 2 &&
         Number.isSafeInteger(value.start) && Number.isSafeInteger(value.end) && (value.start as number) >= 0 && (value.end as number) > (value.start as number);
       const query = plan.queries!.find(query => query.id === metadata.queryId);
-      if (Object.keys(metadata).length !== 5 || Object.keys(source).length !== 3 || query === undefined ||
+      // DESIGN442: the checked guard/presence-consumed decision marks ride
+      // only as exact `true`; any other spelling keeps the refusal.
+      const guardConsumed = Object.hasOwn(metadata, 'guardConsumed') ? metadata.guardConsumed === true : undefined;
+      const presenceConsumed = Object.hasOwn(metadata, 'presenceConsumed') ? metadata.presenceConsumed === true : undefined;
+      if (Object.keys(metadata).length !== 5 + (guardConsumed === undefined ? 0 : 1) + (presenceConsumed === undefined ? 0 : 1) ||
+          guardConsumed === false || presenceConsumed === false ||
+          Object.keys(source).length !== 3 || query === undefined ||
           stableStringify(captureDispatchPreclaimData(source)) !== stableStringify(query.source) ||
           stableStringify(query.source) !== stableStringify(plan.source) ||
           !artifact.sources.some(original => original.path === source.path && original.sha256 === source.sha256) ||
@@ -4113,7 +4123,9 @@ async function bindNativeScenarioQueries(asm: AssembledModules, artifact: Compil
       return captureDispatchPreclaimData({ queryId: query.id, source: query.source,
         query: { start: queryNode.start as number, end: queryNode.end as number },
         node: { start: node.start as number, end: node.end as number },
-        statement: { start: statement.start as number, end: statement.end as number } }) as NativeQueryFirstMetadata;
+        statement: { start: statement.start as number, end: statement.end as number },
+        ...(guardConsumed === true ? { guardConsumed: true as const } : {}),
+        ...(presenceConsumed === true ? { presenceConsumed: true as const } : {}) }) as NativeQueryFirstMetadata;
     }));
     const rawAny = isUnknownRecord(operation) ? readMetadataMember(operation, 'queryAny', where)?.value : undefined;
     const any = rawAny === undefined ? [] : nativeCallArray(rawAny, plan.queries.length).map(value => {
@@ -7204,7 +7216,20 @@ async function runScenarioExecution(
   const useOwnerSession = receiptAware || stageSources !== undefined || ownerControl !== undefined;
   const beginReceiptMutation = loaded.producers.invoke.beginScenarioReceiptMutation;
   const observeReceiptDefault = loaded.producers.invoke.observeScenarioInputComputedDefault;
-  if (receiptAware && (receiptStore === undefined || (child === undefined && beginReceiptMutation === undefined) || due !== undefined || cohort !== undefined)) {
+  // C24 scope-1: an internal trusted-handler due session may run
+  // receipt-aware inside its actual State.invoke admission. The
+  // handler stays unexposed (never in `artifact.operations`); its
+  // private invocation carries the exact checked disclosure, the
+  // query/reference producers are bound from the verified module
+  // inventory, and the same State fence owns the commit. Cohorts and
+  // non-handler dues keep the refusal below.
+  const internalHandlerDue = receiptAware && due !== undefined && cohort === undefined &&
+    receiptStore !== undefined && child === undefined && beginReceiptMutation !== undefined &&
+    call.context.kind === 'trusted' && call.context.source === 'schedule' &&
+    typeof call.context.trustedSource === 'string' &&
+    call.context.trustedSource.startsWith('schedule:') &&
+    opts.artifact.callables.some(entry => entry.id === opts.operation && entry.kind === 'handler');
+  if (receiptAware && (receiptStore === undefined || (child === undefined && beginReceiptMutation === undefined) || cohort !== undefined || (due !== undefined && !internalHandlerDue))) {
     throw new loaded.producers.errors('validation', 'Saved scenario mutation requires its installed State producer and actual admitted receipt execution.');
   }
   if (receiptAware && observeReceiptDefault === undefined && (scenarioDef?.descriptor.inputs ?? []).some(field =>
@@ -7621,7 +7646,14 @@ async function runScenarioExecution(
     if ((effects.outboxAck?.length ?? 0) !== 0) {
       throw new Error('Canonical deferred effects cannot stage outbox acknowledgements.');
     }
-    if (ownerSession !== undefined && ((effects.writes?.length ?? 0) !== 0 || (effects.outbox?.length ?? 0) !== 0 ||
+    // C24 scope-1 (REVIEW-22 narrow): only the exact due-admission object
+    // for this internal handler session bypasses the owner-session join,
+    // staging Work schedule head + L3 cancel through the same State fence
+    // via staged writes. Every other deferred effect (sends, deliveries,
+    // later schedules) keeps the join requirement, identified by object
+    // identity against this fence's due admission.
+    const isDueAdmission = internalHandlerDue && due !== undefined && effects === due.effects;
+    if (ownerSession !== undefined && !isDueAdmission && ((effects.writes?.length ?? 0) !== 0 || (effects.outbox?.length ?? 0) !== 0 ||
         (effects.history?.length ?? 0) !== 0 || (effects.uniqueClaims?.length ?? 0) !== 0 ||
         (effects.uniqueReleases?.length ?? 0) !== 0)) {
       refuseRecordBinding('Saved scenario deferred domain effects require their defining owner-session join.');
@@ -9025,13 +9057,60 @@ async function runScenarioExecution(
     if (!receiptAware || receiptStore === undefined) return refuseRecordBinding('Membership requires its original active State receipt owner.');
     nativeMembershipFrame = openNativeOwnerMembershipFrame(ctx, call as AdmittedCall, receiptStore, recordEngineFailure);
   }
-  const outcome = await invokeWith(opts.asm, opts.artifact, opts.operation, ctx,
-    observesDefaults ? [argument, observeDefault] : [argument], due !== undefined || cohort !== undefined);
+  let outcome: Awaited<ReturnType<typeof invokeWith>>;
+  try {
+    outcome = await invokeWith(opts.asm, opts.artifact, opts.operation, ctx,
+      observesDefaults ? [argument, observeDefault] : [argument], due !== undefined || cohort !== undefined);
+  } catch (error) {
+    // Due refusal finalization: invokeWith re-throws handler errors
+    // (preserveThrown) before any outcome exists, so the finalize block
+    // below is unreachable for a thrown authored require. Finalize the live
+    // write-free owner session for the clean branded authored failure only,
+    // then rethrow the ORIGINAL error for the due catch to stage the exact
+    // failed Work receipt. All other failures keep existing propagation.
+    if (internalHandlerDue && rootOwnerSession !== undefined) {
+      const refusalGuards = await loadProducerModule('@canlang/state/effects/guards', 'due refusal thrown require');
+      if ((requireProducerFn(refusalGuards, 'isAuthoredRequireFailure', 'due refusal thrown require') as
+        typeof import('@canlang/state/effects/guards').isAuthoredRequireFailure)(error)) {
+        try {
+          await rootOwnerSession.finalize();
+        } catch (finalizeError) {
+          throw new StateError('validation', `Due handler owner finalize failed: ${finalizeError instanceof Error ? finalizeError.message : String(finalizeError)}`);
+        }
+      }
+    }
+    throw error;
+  }
   // A caught unsupported join or engine refusal cannot convert prior owner
   // stages into a partial success. Preserve the first actual failure; State
   // retains its own session poisoning and rejected-receipt semantics.
-  if (receiptEngineFailure !== undefined) throw receiptEngineFailure;
+  if (receiptEngineFailure !== undefined) {
+    // Scope-1 refusal disposition: a clean authored require failure recorded
+    // through an engine callback still finalizes its (write-free) owner
+    // session below, so the due path returns its precise failed Work
+    // receipt. Genuine engine/observer/poison failures keep the immediate
+    // throw with existing poisoning/rejected-receipt semantics — never
+    // cleared by code or message match.
+    const guardsMod = internalHandlerDue && rootOwnerSession !== undefined
+      ? await loadProducerModule('@canlang/state/effects/guards', 'due refusal authored require') : undefined;
+    const isCleanRequire = guardsMod !== undefined &&
+      (requireProducerFn(guardsMod, 'isAuthoredRequireFailure', 'due refusal authored require') as
+        typeof import('@canlang/state/effects/guards').isAuthoredRequireFailure)(receiptEngineFailure);
+    if (!isCleanRequire) throw receiptEngineFailure;
+  }
   if (!outcome.ok) {
+    // C24 scope-1: an internal handler due that fails its authored require
+    // still finalizes its (write-free) owner session so the outer State
+    // admission sees a clean owner close and the due path can return its
+    // precise failed Work receipt. Other failures keep the existing
+    // poisoning/rejected-receipt semantics below.
+    if (internalHandlerDue && rootOwnerSession !== undefined) {
+      try {
+        await rootOwnerSession.finalize();
+      } catch (error) {
+        throw new StateError('validation', `Due handler owner finalize failed: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
     // Attributed engine failure first: an uncaught engine `StateError`
     // propagates verbatim, so its message matches the recorded one
     // exactly and the ORIGINAL error (true code) receipts.
@@ -9089,8 +9168,16 @@ async function runScenarioExecution(
     }
     const outbox = 'outbox' in finalized ? finalized.outbox : [];
     if (!Array.isArray(outbox)) throw new StateError('validation', 'Owning finalized outbox must be an array.');
+    // Scope-1 composition: the installed due admission effects ride
+    // alongside (never through) the finalized owner effects, so the SAME
+    // staged due Work write reaches commit with exact association. Only
+    // the staged due Work writes compose here — never other deferred
+    // effects, never handler bytes in their place.
+    const dueAdmissionWrites = due === undefined ? [] : (due.effects.writes ?? []).filter(write =>
+      isUnknownRecord(write) && ((write as { readonly model?: unknown }).model === 'work.schedule' ||
+        (write as { readonly model?: unknown }).model === 'work.occurrence'));
     return { effects: {
-      writes: finalized.writes, history: finalized.history,
+      writes: [...finalized.writes, ...dueAdmissionWrites], history: finalized.history,
       uniqueClaims: finalized.uniqueClaims, uniqueReleases: finalized.uniqueReleases,
       resolvedDefaults: { ...finalized.resolvedDefaults, ...resolvedDefaults },
       schedules: [...finalized.schedules, ...extraSchedules],
@@ -11448,6 +11535,162 @@ class DueScheduleChanged extends Error {
   }
 }
 
+/** C24 scope-1 internal handler query/reference binding.
+ *
+ * A private trusted-handler invocation may carry its exact checked
+ * disclosure (compiler admits only the declared-event void
+ * single-first shape; public `artifact.operations` still excludes
+ * every handler). This binds its State query + reference producers
+ * from the verified module inventory — `canScenarioQuerySources`
+ * plan, `queryFirst` markers and `executionDependencies` — with the
+ * same single-match/module/source/interval/hash checks as the
+ * ordinary operation path, plus handler-kind callable correspondence.
+ * Anything else keeps the existing refusal (no binding, no frame);
+ * the caller still owns admission, fencing and replay.
+ */
+async function bindPrivateDueHandlerProducers(
+  asm: AssembledModules,
+  artifact: CompileArtifact,
+  loaded: LoadedCanonicalDescriptors,
+  privateDef: GeneratedOperationDef,
+  definition: unknown,
+  handler: unknown,
+  sourceInput: Pick<CanonicalMutationOpts, 'identity' | 'store'> & { readonly now: () => number },
+): Promise<void> {
+  const plan = privateDef.descriptor.result?.disclosure;
+  if (plan === undefined || (plan.queries?.length ?? 0) === 0) return;
+  const where = `Due handler query ${JSON.stringify(privateDef.name)}`;
+  const member = (value: unknown, key: string): unknown =>
+    isUnknownRecord(value) ? readMetadataMember(value, key, where)?.value : undefined;
+  const callable = artifact.callables.find(entry => entry.id === privateDef.name && entry.kind === 'handler');
+  if (callable === undefined || callable.module !== plan.source.module) {
+    throw new AssemblyCorrespondenceError('Due handler query lacks its exact owning handler callable.');
+  }
+  const app = isUnknownRecord(definition) ? member(definition, 'id') : undefined;
+  if (typeof app !== 'string' || app === '') {
+    throw new AssemblyCorrespondenceError('Due handler query lacks its owning app identity.');
+  }
+  const operations = isUnknownRecord(definition) ? member(definition, 'operations') : undefined;
+  const operation = isUnknownRecord(operations) && isUnknownRecord(handler) ? handler : undefined;
+  if (operation === undefined) {
+    throw new AssemblyCorrespondenceError('Due handler query lacks its exact private operation declaration.');
+  }
+  // The module inventory plan must equal the private disclosure exactly;
+  // a skewed host cannot substitute a broader query. The caller already
+  // verified the handler/event/invocation/scope identity on `definition`;
+  // here we re-resolve the verified module and check the plan itself.
+  const module = await importVerifiedAssemblyModule(asm, callable.module, artifact);
+  // Resolve through the verified module function (not a data property)
+  // to match the ordinary path's exact source-module binding.
+  const sourcesFn = (module as Record<string, unknown>)['canScenarioQuerySources'];
+  if (typeof sourcesFn !== 'function') {
+    throw new AssemblyCorrespondenceError('Due handler query lacks its verified module query inventory.');
+  }
+  const inventory = (sourcesFn as () => unknown)();
+  // The inventory returns a parsed JSON object keyed by handler id.
+  const planValue = isUnknownRecord(inventory) ? (inventory as Record<string, unknown>)[privateDef.name] : undefined;
+  if (planValue === undefined || stableStringify(captureDispatchPreclaimData(planValue)) !== stableStringify(captureDispatchPreclaimData(plan))) {
+    throw new AssemblyCorrespondenceError('Due handler query differs from its verified module inventory plan.');
+  }
+  const rawFirst = member(operation, 'queryFirst');
+  const first = rawFirst === undefined ? [] : await Promise.all(nativeCallArray(rawFirst, plan.queries!.length).map(async value => {
+    const metadata = localPolicyObject(value, ['queryId', 'source', 'query', 'node', 'statement', 'guardConsumed', 'presenceConsumed']);
+    const source = localPolicyObject(metadata.source, ['path', 'sha256', 'module']);
+    const queryNode = localPolicyObject(metadata.query, ['start', 'end']);
+    const node = localPolicyObject(metadata.node, ['start', 'end']);
+    const statement = localPolicyObject(metadata.statement, ['start', 'end']);
+    const interval = (value: Record<string, unknown>) => Object.keys(value).length === 2 &&
+      Number.isSafeInteger(value.start) && Number.isSafeInteger(value.end) && (value.start as number) >= 0 && (value.end as number) > (value.start as number);
+    const query = plan.queries!.find(query => query.id === metadata.queryId);
+    // DESIGN442: the checked guard/presence-consumed decision marks ride
+    // only as exact `true`; any other spelling keeps the refusal.
+    const guardConsumed = Object.hasOwn(metadata, 'guardConsumed') ? metadata.guardConsumed === true : undefined;
+    const presenceConsumed = Object.hasOwn(metadata, 'presenceConsumed') ? metadata.presenceConsumed === true : undefined;
+    if (Object.keys(metadata).length !== 5 + (guardConsumed === undefined ? 0 : 1) + (presenceConsumed === undefined ? 0 : 1) ||
+        guardConsumed === false || presenceConsumed === false ||
+        Object.keys(source).length !== 3 || query === undefined ||
+        stableStringify(captureDispatchPreclaimData(source)) !== stableStringify(query.source) ||
+        stableStringify(query.source) !== stableStringify(plan.source) ||
+        !artifact.sources.some(original => original.path === source.path && original.sha256 === source.sha256) ||
+        !interval(queryNode) || !interval(node) || !interval(statement) || (queryNode.start as number) < (node.start as number) || (queryNode.end as number) > (node.end as number) ||
+        await sha256HexText(`scenario-disclosure/v1:query:${source.path}:${source.sha256}:${privateDef.name.slice(0, privateDef.name.lastIndexOf('.'))}:${queryNode.start}:${queryNode.end}:`) !== query.id ||
+        (node.start as number) < (statement.start as number) ||
+        (node.end as number) > (statement.end as number)) {
+      throw new AssemblyCorrespondenceError('Due handler first query lacks its original checked Let, call and owning source.');
+    }
+    return captureDispatchPreclaimData({ queryId: query.id, source: query.source,
+      query: { start: queryNode.start as number, end: queryNode.end as number },
+      node: { start: node.start as number, end: node.end as number },
+      statement: { start: statement.start as number, end: statement.end as number },
+      ...(guardConsumed === true ? { guardConsumed: true as const } : {}),
+      ...(presenceConsumed === true ? { presenceConsumed: true as const } : {}) });
+  }));
+  const rawAny = member(operation, 'queryAny');
+  const rawSelections = member(operation, 'querySelections');
+  if (rawAny !== undefined || rawSelections !== undefined) {
+    throw new AssemblyCorrespondenceError('Due handler query supports only the single-first shape.');
+  }
+  if (member(operation, 'handler') !== undefined && member(operation, 'handler') !== privateDef.name) {
+    throw new AssemblyCorrespondenceError('Due handler query consumer differs from its actual installed handler.');
+  }
+  // Source field grants ride the verified viewer policies of the
+  // triggering owner, mirroring the ordinary invocation-local path.
+  // Public Budget reads resolve here; restricted models would carry
+  // their exact grants or fail closed below.
+  const sourceReads = createSourceReadPolicyAdapter({ loaded,
+    opts: { asm, artifact, identity: sourceInput.identity, store: sourceInput.store, source: 'schedule' },
+    now: sourceInput.now, app });
+  const readPolicies = new Map<ModelName, import('@canlang/state/query').ViewerSourceReadPolicy>();
+  for (const query of plan.queries ?? []) {
+    for (const [model, policy] of sourceReads.policies(query.model)) if (!readPolicies.has(model)) readPolicies.set(model, policy);
+  }
+  const bindQuery = loaded.producers.invoke.bindScenarioReceiptQueryProducer;
+  if (bindQuery === undefined) throw new AssemblyCorrespondenceError('Due handler query requires its installed State producer.');
+  bindQuery(privateDef, { source: plan.source, app, policy: loaded.policy as Parameters<typeof bindQuery>[1]['policy'],
+    ...(readPolicies.size === 0 ? {} : { readPolicies }),
+    ...(first.length === 0 ? {} : { first }) });
+  // Execution (require-observed) dependencies ride the reference producer
+  // with their original owning Require census, mirroring the ordinary path.
+  const rawExecution = member(operation, 'executionDependencies');
+  if (rawExecution === undefined) return;
+  const executionDependencies = captureDispatchPreclaimData(nativeCallArray(rawExecution, 200)) as
+    NonNullable<Parameters<NonNullable<typeof loaded.producers.invoke.bindScenarioReceiptReferenceProducer>>[1]['executionDependencies']>;
+  const executionSites = (loaded.membershipSources.get(privateDef.name) ?? [])
+    .filter(site => site.stage !== 'read-policy' && site.stage !== 'read-predicate' && site.stage !== 'send-dispatch');
+  if (executionSites.length === 0) {
+    throw new AssemblyCorrespondenceError('Due handler execution guards lack their original owning Require census.');
+  }
+  const bindRef = loaded.producers.invoke.bindScenarioReceiptReferenceProducer;
+  if (bindRef === undefined) {
+    throw new AssemblyCorrespondenceError('Due handler stored references require their installed State producer.');
+  }
+  // Owners with membership calls were associated by their existing producer.
+  // A plain require guard without active_member still needs its logical
+  // site source associated before the reference producer can bind.
+  const state = await import('@canlang/state/invocation');
+  const hasActiveMember = executionSites.some(site => site.calls.some(call =>
+    call.target.kind === 'builtin' && call.target.id === 'active_member'));
+  if (!hasActiveMember) {
+    const transport = plan.source;
+    // The nativeSourceSendGuards map is keyed by def; a due handler has none.
+    // Each private handler def is fresh per delivery (new registry per
+    // invokeDueScheduleCanonical call), so this binds exactly once; any
+    // failure (including already-bound with a differing source) propagates
+    // with its precise State error, never swallowed by message match.
+    state.bindScenarioReceiptMembershipSource(privateDef, { logical: executionSites[0]!.source, transport });
+  }
+  // The execution models join the same viewer-policy map so the
+  // reference check sees complete source field grants.
+  for (const entry of executionDependencies as readonly { readonly dependency?: { readonly model?: unknown } }[]) {
+    const model = (entry as { readonly dependency?: { readonly model?: unknown } }).dependency?.model;
+    if (typeof model !== 'string') continue;
+    for (const [name, policy] of sourceReads.policies(model)) if (!readPolicies.has(name)) readPolicies.set(name, policy);
+  }
+  bindRef(privateDef, { source: plan.source, app, policy: loaded.policy as Parameters<typeof bindRef>[1]['policy'],
+    ...(readPolicies.size === 0 ? {} : { readPolicies }),
+    executionDependencies, executionSites: executionSites! });
+}
+
 /** Exact Work head + current trusted source handler + terminal receipt, one fence. */
 export async function invokeDueScheduleCanonical(opts: CanonicalDueScheduleOpts) {
   assertCanonicalStore(opts.store, opts.handler);
@@ -11564,8 +11807,24 @@ export async function invokeDueScheduleCanonical(opts: CanonicalDueScheduleOpts)
   const occurrenceIds: string[] = [];
   const mutationOpts: CanonicalMutationOpts = { ...opts, operation: opts.handler, operationId,
     identity, inputs: admittedInputs, source: 'schedule', memberships: opts.identities, now: () => now };
+  // C24 scope-1: bind the internal handler query/reference producers from
+  // the verified module inventory before State admission. Handlers without
+  // a checked disclosure skip binding and keep their existing behavior.
+  // The viewer policies ride the triggering owner identity (schedule
+  // trusted source); public Budget reads resolve here, restricted models
+  // fail closed in State below.
+  // The source-policy adapter needs the full registry (Budget.read lives
+  // there, not in the single-entry private registry); the producers bind
+  // to the private handler def via State's per-def plan inventory.
+  await bindPrivateDueHandlerProducers(opts.asm, opts.artifact, loaded, privateDef, definition, handler,
+    { identity, store: opts.store, now: () => now });
+  // C24 scope-1: the State receipt result stays void-null inside the
+  // admission; the Work delivery outcome (completed/failed + occurrence)
+  // rides a side channel so the same fence still commits schedule,
+  // business and terminal writes atomically.
+  let workOutcome: { readonly status: 'completed' | 'failed'; readonly occurrenceId: string; readonly result: unknown } | undefined;
   try {
-    const outcome = await loaded.producers.invoke.invoke({
+    await loaded.producers.invoke.invoke({
       registry: privateDescriptors.registry,
       envelope: { operation: opts.handler, operation_id: operationId, inputs: admittedInputs },
       identity, app: opts.app, source: 'schedule', kind: 'trusted', trustedSource,
@@ -11574,11 +11833,34 @@ export async function invokeDueScheduleCanonical(opts: CanonicalDueScheduleOpts)
       execute: async (call) => {
         const due = await stageDue(opts.due, stageContext);
         if (due.status !== 'ready') throw new DueScheduleChanged(due);
+        // Scope-1 issuance: freeze the installed-producer staged schedule
+        // write for State's recorded admission comparison below. The handler
+        // never sees this channel; only byte-identical returns pass.
+        const stagedSchedule = (due.effects.writes ?? []).filter(write =>
+          isUnknownRecord(write) && (write as { readonly model?: unknown }).model === 'work.schedule');
+        if (stagedSchedule.length !== 1) throw new Error('Due staging must produce exactly one work.schedule write.');
+        const stagedScheduleBytes = stableStringify(structuredClone(stagedSchedule[0]));
+        // Scope-1 issuance binding: record the installed-producer staging
+        // bytes against this admitted call before execution. State retain
+        // compares the returned Work pair against them; the handler never
+        // sees this channel.
+        const noteDue = loaded.producers.invoke.noteDueWorkAdmission;
+        if (noteDue === undefined) throw new Error('Installed State producer lacks due Work admission binding.');
+        noteDue(call as never, {
+          event: opts.due.event, occurrenceId: opts.due.occurrenceId, key: opts.due.key,
+          scope: { app: opts.due.scope.app, owner: opts.due.scope.owner, ownerPackage: opts.due.scope.ownerPackage },
+          scheduleWrite: structuredClone(stagedSchedule[0]),
+        });
         let business: CanonicalExecutionEffects;
         let refusal: { code: string; message: string } | undefined;
         try {
+          // C24 scope-1: the internal handler session runs receipt-aware
+          // inside this same State.invoke admission. `opts.store` is the
+          // admitted store, so the frame/owner session join the same fence;
+          // Work terminal effects below join the same commit atomically.
           business = await runScenarioSeam(privateLoaded, mutationOpts, call, occurrenceIds,
-            { effects: due.effects, occurrenceId: due.occurrence.occurrenceId as OccurrenceId });
+            { effects: due.effects, occurrenceId: due.occurrence.occurrenceId as OccurrenceId },
+            undefined, opts.store);
         } catch (error) {
           if (!isAuthoredRequireFailure(error)) {
             // State receipts business errors. A transient private handler
@@ -11592,9 +11874,27 @@ export async function invokeDueScheduleCanonical(opts: CanonicalDueScheduleOpts)
             resolvedDefaults: {}, result: null };
         }
         const status = refusal === undefined ? 'completed' as const : 'failed' as const;
+        // Scope-1 producer exactness: the handler return must carry the
+        // staged schedule update byte-identically and must never emit
+        // occurrence writes (the terminal path below owns them). Forgery or
+        // smuggling refuses here, before State retention.
+        const businessWork = (business.writes ?? []).filter(write =>
+          isUnknownRecord(write) && ((write as { readonly model?: unknown }).model === 'work.schedule' ||
+            (write as { readonly model?: unknown }).model === 'work.occurrence'));
+        if (businessWork.some(write => (write as { readonly model?: unknown }).model === 'work.occurrence')) {
+          throw new Error('Due handler must not emit work.occurrence writes; the terminal path owns them.');
+        }
+        if (businessWork.length !== 1 || stableStringify(businessWork[0]) !== stagedScheduleBytes) {
+          throw new Error('Due handler work.schedule write differs from its staged admission.');
+        }
         const terminal = await stageReceipt({ occurrenceId: opts.due.occurrenceId, status,
           result: business.result ?? null, code: refusal?.code ?? null, message: refusal?.message ?? null }, stageContext);
         if ((terminal.outboxAck?.length ?? 0) !== 0) throw new Error('Due receipt cannot acknowledge outbox work.');
+        workOutcome = { status, occurrenceId: opts.due.occurrenceId, result: business.result ?? null };
+        // The State admission commits schedule + business + terminal writes
+        // atomically; its receipt result stays void-null. The Work outcome
+        // above rides the side channel so `retainScenarioReceipt` still sees
+        // the exact void result.
         return { ...business,
           writes: [...business.writes, ...(terminal.writes ?? [])],
           history: [...business.history, ...(terminal.history ?? [])],
@@ -11602,11 +11902,12 @@ export async function invokeDueScheduleCanonical(opts: CanonicalDueScheduleOpts)
           schedules: [...business.schedules, ...(terminal.schedules ?? [])],
           uniqueClaims: [...business.uniqueClaims, ...(terminal.uniqueClaims ?? [])],
           uniqueReleases: [...business.uniqueReleases, ...(terminal.uniqueReleases ?? [])],
-          result: { status, occurrenceId: opts.due.occurrenceId, result: business.result ?? null },
+          result: business.result ?? null,
         };
       },
     });
-    return outcome.result;
+    if (workOutcome === undefined) throw new Error('Due handler completed without its Work outcome.');
+    return workOutcome;
   } catch (error) {
     if (error instanceof DueScheduleChanged) return error.outcome;
     throw error;

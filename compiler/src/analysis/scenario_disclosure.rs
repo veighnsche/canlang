@@ -152,6 +152,22 @@ pub struct DisclosureFirstQuery {
     pub overload: usize,
     pub binding: NodeKey,
     pub operand: NodeKey,
+    /// DESIGN442 guard-consumed mark: the confined single-`Let(first)` plus
+    /// single-`Require` hook slice consumes this occurrence only as a
+    /// decision (hook_first_event + checked_first_query_source +
+    /// first_query_stored_require_read). The `Require` grants nothing, so
+    /// the native host may evaluate its declared control reads as a
+    /// recorded owner decision instead of a viewer grant. False preserves
+    /// ordinary viewer behavior everywhere else.
+    pub guard_consumed: bool,
+    /// DESIGN442 presence-consumed mark: the same confined slice whose
+    /// `Require` consumes only the first binding's presence
+    /// (`require budget != null`, no stored-field read). Still a
+    /// source-consuming decision with no stored-field require dependency,
+    /// so viewer projection must not silently turn present into null.
+    /// Unused bindings and `require true` reference nothing and stay
+    /// unmarked; body/value copies stay viewer.
+    pub presence_consumed: bool,
     /// A true contained Member scans this original required parent parameter.
     /// An unscoped model scan has no contained parent selector. Mirrors the
     /// count contained-parent correspondence; the predicate operand keeps its
@@ -769,10 +785,16 @@ pub(super) fn analyze_scenario_disclosure_with_catalog<'a>(
             cx.effect_visits = 0;
             cx.result_model = None;
             let result = (|| {
-                if scenario.on.is_some() {
+                // C23 hook slice: a handler with an admitted first-query fact
+                // may prove its closure below; every other trusted shape
+                // keeps this refusal, and the finite-query fast path never
+                // applies to handlers.
+                if scenario.on.is_some() && cx.hook_first_complete(scenario).is_none() {
                     return Err(cx.fail(scenario.node, "trusted handler"));
                 }
-                if let Some(plan) = cx.complete_query(scenario)? {
+                if scenario.on.is_none()
+                    && let Some(plan) = cx.complete_query(scenario)?
+                {
                     return Ok(plan);
                 }
                 let signature = types
@@ -998,7 +1020,57 @@ pub(super) fn analyze_scenario_disclosure_with_catalog<'a>(
     // Source facts are collected once, independently of closure waves and
     // runtime admission. Declined read/composite/bound-call plans retain them.
     for scenario in effects.scenarios.values() {
-        let facts = cx.checked_source_facts(scenario).map(Box::new);
+        let mut facts = cx.checked_source_facts(scenario).map(Box::new);
+        // DESIGN442 guard/presence-consumed marks: the confined
+        // single-`Let(first)` plus single-`Require` hook slice
+        // (hook_first_event) consumes its first-query occurrence only as a
+        // decision. Mark the skeleton's own `Let` occurrence exactly when
+        // the admitted first query exists (checked_first_query_source) and
+        // the `Require` consumes either a stored read derived from it
+        // (first_query_stored_require_read, already the
+        // execution-dependency filter) or its bare presence
+        // (`require budget != null`, no stored-field read). Anything else —
+        // unused bindings, `require true`, unconfined shapes — keeps
+        // ordinary viewer behavior.
+        if let (Some(facts), Some(ScenarioDisclosure::Complete(checked))) =
+            (facts.as_mut(), out.get(&scenario.scenario))
+        {
+            if cx.hook_first_event(scenario).is_some() {
+                // The skeleton above already proved the 2-effect shape; the
+                // re-match only recovers the nodes without re-proving it.
+                if let [binding, guard] = scenario.effects.as_slice() {
+                    let stored = checked
+                        .require_consumptions
+                        .iter()
+                        .flat_map(|consumption| consumption.dependencies.iter())
+                        .any(|dependency| {
+                            cx.first_query_stored_require_read(dependency, scenario.module)
+                        });
+                    let presence = guard.cond.is_some_and(|cond| {
+                        cx.first_binding_presence_consumed(binding, cond)
+                    });
+                    if stored || presence {
+                        for query in facts
+                            .queries
+                            .iter_mut()
+                            .flatten()
+                            .filter(|query| query.first.is_some())
+                        {
+                            if let Some(first) = query.first.as_mut() {
+                                if first.binding != binding.node {
+                                    continue;
+                                }
+                                if stored {
+                                    first.guard_consumed = true;
+                                } else {
+                                    first.presence_consumed = true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
         match out.get_mut(&scenario.scenario) {
             Some(ScenarioDisclosure::Complete(value)) => value.source_facts = facts,
             Some(ScenarioDisclosure::Declined(value)) => value.source_facts = facts,
@@ -7848,6 +7920,138 @@ impl<'a> Closure<'a> {
         })
     }
 
+    /// C23 hook slice completeness: the skeleton below plus an actual
+    /// admitted first-query fact for the leading `let`. Hooks without an
+    /// admittable first query keep the trusted-handler refusal exactly.
+    fn hook_first_complete(&self, scenario: &super::effects::ScenarioData) -> Option<()> {
+        self.hook_first_event(scenario)?;
+        let [binding, _] = scenario.effects.as_slice() else {
+            return None;
+        };
+        self.checked_first_query_source(scenario, binding)?;
+        Some(())
+    }
+
+    /// C23 hook slice skeleton: a declared-event handler (`on=Event`) with no
+    /// caller parameters, no result, no cohort, no header guards and exactly
+    /// one `let` plus one `require`. The returned event symbol authorizes the
+    /// operand arm below; anything else keeps the trusted-handler refusal.
+    fn hook_first_event(
+        &self,
+        scenario: &super::effects::ScenarioData,
+    ) -> Option<SymbolId> {
+        let Some(HandlerSource::Event(event)) = &scenario.on else {
+            return None;
+        };
+        let event = *event;
+        if scenario.read
+            || scenario.by.is_some()
+            || scenario.result.is_some()
+            || scenario.cohort.is_some()
+            || !scenario.params.is_empty()
+            || !scenario.guards.is_empty()
+        {
+            return None;
+        }
+        let [binding, guard] = scenario.effects.as_slice() else {
+            return None;
+        };
+        if binding.verb != EffectVerb::Let
+            || guard.verb != EffectVerb::Require
+            || guard.cond.is_none()
+        {
+            return None;
+        }
+        Some(event)
+    }
+
+    /// DESIGN442 presence consumption: the confined hook `Require` consumes
+    /// the first binding's presence when its condition references the `Let`
+    /// occurrence (a null check or a stored-read base). Reuses the
+    /// structural 2-effect skeleton above: only the skeleton's own `Let`
+    /// counts, so an unused binding or `require true` references nothing
+    /// and gains no decision authority. Body/value copies are out of scope:
+    /// only the decision reads ride the mark.
+    fn first_binding_presence_consumed(
+        &self,
+        binding: &Effect,
+        cond: NodeKey,
+    ) -> bool {
+        let mut pending = vec![cond];
+        let mut steps = 0;
+        while let Some(key) = pending.pop() {
+            steps += 1;
+            if steps > 16384 {
+                return false;
+            }
+            let Some(key) = self.query_group(key) else {
+                continue;
+            };
+            if matches!(self.query_binding(key), Some(Binding::Let { node }) if *node == binding.node) {
+                return true;
+            }
+            if let Some(node) = self.nodes.get(&key) {
+                pending.extend(
+                    node.children
+                        .iter()
+                        .filter(|child| expression(child.kind))
+                        .map(NodeKey::of),
+                );
+            }
+        }
+        false
+    }
+
+    /// C23 hook event operand: the predicate compares the row field against
+    /// one declared text field read off the handler's `event` binding
+    /// (`event.source`, never a longer chain). The event declaration owns
+    /// the field and its type equals the predicate field type, so the value
+    /// is handler context like `actor` and carries no transported input.
+    fn query_hook_event_operand(
+        &self,
+        event: SymbolId,
+        operand: NodeKey,
+        field_ty: &ResolvedType,
+    ) -> Option<()> {
+        if *field_ty != ResolvedType::Scalar(Scalar::Text) {
+            return None;
+        }
+        let operand = self.query_group(operand)?;
+        let node = self.nodes.get(&operand)?;
+        if node.kind != SyntaxKind::Member {
+            return None;
+        }
+        let base = node
+            .children
+            .iter()
+            .find(|child| expression(child.kind))?;
+        if !matches!(
+            self.query_binding(NodeKey::of(base)),
+            Some(Binding::Context(ContextVar::Event))
+        ) {
+            return None;
+        }
+        let name = node
+            .children
+            .iter()
+            .rev()
+            .find(|child| child.kind == SyntaxKind::Name)?;
+        let spelling = self.word(name)?;
+        let SymbolKind::Event { fields } = &self.resolve.symbols.get(event.0 as usize)?.kind
+        else {
+            return None;
+        };
+        let field = fields.iter().copied().find(|field| {
+            self.resolve
+                .symbols
+                .get(field.0 as usize)
+                .is_some_and(|symbol| symbol.name == spelling)
+        })?;
+        (self.types.symbol_types.get(&field)? == field_ty
+            && self.types.node_types.get(&operand) == Some(field_ty))
+        .then_some(())
+    }
+
     /// An original scalar-equality scan selects one owning mutable row. The
     /// whole candidate domain remains retained; first is never a query limit.
     /// This inventory is available even when another original source leaf
@@ -7857,8 +8061,12 @@ impl<'a> Closure<'a> {
         scenario: &super::effects::ScenarioData,
         binding: &Effect,
     ) -> Option<DisclosureQuery> {
+        // C23 hook slice: a declared-event handler with the exact void
+        // single-first skeleton may prove its query facts; every other
+        // trusted shape keeps the closure refusal below.
+        let hook_event = self.hook_first_event(scenario);
         if scenario.read
-            || scenario.on.is_some()
+            || (scenario.on.is_some() && hook_event.is_none())
             || binding.verb != EffectVerb::Let
             || !binding.then_effects.is_empty()
             || !binding.else_effects.is_empty()
@@ -7922,6 +8130,11 @@ impl<'a> Closure<'a> {
         // a present Archived clause always selects archived rows and its
         // absence keeps the default. No value reading is needed or possible.
         let archived = archived.is_some();
+        // The C23 hook slice admits only the unordered engine-default
+        // selection; authored ordering stays a sequenced follow-up.
+        if hook_event.is_some() && order.is_some() {
+            return None;
+        }
         // The domain names its model plainly, or selects a contained child
         // through the original required parent parameter (domain
         // correspondence below). Anything else keeps the closure refusal.
@@ -7953,10 +8166,15 @@ impl<'a> Closure<'a> {
         let field = self.query_member(member, alias.node, fact.model)?;
         let field_ty = self.types.symbol_types.get(&field)?;
         let operand = self.query_group(operand)?;
+        // C23 hook slice: the row field compares against one declared text
+        // field of the trusted event payload. The event value is handler
+        // context, so the query carries no transported input.
+        let event_operand = hook_event
+            .is_some_and(|event| self.query_hook_event_operand(event, operand, field_ty).is_some());
         if !fields.contains(&field)
             || !primitive_type(field_ty)
             || self.types.node_types.get(&self.query_group(member)?) != Some(field_ty)
-            || self.nodes.get(&operand)?.kind != SyntaxKind::NameRef
+            || (!event_operand && self.nodes.get(&operand)?.kind != SyntaxKind::NameRef)
             || self.types.node_types.get(&operand) != Some(field_ty)
             || self.types.node_types.get(&predicate_node)
                 != Some(&ResolvedType::Scalar(Scalar::Bool))
@@ -7969,7 +8187,9 @@ impl<'a> Closure<'a> {
         {
             return None;
         }
-        let inputs = if matches!(
+        let inputs = if event_operand {
+            Vec::new()
+        } else if matches!(
             self.query_binding(operand),
             Some(Binding::Context(ContextVar::Actor(_)))
         ) && *field_ty == ResolvedType::Scalar(Scalar::User)
@@ -8062,6 +8282,12 @@ impl<'a> Closure<'a> {
                 overload: fact.overload,
                 binding: binding.node,
                 operand,
+                // DESIGN442: the guard/presence-consumed marks land in the
+                // source-facts pass below, where the Require consumptions
+                // for this scenario are known. Unmarked here so every
+                // other shape keeps ordinary viewer behavior.
+                guard_consumed: false,
+                presence_consumed: false,
                 contained_parent,
             }),
             count: None,

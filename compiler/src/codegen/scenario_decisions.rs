@@ -693,14 +693,15 @@ pub(super) fn same_scenario_semantics(
     else {
         return None;
     };
-    // Query source transport has no handler/cohort execution authority.
+    // Query source transport has no hook/cohort execution authority. A
+    // declared-event handler may still prove its own identical trigger on
+    // both sides (C23 hook slice); pre-commit hooks and cohorts stay out.
     if a != b
         || at != bt
         || ar != br
         || ad != bd
         || ax != bx
-        || av.is_some()
-        || bv.is_some()
+        || av != bv
         || ah.is_some()
         || bh.is_some()
         || ac.is_some()

@@ -1,0 +1,19 @@
+app HookFirstPrivateUnused
+Given
+ Slot {label:text}
+ Budget {source:text,approved:bool}
+ event Tick {source:text}
+ policy Slot read=public
+ policy Budget read=owner
+When
+ crud Slot by=owner fields=label
+ crud Budget by=owner fields=source,approved
+ scenario arm(slot:Slot,at:datetime,source:text) -> int by=owner
+  do
+   schedule slot.id at=at event=Tick {source}
+   return slot.version
+ scenario probe on=Tick
+  do
+   let budget=first(Budget as row where row.source==event.source)
+   require true
+Then

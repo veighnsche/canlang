@@ -3,7 +3,7 @@
  */
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import type { CanTypeId, Receipt, ScenarioResultDisclosurePlan, StoragePort, StoredRow } from '@canlang/contracts';
+import type { CanTypeId, Receipt, ScenarioResultDisclosurePlan, StoragePort, StoredRow, DomainWrite } from '@canlang/contracts';
 import type { AdmittedCall } from './admission.js';
 import { StateError } from '../errors.js';
 import { createMemoryStorage } from '../storage/memory.js';
@@ -14,7 +14,7 @@ import { buildPolicyTable } from '../policy/grants.js';
 import { loadArtifactDescriptors, type ArtifactDescriptorSlice } from './registry.js';
 import { invoke, invokeRetainedReceiptOnly, type ExecutionEffects } from './invoke.js';
 import { beginScenarioReceiptMutation, observeScenarioReceiptDependency, selectScenarioReceiptReturn,
-  readScenarioReceiptAssociation, projectScenarioReceipt } from './scenario-receipt.js';
+  readScenarioReceiptAssociation, projectScenarioReceipt, noteDueWorkAdmission } from './scenario-receipt.js';
 import { FIXED_NOW, asId, asModel, createMemoryIdentityStore, makeBatch, makeIdentity, makeEnvelope,
   seedMember, seedRow, uuidv7 } from '../../test/invocation/fixtures.js';
 import { field, modelDef } from '../../test/mutation/fixtures.js';
@@ -426,4 +426,36 @@ test('admitted owner session rejects foreign factory scope and refuses observati
     } }), forbidden);
     assert.deepEqual(await domain(fresh), baseline);
   }
+});
+
+test('due schedule forgery with admitted ids refuses against recorded staging', async () => {
+  // Scope-1 issuance negative: the returned schedule update keeps every
+  // admitted coordinate (ids/event/scope) and the valid two-write shape but
+  // replaces the row payload. It must refuse against the recorded
+  // installed-producer staging bytes. Hand-built only as the refused input;
+  // admission, owner session, finalize and staging record are all real.
+  const w = await world(), before = await domain(w);
+  const occurrenceId = uuidv7(FIXED_NOW, ++sequence);
+  const genuineSchedule = { kind: 'update', model: 'work.schedule', id: occurrenceId, expectedVersion: 3,
+    row: { id: occurrenceId, version: 3, created: FIXED_NOW, createdBy: 'test', updated: FIXED_NOW,
+      data: { occurrenceId, key: 'due-key', scopeApp: APP, scopeOwner: 'owner', scopeOwnerPackage: APP,
+        at: FIXED_NOW, event: 'Tick', payload: { source: 'genuine' }, replaces: null, state: 'admitted' } } };
+  const genuineOccurrence = { kind: 'insert', model: 'work.occurrence',
+    row: { id: occurrenceId, version: 1, created: FIXED_NOW, createdBy: 'test', updated: FIXED_NOW,
+      data: { occurrenceId, status: 'failed', result: null, code: 'rule_failed',
+        message: 'authored require failed', recordedAtMs: FIXED_NOW } } };
+  await assert.rejects(invoke({ ...w, source: 'schedule', kind: 'trusted' as never,
+    trustedSource: 'schedule:Tick',
+    execute: async call => {
+      const session = await beginScenarioReceiptMutation(call, w.store, { table: w.table, bounds });
+      const finished = await session.finalize();
+      noteDueWorkAdmission(call, { event: 'Tick', occurrenceId, key: 'due-key',
+        scope: { app: APP, owner: 'owner', ownerPackage: APP }, scheduleWrite: genuineSchedule });
+      const forgedSchedule = JSON.parse(JSON.stringify(genuineSchedule)) as Record<string, any>;
+      forgedSchedule['row']['data']['payload'] = { source: 'forged' };
+      return { result: null, writes: [forgedSchedule, genuineOccurrence] as unknown as DomainWrite[], history: finished.history,
+        outbox: [], schedules: [], uniqueClaims: finished.uniqueClaims,
+        uniqueReleases: finished.uniqueReleases, resolvedDefaults: finished.resolvedDefaults };
+    } }), /differs from its recorded staged admission/);
+  assert.deepEqual(await domain(w), before);
 });

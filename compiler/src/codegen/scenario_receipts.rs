@@ -1557,10 +1557,10 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
         query_plan,
     } = sources;
     let IrItemKind::Scenario {
-        trusted: false,
-        event_source: None,
-        hook: None,
-        cohort: None,
+        trusted,
+        event_source,
+        hook,
+        cohort,
         result,
         read: false,
         expose_excluded: false,
@@ -1571,6 +1571,18 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
     else {
         return None;
     };
+    // C23 hook slice: a declared-event handler may carry a native receipt
+    // for its exact single-first query plan. The plan join below re-proves
+    // the query, so every other trusted shape keeps the refusal; only the
+    // declared-event/void combination proceeds past this gate.
+    let hook_receipt = *trusted
+        && matches!(event_source, Some(super::ir::IrEventSource::Declared(_)))
+        && hook.is_none()
+        && cohort.is_none();
+    if !hook_receipt && (*trusted || event_source.is_some() || hook.is_some() || cohort.is_some())
+    {
+        return None;
+    }
     let created_model = checked_created_model_result(ir, item);
     if (transcript && created_model.is_none())
         || (!result.as_ref().is_none_or(native_result_type) && created_model.is_none())
@@ -5723,6 +5735,45 @@ pub(super) fn checked_first_query_predicate(
                 && base.ty == ResolvedType::Unknown
                 && base.span == right.span)
                 .then_some(())
+        }
+        [] if *scalar == Scalar::Text => {
+            // C23 hook slice: the operand is one declared text field of
+            // the handler's trusted event payload. The disclosure proved
+            // the field declaration and type; this join pins the exact
+            // occurrence to the declared event record and that field.
+            let IrExpr::Member {
+                base,
+                field: event_field,
+            } = &right.expr
+            else {
+                return None;
+            };
+            let ResolvedType::Record {
+                symbol,
+                stored: false,
+            } = &base.ty
+            else {
+                return None;
+            };
+            let event = ir.items.get(symbol.0 as usize)?;
+            let IrItemKind::Event { fields } = &event.kind else {
+                return None;
+            };
+            let IrItemKind::Scenario { event_source, .. } = &owner.kind else {
+                return None;
+            };
+            let super::ir::IrEventSource::Declared(canonical) = event_source.as_ref()? else {
+                return None;
+            };
+            (event.canonical == *canonical
+                && matches!(&base.expr, IrExpr::Name(name) if name == "event")
+                && fields.iter().any(|field| {
+                    ir.items.get(field.0 as usize).is_some_and(|item| {
+                        item.name == *event_field
+                            && matches!(&item.kind, IrItemKind::Field { ty: IrType::Known(ty), .. } if ty == &dependency.ty)
+                    })
+                }))
+            .then_some(())
         }
         [(operand, parameter)] if *operand == first.operand => {
             let facts = ir.scenario_disclosures.get(&owner.id)?.source_facts()?;

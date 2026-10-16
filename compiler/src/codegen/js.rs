@@ -13979,7 +13979,17 @@ impl<'a> Emitter<'a> {
                         let first: Vec<_> = capture.queries.iter().filter_map(|query| {
                             let first = query.first.as_ref()?;
                             let source = capture.plan["queries"].as_array()?.iter().find(|value| value["id"].as_str() == Some(query.id.as_str()))?.get("source")?;
-                            Some(serde_json::json!({"queryId":query.id,"source":source,"query":{"start":query.node.start,"end":query.node.end},"node":{"start":first.call.start,"end":first.call.end},"statement":{"start":first.binding.start,"end":first.binding.end}}))
+                            // DESIGN442: carry the checked guard-consumed mark
+                            // for the confined hook slice only; omission keeps
+                            // ordinary viewer behavior on every other shape.
+                            let mut entry = serde_json::json!({"queryId":query.id,"source":source,"query":{"start":query.node.start,"end":query.node.end},"node":{"start":first.call.start,"end":first.call.end},"statement":{"start":first.binding.start,"end":first.binding.end}});
+                            if first.guard_consumed {
+                                entry["guardConsumed"] = serde_json::json!(true);
+                            }
+                            if first.presence_consumed {
+                                entry["presenceConsumed"] = serde_json::json!(true);
+                            }
+                            Some(entry)
                         }).collect();
                         if !first.is_empty() {
                             members.push(format!("queryFirst:{}", descriptor_json(&first)));
@@ -15140,6 +15150,16 @@ impl<'a> Emitter<'a> {
         if has_duplicate_names(&inputs) {
             return None;
         }
+        // C24 scope-1: an admitted declared-event handler with a native
+        // receipt plan carries its exact checked disclosure inside the
+        // private invocation only. Public `artifact.operations` still
+        // excludes every trusted handler, so no public exposure follows;
+        // the due-session host verifies this plan against the module
+        // `canScenarioQuerySources` inventory before internal admission.
+        let disclosure = self
+            .native_receipts
+            .get(&handler.id)
+            .and_then(|recipe| serde_json::to_value(&recipe.plan).ok());
         Some(JsOperation {
             name: handler.canonical.clone(),
             kind: JsOperationKind::Scenario,
@@ -15149,7 +15169,7 @@ impl<'a> Emitter<'a> {
                 .unwrap_or_default(),
             inputs,
             result: checked_scenario_result(result.as_ref()),
-            disclosure: None,
+            disclosure,
             root_authority: self.operation_root_authority(handler),
         })
     }

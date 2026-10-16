@@ -28,6 +28,7 @@ export {
   beginScenarioReceiptMutation, observeScenarioInputComputedDefault, type ScenarioReceiptMutationInput,
   bindScenarioReceiptFrameworkProducer, stageScenarioReceiptSend, stageScenarioReceiptDelivery,
   bindScenarioReceiptCallProducer, invokeScenarioReceiptCall, assertScenarioReceiptCallExecution, type ScenarioReceiptCallSite,
+  noteDueWorkAdmission, type DueWorkAdmission,
   bindScenarioReceiptMembershipSource, type ScenarioReceiptMembershipSourceAssociation,
   bindScenarioReceiptMembershipProducer, evaluateScenarioReceiptMembership,
   bindScenarioReceiptSendMembershipProducer, evaluateScenarioReceiptSendMembership,
