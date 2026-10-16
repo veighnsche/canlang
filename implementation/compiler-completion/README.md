@@ -24,6 +24,17 @@ session/admission remain local implementation work. Hook guards and ordinary val
 authority; missing parent-read implementation is not a new value-use prohibition. Exact17/18 external/policy holds remain unchanged. Continue ready work
 through these checkpoints; do not mark the overall goal complete.
 
+### Accepted Employees seal batch (merge30) — 2026-10-16
+
+Main integrates `93a4fe604`: the four original `active_member` E6008 cleared
+at the defining producer (source/closure seal), with the real State/Identity
+staff/can_work consumer (grants/denial/revocation/location branches) green
+1/1 on frozen main producer `bba50116` + native catalog `ca50`. The consumer
+honors `CAN_COMPILER_BIN`/`CAN_NATIVE_CATALOG` overrides. Intake also updates
+one stale pin: model-reference board filters assert admitted per accepted C1
+(merge27) instead of loud. membership 10/10, bridge 10/10, hook_lowering
+26/26. No trapped predicates; forged-source/order negatives retained.
+
 ### Current original24 (frozen main regress cohort) — 298 E6008 — 2026-10-16
 
 [evidence/original24-main-20261016.json](../../evidence/original24-main-20261016.json):
