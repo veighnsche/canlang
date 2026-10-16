@@ -476,6 +476,17 @@ export function sourceFilterControls(
       return `<label for="${escapeAttr(name)}">${escapeHtml(resolveCaption(meta.label, props.context))}</label>` +
         `<input type="text" id="${escapeAttr(name)}" name="${escapeAttr(name)}" value="${escapeAttr(current)}" class="input">`;
     }
+    // C2 text-equality controls (DESIGN 975 scalar + operator table):
+    // a free-text input carrying the current exact value. Text is not
+    // finite-choice, so unlike the select below it offers no option
+    // inventory; it mirrors the reference opaque entry but submits the
+    // raw string instead of an `{id}` identity.
+    if (field.type === "text") {
+      const selectedValue = selected.get(field.field);
+      const current = typeof selectedValue === "string" ? selectedValue : "";
+      return `<label for="${escapeAttr(name)}">${escapeHtml(resolveCaption(meta.label, props.context))}</label>` +
+        `<input type="text" id="${escapeAttr(name)}" name="${escapeAttr(name)}" value="${escapeAttr(current)}" class="input">`;
+    }
     // Conditions carry typed values (bool toggles arrive as booleans);
     // controls compare against the stable option spellings ("true"/case).
     const selectedValue = selected.get(field.field);

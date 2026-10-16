@@ -5,9 +5,12 @@
 //! correspondence. The checker admits distinct owned plain-bool selectors
 //! with matching defaults, the lowering validator accepts `bool` columns
 //! with `true`/`false` captions, and data-only/absent `where` keeps
-//! working. Non-bool kinds (int/text/date/nullable bool), duplicate/
+//! working. Non-bool kinds (int/date/nullable bool), duplicate/
 //! undeclared selectors, dotted paths and lambda-where filter composition
-//! keep the exact E6008 refusals below. Model references lower through the
+//! keep the exact E6008 refusals below. Plain `text` selectors lower
+//! through the CAN18-v1 C2 text-equality rule (DESIGN 975 scalar +
+//! operator table); see `enum_filter_group.rs` for the text pins.
+//! Model references lower through the
 //! CAN18-v1 reference-equality rule (typed opaque identity, never an enum
 //! spelling): see `enum_filter_group.rs` for the board/calendar pins.
 //! Catalog-free: every test drives check -> IR build -> per-page JS UI
@@ -401,13 +404,14 @@ fn int_filter_refuses() {
     );
 }
 
-/// Text fields are not finite-choice selectors.
+/// C2 text-equality rule (DESIGN 975 scalar + operator table): a bare
+/// plain-text control with no default is no initial restriction, so it
+/// lowers; text is an exact equality control, not a finite-choice
+/// selector, and carries no case inventory.
 #[test]
-fn text_filter_refuses() {
-    assert_refuses(
+fn text_filter_lowers() {
+    assert_lowers(
         "app Probe\nGiven\n Customer { name:text, category:text }\n policy Customer read=public\nWhen\nThen\n page /customers title=\"Customers\"\n  list Customer columns=name,category filter=category\n",
-        "E6008",
-        "need distinct checked owned enum fields",
     );
 }
 
@@ -470,10 +474,15 @@ fn undeclared_bool_default_refuses() {
 /// alongside it. (The harness returns after checker diagnostics, so the
 /// lowering-stage outer refusal surfaces only in the full CLI pipeline;
 /// the nested table must stay quiet in both.)
+///
+/// C2 note: the recorded outer `category:text` filter is now admitted by
+/// the text-equality rule, so this pin carries the outer refusal on the
+/// still-refused `due:date` follower instead; the nesting contract under
+/// test is unchanged.
 #[test]
 fn refused_outer_list_keeps_admitted_nested_bool_table_quiet() {
     let diags = emit_all(
-        "app Probe\nGiven\n Account { title:text, category:text }\n Milestone in Account { title:text, done:bool=false }\n policy Account read=public\nWhen\nThen\n page /a title=\"A\"\n  list Account columns=title,category filter=category\n   table row.Milestone columns=title,done order=title filter=done\n",
+        "app Probe\nGiven\n Account { title:text, category:text, due:date }\n Milestone in Account { title:text, done:bool=false }\n policy Account read=public\nWhen\nThen\n page /a title=\"A\"\n  list Account columns=title,category filter=due\n   table row.Milestone columns=title,done order=title filter=done\n",
     );
     assert!(
         diags

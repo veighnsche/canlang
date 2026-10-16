@@ -3473,16 +3473,24 @@ fn collection_filter_props_are_valid(ir: &IrProgram, node: &IrUi) -> bool {
                 }
                 ResolvedType::Scalar(Scalar::User) if text("type") == Some("user") => None,
                 ResolvedType::Scalar(Scalar::Member) if text("type") == Some("member") => None,
+                // C2 text-equality rule (DESIGN 975 scalar + operator
+                // table): a plain `text` column carries no value labels,
+                // exactly like a reference. Validated string-likes and
+                // every other shape keep the refusal below.
+                ResolvedType::Scalar(Scalar::Text) if text("type") == Some("text") => None,
                 _ => return false,
             };
             // A reference column compares by typed opaque identity
             // (DESIGN 977), never enum spellings: its descriptor carries
-            // no value labels.
+            // no value labels. A text column carries none either: text
+            // is not finite-choice, so the free-text control offers no
+            // option inventory.
             let is_reference = matches!(
                 ty,
                 ResolvedType::Record { .. }
                     | ResolvedType::Scalar(Scalar::User | Scalar::Member)
             );
+            let is_text = matches!(ty, ResolvedType::Scalar(Scalar::Text));
             if selected.insert(name, ty).is_some() {
                 return false;
             }
@@ -3492,7 +3500,7 @@ fn collection_filter_props_are_valid(ir: &IrProgram, node: &IrUi) -> bool {
             let IrExpr::Object(labels) = &labels.expr else {
                 return false;
             };
-            let labels_match = if is_reference {
+            let labels_match = if is_reference || is_text {
                 labels.is_empty()
             } else {
                 match expected_cases {
@@ -3535,8 +3543,17 @@ fn collection_filter_props_are_valid(ir: &IrProgram, node: &IrUi) -> bool {
                 ResolvedType::Scalar(Scalar::Bool) => None,
                 ResolvedType::Record { .. }
                 | ResolvedType::Scalar(Scalar::User | Scalar::Member) => None,
+                // C2 text-equality rule: no case inventory (None, like
+                // references); other shapes keep the refusal.
+                ResolvedType::Scalar(Scalar::Text) => None,
                 _ => return false,
             };
+            // C2 text-equality rule (DESIGN 975 scalar): a text-typed
+            // literal matches the text control. No computed text form
+            // reaches the arms below (both shape checks require bool or
+            // enum cases), so only this literal, a direct saved text
+            // read, or null lower.
+            let text_default = matches!(expected, ResolvedType::Scalar(Scalar::Text));
             let valid = match &value.expr {
                 IrExpr::Text(case) => {
                     enum_cases.is_some_and(|cases| {
@@ -3547,6 +3564,7 @@ fn collection_filter_props_are_valid(ir: &IrProgram, node: &IrUi) -> bool {
                         && (case == "true" || case == "false")
                         && (value.ty == **expected
                             || matches!(value.ty, ResolvedType::Scalar(Scalar::Text))))
+                        || (text_default && value.ty == **expected)
                 }
                 IrExpr::Bool(_) => bool_default && value.ty == **expected,
                 IrExpr::Null => true,

@@ -18082,6 +18082,16 @@ impl<'a> Cx<'a> {
                 }
                 ResolvedType::Scalar(Scalar::User) => ("user".to_string(), Vec::new()),
                 ResolvedType::Scalar(Scalar::Member) => ("member".to_string(), Vec::new()),
+                // C2 text-equality rule (CAN18-v1, DESIGN 975 scalar +
+                // operator table): a plain owned `text` field is an exact
+                // equality control. Text is not finite-choice, so like a
+                // reference it carries no case inventory; the host
+                // preparer compares the ordinary string equality, never a
+                // spelling inventory. Validated string-likes
+                // (email/url/locale/timezone/currency), int/date/datetime
+                // and every other shape keep the exact E6008 below: no
+                // symmetry generalization.
+                ResolvedType::Scalar(Scalar::Text) => ("text".to_string(), Vec::new()),
                 _ => {
                     fail(self, path.span);
                     return None;
@@ -18194,13 +18204,24 @@ impl<'a> Cx<'a> {
                     ResolvedType::Scalar(Scalar::Bool) => None,
                     ResolvedType::Record { .. }
                     | ResolvedType::Scalar(Scalar::User | Scalar::Member) => None,
+                    // C2 text-equality rule: no case inventory (None, like
+                    // references); any other shape keeps the refusal.
+                    ResolvedType::Scalar(Scalar::Text) => None,
                     _ => return None,
                 };
+                // C2 text-equality rule (DESIGN 975 scalar): a text-typed
+                // literal matches the text control exactly. No computed
+                // text form is admitted (no B14 analog): only this
+                // literal, a direct saved text read, or null below.
+                let text_filter = matches!(expected, ResolvedType::Scalar(Scalar::Text));
                 let literal = enum_cases.is_some_and(|cases| {
                     matches!(&decoded.expr, IrExpr::Text(case) if cases.contains(case) && (decoded.ty == *expected || matches!(decoded.ty, ResolvedType::Scalar(Scalar::Text))))
                 }) || (bool_filter
                     && matches!(&decoded.expr, IrExpr::Bool(_))
                     && decoded.ty == *expected)
+                    || (text_filter
+                        && matches!(&decoded.expr, IrExpr::Text(_))
+                        && decoded.ty == *expected)
                     || matches!(
                         (&decoded.expr, &decoded.ty),
                         (IrExpr::Null, ResolvedType::Null)
@@ -18319,6 +18340,11 @@ impl<'a> Cx<'a> {
                                 {
                                     Some(case)
                                 }
+                                // C2 text-equality rule (DESIGN 975
+                                // scalar): any declared text literal
+                                // matches the text control; there is no
+                                // case inventory to check against.
+                                IrExpr::Text(case) if text_filter => Some(case),
                                 IrExpr::Null if nullable => None,
                                 _ => {
                                     fail(self, value.span);
