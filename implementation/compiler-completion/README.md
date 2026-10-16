@@ -181,6 +181,11 @@ native hook runners lower `await delivery(c,..)` and
 E6008; judgment specifications keep pinned refusal in both flavors.
 `t31_hook*` 12/12 pass in the integrated parent; codegen 143 pass with only
 the 4 known pre-existing residuals.
+Outcome-7 runtime carrier committed but NOT verified: `a7fcbf09` unwraps
+exact-shaped carriers in bound-mail.ts, yet its new test file fails
+package `tsc` (mock shapes vs real BoundMailAdapterOptions/OutboxIntent
+types), so no dist emits here. Test-typing repair routed back to Lane C
+(assertions frozen); outcome 7 stays OPEN.
 
 Outcome 6 checker slice in `b164788b` (recovered B2 commit `4cab6503`):
 slotted groups, selection headers and original payload shapes lower;
