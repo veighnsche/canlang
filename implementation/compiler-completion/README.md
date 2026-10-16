@@ -28,6 +28,17 @@ session/admission remain local implementation work. Hook guards and ordinary val
 authority; missing parent-read implementation is not a new value-use prohibition. Exact17/18 external/policy holds remain unchanged. Continue ready work
 through these checkpoints; do not mark the overall goal complete.
 
+### Accepted scope-2 per-fire projection batch (merge26) — 2026-10-16
+
+Main integrates `f24306ab1`: per-fire caller authority into the host viewer
+projection (owner-granted private body copy succeeds, stranger refused precise
+`forbidden`) plus record-typed helper params with consuming-site inheritance
+(`isActive(loc)`/`zone(loc)`, local/imported equivalence). Validation on frozen
+main producer `d692f60e` + native catalog `ca50`: joint 12/12, State 14/14,
+hook_lowering 26/26, consumer 7/7, board-calendar 1/1. Full State 8/2047
+failures transcribed out of blast radius (files contain zero hook scenarios).
+Same-transaction staged+compiled hook firing remains closed by T31/T32b.
+
 ### Accepted scope-2 hook parent-read batch (merge24) — 2026-10-16
 
 Main integrates `180e8d684` (C26 State/host `loadParent(model,id,site)` with
