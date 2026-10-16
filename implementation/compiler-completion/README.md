@@ -398,7 +398,16 @@ dispatch guard receipt/Rule 23 (outcome-10), collection domain 10,
 formatted business 8 (outcome-7), archived factory 6. Executable
 success/rejection/rollback/replay consumers still to run.
 Finite execution view (all 46 messages sum to 346 E6008 + 1 E6007;
-occurrences are not features): query-correspondence 90 → 5 (C17 running);
+occurrences are not features): query-correspondence 90 → 5 (contained-domain
+slice in `7b7b14e6`, Lane C17 `fce9e40d`: param-qualified child-domain first
+queries lower via 5-layer exact join with AdmittedReference parent edge;
+parent stored-query 9/9 + native 17/17/3/3 + cross-op 18/18 green. C17
+partitioned the 90 with evidence: ~70 are `on=` handlers declining at the
+trusted-handler disclosure gate (authority, stay refused); ~20 are `by=`
+scenarios splitting into qualified-domain (closed), no-where/multi-and/
+return-row/operands/orders (sequenced follow-ups). Runtime honoring pending
+— State `first` binder requires parent===undefined (exact error preserved),
+same compiler-join-first pattern as the archive slice);
 hook query/now/derive/emit 76 → 12 (queued Lane C after C17 releases
 disclosure/hook files); dispatch guard + IR-closure 27 → 10 (queued Lane C
 after); enum filter profiles 77 → 6 (B6 running); factory profiles 29
