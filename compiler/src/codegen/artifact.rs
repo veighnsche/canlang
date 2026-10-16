@@ -385,9 +385,8 @@ pub fn assemble(
     // their exact checked source and selected call closure, so they resolve
     // to that defining owner. Only genuinely unbound references refuse here
     // with the producer's exact availability code.
-    referenced.retain(|used| {
-        used.id != "active_member" || !js.membership_bound.contains(&used.span)
-    });
+    referenced
+        .retain(|used| used.id != "active_member" || !js.membership_bound.contains(&used.span));
     diags.extend(check_builtin_availability(&referenced, catalog));
     let mut tests = Vec::with_capacity(test_modules.len());
     for test in test_modules {

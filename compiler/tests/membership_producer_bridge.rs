@@ -58,10 +58,7 @@ fn load_test_catalog() -> (tempfile::TempDir, Catalog) {
     load_catalog_text(CATALOG_JSON)
 }
 
-fn check_sources(
-    sources: &[(&str, &str)],
-    catalog: &Catalog,
-) -> (SourceDb, CheckedProgram) {
+fn check_sources(sources: &[(&str, &str)], catalog: &Catalog) -> (SourceDb, CheckedProgram) {
     let mut db = SourceDb::new();
     let files: Vec<_> = sources
         .iter()
@@ -72,11 +69,7 @@ fn check_sources(
     (db, program)
 }
 
-fn ir_diagnostics(
-    db: &SourceDb,
-    program: &CheckedProgram,
-    catalog: &Catalog,
-) -> Vec<String> {
+fn ir_diagnostics(db: &SourceDb, program: &CheckedProgram, catalog: &Catalog) -> Vec<String> {
     let (_ir, diagnostics) = ir::build(program, db, Some(catalog));
     diagnostics
         .iter()
@@ -88,8 +81,11 @@ fn emit_js(db: &SourceDb, program: &CheckedProgram, catalog: &Catalog) -> (Strin
     let mut js = String::new();
     let mut codes = Vec::new();
     for native_receipts in [false, true] {
-        let mut result =
-            DiagnosticResult::new("membership-producer-bridge", LANGUAGE_VERSION, SCHEMA_VERSION);
+        let mut result = DiagnosticResult::new(
+            "membership-producer-bridge",
+            LANGUAGE_VERSION,
+            SCHEMA_VERSION,
+        );
         result.add_sources(db);
         result.complete = true;
         let mut options = EmitOptions::new();
@@ -132,8 +128,13 @@ fn membership_codes(codes: &[String]) -> Vec<&String> {
 #[test]
 fn unrelated_ir_refusal_keeps_bound_observations() {
     let (_dir, catalog) = load_test_catalog();
-    let (db, program) =
-        check_sources(&[("employees.can", EMPLOYEES_FILE), ("consumer.can", CONSUMER_FILE)], &catalog);
+    let (db, program) = check_sources(
+        &[
+            ("employees.can", EMPLOYEES_FILE),
+            ("consumer.can", CONSUMER_FILE),
+        ],
+        &catalog,
+    );
     let ir_codes = ir_diagnostics(&db, &program, &catalog);
     assert!(
         ir_codes
@@ -148,8 +149,12 @@ fn unrelated_ir_refusal_keeps_bound_observations() {
         "bound observations resolve, got: {membership:?} (all: {codes:?})"
     );
     assert!(
-        ir_codes.iter().any(|code| code.contains("hook contextual binding"))
-            && codes.iter().any(|code| code.contains("hook contextual binding")),
+        ir_codes
+            .iter()
+            .any(|code| code.contains("hook contextual binding"))
+            && codes
+                .iter()
+                .any(|code| code.contains("hook contextual binding")),
         "the unrelated refusal is retained, not swallowed: {codes:?}"
     );
     assert!(
@@ -241,7 +246,9 @@ fn read_require_observation_binds() {
 fn packet_handler_observation_binds() {
     let (_dir, catalog) = load_test_catalog();
     let handler = "  ## Added bounded comparison handler; PROPOSED enum-only match syntax; uncompiled evidence.\n  scenario stage_text(candidate:Candidate) read=true -> text by=recruiter\n   do\n    let person=actor\n    let location=candidate.parent.location\n    let worker=first(Employee as e where e.user==person and e.active)\n    require worker!=null and active_member(person,team) and (worker.operator_wide or worker.home==location or location in worker.locations)\n    let state=candidate.stage\n    match state\n     case applied\n      return \"Applied\"\n     case interview\n      return \"Interview\"\n     case offer\n      return \"Offer\"\n     case hired\n      return \"Hired\"\n     case rejected\n      return \"Rejected\"\n     case withdrawn\n      return \"Withdrawn\"\n";
-    let source = format!("app CanHire uses=[hire]\npackage rent_catalog\n Given\n  export Location {{name:text}}\n When\n Then\npackage employee\n use rent_catalog {{Location}}\n Given\n  export Employee {{user:user unique,home:Location,locations:Location[],operator_wide:bool=false,active:bool=true}}\n When\n Then\npackage hire\n use rent_catalog {{Location}}\n use employee {{Employee}}\n Given\n  role recruiter\n  Vacancy {{location:Location}}\n  Candidate in Vacancy {{stage:enum(applied,interview,offer,hired,rejected,withdrawn)=applied}}\n When\n{handler} Then\n");
+    let source = format!(
+        "app CanHire uses=[hire]\npackage rent_catalog\n Given\n  export Location {{name:text}}\n When\n Then\npackage employee\n use rent_catalog {{Location}}\n Given\n  export Employee {{user:user unique,home:Location,locations:Location[],operator_wide:bool=false,active:bool=true}}\n When\n Then\npackage hire\n use rent_catalog {{Location}}\n use employee {{Employee}}\n Given\n  role recruiter\n  Vacancy {{location:Location}}\n  Candidate in Vacancy {{stage:enum(applied,interview,offer,hired,rejected,withdrawn)=applied}}\n When\n{handler} Then\n"
+    );
     let (db, program) = check_sources(&[("probe.can", &source)], &catalog);
     let (js, codes) = emit_js(&db, &program, &catalog);
     let membership = membership_codes(&codes);
@@ -281,8 +288,11 @@ fn tampered_source_refuses_cohort() {
     let (db, program) = check_sources(&[("probe.can", STAFF_CONSUMED)], &catalog);
     let mut tampered = SourceDb::new();
     tampered.add("probe.can".into(), format!("{STAFF_CONSUMED} "));
-    let mut result =
-        DiagnosticResult::new("membership-producer-bridge", LANGUAGE_VERSION, SCHEMA_VERSION);
+    let mut result = DiagnosticResult::new(
+        "membership-producer-bridge",
+        LANGUAGE_VERSION,
+        SCHEMA_VERSION,
+    );
     result.add_sources(&tampered);
     result.complete = true;
     let (artifact, diagnostics) = emit(
