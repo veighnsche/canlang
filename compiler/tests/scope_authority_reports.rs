@@ -188,6 +188,11 @@ fn js_emits_decision_body_and_advertises_grant() {
         js.contains("async \"T.totals\"(c,{}){"),
         "decision-mode body is lowered: {js}"
     );
+    let body = handler_body(js, "T.totals").expect("authority handler lowers");
+    assert!(
+        body.contains("return") && body.contains("count"),
+        "lowered body computes the granted result: {body}"
+    );
     let op = js_out
         .operations
         .iter()
