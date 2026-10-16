@@ -18112,3 +18112,11 @@ Accepted: Admit the supported original int/decimal multi-stat, URL copy, bool-st
 ## 2026-10-16 — can18_merge_19_20261016
 
 Accepted: Bind deferred SEND-dispatch membership at its actual post-staging lifetime while retaining exact checked source/call closure, immutable source association, genuine Work execution and final revocation checks. Merge reviewed tested work incrementally into canonical `main`, preserving installer/specification changes and the active implementation branch. Released A15 e2383464d reviewed; independent frozen3797e157/catalogca50 actual Can/assembly/invoke/installed File inventory/drive consumer3/3 passes. Canonical main State and Cloudflare builds pass and actual main frozen8bac compiler drives3/3: member delivery once, revocation exact not-claimed/guard-false without provider call, never-member no staging. Restored17 missing SDK1.32.0 direct runtime dependency links to the matching existing cache; no install/lock/source/version change. Reuse unchanged membership-neighbor checks. Original Employees derive/source4 diagnostics are not closed by this separate runtime fix; retained369 capture predates the new main batches. Reconcile the living file-tree plan/registry over `bd11c935..ced21de11` with existing owners; retain the complete checkpoint and all outstanding acceptance gates. A merged component is not a claim that original24 or the remaining runtime workflows are complete.
+
+
+2026-10-16 main qualification after8096c3f86/ced21de11: original24 completes
+capture with361E6008, no omissions,26consumed sources and unchanged24 originals.
+Exactly8 UI occurrences clear, zero new diagnostics. The separate deferred drive
+fix passes actual main3/3 but does not close Employees4. Existing current evidence
+is updated in place; prior369 is retained in Git. No new language/permission rule
+or overall readiness follows; continue native ownership and remaining ready groups.
