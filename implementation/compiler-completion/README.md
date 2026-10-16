@@ -7592,3 +7592,15 @@ the same 4 pre-existing names (no swap). Fix reuses shared Number/
 isSafeInteger + wire-canonical decimal text at the defining presentation
 boundary; max-throw vs value-alert order preserved. Sole active lane: B13
 (bool reader, isolated worktree; integrates after B12, already landed).
+
+**REVIEW-17 dispatch, 2026-10-16 (Codex 09:39Z):**
+C21's occurrence contract still collides for two allowed workflows: (a) two
+distinct hooks on the same update share priorFires 0/base/counter 0 (no hook
+identity in the id); (b) create-hook's staged0 then first update-hook's 0 via
+birth discount. Finite C22 (`01a14417-1526-...`) owns both discriminators +
+simplification toward invocation/operation identity + occurrence/site +
+ordinal (history-scan/discount complexity removed, not extended); C18/C21
+stay unmerged-as-complete until these pass. B13 (bool reader) disjoint and
+undisturbed. Original24 re-capture queued after the next released/frozen
+producer closure (B13/C22); disk 6GiB — no large allocations. Active lanes:
+B13, C22 (2 of 3).
