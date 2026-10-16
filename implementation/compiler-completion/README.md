@@ -51,6 +51,18 @@ exact `rule_failed` with no added trigger, TRUE revocation (membership
 removed) `forbidden` with no new rows; prior stranger-only check retained
 as-is, not as revocation proof. No production repair needed.
 
+### Accepted replay-lifetime fix (merge39) — 2026-10-17 (slice-D runtime half)
+
+Main integrates `cc27cb35`: State binds the whole-row first-selected replay
+as the existing model result lifetime (influence-linked completed first
+selection — genuine owner row, checked source authority, installed commit
+guard — in all three gates). Replay returns the same record with no
+duplicate effects; conflict/denied/foreign/malformed/current-authority
+exact; module/artifact/sources immutable. Validation: native-first-replay
+vitest 1/1 on main dists, receipt neighbors 14/14 + 13/13 + 12/12. No
+frame-guard bypass, no faked producer; pre-existing reds proven identical
+via stashed baselines in-tree.
+
 ### Accepted C2 text-equality rule (merge38) — 2026-10-17
 
 Main integrates `84984151`: DESIGN 975 settles text equality (`eq` with
