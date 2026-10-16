@@ -18,14 +18,30 @@ are evidence rather than additional execution queues.
 HTTP/State checks. Enum default helper/import reuse is accepted in `b75b2b332`.
 After UI `8096c3f86` and deferred membership `ced21de11`, the unchanged original24 composition still fails in one frozen main capture,
 [evidence/original24-main-20261016.json](../../evidence/original24-main-20261016.json),
-complete=true, omitted=0,26 consumed sources, **361 E6008 occurrences**. All24
-authored source hashes match the saved original baseline. The wider unmerged
-implementation branch's earlier351 count is a different producer scope and is
-not a main-to-main comparison.
+complete=true, omitted=0,26 consumed sources, **359 E6008 occurrences**. All24
+authored source hashes match the saved original baseline (2 removed vs the
+earlier 361: CanDesk list and CanMaintain table filter/where via E5). The wider
+unmerged implementation branch's earlier351 count is a different producer scope
+and is not a main-to-main comparison.
 Membership checked-source joins, factory runtime contracts and native handler
 session/admission remain local implementation work. Hook guards and ordinary value reads retain their existing consuming-site
 authority; missing parent-read implementation is not a new value-use prohibition. Exact17/18 external/policy holds remain unchanged. Continue ready work
 through these checkpoints; do not mark the overall goal complete.
+
+### Accepted scope-2 hook parent-read batch (merge24) — 2026-10-16
+
+Main integrates `180e8d684` (C26 State/host `loadParent(model,id,site)` with
+scope-carried decision/value modes) + `9e3d4ca6c` (C27 compiler parent-content
+emission, `(scope,model,id)` arity preserved) + `d675f58e8` (host transitive
+row-shape bridge with public value projection) + `910e7a75b` (joint compiled-hook
+acceptance test). Decision reads classify by consuming site per DESIGN 442
+(Require guards and If-condition workflows, helpers inherit site); body copies
+retain caller grants; withheld values throw precise `forbidden`, never
+null-masked. Validation on frozen main producer `a8fc25e9` + native catalog
+`ca50`: hook_lowering 24/24, joint consumer 9/9, State 13/13. Explicitly open:
+per-caller value grants (needs per-fire viewer plumbing) and record-typed helper
+params (3-site admission feature); same-transaction staged+compiled hook firing
+stays closed by settled T31/T32b. No whole-outcome claim beyond this scope.
 
 ### Accepted source UI factory batch — 2026-10-16
 
