@@ -25,16 +25,18 @@
  *   lines, and authored row bodies once per authorized row, in source
  *   order, scoped to the enclosing roster (foreign-roster rows never
  *   leak across callers), each enclosing row serving its own filter
- *   occurrence. Parent-bound agendas here carry filters/columns,
- *   matching the recorded original shapes (which carry no source
- *   lambda `where`); a parent-bound agenda with a source lambda
- *   `where`, or with saved-preference `defaults`, returned 422 in this
- *   harness and stays outside this batch (observed boundary for the
- *   downstream State/Cloudflare query owner, not the Compiler/UI
- *   binding: the same shapes render 200 through the UI factory with
- *   stubbed queries and compile clean). Top-level agendas prove saved
+ *   occurrence. The parent-bound work agenda carries the recorded
+ *   CanShift shape verbatim (`filter=location,kind,conflict`
+ *   with `defaults={location=preferences.location}`): nothing saved
+ *   serves every own row, a saved location default narrows each
+ *   occurrence to its matching children, an explicit request selection
+ *   beats the saved default on the addressed occurrence only, and
+ *   explicit clear restores. The recorded originals carry no source
+ *   lambda `where` on the nested agenda; top-level agendas prove saved
  *   defaults, the E5 conjunction, and the discriminator below and in
- *   the green board-calendar suites.
+ *   the green board-calendar suites (parent-bound `where` conjunctions
+ *   keep the same source-first failure order through the shared
+ *   query owner).
  * - The same agenda without columns keeps its prior emission (no
  *   column lines).
  * - Enum/reference filter behavior is unchanged: request selection
@@ -94,7 +96,7 @@ Then
   require authenticated and actor.email_verified
   list Roster
    card "Roster commitments"
-    calendar row.Commitment start=from end=until columns=kind,conflict filter=location,kind,conflict empty="No commitments match"
+    calendar row.Commitment start=from end=until columns=kind,conflict filter=location,kind,conflict defaults={location=preferences.location} empty="No commitments match"
      pagination
      badge row.kind
      text row.conflict
@@ -303,6 +305,43 @@ test('assembled parent-bound agendas scope rows to the enclosing roster and rend
     assert.equal(columnLinesOf(html), 4, 'narrowed rows keep their column lines');
     html = await page(agneta, `/work?${new URLSearchParams([[alphaLocation, '']])}`);
     assert.equal(itemsOf(html), 3, 'explicit clear serves every own row');
+    // Parent-bound saved defaults (recorded CanShift shape
+    // `defaults={location=preferences.location}`): nothing saved serves
+    // every own row; a saved location default narrows each enclosing
+    // occurrence to its matching children (HQ lives under Alpha, Branch
+    // under Beta); an explicit request beats the saved default on the
+    // addressed occurrence only; explicit clear restores; an unknown
+    // saved identity matches nothing (200 empty, never a directory);
+    // a malformed saved identity refuses before query work.
+    const betaLocation = controlFor(groups[1]!, 'location');
+    const workPrefKey = seenPrefKeys[0]!;
+    const workPrefId = (field: string): string => JSON.stringify([workPrefKey.appId, agneta.identity.actor!.user_id,
+      agneta.identity.team!.team_id, workPrefKey.owner, field]);
+    savedPrefs.set(workPrefId('location'), { value: hq.id, version: '1' });
+    html = await page(agneta, '/work');
+    assert.equal(itemsOf(html), 2, 'parent agenda follows the saved location default');
+    assert.equal((html.match(/<section><h2>/g) ?? []).length, 2, 'saved HQ serves two endpoint days');
+    assert.equal(columnLinesOf(html), 4, 'saved-default rows keep their column lines');
+    html = await page(agneta, `/work?${new URLSearchParams([[betaLocation, branch.id]])}`);
+    assert.equal(itemsOf(html), 3, 'explicit branch on beta beats the saved HQ for that occurrence');
+    html = await page(agneta, `/work?${new URLSearchParams([[alphaLocation, branch.id]])}`);
+    assert.equal(itemsOf(html), 0, 'explicit branch on alpha serves no HQ child while beta follows saved HQ');
+    assert.ok(html.includes('No commitments match'), 'empty parent agenda renders its empty message');
+    html = await page(agneta, `/work?${new URLSearchParams([[alphaLocation, ''], [betaLocation, '']])}`);
+    assert.equal(itemsOf(html), 3, 'explicit clear on both occurrences serves every own row despite the saved default');
+    savedPrefs.set(workPrefId('location'), { value: '00000000-0000-0000-0000-000000000000', version: '2' });
+    html = await page(agneta, '/work');
+    assert.equal(itemsOf(html), 0, 'unknown saved location matches nothing');
+    assert.ok(!html.includes('2099'), 'unknown saved default leaks no endpoint day');
+    savedPrefs.set(workPrefId('location'), { value: '\u0001bad', version: '3' });
+    assert.equal((await pageJson(agneta, '/work', 422)).code,
+      'rule_failed', 'malformed saved location fails loud');
+    savedPrefs.set(workPrefId('location'), { value: hq.id, version: '4' });
+    html = await page(agneta, '/work');
+    assert.equal(itemsOf(html), 2, 'restored HQ default narrows again');
+    savedPrefs.delete(workPrefId('location'));
+    html = await page(agneta, '/work');
+    assert.equal(itemsOf(html), 3, 'removing the saved default restores every own row');
     assert.equal((await pageJson(agneta, `/work?${new URLSearchParams([[alphaKind, 'bogus']])}`, 400)).code,
       'validation', 'bogus enum spelling refuses');
     assert.equal((await pageJson(agneta, `/work?${new URLSearchParams([[alphaLocation, '\u0001bad']])}`, 400)).code,
@@ -358,6 +397,17 @@ test('assembled parent-bound agendas scope rows to the enclosing roster and rend
     assert.equal((await pageJson(boris, '/work', 403)).code, 'forbidden', 'revoked session refuses');
     html = await page(agneta, '/work');
     assert.equal(itemsOf(html), 3, 'other callers keep serving after the revocation');
+    // REVOCATION with a parent-bound saved default active: the revoked
+    // caller stays refused while the remaining caller follows her saved
+    // HQ default (2 items, parent-isolated), and removing it restores all.
+    savedPrefs.set(workPrefId('location'), { value: hq.id, version: '5' });
+    assert.equal((await pageJson(boris, '/work', 403)).code, 'forbidden', 'revoked session stays refused');
+    html = await page(agneta, '/work');
+    assert.equal(itemsOf(html), 2, 'remaining caller follows the saved HQ default after revocation');
+    assert.equal(columnLinesOf(html), 4, 'saved-default rows keep their column lines after revocation');
+    savedPrefs.delete(workPrefId('location'));
+    html = await page(agneta, '/work');
+    assert.equal(itemsOf(html), 3, 'removing the saved default restores every own row');
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

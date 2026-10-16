@@ -12724,6 +12724,7 @@ impl<'a> Emitter<'a> {
     /// exactly as pages with no preferences declaration do.
     fn admit_preferences_js(&mut self, owner: &str) -> String {
         let mut defaults = Vec::new();
+        let mut has_preferences = false;
         let ir = self.ir;
         for item in &ir.items {
             let module_name = self.ir.module(item.module).name.clone();
@@ -12731,7 +12732,10 @@ impl<'a> Emitter<'a> {
                 continue;
             }
             let fields = match &item.kind {
-                IrItemKind::Preferences { fields, .. } => fields.clone(),
+                IrItemKind::Preferences { fields, .. } => {
+                    has_preferences = true;
+                    fields.clone()
+                }
                 _ => continue,
             };
             for field_id in &fields {
@@ -12767,7 +12771,21 @@ impl<'a> Emitter<'a> {
             }
         }
         if defaults.is_empty() {
-            return String::new();
+            if !has_preferences {
+                return String::new();
+            }
+            // The app declares saved preferences but carries no literal or
+            // nullable-enum null authoring defaults (CAN18-v1 agenda gap:
+            // a reference-only `preferences { location:Location? }` page
+            // reading `preferences.location` crashed at render on
+            // `bindings.preferences["App"]`). Forward the dispatcher-saved
+            // snapshot even with no authoring entries; unsaved reads fall
+            // back to null at the existing `?? null` use sites.
+            return format!(
+                "preferences:{{{app}:{{...(c.preferences?.[{owner_key}]??{{}})}}}},",
+                app = object_key(owner),
+                owner_key = js_string(owner),
+            );
         }
         let mut entries = Vec::new();
         for (name, expr) in &defaults {
