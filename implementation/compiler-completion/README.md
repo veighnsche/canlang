@@ -366,9 +366,8 @@ viewer paths untouched. REVIEW-10 closed at implementation scope (Codex
 review pending); outcome 9 complete pending review.
 Codex MAIN-4: canonical main `fc25a2d1` includes released `9a32ee03`
 (compiler/packages byte-identical); independent host 6/6 + boundary/int
-22/22 pass. Accepted: reviewed implementation components. NOT accepted:
-filtered real-source host criterion (with C16) and original24 — both stay
-open.
+22/22 pass. Accepted: reviewed implementation components. NOT accepted at
+that time: filtered real-source host criterion (with C16) and original24.
 Filtered criterion proven in `8c3a2ade` (Lane C16 commit `27fe1c6c`):
 real filtered emission was correct but the serve path compared ints as
 strings (lexicographic: gt "2" matched 2^53+1, missed "10") — root cause
