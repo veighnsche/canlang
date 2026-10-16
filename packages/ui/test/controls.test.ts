@@ -635,6 +635,89 @@ describe("calendar agenda authored enum filters", () => {
   });
 });
 
+describe("calendar agenda bindings", () => {
+  it("scopes a parent-bound agenda to the enclosing row and renders consumed columns beside each endpoint line", async () => {
+    const columns = [
+      { field: 'kind', type: 'enum:Roster.Commitment.kind', label: 'Kind', valueLabels: { duty: 'Duty', visit: 'Visit' } },
+      { field: 'conflict', type: 'bool', label: 'Conflict', valueLabels: { true: 'Yes', false: 'No' } },
+    ];
+    const seen: unknown[] = [];
+    let bodies = 0;
+    const context = makeContext({
+      query: async (_invocation, model, args) => {
+        seen.push(args);
+        assert.equal(model, 'Roster.Commitment');
+        assert.deepEqual((args as { parent?: unknown }).parent, { id: 'roster-1' });
+        return { rows: [
+          { id: 'c1', fields: { from: '2026-10-12T09:00:00Z', until: '2026-10-12T17:00:00Z', kind: 'duty', conflict: false } },
+        ], columns };
+      },
+    });
+    const html = await calendar({ kind: 'agenda', context, model: 'Roster.Commitment',
+      parent: { id: 'roster-1' }, startField: 'from', endField: 'until', columns: ['kind', 'conflict'],
+      renderRow: async () => { bodies++; return ['body']; } });
+    assert.equal(seen.length, 1);
+    assert.ok(html.includes('<section><h2>'), 'endpoint day grouping renders');
+    assert.ok(html.includes('<p><span>Kind</span>'), 'consumed kind column renders its label');
+    assert.ok(html.includes('Duty'), 'consumed enum column renders its case');
+    assert.ok(html.includes('body'), 'authored row body renders per endpoint row');
+    assert.equal(bodies, 1);
+  });
+
+  it("serves parent-bound filter/defaults selections through the shared preparation path", async () => {
+    const filterFields: readonly ColumnMeta[] = [{ field: 'location', type: 'ref:Roster.Site', label: 'Site', valueLabels: {} },
+      { field: 'kind', type: 'enum:Roster.Commitment.kind', label: 'Kind', valueLabels: { duty: 'Duty', visit: 'Visit' } }];
+    const columns = [...filterFields,
+      { field: 'conflict', type: 'bool', label: 'Conflict', valueLabels: { true: 'Yes', false: 'No' } }];
+    const seen: unknown[] = [];
+    let bodies = 0;
+    const context = makeContext({
+      prepareCollectionFilters: (occurrence, fields, defaults) => {
+        assert.equal(occurrence, 'roster-agenda');
+        assert.equal(fields, filterFields);
+        assert.deepEqual(defaults, { location: null });
+        return [{ field: 'kind', op: 'eq', value: 'duty' }];
+      },
+      query: async (_invocation, model, args) => {
+        seen.push(args);
+        assert.equal(model, 'Roster.Commitment');
+        assert.deepEqual((args as { parent?: unknown }).parent, { id: 'roster-1' });
+        assert.deepEqual(args.where, { op: 'eq', field: 'kind', value: 'duty' });
+        return { rows: [
+          { id: 'c1', fields: { from: '2026-10-12T09:00:00.000Z', until: '2026-10-12T17:00:00.000Z', location: { id: 's1' }, kind: 'duty', conflict: false } },
+        ], columns };
+      },
+    });
+    const html = await calendar({ kind: 'agenda', context, model: 'Roster.Commitment',
+      parent: { id: 'roster-1' }, startField: 'from', endField: 'until',
+      occurrence: 'roster-agenda', filter: filterFields, defaults: { location: null },
+      columns: ['kind', 'conflict'],
+      renderRow: async () => { bodies++; return ['body']; } });
+    assert.equal(seen.length, 1);
+    assert.ok(html.includes('<section><h2>'), 'endpoint day grouping renders');
+    assert.ok(html.includes('<p><span>Kind</span>'), 'consumed kind column renders its label');
+    assert.equal(bodies, 1);
+  });
+
+  it("refuses unowned columns against authorized metadata before row bodies run", async () => {
+    let bodies = 0;
+    const context = makeContext({
+      query: async () => ({ rows: [], columns: [], emptyDeclarations: [
+        { field: 'kind', type: 'enum:Roster.Commitment.kind', label: 'Kind', valueLabels: { duty: 'Duty' } },
+      ] }),
+    });
+    const props = { kind: 'agenda' as const, context, model: 'Roster.Commitment',
+      startField: 'from', endField: 'until', empty: 'None',
+      renderRow: async () => { bodies++; return ['body']; } };
+    await assert.rejects(calendar({ ...props, columns: ['location'] }),
+      /calendar agenda "Roster.Commitment": missing columns: location/);
+    assert.equal(bodies, 0);
+    const html = await calendar({ ...props, columns: ['kind'] });
+    assert.ok(html.includes('None'), 'owned columns keep the empty state');
+    assert.equal(bodies, 0);
+  });
+});
+
 describe("calendar agenda", () => {
   it("localizes the default empty agenda without invoking authored row callbacks", async () => {
     for (const [preferredLocales, expected] of [[[], 'No records.'], [['nl'], 'Geen gegevens.']] as const) {

@@ -575,7 +575,7 @@ export async function table(props: TableProps): Promise<string> {
  * values render empty, matching TextValue semantics. Failures rethrow as
  * `column <field>: <cause>`; successful output passes through untouched.
  */
-function renderCell(meta: ColumnMeta, value: unknown, context: PresentationContext): string {
+export function renderCell(meta: ColumnMeta, value: unknown, context: PresentationContext): string {
   try {
     const rendered = renderCellInner(meta, value, context);
     return rendered === "" ? "" : isolate(rendered);

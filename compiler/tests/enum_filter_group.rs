@@ -19,9 +19,8 @@
 //! remaining filter occurrences stay refused — every table/list/board/
 //! calendar filter refusal bottoms out on a genuinely unsupported selector
 //! (text `bucket`/`category`/`skill`, int `year`, date `paid`, datetime
-//! `qualified_at`, dotted paths), a nested calendar agenda with no factory
-//! profile, `archived=include` with no consumed factory profile, or an
-//! expression `order=` with no §13 lowering. Each keeps its exact named
+//! `qualified_at`, dotted paths), `archived=include` with no consumed
+//! factory profile, or an expression `order=` with no §13 lowering. Each keeps its exact named
 //! E6008 refusal below (base control: B6 Lambda-where/defaults-key/
 //! co-fields/dotted-path disposition; outcome-5/12 for archived/order);
 //! `not` over an enum keeps E3007 (no implicit truthiness); cross-kind
@@ -33,10 +32,13 @@
 //! a stored-model reference (`location`), a `user` reference (`owner`),
 //! or a `member` reference lowers beside enum/bool siblings through typed
 //! opaque identity — reference equality is not an enum spelling, so no
-//! case inventory applies. The C2 text followers (`category`, `skill`),
-//! C3 date/datetime followers (`business_date`, `from`/`until`), and C4
-//! structural gaps (agenda `columns=`, board card children) stay refused
-//! below with their exact codes.
+//! case inventory applies. The C2 text followers (`category`, `skill`)
+//! and C3 date/datetime followers (`business_date`, `from`/`until`) stay
+//! refused below with their exact codes. The C4 agenda bindings lower:
+//! a parent-bound (nested) agenda threads the enclosing row through the
+//! shared collection pipeline like a bound timeline, and agenda
+//! `columns=` names owned row fields the calendarAgenda factory renders
+//! beside each endpoint line.
 //!
 //! Catalog-free: every test drives check -> IR build -> per-page JS UI
 //! lowering in process (string inspection only; execution is B15).
@@ -673,14 +675,15 @@ fn expression_query_order_refuses() {
     );
 }
 
-/// Recorded CanShift shape: a nested calendar agenda has no factory
-/// profile even with admitted enum+bool selectors, so it keeps the
-/// exact agenda refusal at lowering.
+/// Recorded CanShift shape: a nested (parent-bound) calendar agenda
+/// lowers through the shared collection pipeline (CAN18-v1 agenda
+/// binding batch, mirroring the accepted timeline bound-sequence
+/// contract), with consumed `columns=` rendered beside each endpoint
+/// line, admitted enum+bool selectors beside the C1 reference rule,
+/// and a matching saved reference default.
 #[test]
-fn nested_calendar_agenda_refuses() {
-    assert_refuses(
-        "app Probe\nGiven\n Roster { title:text }\n Commitment in Roster { kind:enum(duty,visit)=duty, conflict:bool=false, from:datetime, until:datetime }\n policy Roster read=public\n policy Commitment read=public\nWhen\nThen\n page /p title=\"P\"\n  list Roster\n   card \"C\"\n    calendar row.Commitment start=from end=until columns=kind,conflict filter=kind,conflict\n     badge row.kind\n",
-        "E6008",
-        "cannot lower calendar agenda",
+fn nested_calendar_agenda_lowers() {
+    assert_lowers(
+        "app Probe\nGiven\n Site { name:text }\n Roster { title:text }\n Commitment in Roster { site:Site, kind:enum(duty,visit)=duty, conflict:bool=false, from:datetime, until:datetime }\n policy Site read=public\n policy Roster read=public\n policy Commitment read=public\nWhen\nThen\n preferences { site:Site? }\n page /p title=\"P\"\n  list Roster\n   card \"C\"\n    calendar row.Commitment start=from end=until columns=kind,conflict filter=site,kind,conflict defaults={site=preferences.site}\n     badge row.kind\n",
     );
 }

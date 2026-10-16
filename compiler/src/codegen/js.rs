@@ -2956,6 +2956,7 @@ fn ui_prop_is_admitted(factory: &str, key: &str) -> bool {
             "field"
                 | "kind"
                 | "model"
+                | "parent"
                 | "startField"
                 | "endField"
                 | "where"
@@ -2966,6 +2967,7 @@ fn ui_prop_is_admitted(factory: &str, key: &str) -> bool {
                 | "page"
                 | "filter"
                 | "defaults"
+                | "columns"
         ),
         "fieldset" => matches!(key, "caption" | "id" | "variant"),
         "hero" | "footer" => key == "caption",
@@ -3378,12 +3380,14 @@ fn collection_filter_props_are_valid(ir: &IrProgram, node: &IrUi) -> bool {
             return false;
         }
     }
+    // A parent-bound agenda renders the contained sequence through the
+    // shared collection pipeline (CAN18-v1 agenda binding batch,
+    // mirroring the accepted timeline bound-sequence contract): the
+    // owning UI factory scopes its authorized query to the enclosing
+    // row. The date field control (`kind == "field"`) still takes no
+    // parent, and every agenda still establishes its row scope.
     if node.factory == "calendar"
-        && (node
-            .props
-            .iter()
-            .any(|(key, _)| key == "parent" || key == "field")
-            || node.row_scope.is_none())
+        && (node.props.iter().any(|(key, _)| key == "field") || node.row_scope.is_none())
     {
         return false;
     }
