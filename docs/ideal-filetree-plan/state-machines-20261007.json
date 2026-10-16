@@ -73996,5 +73996,28 @@
     "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
     "checkpoint_advanced": false,
     "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
+  },
+  "can18_merge_29_20261016": {
+    "incremental_base": "647ca7fd833db5d62760b4e07498cf331f6fce6d",
+    "incoming_end": "ea172e34e6407ff794cb492f53d5e707bae6f987",
+    "retained_coverage": "reuse spec_installer_merge_reconciliation_20261015 and preceding CAN18 incremental merge entries; inherited complete checkpoint unchanged",
+    "changed_path_count": 2,
+    "rows": [
+      [
+        "compiler/src/codegen/js.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "evidence/original24-main-20261016.json",
+        "existing owner",
+        "retain current allocation"
+      ]
+    ],
+    "choice": "Hook helper selected-variant emission repair: 175 linkage diagnostics gone, genuine refusals retained; canonical 298.",
+    "validation": "joint 12/12, row 1/1, ref 1/1, State 14/14, hook_lowering 26/26 on frozen f9653497/ca50.",
+    "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
+    "checkpoint_advanced": false,
+    "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
   }
 }
