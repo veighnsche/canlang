@@ -356,11 +356,15 @@ filtered fixture over canonically created ints proven through host; no
 semantic redefinition. E6008 removal 74697e8f stands but is not whole
 acceptance; fail-closed refusals intact; main withholds this prefix
 pending fix.
-Serve half (real emitted JS through invokeReadCanonical) routed to C15:
-staged real modules fail only on bare `@canlang/stdlib` `records`
-resolution (test seam uses the relative `dist/stdlib.js` shim instead);
-driver must use the verified-assembly/miniflare-durable precedent, not
-hand-edited artifacts.
+Serve half proven in `c68500d2` + test-typo fix (Lane C15 commit
+`adf31cc3`): `assembleModules` rewrites bare `@canlang/stdlib` to the
+real data-plane stdlib and registers the assembler-owned capability — no
+hand edits. Joint suite 6/6 in parent (run with CAN_COMPILER_BIN set to
+the shared-target binary; the default checkout-local path does not
+exist): real fixture pair emits zero diagnostics, member grant served
+from decision rows, viewer filtered, by-denied/tampered/drift refuse.
+Seam file stays 20/20. SCOPE-4 whole proof satisfied on real emitted
+bytes.
 Emission half integrated in `da4f7e68` (Lane A13 commit `ce43fa00`;
 SCOPE-5 receipt verified: stash restored, 4.7G private target cleaned,
 shared-target discipline, no new abstractions): authority descriptors
