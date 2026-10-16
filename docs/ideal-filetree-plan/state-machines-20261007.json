@@ -72986,5 +72986,48 @@
     "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
     "checkpoint_advanced": false,
     "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
+  },
+  "can18_merge_11_20261016": {
+    "incremental_base": "1fecfcbeadc958cec8777ecfd5c0fc0ba9acba1b",
+    "incoming_end": "5918e68cc009ad2b6b0cf8387d185f5876fdcf6d",
+    "retained_coverage": "reuse spec_installer_merge_reconciliation_20261015 and preceding CAN18 incremental merge entries; inherited complete checkpoint unchanged",
+    "changed_path_count": 6,
+    "rows": [
+      [
+        "compiler/src/codegen/artifact.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/src/codegen/js.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/src/codegen/membership.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/src/codegen/mod.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/membership_codegen.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/membership_producer_bridge.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ]
+    ],
+    "choice": "Integrate the checked membership producer bridge at its existing compiler owner, preserving unbound, planned and tampered-source refusals.",
+    "validation": "Select released7a0f394b/8bf1bf38 as main993d0c10/5918e68c independently of pending Boolean and hook repairs. Independent existing released membership bridge binary passes9/9 including original consumed/imported/multi-app closures, unrelated-IR refusal isolation, planned producer and tampered source. Reviewed exact source-span marking, original closure equality and occurrence-overlap gate; retained runtime source/receipt seals and unchanged neighbor checks. No build-cache allocation or active worker mutation. This closes the compiler bridge slice, not original24 or whole executable workflows.",
+    "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
+    "checkpoint_advanced": false,
+    "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
   }
 }
