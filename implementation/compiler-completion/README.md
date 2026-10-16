@@ -7619,3 +7619,20 @@ int|decimal value + int max) is present via B8's integrated stack — no new
 factory-shape import. Main's c039 cherry-pick + revert (809438ccc,
 8e06613ed) leaves clean main byte-identical to 98b7f48c; no radial merge
 claim until frozen validation passes.
+
+**Coordinator intake, 2026-10-16 (B13 + FROZEN-9 frozen round PASS):**
+B13 (`a3d35717e`, REVIEW-15 reader correction) INTEGRATED via clean
+auto-mergeing cherry-pick: bool 27/27, hooks 19/19, b1 2/2, factory 28,
+table/calendar/gallery/radial 1-3/1 green; codegen 4 + ui_adapter 2 +
+nominal 1 residuals all confirmed same-name pre-existing. Recognizers
+reduced to the type-driven rule; non-nullable reads decode strictly with
+absence/error order preserved.
+FROZEN-9 frozen round (binary sha 81a7d11f, can 0.1.1 commit a3d35717e,
+catalog ca50fdca): radial_progress 1/1 re-validation PASSES on the frozen
+closure (FROZEN-9 requirement closed); bool-page+http 38/38 (one transient
+4-vs-3 was a stale interfaces dist, rebuilt, not a source regression),
+contained-first joint + joint-serve 12/12. Dirt timestamps prove C22's
+parent-tree hook edits landed ~minutes AFTER the last consumer run — the
+frozen window was clean throughout. Parent now holds C22's uncommitted
+js.rs/hook_lowering/models/pipeline edits (same 4 files as C21's pattern);
+next frozen build waits for C22's release. Active lane: C22.
