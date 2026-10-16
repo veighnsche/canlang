@@ -430,6 +430,17 @@ after C17, receipt-path lease); call effects 7 → 11; invoice triggers 5
 1 → 12 (queued with owner analysis). No third worker dispatched now: every
 remaining group shares files with active C17/B6; the queue above respects
 leases and starts as each releases.
+REVIEW-11 (two ready owner dependencies, no design question): (1) 7b7b14e6
+compiler join needs State honoring — scenario-receipt.ts ~1408 rejects
+query.parent!==undefined; routed to C19 (finite receiver scope with C18
+lease check: honor AdmittedReference parent edge, validate real compiled
+parent-child first scenario over actual rows incl. foreign/denied/tampered).
+(2) 5945b1c9 transcribes columns + hand-writes occurrence (component
+evidence only) — bounded real-source bool test queued as B7's next batch
+(emitted page/collection through verified assembly/presentation seam, real
+true/false rows, defaults, request-vs-saved, clear, malformed/denied;
+wire mismatches fixed at defining owner or routed; row-query mapping stays
+open until it passes). Main prefix after f4876a0b withheld pending these.
 Serve half proven in `c68500d2` + test-typo fix (Lane C15 commit
 `adf31cc3`): `assembleModules` rewrites bare `@canlang/stdlib` to the
 real data-plane stdlib and registers the assembler-owned capability — no
