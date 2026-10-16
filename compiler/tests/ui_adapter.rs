@@ -338,15 +338,27 @@ fn original_loyalty_bound_panels_keep_their_checked_cases_labels_and_bodies_in_i
             .collect::<Vec<_>>(),
         vec!["list", "table"]
     );
-    // The original Timeline descendant is a separate unsupported producer;
-    // reaching its exact diagnostic must never flatten or publish its body.
+    // The history tab's bound timeline lowers through the shared collection
+    // pipeline (CAN18-v1 B20): one item template over the admitted Earning
+    // sequence with its page marker. No timeline diagnostic remains.
+    let timeline = tabs.children[1]
+        .children
+        .iter()
+        .find(|child| child.factory == "timeline")
+        .unwrap_or_else(|| panic!("history tab keeps its bound timeline: {diagnostics:?}"));
     assert!(
-        diagnostics
-            .iter()
-            .any(|diagnostic| diagnostic.code == "E6008"
-                && diagnostic.message.contains("timeline")
-                && diagnostic.primary.start >= tabs.children[1].span.start
-                && diagnostic.primary.end <= tabs.children[1].span.end),
+        timeline.props.iter().any(|(key, value)| key == "model"
+            && matches!(&value.expr, IrExpr::Text(model) if model.ends_with("Earning"))),
+        "{timeline:?}"
+    );
+    assert!(
+        timeline.props.iter().any(|(key, value)| key == "page"
+            && matches!(value.expr, IrExpr::Bool(true))),
+        "{timeline:?}"
+    );
+    assert!(timeline.row_scope.is_some(), "{timeline:?}");
+    assert!(
+        !diagnostics.iter().any(|diagnostic| diagnostic.message.contains("timeline")),
         "{diagnostics:?}"
     );
     assert!(
