@@ -56,9 +56,15 @@ as-is, not as revocation proof. No production repair needed.
 [evidence/original24-main-20261016.json](../../evidence/original24-main-20261016.json):
 frozen main producer `982e9eda` + native catalog `ca50`, saved argv, exit 10,
 430.70s, complete=true, omitted=0, 26 sources, all authored hashes match.
-−6 net vs 288 (C2 text rule fixes 9: table 4, list 2, board 2, calendar 1;
-unmasks 2 next gaps at CanField `page` + collapse — progress, not
-regression). 288 retained in git history. Next ready groups: first-query 90,
+−6 net vs 288 by exact diagnostic multiset: 11 removed / 5 added.
+Two entries MOVED to the next selector (CanExpense list 41307..41315 →
+41316..41329 and board 44135..44143 → 44144..44157: text category cleared,
+date follower remains); 9 occurrences really cleared (C2 text rule: table 4,
+list 2, board 2, calendar 1). Three new CanField UI diagnostics (collapse
+22257..22374, skeleton 22358..22374, board page 24783..24799); the collapse's
+gated suite contains only skeleton, so skeleton-unsupported is the likely
+cause of the empty-collapse follow-on (dependency, not two root causes).
+Occurrence counts are not cause counts. 288 retained in git history. Next ready groups: first-query 90,
 hook query 39, dispatch guard 23, hook `now` 22, collection domain 10, hook
 derive 10, table filters 14, archived 6, parent content 5, list filters 6,
 C3 dates, staged remainder, collapse/page follow-ons.
