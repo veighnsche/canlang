@@ -1736,6 +1736,13 @@ pub enum IrEventSource {
         source: String,
         result_type: String,
     },
+    /// Recurring tick `on=every(duration)` (DESIGN §6): UTC-epoch
+    /// aligned period in integer milliseconds. The handler infers its
+    /// data scope from owner-bound reads/writes; the tick itself
+    /// carries no event inputs.
+    Every {
+        interval_ms: i128,
+    },
     /// Fixed `on=instrumentation.error` source. The checker narrows
     /// no event fields for it, so the payload stays opaque and the
     /// invocation carries no inputs.
@@ -9939,9 +9946,11 @@ impl<'a> Cx<'a> {
     /// The identity is the canonical `capability.op` path; the result
     /// name renders the op's declared result for the invocation
     /// descriptor (records by canonical name, std nominals by name,
-    /// scalars and enums by declared spelling). Anything else yields
-    /// `None` and keeps the §13 refusal: the completion payload would
-    /// be unnameable.
+    /// scalars and enums by declared spelling, nullable results by
+    /// their inner shape — the §8 envelope already marks the result
+    /// nullable and the JS carrier re-applies the `?`). Anything else
+    /// yields `None` and keeps the §13 refusal: the completion payload
+    /// would be unnameable.
     fn delivery_completion_source(
         &self,
         capability: SymbolId,
@@ -9953,7 +9962,11 @@ impl<'a> Cx<'a> {
             return None;
         };
         let result = self.completion_result_type(op)?;
-        let result_type = match &result {
+        let mut result = &result;
+        while let ResolvedType::Nullable(inner) = result {
+            result = inner;
+        }
+        let result_type = match result {
             ResolvedType::Record { symbol, .. } => self
                 .program
                 .symbols
@@ -10170,6 +10183,14 @@ impl<'a> Cx<'a> {
             }) if capability == "std.MailboxV1" && event == "received" => {
                 self.mailbox_received_source(symbol.id)
             }
+            // Provider capability events carry the same checked field
+            // payload as declared events (both lower to `Event` items);
+            // the `owner.Cap.event` identity preserves the §13.4
+            // provider-routed form for ingress enrollment downstream.
+            Some(crate::analysis::effects::HandlerSource::CapabilityEvent {
+                event,
+                ..
+            }) => Some(IrEventSource::Declared(self.canonical(*event))),
             Some(crate::analysis::effects::HandlerSource::Committed { model, event }) => {
                 let change = match event.as_str() {
                     "created" => Some(IrCommittedChange::Create),
@@ -10184,6 +10205,12 @@ impl<'a> Cx<'a> {
             }
             Some(crate::analysis::effects::HandlerSource::DeliveryCompleted { capability, op }) => {
                 self.delivery_completion_source(*capability, *op)
+            }
+            // Recurring ticks keep their checked period; an unparseable
+            // duration keeps the §13 refusal (the checker already
+            // requires a duration literal at E3010).
+            Some(crate::analysis::effects::HandlerSource::Every { duration }) => {
+                duration_millis(duration).map(|interval_ms| IrEventSource::Every { interval_ms })
             }
             Some(crate::analysis::effects::HandlerSource::InstrumentationError) => {
                 Some(IrEventSource::InstrumentationError)

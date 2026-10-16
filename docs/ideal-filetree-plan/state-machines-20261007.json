@@ -72582,5 +72582,53 @@
     "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
     "checkpoint_advanced": false,
     "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
+  },
+  "can18_merge_3_20261016": {
+    "incremental_base": "46bbb4ed0c5c12af0f3f16a1f9070028fd8f135a",
+    "incoming_end": "5ac99533ddcc6aca9d3e65829e547bbbcb351247",
+    "retained_coverage": "reuse spec_installer_merge_reconciliation_20261015 and preceding CAN18 incremental merge entries; inherited complete checkpoint unchanged",
+    "changed_path_count": 7,
+    "rows": [
+      [
+        "compiler/src/codegen/ir.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/src/codegen/js.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/capability_event_handlers.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/codegen.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/delivery_completion_handlers.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/recurring_tick_handlers.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "implementation/compiler-completion/README.md",
+        "Compiler completion",
+        "existing finite execution record"
+      ]
+    ],
+    "choice": "Integrate provider-event handler identity, nullable completion payloads, recurring tick emission and native hook delivery/message lowering.",
+    "validation": "Reuse focused capability2/completion2/tick2 and hook12 tests plus recorded neighbor suites. Static review confirms typed identities, nullable envelope agreement, integer interval and existing async native context; legacy refusals and full runtime consumer gates remain.",
+    "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
+    "checkpoint_advanced": false,
+    "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
   }
 }

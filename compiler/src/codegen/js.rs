@@ -6065,10 +6065,10 @@ impl<'a> Emitter<'a> {
                     );
                     return self.throw_expr("unproven callback diagnostics");
                 }
-                if self.in_hook() {
+                if self.in_hook() && !self.hook_native() {
                     return self.hook_gap(
                         "hook delivery read",
-                        "delivery reads need the ambient context, which hooks do not receive",
+                        "delivery reads need the ambient context, which legacy hooks do not receive",
                         span,
                     );
                 }
@@ -6131,10 +6131,10 @@ impl<'a> Emitter<'a> {
                 locale_index,
                 schemas,
             } => {
-                if self.in_hook() {
+                if self.in_hook() && !self.hook_native() {
                     return self.hook_gap(
                         "hook message format",
-                        "message formatting needs the ambient context, which hooks do not receive",
+                        "message formatting needs the ambient context, which legacy hooks do not receive",
                         span,
                     );
                 }
@@ -13079,8 +13079,13 @@ impl<'a> Emitter<'a> {
                                 .get(model.0 as usize)
                                 .filter(|item| matches!(item.kind, IrItemKind::Model { .. }))
                                 .map(|model| format!("{}.{}", model.canonical, change.suffix())),
+                            // Ticks route on their period, not an event
+                            // identity (DESIGN §6).
+                            IrEventSource::Every { .. } => None,
                         };
-                        if let Some(identity) = identity {
+                        if let IrEventSource::Every { interval_ms } = event {
+                            members.push(format!("on:{{every:{interval_ms}n}}"));
+                        } else if let Some(identity) = identity {
                             members.push(format!("event:{}", js_string(&identity)));
                         }
                         if let Some(invocation) = self.private_event_invocation(item, event) {
@@ -14098,6 +14103,9 @@ impl<'a> Emitter<'a> {
             // The instrumentation envelope stays opaque (the checker
             // narrows no event fields): the handler receives it whole.
             IrEventSource::InstrumentationError => Vec::new(),
+            // Ticks carry no event inputs: the handler infers its scope
+            // from owner-bound reads/writes (DESIGN §6).
+            IrEventSource::Every { .. } => Vec::new(),
         };
         if let IrEventSource::Declared(identity) = event {
             let declaration = self
