@@ -85,6 +85,12 @@ struct HookProfile<'a> {
 enum EventAlias {
     Snapshot,
     ParentIdentity,
+    /// CAN18-v1 direct snapshot stored-reference edge (file 14
+    /// `Account.location` first shape): engine linkage identity
+    /// (`{model, id}`) for the referenced row, with declared leaf reads
+    /// through it via the transitive reference load. Distinct from
+    /// `ParentIdentity` so the ancestor fence never serves references.
+    ReferenceIdentity,
     Staged,
 }
 
@@ -335,6 +341,60 @@ impl HookProfile<'_> {
                 }
                 Some((*parent, EventAlias::ParentIdentity))
             }
+            IrExpr::Member { base, field } => {
+                // CAN18-v1 direct snapshot stored-reference edges only
+                // (`event.after.<ref>`, `event.before.<ref>` on update, or
+                // the same through a snapshot alias). Deeper chains
+                // (`parent.<ref>`, `<ref>.<leaf>.<x>`) stay unclassified so
+                // parent tails and deep traversals keep their refusal.
+                let (base_model, base_class) = self.event_class(base, aliases)?;
+                if !matches!(base_class, EventAlias::Snapshot) {
+                    return None;
+                }
+                // Declared singular stored reference on the base model.
+                // Cross-package targets allowed (e.g. success `Account`
+                // → rent_catalog `Location`); the runtime edge check
+                // (candidate `{id}` equality) enforces the genuine link.
+                // Several items may share the name across model/CRUD
+                // surfaces — take the stored-reference one.
+                let mut target_opt: Option<SymbolId> = None;
+                for item in self.program.items.iter() {
+                    if item.name != *field || item.module != self.module {
+                        continue;
+                    }
+                    let IrItemKind::Field {
+                        owner,
+                        ty: IrType::Known(field_ty),
+                        ..
+                    } = &item.kind
+                    else {
+                        continue;
+                    };
+                    if *owner != base_model {
+                        continue;
+                    }
+                    match field_ty {
+                        ResolvedType::Record { symbol, stored: true } => {
+                            target_opt = Some(*symbol);
+                            break;
+                        }
+                        ResolvedType::Nullable(inner) => match &**inner {
+                            ResolvedType::Record { symbol, stored: true } => {
+                                target_opt = Some(*symbol);
+                                break;
+                            }
+                            _ => continue,
+                        },
+                        _ => continue,
+                    }
+                }
+                let target = target_opt?;
+                let target_item = self.program.items.get(target.0 as usize)?;
+                if target_item.id != target {
+                    return None;
+                }
+                Some((target, EventAlias::ReferenceIdentity))
+            }
             _ => None,
         }
     }
@@ -372,30 +432,34 @@ impl HookProfile<'_> {
         ) {
             return false;
         }
-        let Some(field_id) = self.program.items.iter().find_map(|item| {
-            (item.name == name
-                && item.module == self.module
-                && matches!(&item.kind, IrItemKind::Field { owner, ty: IrType::Known(_), .. } if *owner == model))
-            .then_some(item.id)
-        }) else {
-            return false;
-        };
-        let IrItemKind::Field {
-            ty: IrType::Known(field_ty),
-            modifiers,
-            server: _,
-            ..
-        } = &self.program.items[field_id.0 as usize].kind
-        else {
-            return false;
-        };
-        if modifiers.machine {
-            return false;
-        }
-        field_ty == ty
-            && (self.leaf(ty)
+        // Several items may share one field name across model/CRUD
+        // surfaces; admit when ANY declared field with this name on the
+        // model matches the read type and allowed shape.
+        for item in self.program.items.iter() {
+            if item.name != name || item.module != self.module {
+                continue;
+            }
+            let IrItemKind::Field {
+                owner,
+                ty: IrType::Known(field_ty),
+                modifiers,
+                server: _,
+                ..
+            } = &item.kind
+            else {
+                continue;
+            };
+            if *owner != model || modifiers.machine || field_ty != ty {
+                continue;
+            }
+            if self.leaf(ty)
                 || self.carried_ref(ty)
-                || matches!(ty, ResolvedType::Array { .. }) && self.hook_array_element(ty))
+                || matches!(ty, ResolvedType::Array { .. }) && self.hook_array_element(ty)
+            {
+                return true;
+            }
+        }
+        false
     }
 
     /// Pure value builtins admitted in hooks with admitted arguments. Store
@@ -500,14 +564,19 @@ impl HookProfile<'_> {
                     // Parent linkage carries `{model, id}` for bare uses;
                     // declared leaf/carried fields read through it via the
                     // transitive parent load (same correspondence as
-                    // snapshots). Version and undeclared fields still refuse
-                    // — never a silent `undefined`.
+                    // snapshots). Reference linkage (CAN18-v1 file-14 first
+                    // shape) carries the referenced `{model, id}` with the
+                    // same declared correspondence via the transitive
+                    // reference load — never through the ancestor fence.
+                    // Version and undeclared fields still refuse — never a
+                    // silent `undefined`.
                     if field == "version" {
                         return None;
                     }
                     if self
                         .event_class(base, aliases)
-                        .is_some_and(|(_, class)| class == EventAlias::ParentIdentity)
+                        .is_some_and(|(_, class)| matches!(class,
+                            EventAlias::ParentIdentity | EventAlias::ReferenceIdentity))
                         && self.hook_snapshot_field(model, field, &expr.ty)
                     {
                         return Some(());
@@ -571,8 +640,8 @@ impl HookProfile<'_> {
 
     /// Classify a member-access base inside hooks: bound rows (with their
     /// identity-only flag) or full query rows bound as locals. The `bool`
-    /// is true exactly for identity-only rows (parent linkage, staged
-    /// bindings).
+    /// is true exactly for identity-only rows (parent linkage, reference
+    /// linkage, staged bindings).
     fn member_base(
         &self,
         base: &TypedExpr,
@@ -584,7 +653,7 @@ impl HookProfile<'_> {
                 model,
                 matches!(
                     class,
-                    EventAlias::ParentIdentity | EventAlias::Staged
+                    EventAlias::ParentIdentity | EventAlias::ReferenceIdentity | EventAlias::Staged
                 ),
             ));
         }
@@ -683,7 +752,7 @@ impl HookProfile<'_> {
             if self.event_class(arg, aliases).is_some_and(|(_, class)| {
                 matches!(
                     class,
-                    EventAlias::ParentIdentity | EventAlias::Staged
+                    EventAlias::ParentIdentity | EventAlias::ReferenceIdentity | EventAlias::Staged
                 )
             }) {
                 return None;
@@ -716,8 +785,10 @@ impl HookProfile<'_> {
 
     /// Record-typed helper admission for hook calls. Without a linkage
     /// argument the existing scalar rule holds (staged/linkage values stay
-    /// out). With one, every linkage argument must fill the trigger's
-    /// direct-parent model in a stored-record parameter, and the callee
+    /// out). With one, every linkage argument must fill either the
+    /// trigger's direct-parent model (parent linkage) or a declared stored
+    /// reference target of the trigger (reference linkage, CAN18-v1
+    /// file-14 first shape) in a stored-record parameter, and the callee
     /// body must admit over that linkage (helpers inherit the consuming
     /// site; no Boolean-result privilege — the loader returns rows).
     fn hook_derive_call(
@@ -735,7 +806,7 @@ impl HookProfile<'_> {
             self.event_class(arg, aliases).is_some_and(|(_, class)| {
                 matches!(
                     class,
-                    EventAlias::ParentIdentity | EventAlias::Staged
+                    EventAlias::ParentIdentity | EventAlias::ReferenceIdentity | EventAlias::Staged
                 )
             })
         }) {
@@ -790,6 +861,23 @@ impl HookProfile<'_> {
                         return None;
                     }
                     inner_aliases.insert(param.name.clone(), (model, EventAlias::ParentIdentity));
+                }
+                Some((model, EventAlias::ReferenceIdentity)) => {
+                    let ResolvedType::Record { symbol, stored: true } = ty else {
+                        return None;
+                    };
+                    if *symbol != model {
+                        return None;
+                    }
+                    // Declared-edge correspondence is already enforced at
+                    // the call site (`event_class` only classifies genuine
+                    // stored-reference edges of this trigger); the runtime
+                    // candidate `{id}` equality enforces the live link.
+                    // Mixed parent+reference linkages in one call stay
+                    // refused below via the emitter's kind check — the
+                    // profile admits each linkage kind here so single-kind
+                    // helpers lower.
+                    inner_aliases.insert(param.name.clone(), (model, EventAlias::ReferenceIdentity));
                 }
                 Some((_, EventAlias::Staged)) => return None,
                 _ => {

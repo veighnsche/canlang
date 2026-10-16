@@ -137,6 +137,19 @@ export async function readHookParentDecision(
   return ctx.loadParent(model, id, 'decision');
 }
 
+/** CAN18-v1 imported-helper reference read: the exact decision-site
+ * reference load a hook body would issue inline (file 14 first shape),
+ * proving an imported helper consumes its actual call-site meaning. */
+export async function readHookReferenceDecision(
+  ctx: InterimHookContext,
+  model: ModelName,
+  id: RecordId,
+): Promise<OwnerMutationHookParentRead> {
+  assertOwnerMutationHookContext(ctx);
+  return (ctx as unknown as { loadReference: (m: ModelName, i: RecordId, s: 'decision') => Promise<OwnerMutationHookParentRead> })
+    .loadReference(model, id, 'decision');
+}
+
 /** One interim invariant over the final provisional state. */
 export function invariant(name: string, check: InterimInvariant['check']): InterimInvariant {
   return { name, check };

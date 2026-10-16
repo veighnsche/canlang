@@ -315,6 +315,16 @@ export function bindOwnerModelPolicies(input: {
               (scope as { readonly mode: 'decision' | 'value' }).mode);
             return projectOwnerHookParentRow(read);
           },
+          loadReference: async (scope: unknown, model: unknown, id: unknown): Promise<StoredRow> => {
+            if (typeof scope !== 'object' || scope === null ||
+              ((scope as { readonly mode: unknown }).mode !== 'decision' &&
+                (scope as { readonly mode: unknown }).mode !== 'value')) {
+              throw new StateError('validation', 'Hook parent scope is closed or foreign.');
+            }
+            const read = await context.loadReference(model as ModelName, id as RecordId,
+              (scope as { readonly mode: 'decision' | 'value' }).mode);
+            return projectOwnerHookParentRow(read);
+          },
         });
         return binding.run(candidate, context, Object.freeze({ ...context.context, transitive }));
       } });

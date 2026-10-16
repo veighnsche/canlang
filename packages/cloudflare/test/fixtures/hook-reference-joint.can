@@ -1,0 +1,65 @@
+app HookReferenceJoint
+use hprefjointhelpers {isActiveExt as importedIsActive, zoneExt as importedZone}
+Given
+ Customer { name:text }
+ export Location { timezone:text, secret:text }
+ Probe in Customer { location:Location, note:text }
+ Copy in Customer { location:Location, note:text }
+ Steal in Customer { location:Location, note:text }
+ Strict in Customer { location:Location, note:text }
+ Kin in Customer { note:text }
+ Other { note:text }
+ derive isActive(loc:Location):bool = loc.timezone=="UTC"
+ derive zone(loc:Location):text = loc.timezone
+ policy Customer read=public
+ policy Location read=owner fields=timezone
+ policy Probe read=public
+ policy Copy read=public
+ policy Steal read=public
+ policy Strict read=public
+ policy Kin read=public
+ policy Other read=public
+When
+ crud Customer by=owner fields=name
+ crud Location by=owner fields=timezone,secret
+ crud Probe by=owner fields=location,note
+ crud Copy by=authenticated fields=location,note
+ crud Steal by=owner fields=location,note
+ crud Strict by=owner fields=location,note
+ crud Kin by=owner fields=note
+ crud Other by=owner fields=note
+ ## Private-guard arm over the referenced row (decision site, owner
+ ## authority): If-condition + Require plus local/imported helper-inherited
+ ## decision reads. All must agree; inactive commits untouched.
+ scenario arm on=Probe.create
+  do
+   if event.after.location.timezone=="UTC"
+    require event.after.location.timezone=="UTC"
+    require isActive(event.after.location)
+    require importedIsActive(event.after.location)
+    create Kin {parent=event.after.parent,note="kin"} as kin
+    set event.after {note="armed"}
+ ## Owner-granted body-value copy through the reference (value site, caller
+ ## projection): local and imported helpers agree (z==w); granted timezone
+ ## lands verbatim, withheld callers get exact forbidden with atomic void.
+ scenario copyzone on=Copy.create
+  do
+   if event.after.location.timezone=="UTC"
+    let z=zone(event.after.location)
+    let w=importedZone(event.after.location)
+    require z==w
+    set event.after {note=z}
+ ## Denied body-value copy: secret has no grant. Throws forbidden mid-batch
+ ## after kin staged, so trigger plus kin void atomically.
+ scenario steal on=Steal.create
+  do
+   if event.after.location.timezone=="UTC"
+    create Kin {parent=event.after.parent,note="kin"} as kin
+    let s=event.after.location.secret
+    set event.after {note=s}
+ ## Guard-denied rollback: kin stages first, then guard fails.
+ scenario strict on=Strict.create
+  do
+   create Kin {parent=event.after.parent,note="kin"} as kin
+   require event.after.location.timezone=="NOPE"
+Then

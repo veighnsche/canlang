@@ -6665,7 +6665,32 @@ async function loadLocalOwnerPolicyControl(input: {
                     await callerValueFields(model, read.row as StoredRow),
                     read.row as StoredRow));
               });
-              return Object.freeze({ openScope, load });
+              // CAN18-v1 referenced-row reads (file 14 `Account.location`
+              // first shape): same scope set/authority/projection as parent
+              // loads, through the defining State `loadReference` — never
+              // through `loadParent`'s ancestor fence. Decision serves the
+              // owner row; value projects to the triggering caller's
+              // row/field grants (revocation included) with exact
+              // `forbidden` on withheld access.
+              const loadReference = (scope: unknown, model: unknown, id: unknown): Promise<unknown> => guarded(() => {
+                if (typeof scope !== 'object' || scope === null || !issued.has(scope)) {
+                  throw new input.native.producers.errors('validation',
+                    'Native hook reference scope is closed or foreign.');
+                }
+                const mode = (scope as { mode: 'decision' | 'value' }).mode;
+                if (mode !== 'value') {
+                  return (original as unknown as { loadReference: (m: ModelName, i: RecordId, s: 'decision' | 'value') => Promise<{ row: StoredRow }> })
+                    .loadReference(model as ModelName, id as RecordId, mode)
+                    .then(read => read.row);
+                }
+                return (original as unknown as { loadReference: (m: ModelName, i: RecordId, s: 'decision' | 'value') => Promise<{ row: StoredRow }> })
+                  .loadReference(model as ModelName, id as RecordId, 'value')
+                  .then(async read => projectHookParentValueRow(
+                    input.native.producers.errors,
+                    await callerValueFields(model, read.row as StoredRow),
+                    read.row as StoredRow));
+              });
+              return Object.freeze({ openScope, load, loadReference });
             })();
             Object.assign(c, { transitive: hookTransitive });
             freezeScenarioSnapshot(c);
