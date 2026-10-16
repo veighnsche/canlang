@@ -1565,10 +1565,33 @@ export interface TimelineItem {
   readonly end?: PageChild;
 }
 
-/** `timeline` ordered entries as a semantic list. */
+/**
+ * `timeline` ordered entries as a semantic list.
+ *
+ * Two modes share one renderer. Explicit mode passes `items` (one authored
+ * `slot item` suite per entry). Collection mode passes `model` with
+ * `renderRow` (one `slot item` template rendered once per admitted query
+ * row, per design/UI-COMPONENTS.md): the factory queries authorized rows
+ * through the dispatcher, maps each row body to an entry, and renders the
+ * shared items path. `items` and `model` must not be combined.
+ */
 export interface TimelineProps {
   readonly context: PresentationContext;
-  readonly items: ReadonlyArray<TimelineItem>;
+  readonly items?: ReadonlyArray<TimelineItem>;
+  readonly model?: string;
+  readonly parent?: { readonly id: string };
+  readonly where?: unknown;
+  readonly order?: readonly string[];
+  readonly limit?: number;
+  readonly cursor?: string;
+  /** Explicit finite page read, independent of presentation layout. */
+  readonly page?: true;
+  /** Stable source collection occurrence; required for page cursor binding. */
+  readonly occurrence?: string;
+  /** Omission uses the standard shared collection empty message. */
+  readonly empty?: MessageValue;
+  /** Receives only the current authorized row and the dispatcher-owned view. */
+  readonly renderRow?: (row: RowView, view: PresentationContext) => PageChildren | Promise<PageChildren>;
   readonly orientation?: AppearanceOrientation;
   readonly id?: string;
 }

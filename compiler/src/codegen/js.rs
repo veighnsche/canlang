@@ -2833,6 +2833,7 @@ fn is_ui_factory(factory: &str) -> bool {
             | "tabs"
             | "text"
             | "textarea"
+            | "timeline"
             | "title"
             | "toggle"
             | "tooltip"
@@ -2882,6 +2883,10 @@ fn ui_prop_is_admitted(factory: &str, key: &str) -> bool {
                 | "filter"
                 | "defaults"
                 | "by"
+        ),
+        "timeline" => matches!(
+            key,
+            "model" | "parent" | "where" | "order" | "page" | "occurrence"
         ),
         "filter" => matches!(key, "binding" | "caption"),
         "copy" => matches!(key, "value" | "label" | "id"),
@@ -11305,7 +11310,7 @@ impl<'a> Emitter<'a> {
                 "page"
                     if matches!(
                         node.factory.as_str(),
-                        "list" | "table" | "calendar" | "gallery"
+                        "list" | "table" | "calendar" | "gallery" | "timeline"
                     ) =>
                 {
                     matches!(value.expr, IrExpr::Bool(true))
@@ -11578,6 +11583,10 @@ impl<'a> Emitter<'a> {
                     || node.props.iter().any(|(key, value)| {
                         key == "page" && matches!(value.expr, IrExpr::Bool(true))
                     })))
+            || (node.factory == "timeline"
+                && node.props.iter().any(|(key, value)| {
+                    key == "page" && matches!(value.expr, IrExpr::Bool(true))
+                }))
             || (node.factory == "board"
                 && node.props.iter().any(|(key, _)| key == "filter"))
         {

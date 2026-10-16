@@ -47,11 +47,13 @@ import type {
   TextValue,
   TimelineProps,
 } from "@canlang/contracts";
+import { collectionCursorName } from "@canlang/contracts";
 import { appearanceClasses } from "./appearance.js";
 import { partitionActionGroups } from "./internal/action-groups.js";
 import { pickAppearance } from "./internal/appearance-props.js";
 import { selectionHref, selectionCloseHref } from "./internal/collection-selection.js";
-import { renderTextValue } from "./components.js";
+import { EMPTY_COLLECTION } from "./collections.js";
+import { renderState, renderTextValue } from "./components.js";
 import { escapeAttr, escapeHtml } from "./escape.js";
 import { message, resolveCaption } from "./messages.js";
 
@@ -423,14 +425,105 @@ export async function steps(props: StepsProps): Promise<string> {
  * Ordered entries as a semantic list. Every entry needs at least a start or
  * an end; connectors follow the pinned docs pattern (leading `<hr>` except
  * on the first entry, trailing `<hr>` except on the last).
+ *
+ * Collection mode (`model` + `renderRow`) serves a bound sequence: one
+ * `slot item` template rendered once per admitted query row. Each row body
+ * becomes its entry's `end` (row bodies are event content; `start` stays
+ * reserved for timestamps). Empty results render the shared empty state;
+ * query and row-body failures propagate untouched.
  */
 export async function timeline(props: TimelineProps): Promise<string> {
+  if (props.model !== undefined) {
+    return timelineCollection(props);
+  }
+  return timelineItems(props);
+}
+
+/** Collection page-size bound: default 25 (runner), max 100, reject overflow. */
+const TIMELINE_MAX_LIMIT = 100;
+
+const TIMELINE_MORE_ROWS = message("More rows available.", {
+  nl: "Meer rijen beschikbaar.",
+});
+
+/** The dispatcher supplies the current same-app path/query for GET controls. */
+function timelinePageUrl(context: PresentationContext): URL {
+  const current = context.pollUrl ?? context.path;
+  if (!current.startsWith("/") || current.startsWith("//") || /[\\\s\u0000-\u001f\u007f#]/.test(current)) {
+    throw new TypeError("Collection pagination requires a same-app relative URL.");
+  }
+  const url = new URL(current, "https://can.invalid");
+  if (url.pathname.startsWith("//")) throw new TypeError("Invalid collection pagination URL.");
+  return url;
+}
+
+function timelineCursor(props: Pick<TimelineProps, "context" | "cursor" | "page" | "occurrence">): string | undefined {
+  if (props.cursor !== undefined || props.page !== true || props.occurrence === undefined) return props.cursor;
+  if (props.occurrence.trim() === "") throw new TypeError("Collection pagination requires a nonempty source occurrence.");
+  const values = timelinePageUrl(props.context).searchParams.getAll(collectionCursorName(props.occurrence));
+  if (values.length > 1 || values[0] === "") {
+    throw new TypeError("Collection pagination requires one nonempty occurrence cursor.");
+  }
+  return values[0];
+}
+
+/** Trailing more-note when the runner reports another page. */
+function timelineMoreNote(props: Pick<TimelineProps, "context" | "page" | "occurrence">, nextCursor: string | undefined): string {
+  if (nextCursor === undefined) return "";
+  const caption = escapeHtml(resolveCaption(TIMELINE_MORE_ROWS, props.context));
+  if (props.page === true && props.occurrence !== undefined) {
+    if (nextCursor === "") return "";
+    const url = timelinePageUrl(props.context);
+    url.searchParams.set(collectionCursorName(props.occurrence), nextCursor);
+    return `<p class="can-more" data-cursor="${escapeAttr(nextCursor)}"><a rel="next" href="${escapeAttr(url.pathname + url.search)}">${caption}</a></p>`;
+  }
+  return `<p class="can-more" data-cursor="${escapeAttr(nextCursor)}">${caption}</p>`;
+}
+
+async function timelineCollection(props: TimelineProps): Promise<string> {
+  const model = props.model as string;
+  if (model.trim() === "") throw new Error("timeline: model must be a nonempty model name");
+  if (props.items !== undefined) throw new Error("timeline: items and model must not be combined");
+  const renderRow = props.renderRow;
+  if (renderRow === undefined) throw new Error("timeline: a bound sequence needs renderRow");
+  if (
+    props.limit !== undefined &&
+    (!Number.isInteger(props.limit) || props.limit < 1 || props.limit > TIMELINE_MAX_LIMIT)
+  ) {
+    throw new Error(`timeline: limit must be an integer 1..${String(TIMELINE_MAX_LIMIT)}`);
+  }
+  const cursor = timelineCursor(props);
+  const result = await props.context.query(props.context.invocation, model, {
+    ...(props.parent === undefined ? {} : { parent: props.parent }),
+    ...(props.where === undefined ? {} : { where: props.where }),
+    ...(props.order === undefined ? {} : { order: props.order }),
+    ...(props.limit === undefined ? {} : { limit: props.limit }),
+    ...(cursor === undefined ? {} : { cursor }),
+    ...(props.page === undefined ? {} : { page: props.page }),
+    ...(props.occurrence === undefined ? {} : { occurrence: props.occurrence }),
+  });
+  if (result.rows.length === 0) {
+    return renderState({ context: props.context, kind: "empty", message: props.empty ?? EMPTY_COLLECTION });
+  }
+  const items: { readonly end: PageChild }[] = [];
+  for (const row of result.rows) {
+    const children = await renderRow(row, props.context);
+    const parts = typeof children === "function" ? await children() : children;
+    items.push({ end: (await Promise.all(parts)).join("") });
+  }
+  return (await timelineItems({ context: props.context, items,
+    ...(props.orientation === undefined ? {} : { orientation: props.orientation }),
+    ...(props.id === undefined ? {} : { id: props.id }) })) + timelineMoreNote(props, result.nextCursor);
+}
+
+async function timelineItems(props: TimelineProps): Promise<string> {
+  const items = props.items;
   const modifiers = appearanceClasses("timeline", "timeline", pickAppearance(props));
-  if (props.items.length === 0) {
+  if (items === undefined || items.length === 0) {
     throw new Error("timeline needs at least one item");
   }
   const rendered = await Promise.all(
-    props.items.map(async (item, index) => {
+    items.map(async (item, index) => {
       if (
         (item.start === undefined || item.start === null) &&
         (item.end === undefined || item.end === null)
@@ -447,7 +540,7 @@ export async function timeline(props: TimelineProps): Promise<string> {
           ? ""
           : `<div class="timeline-end">${await item.end}</div>`;
       const lead = index === 0 ? "" : "<hr />";
-      const trail = index === props.items.length - 1 ? "" : "<hr />";
+      const trail = index === items.length - 1 ? "" : "<hr />";
       return `<li>${lead}${start}${middle}${end}${trail}</li>`;
     }),
   );

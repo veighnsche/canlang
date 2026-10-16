@@ -178,16 +178,30 @@ fn collapse_with_suite_lowers() {
     );
 }
 
-/// Recorded CanStock timeline: a bound child sequence has no items-based
-/// factory profile. The owning TimelineProps takes prebuilt items only,
-/// so the bound shape stays refused (its former emission threw reading
-/// items.length in the real factory, REVIEW-21).
+/// Recorded CanCRM timeline: ordered activity with a chat_bubble item
+/// template (header/content/footer slots over readable fields).
 #[test]
-fn timeline_bound_sequence_refuses() {
-    assert_refuses(
-        "app Probe\nGiven\n Account { title:text }\n Movement in Account { reason:text, quantity:int }\n policy Account read=public\nWhen\nThen\n page /a title=\"A\"\n  list Account columns=title\n   timeline row.Movement order=-quantity\n    slot item\n     badge row.quantity\n     text row.reason\n",
-        "E6008",
-        "no supported source-to-factory profile",
+fn timeline_chat_bubble_item_with_order_lowers() {
+    assert_lowers(
+        "app Probe\nGiven\n Deal { title:text }\n Activity in Deal { kind:enum(call,email) label={text=\"K\",values={call=\"Call\",email=\"Email\"}}, body:text trim min=1, link:url?, author:text, occurred:datetime }\n policy Deal read=public\nWhen\nThen\n page /a title=\"A\"\n  list Deal columns=title\n   timeline row.Activity order=-occurred\n    slot item\n     chat_bubble\n      slot header\n       badge row.kind\n       text row.author,row.occurred\n      slot content\n       text row.body\n      slot footer\n       link target=row.link caption=\"Source\"\n       text row.body\n",
+    );
+}
+
+/// Recorded CanExpense decision timeline: the page marker lives inside the
+/// item template and the text body carries typed decision fields.
+#[test]
+fn timeline_paged_decision_item_lowers() {
+    assert_lowers(
+        "app Probe\nGiven\n Expense { title:text }\n Decision in Expense { submission:int, amount:money, approved:bool, reason:text, decided_at:datetime }\n policy Expense read=public\nWhen\nThen\n page /a title=\"A\"\n  list Expense columns=title\n   collapse \"Decisions\"\n    timeline row.Decision\n     slot item\n      pagination\n      text row.submission,row.amount,row.approved,row.reason,row.decided_at\n",
+    );
+}
+
+/// Recorded CanExpense reimbursement timeline: paged item template with a
+/// text body plus a text copy of the payment reference.
+#[test]
+fn timeline_paged_reimbursement_item_with_copy_lowers() {
+    assert_lowers(
+        "app Probe\nGiven\n Expense { title:text }\n Reimbursement in Expense { amount:money, reference:text trim min=1, paid:date, reason:text }\n policy Expense read=public\nWhen\nThen\n page /a title=\"A\"\n  list Expense columns=title\n   collapse \"Pay\"\n    timeline row.Reimbursement\n     slot item\n      pagination\n      text row.reference,row.amount,row.paid,row.reason\n      copy row.reference\n",
     );
 }
 
@@ -290,42 +304,34 @@ fn agenda_calendar_unknown_option_refuses() {
     );
 }
 
-/// A timeline with extra suites keeps its refusal.
+/// A timeline without exactly one item template keeps its refusal.
 #[test]
 fn timeline_with_two_slots_refuses() {
     assert_refuses(
         "app Probe\nGiven\n Account { title:text }\n Movement in Account { reason:text, quantity:int }\n policy Account read=public\nWhen\nThen\n page /a title=\"A\"\n  list Account columns=title\n   timeline row.Movement\n    slot item\n     text row.reason\n    slot note\n     text row.quantity\n",
         "E6008",
-        "no supported source-to-factory profile",
+        "one item slot template",
     );
 }
 
-/// Recorded CanExpense cascade: a collapse whose only content is a bound
-/// timeline keeps both refusals, each at its owning node.
+/// Recorded CanExpense cascade retired with the timeline admission: a
+/// collapse whose content is an admitted bound timeline lowers cleanly,
+/// since collapse renders admitted child factories.
 #[test]
 fn collapse_over_bound_timeline_cascades() {
     let diags = emit_all(
         "app Probe\nGiven\n Account { title:text }\n Decision in Account { reason:text }\n policy Account read=public\nWhen\nThen\n page /a title=\"A\"\n  list Account columns=title\n   collapse \"Decisions\"\n    timeline row.Decision\n     slot item\n      text row.reason\n",
     );
-    assert!(
-        diags.iter().any(|d| d.contains("cannot lower timeline")
-            && d.contains("no supported source-to-factory profile")),
-        "timeline keeps its refusal, got: {diags:?}"
-    );
-    assert!(
-        diags.iter().any(|d| d.contains("cannot lower collapse")
-            && d.contains("nonempty content suite")),
-        "collapse keeps its cascade refusal, got: {diags:?}"
-    );
+    assert!(diags.is_empty(), "admitted collapse content lowers, got: {diags:?}");
 }
 
-/// A second sequence header keeps its refusal.
+/// A second sequence header has no timeline profile.
 #[test]
 fn timeline_with_two_headers_refuses() {
     assert_refuses(
         "app Probe\nGiven\n Account { title:text }\n Movement in Account { reason:text, quantity:int }\n policy Account read=public\nWhen\nThen\n page /a title=\"A\"\n  list Account columns=title\n   timeline row.Movement,row.title\n    slot item\n     text row.reason\n",
         "E6008",
-        "no supported source-to-factory profile",
+        "extra collection headers",
     );
 }
 

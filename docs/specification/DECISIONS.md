@@ -18003,7 +18003,6 @@ evaluation with fail-closed enforcement (E6008 stays until the runtime
 boundary lands). No broad effect system, no viewer-read privileging, no
 authoring boilerplate.
 
-
 ## 2026-10-16 — can18_merge_4_20261016
 
 Accepted: Integrate frozen mail-carrier runtime, bounded standard payment-completion emission, stored-query red probes and fail-closed authority-report compiler marker. Merge reviewed tested work incrementally into canonical `main`, preserving installer/specification changes and the active implementation branch. Reuse carrier package tsc/4 tests plus independent6adapter checks, payment3/negative refusal controls, authority7 and recorded neighbors. Source review retains checked owner/type/binding correspondence, finite completion profile and deliberate authority E6008/stub; queries and runtime authority remain unfinished. Only conflict was independent DECISIONS append blocks; both retained verbatim. Reconcile the living file-tree plan/registry over `5ac99533..f9209893` with existing owners; retain the complete checkpoint and all outstanding acceptance gates. A merged component is not a claim that original24 or the remaining runtime workflows are complete.
@@ -18130,3 +18129,25 @@ Accepted: Source business predicates conjoin with typed enum/bool collection fil
 ## 2026-10-16 — can18_merge_21_20261016
 
 Accepted: Native due Work invocation/store/fence association plus guard/presence-consumed owner decision for the confined hook first-query slice (DESIGN442): declared Require control reads evaluate as a recorded owner decision with issued-ID decision policies, secrets excluded and null actor untouched; unmarked shapes keep viewer behavior. Merge reviewed tested work incrementally into canonical `main`, preserving installer/specification changes and the active implementation branch. Main validation on the freshly built main compiler 4d22de4c with frozen ca50 catalog: hook-first batteries 14/14 (public 8/8 plus private 6/6), contained suites 10/10, A15 membership drive 3/3, compiler hook/enum/bool/b1/agenda/table suites green; main and Cloudflare/State builds exit 0 with only the pre-existing unreachable-pattern warning. Frozen intake pair 4d22de4c/ca50. Reconcile the living file-tree plan/registry over `802a4be81..a69d9033c0` with existing owners; retain the complete checkpoint and all outstanding acceptance gates. A merged component is not a claim that original24 or the remaining runtime workflows are complete.
+## CAN18-v1 B20 bound-timeline items contract (2026-10-16, native Spark Contributor route)
+
+**Choice.** The four bound-timeline refusals (CanCRM Activity order=-occurred,
+CanExpense Decision/Reimbursement with in-template pagination, CanStock
+Movement) were a missing query adapter, not a draft-placement error: the
+drafts author exactly one `slot item` template over a bound sequence per the
+normative collection contract, and the compiler already emits collection
+query props (model/parent/order/page/renderRow). The UI `timeline()` factory
+now serves that shape: collection mode (`model` + `renderRow`) queries
+authorized rows through the dispatcher, maps each admitted row body to its
+entry's `end`, and renders the shared items path. Empty results use the
+shared empty state; query and row-body failures propagate untouched; page
+cursors bind through the collection occurrence. No JEV consultation: no
+difficult unresolved language choice remained once the emitted shape and the
+`TimelineProps` items-only contract were compared.
+
+**Consequence.** Compiler emits `occurrence` for paged timelines and admits
+`where`/`occurrence` on the timeline profile; `TimelineProps` carries both
+explicit-items and collection modes (never combined). Proven by compiled
+timeline shapes plus real-factory rendering over source query rows:
+parent scope, authored order, empty state, body/query failure propagation,
+and page cursor binding.
