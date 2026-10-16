@@ -7437,3 +7437,22 @@ covers this conversion and unchanged numeric contract. Original24 is currently
 running with the same reserved binary/catalog; its previous 347 diagnostics are
 historical, not a current result. All other finite outcome gates remain open at
 their recorded scopes.
+
+### CAN18 canonical main — native hook producer accepted (2026-10-16)
+
+`25577dc45` integrates the complete C18/C21/C22 producer/runtime repair plus
+B13's shared equality grouping prerequisite. Independently reviewed the checked
+profile, emitted snapshot/linkage handling, native owner context forwarding,
+deferred effect path and staged identity. Independent released compiled-source
+hook suite passed21/21, including actual owner pipeline, repeated update/replay,
+multiple hook sites, create/update identity, stale and foreign-model refusals.
+Policy, hook tests and State implementation match released `ecadf351f`; unchanged
+owning codegen/State results are reused. This accepts supported hook execution,
+not unrestricted reference/parent/staged record traversal or original workflows.
+
+The coordinator's next frozen original24 capture is terminal and independently
+inspected: `evidence/original24-20261016-frozen.json` in the preserved Muse run,
+complete=true, omitted=0,26 sources,351 E6008. It still fails. The prior347 is
+historical. Root-cause fixes and original executable workflow gates remain open;
+no inference of readiness follows from the supported-case checks. Enum-filter
+work is active; D14 actual-source runtime consumers are released for review.

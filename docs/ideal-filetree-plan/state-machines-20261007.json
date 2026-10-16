@@ -73062,5 +73062,53 @@
     "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
     "checkpoint_advanced": false,
     "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
+  },
+  "can18_merge_13_20261016": {
+    "incremental_base": "9c9f1e0049329b5ee59db905759485da5a98a503",
+    "incoming_end": "25577dc459b27a62f65cd583ac24c2e4e45c3bca",
+    "retained_coverage": "reuse spec_installer_merge_reconciliation_20261015 and preceding CAN18 incremental merge entries; inherited complete checkpoint unchanged",
+    "changed_path_count": 7,
+    "rows": [
+      [
+        "compiler/src/codegen/js.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/src/codegen/model_policy_profile.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/codegen.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/hook_lowering.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "packages/state/src/mutation/model-policies.ts",
+        "state",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/state/src/mutation/models.ts",
+        "state",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/state/src/mutation/pipeline.ts",
+        "state",
+        "existing package source/test owner"
+      ]
+    ],
+    "choice": "Accept the complete native-hook producer at Compiler and its existing State invocation bridge: pure values, checked contained queries, deferred emits and operation/site/fire staged identities; include the shared equality grouping prerequisite.",
+    "validation": "Independent actual-source hook suite21/21 passed against the released owner implementation, including real pipeline atomicity, replay, repeated updates, multiple hook sites and create/update collisions; reviewed policy/tests/State sources match ecadf351f, and unchanged owning codegen/State checks are reused. Parent/reference/staged-content gaps and original composition remain open.",
+    "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
+    "checkpoint_advanced": false,
+    "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
   }
 }
