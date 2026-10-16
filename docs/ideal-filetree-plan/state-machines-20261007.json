@@ -74251,5 +74251,28 @@
     "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
     "checkpoint_advanced": false,
     "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
+  },
+  "can18_merge_34_20261017": {
+    "incremental_base": "4798132262b7fd3c1147af4858ba455f1c401c4c",
+    "incoming_end": "9a8447df63ef1cc39d13c232154470f6431b5932",
+    "retained_coverage": "reuse spec_installer_merge_reconciliation_20261015 and preceding CAN18 incremental merge entries; inherited complete checkpoint unchanged",
+    "changed_path_count": 2,
+    "rows": [
+      [
+        "compiler/src/codegen/js.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "packages/cloudflare/src/runtime/agenda-parent-columns.test.ts",
+        "cloudflare",
+        "existing package source/test owner"
+      ]
+    ],
+    "choice": "Parent-bound agenda saved defaults: compiler forwarding-only admit for reference-only apps; original defaults shape renders 200 end to end.",
+    "validation": "agenda 1/1 x4 (one initial 0/1 flake, then 3/3 green + worker green), row/ref/joint green, UI 179/179, factory 33/33, enum 41/41 on frozen 93ea5761/ca50.",
+    "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
+    "checkpoint_advanced": false,
+    "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
   }
 }
