@@ -12553,11 +12553,265 @@ export async function consumeCanonicalFileReference(
   return result;
 }
 
+/**
+ * Outcome 9 family E (Lane C host seam): adopt the State runtime
+ * boundary for `read=true scope=authority` reports.
+ *
+ * The compiler publishes the checked fact as the §13 `scope:"authority"`
+ * marker on the emitted `appDefinition.operations` entry (description +
+ * declared result beside it); the artifact carries no scope field, so
+ * the marker alone never binds — it must agree with the checked
+ * `artifact.operations` read descriptor or the seam refuses
+ * fail-closed. `undefined` (no callable, no entry, no marker) keeps
+ * the ordinary viewer path byte-identical.
+ */
+async function readAuthorityScopeMarker(opts: CanonicalReadOpts): Promise<unknown> {
+  const where = `Authority scope for ${JSON.stringify(opts.operation)}`;
+  const callable = opts.artifact.callables.find(entry => entry.kind === "operation" && entry.id === opts.operation);
+  if (callable === undefined) return undefined;
+  const url = opts.asm.moduleUrls[callable.module];
+  if (typeof url !== "string" || url === "") return undefined;
+  // Verified assemblies stay verified; capability-less test assemblies
+  // import directly (the `invokeWith` precedent).
+  let module: unknown;
+  if (!requiresVerifiedAssemblyImports(opts.asm, opts.artifact)) {
+    module = await import(url);
+  } else {
+    await verifyCheckedAssembly(opts.asm, opts.artifact);
+    module = await importVerifiedAssemblyModule(opts.asm, callable.module, opts.artifact);
+  }
+  const own = (value: unknown, key: string): unknown =>
+    isUnknownRecord(value) ? readMetadataMember(value, key, where)?.value : undefined;
+  const entry = own(own(module, "appDefinition"), "operations");
+  const operation = isUnknownRecord(entry) ? own(entry, opts.operation) : undefined;
+  if (operation === undefined) return undefined;
+  return own(operation, "scope");
+}
+
+/**
+ * Bind the checked authority-report fact onto the loaded generated read
+ * def (the State `bindAuthorityReportScope` precedent from `4c6fe535`):
+ * the §13 marker plus the checked read descriptor and the defining
+ * checked source origin. Every disagreement refuses with `validation`
+ * before any row is served; an already-bound def stays bound (one bind
+ * per artifact load). Description/result shape refusal stays
+ * State-owned: the bind rechecks the bounded description and the
+ * declared grant type beside the host checks here.
+ *
+ * Defining-source selection (REVIEW-9 gap 1): the exact owning source is
+ * selected through the existing callable/module/checked-origin
+ * correspondence — the operation's callable names its emitted module,
+ * that module's map names the checked source paths, and each named path
+ * must have exactly one artifact source whose sha256 matches the mapped
+ * content hash (path/hash) while the bound module names the declaring
+ * owner. Missing, ambiguous, or tampered owning sources refuse; unrelated
+ * additional valid sources and composed/imported helper sources in other
+ * modules are accepted. Never picks the first source and never weakens
+ * the assembler/State seals beside this selection.
+ *
+ * Lane C (REVIEW-9 gap 2 emission): a present §13 emitted origin
+ * (`source:{module,path,sha256}` on the operation descriptor) is
+ * preferred once fully verified — module names the declaring owner,
+ * path/sha match one checked artifact source exactly, and the path
+ * sits behind the callable module's verified map. Real multi-source
+ * compositions list every source in every module map (narrowing stays
+ * ambiguous); the verified emission still selects the exact owner. A
+ * present-but-unverifiable origin refuses and never falls back to
+ * narrowing; an absent origin keeps narrowing byte-identical.
+ */
+async function selectAuthorityDefiningSource(
+  loaded: LoadedCanonicalDescriptors, opts: CanonicalReadOpts,
+): Promise<{ readonly path: string; readonly sha256: string }> {
+  const StateError = loaded.producers.errors;
+  const name = `Operation ${JSON.stringify(opts.operation)}`;
+  const sources = opts.artifact.sources;
+  if (!Array.isArray(sources) || sources.length === 0) {
+    throw new StateError("validation", `${name} is an authority report without a checked source origin; refusing.`);
+  }
+  for (const entry of sources) {
+    if (typeof entry !== "object" || entry === null || Array.isArray(entry) ||
+        typeof (entry as { path?: unknown }).path !== "string" ||
+        ((entry as { path?: unknown }).path as string).length === 0 ||
+        typeof (entry as { sha256?: unknown }).sha256 !== "string" ||
+        !/^[0-9a-f]{64}$/.test(((entry as { sha256?: unknown }).sha256 as string))) {
+      throw new StateError("validation", `${name} is an authority report with a malformed checked source origin; refusing.`);
+    }
+  }
+  const separator = opts.operation.lastIndexOf(".");
+  const ownerPackage = separator <= 0 ? "" : opts.operation.slice(0, separator);
+  if (ownerPackage === "") {
+    throw new StateError("validation", `${name} is an authority report without its declaring owner; refusing.`);
+  }
+  const callables = opts.artifact.callables;
+  const matching = Array.isArray(callables) ? callables.filter(candidate =>
+    typeof candidate === "object" && candidate !== null &&
+    (candidate as { id?: unknown }).id === opts.operation &&
+    (candidate as { kind?: unknown }).kind === "operation" &&
+    typeof (candidate as { module?: unknown }).module === "string" &&
+    ((candidate as { module?: unknown }).module as string).length > 0) : [];
+  if (matching.length !== 1) {
+    throw new StateError("validation", `${name} is an authority report without its callable/module correspondence; refusing.`);
+  }
+  const callableModule = ((matching[0] as { module?: unknown }).module as string);
+  const modules = opts.artifact.modules;
+  if (!Array.isArray(modules) || modules.length === 0) {
+    // Direct path without module metadata (existing adapter-boundary
+    // fixtures): a lone checked source stays bound; multiple sources
+    // without module correspondence cannot select a defining source, so
+    // refuse rather than guess.
+    if (sources.length === 1) {
+      const only = sources[0] as { path: string; sha256: string };
+      return { path: only.path, sha256: only.sha256 };
+    }
+    throw new StateError("validation", `${name} is an authority report without its defining source module correspondence; refusing.`);
+  }
+  const byPath = new Map<string, { path: string; sha256: string }>();
+  for (const entry of sources) {
+    const typed = entry as { path: string; sha256: string };
+    if (byPath.has(typed.path)) {
+      throw new StateError("validation", `${name} is an authority report with an ambiguous checked source origin; refusing.`);
+    }
+    byPath.set(typed.path, typed);
+  }
+  const verifiedByModule = new Map<string, string[]>();
+  for (const entry of modules) {
+    if (typeof entry !== "object" || entry === null || Array.isArray(entry) ||
+        typeof (entry as { path?: unknown }).path !== "string" ||
+        ((entry as { path?: unknown }).path as string).length === 0) {
+      throw new StateError("validation", `${name} is an authority report with a malformed checked source module; refusing.`);
+    }
+    const modulePath = (entry as { path: string }).path;
+    if (verifiedByModule.has(modulePath)) {
+      throw new StateError("validation", `${name} is an authority report with an ambiguous checked source module; refusing.`);
+    }
+    const map = (entry as { map?: unknown }).map;
+    if (typeof map !== "object" || map === null || Array.isArray(map) ||
+        !Array.isArray((map as { sources?: unknown }).sources) ||
+        !Array.isArray((map as { sourcesContent?: unknown }).sourcesContent) ||
+        ((map as { sources: unknown[] }).sources.length !==
+          (map as { sourcesContent: unknown[] }).sourcesContent.length)) {
+      throw new StateError("validation", `${name} is an authority report without its checked source map; refusing.`);
+    }
+    const listed = (map as { sources: unknown[] }).sources;
+    const contents = (map as { sourcesContent: unknown[] }).sourcesContent;
+    const verified: string[] = [];
+    for (let index = 0; index < listed.length; index++) {
+      const path = listed[index];
+      const content = contents[index];
+      if (typeof path !== "string" || path.length === 0 || typeof content !== "string") {
+        throw new StateError("validation", `${name} is an authority report with a malformed checked source origin; refusing.`);
+      }
+      const claimed = byPath.get(path);
+      if (claimed === undefined) {
+        throw new StateError("validation", `${name} is an authority report without its checked source origin; refusing.`);
+      }
+      const actual = await sha256HexText(content);
+      if (!timingSafeEqualHex(actual, claimed.sha256)) {
+        throw new StateError("validation", `${name} is an authority report with a tampered checked source origin; refusing.`);
+      }
+      verified.push(path);
+    }
+    verifiedByModule.set(modulePath, verified);
+  }
+  const definingPaths = verifiedByModule.get(callableModule);
+  if (definingPaths === undefined) {
+    throw new StateError("validation", `${name} is an authority report without its defining source module correspondence; refusing.`);
+  }
+  // Lane C: read the emitted §13 origin beside the scope marker (the
+  // `readAuthorityScopeMarker` precedent — verified assemblies stay
+  // verified, capability-less fixtures import directly). A missing
+  // module URL or operation entry means no emission; narrowing below
+  // still refuses what it must.
+  let emitted: { readonly path: string; readonly sha256: string; readonly module: string } | undefined;
+  {
+    const url = opts.asm.moduleUrls[callableModule];
+    if (typeof url === "string" && url !== "") {
+      const where = `Authority source for ${JSON.stringify(opts.operation)}`;
+      let module: unknown;
+      if (!requiresVerifiedAssemblyImports(opts.asm, opts.artifact)) {
+        module = await import(url);
+      } else {
+        await verifyCheckedAssembly(opts.asm, opts.artifact);
+        module = await importVerifiedAssemblyModule(opts.asm, callableModule, opts.artifact);
+      }
+      const own = (value: unknown, key: string): unknown =>
+        isUnknownRecord(value) ? readMetadataMember(value, key, where)?.value : undefined;
+      const entry = own(own(module, "appDefinition"), "operations");
+      const operation = isUnknownRecord(entry) ? own(entry, opts.operation) : undefined;
+      const raw = operation === undefined ? undefined : own(operation, "source");
+      if (raw !== undefined) {
+        if (!isUnknownRecord(raw) || typeof raw["path"] !== "string" || (raw["path"] as string).length === 0 ||
+            typeof raw["module"] !== "string" || (raw["module"] as string).length === 0 ||
+            typeof raw["sha256"] !== "string" || !/^[0-9a-f]{64}$/.test(raw["sha256"] as string)) {
+          throw new StateError("validation", `${name} is an authority report with a malformed checked source origin; refusing.`);
+        }
+        emitted = { path: raw["path"] as string, sha256: raw["sha256"] as string, module: raw["module"] as string };
+      }
+    }
+  }
+  if (emitted !== undefined) {
+    if (emitted.module !== ownerPackage) {
+      throw new StateError("validation", `${name} is an authority report with a tampered checked source origin; refusing.`);
+    }
+    const claimed = byPath.get(emitted.path);
+    if (claimed === undefined || !timingSafeEqualHex(emitted.sha256, claimed.sha256)) {
+      throw new StateError("validation", `${name} is an authority report with a tampered checked source origin; refusing.`);
+    }
+    if (!definingPaths.includes(emitted.path)) {
+      throw new StateError("validation", `${name} is an authority report without its defining source module correspondence; refusing.`);
+    }
+    return { path: claimed.path, sha256: claimed.sha256 };
+  }
+  if (definingPaths.length !== 1) {
+    throw new StateError("validation", `${name} is an authority report with an ambiguous defining source; refusing.`);
+  }
+  const defining = byPath.get(definingPaths[0]!);
+  if (defining === undefined) {
+    throw new StateError("validation", `${name} is an authority report without its checked source origin; refusing.`);
+  }
+  return { path: defining.path, sha256: defining.sha256 };
+}
+
+async function bindAuthorityReportForRead(
+  loaded: LoadedCanonicalDescriptors, opts: CanonicalReadOpts, scope: unknown,
+): Promise<void> {
+  const StateError = loaded.producers.errors;
+  const name = `Operation ${JSON.stringify(opts.operation)}`;
+  if (scope !== "authority") {
+    throw new StateError("validation", `${name} carries an unknown authority scope marker; refusing.`);
+  }
+  const descriptor = opts.artifact.operations?.find(candidate => candidate.name === opts.operation);
+  if (descriptor === undefined || descriptor.kind !== "read") {
+    throw new StateError("validation", `${name} is an authority report without its checked read descriptor; refusing.`);
+  }
+  const defining = await selectAuthorityDefiningSource(loaded, opts);
+  const separator = opts.operation.lastIndexOf(".");
+  const ownerPackage = separator <= 0 ? "" : opts.operation.slice(0, separator);
+  const def = generatedScenarioDef({ def: loaded.registry.get(opts.operation) });
+  if (def === undefined) {
+    throw new StateError("validation", `${name} is an authority report without its generated read definition; refusing.`);
+  }
+  const invokeMod = await loadProducerModule(STATE_INVOKE_SPECIFIER, "state invoke producer");
+  const scopeOf = requireProducerFn(invokeMod, "authorityReportScopeOf", "state invoke producer") as
+    typeof import("@canlang/state/invocation/invoke").authorityReportScopeOf;
+  if (scopeOf(def) !== undefined) return;
+  const bind = requireProducerFn(invokeMod, "bindAuthorityReportScope", "state invoke producer") as
+    typeof import("@canlang/state/invocation/invoke").bindAuthorityReportScope;
+  bind(def, {
+    description: descriptor.description,
+    source: { path: defining.path, sha256: defining.sha256, module: ownerPackage },
+  });
+}
+
 /** Source reads have no direct storage access and cannot stage any effect. */
 async function runReadScenarioSeam(
   loaded: LoadedCanonicalDescriptors, opts: CanonicalReadOpts, call: AdmittedReadScenarioCall,
 ): Promise<unknown> {
   const StateError = loaded.producers.errors;
+  // Family E: a bound authority execution (State admitted `by` onto the
+  // checked fact) evaluates body reads in decision mode; ordinary calls
+  // omit `decision` and keep the exact viewer path below.
+  const decision = call.decision;
   const refuse = (): never => {
     throw new StateError('validation', 'Read scenarios cannot perform effects or bypass the viewer read port.');
   };
@@ -12575,7 +12829,7 @@ async function runReadScenarioSeam(
   const navigationFailures = new Map<string, Error>();
   const navigation = await createContainmentNavigation({ loaded, store: opts.store,
     revision: call.revision, actorUserId: call.actorUserId, teamId: call.teamId,
-    memberships: opts.memberships, authority: 'viewer', sourceReadOpts: opts, failure: error => {
+    memberships: opts.memberships, authority: decision === undefined ? 'viewer' : 'owner', sourceReadOpts: opts, failure: error => {
       if (error instanceof Error) navigationFailures.set(error.message, error);
     } });
   const reader = loaded.producers.transact.createReadInvoker({
@@ -12649,6 +12903,26 @@ async function runReadScenarioSeam(
       ? Number(nativeLimit) : nativeLimit;
     if (limit !== undefined && (typeof limit !== 'number' || !Number.isSafeInteger(limit) || limit < 0)) {
       throw new StateError('validation', 'Read scenario limit requires a non-negative safe integer.');
+    }
+    if (decision !== undefined) {
+      // Decision reads are data-only owner scans (DESIGN §442, the
+      // `call.decision` precedent): bounded owner authority at the fence
+      // revision, no read-policy recursion, no callbacks, no
+      // containment filters. The State default cap fails overflow
+      // instead of truncating; the fenced revision check voids the
+      // grant on any concurrent move.
+      if (typeof where === 'function' || nativePredicate !== undefined || query.parent !== undefined) {
+        throw new StateError('validation', 'Authority decision reads require data-only selections.');
+      }
+      const observed = await decision.query(model as ModelName, {
+        ...(where === undefined ? {} : { where: where as QueryPredicate }),
+        ...(order === undefined ? {} : { order }),
+        ...(limit === undefined ? {} : { limit: limit as number }),
+      });
+      if (observed.revision !== call.revision || await opts.store.readRevision() !== call.revision) {
+        throw new StateError('conflict', 'State changed during the read scenario query.');
+      }
+      return { records: observed.rows.map(row => ({ ...row, parent: row.parent ?? null })), revision: observed.revision };
     }
     const selection: CanonicalReadSelection = {
       ...(typeof where === 'function' || nativePredicate !== undefined || parentBinding !== undefined ? { predicate: async (row: Readonly<ProjectedRecord>) => {
@@ -12742,7 +13016,9 @@ async function runReadScenarioSeam(
     readRecords: async (model, query) => {
       const rows = await scope.readModel(model, query);
       for (const row of rows) {
-        await navigation.captureQuerySource(model, row);
+        // Decision rows are full owner rows: nothing is withheld, so
+        // the viewer field-presence capture has no projection to pin.
+        if (decision === undefined) await navigation.captureQuerySource(model, row);
         await navigation.prepare(model, row);
       }
       return rows.map(row => recordView(model, row));
@@ -12861,6 +13137,12 @@ export async function invokeReadCanonical(
     if (opts.selection !== undefined) {
       throw new loaded.producers.errors('validation', 'Read scenarios accept their declared inputs only.');
     }
+    // Family E: route the checked §13 authority fact onto the loaded
+    // def before the State reader admits. Bound reports evaluate in
+    // decision mode with the typed result as the grant to `by`;
+    // unmarked operations skip the bind and stay viewer-filtered.
+    const scope = await readAuthorityScopeMarker(opts);
+    if (scope !== undefined) await bindAuthorityReportForRead(loaded, opts, scope);
     const createReader = loaded.producers.transact.createReadScenarioInvoker;
     if (createReader === undefined) throw new Error('State producer has no generated read scenario invoker.');
     const reader = createReader({
@@ -12874,6 +13156,16 @@ export async function invokeReadCanonical(
   const model = readModelForOperation(opts.operation);
   if (model !== null && loaded.ruledModels.has(model) && !loaded.sourceReadPolicies.has(model)) {
     throw ruledReadRefusal(loaded.producers.errors, model);
+  }
+  // Family E: an authority report never serves through the viewer port.
+  // The scenario branch above binds the grant, so a marker reaching
+  // this port names an incoherent artifact and refuses instead of
+  // serving filtered rows (mirrors the invoke-authority negatives).
+  if (await readAuthorityScopeMarker(opts) !== undefined) {
+    throw new loaded.producers.errors(
+      'validation',
+      `Operation "${opts.operation}" is an authority report; viewer reads cannot serve granted results.`,
+    );
   }
   // Bound per call (never cached): the store + memberships are
   // request-scoped, while the registry + policy ride the artifact

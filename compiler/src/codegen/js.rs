@@ -7976,6 +7976,179 @@ impl<'a> Emitter<'a> {
         }
     }
 
+    /// Data-only `where` AST for authority decision bodies (REVIEW-9 gap
+    /// 3): decision mode refuses callback predicates, so an authority-body
+    /// model query with a data-only filter lowers to the `QueryPredicate`
+    /// AST the host passes straight to `decision.query`. Returns `None`
+    /// when the predicate is not data-only expressible; the caller keeps
+    /// the ordinary callback emission (still refused fail-closed).
+    /// Viewer/ordinary bodies never take this path, so their emission is
+    /// byte-identical.
+    fn lower_authority_where(query: &crate::codegen::ir::IrQuery) -> Option<String> {
+        let pred = query.where_pred.as_ref()?;
+        Self::data_only_predicate(pred, &query.where_param)
+    }
+
+    /// One predicate node to its `QueryPredicate` AST, or `None` when the
+    /// shape cannot serve data-only.
+    fn data_only_predicate(pred: &TypedExpr, row: &str) -> Option<String> {
+        match &pred.expr {
+            IrExpr::Binary { op, left, right } => match op {
+                IrBinOp::And => Some(format!(
+                    "{{op:\"and\",args:[{},{}]}}",
+                    Self::data_only_predicate(left, row)?,
+                    Self::data_only_predicate(right, row)?
+                )),
+                IrBinOp::Or => Some(format!(
+                    "{{op:\"or\",args:[{},{}]}}",
+                    Self::data_only_predicate(left, row)?,
+                    Self::data_only_predicate(right, row)?
+                )),
+                IrBinOp::Eq
+                | IrBinOp::Ne
+                | IrBinOp::Lt
+                | IrBinOp::Le
+                | IrBinOp::Gt
+                | IrBinOp::Ge => Self::data_only_comparison(*op, left, right, row),
+                _ => None,
+            },
+            IrExpr::Unary {
+                op: IrUnOp::Not,
+                operand,
+            } => Some(format!(
+                "{{op:\"not\",arg:{}}}",
+                Self::data_only_predicate(operand, row)?
+            )),
+            // A bare boolean field reads as an equality against true.
+            IrExpr::Member { .. } => {
+                let (field, ty) = Self::row_field(pred, row)?;
+                if !matches!(
+                    ty.nullable_inner().unwrap_or(ty),
+                    ResolvedType::Scalar(Scalar::Bool)
+                ) {
+                    return None;
+                }
+                Some(format!(
+                    "{{op:\"eq\",field:{},value:true}}",
+                    js_string(field)
+                ))
+            }
+            _ => None,
+        }
+    }
+
+    /// A single-level `row.field` access over the query parameter with its
+    /// checked field type, or `None`.
+    fn row_field<'e>(expr: &'e TypedExpr, row: &str) -> Option<(&'e str, &'e ResolvedType)> {
+        if let IrExpr::Member { base, field } = &expr.expr
+            && let IrExpr::Name(root) = &base.expr
+            && root.as_str() == row
+        {
+            return Some((field.as_str(), &expr.ty));
+        }
+        None
+    }
+
+    /// One field comparison to its AST, or `None`. The field may sit on
+    /// either side (`0 < stock` swaps the operator); the other side must
+    /// be a side-effect-free literal. Names are never values: a caller
+    /// binding would evaluate once instead of per row.
+    fn data_only_comparison(
+        op: IrBinOp,
+        left: &TypedExpr,
+        right: &TypedExpr,
+        row: &str,
+    ) -> Option<String> {
+        let (field, ty, value, swapped) =
+            match (Self::row_field(left, row), Self::row_field(right, row)) {
+                (Some((field, ty)), None) => (field, ty, right, false),
+                (None, Some((field, ty))) => (field, ty, left, true),
+                _ => return None,
+            };
+        let nullable = ty.nullable_inner().is_some();
+        let scalar = ty.nullable_inner().unwrap_or(ty);
+        // Null-literal compares become null tests; only `==`/`!=` admit
+        // them, exactly like the SQL adapters.
+        if matches!(value.expr, IrExpr::Null) {
+            return match op {
+                IrBinOp::Eq => Some(format!("{{op:\"is_null\",field:{}}}", js_string(field))),
+                IrBinOp::Ne => Some(format!("{{op:\"not_null\",field:{}}}", js_string(field))),
+                _ => None,
+            };
+        }
+        let op_name = match op {
+            IrBinOp::Eq => "eq",
+            IrBinOp::Ne if !nullable => "ne",
+            IrBinOp::Lt | IrBinOp::Le | IrBinOp::Gt | IrBinOp::Ge
+                if !nullable && matches!(scalar, ResolvedType::Scalar(Scalar::Int)) =>
+            {
+                match (op, swapped) {
+                    (IrBinOp::Lt, false) | (IrBinOp::Gt, true) => "lt",
+                    (IrBinOp::Le, false) | (IrBinOp::Ge, true) => "lte",
+                    (IrBinOp::Gt, false) | (IrBinOp::Lt, true) => "gt",
+                    (IrBinOp::Ge, false) | (IrBinOp::Le, true) => "gte",
+                    _ => return None,
+                }
+            }
+            _ => return None,
+        };
+        if matches!(op, IrBinOp::Eq | IrBinOp::Ne)
+            && !matches!(
+                scalar,
+                ResolvedType::Scalar(Scalar::Text | Scalar::Bool | Scalar::Int)
+            )
+        {
+            return None;
+        }
+        let value = Self::data_only_value(value)?;
+        Some(format!(
+            "{{op:\"{op_name}\",field:{},value:{value}}}",
+            js_string(field)
+        ))
+    }
+
+    /// A side-effect-free literal filter value, or `None`. Ints emit the
+    /// canonical Values int wire (decimal strings, never JSON numbers and
+    /// never `BigInt`: stored ints are int64 decimal strings, so a JSON
+    /// number would never match and plain string comparison would
+    /// misorder); the host compares them numerically with no `Number`
+    /// routing. Out-of-int64-range ints stay on the callback path instead
+    /// of losing precision.
+    fn data_only_value(value: &TypedExpr) -> Option<String> {
+        match &value.expr {
+            IrExpr::Int(int) => {
+                const MAX: i128 = 9_223_372_036_854_775_807;
+                const MIN: i128 = -9_223_372_036_854_775_808;
+                if *int < MIN || *int > MAX {
+                    return None;
+                }
+                Some(js_string(&int.to_string()))
+            }
+            IrExpr::Text(text) => Some(js_string(text)),
+            IrExpr::Bool(bool) => Some(bool.to_string()),
+            _ => None,
+        }
+    }
+
+    /// Checked defining-source origin for one scenario item, or `None`.
+    /// The owning module must agree with the scenario's declaring file,
+    /// and that file must resolve through the checked committed-source
+    /// inventory — the emitted path/sha then name the exact bytes the
+    /// host cross-checks in `artifact.sources` (same shape as the rule
+    /// origins). Anything less is omitted, never guessed.
+    fn defining_source_origin(ir: &IrProgram, item: &IrItem) -> Option<serde_json::Value> {
+        let owning = ir.modules.get(item.module.0 as usize)?;
+        if owning.file != item.span.file {
+            return None;
+        }
+        let (_, path, sha256) = ir
+            .committed_sources
+            .sources
+            .iter()
+            .find(|(id, _, _)| *id == item.span.file)?;
+        Some(serde_json::json!({"path": path, "sha256": sha256, "module": owning.name}))
+    }
+
     /// Lower a query to `await records(c, model, {parent?, where?, order?,
     /// limit?, archived?})`: `records()` returns a promise and viewer read
     /// grants apply before filters and projection.
@@ -8124,32 +8297,45 @@ impl<'a> Emitter<'a> {
                     opts.push(format!("parent:{}", self.lower_expr(parent)));
                 }
                 if let Some(pred) = &query.where_pred {
-                    self.enter_scope();
-                    let row = self.bind(&query.where_param);
-                    let body = self.lower_expr(pred);
-                    self.exit_scope();
-                    if self.native_source_predicates {
-                        let prefix = if query.where_async || self.boolean_body {
-                            "async"
-                        } else {
-                            ""
-                        };
-                        let predicate = format!(
-                            "{prefix}({row},$can$read$c)=>{{const c=$can$read$c;return {body};}}"
-                        );
-                        if let Some(source) = self.membership_predicates.get(&pred.span) {
-                            opts.push(format!(
-                                "where:$can$read$issue({},{predicate})",
-                                js_string(&descriptor_json(source))
-                            ));
-                            opts.push(format!("whereSource:{}", descriptor_json(source)));
-                        } else {
-                            opts.push(format!("where:{predicate}"));
-                        }
-                    } else if query.where_async || self.boolean_body {
-                        opts.push(format!("where:async({row})=>{body}"));
+                    // REVIEW-9 gap 3: authority decision bodies lower
+                    // data-only filters to the predicate AST; anything
+                    // else keeps the ordinary callback below (still
+                    // refused fail-closed by decision mode).
+                    let authority_ast = if self.authority_body && !query.where_async {
+                        Self::lower_authority_where(query)
                     } else {
-                        opts.push(format!("where:({row})=>{body}"));
+                        None
+                    };
+                    if let Some(ast) = authority_ast {
+                        opts.push(format!("where:{ast}"));
+                    } else {
+                        self.enter_scope();
+                        let row = self.bind(&query.where_param);
+                        let body = self.lower_expr(pred);
+                        self.exit_scope();
+                        if self.native_source_predicates {
+                            let prefix = if query.where_async || self.boolean_body {
+                                "async"
+                            } else {
+                                ""
+                            };
+                            let predicate = format!(
+                                "{prefix}({row},$can$read$c)=>{{const c=$can$read$c;return {body};}}"
+                            );
+                            if let Some(source) = self.membership_predicates.get(&pred.span) {
+                                opts.push(format!(
+                                    "where:$can$read$issue({},{predicate})",
+                                    js_string(&descriptor_json(source))
+                                ));
+                                opts.push(format!("whereSource:{}", descriptor_json(source)));
+                            } else {
+                                opts.push(format!("where:{predicate}"));
+                            }
+                        } else if query.where_async || self.boolean_body {
+                            opts.push(format!("where:async({row})=>{body}"));
+                        } else {
+                            opts.push(format!("where:({row})=>{body}"));
+                        }
                     }
                 }
                 if !query.order.is_empty() {
@@ -12994,6 +13180,17 @@ impl<'a> Emitter<'a> {
                     // MCP advertises the grant.
                     if *scope_authority {
                         members.push("scope:\"authority\"".to_string());
+                        // REVIEW-9 gap 2: the defining-source origin is a
+                        // checked fact, never re-derived — the scenario's
+                        // owning module must agree with its declaring
+                        // file, and that file must resolve through the
+                        // checked committed-source inventory. The host
+                        // verifies this origin against `artifact.sources`
+                        // before serving; omission keeps the seam refusal
+                        // fail-closed.
+                        if let Some(origin) = Self::defining_source_origin(self.ir, item) {
+                            members.push(format!("source:{}", descriptor_json(&origin)));
+                        }
                     }
                     if let Some(authority) = self.operation_root_authority(item) {
                         members.push(format!("rootAuthority:{}", descriptor_json(&authority)));

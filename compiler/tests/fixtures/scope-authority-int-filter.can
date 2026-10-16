@@ -1,0 +1,13 @@
+app Shop
+use intfilterhelpers { bump as importedBump }
+Given
+ Gadget { title:text, stock:int=0 }
+ policy Gadget read=members
+ contract StockTotals { eqTen:int, aboveTwo:int, belowZero:int, bigExact:int }
+ derive bump(x:int):int = x + 1
+When
+ # Confidential filtered stock totals granted to members.
+ scenario stockReport() read=true scope=authority -> StockTotals by=members
+  do
+   return StockTotals {eqTen=bump(count(Gadget as g where g.stock == 10)), aboveTwo=count(Gadget as g where g.stock > 2), belowZero=count(Gadget as g where g.stock < 0), bigExact=importedBump(count(Gadget as g where g.stock == 9007199254740993))}
+Then
