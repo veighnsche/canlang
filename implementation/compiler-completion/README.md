@@ -175,6 +175,12 @@ outcome-12 hook lowering. The remaining 4 (`sequence_as_binding`,
 `catalog_factories`, both goldens) fail identically with zero of our source
 changes applied: pre-existing and unrelated to this slice. The broader
 76-occurrence scope and native consumer remain open. Codex review pending.
+Delivery/message slice in `5ac99533` (Lane C commit `1fcd3eb3`): async
+native hook runners lower `await delivery(c,..)` and
+`h_localized_format(c,..)` like the role-gate precedent; legacy gaps stay
+E6008; judgment specifications keep pinned refusal in both flavors.
+`t31_hook*` 12/12 pass in the integrated parent; codegen 143 pass with only
+the 4 known pre-existing residuals.
 
 Outcome 6 checker slice in `b164788b` (recovered B2 commit `4cab6503`):
 slotted groups, selection headers and original payload shapes lower;
