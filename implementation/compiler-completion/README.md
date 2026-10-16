@@ -24,6 +24,26 @@ session/admission remain local implementation work. Hook guards and ordinary val
 authority; missing parent-read implementation is not a new value-use prohibition. Exact17/18 external/policy holds remain unchanged. Continue ready work
 through these checkpoints; do not mark the overall goal complete.
 
+### Current original24 (frozen main regress cohort) — 298 E6008 — 2026-10-16
+
+[evidence/original24-main-20261016.json](../../evidence/original24-main-20261016.json):
+frozen main producer `f9653497` + native catalog `ca50`, saved argv, exit 10,
+427.79s, complete=true, omitted=0, 26 sources, all authored hashes match. All
+175 hook-helper-linkage diagnostics gone; the 10 genuine linkage refusals are
+identical. Reductions vs 359: table 14, list 18, board 2, calendar 1,
+collapse 2, parent-content 25, timeline 4 (collapse/timeline causes observed,
+not individually isolated); 5 small adds (board page, calendar agenda,
+derived Boolean, 2 parent-content). 481 retained in git history.
+
+### Accepted linkage-regression repair (merge29) — 2026-10-16
+
+Main integrates `a284ffe3f`: hook helper variants emit only for
+actually-selected linkage call sites (fixpoint over source order + transitive
+callees); dead-variant lowering under hook-only restrictions no longer fires
+at ordinary-helper sites. Validation on frozen `f9653497`/`ca50`: joint 12/12,
+row-children 1/1, reference 1/1, State 14/14, hook_lowering 26/26. No guard,
+profile, or loader change; no weakened refusals.
+
 ### Accepted board row/card binding batch (merge28) — 2026-10-16
 
 Main integrates `182c5b648`: board `row_scope` threading + `renderRow` slot
