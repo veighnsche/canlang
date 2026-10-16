@@ -26,13 +26,18 @@ through these checkpoints; do not mark the overall goal complete.
 
 ### Accepted HOOKREM refusal pins (merge31) — 2026-10-16
 
-Main integrates `4b6632777` (test-only): 0 of the 11 hook-remainder spans are
-covered by accepted DESIGN 434/442 — parent chains end in stored-reference
-hops outside containment, reference traversals are non-ancestry by
-construction, no staged-content loader exists. All stay loudly refused,
-pinned with exact missing prerequisites; the covered depth-1 prefix still
-lowers via `transitive.load`. Validation: hook_hookrem 7/7, hook_lowering
-26/26. Zero production changes.
+Main integrates `4b6632777` (test-only): the 11 hook-remainder spans refuse
+under the current ancestor-fenced stack — parent chains end in
+stored-reference hops with no transitive reference-load owner yet,
+reference traversals sit outside the current fence, no staged-content
+loader exists. CORRECTION (2139): these are implementation gaps per DESIGN
+opening, not proof that implementing them would weaken permissions or
+constitutes unaccepted symmetry; the ancestor fence stays, and each shape
+needs its exact snapshot/grant mechanism. All stay loudly refused as
+characterization (not workflow acceptance), pinned with exact missing
+prerequisites; the covered depth-1 prefix still lowers via
+`transitive.load`. Validation: hook_hookrem 7/7, hook_lowering 26/26. Zero
+production changes.
 
 ### Accepted Employees seal batch (merge30) — 2026-10-16
 

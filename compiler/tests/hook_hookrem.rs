@@ -21,23 +21,24 @@
 //!   `non-ancestor reads refuse without distinguishing the miss`); the
 //!   compiler gaps the outermost access with `hook parent content: ...
 //!   parent field reads need the transitive load and have no hook lowering`.
-//!   Genuinely uncovered: no transitive reference-load owner exists, and
-//!   inventing one would be a symmetry generalization with weakened
-//!   permissions (committed-vs-staged snapshot, caller grants on referenced
-//!   rows). Stays refused.
+//!   Implementation gap (not a language prohibition): no transitive
+//!   reference-load owner exists yet. A future owner must carry the exact
+//!   committed-vs-staged snapshot and caller grants on referenced rows;
+//!   until such a mechanism lands, these stay refused. See 2139 correction.
 //! * reference-traversal x4 (file 6 `event.after.plan.months` 30244..30267;
 //!   file 14 `event.after.location.timezone` 8978..9007 + 9331..9360;
 //!   file 20 `event.after.location.timezone` 15653..15682): reads through
 //!   event references (`Membership.plan`, `Account.location`,
-//!   top-level `Asset.location`) — non-ancestry by construction. Same
-//!   missing prerequisite: `reads through event references need the
-//!   transitive load and have no hook lowering`. Stays refused (C27 kept
-//!   this out of scope; retained `hook_reference_traversal_refused_loud`
-//!   pins the class).
+//!   top-level `Asset.location`) — non-ancestry under the CURRENT ancestor
+//!   fence. Same missing prerequisite: `reads through event references need
+//!   the transitive load and have no hook lowering`. Stays refused until a
+//!   reference-load owner lands (C27 scope is not a prohibition).
 //! * staged x2 (file 8 `policy_snapshot_1.sequence` 59122..59148 +
 //!   59519..59545): staged bindings carry identity only (`{id}`); no
-//!   staged-content loader exists at any owner. Missing prerequisite:
-//!   `staged field reads have no hook lowering`. Stays refused.
+//!   staged-content loader exists at any owner yet. Missing prerequisite:
+//!   `staged field reads have no hook lowering` — needs the exact
+//!   created-record/source association and current staged view. Stays
+//!   refused until then.
 //!
 //! Each test below compiles a check-clean synthetic app with the exact
 //! remainder shape and pins the loud E6008 plus the fail-closed
