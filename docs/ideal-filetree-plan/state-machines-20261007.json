@@ -73234,5 +73234,58 @@
     "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
     "checkpoint_advanced": false,
     "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
+  },
+  "can18_merge_17_20261016": {
+    "incremental_base": "019e8c30cf372615eb2aa5ccd8f4cf8b6dd72cfc",
+    "incoming_end": "9c90607382baa42f1ac13566dff50e157b7e7f17",
+    "retained_coverage": "reuse spec_installer_merge_reconciliation_20261015 and preceding CAN18 incremental merge entries; inherited complete checkpoint unchanged",
+    "changed_path_count": 8,
+    "rows": [
+      [
+        "compiler/src/codegen/ir.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/src/codegen/js.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "packages/contracts/src/presentation.ts",
+        "contracts",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/interfaces/test/fixtures/standalone-filter-preference.can",
+        "interfaces",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/interfaces/test/standalone-filter-preference.test.ts",
+        "interfaces",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/ui/src/catalog.ts",
+        "ui",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/ui/src/controls.ts",
+        "ui",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/ui/src/index.ts",
+        "ui",
+        "existing package source/test owner"
+      ]
+    ],
+    "choice": "Accept the complete source-owned standalone preference filter at Compiler, Contracts and UI owners, plus actual main HTTP/State consumer. Integrate only the necessary filter prerequisite and B16 repair, retaining unrelated factory/query work.",
+    "validation": "Canonical main compiler builds with compatible shared flags; main Contracts/UI/Interfaces build clean after restoring174 missing SDK declaration files from the matching1.32.0 cached package (174 runtime JS files byte-identical, no runtime/lock/source changes). Actual Can compiled by immutable main binaryb69b9d25 passes main render/save/query consumer1/1; independent run binary30f83ffd also1/1. Enum/bool-false, separate app ownership, current selection, CSRF, stale version, malformed values and denied callers checked. Existing unchanged owning package checks reused; original24 remains failing pending next frozen released cohort capture.",
+    "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
+    "checkpoint_advanced": false,
+    "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
   }
 }

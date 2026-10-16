@@ -18076,3 +18076,19 @@ Accepted: Accept complete owning boolean collection filters and strict typed pre
 ## 2026-10-16 — can18_merge_16_20261016
 
 Accepted: Accept the finite computed enum-preference default repair with actual local/imported helper reuse at Compiler and Interfaces owners; unrelated factory and selector obligations stay open. Merge reviewed tested work incrementally into canonical `main`, preserving installer/specification changes and the active implementation branch. Independent enum_filter_group28/28 plus actual compiled-source real-State HTTP consumer1/1 pass on immutable compiler783b66e9 versiondc2d5ec20/native catalogca50fdca. Direct/local/imported/coalesced meaning, precedence/clear, malformed refusal before query and denial/revocation verified. Standalone filter repair remains active, original24 still351E6008 until the next released frozen cohort capture. Reconcile the living file-tree plan/registry over `47c897f1a..HEAD` with existing owners; retain the complete checkpoint and all outstanding acceptance gates. A merged component is not a claim that original24 or the remaining runtime workflows are complete.
+
+
+## 2026-10-16 — can18_merge_17_20261016
+
+Accepted: Accept the complete source-owned standalone preference filter at Compiler, Contracts and UI owners, plus actual main HTTP/State consumer. Integrate only the necessary filter prerequisite and B16 repair, retaining unrelated factory/query work. Merge reviewed tested work incrementally into canonical `main`, preserving installer/specification changes and the active implementation branch. Canonical main compiler builds with compatible shared flags; main Contracts/UI/Interfaces build clean after restoring174 missing SDK declaration files from the matching1.32.0 cached package (174 runtime JS files byte-identical, no runtime/lock/source changes). Actual Can compiled by immutable main binaryb69b9d25 passes main render/save/query consumer1/1; independent run binary30f83ffd also1/1. Enum/bool-false, separate app ownership, current selection, CSRF, stale version, malformed values and denied callers checked. Existing unchanged owning package checks reused; original24 remains failing pending next frozen released cohort capture. Reconcile the living file-tree plan/registry over `019e8c30c..9c9060738` with existing owners; retain the complete checkpoint and all outstanding acceptance gates. A merged component is not a claim that original24 or the remaining runtime workflows are complete.
+
+Accepted implementation clarification: standalone `filter preferences.p` edits
+its source-owned saved preference using the existing actor/team-scoped page POST,
+CSRF and compare-and-set version contract. It shares the finite-choice Filter
+presentation with field controls through the owning binding; it conveys no query
+authority. A collection's explicit current selection/clear continues to override
+its saved default independently. Resolve preferences by module and field, preserve
+labels/gates and explicit bool false, and enforce the existing save/admission
+failures. This repairs an implementation contract mismatch, requiring no new
+language decision or null-reset semantics. Broader selector and preference-profile
+support remains separately unfinished.
