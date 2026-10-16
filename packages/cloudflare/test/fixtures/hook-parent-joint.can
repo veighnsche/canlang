@@ -1,0 +1,76 @@
+app HookParentJoint
+use hpjointhelpers {isActiveExt as importedIsActive, zoneExt as importedZone}
+Given
+ Site { region:text }
+ Location in Site { active:bool, timezone:text, secret:text }
+ Reading in Location { taken:bool, snapshot:text }
+ Copy in Location { taken:bool, snapshot:text }
+ Steal in Location { taken:bool, snapshot:text }
+ Strict in Location { taken:bool, snapshot:text }
+ Kin in Location { taken:bool, snapshot:text }
+ Beacon in Site { label:text }
+ Other { note:text }
+ derive isActive(v:bool):bool = v
+ derive zone(v:text):text = v
+ policy Site read=public
+ policy Location read=owner fields=active,timezone
+ policy Reading read=public
+ policy Copy read=public
+ policy Steal read=public
+ policy Strict read=public
+ policy Kin read=public
+ policy Beacon read=public
+ policy Other read=public
+When
+ crud Site by=owner fields=region
+ crud Location by=owner fields=active,timezone,secret
+ crud Reading by=owner fields=taken,snapshot
+ crud Copy by=owner fields=taken,snapshot
+ crud Steal by=owner fields=taken,snapshot
+ crud Strict by=owner fields=taken,snapshot
+ crud Kin by=owner fields=taken,snapshot
+ crud Beacon by=owner fields=label
+ crud Other by=owner fields=note
+ ## (a)(c) Private-guard arm: decision-mode If-condition + Require plus
+ ## local-helper and imported-helper inherited reads over the staged or
+ ## committed parent. All four must agree: active arms (and stages kin),
+ ## inactive commits untouched.
+ scenario arm on=Reading.create
+  do
+   if event.after.parent.active
+    require event.after.parent.active
+    require isActive(event.after.parent.active)
+    require importedIsActive(event.after.parent.active)
+    create Kin {parent=event.after.parent,taken=true,snapshot="kin"} as kin
+    set event.after {snapshot="armed"}
+ ## (b) Owner-granted body-value copy: helper over the granted timezone
+ ## field. Per-caller grants stay withheld, so the value-mode load throws
+ ## the exact navigation forbidden on access (no null-mask); the batch
+ ## voids atomically.
+ scenario copyzone on=Copy.create
+  do
+   if event.after.parent.active
+    let z=zone(event.after.parent.timezone)
+    set event.after {snapshot=z}
+ ## (b)(d) Denied body-value copy: the secret field is outside every public
+ ## grant. The read throws forbidden mid-batch (no null-mask) after kin
+ ## was staged, so the whole batch voids atomically.
+ scenario steal on=Steal.create
+  do
+   if event.after.parent.active
+    create Kin {parent=event.after.parent,taken=true,snapshot="kin"} as kin
+    let s=event.after.parent.secret
+    set event.after {snapshot=s}
+ ## (d) Guard-denied rollback: kin stages first, then the guard fails, so
+ ## trigger plus staged kin void atomically.
+ scenario strict on=Strict.create
+  do
+   create Kin {parent=event.after.parent,taken=true,snapshot="kin"} as kin
+   require event.after.parent.active==false
+ ## (b) Public body-value copy: the Site region is unconditionally public,
+ ## so the value-mode load serves it and the copy commits.
+ scenario mark on=Beacon.create
+  do
+   let r=event.after.parent.region
+   set event.after {label=r}
+Then
