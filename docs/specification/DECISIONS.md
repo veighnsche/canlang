@@ -18269,3 +18269,8 @@ Accepted: First-query slice D compiler admission: unscoped Text id-ordered same-
 ## 2026-10-16 — can18_merge_38_20261017
 
 Accepted: C2 text-equality rule: DESIGN 975 scalar eq with request/default/clear precedence; date selectors stay refused with reasoning. Merge reviewed tested work incrementally into canonical `main`, preserving installer/specification changes and the active implementation branch. text page 3/3 + collection 3/3 + UI 2/2, enum 48/48, bool 27/27, pins 8/8, presentation 37/37+25/25 on frozen 982e9eda/ca50. Reconcile the living file-tree plan/registry over `a7b36044..HEAD` with existing owners; retain the complete checkpoint and all outstanding acceptance gates. A merged component is not a claim that original24 or the remaining runtime workflows are complete.
+
+
+## 2026-10-16 — can18_merge_39_20261017
+
+Accepted: Slice-D runtime half: whole-row first-selected replay bound as existing model result lifetime; replay returns same record, exact failure matrix. Merge reviewed tested work incrementally into canonical `main`, preserving installer/specification changes and the active implementation branch. native-first-replay vitest 1/1, receipt neighbors 14/14+13/13+12/12 on main dists + frozen 982e9eda/ca50. Reconcile the living file-tree plan/registry over `d734f19d..HEAD` with existing owners; retain the complete checkpoint and all outstanding acceptance gates. A merged component is not a claim that original24 or the remaining runtime workflows are complete.
