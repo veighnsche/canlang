@@ -27,6 +27,7 @@ import type {
   StoredRow,
 } from '@canlang/contracts';
 import { StateError } from '../errors.js';
+import { isReferenceIdentity } from '../policy/grants.js';
 
 // The selected original private-cohort profile; ordinary codecs stay unbounded.
 const COHORT_NODES = 20_000;
@@ -345,6 +346,22 @@ function fieldExpr(field: string): string {
 }
 
 /**
+ * Reference-identity operand for `eq`/`ne` (DESIGN 977: typed opaque
+ * identity, never an enum spelling). Compares the stored target id, so
+ * unknown or inaccessible references simply match nothing (DESIGN 1027).
+ * The `id` subpath is validated exactly like the field itself.
+ */
+function referenceFieldExpr(field: string): string {
+  if (Object.hasOwn(COLUMN_FIELDS, field)) {
+    throw new Error(`Invalid reference query field: ${JSON.stringify(field)}`);
+  }
+  if (!FIELD_NAME.test(field)) {
+    throw new Error(`Invalid query field: ${JSON.stringify(field)}`);
+  }
+  return `json_extract(data, '$.${field}.id')`;
+}
+
+/**
  * Encode a predicate value for binding. Booleans become 1/0 (SQLite has no
  * boolean storage; JSON true compares equal to 1) and undefined becomes NULL;
  * every other value binds as-is.
@@ -377,6 +394,11 @@ export function compilePredicate(predicate: QueryPredicate, bindings: unknown[])
       return `(NOT ${compilePredicate(predicate.arg, bindings)})`;
     }
     case 'eq': {
+      if (isReferenceIdentity(predicate.value)) {
+        const expr = referenceFieldExpr(predicate.field);
+        bindings.push(predicate.value.id);
+        return `(${expr} = ?)`;
+      }
       const expr = fieldExpr(predicate.field);
       if (predicate.value === null || predicate.value === undefined) {
         return `(${expr} IS NULL)`;
@@ -385,6 +407,11 @@ export function compilePredicate(predicate: QueryPredicate, bindings: unknown[])
       return `(${expr} = ?)`;
     }
     case 'ne': {
+      if (isReferenceIdentity(predicate.value)) {
+        const expr = referenceFieldExpr(predicate.field);
+        bindings.push(predicate.value.id);
+        return `(${expr} <> ?)`;
+      }
       const expr = fieldExpr(predicate.field);
       if (predicate.value === null || predicate.value === undefined) {
         return `(${expr} IS NOT NULL)`;

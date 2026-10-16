@@ -15,19 +15,28 @@
 //! inventory (no decoding wrapper, no truthiness, no cross-kind
 //! coercion).
 //!
-//! What stays refused with exact codes (31 pins: 11 admission/emission,
-//! 20 refusals): the frozen original24 capture's ~50 enum-filter
-//! occurrences remain refused — every table/list/board/calendar filter
-//! refusal bottoms out on a genuinely unsupported selector
-//! (model-reference `location`, text `bucket`/`category`/`skill`, int
-//! `year`, date `paid`, datetime `qualified_at`, dotted paths), a nested
-//! calendar agenda with no factory profile, `archived=include` with no
-//! consumed factory profile, or an expression `order=` with no §13
-//! lowering. Each keeps its exact named E6008 refusal below (base
-//! control: B6 model-ref/Lambda-where/defaults-key/co-fields/dotted-path
-//! disposition; outcome-5/12 for archived/order); `not` over an enum
-//! keeps E3007 (no implicit truthiness); cross-kind reads and unknown
-//! case literals keep E6008. None of those is absorbed here.
+//! What stays refused with exact codes: the frozen original24 capture's
+//! remaining filter occurrences stay refused — every table/list/board/
+//! calendar filter refusal bottoms out on a genuinely unsupported selector
+//! (text `bucket`/`category`/`skill`, int `year`, date `paid`, datetime
+//! `qualified_at`, dotted paths), a nested calendar agenda with no factory
+//! profile, `archived=include` with no consumed factory profile, or an
+//! expression `order=` with no §13 lowering. Each keeps its exact named
+//! E6008 refusal below (base control: B6 Lambda-where/defaults-key/
+//! co-fields/dotted-path disposition; outcome-5/12 for archived/order);
+//! `not` over an enum keeps E3007 (no implicit truthiness); cross-kind
+//! reads, unknown case literals, reference literal/computed defaults, and
+//! foreign-model reference defaults keep E6008. None of those is absorbed
+//! here.
+//!
+//! C1 reference rule (CAN18-v1 board/calendar batch, DESIGN 434/975/977):
+//! a stored-model reference (`location`), a `user` reference (`owner`),
+//! or a `member` reference lowers beside enum/bool siblings through typed
+//! opaque identity — reference equality is not an enum spelling, so no
+//! case inventory applies. The C2 text followers (`category`, `skill`),
+//! C3 date/datetime followers (`business_date`, `from`/`until`), and C4
+//! structural gaps (agenda `columns=`, board card children) stay refused
+//! below with their exact codes.
 //!
 //! Catalog-free: every test drives check -> IR build -> per-page JS UI
 //! lowering in process (string inspection only; execution is B15).
@@ -244,18 +253,16 @@ fn enum_literal_default_lowers_verbatim() {
     );
 }
 
-/// Recorded CanBook/CanRent dominance (27 frozen occurrences): a model
-/// reference is not a finite-choice selector even with a matching
-/// model-typed preference and default. Both stages keep their exact
-/// E6008 refusals.
+/// C1 reference rule (CAN18-v1 board/calendar batch): a stored-model
+/// reference lowers beside a bool toggle through typed opaque identity
+/// (DESIGN 977) with a matching model-typed preference default (DESIGN
+/// 975 subset). The retired CanBook/CanRent dominance refusal is recorded
+/// here as the admission it became; text/date followers stay refused
+/// below on their own selectors.
 #[test]
-fn model_reference_selector_refuses() {
-    let source = "app Probe\nGiven\n Location { name:text }\n Calendar { location:Location, active:bool=true }\n policy Location read=public\n policy Calendar read=public\nWhen\nThen\n preferences { location:Location? }\n page /calendars title=\"Calendars\"\n  list Calendar columns=location,active filter=location,active defaults={location=preferences.location} display=split\n";
-    assert_refuses(source, "E6008", "need distinct checked owned enum fields");
-    assert_refuses(
-        source,
-        "E6008",
-        "need matching owned declarations and data-only where",
+fn model_reference_selector_lowers() {
+    assert_lowers(
+        "app Probe\nGiven\n Location { name:text }\n Calendar { location:Location, active:bool=true }\n policy Location read=public\n policy Calendar read=public\nWhen\nThen\n preferences { location:Location?, active:bool? }\n page /calendars title=\"Calendars\"\n  list Calendar columns=location,active filter=location,active defaults={location=preferences.location,active=preferences.active} display=split\n",
     );
 }
 
@@ -362,13 +369,92 @@ fn board_enum_filter_with_lambda_where_conjoins_at_lowering() {
     );
 }
 
-/// Recorded CanCRM/CanExpense/CanField board shape: a stored-model
-/// reference is not a finite-choice selector even with a matching
-/// model-typed preference and default, so the E5 conjunction cannot
-/// cover the board. Both stages keep their exact E6008 refusals.
+/// C1 reference rule on boards (CAN18-v1 board/calendar batch): the
+/// recorded CanCRM/CanExpense/CanField board shape lowers once the
+/// stored-model reference compares by typed opaque identity (DESIGN 977)
+/// beside the admitted enum selector, with matching owned declarations
+/// and a 975 default subset. The E5 conjunction covers the board exactly
+/// like the enum/bool pin above. The pin is childless (cards render from
+/// columns): authored row children on boards are the separate card-content
+/// gap named in the batch commit, outside this rule.
 #[test]
-fn board_model_reference_selector_refuses() {
-    let source = "app Probe\nGiven\n Location { name:text }\n Customer { name:text, kind:enum(individual,company)=individual, site:Location }\n policy Location read=public\n policy Customer read=public\nWhen\nThen\n preferences { kind:Customer.kind? }\n page /customers title=\"Customers\"\n  board Customer by=kind columns=name filter=site,kind defaults={kind=preferences.kind}\n";
+fn board_model_reference_selector_lowers() {
+    assert_lowers(
+        "app Probe\nGiven\n Location { name:text }\n Customer { name:text, kind:enum(individual,company)=individual, site:Location }\n policy Location read=public\n policy Customer read=public\nWhen\nThen\n preferences { site:Location?, kind:Customer.kind? }\n page /customers title=\"Customers\"\n  board Customer by=kind columns=name,site filter=site,kind defaults={site=preferences.site,kind=preferences.kind}\n",
+    );
+}
+
+/// C1 reference rule for the CanCRM `owner:user` selector: a user
+/// reference lowers beside the model reference and the enum through the
+/// same opaque identity, with no default required for the owner control
+/// (DESIGN 975: null means no initial restriction).
+#[test]
+fn board_user_reference_selector_lowers_without_default() {
+    assert_lowers(
+        "app Probe\nGiven\n Location { name:text }\n Deal { title:text, location:Location, owner:user, stage:enum(lead,won)=lead }\n policy Location read=public\n policy Deal read=public\nWhen\nThen\n preferences { location:Location?, stage:Deal.stage? }\n page /sales title=\"Sales\"\n  board Deal by=stage columns=title,location,owner filter=location,owner,stage defaults={location=preferences.location,stage=preferences.stage}\n",
+    );
+}
+
+/// C1 reference rule for `member` selectors: a member reference lowers
+/// through the same opaque identity beside the enum, descriptor kind
+/// `member` with empty value labels.
+#[test]
+fn table_member_reference_selector_lowers() {
+    assert_lowers(
+        "app Probe\nGiven\n Assignment { title:text, owner:member, state:enum(open,closed)=open }\n policy Assignment read=public\nWhen\nThen\n preferences { state:Assignment.state? }\n page /assignments title=\"Assignments\"\n  table Assignment columns=title,owner,state order=title filter=owner,state defaults={state=preferences.state}\n",
+    );
+}
+
+/// C1 reference rule on agendas (CAN18-v1 board/calendar batch): the
+/// recorded CanShift/CanLeave/CanField calendar shape lowers once the
+/// stored-model reference compares by typed opaque identity beside the
+/// admitted enum selector. The E5 conjunction covers the agenda exactly
+/// like the enum pin above.
+#[test]
+fn calendar_model_reference_selector_lowers() {
+    assert_lowers(
+        "app Probe\nGiven\n Location { name:text }\n Job { title:text, from:datetime, until:datetime, site:Location, state:enum(open,closed)=open }\n policy Location read=public\n policy Job read=public\nWhen\nThen\n preferences { site:Location?, state:Job.state? }\n page /agenda title=\"Agenda\"\n  calendar Job start=from end=until filter=site,state defaults={site=preferences.site,state=preferences.state}\n   badge row.state\n",
+    );
+}
+
+/// C1 emission: the reference descriptor carries no enum spelling. The
+/// model reference lowers as `ref:<target>` and the user reference as
+/// `user`, both with empty value labels; the saved reads stay verbatim
+/// and the host preparer resolves the opaque identity (no decoding
+/// wrapper, no truthiness, no cross-kind coercion).
+#[test]
+fn reference_filter_descriptor_carries_no_enum_spelling() {
+    let js = emit_js(
+        "app Probe\nGiven\n Location { name:text }\n Deal { title:text, location:Location, owner:user, stage:enum(lead,won)=lead }\n policy Location read=public\n policy Deal read=public\nWhen\nThen\n preferences { location:Location?, stage:Deal.stage? }\n page /sales title=\"Sales\"\n  board Deal by=stage columns=title,location,owner filter=location,owner,stage defaults={location=preferences.location,stage=preferences.stage}\n",
+    );
+    assert!(
+        js.contains("type:\"ref:Probe.Location\""),
+        "model reference descriptor names its target, got: {js}"
+    );
+    assert!(
+        js.contains("type:\"user\""),
+        "user reference descriptor names its kind, got: {js}"
+    );
+    assert!(
+        js.contains("valueLabels:{}"),
+        "reference descriptors carry no spellings, got: {js}"
+    );
+    assert!(
+        js.contains("location:(preferences.location ?? null)"),
+        "the saved reference read stays verbatim, got: {js}"
+    );
+    assert!(
+        !js.contains("value=>{if(value==null)"),
+        "no bool spelling-decoding wrapper on reference reads, got: {js}"
+    );
+}
+
+/// C2 text follower (recorded CanField `skill` shape): a text field is
+/// not a reference or finite-choice selector even with a matching text
+/// preference default, so the board keeps its exact E6008 refusals.
+#[test]
+fn board_text_selector_refuses() {
+    let source = "app Probe\nGiven\n Job { title:text, skill:text, state:enum(open,closed)=open }\n policy Job read=public\nWhen\nThen\n preferences { skill:text?, state:Job.state? }\n page /dispatch title=\"Dispatch\"\n  board Job by=state columns=title,skill filter=skill,state defaults={skill=preferences.skill,state=preferences.state}\n";
     assert_refuses(source, "E6008", "board filters need distinct checked owned enum fields");
     assert_refuses(
         source,
@@ -377,17 +463,62 @@ fn board_model_reference_selector_refuses() {
     );
 }
 
-/// Recorded CanShift/CanLeave/CanField calendar shape: a stored-model
-/// reference is not a finite-choice selector even with a matching
-/// model-typed preference and default, so the E5 conjunction cannot
-/// cover the agenda. The checker keeps its exact E6008 refusal (a
-/// refused calendar filter keeps the checker refusal alone).
+/// C3 date follower (recorded CanLeave `from`/`until` shape): a date
+/// field is not a reference selector even beside an admitted reference,
+/// so the agenda keeps its exact E6008 refusal (a refused calendar
+/// filter keeps the checker refusal alone).
 #[test]
-fn calendar_model_reference_selector_refuses() {
+fn calendar_date_selector_refuses() {
     assert_refuses(
-        "app Probe\nGiven\n Location { name:text }\n Job { title:text, from:datetime, until:datetime, site:Location, state:enum(open,closed)=open }\n policy Location read=public\n policy Job read=public\nWhen\nThen\n preferences { state:Job.state? }\n page /agenda title=\"Agenda\"\n  calendar Job start=from end=until filter=site,state defaults={state=preferences.state}\n   badge row.state\n",
+        "app Probe\nGiven\n Location { name:text }\n Request { location:Location, from:date, until:date, state:enum(open,closed)=open }\n policy Location read=public\n policy Request read=public\nWhen\nThen\n preferences { location:Location?, state:Request.state? }\n page /leave title=\"Leave\"\n  calendar Request start=from end=until filter=location,from,until defaults={location=preferences.location}\n   badge row.state\n",
         "E6008",
         "calendar filters need distinct checked owned enum fields",
+    );
+}
+
+/// No literal spellings for references: an opaque identity is never an
+/// authored case literal, so a text literal default keeps the exact
+/// E6008 at the filter gate (the host preparer never sees it).
+#[test]
+fn reference_literal_default_refuses() {
+    assert_refuses(
+        "app Probe\nGiven\n Location { name:text }\n Customer { name:text, kind:enum(individual,company)=individual, site:Location }\n policy Location read=public\n policy Customer read=public\nWhen\nThen\n preferences { site:Location?, kind:Customer.kind? }\n page /customers title=\"Customers\"\n  board Customer by=kind columns=name,site filter=site,kind defaults={site=\"headquarters\",kind=preferences.kind}\n",
+        "E6008",
+        "board filters need distinct checked owned enum fields",
+    );
+}
+
+/// No computed reference defaults: a `??` fallback across two saved
+/// reference reads stays refused (the enum B14 extension does not cross
+/// to opaque identities). The exact E6008 stays at the filter gate.
+#[test]
+fn reference_coalesced_default_refuses() {
+    assert_refuses(
+        "app Probe\nGiven\n Location { name:text }\n Customer { name:text, kind:enum(individual,company)=individual, site:Location }\n policy Location read=public\n policy Customer read=public\nWhen\nThen\n preferences { site:Location?, backup:Location? }\n page /customers title=\"Customers\"\n  board Customer by=kind columns=name,site filter=site,kind defaults={site=preferences.site ?? preferences.backup}\n",
+        "E6008",
+        "board filters need distinct checked owned enum fields",
+    );
+}
+
+/// A default for an undeclared reference control stays refused (DESIGN
+/// 975: defaults initialize only declared controls).
+#[test]
+fn undeclared_reference_default_refuses() {
+    assert_refuses(
+        "app Probe\nGiven\n Location { name:text }\n Customer { name:text, kind:enum(individual,company)=individual, site:Location }\n policy Location read=public\n policy Customer read=public\nWhen\nThen\n preferences { site:Location?, kind:Customer.kind? }\n page /customers title=\"Customers\"\n  board Customer by=kind columns=name,site filter=site,kind defaults={site=preferences.site,owner=preferences.site}\n",
+        "E6008",
+        "board filters need distinct checked owned enum fields",
+    );
+}
+
+/// No cross-model coercion: a saved read of another model is not a
+/// matching owned declaration for this reference filter.
+#[test]
+fn foreign_model_reference_default_refuses() {
+    assert_refuses(
+        "app Probe\nGiven\n Location { name:text }\n Depot { name:text }\n Customer { name:text, kind:enum(individual,company)=individual, site:Location }\n policy Location read=public\n policy Depot read=public\n policy Customer read=public\nWhen\nThen\n preferences { depot:Depot?, kind:Customer.kind? }\n page /customers title=\"Customers\"\n  board Customer by=kind columns=name,site filter=site,kind defaults={site=preferences.depot,kind=preferences.kind}\n",
+        "E6008",
+        "board filters need distinct checked owned enum fields",
     );
 }
 

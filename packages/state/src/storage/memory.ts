@@ -50,6 +50,7 @@ import { INITIAL_REVISION } from './schema.js';
 import { captureCohortRequest, checkCohortIdentityRows, captureCohortRow, captureCohortRows,
   captureHistoryRequest, checkHistoryCount, copyBoundedHistory,
   captureBoundedOutboxRequest, captureBoundedOutbox } from './sqlite-codecs.js';
+import { compareReferenceIds, isReferenceIdentity } from '../policy/grants.js';
 import { bindFileFrameworkProducers, registerFileFrameworkStorage, checkedFileAuthority, checkFileBinding, checkFileFrameworkBinding, checkFileGuardSnapshots, emptyFileGuard, fileGuardCopy, guardFileCommit,
   guardFileFlip, guardFilePublish, planFileInstall, planFileRetirement,
   type FileGuardState, type FileGuardRow } from './file-retirement.js';
@@ -214,13 +215,17 @@ function orderRank(value: unknown): number {
 
 /**
  * Three-valued comparison: null when either side is NULL (filters the row
- * out), otherwise -1/0/1 following SQLite ordering.
+ * out), otherwise -1/0/1 following SQLite ordering. Reference identities
+ * compare by opaque target id (DESIGN 977), never enum spellings.
  */
 function compareValues(left: unknown, right: unknown): number | null {
   const a = normOperand(left);
   const b = normOperand(right);
   if (a === null || b === null) {
     return null;
+  }
+  if (isReferenceIdentity(a) || isReferenceIdentity(b)) {
+    return compareReferenceIds(a, b);
   }
   const rankA = orderRank(a);
   const rankB = orderRank(b);

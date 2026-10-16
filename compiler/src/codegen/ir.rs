@@ -4332,6 +4332,10 @@ pub struct IrPreferenceField {
     pub nullable: bool,
     pub caption: Option<IrMessage>,
     pub option_labels: Vec<(String, IrMessage)>,
+    /// A reference preference leaf behind a filter default (DESIGN 977):
+    /// no case options, no literal default; the saved identity stays
+    /// opaque end to end and is validated as an opaque string downstream.
+    pub reference: bool,
 }
 
 // --- Test artifacts (PR5 contract, lowered by `bdd`) -----------------------
@@ -13567,6 +13571,7 @@ impl<'a> Cx<'a> {
                     .as_ref()
                     .map(|label| label.values.clone())
                     .unwrap_or_default(),
+                reference: false,
             });
         }
         let text = |value: String| {
@@ -17698,6 +17703,7 @@ impl<'a> Cx<'a> {
                 nullable,
                 caption: label.as_ref().and_then(|label| label.text.clone()),
                 option_labels: label.map(|label| label.values).unwrap_or_default(),
+                reference: false,
             });
         }
         Some(())
@@ -17892,6 +17898,74 @@ impl<'a> Cx<'a> {
                 nullable,
                 caption: label.as_ref().and_then(|label| label.text.clone()),
                 option_labels: label.map(|label| label.values).unwrap_or_default(),
+                reference: false,
+            });
+        }
+        Some(())
+    }
+
+    /// Register one owned reference preference leaf behind a filter
+    /// default, sharing the direct-read descriptor contract with no
+    /// spellings: the entry carries no case options and no literal
+    /// default, is nullable exactly when the leaf read is, and records a
+    /// server-owned field, a missing non-nullable default, or a
+    /// non-literal default as a refusal in the caller. The saved
+    /// identity stays opaque end to end (DESIGN 977): it is never an
+    /// enum spelling.
+    fn register_reference_filter_preference(
+        &mut self,
+        word: &str,
+        field_id: SymbolId,
+        owner: SymbolId,
+        nullable: bool,
+        span: Span,
+    ) -> Option<()> {
+        let refuse = || {
+            Diagnostic::error(
+                "E6008",
+                format!(
+                    "{word} filters need distinct checked owned enum fields and matching defaults"
+                ),
+                span,
+            )
+        };
+        let Some(symbol) = self.program.symbols.get(field_id.0 as usize).cloned() else {
+            self.diags.push(refuse());
+            return None;
+        };
+        let (_, default, server, _, _, _) = self.decode_field(&symbol, owner);
+        let default_value = match default {
+            Some(IrDefault::Literal(value)) => match value.expr {
+                IrExpr::Null if nullable => None,
+                _ => {
+                    self.diags.push(refuse());
+                    return None;
+                }
+            },
+            None if nullable => None,
+            _ => {
+                self.diags.push(refuse());
+                return None;
+            }
+        };
+        if server.is_some() {
+            self.diags.push(refuse());
+            return None;
+        }
+        if !self
+            .page_preference_fields
+            .iter()
+            .any(|field| field.name == symbol.name)
+        {
+            let label = self.decode_reused_field_label_parts(&symbol);
+            self.page_preference_fields.push(IrPreferenceField {
+                name: symbol.name,
+                options: Vec::new(),
+                default_value,
+                nullable,
+                caption: label.as_ref().and_then(|label| label.text.clone()),
+                option_labels: label.map(|label| label.values).unwrap_or_default(),
+                reference: true,
             });
         }
         Some(())
@@ -17963,8 +18037,11 @@ impl<'a> Cx<'a> {
                 return None;
             };
             // A filter selector is a distinct owned finite-choice field: an
-            // owned enum, or a plain bool (the recorded `active`/`done`
-            // toggle shapes). Anything else keeps the exact E6008 below.
+            // owned enum, a plain bool (the recorded `active`/`done`
+            // toggle shapes), or a user/member/model reference compared by
+            // typed opaque identity (DESIGN 977: reference equality is not
+            // an enum spelling, so no case inventory applies). Anything
+            // else keeps the exact E6008 below.
             let (type_text, cases) = match &ty {
                 ResolvedType::Enum {
                     cases,
@@ -17979,6 +18056,15 @@ impl<'a> Cx<'a> {
                     "bool".to_string(),
                     vec!["true".to_string(), "false".to_string()],
                 ),
+                ResolvedType::Record { symbol, .. }
+                    if self.program.symbols.get(symbol.0 as usize).is_some_and(|item| {
+                        matches!(&item.kind, SymbolKind::Model { .. })
+                    }) =>
+                {
+                    (format!("ref:{}", self.type_id(&ty)), Vec::new())
+                }
+                ResolvedType::Scalar(Scalar::User) => ("user".to_string(), Vec::new()),
+                ResolvedType::Scalar(Scalar::Member) => ("member".to_string(), Vec::new()),
                 _ => {
                     fail(self, path.span);
                     return None;
@@ -18077,9 +18163,20 @@ impl<'a> Cx<'a> {
                 }
                 let decoded = self.decode_expr(scope, value);
                 let bool_filter = matches!(expected, ResolvedType::Scalar(Scalar::Bool));
+                // A reference filter compares by typed opaque identity
+                // (DESIGN 977), never enum spellings: no literal or
+                // computed default forms apply, only a direct saved
+                // reference read (or null) below.
+                let ref_filter = matches!(
+                    expected,
+                    ResolvedType::Record { .. }
+                        | ResolvedType::Scalar(Scalar::User | Scalar::Member)
+                );
                 let enum_cases = match expected {
                     ResolvedType::Enum { cases, .. } => Some(cases),
                     ResolvedType::Scalar(Scalar::Bool) => None,
+                    ResolvedType::Record { .. }
+                    | ResolvedType::Scalar(Scalar::User | Scalar::Member) => None,
                     _ => return None,
                 };
                 let literal = enum_cases.is_some_and(|cases| {
@@ -18185,6 +18282,17 @@ impl<'a> Cx<'a> {
                             field_cases,
                             value.span,
                         )?;
+                    } else if ref_filter {
+                        // Direct reference reads share the direct-read
+                        // descriptor contract with no spellings: the saved
+                        // identity stays opaque end to end.
+                        self.register_reference_filter_preference(
+                            word,
+                            field_id,
+                            owner,
+                            nullable,
+                            value.span,
+                        )?;
                     } else {
                         let (_, default, server, _, _, _) = self.decode_field(&symbol, owner);
                         let default_value = match default {
@@ -18223,7 +18331,8 @@ impl<'a> Cx<'a> {
                                 nullable,
                                 caption: label.as_ref().and_then(|label| label.text.clone()),
                                 option_labels: label.map(|label| label.values).unwrap_or_default(),
-                            });
+                reference: false,
+            });
                         }
                     }
                 }
@@ -18451,6 +18560,7 @@ impl<'a> Cx<'a> {
                 nullable,
                 caption: pref_label.as_ref().and_then(|label| label.text.clone()),
                 option_labels: pref_label.map(|label| label.values).unwrap_or_default(),
+                reference: false,
             });
         }
         // B16: the control edits the owning saved preference through the

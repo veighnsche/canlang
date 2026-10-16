@@ -5,9 +5,11 @@
 //! correspondence. The checker admits distinct owned plain-bool selectors
 //! with matching defaults, the lowering validator accepts `bool` columns
 //! with `true`/`false` captions, and data-only/absent `where` keeps
-//! working. Non-bool kinds (int/text/date/model reference/nullable bool),
-//! duplicate/undeclared selectors, dotted paths and lambda-where filter
-//! composition keep the exact E6008 refusals below.
+//! working. Non-bool kinds (int/text/date/nullable bool), duplicate/
+//! undeclared selectors, dotted paths and lambda-where filter composition
+//! keep the exact E6008 refusals below. Model references lower through the
+//! CAN18-v1 reference-equality rule (typed opaque identity, never an enum
+//! spelling): see `enum_filter_group.rs` for the board/calendar pins.
 //! Catalog-free: every test drives check -> IR build -> per-page JS UI
 //! lowering in process.
 use canlang_compiler::analysis::check_program;
@@ -419,14 +421,14 @@ fn date_filter_refuses() {
     );
 }
 
-/// Recorded `location` shape stays refused: a model reference is not a
-/// finite-choice field even with a matching model-typed preference.
+/// Recorded `location` shape (C1 reference rule, CAN18-v1 board/calendar
+/// batch): a stored-model reference lowers beside a bool toggle through
+/// typed opaque identity (DESIGN 977), never an enum spelling, with a
+/// matching model-typed preference default (DESIGN 975 subset).
 #[test]
-fn model_reference_filter_refuses() {
-    assert_refuses(
-        "app Probe\nGiven\n Location { name:text }\n Customer { name:text, location:Location }\n policy Location read=public\n policy Customer read=public\nWhen\nThen\n preferences { location:Location? }\n page /customers title=\"Customers\"\n  list Customer columns=name,location filter=location defaults={location=preferences.location}\n",
-        "E6008",
-        "need distinct checked owned enum fields",
+fn model_reference_filter_lowers() {
+    assert_lowers(
+        "app Probe\nGiven\n Location { name:text }\n Customer { name:text, location:Location, active:bool=true }\n policy Location read=public\n policy Customer read=public\nWhen\nThen\n preferences { location:Location?, active:bool? }\n page /customers title=\"Customers\"\n  list Customer columns=name,location,active filter=location,active defaults={location=preferences.location,active=preferences.active}\n",
     );
 }
 
@@ -471,7 +473,7 @@ fn undeclared_bool_default_refuses() {
 #[test]
 fn refused_outer_list_keeps_admitted_nested_bool_table_quiet() {
     let diags = emit_all(
-        "app Probe\nGiven\n Location { name:text }\n Account { title:text, location:Location }\n Milestone in Account { title:text, done:bool=false }\n policy Location read=public\n policy Account read=public\nWhen\nThen\n preferences { location:Location? }\n page /a title=\"A\"\n  list Account columns=title,location filter=location defaults={location=preferences.location}\n   table row.Milestone columns=title,done order=title filter=done\n",
+        "app Probe\nGiven\n Account { title:text, category:text }\n Milestone in Account { title:text, done:bool=false }\n policy Account read=public\nWhen\nThen\n page /a title=\"A\"\n  list Account columns=title,category filter=category\n   table row.Milestone columns=title,done order=title filter=done\n",
     );
     assert!(
         diags

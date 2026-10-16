@@ -199,13 +199,17 @@ export function renderEnumPreferenceSettings(props: {
   readonly fields: NonNullable<PageDescriptor['preferenceFields']>;
   readonly postTo: string;
 }): ShellData['settings'] {
-  if (props.fields.length === 0) return { sections: [] };
+  // Reference preference leaves carry no save control (storage accepts
+  // enum cases only): they keep their filter defaults but no settings
+  // panel entry.
+  const fields = props.fields.filter(field => field.reference !== true);
+  if (fields.length === 0) return { sections: [] };
   requireText('renderEnumPreferenceSettings', 'owner', props.owner);
   requireText('renderEnumPreferenceSettings', 'postTo', props.postTo);
   const { context } = props;
   const text = (value: MessageValue) => escapeHtml(resolveCaption(value, context));
   const target = escapeAttr(operationPostPath(props.postTo));
-  const panels = props.fields.map(field => {
+  const panels = fields.map(field => {
     const value = context.preferences?.[props.owner]?.[field.name] ?? null;
     const version = context.preferenceVersions?.[props.owner]?.[field.name] ?? '0';
     const common = hidden(CSRF_FIELD, context.csrfToken) + hidden('_version', version);
