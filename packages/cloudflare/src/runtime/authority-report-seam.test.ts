@@ -692,7 +692,7 @@ describe("authority report helper-consumer seam (DESIGN §442 consuming-authorit
     // seam invokes bodies with `preserveThrown`, so the helper failure
     // escapes loudly with no result served. (Semantic forgery that
     // still type-checks is outside any runtime boundary; helper
-    // identity is pinned by the bound single source origin.)
+    // identity is pinned by the bound defining source origin.)
     const setup = await helperSeamSetup(HELPER_PRELUDE_TAMPERED);
     await seedStock(setup.store, setup.seed.now, "hidden", "5");
     const identity = await identityFor(setup.seed, setup.seed.memberToken);
@@ -716,3 +716,323 @@ function withoutResult(entry: unknown): unknown {
   delete record["result"];
   return record;
 }
+
+/**
+ * REVIEW-9 gap 1: defining-source selection through callable/module/
+ * checked-origin correspondence (path/hash + declaring owner).
+ *
+ * The same authority report binds standalone (one checked source behind
+ * its module map) and inside a real multi-source composition (defining
+ * shop.can + composed/imported helpers.can + unrelated extra.can): the
+ * seam selects the exact owning source via the operation callable's
+ * module map with content-hash verification, never the first source.
+ * Missing, ambiguous, and tampered owning sources refuse fail-closed;
+ * denial/revocation and the viewer/authority boundary stay as pinned
+ * above (those suites run unchanged).
+ */
+const SHOP_CAN_PATH = "shop.can";
+const HELPERS_CAN_PATH = "helpers.can";
+const EXTRA_CAN_PATH = "extra.can";
+
+const SHOP_CAN_TEXT = `app Shop
+Given
+ Gadget { title:text, code:text, stock:int=0 }
+ policy Gadget read=members fields=title,code
+ contract Total { count:int }
+When
+ # Confidential totals granted to members.
+ scenario totals() read=true scope=authority -> Total by=members
+  do
+   return Total {count=1}
+Then
+`;
+
+const HELPERS_CAN_TEXT = `package helpers
+ Given
+  export derive sumHelper(x:int):int = x + 1
+ When
+ Then
+`;
+
+const EXTRA_CAN_TEXT = `app Extra
+Given
+ Note { title:text }
+ policy Note read=members
+When
+Then
+`;
+
+function shaHex(text: string): string {
+  return createHash("sha256").update(text, "utf8").digest("hex");
+}
+
+function mappedModule(
+  path: string,
+  js: string,
+  entries: Array<{ path: string; text: string }>,
+): unknown {
+  return {
+    path,
+    js,
+    map: {
+      version: 3,
+      file: path,
+      sources: entries.map((entry) => entry.path),
+      sourcesContent: entries.map((entry) => entry.text),
+      names: [],
+      mappings: "",
+    },
+  };
+}
+
+function helpersMjs(): string {
+  return `import { records } from "../stdlib.js";
+export async function sumHelper(c) {
+  const rows = await records(c, "Shop.Gadget");
+  let sum = 0n;
+  for (const row of rows) sum += BigInt(row.stock);
+  return sum;
+}
+`;
+}
+
+function mappedOpsMjs(importHelper: boolean, registryOpsJson: string): string {
+  return `import { records } from "../stdlib.js";
+${importHelper ? `import { sumHelper } from "./helpers.mjs";\n` : ""}const readRules = { "Gadget.read.1": () => true };
+export function canApp() {
+  return {
+    policy: ${POLICY_JSON},
+    operations: ${registryOpsJson},
+    read: readRules,
+    Shop: {
+      totals: async (c) => {
+        const rows = await records(c, "Shop.Gadget");
+        let sum = 0n;
+        for (const row of rows) sum += BigInt(row.stock);
+        return sum;
+      },
+      inspectAuthority: async (c, input) => input.gadget.stock,
+      inspect: async (c, input) => input.gadget.title,
+      helperTotals: async (c) => sumHelper(c),
+      helperPeek: async (c) => sumHelper(c),
+    },
+  };
+}
+export const appDefinition = {
+  id: "AuthorityUnit",
+  models: {
+    "Shop.Gadget": {
+      readGrants: [{ rule: "Gadget.read.1", by: ["public"], fields: ["title", "code"] }],
+      fields: { title: { type: "text" }, code: { type: "text" }, stock: { type: "text" } },
+    },
+  },
+  policy: ${POLICY_JSON},
+  operations: ${HELPER_AUTHORITY_OPERATIONS_JSON},
+};
+`;
+}
+
+interface MappedSetupOptions {
+  readonly sources: Array<{ path: string; text: string }>;
+  readonly opsMap: Array<{ path: string; text: string }>;
+  readonly helpersMap?: Array<{ path: string; text: string }>;
+  readonly importHelper?: boolean;
+}
+
+async function mappedSeamSetup(options: MappedSetupOptions): Promise<SeamSetup> {
+  const dir = tempDir();
+  // The canApp() registry operations array must JSON-equal the artifact
+  // descriptors (loader pairing); both channels share one array.
+  const artifactOps = helperArtifactOperations();
+  const opsJs = mappedOpsMjs(options.importHelper ?? false, JSON.stringify(artifactOps));
+  const opsPath = join(dir, "ops.mjs");
+  writeFileSync(opsPath, opsJs);
+  const moduleUrls: Record<string, string> = { "ops.mjs": pathToFileURL(opsPath).href };
+  if (options.helpersMap !== undefined) {
+    const helpersPath = join(dir, "helpers.mjs");
+    writeFileSync(helpersPath, helpersMjs());
+    moduleUrls["helpers.mjs"] = pathToFileURL(helpersPath).href;
+  }
+  const asm: AssembledModules = {
+    dir,
+    entryUrl: pathToFileURL(opsPath).href,
+    moduleUrls,
+  };
+  const artifactSources = options.sources.map((entry) => ({ path: entry.path, sha256: shaHex(entry.text) }));
+  const modules = [
+    mappedModule("ops.mjs", opsJs, options.opsMap),
+    ...(options.helpersMap === undefined
+      ? []
+      : [mappedModule("helpers.mjs", helpersMjs(), options.helpersMap)]),
+  ];
+  const artifact = {
+    artifact_version: 1,
+    language_version: "authority-seam-fixture/1 (mapped defining-source shape)",
+    tool_version: "authority-seam-fixture/1",
+    sources: artifactSources,
+    modules,
+    callables: [
+      {
+        id: "Shop.totals",
+        kind: "operation",
+        module: "ops.mjs",
+        export: "Shop_totals",
+        member: ["Shop", "totals"],
+        inputStyle: "parameters",
+      },
+      {
+        id: "Shop.inspectAuthority",
+        kind: "operation",
+        module: "ops.mjs",
+        export: "Shop_inspectAuthority",
+        member: ["Shop", "inspectAuthority"],
+        inputStyle: "parameters",
+      },
+      {
+        id: "Shop.inspect",
+        kind: "operation",
+        module: "ops.mjs",
+        export: "Shop_inspect",
+        member: ["Shop", "inspect"],
+        inputStyle: "parameters",
+      },
+      {
+        id: "Shop.helperTotals",
+        kind: "operation",
+        module: "ops.mjs",
+        export: "Shop_helperTotals",
+        member: ["Shop", "helperTotals"],
+        inputStyle: "parameters",
+      },
+      {
+        id: "Shop.helperPeek",
+        kind: "operation",
+        module: "ops.mjs",
+        export: "Shop_helperPeek",
+        member: ["Shop", "helperPeek"],
+        inputStyle: "parameters",
+      },
+    ],
+    pages: [],
+    requires: [{ capability: "state.parameters", min_version: 1 }],
+    tests: [],
+    operations: artifactOps,
+    models: [gadgetModel()],
+  } as unknown as CompileArtifact;
+  const { store } = createTestMemoryStorage();
+  const seed = await seedIdentity();
+  return { asm, artifact, store, seed };
+}
+
+describe("authority report defining-source selection (REVIEW-9 gap 1)", () => {
+  it("binds the same authority report standalone through its module map", async () => {
+    const setup = await mappedSeamSetup({
+      sources: [{ path: SHOP_CAN_PATH, text: SHOP_CAN_TEXT }],
+      opsMap: [{ path: SHOP_CAN_PATH, text: SHOP_CAN_TEXT }],
+    });
+    await seedStock(setup.store, setup.seed.now, "first", "3");
+    await seedStock(setup.store, setup.seed.now, "second", "4");
+    const served = (await invokeReadCanonical({
+      ...readOptions(setup, "Shop.totals"),
+      identity: await identityFor(setup.seed, setup.seed.memberToken),
+    })) as { result: unknown };
+    assert.equal(served.result, "7");
+
+    const viewer = (await invokeReadCanonical({
+      ...readOptions(setup, "Shop.Gadget.read"),
+      identity: await identityFor(setup.seed, setup.seed.memberToken),
+    })) as { records: Array<{ data: Record<string, unknown> }> };
+    assert.equal(viewer.records.length, 2);
+    for (const record of viewer.records) {
+      assert.deepEqual(Object.keys(record.data).sort(), ["code", "title"]);
+    }
+  });
+
+  it("binds the same authority report in a multi-source composition with helper and extra sources", async () => {
+    const setup = await mappedSeamSetup({
+      sources: [
+        { path: SHOP_CAN_PATH, text: SHOP_CAN_TEXT },
+        { path: HELPERS_CAN_PATH, text: HELPERS_CAN_TEXT },
+        { path: EXTRA_CAN_PATH, text: EXTRA_CAN_TEXT },
+      ],
+      opsMap: [{ path: SHOP_CAN_PATH, text: SHOP_CAN_TEXT }],
+      helpersMap: [{ path: HELPERS_CAN_PATH, text: HELPERS_CAN_TEXT }],
+      importHelper: true,
+    });
+    await seedStock(setup.store, setup.seed.now, "first", "3");
+    await seedStock(setup.store, setup.seed.now, "second", "4");
+    const served = (await invokeReadCanonical({
+      ...readOptions(setup, "Shop.helperTotals"),
+      identity: await identityFor(setup.seed, setup.seed.memberToken),
+    })) as { result: unknown };
+    assert.equal(served.result, "7");
+
+    const viewer = (await invokeReadCanonical({
+      ...readOptions(setup, "Shop.Gadget.read"),
+      identity: await identityFor(setup.seed, setup.seed.memberToken),
+    })) as { records: Array<{ data: Record<string, unknown> }> };
+    assert.equal(viewer.records.length, 2);
+    for (const record of viewer.records) {
+      assert.deepEqual(Object.keys(record.data).sort(), ["code", "title"]);
+    }
+
+    const outsider = await identityFor(setup.seed, setup.seed.outsiderToken);
+    const denied = await captureError(() =>
+      invokeReadCanonical({ ...readOptions(setup, "Shop.helperTotals"), identity: outsider }),
+    );
+    assert.equal(denied.code, "forbidden");
+  });
+
+  it("refuses a missing defining source instead of binding another source", async () => {
+    const setup = await mappedSeamSetup({
+      sources: [
+        { path: HELPERS_CAN_PATH, text: HELPERS_CAN_TEXT },
+        { path: EXTRA_CAN_PATH, text: EXTRA_CAN_TEXT },
+      ],
+      opsMap: [{ path: SHOP_CAN_PATH, text: SHOP_CAN_TEXT }],
+      helpersMap: [{ path: HELPERS_CAN_PATH, text: HELPERS_CAN_TEXT }],
+      importHelper: true,
+    });
+    const identity = await identityFor(setup.seed, setup.seed.memberToken);
+    const error = await captureError(() =>
+      invokeReadCanonical({ ...readOptions(setup, "Shop.totals"), identity }),
+    );
+    assert.equal(error.code, "validation");
+    assert.match(error.message, /[Aa]uthority report/);
+  });
+
+  it("refuses an ambiguous defining source instead of picking the first source", async () => {
+    const setup = await mappedSeamSetup({
+      sources: [
+        { path: SHOP_CAN_PATH, text: SHOP_CAN_TEXT },
+        { path: HELPERS_CAN_PATH, text: HELPERS_CAN_TEXT },
+      ],
+      opsMap: [
+        { path: SHOP_CAN_PATH, text: SHOP_CAN_TEXT },
+        { path: HELPERS_CAN_PATH, text: HELPERS_CAN_TEXT },
+      ],
+      helpersMap: [{ path: HELPERS_CAN_PATH, text: HELPERS_CAN_TEXT }],
+      importHelper: true,
+    });
+    const identity = await identityFor(setup.seed, setup.seed.memberToken);
+    const error = await captureError(() =>
+      invokeReadCanonical({ ...readOptions(setup, "Shop.totals"), identity }),
+    );
+    assert.equal(error.code, "validation");
+    assert.match(error.message, /ambiguous defining source/);
+  });
+
+  it("refuses a tampered defining source instead of serving its grant", async () => {
+    const setup = await mappedSeamSetup({
+      sources: [{ path: SHOP_CAN_PATH, text: SHOP_CAN_TEXT }],
+      opsMap: [{ path: SHOP_CAN_PATH, text: SHOP_CAN_TEXT }],
+    });
+    setup.artifact.sources = [{ path: SHOP_CAN_PATH, sha256: "0".repeat(64) }];
+    const identity = await identityFor(setup.seed, setup.seed.memberToken);
+    const error = await captureError(() =>
+      invokeReadCanonical({ ...readOptions(setup, "Shop.totals"), identity }),
+    );
+    assert.equal(error.code, "validation");
+    assert.match(error.message, /tampered/);
+  });
+});
