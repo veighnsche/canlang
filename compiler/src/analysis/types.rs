@@ -1455,10 +1455,15 @@ impl<'a> Typer<'a> {
             if section.kind != SyntaxKind::Section {
                 continue;
             }
-            for item in kids(section) {
+            // A `#` description attaches to the following significant
+            // sibling (one node per contiguous run); a scenario is
+            // described exactly when that sibling is a Description.
+            let items = kids(section);
+            for (index, item) in items.iter().enumerate() {
                 if has_error(item) {
                     continue;
                 }
+                let described = index > 0 && items[index - 1].kind == SyntaxKind::Description;
                 match item.kind {
                     SyntaxKind::Model | SyntaxKind::Contract | SyntaxKind::Event => {
                         self.phase2_record(file, text, module, item);
@@ -1479,7 +1484,9 @@ impl<'a> Typer<'a> {
                     SyntaxKind::Fixture => self.phase2_fixture(file, text, module, item),
                     SyntaxKind::Capability => self.phase2_capability(file, text, module, item),
                     SyntaxKind::Judgment => self.phase2_judgment(file, text, module, item),
-                    SyntaxKind::Scenario => self.phase2_scenario(file, text, module, item),
+                    SyntaxKind::Scenario => {
+                        self.phase2_scenario(file, text, module, item, described)
+                    }
                     SyntaxKind::Crud => self.phase2_crud(file, text, module, item),
                     SyntaxKind::Page => self.phase2_page(file, text, module, item),
                     _ => {}
@@ -4489,7 +4496,14 @@ impl<'a> Typer<'a> {
     /// `scope=`/`label=`, leading guards, the `do` body (with the
     /// declared result as the `return` expectation) and light example
     /// headers.
-    fn phase2_scenario(&mut self, file: SourceId, text: &str, module: ModuleId, node: &SyntaxNode) {
+    fn phase2_scenario(
+        &mut self,
+        file: SourceId,
+        text: &str,
+        module: ModuleId,
+        node: &SyntaxNode,
+        described: bool,
+    ) {
         let Some(id) = self.decl_symbol(module, text, node, &["export", "scenario"]) else {
             return;
         };
@@ -4513,7 +4527,7 @@ impl<'a> Typer<'a> {
         let mut committed_event = false;
         let hook = attribute_value(node, "on", text)
             .map(|on| self.check_scenario_on(&cx, node, id, on, &mut committed_event));
-        let read = self.check_scenario_read(&cx, node, id);
+        let read = self.check_scenario_read(&cx, node, id, described);
         if let Some(label) = attribute_value(node, "label", text) {
             self.check_scalar_caption(&cx, label, "label");
         }
@@ -4915,16 +4929,33 @@ impl<'a> Typer<'a> {
 
     /// Check `read=`/`scope=` on a scenario: `read=true` selects a
     /// pure read operation, `scope=authority` needs `read=true`
-    /// (`E3001`). The parser pins both value spellings. Returns
-    /// whether this scenario is a read operation.
-    fn check_scenario_read(&mut self, cx: &Ctx<'_, '_>, node: &SyntaxNode, _id: SymbolId) -> bool {
+    /// (`E3001`). A `read=true scope=authority` report is an explicit
+    /// information grant, so DESIGN §522 requires a description
+    /// identifying the information exposed (`E3001` when undescribed).
+    /// The parser pins both value spellings. Returns whether this
+    /// scenario is a read operation.
+    fn check_scenario_read(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        node: &SyntaxNode,
+        _id: SymbolId,
+        described: bool,
+    ) -> bool {
         let read = attribute_value(node, "read", cx.text).is_some();
-        if attribute_value(node, "scope", cx.text).is_some() && !read {
-            let scope = attribute_value(node, "scope", cx.text).unwrap_or(node);
+        let scope = attribute_value(node, "scope", cx.text);
+        if scope.is_some() && !read {
             self.diags.push(Diagnostic::error(
                 "E3001",
                 "scope=authority needs read=true".to_string(),
-                tight_span(cx.text, scope),
+                tight_span(cx.text, scope.unwrap_or(node)),
+            ));
+        }
+        if scope.is_some() && read && !described {
+            self.diags.push(Diagnostic::error(
+                "E3001",
+                "scope=authority reports must have a description identifying the information exposed"
+                    .to_string(),
+                tight_span(cx.text, scope.unwrap_or(node)),
             ));
         }
         read
