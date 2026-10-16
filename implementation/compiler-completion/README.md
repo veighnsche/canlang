@@ -201,6 +201,11 @@ decoder/list-board/metrics slices retained. Owner: Lane B parser repair
 (heading-free card with named/inline style parses per GRAMMAR; headed
 cards stay valid; nonvisual/priority-action restrictions stay); closure on
 the probe parsing + one focused parser/check test.
+CLOSED at implementation scope: repair commit parses `card $Shared` (E1215
+gone; syntax 61/62 with the single golden failure byte-identical to base
+legacy E1211s, pre-existing); rebuilt CLI on the exact probe reports only
+E6008 missing saved generation output — the separately distinguished
+non-syntax matter. Outcome 6 is implemented (Codex review pending).
 
 Outcome 11 test map in parent (Lane A commit, 5/5 join positives +
 refusal surface incl. E3005 recursion): all 7 original calls die at
