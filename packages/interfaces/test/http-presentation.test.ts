@@ -289,7 +289,7 @@ test('calendar agenda consumes occurrence enum filters through the unchanged aut
   const rowName = `can-row:${occurrence}`;
   const preserved = [['unrelated', 'original'], [siblingName, 'closed'], [rowName, 'selected-booking']] as const;
   const make = (selection: string | undefined, refuseQuery = false, zeroRows = selection === '') => {
-    const params = new URLSearchParams([...preserved.map(([name, value]) => [name, value]), ['cursor', 'stale-browser-cursor']]);
+    const params = new URLSearchParams([...preserved.map(([name, value]): [string, string] => [name, value]), ['cursor', 'stale-browser-cursor']]);
     if (selection !== undefined) params.set(collectionFilterName(occurrence, 'state'), selection);
     const request = testRequest(`/hello?${params}`, { cookie: identity.cookie });
     Object.defineProperty(request, 'json', { value: () => { bodies++; throw new Error('body was read'); } });
@@ -377,7 +377,7 @@ test('table consumes authored occurrence enum defaults and selections without ch
   let queries = 0, callbacks = 0, bodies = 0;
   const make = (selection: string | undefined, defaultValue: string | null | undefined,
     empty = false, refuseQuery = false, extra: [string, string][] = []) => {
-    const params = new URLSearchParams([...preserved.map(([name, value]) => [name, value]),
+    const params = new URLSearchParams([...preserved.map(([name, value]): [string, string] => [name, value]),
       ['cursor', 'stale-cursor'], [collectionCursorName(occurrence), 'own-stale-cursor'], ...extra]);
     if (selection !== undefined) params.append(filterName, selection);
     const request = testRequest(`/hello?${params}`, { cookie: identity.cookie });
