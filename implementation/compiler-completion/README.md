@@ -303,10 +303,24 @@ no-runtime-boundary handler (fail-closed) and MCP omits the grant; E6008
 kept with message naming the pending runtime boundary. New
 `scope_authority_reports` 7/7 plus admission 4/4, outbound 13/13, boolean
 8/8, cross-operation 7/7, capability-event 2/2, ui-original 31/31 green in
-parent. Runtime half OPEN: decision-mode body evaluation + result-as-grant
-in `packages/state` `invoke.ts` (hardcodes viewer) — routed to Lane C as
-C7's next batch after its current disclosure/12-rest/5-repair scope, no
-new lane. Outcome 9 stays OPEN pending that runtime boundary.
+parent. Runtime half landed in `4c6fe535` (Lane C9 commit `fd895268`,
+byte-identical cherry-pick): `bindAuthorityReportScope` (engine-local
+checked-fact binding, WeakMap side-table), decision-mode branch in
+`invokeReadScenario` (owner-bounded fenced reads, no read-policy
+recursion, `call.decision.query` capped at 1000 overflow-fails, typed
+result unprojected as grant to admitted `by`), fail-closed validation
+refusals in `invokeRead`/`invokeReadPage`; admission/receipt/membership
+reused unchanged. Parent: new `invoke-authority` 11/11, `invoke-read`
+26/26 byte-identical, invocation dir 260/262 (2 failures in
+input-default + scenario-receipt are C9's unmodified-base-reproduced
+pre-existing; third b2-durable-env failure passes here), tsc clean.
+Deliberate trio retained by design: E6008/throwing-stub/MCP-omission stay
+until Lane A emission (decision-mode body lowering, MCP advertisement)
+plus host-seam adoption (`runReadScenarioSeam` hardcodes viewer) land —
+named follow-ups, not this slice. (Integration note: replaced the
+`packages/state/dist` foreign-main symlink with an owned built dist;
+shared/main dists untouched.) Outcome 9 stays OPEN pending trio removal
++ Codex review.
 
 Outcome 11 test map in parent (Lane A commit, 5/5 join positives +
 refusal surface incl. E3005 recursion): all 7 original calls die at
