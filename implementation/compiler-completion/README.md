@@ -7457,3 +7457,15 @@ in B7's batch; finite successor B9 (`01a143cc-de57-7650-836b-d3c73c036735`)
 owns the bounded real-source page test (interfaces/UI/test only). C20 active
 (membership, artifact.rs files; no private target — RESOURCE-6 complied).
 Active lanes: C20, B8, B9 (at cap 3). Holds 17/18 retained; main untouched.
+
+**MAIN-6 acceptance, 2026-10-16 (Codex independent review 08:24Z):**
+Contained-query batch accepted at finite scope (checked compiler parent
+correspondence, bounded State receiver, actual emitted-handler test) and
+merged to clean main `1fecfcbe`: `7b7b14e6`→`edab85f4`,
+`e5e6b65a`→`2e9c0686`, `7bd77f9e`→`792d722c`, plus reconciliation `1fecfcbe`
+(registry/DECISIONS/filetree over 9 changed paths). Separated from still-open
+bool-page/hook work; original24 347-count is not a whole-app claim. B7
+factory work stays preserved/held; B8 must distinguish intentional accepted
+behavior from real regression. Shared-target slot discipline: C20 holds the
+active slot (membership suite with stable flags); B8/B9 queue behind release,
+no private cache, no foreign interruption.
