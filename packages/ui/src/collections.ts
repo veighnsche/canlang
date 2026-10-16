@@ -1264,29 +1264,34 @@ export async function board(props: BoardProps): Promise<string> {
       bucket.push(row);
     }
   }
-  const sections = [...groups.entries()]
-    .map(([key, rows]) => {
+  const sections = await Promise.all([...groups.entries()]
+    .map(async ([key, rows]) => {
       const labeled = labels?.[key];
       const heading = escapeHtml(
         labeled === undefined ? key : resolveCaption(labeled, props.context),
       );
-      const cards = rows.map((row) => boardCard(row, metas, props)).join("");
+      const cards = (await Promise.all(rows.map((row) => boardCard(row, metas, props)))).join("");
       return `<section data-group="${escapeAttr(key)}"><h2>${heading}</h2><ul>${cards}</ul></section>`;
-    })
-    .join("");
-  const boardHtml = `<div class="flex gap-4">${sections}</div>`;
+    }));
+  const boardHtml = `<div class="flex gap-4">${sections.join("")}</div>`;
   if (props.controls === undefined) {
     return `${filterControls}${boardHtml}${moreNote(props, result.nextCursor)}`;
   }
   return filterControls + await wrapWithControls(props.controls, boardHtml, props);
 }
 
-/** One board card: rowHeading title plus one labeled paragraph per column. */
-function boardCard(
+/**
+ * One board card: rowHeading title plus one labeled paragraph per column,
+ * then the owned row body. The optional renderRow slot reuses the shared
+ * list/table row-render contract: action groups partition into the card's
+ * row-actions region while the remaining body stays in the card content,
+ * in authored source order per row.
+ */
+async function boardCard(
   row: RowView,
   metas: readonly ColumnMeta[],
   props: BoardProps,
-): string {
+): Promise<string> {
   const heading = isolate(rowHeading(row, props.model, props.context));
   const lines = metas
     .map((meta) => {
@@ -1294,10 +1299,29 @@ function boardCard(
       return `<p><span>${label}</span> ${renderCell(meta, row.fields[meta.field], props.context)}</p>`;
     })
     .join("");
+  if (props.renderRow === undefined) {
+    return (
+      `<li data-row="${escapeAttr(row.id)}">` +
+      `<section class="card bg-base-100 shadow"><div class="card-body">` +
+      `<h3 class="card-title">${heading}</h3>${lines}</div></section></li>`
+    );
+  }
+  const children = await props.renderRow(row, props.context);
+  const parts = typeof children === "function" ? await children() : children;
+  const { primary, secondary, body } = partitionActionGroups(await Promise.all(parts));
+  const actions = primary + secondary;
+  const content = `<h3 class="card-title">${heading}</h3>${lines}${body}`;
+  if (actions === "") {
+    return (
+      `<li data-row="${escapeAttr(row.id)}">` +
+      `<section class="card bg-base-100 shadow"><div class="card-body">${content}</div></section></li>`
+    );
+  }
   return (
-    `<li data-row="${escapeAttr(row.id)}">` +
+    `<li data-row="${escapeAttr(row.id)}" data-can-row-actions>` +
     `<section class="card bg-base-100 shadow"><div class="card-body">` +
-    `<h3 class="card-title">${heading}</h3>${lines}</div></section></li>`
+    `<div class="can-row-content">${content}</div><div class="can-row-actions">${actions}</div>` +
+    `</div></section></li>`
   );
 }
 

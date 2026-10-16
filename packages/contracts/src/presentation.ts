@@ -1955,6 +1955,8 @@ export interface BoardProps {
   /** Stable source collection occurrence; required when filter controls or pagination apply. */
   readonly occurrence?: string;
   readonly empty: MessageValue;
+  /** Card detail body receives only the freshly queried authorized row and current view. */
+  readonly renderRow?: (row: RowView, view: PresentationContext) => PageChildren | Promise<PageChildren>;
   readonly controls?: CollectionControls;
 }
 

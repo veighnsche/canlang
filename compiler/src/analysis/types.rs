@@ -9864,7 +9864,7 @@ impl<'a> Typer<'a> {
                 } else if submit {
                     "submit action requires an owning form/edit action region".into()
                 } else {
-                    format!("{word} needs an explicit action owner: page, card, list/table row, drawer details, or modal/drawer slot actions")
+                    format!("{word} needs an explicit action owner: page, card, list/table/board row, drawer details, or modal/drawer slot actions")
                 }, node.span));
             }
         }
@@ -9874,7 +9874,7 @@ impl<'a> Typer<'a> {
         let child_action_owner = match node.kind {
             SyntaxKind::Form | SyntaxKind::Edit => UiActionOwner::Form,
             SyntaxKind::Card if !form_owner => UiActionOwner::Card,
-            SyntaxKind::Collection if !form_owner && matches!(word, "list" | "table") => {
+            SyntaxKind::Collection if !form_owner && matches!(word, "list" | "table" | "board") => {
                 UiActionOwner::Row
             }
             SyntaxKind::Details
