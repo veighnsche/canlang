@@ -18092,3 +18092,13 @@ labels/gates and explicit bool false, and enforce the existing save/admission
 failures. This repairs an implementation contract mismatch, requiring no new
 language decision or null-reset semantics. Broader selector and preference-profile
 support remains separately unfinished.
+
+
+2026-10-16 qualification: preference-filter source semantics remain accepted in
+9c9060738; current main original24 still fails369E6008 on the unchanged24 originals.
+Do not compare that count as a regression against the wider unmerged root's351.
+The frozen main compiler's observed version label is322399a95 (the inferred019
+label was withdrawn); main build output and its refusal of unmerged multi-stat
+syntax distinguish the intended producer scope. No version-only rebuild or new
+language rule follows. Hook guard/value proposals and native handler framework
+gaps remain unfinished; no new policy hold or source read grant is created.

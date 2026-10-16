@@ -2,16 +2,31 @@
 
 ## Current remainder and finite completion
 
-### Specification reconciliation — current execution, 2026-10-15
+### Current execution — 2026-10-16
 
-**Current task:** reconcile the existing requirements/design/grammar, define
-implicit behavior and publish this finite list before pursuing further app
-errors. No compiler/runtime/app implementation is part of this documentation
-batch. [DESIGN §0](../../docs/specification/DESIGN.md#0-conformance-and-implicit-behavior)
-is the normative implicit-behavior index; REQUIREMENTS owns product constraints,
-GRAMMAR source structure, and this record delivery/qualification. Accepted
-PromptLab/File and other component results remain closed at their recorded scope.
-Historical next/pending wording below is evidence, not another execution queue.
+**Current task:** finish the authorized recorded CanCRM language/compiler/package
+outcomes and required executable consumers, integrating coherent tested batches
+into canonical main. The bounded specification review below remains accepted;
+this is implementation and qualification, not another repository-wide audit.
+REQUIREMENTS owns product constraints, DESIGN the normative implicit behavior,
+GRAMMAR source structure, and this record finite delivery/qualification. Accepted
+components remain closed at their recorded scopes; historical next/pending notes
+are evidence rather than additional execution queues.
+
+**Current main qualification:** complete preference-filter integration
+`9c9060738` (reconciled `d798da070`) passes actual main compiled-Can render/save/
+HTTP/State checks. Enum default helper/import reuse is accepted in `b75b2b332`.
+The unchanged original24 composition still fails: one current main capture,
+[evidence/original24-main-20261016.json](../../evidence/original24-main-20261016.json),
+complete=true, omitted=0,26 consumed sources, **369 E6008 occurrences**. All24
+authored source hashes match the saved original baseline. The wider unmerged
+implementation branch's earlier351 count is a different producer scope;18 main
+factory occurrences concern retained, unmerged work and are not18 new features.
+Membership checked-source joins, factory runtime contracts and native handler
+session/admission remain local implementation work. Hook value-read semantics
+remain under the bounded owner review; no provisional prohibition is accepted
+here. Exact17/18 external/policy holds remain unchanged. Continue ready work
+through these checkpoints; do not mark the overall goal complete.
 
 The named semantic review is resolved at specification scope:
 
@@ -40,8 +55,8 @@ The named semantic review is resolved at specification scope:
 - **C10 — optional URL link:** accept typed `url?` at a link sink with one shared
   noninteractive/no-href absent state and localized caption fallback. An authored
   guard remains the way to omit a business-specific control/group. Denied fields
-  and real validation/presenter failures never become absence. This is specified,
-  not yet checker/runtime qualified.
+  and real validation/presenter failures never become absence. The compiler/presenter boundary is implemented; whole-composition
+  consumer qualification remains separately tracked below.
 
 Three independently worded two-question JEV consultations are retained in
 [the decision responses](../../design/jev/spec-implicit-contract-20261015/1.json)
@@ -63,8 +78,8 @@ denied caller and tampered source retain their outcomes. These three
 released commits are integrated separately on canonical main as
 `edab85f4`, `2e9c0686`, `792d722c`; the remaining Boolean-page and hook
 batches do not gate this completed slice. Reuse unchanged component and
-neighbor checks. The last original24 capture remains 347 diagnostics;
-this checkpoint does not qualify the whole composition or its remaining
+neighbor checks. Its retained347 capture is historical; current main has369 occurrences.
+This checkpoint does not qualify the whole composition or its remaining
 source consumers. Continue the existing finite execution queue.
 
 ### Accepted membership bridge checkpoint — 2026-10-16
@@ -76,20 +91,18 @@ tampered-source and original helper/composition cases. Exact bound
 occurrences resolve to the existing State producer; unrelated IR errors
 do not erase their original checked correspondence. Unbound observations
 retain their availability/refusal behavior. This is compiler qualification;
-original24 and required executable consumers remain open. The last
-composition capture is still 347 diagnostic occurrences, not a current
-post-fix count. Continue the existing finite execution queue.
+original24 and required executable consumers remain open. The retained347 capture is historical; current main has369 occurrences,
+including the still-open membership checked-source join. Continue the existing
+finite execution queue without reopening this accepted compiler bridge.
 
-### Radial intake deferred — 2026-10-16
+### Historical withdrawn radial intake — resolved 2026-10-16
 
-The independent radial consumer run used the mutable shared compiler at
-`e46013cb`, before the numeric fix, and failed at the BigInt maximum.
-That run does not qualify the released fix. A premature integration
-`809438ccc` was immediately reverted in `8e06613ed`; production source
-matches the accepted `98b7f48c` checkpoint, and the implementation remains
-preserved in the run. Reintake requires the correct frozen compiler input
-and the focused decimal IR admission as well as the emission boundary.
-No whole UI/composition acceptance or new diagnostic count follows.
+The mutable pre-fix compiler run at `e46013cb` did not qualify the fix.
+Premature integration `809438ccc` was reverted by `8e06613ed`, preserving work;
+at that checkpoint production matched `98b7f48c`. Correct frozen validation
+subsequently passed and the complete radial boundary plus decimal prerequisite
+was integrated in `553b1fc44`/`9c9f1e004`. Reuse that accepted finite result.
+It does not qualify the whole UI/composition; current main qualification is above.
 
 ### Finite conformance gaps
 
@@ -105,20 +118,20 @@ retained context only.
 
 | # / existing IDs | Remaining observable outcome | Defining owner and concrete prerequisite | Finite acceptance |
 | --- | --- | --- | --- |
-| 1 / C02 | Check admission/default stage consistently | Compiler; the explicit-default `by` rule in DESIGN §5 | Reject direct/helper-transitive default dependence before execution; keep ordinary required/nullable/array-input guards and admitted defaults valid, with denied-call/default order unchanged. Current direct `by=allowed` default probe incorrectly passes checking. |
-| 2 / C10 | Implement typed nullable URL link presentation | Compiler + UI; DESIGN §9 destination contract | Original optional URL and an equivalent helper-produced URL? compile and render present/null correctly; no href on null, no denied-field-to-null conversion, unchanged gate/operand/failure order. Current probe is E3001. |
+| 1 / C02 | Check admission/default stage consistently | Compiler; the explicit-default `by` rule in DESIGN §5 | Reject direct/helper-transitive default dependence before execution; keep ordinary required/nullable/array-input guards and admitted defaults valid, with denied-call/default order unchanged. Accepted compiler admission boundary with independent direct/helper/default/order checks; this criterion is closed at its recorded scope. |
+| 2 / C10 | Implement typed nullable URL link presentation | Compiler + UI; DESIGN §9 destination contract | Original optional URL and an equivalent helper-produced URL? compile and render present/null correctly; no href on null, no denied-field-to-null conversion, unchanged gate/operand/failure order. Accepted finite compiler/presenter repair; required whole-composition qualification remains in outcome14. |
 | 3 / C02,C03 | Complete contextual State-read composition | Compiler + Cloudflare/State; original checked read/dependency association | Equivalent inline/local/imported helpers in valid derived/page/container consumers preserve the same viewer/decision mode, lazy reads, failures and final revocation. No Boolean-result or incidental route-record exception; no new public effect mode. Reuse accepted bounded observers. |
 | 4 / C02 | Publish the complete original owning source inventory | Compiler; original24 operands and saved roots | Close the recorded5 owning membership/collection-source omissions without invented or dropped declarations; checked source/type/owner corruption still refuses. |
 | 5 / C02,C04,C19 | Finish original stored-query and selected-read profiles | Compiler + State/Cloudflare; original query/call/field proofs | Original first/order/domain/archive forms and their required helper/import reuse execute with complete authorized domains and stable ordering; nullable-text/enum/array reads retain authority. No truncation, result-taint shortcut or fabricated row grant. Prior110 diagnostics are occurrences. |
-| 6 / C10,C11 | Finish required original UI syntax/bindings | Compiler + UI/Interfaces; full component contract and original declarations | Original filters/defaults/forms/calendars and remaining recorded payloads preserve derived schemas, permissions and interaction. Bare styled cards parse; headed styles already check. Do not reopen accepted PromptLab/File controls. Prior188 occurrences are not188 component tasks. |
+| 6 / C10,C11 | Finish required original UI syntax/bindings | Compiler + UI/Interfaces; full component contract and original declarations | Original filters/defaults/forms/calendars and remaining recorded payloads preserve derived schemas, permissions and interaction. Bare styled cards parse; headed styles already check. Do not reopen accepted PromptLab/File controls. Prior188 occurrences are not188 component tasks. Accepted: bool/enum defaults and end-to-end saved-preference filters (`9c9060738`); retained factory/runtime and other selector/forms/calendar gaps remain open. |
 | 7 / C10,C17 | Finish original human/outbound formatting sinks | Compiler + owning UI/capability adapter; exact source locale/recipient contract | The original31 sink occurrences use shared typed localization, escaping, authored operand order and frozen outbound content. Private addressed mail keeps its accepted privacy/retry boundary. |
 | 8 / C02,C03 | Emit Boolean operation admission | Compiler; existing ordered State ByPredicate receiver | Original43 role-expression sites emit matching operation/policy trees; genuine scenario and CRUD consumers preserve short circuit, exact roles, current authority, original resolver failures and separately sealed CRUD `when`. |
 | 9 / C02,C19 | Finish original scenario/handler typed execution | Compiler + canonical runtime; source-owned context/default/result contracts | Close the original64 authority/trigger profiles and required checked value/default/result shapes through canonical invocation, preserving complete types, null/omission, caller/source facts, atomic failure and replay. Backend codec slices do not become language exceptions. |
 | 10 / C02,C04 | Finish checked native dispatch correspondence | Compiler + State/Work/Cloudflare; original guard/Rule/source seals | Original23 dispatch occurrences consume their actual checked guard and occurrence, refuse stale/foreign authority and publish effects once only after commit. |
 | 11 / C04 | Finish original cross-operation calls | Compiler + canonical invocation owner; actual imported operation signature and owner | Original7 calls retain caller, typed/protected inputs, admission, source order and one owner transaction; no direct-handler bypass or cross-owner pretend atomicity. |
 | 12 / C07,C02 | Finish original hook/query/context/effect graphs | Compiler + State/Work; exact recorded original trigger and source closure | Original76 occurrences preserve before/after/current author/clock, ordered guards, atomic effects, cancellation and null paths; later handler failure cannot undo a committed source. Accepted hook/queue engines are reused. |
-| 13 / C02 | Complete installed producer contracts | Owning Values/capability producer + Compiler/Cloudflare; real declared catalog interfaces | Resolve the recorded26 E6007 producer mismatches with exact checked schemas/capability versions and correct contextual purity; no invented provider bindings or unsupported-as-success fallback. Credentials are not required to repair local metadata. |
-| 14 / C02,C10,C15 | Validate original composition and affected executable consumers | Original24 argv/saved roots, existing source examples and installed owners | Compile the unchanged selected composition after relevant repairs, regroup any residual diagnostics once, and execute required source success/rejection/rollback/replay consumers. Reuse CRM promotion6, Partner page/fixture invariants and accepted PromptLab/File evidence. Partner capture submission and the two recorded UI golden failures remain; a skipped original lock-edit test is not proof, nor permission to invent update grants. |
+| 13 / C02 | Complete installed producer contracts | Owning Values/capability producer + Compiler/Cloudflare; real declared catalog interfaces | Resolve the recorded26 E6007 producer mismatches with exact checked schemas/capability versions and correct contextual purity; no invented provider bindings or unsupported-as-success fallback. Credentials are not required to repair local metadata. Current main has no E6007 occurrences; the remaining4 membership checked-call/source E6008 joins are local owner implementation, not an external hold. |
+| 14 / C02,C10,C15 | Validate original composition and affected executable consumers | Original24 argv/saved roots, existing source examples and installed owners | Compile the unchanged selected composition after relevant repairs, regroup any residual diagnostics once, and execute required source success/rejection/rollback/replay consumers. Reuse CRM promotion6, Partner page/fixture invariants and accepted PromptLab/File evidence. Partner capture submission and the two recorded UI golden failures remain; a skipped original lock-edit test is not proof, nor permission to invent update grants. Current main original24 is complete/omitted0 with369E6008 and unchanged24 authored sources; finite actual-source filter/enum/D14 consumers are accepted without closing the remaining original workflows. |
 | 15 / C21, S9-Q08 | Required maintenance/lineage conformance remains scoped | Compiler + State/activation host; actual predecessor/desired revision and retained-work contracts | Existing named migration/default/lock/interruption/recovery consumers satisfy DESIGN §11 before claiming delivery. Reuse accepted owner leaves; unknown predecessor/unsupported transfer refuses. Do not turn an absent local engine into an external policy hold. No activation is authorized by this spec edit. |
 | 16 / C06,C08,C18,C20 | Retained typed-integration consumer gaps | Capability/Work/Dev; the original verified ingress, source/association and frozen request/result tuples in the nine-reference ledger | Only the already named original Mailbox/payment, generation/Chat, judgment and corpus consumers retain their open qualification. Verify original authority/typed results/unknown outcomes/recovery at their recorded scopes when released; source metadata or fixture snapshots are not execution. This row adds no new apps or provider abstractions. |
 | 17 / C13,C16,C22 | Retained host/data qualification gates | Defining host/Values owner; exact account/executor or release-pinned ICU/tzdb/CLDR/GUI tuple | Original G3/A7 account protocol and named release/host consumers close only on their actual missing tuple/output; no model substitution, fabricated dataset membership, unselected-host expansion or repeated accepted local units. Keep each released ready leaf independent of the held tuple. |
