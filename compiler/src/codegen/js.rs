@@ -3351,6 +3351,70 @@ fn guard_spellings(by: &[IrGuard]) -> (Vec<String>, bool) {
     (spellings, gated)
 }
 
+/// Transcribe one role gate to its ordered State `ByPredicate` JSON leaf:
+/// built-in actor spellings stay bare strings, declared roles become
+/// `{role}` objects. This mirrors the native T16 receiver's legacy
+/// (top-level bare strings) versus nested (bare builtins, `{role}`
+/// objects) transcription rules; `packages/state/src/policy/roles.ts`
+/// stays the authority and is reused read-only.
+fn by_role_leaf(id: &str) -> String {
+    if matches!(id, "members" | "owner" | "authenticated" | "public") {
+        js_string(id)
+    } else {
+        format!("{{\"role\":{}}}", js_string(id))
+    }
+}
+
+/// Transcribe one admission guard to its ordered State `ByPredicate` tree,
+/// preserving source order for lazy `and`/`or` evaluation. Returns `None`
+/// for subject/expression content with no static tree form, so the caller
+/// keeps the loud `gated` refusal instead of inventing a spelling.
+fn by_predicate_tree(guard: &IrGuard) -> Option<String> {
+    match guard {
+        IrGuard::Role(id) => Some(by_role_leaf(id)),
+        IrGuard::And(_) | IrGuard::Or(_) => {
+            let key = if matches!(guard, IrGuard::And(_)) {
+                "and"
+            } else {
+                "or"
+            };
+            let mut terms = Vec::new();
+            flatten_guard_terms(guard, key, &mut terms)?;
+            if terms.is_empty() {
+                return None;
+            }
+            Some(format!("{{\"{key}\":[{terms}]}}", terms = terms.join(",")))
+        }
+        IrGuard::Not(inner) => Some(format!("{{\"not\":{}}}", by_predicate_tree(inner)?)),
+        IrGuard::Subject { .. } | IrGuard::Expr(_) => None,
+    }
+}
+
+/// Splice same-combinator nesting so an authored `a or b or c` chain emits
+/// one ordered term list. Flattening is associative with identical
+/// left-to-right short-circuit order; mixed operators keep their explicit
+/// nesting, and untranscribable content still refuses via `None`.
+fn flatten_guard_terms(guard: &IrGuard, key: &str, terms: &mut Vec<String>) -> Option<()> {
+    match guard {
+        IrGuard::And(inner) if key == "and" => {
+            for guard in inner {
+                flatten_guard_terms(guard, key, terms)?;
+            }
+            Some(())
+        }
+        IrGuard::Or(inner) if key == "or" => {
+            for guard in inner {
+                flatten_guard_terms(guard, key, terms)?;
+            }
+            Some(())
+        }
+        _ => {
+            terms.push(by_predicate_tree(guard)?);
+            Some(())
+        }
+    }
+}
+
 /// A read grant may expose the same actor role identity as operation
 /// admission only when its entire checked predicate is that role gate.
 /// Row filters and expression rules retain registry-only metadata, so
@@ -3438,6 +3502,42 @@ fn operation_policy_entry(
         members.push("gated:true".to_string());
     }
     Some(format!("{{{}}}", members.join(",")))
+}
+
+/// One `policy.operations` entry with Boolean admission trees. A lone role
+/// gate keeps its exact historical `by:["spelling"]` bytes; a pure role-only
+/// compound gate emits its ordered `ByPredicate` tree as the single `by`
+/// term (the native receiver AND-joins top-level terms, so one term is the
+/// tree itself). Subject/expression gates keep the loud `gated:true` marker
+/// without an invented tree. `requires`/`when` pass through unchanged: CRUD
+/// `when` stays a sealed marker, never inlined data.
+fn operation_policy_tree_entry(by: &[IrGuard], requires: usize, has_when: bool) -> Option<String> {
+    if let [IrGuard::Role(_)] = by {
+        let (spellings, gated) = guard_spellings(by);
+        return operation_policy_entry(&spellings, gated, requires, has_when);
+    }
+    if !by.is_empty() {
+        let mut terms = Vec::with_capacity(by.len());
+        for guard in by {
+            match by_predicate_tree(guard) {
+                Some(tree) => terms.push(tree),
+                None => {
+                    let (spellings, gated) = guard_spellings(by);
+                    return operation_policy_entry(&spellings, gated, requires, has_when);
+                }
+            }
+        }
+        let mut members = vec![format!("by:[{}]", terms.join(","))];
+        if requires > 0 {
+            members.push(format!("requires:{requires}"));
+        }
+        if has_when {
+            members.push("when:true".to_string());
+        }
+        return Some(format!("{{{}}}", members.join(",")));
+    }
+    let (spellings, gated) = guard_spellings(by);
+    operation_policy_entry(&spellings, gated, requires, has_when)
 }
 
 // These private markers are never emitted. Binary-family validation and
@@ -13240,15 +13340,13 @@ impl<'a> Emitter<'a> {
         for item in &self.ir.items {
             match &item.kind {
                 IrItemKind::Scenario { by, guards, .. } => {
-                    let (spellings, gated) = guard_spellings(by);
-                    let entry = operation_policy_entry(&spellings, gated, guards.len(), false);
+                    let entry = operation_policy_tree_entry(by, guards.len(), false);
                     if let Some(entry) = entry {
                         operations.push(format!("{}:{entry}", js_string(&item.canonical)));
                     }
                 }
                 IrItemKind::CrudOp { by, has_when, .. } => {
-                    let (spellings, gated) = guard_spellings(by);
-                    let entry = operation_policy_entry(&spellings, gated, 0, *has_when);
+                    let entry = operation_policy_tree_entry(by, 0, *has_when);
                     if let Some(entry) = entry {
                         operations.push(format!("{}:{entry}", js_string(&item.canonical)));
                     }
@@ -13268,30 +13366,40 @@ impl<'a> Emitter<'a> {
     }
 
     /// The `by:` member for one admission gate: the role spelling for a
-    /// single gate, or a loud `E6008` (the handler still enforces the
-    /// full gate).
+    /// lone gate, the ordered State `ByPredicate` tree for a pure role-only
+    /// Boolean gate, or a loud `E6008` for subject/expression gates (the
+    /// executable handler still enforces the full gate either way).
     fn by_member(&mut self, by: &[IrGuard], span: Span) -> Option<String> {
-        let [guard] = by else {
-            if by.is_empty() {
-                return None;
-            }
-            self.unsupported(
-                "by admission",
-                "compound gates have no operations-member lowering",
-                span,
-            );
+        if by.is_empty() {
             return None;
-        };
-        match guard {
-            IrGuard::Role(id) => Some(js_string(id)),
-            _ => {
-                self.unsupported(
-                    "by admission",
-                    "expression gates have no operations-member lowering",
-                    span,
-                );
-                None
+        }
+        if let [IrGuard::Role(id)] = by {
+            return Some(js_string(id));
+        }
+        let mut terms = Vec::with_capacity(by.len());
+        for guard in by {
+            match by_predicate_tree(guard) {
+                Some(tree) => terms.push(tree),
+                None => {
+                    self.unsupported(
+                        "by admission",
+                        if by.len() == 1 {
+                            "expression gates have no operations-member lowering"
+                        } else {
+                            "compound gates have no operations-member lowering"
+                        },
+                        span,
+                    );
+                    return None;
+                }
             }
+        }
+        if terms.len() == 1 {
+            // The native receiver AND-joins top-level terms, so one term is
+            // the tree itself.
+            Some(terms.pop().unwrap_or_default())
+        } else {
+            Some(format!("{{\"and\":[{terms}]}}", terms = terms.join(",")))
         }
     }
 
