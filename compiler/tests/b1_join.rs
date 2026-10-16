@@ -21,7 +21,8 @@
 //! * ExpenseFlow (B2a): `E6006 == 0`, `E6007 == 0`, `E6008 == 3`
 //!   with the real catalog: exact unsupported UI profiles remain refused;
 //!   nominal preference tabs, fixed order and named slots retain their
-//!   owning transport. Multi-value stat remains explicitly unavailable.
+//!   owning transport. Multi-value stat lowers as a visual join of
+//!   single-value stats (CAN18-v1 outcome 6 Lane B factory profiles).
 //! * Entrypoint markers pinned from real emission (model shapes, CRUD
 //!   operations, page descriptors); no metadata spread.
 //! * Pages: exactly the 2 declared descriptors, exports resolved.
@@ -345,7 +346,7 @@ fn b2_expenseflow_artifact() {
         ("cannot lower edit:", 0),
         ("cannot lower action:", 0),
         ("cannot lower history:", 0),
-        ("cannot lower stat:", 1),
+        ("cannot lower stat:", 0),
         ("cannot lower list: option filter", 1),
         ("cannot lower list: option defaults", 1),
         ("cannot lower bound tabs", 0),
@@ -359,8 +360,8 @@ fn b2_expenseflow_artifact() {
             failures.push(format!("expected {profile} count {expected}, got {actual}"));
         }
     }
-    if !emit_diags.iter().any(|d| d.code == "E6008" && d.message == "cannot lower stat: only one value header without a slotted suite has an owning factory profile") {
-        failures.push("missing precise multi-value stat refusal".to_string());
+    if emit_diags.iter().any(|d| d.code == "E6008" && d.message == "cannot lower stat: only one value header without a slotted suite has an owning factory profile") {
+        failures.push("multi-value stat refusal is gone: it lowers as a visual join now".to_string());
     }
 
     // Artifact shape per artifact.ts.
@@ -454,8 +455,10 @@ fn validate_expenseflow_artifact(
             "modal content must use exactly two named suites, without a slot factory".to_string(),
         );
     }
-    if entry.contains("values:[result.count,result.total]") {
-        failures.push("refused multi-value stat must not forward its values".to_string());
+    for marker in ["value:result.count", "value:result.total"] {
+        if !entry.contains(marker) {
+            failures.push(format!("admitted multi-value stat must forward its values as single stats, missing {marker:?}"));
+        }
     }
     if entry.contains("...appDefinition") {
         failures.push("entrypoint spreads metadata (...appDefinition)".to_string());
