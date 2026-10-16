@@ -5,22 +5,20 @@
 //!
 //! Probe premises (verified against base `3e9e1952` before implementation):
 //! an authority-shaped, described report is CHECK-clean and lowers with
-//! zero `E6008` after the host-seam runtime boundary landed (State
-//! decision mode + host read seam + helper-consumer proof). The
-//! fail-closed slice adds: (a) checker enforcement of the DESIGN-522
-//! description requirement (`E3001` when a `scope=authority` report is
-//! undescribed); (b) an IR marker on the scenario carrying the checked
-//! source fact; (c) a JS `scope:"authority"` marker with the lowered
-//! decision-mode body and MCP grant advertisement.
+//! exactly one `E6008` (no §13 emission yet). The fail-closed slice adds:
+//! (a) checker enforcement of the DESIGN-522 description requirement
+//! (`E3001` when a `scope=authority` report is undescribed); (b) an IR
+//! marker on the scenario carrying the checked source fact; (c) a JS
+//! `scope:"authority"` marker published fail-closed (descriptor marker
+//! plus a throwing handler stub, `E6008` intact, no MCP tool advertisement)
+//! until the decision-mode runtime boundary lands.
 //!
-//! Lane-A emission half: the stub and the MCP omission were removed
-//! together once the State decision-mode boundary landed (body reads run
+//! Lane-A emission half: the stub and the MCP omission are removed
+//! together once the State decision-mode boundary lands (body reads run
 //! in decision mode at the host, helpers keep decision mode only when
 //! consumed by the decision per DESIGN §442). The §13 marker, the
-//! description/result correspondence, the decision-mode body and the MCP
-//! advertisement stay; the authority-report `E6008` is removed now that
-//! the host seam adopted the runtime boundary (parallel Lane-C slice
-//! landed and proven).
+//! description/result correspondence and `E6008` stay until the host seam
+//! adopts the runtime boundary (parallel Lane-C slice).
 
 use canlang_compiler::analysis::check_program;
 use canlang_compiler::codegen::ir::{self, IrItemKind};
@@ -60,10 +58,10 @@ fn authority_shaped_report_is_check_clean() {
     assert!(diags.is_empty(), "{diags:?}");
 }
 
-/// The authority report lowers with zero `E6008` now that the host seam
-/// adopted the runtime boundary; the report lowers and advertises.
+/// Lowering reports exactly one `E6008` for the authority scope until the
+/// host seam adopts the runtime boundary; the diagnostic names that gap.
 #[test]
-fn authority_scope_lowers_without_e6008_after_host_seam() {
+fn authority_scope_keeps_single_e6008_naming_runtime_boundary() {
     let diags = check(AUTHORITY_SOURCE);
     assert!(diags.is_empty(), "{diags:?}");
     let mut db = SourceDb::new();
@@ -72,34 +70,15 @@ fn authority_scope_lowers_without_e6008_after_host_seam() {
         AUTHORITY_SOURCE.to_string(),
     );
     let (program, _) = check_program(&db, &[id], None);
-    let (ir, diags) = ir::build(&program, &db, None);
-    assert!(diags.is_empty(), "authority report lowers: {diags:?}");
-    let item = ir
-        .items
-        .iter()
-        .find(|item| item.canonical == "T.totals")
-        .expect("authority report lowers");
-    let IrItemKind::Scenario {
-        scope_authority, ..
-    } = &item.kind
-    else {
-        panic!("authority report stays a scenario");
-    };
-    assert!(*scope_authority, "IR keeps the checked authority fact");
-    let js_out = js::emit_program(&ir);
-    assert!(js_out.diagnostics.is_empty(), "{:?}", js_out.diagnostics);
+    let (_ir, diags) = ir::build(&program, &db, None);
+    assert_eq!(codes(&diags), vec!["E6008"], "{diags:?}");
     assert!(
-        js_out.entry.js.contains("scope:\"authority\""),
-        "§13 marker is published: {}",
-        js_out.entry.js
-    );
-    assert!(
-        js_out
-            .operations
-            .iter()
-            .any(|op| op.name == "T.totals"),
-        "grant is advertised: {:?}",
-        js_out.operations.iter().map(|op| &op.name).collect::<Vec<_>>()
+        diags[0].message.contains("scope=authority")
+            && diags[0].message.contains("T.totals")
+            && diags[0].message.contains("runtime authority boundary")
+            && diags[0].message.contains("decision-mode body")
+            && diags[0].message.contains("grant advertisement"),
+        "names the scoped scenario and its pending host-seam boundary: {diags:?}"
     );
 }
 
@@ -179,8 +158,8 @@ fn ir_marks_authority_scope_with_checked_correspondence() {
 /// Lane-A emission: the §13 operations descriptor keeps the
 /// `scope:"authority"` marker beside the granted result, the handler
 /// lowers the real decision-mode body (no throwing stub), and MCP
-/// advertises the grant with its DESIGN-522 description. No
-/// authority-report `E6008` remains after the host seam landed.
+/// advertises the grant with its DESIGN-522 description. `E6008` stays
+/// until the host seam adopts the runtime boundary.
 #[test]
 fn js_emits_decision_body_and_advertises_grant() {
     let mut db = SourceDb::new();
