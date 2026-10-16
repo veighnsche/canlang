@@ -7181,11 +7181,12 @@ fn t31_hook_run_shape() {
         js.contains("check(event.after.t !== \"x\");"),
         "guard:\n{js}"
     );
-    // Parented child: occurrence-qualified staged id (C21 repeat contract:
-    // triggerId/staged/<occurrence>[/<counter>], so distinct updates create
-    // distinct children while one operation's replay restages its same id).
+    // Parented child: operation-qualified staged id (C22 contract:
+    // triggerId/staged/<operationId>/<site>/<occurrence>[/<counter>], so
+    // distinct updates and distinct hooks create distinct children while
+    // one operation's replay restages its same id).
     assert!(
-        js.contains("const $can$l$303a63={id:$hookCtx.triggerId+\"/staged/\"+(($hookCtx.hookOccurrence??0))+($can$n$31===0?\"\":\"/\"+$can$n$31)};"),
+        js.contains("const $can$l$303a63={id:$hookCtx.triggerId+\"/staged/\"+(($hookCtx.operationId??\"0\"))+\"/\"+\"T.h\"+\"/\"+(($hookCtx.hookOccurrence??0))+($can$n$31===0?\"\":\"/\"+$can$n$31)};"),
         "staged id:\n{js}"
     );
     assert!(
@@ -7414,7 +7415,7 @@ fn t31_hook_structural_eq_supported() {
 fn t31_hook_stmt_backstops() {
     let ir = fixture_ir();
     let mut emitter = Emitter::new(&ir);
-    emitter.enter_hook(SymbolId(0), false);
+    emitter.enter_hook(SymbolId(0), false, "T.h");
     let delete = IrStmt::Delete {
         record: typed(
             IrExpr::Name("row".to_string()),
@@ -7482,7 +7483,7 @@ fn t31_hook_stmt_backstops() {
 fn t31_hook_expr_gaps() {
     let ir = fixture_ir();
     let mut emitter = Emitter::new(&ir);
-    emitter.enter_hook(SymbolId(0), false);
+    emitter.enter_hook(SymbolId(0), false, "T.h");
     let query = typed(
         IrExpr::Query(IrQuery {
             source: None,
@@ -7582,7 +7583,7 @@ fn t31_hook_derive_call_native_context() {
     );
     // Legacy hook: still a gap.
     let mut legacy = Emitter::new(&ir);
-    legacy.enter_hook(SymbolId(0), false);
+    legacy.enter_hook(SymbolId(0), false, "T.h");
     assert!(
         legacy.lower_expr(&call).contains("throw"),
         "legacy hook placeholder"
@@ -7596,7 +7597,7 @@ fn t31_hook_derive_call_native_context() {
     );
     // Native hook: lowers to `name(c,1n)` with no gap.
     let mut native = Emitter::new(&ir);
-    native.enter_hook(SymbolId(0), true);
+    native.enter_hook(SymbolId(0), true, "T.h");
     let text = native.lower_expr(&call);
     let (diags, _, _, _) = native.finish();
     assert!(
@@ -7646,7 +7647,7 @@ fn t31_hook_ambient_call_native_context() {
     ] {
         // Legacy hook: still a gap.
         let mut legacy = Emitter::new(&ir);
-        legacy.enter_hook(SymbolId(0), false);
+        legacy.enter_hook(SymbolId(0), false, "T.h");
         assert!(
             legacy.lower_expr(expr).contains("throw"),
             "legacy hook placeholder: {what}"
@@ -7660,7 +7661,7 @@ fn t31_hook_ambient_call_native_context() {
         );
         // Native hook: lowers with the ambient context, no gap.
         let mut native = Emitter::new(&ir);
-        native.enter_hook(SymbolId(0), true);
+        native.enter_hook(SymbolId(0), true, "T.h");
         let text = native.lower_expr(expr);
         let (diags, _, _, _) = native.finish();
         assert!(
@@ -7707,7 +7708,7 @@ fn t31_hook_delivery_format_native_context() {
     ] {
         // Legacy hook: still a gap.
         let mut legacy = Emitter::new(&ir);
-        legacy.enter_hook(SymbolId(0), false);
+        legacy.enter_hook(SymbolId(0), false, "T.h");
         assert!(
             legacy.lower_expr(expr).contains("throw"),
             "legacy hook placeholder: {what}"
@@ -7721,7 +7722,7 @@ fn t31_hook_delivery_format_native_context() {
         );
         // Native hook: lowers with the ambient context, no gap.
         let mut native = Emitter::new(&ir);
-        native.enter_hook(SymbolId(0), true);
+        native.enter_hook(SymbolId(0), true, "T.h");
         let text = native.lower_expr(expr);
         let (diags, _, _, _) = native.finish();
         assert!(
@@ -7748,7 +7749,7 @@ fn t31_hook_judgment_specification_unsupported() {
     );
     for native in [false, true] {
         let mut emitter = Emitter::new(&ir);
-        emitter.enter_hook(SymbolId(0), native);
+        emitter.enter_hook(SymbolId(0), native, "T.h");
         assert!(
             emitter.lower_expr(&judgment).contains("throw"),
             "hook placeholder (native={native})"
@@ -7872,8 +7873,10 @@ try {
     ] }));
   }
   const revSeeded = await store.readRevision();
+  const opId = '01999999-0000-7000-8000-0000000000e1';
+  const childId = 'c-1/staged/' + opId + '/T.h/0';
   const session = await beginOwnerMutation({ table, store,
-    context: pipelineContext({ operation: 'T.M.update' }),
+    context: pipelineContext({ operation: 'T.M.update', operationId: opId }),
     bounds: { maxWork: 1000, maxRows: 20 }, policies });
   await session.stage({ op: 'update', model: asModel('T.M'), id: asId('c-1'), data: { t: 'go' } },
     { cause: 'crud', input: { t: 'go' } });
@@ -7885,12 +7888,12 @@ try {
   const m = await store.load(asModel('T.M'), asId('c-1'));
   verdict.mVersion = m.version;
   verdict.mData = m.data;
-  const c = await store.load(asModel('T.C'), asId('c-1/staged/0'));
+  const c = await store.load(asModel('T.C'), asId(childId));
   verdict.childVersion = c.version;
   verdict.childParent = c.parent;
   verdict.childData = c.data;
   const histM = await store.historyFor(asModel('T.M'), asId('c-1'));
-  const histC = await store.historyFor(asModel('T.C'), asId('c-1/staged/0'));
+  const histC = await store.historyFor(asModel('T.C'), asId(childId));
   const lastM = histM[histM.length - 1];
   const lastC = histC[histC.length - 1];
   verdict.historyOps = [lastM?.operation, lastC?.operation];

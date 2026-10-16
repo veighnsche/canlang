@@ -1190,47 +1190,20 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
       consumeWork();
       const hookTag =
         `Hook ${JSON.stringify(hook.name)} on model ${JSON.stringify(def.model as string)}`;
-      // C21: checked hook occurrence ordinal for this fire. Committed
-      // update entries for the trigger from OTHER operations (self entries
-      // excluded via the recorded operation identity, so replay restages
-      // its same base) plus this operation's prior fires of the same hook.
-      // Non-birth creates from other operations adjust only when they
-      // consumed a slot without leaving an update entry (a committed
-      // create+update batch); the birth create itself never counts, so a
-      // first update keeps the historical base-0 staged id. Remove fires
-      // cannot stage, so they take only the session slot. One
-      // committed-history read per fire; the loops below are CPU over the
-      // fetched entries, covered by the per-fire work above.
+      // C22: per-operation hook-fire ordinal for this fire. Counts this
+      // operation's prior fires of the same hook on the same trigger, so
+      // a repeated trigger in one batch never restages an earlier fire's
+      // staged id. The full staged identity is derived downstream from the
+      // owning operation identity plus the emitter-embedded hook site plus
+      // this ordinal (no committed-history read per fire, no
+      // birth/create discounts): C21's scan could not distinguish two
+      // hooks on one fire, and its birth discount zeroed the first update
+      // after a staged birth. Remove fires cannot stage, so they take only
+      // the session slot.
       const fireKey = JSON.stringify([def.model, triggerId, hook.name]);
       const priorFires = hookFireCounts.get(fireKey) ?? 0;
       hookFireCounts.set(fireKey, priorFires + 1);
-      let hookOccurrence = priorFires;
-      if (op !== 'remove') {
-        const trail = await store.historyFor(def.model, triggerId);
-        let birthOp: string | null = null;
-        let birthVersion = Number.POSITIVE_INFINITY;
-        for (const entry of trail) {
-          if (entry.change === 'create' && entry.version < birthVersion) {
-            birthVersion = entry.version;
-            birthOp = entry.operationId as string;
-          }
-        }
-        let otherUpdates = 0;
-        let otherCreates = 0;
-        let birthOpHasUpdate = false;
-        for (const entry of trail) {
-          if (entry.operationId === stageContext.operationId) continue;
-          if (entry.change === 'update') {
-            otherUpdates += 1;
-            if (entry.operationId === birthOp) birthOpHasUpdate = true;
-          } else if (entry.change === 'create') {
-            otherCreates += 1;
-          }
-        }
-        const birthDiscount =
-          birthOp !== null && birthOp !== stageContext.operationId && !birthOpHasUpdate ? 1 : 0;
-        hookOccurrence += otherUpdates + Math.max(0, otherCreates - birthDiscount);
-      }
+      const hookOccurrence = priorFires;
       const forbidStagingOnRemove = (what: string): void => {
         if (op === 'remove') {
           throw new StateError(
@@ -1255,6 +1228,7 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
         now,
         triggerModel: def.model,
         triggerId,
+        operationId: stageContext.operationId,
         hookOccurrence,
         stage: (staged) => effect(() => {
           forbidStagingOnRemove('secondary writes');

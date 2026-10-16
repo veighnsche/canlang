@@ -3774,6 +3774,11 @@ struct HookState {
     /// Native hooks receive the ambient operation context (`c`) from the
     /// owning engine frame; legacy hooks bind no `c`.
     native: bool,
+    /// Checked hook site: the scenario canonical (e.g. `T.h`), embedded
+    /// in staged-create ids so distinct hooks on one fire stage distinct
+    /// children. Matches the runtime hook name by construction (the
+    /// descriptor id is the same canonical).
+    site: String,
 }
 
 /// Event-rooted alias class for hook bindings. Snapshots carry the full
@@ -4871,9 +4876,14 @@ impl<'a> Emitter<'a> {
     }
 
     /// Enter hook lowering for one trigger model: statements stage through
-    /// `$hookCtx` and ambient-context expressions report `E6008`.
-    pub fn enter_hook(&mut self, trigger: SymbolId, native: bool) {
-        self.hook = Some(HookState { trigger, native });
+    /// `$hookCtx` and ambient-context expressions report `E6008`. The site
+    /// is the hook scenario canonical, embedded in staged-create ids.
+    pub fn enter_hook(&mut self, trigger: SymbolId, native: bool, site: &str) {
+        self.hook = Some(HookState {
+            trigger,
+            native,
+            site: site.to_string(),
+        });
     }
 
     /// Leave hook lowering, restoring scenario lowering.
@@ -9900,16 +9910,28 @@ impl<'a> Emitter<'a> {
                 }
             }
         }
-        // C21 staged identity: `triggerId/staged/<occurrence>` for the
-        // first create of a fire, `.../<occurrence>/<counter>` after.
-        // The occurrence base is the owning runtime's checked hook
-        // occurrence (`$hookCtx.hookOccurrence`: committed other-operation
-        // updates plus this operation's prior fires of the same hook);
-        // `??0` keeps hand-built contexts on the historical base-0 identity.
+        // C22 staged identity: `triggerId/staged/<operationId>/<site>/`
+        // `<occurrence>` for the first create of a fire, with `/<counter>`
+        // after. The operation id is the owning runtime's immutable
+        // invocation identity (`$hookCtx.operationId`, recorded on every
+        // history entry), so distinct operations stage distinct children
+        // while replaying one operation restages its same ids; the site is
+        // this hook's checked canonical, so distinct hooks on one fire
+        // stage distinct children; the occurrence is this operation's
+        // prior-fire ordinal for the hook (`$hookCtx.hookOccurrence`), so
+        // a repeated trigger in one batch never restages an earlier fire.
+        // The `??` fallbacks keep hand-built contexts on a stable identity.
         let slot = binding_ident("n", &self.binding_seq.to_string());
         self.binding_seq += 1;
+        let site = js_string(
+            &self
+                .hook
+                .as_ref()
+                .map(|hook| hook.site.clone())
+                .unwrap_or_default(),
+        );
         let id_value = format!(
-            "$hookCtx.triggerId+\"/staged/\"+(($hookCtx.hookOccurrence??0))+({slot}===0?\"\":\"/\"+{slot})"
+            "$hookCtx.triggerId+\"/staged/\"+(($hookCtx.operationId??\"0\"))+\"/\"+{site}+\"/\"+(($hookCtx.hookOccurrence??0))+({slot}===0?\"\":\"/\"+{slot})"
         );
         let mut lines: Vec<(String, Span)> = match &id_ref {
             Some(name) => {
@@ -16681,7 +16703,7 @@ impl<'a> Emitter<'a> {
             );
             out.push(item.span, Some(item.canonical.clone()), "let $pending;");
             self.enter_scope();
-            self.enter_hook(hook.model, native);
+            self.enter_hook(hook.model, native, &item.canonical);
             for guard in guards {
                 for (line, span) in self.lower_stmt(guard, 0) {
                     out.push(span, Some(item.canonical.clone()), &line);

@@ -239,13 +239,26 @@ export interface InterimHookContext {
    */
   readonly triggerId: RecordId;
   /**
-   * C21: checked per-trigger hook occurrence ordinal. Counts committed
-   * update entries for the trigger record from OTHER operations (via their
-   * recorded operation identity) plus this operation's prior fires of the
-   * same hook, so each distinct admitted trigger of one record stages a
-   * distinct staged id while replaying one operation restages its same id.
-   * Optional so hand-built contexts keep today's base-0 identity; the
-   * pipeline always sets it and emitted hooks fall back to 0 when absent.
+   * C22: owning operation identity for staged-id derivation. The immutable
+   * invocation identity (recorded on every history entry) behind this hook
+   * fire, so staged children of different operations are distinct while
+   * replaying one operation restages its same ids. Optional so hand-built
+   * and foreign-bridged contexts keep working; the pipeline always sets it
+   * and emitted hooks fall back to "0" when absent.
+   */
+  readonly operationId?: string;
+  /**
+   * C22: per-operation hook-fire ordinal. Counts this operation's prior
+   * fires of the same hook on the same trigger (0 for the first fire), so
+   * a repeated trigger in one batch never restages an earlier fire's
+   * staged id. The staged identity is
+   * `triggerId/staged/<operationId>/<hook-site>/<occurrence>[/<counter>]`
+   * (emitter-embedded checked hook site plus this ordinal plus the
+   * per-fire create counter): same-operation replay restages its same ids
+   * and stays once-only, while different operations and different hooks
+   * stage distinct ids. Optional so hand-built contexts keep today's
+   * base-0 identity; the pipeline always sets it and emitted hooks fall
+   * back to 0 when absent.
    */
   readonly hookOccurrence?: number;
   /** Stage one secondary write for atomic commit with the trigger. */
