@@ -1736,6 +1736,13 @@ pub enum IrEventSource {
         source: String,
         result_type: String,
     },
+    /// Recurring tick `on=every(duration)` (DESIGN §6): UTC-epoch
+    /// aligned period in integer milliseconds. The handler infers its
+    /// data scope from owner-bound reads/writes; the tick itself
+    /// carries no event inputs.
+    Every {
+        interval_ms: i128,
+    },
     /// Fixed `on=instrumentation.error` source. The checker narrows
     /// no event fields for it, so the payload stays opaque and the
     /// invocation carries no inputs.
@@ -10198,6 +10205,12 @@ impl<'a> Cx<'a> {
             }
             Some(crate::analysis::effects::HandlerSource::DeliveryCompleted { capability, op }) => {
                 self.delivery_completion_source(*capability, *op)
+            }
+            // Recurring ticks keep their checked period; an unparseable
+            // duration keeps the §13 refusal (the checker already
+            // requires a duration literal at E3010).
+            Some(crate::analysis::effects::HandlerSource::Every { duration }) => {
+                duration_millis(duration).map(|interval_ms| IrEventSource::Every { interval_ms })
             }
             Some(crate::analysis::effects::HandlerSource::InstrumentationError) => {
                 Some(IrEventSource::InstrumentationError)
