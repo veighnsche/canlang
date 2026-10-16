@@ -15,8 +15,8 @@
 //! inventory (no decoding wrapper, no truthiness, no cross-kind
 //! coercion).
 //!
-//! What stays refused with exact codes (28 pins: 10 admission/emission,
-//! 18 refusals): the frozen original24 capture's ~50 enum-filter
+//! What stays refused with exact codes (31 pins: 11 admission/emission,
+//! 20 refusals): the frozen original24 capture's ~50 enum-filter
 //! occurrences remain refused — every table/list/board/calendar filter
 //! refusal bottoms out on a genuinely unsupported selector
 //! (model-reference `location`, text `bucket`/`category`/`skill`, int
@@ -344,6 +344,50 @@ fn dotted_path_selector_refuses() {
 fn enum_filter_with_lambda_where_conjoins_at_lowering() {
     assert_lowers(
         "app Probe\nGiven\n Customer { name:text, nick:text, kind:enum(individual,company)=individual }\n policy Customer read=public\nWhen\nThen\n preferences { kind:Customer.kind? }\n page /customers title=\"Customers\"\n  list Customer as c where c.name==c.nick columns=name,kind filter=kind defaults={kind=preferences.kind}\n",
+    );
+}
+
+/// E5 reuse on boards (CAN18-v1 board/calendar filter batch): the same
+/// field-to-field Lambda `where` conjoins with admitted board enum+bool
+/// selectors. No board-specific veto, no mechanism change; column and
+/// grouping validation is unchanged. The pin is childless (cards render
+/// from columns): authored row children on boards are a separate
+/// card-content gap outside this batch. Recorded CanCRM/CanExpense/
+/// CanField boards stay refused below on their model-reference/text/date
+/// selectors, which are outside the enum-selector batch.
+#[test]
+fn board_enum_filter_with_lambda_where_conjoins_at_lowering() {
+    assert_lowers(
+        "app Probe\nGiven\n Customer { name:text, nick:text, kind:enum(individual,company)=individual, active:bool=true }\n policy Customer read=public\nWhen\nThen\n preferences { kind:Customer.kind?, active:bool? }\n page /customers title=\"Customers\"\n  board Customer as c where c.name==c.nick by=kind columns=name,active filter=kind,active defaults={kind=preferences.kind,active=preferences.active}\n",
+    );
+}
+
+/// Recorded CanCRM/CanExpense/CanField board shape: a stored-model
+/// reference is not a finite-choice selector even with a matching
+/// model-typed preference and default, so the E5 conjunction cannot
+/// cover the board. Both stages keep their exact E6008 refusals.
+#[test]
+fn board_model_reference_selector_refuses() {
+    let source = "app Probe\nGiven\n Location { name:text }\n Customer { name:text, kind:enum(individual,company)=individual, site:Location }\n policy Location read=public\n policy Customer read=public\nWhen\nThen\n preferences { kind:Customer.kind? }\n page /customers title=\"Customers\"\n  board Customer by=kind columns=name filter=site,kind defaults={kind=preferences.kind}\n";
+    assert_refuses(source, "E6008", "board filters need distinct checked owned enum fields");
+    assert_refuses(
+        source,
+        "E6008",
+        "cannot lower board filters: enum fields and defaults need matching owned declarations and data-only where",
+    );
+}
+
+/// Recorded CanShift/CanLeave/CanField calendar shape: a stored-model
+/// reference is not a finite-choice selector even with a matching
+/// model-typed preference and default, so the E5 conjunction cannot
+/// cover the agenda. The checker keeps its exact E6008 refusal (a
+/// refused calendar filter keeps the checker refusal alone).
+#[test]
+fn calendar_model_reference_selector_refuses() {
+    assert_refuses(
+        "app Probe\nGiven\n Location { name:text }\n Job { title:text, from:datetime, until:datetime, site:Location, state:enum(open,closed)=open }\n policy Location read=public\n policy Job read=public\nWhen\nThen\n preferences { state:Job.state? }\n page /agenda title=\"Agenda\"\n  calendar Job start=from end=until filter=site,state defaults={state=preferences.state}\n   badge row.state\n",
+        "E6008",
+        "calendar filters need distinct checked owned enum fields",
     );
 }
 
