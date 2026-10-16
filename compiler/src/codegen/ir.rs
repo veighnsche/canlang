@@ -1475,6 +1475,23 @@ pub struct CheckedPageTimePredicate {
 }
 
 impl CheckedPageTimePredicate {
+    /// Exact checked correspondence for the render seal: every recorded
+    /// part must match, so two predicates correspond only when they name
+    /// the same model field, comparison, source spans, and paging support.
+    /// The ambient `now` instant itself is bound at render time, never
+    /// sealed here.
+    pub(crate) fn corresponds(&self, other: &Self) -> bool {
+        self.model == other.model
+            && self.model_name == other.model_name
+            && self.field == other.field
+            && self.field_name == other.field_name
+            && self.field_span == other.field_span
+            && self.operation == other.operation
+            && self.collection_span == other.collection_span
+            && self.predicate_span == other.predicate_span
+            && self.pagination == other.pagination
+            && self.source_paging_supported == other.source_paging_supported
+    }
     pub(crate) fn checked_parts<'a>(
         &'a self,
         ir: &IrProgram,

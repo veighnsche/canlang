@@ -743,3 +743,129 @@ await protectedPage.admit(external,{});
         String::from_utf8_lossy(&output.stderr)
     );
 }
+
+/// staff/can_work membership observations lower with their source closure
+/// (CAN18-v1 lane A): the original shared/Employees.can derive bodies
+/// (`staff`/`can_work` over `Employee` with `active_member`) and read-policy
+/// shapes, consumed both inline and through an imported helper, compile
+/// clean with no membership diagnostics, lower every `active_member`
+/// observation inline with its source closure, and carry the membership
+/// sources with the assembly. Runtime grant/denial/revocation behavior is
+/// proven separately by the real compiled-Can host/State/Identity consumer
+/// (`native-staff-can-work.integration.test.ts`); this test fabricates no
+/// runtime and stubs nothing.
+#[test]
+fn staff_can_work_membership_observations_lower_with_source_closure() {
+    const CATALOG_JSON: &str = r#"{"language_version":"1.0","catalog_version":"0.1.0","entries":[{"id":"active_member","js":"active_member","owner":"lane-03","kind":"builtin","signature":"active_member(person:user,team:Team)->bool","effects":"state-read","availability":"external"},{"id":"any","js":"any","owner":"lane-02","kind":"builtin","signature":"any(domain:C<T> as x,predicate:bool in x scope)->bool","effects":"pure","availability":"implemented"}]}"#;
+    // Same derive bodies and read-policy shapes as shared/Employees.can; the
+    // model keeps every field the permission logic reads.
+    const EMPLOYEES: &str = "package employee\n Given\n  export Location {name:text}\n  export Employee {user:user unique,name:text,home:Location,locations:Location[],operator_wide:bool=false,active:bool=true,role:text}\n  export derive staff(person:user):bool = any(Employee as e,e.user==person and e.active and active_member(person,team))\n  export derive can_work(person:user,location:Location):bool = any(Employee as e,e.user==person and e.active and active_member(person,team) and (e.operator_wide or e.home==location or location in e.locations))\n  policy Employee read=members and staff(actor) fields=user,name,home,locations,operator_wide,active,role\n When\n  scenario deactivate(employee:Employee) by=members\n   require staff(actor)\n   do set employee {active=false}\n Then\n";
+    const CONSUMER: &str = "app Probe uses=[shop]\npackage shop\n use employee {staff,can_work,Employee,Location}\n Given\n  Entry {owner:user,site:Location}\n  derive crew(person:user,place:Location):bool = can_work(person,place)\n  policy Entry read=members and staff(actor)\n  policy Entry read=members and crew(actor,row.site)\n When\n  scenario touch(entry:Entry) by=members\n   require staff(actor)\n   do let x = 1\n Then\n  page /entries title=\"Entries\"\n   list Entry as e where actor!=null and staff(actor)\n    text \"hi\"\n";
+    let dir = tempfile::tempdir().unwrap();
+    let catalog_path = dir.path().join("catalog.json");
+    std::fs::write(&catalog_path, CATALOG_JSON).unwrap();
+    let mut db = SourceDb::new();
+    let anchor = db.add("anchor.can".into(), String::new());
+    let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+        flag: Some(&catalog_path),
+        env: None,
+        cwd: dir.path(),
+        primary: Span::new(anchor, 0, 0),
+    });
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let catalog = catalog.unwrap();
+    let employees = db.add("employees.can".into(), EMPLOYEES.into());
+    let consumer = db.add("consumer.can".into(), CONSUMER.into());
+    let (program, diagnostics) = check_program(&db, &[employees, consumer], Some(&catalog));
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let mut result = DiagnosticResult::new("staff-can-work", LANGUAGE_VERSION, SCHEMA_VERSION);
+    result.add_sources(&db);
+    result.complete = true;
+    let mut options = EmitOptions::new();
+    options.native_scenario_receipts = true;
+    let (artifact, diagnostics) = emit(
+        &program,
+        &EmitSources {
+            db: &db,
+            result: &result,
+            catalog: Some(&catalog),
+            options,
+        },
+    );
+    let membership: Vec<_> = diagnostics
+        .iter()
+        .filter(|diagnostic| {
+            diagnostic.message.contains("membership observation")
+                || diagnostic.message.contains("active_member")
+        })
+        .collect();
+    assert!(membership.is_empty(), "{diagnostics:?}");
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let entry = artifact
+        .modules
+        .iter()
+        .find(|module| module.js.contains("export function canApp"))
+        .expect("entry module");
+    assert!(
+        entry.js.contains("await active_member(c,"),
+        "observations lower inline with their source closure"
+    );
+    assert!(
+        entry.js.contains("export function canMembershipSources()"),
+        "membership sources travel with the assembly"
+    );
+}
+
+#[test]
+fn data_only_gaps_keep_membership_seal_without_masking() {
+    const CATALOG_JSON: &str = r#"{"language_version":"1.0","catalog_version":"0.1.0","entries":[{"id":"active_member","js":"active_member","owner":"lane-03","kind":"builtin","signature":"active_member(person:user,team:Team)->bool","effects":"state-read","availability":"external"},{"id":"any","js":"any","owner":"lane-02","kind":"builtin","signature":"any(domain:C<T> as x,predicate:bool in x scope)->bool","effects":"pure","availability":"implemented"}]}"#;
+    const EMPLOYEES: &str = "package employee\n Given\n  export Location {name:text}\n  export Employee {user:user unique,name:text,home:Location,locations:Location[],operator_wide:bool=false,active:bool=true,role:text}\n  export derive staff(person:user):bool = any(Employee as e,e.user==person and e.active and active_member(person,team))\n  export derive can_work(person:user,location:Location):bool = any(Employee as e,e.user==person and e.active and active_member(person,team) and (e.operator_wide or e.home==location or location in e.locations))\n  policy Employee read=members and staff(actor) fields=user,name,home,locations,operator_wide,active,role\n When\n  scenario deactivate(employee:Employee) by=members\n   require staff(actor)\n   do set employee {active=false}\n Then\n";
+    const CONSUMER: &str = "app Probe uses=[shop]\npackage shop\n use employee {staff,can_work,Employee,Location}\n Given\n  Entry {owner:user,site:Location,stage:enum(open,done)=open,when:datetime}\n  policy Entry read=members and staff(actor)\n When\n  scenario touch(entry:Entry) by=members\n   require staff(actor)\n   do let x = 1\n Then\n  page /entries title=\"Entries\"\n   list Entry as e where actor!=null and staff(actor)\n    text \"hi\"\n  page /board title=\"Board\"\n   board Entry as e by=stage filter=site\n  page /soon title=\"Soon\"\n   table Entry as e where e.when>=now columns=site\n    text \"hi\"\n";
+    let dir = tempfile::tempdir().unwrap();
+    let catalog_path = dir.path().join("catalog.json");
+    std::fs::write(&catalog_path, CATALOG_JSON).unwrap();
+    let mut db = SourceDb::new();
+    let anchor = db.add("anchor.can".into(), String::new());
+    let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+        flag: Some(&catalog_path),
+        env: None,
+        cwd: dir.path(),
+        primary: Span::new(anchor, 0, 0),
+    });
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let catalog = catalog.unwrap();
+    let employees = db.add("employees.can".into(), EMPLOYEES.into());
+    let consumer = db.add("consumer.can".into(), CONSUMER.into());
+    let (program, diagnostics) = check_program(&db, &[employees, consumer], Some(&catalog));
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let mut result = DiagnosticResult::new("data-only-gaps", LANGUAGE_VERSION, SCHEMA_VERSION);
+    result.add_sources(&db);
+    result.complete = true;
+    let mut options = EmitOptions::new();
+    options.native_scenario_receipts = true;
+    let (_artifact, diagnostics) = emit(
+        &program,
+        &EmitSources {
+            db: &db,
+            result: &result,
+            catalog: Some(&catalog),
+            options,
+        },
+    );
+    // The board filter over a model reference has no owned-enum profile, so
+    // its own E6008 stays loud; the membership seal must still succeed.
+    assert!(
+        diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.message.contains("board filters")),
+        "unsupported board filter stays reported: {diagnostics:?}"
+    );
+    let membership: Vec<_> = diagnostics
+        .iter()
+        .filter(|diagnostic| {
+            diagnostic.message.contains("membership observation")
+                || diagnostic.message.contains("active_member")
+        })
+        .collect();
+    assert!(membership.is_empty(), "{diagnostics:?}");
+}

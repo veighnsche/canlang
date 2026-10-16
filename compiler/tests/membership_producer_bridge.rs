@@ -163,6 +163,37 @@ fn unrelated_ir_refusal_keeps_bound_observations() {
     );
 }
 
+/// Original24 scale: unrelated bulk source must not spend the membership
+/// seal's finite index budget. A small staff/can_work owner beside 200k+
+/// unrelated CST nodes still binds every active_member observation to its
+/// defining State producer.
+#[test]
+fn unrelated_bulk_source_keeps_bound_observations() {
+    let (_dir, catalog) = load_test_catalog();
+    let noise = format!(
+        "package Noise\n Given\n{} When\n Then\n",
+        "  ## unrelated source\n".repeat(200_001)
+    );
+    let (db, program) = check_sources(
+        &[
+            ("employees.can", EMPLOYEES_FILE),
+            ("consumer.can", CONSUMER_FILE),
+            ("noise.can", &noise),
+        ],
+        &catalog,
+    );
+    let (js, codes) = emit_js(&db, &program, &catalog);
+    let membership = membership_codes(&codes);
+    assert!(
+        membership.is_empty(),
+        "bound observations resolve beside bulk source, got: {membership:?} (all: {codes:?})"
+    );
+    assert!(
+        js.contains("await active_member(c,"),
+        "observations lower inline with their source closure"
+    );
+}
+
 /// Clean closure: bound observations lower with no diagnostics at all.
 #[test]
 fn clean_closure_resolves_defining_owner() {

@@ -1,0 +1,14 @@
+package employee
+ Given
+  export Location {name:text}
+  export Employee {user:user unique,name:text,home:Location,locations:Location[],operator_wide:bool=false,active:bool=true,role:text}
+  export derive staff(person:user):bool = any(Employee as e,e.user==person and e.active and active_member(person,team))
+  export derive can_work(person:user,location:Location):bool = any(Employee as e,e.user==person and e.active and active_member(person,team) and (e.operator_wide or e.home==location or location in e.locations))
+  policy Employee read=members and staff(actor) fields=user,name,home,locations,operator_wide,active,role
+ When
+  ## Neutral scenario: require-staff scenario owners need runtime-lane
+  ## membership transports (no field consumption to disclose), so the
+  ## derive-behavior proof below keeps scenarios staff-free.
+  scenario ping() by=members
+   do let x = 1
+ Then

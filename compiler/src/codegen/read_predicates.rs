@@ -137,15 +137,9 @@ pub(super) fn prepare_with_context(
     {
         return None;
     }
-    let mut nodes = HashMap::new();
-    for (_, tree) in trees {
-        for node in tree.descendants() {
-            if nodes.len() >= 200000 {
-                return None;
-            }
-            nodes.insert(NodeKey::of(node), node);
-        }
-    }
+    // Only the sealed pages spend the finite lookup budget. Unrelated
+    // Given/When bulk remains in the checked/fresh cohort unvisited.
+    let mut seal_steps = 0usize;
     let mut predicates = HashMap::new();
     for module in &ir.modules {
         let source = db.get(module.file)?;
@@ -158,12 +152,19 @@ pub(super) fn prepare_with_context(
             return None;
         }
         for page in &module.pages {
-            let page_node = nodes.get(&NodeKey {
-                file: page.span.file,
-                start: page.span.start,
-                end: page.span.end,
-                kind: SyntaxKind::Page as u8,
-            })?;
+            // The sealed page subtree carries this owner's CST; a missing
+            // anchor refuses exactly like the previous whole-tree lookup did.
+            let (_, tree) = trees.iter().find(|(file, _)| *file == page.span.file)?;
+            let page_node = super::scenario_decisions::find_page_root(
+                tree,
+                NodeKey {
+                    file: page.span.file,
+                    start: page.span.start,
+                    end: page.span.end,
+                    kind: SyntaxKind::Page as u8,
+                },
+                &mut seal_steps,
+            )?;
             if page.owner != module.name || !contains(module.span, page.span) {
                 return None;
             }
@@ -193,12 +194,16 @@ pub(super) fn prepare_with_context(
                 let IrExpr::Lambda { body, .. } = &predicate.expr else {
                     return None;
                 };
-                let collection = nodes.get(&NodeKey {
-                    file: ui.span.file,
-                    start: ui.span.start,
-                    end: ui.span.end,
-                    kind: SyntaxKind::Collection as u8,
-                })?;
+                let collection = super::scenario_decisions::find_page_key(
+                    page_node,
+                    NodeKey {
+                        file: ui.span.file,
+                        start: ui.span.start,
+                        end: ui.span.end,
+                        kind: SyntaxKind::Collection as u8,
+                    },
+                    &mut seal_steps,
+                )?;
                 let mut queries = kids(collection)
                     .into_iter()
                     .filter(|n| n.kind == SyntaxKind::Query);
@@ -231,8 +236,13 @@ pub(super) fn prepare_with_context(
                 let [key] = clause.expressions.as_slice() else {
                     return None;
                 };
-                let expression = nodes.get(key)?;
-                let source_clause = nodes.get(&clause.node)?;
+                let expression =
+                    super::scenario_decisions::find_page_key(page_node, *key, &mut seal_steps)?;
+                let source_clause = super::scenario_decisions::find_page_key(
+                    page_node,
+                    clause.node,
+                    &mut seal_steps,
+                )?;
                 if clauses.next().is_some()
                     || source_clause.kind != SyntaxKind::QueryClause
                     || !kids(query).iter().any(|n| NodeKey::of(n) == clause.node)

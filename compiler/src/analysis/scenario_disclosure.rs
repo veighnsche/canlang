@@ -1083,6 +1083,74 @@ pub(super) fn analyze_scenario_disclosure_with_catalog<'a>(
 /// Collect original read/where expressions from a clean checked source cohort.
 /// The ordinal belongs to the owning model's authored policy order. These
 /// bounded facts identify selected calls and grant no runtime authority.
+/// The selected helper closure: every derive body the checked decision walk
+/// may descend into from a sealed read. Derive bodies are small one-step
+/// helpers; the Given/When bulk around them stays unindexed.
+fn helper_closure_keys(effects: &EffectTables) -> HashSet<NodeKey> {
+    let mut required = HashSet::new();
+    for data in effects.derives.values() {
+        required.extend(data.expr);
+        for param in &data.params {
+            required.extend(param.default);
+        }
+    }
+    required
+}
+
+/// Exact-consumed CST scope for one seal read: the required anchors plus the
+/// selected helper closure. Unrelated bulk never spends the finite node
+/// budget (same 200k entries/depth 256 bounds); a missing anchor refuses
+/// exactly like the previous whole-tree map did.
+fn pruned_closure_nodes<'t>(
+    trees: &'t [(SourceId, SyntaxNode)],
+    anchors: &HashSet<NodeKey>,
+    effects: &EffectTables,
+) -> Option<HashMap<NodeKey, &'t SyntaxNode>> {
+    let mut required = anchors.clone();
+    required.extend(helper_closure_keys(effects));
+    let contains = |node: &SyntaxNode, key: &NodeKey| {
+        node.span.file == key.file && node.span.start <= key.start && node.span.end >= key.end
+    };
+    fn index_subtree<'t>(
+        node: &'t SyntaxNode,
+        depth: usize,
+        nodes: &mut HashMap<NodeKey, &'t SyntaxNode>,
+    ) -> Option<()> {
+        let mut pending = vec![(node, depth)];
+        while let Some((node, depth)) = pending.pop() {
+            if nodes.len() >= 200000 || depth > 256 {
+                return None;
+            }
+            nodes.insert(NodeKey::of(node), node);
+            pending.extend(node.children.iter().map(|child| (child, depth + 1)));
+        }
+        Some(())
+    }
+    let mut nodes = HashMap::new();
+    for (_, tree) in trees {
+        if !required.iter().any(|key| contains(tree, key)) {
+            continue;
+        }
+        let mut pending = vec![(tree, 0usize)];
+        while let Some((node, depth)) = pending.pop() {
+            if nodes.len() >= 200000 || depth > 256 {
+                return None;
+            }
+            if required.contains(&NodeKey::of(node)) {
+                index_subtree(node, depth, &mut nodes)?;
+                continue;
+            }
+            pending.extend(
+                node.children
+                    .iter()
+                    .filter(|child| required.iter().any(|key| contains(child, key)))
+                    .map(|child| (child, depth + 1)),
+            );
+        }
+    }
+    Some(nodes)
+}
+
 pub fn checked_read_decision_sites(
     db: &SourceDb,
     trees: &[(SourceId, SyntaxNode)],
@@ -1103,18 +1171,12 @@ pub fn checked_read_decision_sites(
     {
         return None;
     }
-    let mut nodes = HashMap::new();
-    let mut pending = trees
-        .iter()
-        .map(|(_, tree)| (tree, 0usize))
-        .collect::<Vec<_>>();
-    while let Some((node, depth)) = pending.pop() {
-        if nodes.len() >= 200000 || depth > 256 {
-            return None;
-        }
-        nodes.insert(NodeKey::of(node), node);
-        pending.extend(node.children.iter().map(|child| (child, depth + 1)));
-    }
+    // Only this policy plus the selected helper closure spend the finite
+    // node budget. Unrelated bulk remains in the checked cohort unindexed.
+    let mut anchors = HashSet::from([policy.node]);
+    anchors.extend(policy.read);
+    anchors.extend(policy.where_predicate);
+    let nodes = pruned_closure_nodes(trees, &anchors, effects)?;
     let node = nodes.get(&policy.node)?;
     let text = &db.get(policy.node.file)?.text;
     if node.kind != SyntaxKind::Policy
@@ -1234,18 +1296,10 @@ pub fn checked_read_predicate_site(
     {
         return None;
     }
-    let mut nodes = HashMap::new();
-    let mut pending = trees
-        .iter()
-        .map(|(_, tree)| (tree, 0usize))
-        .collect::<Vec<_>>();
-    while let Some((node, depth)) = pending.pop() {
-        if nodes.len() >= 200000 || depth > 256 {
-            return None;
-        }
-        nodes.insert(NodeKey::of(node), node);
-        pending.extend(node.children.iter().map(|child| (child, depth + 1)));
-    }
+    // Only this page, query and predicate plus the selected helper closure
+    // spend the finite node budget. Unrelated bulk remains unindexed.
+    let anchors = HashSet::from([page, query, *predicate]);
+    let nodes = pruned_closure_nodes(trees, &anchors, effects)?;
     if nodes.get(&page)?.kind != SyntaxKind::Page
         || nodes.get(&query)?.kind != SyntaxKind::Query
         || nodes.get(&clause.node)?.kind != SyntaxKind::QueryClause
@@ -1351,18 +1405,9 @@ pub fn collect_read_calls(
     module: ModuleId,
     predicate: NodeKey,
 ) -> Option<CollectedReadCalls> {
-    let mut nodes = HashMap::new();
-    let mut pending = trees
-        .iter()
-        .map(|(_, tree)| (tree, 0usize))
-        .collect::<Vec<_>>();
-    while let Some((node, depth)) = pending.pop() {
-        if nodes.len() >= 200000 || depth > 256 {
-            return None;
-        }
-        nodes.insert(NodeKey::of(node), node);
-        pending.extend(node.children.iter().map(|child| (child, depth + 1)));
-    }
+    // Only this predicate plus the selected helper closure spend the finite
+    // node budget. Unrelated bulk remains in the checked cohort unindexed.
+    let nodes = pruned_closure_nodes(trees, &HashSet::from([predicate]), effects)?;
     let cx = Closure {
         catalog: None,
         db,
