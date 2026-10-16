@@ -3976,19 +3976,20 @@ pub struct Emitter<'a> {
     relative: BTreeMap<String, BTreeSet<String>>,
     /// Checked derive calls used by this emitter; example modules link them to their real owner.
     derive_calls: BTreeSet<String>,
-    /// Derive canonicals actually selected for hook-variant calls (a hook
-    /// linkage call site, or a nested linkage call inside another selected
-    /// hook-variant body, resolved to the `Hook` shape). Only these lower
-    /// an `h$…` variant: emitting a variant for every stored-record derive
-    /// would lower hook-only restrictions over ordinary helpers no hook
-    /// ever calls, reporting `E6008` at previously-clean sites.
-    hook_variant_selected: BTreeSet<String>,
-    /// CAN18-v1 reference variants: subset of `hook_variant_selected`
-    /// whose selecting call sites carried reference linkages (file 14
-    /// first shape). Parent variants stay in `selected` only. A derive
-    /// selected for both kinds at different sites stays fail-closed at
-    /// the second site (see `hook_derive_call`) so one emitted variant
-    /// never mixes loaders.
+    /// Derive canonicals selected for parent-loader hook variants (a hook
+    /// parent-linkage call site, or a nested linkage call inside a parent
+    /// variant body). Only selected canonicals lower an `h$…` variant:
+    /// emitting a variant for every stored-record derive would lower
+    /// hook-only restrictions over ordinary helpers no hook ever calls,
+    /// reporting `E6008` at previously-clean sites. Disjoint from
+    /// `hook_variant_reference`: one helper reused across both linkages
+    /// lowers one parent variant plus one reference variant (per-use
+    /// selection), never one mixed-loader variant.
+    hook_variant_parent: BTreeSet<String>,
+    /// CAN18-v1 reference variants: canonicals whose selecting call sites
+    /// carried reference linkages (file 14 first shape). Disjoint from
+    /// `hook_variant_parent`; each kind emits its own loader variant
+    /// (`load` vs `loadReference`) at its inherited site.
     hook_variant_reference: std::collections::HashSet<String>,
     diags: Vec<Diagnostic>,
     builtins: Vec<ReferencedBuiltin>,
@@ -4240,7 +4241,7 @@ impl<'a> Emitter<'a> {
             original_ui_rows: Vec::new(),
             relative: BTreeMap::new(),
             derive_calls: BTreeSet::new(),
-            hook_variant_selected: BTreeSet::new(),
+            hook_variant_parent: BTreeSet::new(),
             hook_variant_reference: std::collections::HashSet::new(),
             diags: Vec::new(),
             builtins: Vec::new(),
@@ -5892,20 +5893,22 @@ impl<'a> Emitter<'a> {
         if self.hook_closure_depth != 0 {
             return HookDerive::Refuse;
         }
-        let Some(variant) = self.derive_hook_variant(canonical) else {
-            return HookDerive::Refuse;
-        };
         if helper {
             // Nested linkage inside a variant body inherits the outer
             // variant's loader kind (parent vs reference) via
             // `hook_helper_reference` at emission; the inner selection
-            // carries that kind forward so mixed nesting stays fail-closed
-            // at the call site below.
-            return HookDerive::Hook((variant, "$hookSite".to_string(), self.hook_helper_reference));
+            // carries that kind forward so each kind emits its own
+            // loader variant.
+            let is_reference = self.hook_helper_reference;
+            let Some(variant) = self.derive_hook_variant(canonical, is_reference) else {
+                return HookDerive::Refuse;
+            };
+            return HookDerive::Hook((variant, "$hookSite".to_string(), is_reference));
         }
         // Top-level hook-body call: classify parent vs reference linkages.
         // Mixed kinds in one call stay fail-closed — one emitted variant
-        // never mixes loaders.
+        // never mixes loaders. The same helper reused across calls with
+        // different kinds lowers one variant per kind (per-use selection).
         let has_parent = args.iter().any(|arg| {
             self.hook_helper_links.is_none()
                 && self.in_hook()
@@ -5915,12 +5918,16 @@ impl<'a> Emitter<'a> {
         if has_parent && has_reference {
             return HookDerive::Refuse;
         }
+        let is_reference = has_reference;
+        let Some(variant) = self.derive_hook_variant(canonical, is_reference) else {
+            return HookDerive::Refuse;
+        };
         let site = if self.hook_decision_depth > 0 {
             "\"decision\""
         } else {
             "\"value\""
         };
-        HookDerive::Hook((variant, site.to_string(), has_reference))
+        HookDerive::Hook((variant, site.to_string(), is_reference))
     }
 
     /// One stored-record parameter's hook linkage: source name plus the
@@ -5947,10 +5954,14 @@ impl<'a> Emitter<'a> {
         Some((item.name.clone(), *symbol, model.canonical.clone()))
     }
 
-    /// Hook-variant name for one derive canonical, when it carries a
-    /// stored-record parameter. Selection and emission share this
-    /// predicate exactly: a selected variant is always emitted.
-    fn derive_hook_variant(&self, canonical: &str) -> Option<String> {
+    /// Hook-variant name for one derive canonical plus loader kind, when it
+    /// carries a stored-record parameter. Selection and emission share this
+    /// predicate exactly: a selected (canonical, kind) pair is always
+    /// emitted. Parent variants keep the existing `hook` domain; reference
+    /// variants use the distinct `hookref` domain so one helper reused
+    /// across both linkages emits one loader-correct variant per use, each
+    /// inheriting its call-site decision/value site.
+    fn derive_hook_variant(&self, canonical: &str, is_reference: bool) -> Option<String> {
         let index = self.by_canonical.get(canonical)?;
         let item = self.ir.items.get(*index)?;
         if item.canonical != *canonical {
@@ -5962,7 +5973,12 @@ impl<'a> Emitter<'a> {
         params
             .iter()
             .any(|id| self.derive_hook_link(*id).is_some())
-            .then(|| binding_ident("hook", &item.canonical))
+            .then(|| {
+                binding_ident(
+                    if is_reference { "hookref" } else { "hook" },
+                    &item.canonical,
+                )
+            })
     }
 
     /// Linkage reads inside hook-variant helper bodies (`loc.field` where
@@ -8335,33 +8351,20 @@ impl<'a> Emitter<'a> {
                         return self.throw_expr("unsupported hook derive linkage");
                     }
                     HookDerive::Hook((variant, site, is_reference)) => {
-                        // One variant never mixes loaders: a derive selected
-                        // for both parent and reference linkages at different
-                        // sites stays fail-closed at the second site.
-                        if self.hook_variant_selected.contains(canonical) {
-                            let was_reference = self.hook_variant_reference.contains(canonical);
-                            if was_reference != is_reference {
-                                self.unsupported(
-                                    "hook derive call",
-                                    "linkage arguments need their record-parameter hook variant",
-                                    span,
-                                );
-                                return self.throw_expr("unsupported hook derive linkage");
-                            }
+                        // Per-use variant selection: the same helper reused
+                        // across parent and reference linkages records one
+                        // loader-correct variant per kind; each emitted
+                        // variant never mixes loaders.
+                        if is_reference {
+                            self.hook_variant_reference.insert(canonical.clone());
                         } else {
-                            self.hook_variant_selected.insert(canonical.clone());
-                            if is_reference {
-                                self.hook_variant_reference.insert(canonical.clone());
-                            }
+                            self.hook_variant_parent.insert(canonical.clone());
                         }
                         // Nested linkage inside a variant body inherits the
-                        // outer kind: the inner selection already carried it
-                        // above, and the same mixed check applies — but the
-                        // inner `selected` bookkeeping above used the call
-                        // site's own record; for `helper` (nested) calls the
-                        // outer `hook_helper_reference` already decided the
-                        // loader, so no extra bookkeeping beyond the shared
-                        // selected/reference sets is needed here.
+                        // outer kind via the `Hook` payload above, so the
+                        // per-kind bookkeeping here already carries it —
+                        // no extra handling beyond the parent/reference
+                        // sets is needed.
                         self.derive_calls.insert(canonical.clone());
                         let mut all = vec!["c".to_string(), site];
                         all.extend(parts.iter().cloned());
@@ -17831,40 +17834,59 @@ impl<'a> Emitter<'a> {
     }
 
     /// Selected hook-variant emission: only derives actually selected by a
-    /// hook linkage call site lower `h$…(c,$hookSite,…params)`. This runs
-    /// after [`Emitter::emit_can_app`] because hook bodies (the selecting
-    /// call sites) lower inside the hooks registry there, not during page
-    /// lowering. The worklist then runs to a fixpoint in source order:
-    /// nested selections discovered while emitting variants (transitive
-    /// required callees) emit exactly once, and ordinary record helpers no
-    /// hook calls keep only their pure variant with zero hook diagnostics.
-    /// Linkage reads go through `c.transitive` at the inherited site
-    /// (helpers inherit the consuming decision/value site); everything
-    /// else lowers exactly like the pure variant. Module-internal (hook
-    /// call sites share the scope), so never exported. Top-level function
+    /// hook linkage call site lower `h$…(c,$hookSite,…params)` (parent
+    /// loader) or the reference-loader twin (same signature, distinct
+    /// `hookref` name). This runs after [`Emitter::emit_can_app`] because
+    /// hook bodies (the selecting call sites) lower inside the hooks
+    /// registry there, not during page lowering. The worklist then runs to
+    /// a fixpoint in source order: nested selections discovered while
+    /// emitting variants (transitive required callees) emit exactly once
+    /// per (canonical, kind), and ordinary record helpers no hook calls
+    /// keep only their pure variant with zero hook diagnostics. Linkage
+    /// reads go through `c.transitive` at the inherited site (helpers
+    /// inherit the consuming decision/value site); everything else lowers
+    /// exactly like the pure variant. Module-internal (hook call sites
+    /// share the scope), so never exported. Top-level function
     /// declarations hoist, so definitions here resolve the earlier hook
     /// call sites exactly as when they were interleaved.
     fn emit_hook_variants(&mut self, out: &mut JsWriter) {
-        let mut hook_emitted: BTreeSet<String> = BTreeSet::new();
+        let mut hook_emitted: BTreeSet<(String, bool)> = BTreeSet::new();
         loop {
-            let next = self.ir.items.iter().position(|item| {
-                matches!(&item.kind, IrItemKind::DeriveFn { .. })
-                    && self.hook_variant_selected.contains(&item.canonical)
-                    && !hook_emitted.contains(&item.canonical)
-            });
-            let Some(index) = next else {
+            let mut next: Option<(usize, bool)> = None;
+            for (index, item) in self.ir.items.iter().enumerate() {
+                if !matches!(&item.kind, IrItemKind::DeriveFn { .. }) {
+                    continue;
+                }
+                for is_reference in [false, true] {
+                    let selected = if is_reference {
+                        self.hook_variant_reference.contains(&item.canonical)
+                    } else {
+                        self.hook_variant_parent.contains(&item.canonical)
+                    };
+                    if selected
+                        && !hook_emitted.contains(&(item.canonical.clone(), is_reference))
+                    {
+                        next = Some((index, is_reference));
+                        break;
+                    }
+                }
+                if next.is_some() {
+                    break;
+                }
+            }
+            let Some((index, is_reference)) = next else {
                 break;
             };
-            hook_emitted.insert(self.ir.items[index].canonical.clone());
-            self.emit_hook_variant(out, index);
+            hook_emitted.insert((self.ir.items[index].canonical.clone(), is_reference));
+            self.emit_hook_variant(out, index, is_reference);
         }
     }
 
     /// One selected hook-variant body (`h$…(c,$hookSite,…params)` for the
-    /// derive at `index`). Selection and emission share the linkage set
-    /// exactly, so an emitted variant always carries the linkage set its
-    /// call sites selected.
-    fn emit_hook_variant(&mut self, out: &mut JsWriter, index: usize) {
+    /// derive at `index` plus loader kind). Selection and emission share
+    /// the linkage set exactly, so an emitted variant always carries the
+    /// linkage set its call sites selected.
+    fn emit_hook_variant(&mut self, out: &mut JsWriter, index: usize, is_reference: bool) {
         let item = &self.ir.items[index];
         let (span, canonical) = (item.span, item.canonical.clone());
         let IrItemKind::DeriveFn {
@@ -17875,10 +17897,9 @@ impl<'a> Emitter<'a> {
         else {
             return;
         };
-        if self.derive_hook_variant(&canonical).is_none() {
+        let Some(name) = self.derive_hook_variant(&canonical, is_reference) else {
             return;
-        }
-        let name = binding_ident("hook", &canonical);
+        };
         self.enter_scope();
         let mut signature = vec!["c".to_string(), "$hookSite".to_string()];
         let mut links = HashMap::new();
@@ -17904,7 +17925,6 @@ impl<'a> Emitter<'a> {
                 defaults.push_str(&format!("if({bound}===undefined){{{bound}={value};}}"));
             }
         }
-        let is_reference = self.hook_variant_reference.contains(&canonical);
         let prior = self.hook_helper_links.replace(links);
         let prior_ref = std::mem::replace(&mut self.hook_helper_reference, is_reference);
         let body_text = self.lower_expr(hook_body);
