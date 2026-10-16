@@ -7727,3 +7727,13 @@ closes" header to what the batch actually fixes (~50 original occurrences
 remain refused). Frozen-binary discipline required (no CARGO_BIN_EXE proof);
 C23 isolation/serialization explicit. MAIN-10 ACK verified; main 47c897f1a
 unchanged; factory-788 still awaiting intake. Active lanes: C23, B15.
+
+**REVIEW-19 dispatch, 2026-10-16 (Codex independent reproduction):**
+Standalone saved-preference filter factory emits ui.filter without the
+FieldControlProps contract → real UI TypeError (string-only admission tests
+missed it). Finite B16 (`01a1445c-a7c8-...`) owns reproduce + smallest repair
+into the existing preference save/CSRF contract (or names the missing owner
+output) + executable consumer proof; no save-dropping overload, no refusal
+retreat. B15's package-test ownership preserved (read-only harness reuse);
+C23 disjoint. Factory batch stays unmerged. Active lanes at cap 3: C23, B15,
+B16.
