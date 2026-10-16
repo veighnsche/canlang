@@ -7421,3 +7421,39 @@ Coordinator defining review CLEAR and source/component intake; actual changed MA
 **Human-directed local checkpoint, 2026-10-12:** Human-directed wind-down: preserve all current coherent and explicitly unfinished local work in main. Compiler stopped at clean c68d90e0 with every Cargo/CLI/SDK run terminal and cleanup complete. Exact15 defining source/control paths across243 imported-required-parent,628 complete original Chat policies,fe13 membership-context fixture,4aa Mailbox source/private handler andc68 current-definition are intaken as labelled checkpoints.30ac was already accepted and is not repeated. No worker worktree/branch mutation, merge/rebase/reset, push or activation/publication.
 
 Reuse owning bounded source reviews CLEAR and checks: Chat actual unchanged CLI/SDK1/51.75s plus source1/7.14/current2/legacy17/strict11.86; Mailbox unit3/.03+composedCLI/SDK1/.59/codegen121/IR2/completion5/enum1/strict8.91; current-definition2/.70+current4/144.28/strict11.18/fmt0. Changed primary locked/offline CLI build0 in18.45s. No new whole native or application run. Full original Creative remains last612.85s exit10/eight findings/no artifact; native Chat/verified Mailbox durable once and File ingress/current definition receiving remain unfinished, original conversation_revoked first/limit10 loop and four held C14 example errors/C23/publication holds remain.
+
+**Coordinator intake, 2026-10-16 (RECOVERY-7 / REVIEW-12 closure, B7+C18):**
+REVIEW-12 actual-handler criterion CLOSED in `7bd77f9e` (test + fixture):
+real compiled contained-first-domain.can via shared `can` binary, real
+emitted assembly through assembleModules, executed via invokeMutationCanonical
+with real identity/membership/envelope (RECOVERY-7 corrections: per-commit
+readRevision, exact parent id, canonical entry — no invokeCallable/context).
+5/5: member serves owning term, foreign/inactive refuse rule_failed, empty
+domain rule_failed, denied caller refuses, tampered source raises
+AssemblyCorrespondenceError. Neighbor joint-serve now 7/7 (prior 6/7 failure
+was the SDK env, healed by the overlay fix below). No hand mirrors.
+Env repair (owned overlay only, no main writes/installs): main's
+interfaces/node_modules @modelcontextprotocol copy is 1.32.0 without its
+deps (zod etc. absent tree-wide; mid-churn foreign install). Replaced the
+checkout scope link with the bun.lock-compatible isolated store entry
+(`node_modules/.bun/@modelcontextprotocol+sdk@1.32.0+.../node_modules/
+@modelcontextprotocol`, complete pinned closure incl. zod 4.6.5). A /tmp
+loader-hook workaround was used during diagnosis only and is NOT part of the
+deliverable. Durable fix belongs to main-side install completion.
+C18 hook batch INTEGRATED (`c80e91d7`, `256544ce`, `c4e408ef`): hook_lowering
+18/18, scope_authority_reports 19/19, state contained-first 5/5 (with
+CAN_COMPILER_BIN + CAN_NATIVE_CATALOG), codegen 143 pass with 4 failures
+proven pre-existing at pre-pick 7bd77f9e via /tmp control (batch fixes 5
+others; net improvement, no regression).
+B7 factory batch HELD OUT (reverted from parent, commits preserved in B7's
+retained worktree): ce93b446/8a92d4b3/9b38ac20/d345b676 pass their own suites
+(factory_profiles 28, calendar_agenda, table_filters) but regress
+compiler/tests/b1_join.rs (2 failures; 2/2 green at base ef3f9563 per /tmp
+control). B7's "pre-existing staleness" attribution is refuted by that
+control. Finite successor B8 (`01a143cc-ba5f-7cf2-9e4c-dfb64dccf714`)
+reconciling b1/b2 pins with the admission (compiler codegen files only).
+REVIEW-11.2 bool row-query mapping stays OPEN: no emitted-bool-page test was
+in B7's batch; finite successor B9 (`01a143cc-de57-7650-836b-d3c73c036735`)
+owns the bounded real-source page test (interfaces/UI/test only). C20 active
+(membership, artifact.rs files; no private target — RESOURCE-6 complied).
+Active lanes: C20, B8, B9 (at cap 3). Holds 17/18 retained; main untouched.
