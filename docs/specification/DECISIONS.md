@@ -18201,3 +18201,36 @@ Accepted: Employees active_member source/closure seal: 4 original diagnostics cl
 ## 2026-10-16 — can18_merge_31_20261016
 
 Accepted: HOOKREM remainder pins: the 11 spans refuse under the current ancestor-fenced stack (stored-reference hops with no transitive reference-load owner yet, reference traversals outside the current fence, no staged loader); refusals pinned as characterization, no production change. CORRECTION (2139): these are implementation gaps per the DESIGN opening, not proof that implementation would weaken permissions or be unaccepted symmetry; the ancestor fence stays. Merge reviewed tested work incrementally into canonical `main`, preserving installer/specification changes and the active implementation branch. hook_hookrem 7/7, hook_lowering 26/26 on main. Reconcile the living file-tree plan/registry over `ac4e52873..HEAD` with existing owners; retain the complete checkpoint and all outstanding acceptance gates. A merged component is not a claim that original24 or the remaining runtime workflows are complete.
+## CAN18-v1 calendar-agenda endpoint/columns binding, C4 (2026-10-16, native Spark Contributor route)
+
+**Choice.** The recorded CanShift nested-agenda refusal (`calendar
+row.Commitment`, source-index 17) was a missing parent binding, not a
+draft-placement error: the draft authors a contained agenda over the
+enclosing roster exactly like an accepted bound timeline, and the
+compiler already emits collection query props for it. The recorded
+CanLeave `columns=` refusal (source-index 18) was a missing consumed
+profile, not a prohibition: agenda columns name owned row fields. The
+date/datetime (`from`/`until`) and text (`skill`) filter selectors stay
+refused under the exact C2/C3 codes (no new filter primitive, no
+symmetry generalization, no weakened refusals).
+
+**Consequence.** Compiler admits `parent`/`columns` on the agenda
+profile only (the date field control takes neither): IR decodes agenda
+`columns=` to canonical selector strings beside the existing options,
+and the JS factory gate no longer rejects the parent prop while still
+requiring the agenda row scope. `CalendarAgendaProps` carries optional
+`parent`/`columns`; the calendarAgenda factory scopes its authorized
+query to the enclosing row, validates columns against the authorized
+result metadata before empty/failure rendering (missing names stay
+loud), and renders one owned column line beside each endpoint line.
+Row/field grants still come from the query owner alone;
+source-where/controls conjunction, defaults/current/clear,
+order/pagination/empty/failure paths are untouched.
+
+**Boundary (observed, downstream owner).** Parent-bound agendas carrying
+saved-preference `defaults`, or a source lambda `where`, returned 422
+in the assembled worker harness; the same shapes compile clean and
+render 200 through the UI factory with stubbed queries, and top-level
+agendas prove defaults/conjunction/discrimination end to end. The
+parent-scoped predicate/default evaluation gap belongs to the
+State/Cloudflare query owner and stays outside this binding batch.

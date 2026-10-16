@@ -55,7 +55,7 @@ import { CSRF_FIELD } from "@canlang/contracts";
 import { appearanceClasses } from "./appearance.js";
 import { pickAppearance } from "./internal/appearance-props.js";
 import { renderState } from "./components.js";
-import { EMPTY_COLLECTION, assertSourceFilterRow, prepareSourceFilters, sourceFilterControls } from "./collections.js";
+import { EMPTY_COLLECTION, assertSourceFilterRow, prepareSourceFilters, renderCell, sourceFilterControls } from "./collections.js";
 import { escapeAttr, escapeHtml, operationPostPath, safeHref } from "./escape.js";
 import {
   assertFieldPath,
@@ -882,6 +882,7 @@ async function calendarAgenda(props: CalendarProps & { readonly kind: "agenda" }
   }
   const { conditions, where } = prepareSourceFilters(props, "calendar agenda");
   const result = await props.context.query(props.context.invocation, props.model, {
+    ...(props.parent === undefined ? {} : { parent: props.parent }),
     ...(where === undefined ? {} : { where }),
     ...(props.order === undefined ? {} : { order: props.order }),
     ...(props.limit === undefined ? {} : { limit: props.limit }),
@@ -890,6 +891,22 @@ async function calendarAgenda(props: CalendarProps & { readonly kind: "agenda" }
     ...(props.occurrence === undefined ? {} : { occurrence: props.occurrence }),
   });
   const filterControls = sourceFilterControls(props, conditions, result.columns, result.rows.length === 0, "calendar agenda");
+  // Consumed agenda columns name owned row fields rendered beside each
+  // endpoint line (CAN18-v1 agenda columns batch, mirroring the board
+  // missing-columns contract): validation runs against the authorized
+  // result metadata before empty/failure rendering, so unowned names
+  // stay loud and grants still come from the query owner alone.
+  const byField = new Map(result.columns.map(column => [column.field, column]));
+  const validationMetadata = result.rows.length === 0 && result.emptyDeclarations !== undefined
+    ? new Map(result.emptyDeclarations.map((column) => [column.field, column])) : byField;
+  const missing = (props.columns ?? []).filter((field) => !validationMetadata.has(field));
+  if (missing.length > 0) {
+    throw new Error(`calendar agenda "${props.model}": missing columns: ${missing.join(", ")}`);
+  }
+  const metas = (props.columns ?? []).flatMap((field) => {
+    const meta = byField.get(field);
+    return meta === undefined ? [] : [meta];
+  });
   if (result.rows.length === 0) {
     return filterControls + await renderState({ context: props.context, kind: "empty", message: props.empty ?? EMPTY_COLLECTION });
   }
@@ -907,7 +924,13 @@ async function calendarAgenda(props: CalendarProps & { readonly kind: "agenda" }
     const day = agendaDayKey(row.fields[props.startField], row.id, props.startField, zone);
     const start = escapeHtml(agendaCellText(row.fields[props.startField], props.context, locale, zone));
     const end = escapeHtml(agendaCellText(row.fields[props.endField], props.context, locale, zone));
-    const item = { row, endpoints: `<span>${start} – ${end}</span>`, body: "" };
+    const lines = metas
+      .map((meta) => {
+        const label = escapeHtml(resolveCaption(meta.label, props.context));
+        return `<p><span>${label}</span> ${renderCell(meta, row.fields[meta.field], props.context)}</p>`;
+      })
+      .join("");
+    const item = { row, endpoints: `<span>${start} – ${end}</span>${lines}`, body: "" };
     items.push(item);
     const list = groups.get(day);
     if (list === undefined) {

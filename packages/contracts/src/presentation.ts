@@ -1030,8 +1030,12 @@ export type FilterProps = FilterFieldProps | FilterPreferenceProps;
 export interface CalendarAgendaProps {
   readonly context: PresentationContext;
   readonly model: string;
+  /** Enclosing row scope for a contained agenda; the query owner binds its id. */
+  readonly parent?: { readonly id: string };
   readonly startField: string;
   readonly endField: string;
+  /** Owned row fields rendered beside each endpoint line; validated against authorized metadata. */
+  readonly columns?: readonly string[];
   readonly where?: unknown;
   /** Checked owning enum/bool/reference filter declarations, not granted row metadata. */
   readonly filter?: readonly ColumnMeta[];

@@ -9,17 +9,21 @@
 //! text/URL values, `radial_progress` takes body-free int/decimal values
 //! with an int max, `steps` item slots take one text stage or one owning
 //! status stage, `indicator` takes its content/indicator slots, and agenda
-//! `calendar` without `columns=` keeps lowering. `timeline` bound
-//! sequences and agenda `calendar columns=` have NO supported
-//! source-to-factory profile: the owning TimelineProps takes prebuilt
-//! items only (a bound emission throws reading items.length in the real
-//! factory, REVIEW-21), and calendarAgenda never reads columns
-//! (byte-identical output either way). Both stay loud E6008. A
+//! `calendar` keeps lowering with or without `columns=`. `timeline` bound
+//! sequences lower through the shared collection pipeline (B20 restores
+//! the activation B17 withdrew: the UI collection adapter serves the
+//! bound sequence through model/query/renderRow), and agenda `calendar
+//! columns=` lowers through the calendarAgenda columns binding (CAN18-v1
+//! agenda columns batch: owned row fields rendered beside each endpoint
+//! line). Unadmitted agenda options (such as `search=`) stay loud E6008. A
 //! standalone `filter preferences.field` retains its owned finite-choice
 //! declaration and versioned page-save binding.
 //! `collapse` and headed `hero` with nonempty suites already lower (locked
 //! here); their composition occurrences are cascades of other lanes'
-//! inner refusals. Anything outside the recorded set keeps the exact E6008
+//! inner refusals. Bound `timeline` sequences lower through the shared
+//! collection pipeline (B20), and agenda `calendar columns=` names owned
+//! row fields the calendarAgenda factory renders (CAN18-v1 agenda columns
+//! batch). Anything outside the recorded set keeps the exact E6008
 //! refusals below, including inline `preferences` panels, which need the
 //! settings save production no owned contract provides.
 //! Catalog-free: every test drives check -> IR build -> per-page JS UI
@@ -206,13 +210,13 @@ fn timeline_paged_reimbursement_item_with_copy_lowers() {
 }
 
 /// Recorded CanLeave agenda: option columns on the date-grouped calendar
-/// has no consumed factory profile (calendarAgenda never reads columns).
+/// names owned row fields the calendarAgenda factory renders beside each
+/// endpoint line (CAN18-v1 agenda columns batch, mirroring the board
+/// missing-columns contract; unowned names stay loud in the UI owner).
 #[test]
-fn agenda_calendar_with_columns_refuses() {
-    assert_refuses(
+fn agenda_calendar_with_columns_lowers() {
+    assert_lowers(
         "app Probe\nGiven\n Request { state:enum(open,closed) label={text=\"S\",values={open=\"Open\",closed=\"Closed\"}}, from:date, until:date, location:text }\n policy Request read=public\nWhen\nThen\n page /l title=\"L\"\n  calendar Request as request where request.state==open start=from end=until columns=location,state empty=\"None\"\n   badge row.state\n",
-        "E6008",
-        "option columns has no consumed factory profile",
     );
 }
 

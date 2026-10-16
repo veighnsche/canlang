@@ -19423,16 +19423,17 @@ impl<'a> Cx<'a> {
             ));
             return None;
         }
-        // Agenda `columns=` has no consumed factory profile: the owning
-        // calendarAgenda factory never reads columns (REVIEW-21 family:
-        // the emitted prop rendered byte-identical output either way, so
-        // the option stays a loud E6008 via check_ui_attributes below).
+        // Agenda `columns=` names owned row fields the calendarAgenda
+        // factory renders beside each endpoint line (CAN18-v1 agenda
+        // columns batch): the option decodes to canonical selector
+        // strings below and the UI owner validates them against the
+        // authorized result metadata, so unowned names stay loud there.
         let admitted: &[&str] = if word == "timeline" {
             &["parent", "order"]
         } else if word == "calendar" {
             &[
-                "parent", "empty", "limit", "cursor", "start", "end", "filter",
-                "defaults", "order",
+                "parent", "empty", "limit", "cursor", "start", "end", "filter", "defaults",
+                "order", "columns",
             ]
         } else if word == "gallery" {
             &[
