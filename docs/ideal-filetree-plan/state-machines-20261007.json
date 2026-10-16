@@ -73754,5 +73754,28 @@
     "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
     "checkpoint_advanced": false,
     "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
+  },
+  "can18_merge_25_20261016": {
+    "incremental_base": "2ae1e03d071bfcb0392d3b0e2b07aadff6e6b6ca",
+    "incoming_end": "07c03f80b389c3f5ba38236a0dc8b953e47beba5",
+    "retained_coverage": "reuse spec_installer_merge_reconciliation_20261015 and preceding CAN18 incremental merge entries; inherited complete checkpoint unchanged",
+    "changed_path_count": 2,
+    "rows": [
+      [
+        "compiler/tests/enum_filter_group.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "packages/cloudflare/src/runtime/board-calendar-filter-where.test.ts",
+        "cloudflare",
+        "existing package source/test owner"
+      ]
+    ],
+    "choice": "Board/calendar filter E5-reuse proof: pure-enum conjunction pinned, model-reference refusals stay loud, real consumer 1/1.",
+    "validation": "enum_filter_group 31/31, board-calendar consumer 1/1 on frozen a8fc25e9/ca50.",
+    "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
+    "checkpoint_advanced": false,
+    "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
   }
 }
