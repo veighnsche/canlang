@@ -20,11 +20,13 @@
 //! description/result correspondence and `E6008` stay until the host seam
 //! adopts the runtime boundary (parallel Lane-C slice).
 
+use canlang_compiler::analysis::catalog::{Catalog, CatalogRequest, load_catalog};
 use canlang_compiler::analysis::check_program;
 use canlang_compiler::codegen::ir::{self, IrItemKind};
 use canlang_compiler::codegen::js;
 use canlang_compiler::diagnostic::Diagnostic;
-use canlang_compiler::source::SourceDb;
+use canlang_compiler::source::{SourceDb, Span};
+use std::path::{Path, PathBuf};
 
 /// Authority-shaped report: pure body, declared result, `by` admission,
 /// and the DESIGN-522 description identifying the information exposed.
@@ -300,6 +302,108 @@ fn handler_body<'a>(js: &'a str, canonical: &str) -> Option<&'a str> {
     None
 }
 
+/// REVIEW-9 gap 3: a data-only filter in an authority body lowers to the
+/// `QueryPredicate` AST decision mode serves — never a callback.
+const FILTERED_AUTHORITY_SOURCE: &str = "app T\nGiven\n Expense { amount:int }\n policy Expense read=members\n contract Total { count:int }\nWhen\n # Confidential totals granted to members.\n scenario totals() read=true scope=authority -> Total by=members\n  do\n   return Total {count=count(Expense as e where e.amount > 0)}\nThen\n";
+
+/// Same filter in an ordinary viewer body: keeps the callback emission.
+const FILTERED_ORDINARY_SOURCE: &str = "app T\nGiven\n Expense { amount:int }\n policy Expense read=members\n contract Total { count:int }\nWhen\n scenario summarize() read=true -> Total by=members\n  do\n   return Total {count=count(Expense as e where e.amount > 0)}\nThen\n";
+
+/// Workspace root for the built native catalog (same dependency the other
+/// compiler suites use for std builtins such as `count`).
+fn root() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .into()
+}
+
+fn native_catalog() -> PathBuf {
+    root().join("packages/cloudflare/dist/native-catalog.json")
+}
+
+fn load(db: &SourceDb, path: &Path) -> Catalog {
+    let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+        flag: Some(path),
+        env: None,
+        cwd: &root(),
+        primary: Span::new(db.iter().next().unwrap().0, 0, 0),
+    });
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    catalog.unwrap()
+}
+
+/// Emit one source to its entry JS (native catalog: queries use std
+/// builtins such as `count`).
+fn emit(src: &str, path: &str) -> String {
+    let mut db = SourceDb::new();
+    let id = db.add(path.to_string(), src.to_string());
+    let catalog = load(&db, &native_catalog());
+    let (program, diags) = check_program(&db, &[id], Some(&catalog));
+    assert!(diags.is_empty(), "{diags:?}");
+    let (ir, _) = ir::build(&program, &db, Some(&catalog));
+    js::emit_program(&ir).entry.js
+}
+
+/// A filtered authority query emits the data-only AST decision mode
+/// accepts — no callback for the host to refuse.
+#[test]
+fn authority_filtered_query_emits_data_only_ast() {
+    let js = emit(FILTERED_AUTHORITY_SOURCE, "scope-authority-filtered.can");
+    let body = handler_body(&js, "T.totals").expect("authority handler lowers");
+    assert!(
+        body.contains("where:{op:\"gt\",field:\"amount\",value:0}"),
+        "data-only AST selection: {body}"
+    );
+    assert!(
+        !body.contains("=>"),
+        "no callback predicate remains: {body}"
+    );
+}
+
+/// Text equality and conjunctions compose in the AST.
+#[test]
+fn authority_text_and_composed_filters_emit_ast() {
+    let src = "app T\nGiven\n Gadget { title:text, stock:int=0 }\n policy Gadget read=members\n contract Total { count:int }\nWhen\n # Confidential totals granted to members.\n scenario totals() read=true scope=authority -> Total by=members\n  do\n   return Total {count=count(Gadget as g where g.title == \"x\" and g.stock < 10)}\nThen\n";
+    let js = emit(src, "scope-authority-text.can");
+    let body = handler_body(&js, "T.totals").expect("authority handler lowers");
+    assert!(
+        body.contains("where:{op:\"and\",args:[{op:\"eq\",field:\"title\",value:\"x\"},{op:\"lt\",field:\"stock\",value:10}]}"),
+        "composed data-only AST: {body}"
+    );
+    assert!(
+        !body.contains("=>"),
+        "no callback predicate remains: {body}"
+    );
+}
+
+/// The unfiltered count keeps its servable selection shape.
+#[test]
+fn authority_unfiltered_count_stays_servable() {
+    let src = "app T\nGiven\n Expense { amount:int }\n policy Expense read=members\n contract Total { count:int }\nWhen\n # Confidential totals granted to members.\n scenario totals() read=true scope=authority -> Total by=members\n  do\n   return Total {count=count(Expense)}\nThen\n";
+    let js = emit(src, "scope-authority-unfiltered.can");
+    let body = handler_body(&js, "T.totals").expect("authority handler lowers");
+    assert!(
+        body.contains("records(c,\"T.Expense\",{})"),
+        "servable empty selection: {body}"
+    );
+    assert!(!body.contains("where"), "no selection at all: {body}");
+}
+
+/// A non-data-only filter (helper-valued) keeps the callback emission:
+/// decision mode still refuses it fail-closed, never silently served.
+#[test]
+fn authority_helper_valued_filter_keeps_callback() {
+    let src = "app T\nGiven\n Expense { amount:int }\n policy Expense read=members\n contract Total { count:int }\n derive bump(x:int):int = x + 1\nWhen\n # Confidential totals granted to members.\n scenario totals() read=true scope=authority -> Total by=members\n  do\n   return Total {count=count(Expense as e where e.amount > bump(1))}\nThen\n";
+    let js = emit(src, "scope-authority-fallback.can");
+    let body = handler_body(&js, "T.totals").expect("authority handler lowers");
+    assert!(
+        body.contains("where:") && body.contains("=>"),
+        "callback preserved for refusal: {body}"
+    );
+    assert!(!body.contains("where:{op:"), "no AST claimed: {body}");
+}
+
 /// Ordinary `read=true` is unaffected: no new diagnostics, no marker.
 #[test]
 fn ordinary_read_is_unaffected() {
@@ -341,5 +445,115 @@ fn ordinary_read_is_unaffected() {
         js_out.entry.js.contains("async \"T.summarize\"(c,{}"),
         "ordinary read keeps its executable handler: {}",
         js_out.entry.js
+    );
+}
+
+/// The same filter in an ordinary viewer body keeps the exact callback
+/// emission it always had: byte-identical, no AST.
+#[test]
+fn ordinary_filtered_query_keeps_callback_byte_identical() {
+    let js = emit(FILTERED_ORDINARY_SOURCE, "ordinary-filtered.can");
+    let body = handler_body(&js, "T.summarize").expect("viewer handler lowers");
+    assert!(
+        body.contains("records(c,\"T.Expense\",{where:(")
+            && body.contains("=>")
+            && body.contains(".amount > 0"),
+        "callback emission preserved: {body}"
+    );
+    assert!(
+        !body.contains("where:{op:"),
+        "no AST in viewer output: {body}"
+    );
+    assert!(!js.contains("scope:\"authority\""), "no marker leaks: {js}");
+}
+
+/// Extract the `"canonical":{...}` operation descriptor object from the
+/// emitted `operations:{...}` map.
+fn operation_descriptor<'a>(js: &'a str, canonical: &str) -> Option<&'a str> {
+    let open = format!("\"{canonical}\":{{");
+    let start = js.find(&open)? + open.len() - 1;
+    let tail = &js[start..];
+    let mut depth = 0usize;
+    for (index, ch) in tail.char_indices() {
+        match ch {
+            '{' => depth += 1,
+            '}' => {
+                depth -= 1;
+                if depth == 0 {
+                    return Some(&tail[..=index]);
+                }
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+/// REVIEW-9 gap 2: the authority descriptor carries its defining-source
+/// origin as a checked fact — the declaring file's path and bytes hash
+/// plus the owning module — for the host to verify against
+/// `artifact.sources`.
+#[test]
+fn authority_descriptor_carries_defining_source_origin() {
+    let js = emit(AUTHORITY_SOURCE, "scope-authority-probe.can");
+    let descriptor = operation_descriptor(&js, "T.totals").expect("descriptor lowers");
+    assert!(
+        descriptor.contains("scope:\"authority\""),
+        "marker stays: {descriptor}"
+    );
+    // The origin object carries path, bytes hash and owning module (key
+    // order follows the envelope's sorted JSON map).
+    assert!(
+        descriptor.contains(
+            "source:{\"module\":\"T\",\"path\":\"scope-authority-probe.can\",\"sha256\":\""
+        ),
+        "origin shape: {descriptor}"
+    );
+    let marker = "\"sha256\":\"";
+    let at = descriptor.find(marker).expect("origin lowers") + marker.len();
+    let sha256: String = descriptor[at..].chars().take(64).collect();
+    assert!(
+        sha256.len() == 64 && sha256.chars().all(|ch| ch.is_ascii_hexdigit()),
+        "origin carries the bytes hash: {descriptor}"
+    );
+}
+
+/// The origin names the declaring file, never the first source: helpers
+/// are added first so a first-source guess would name the wrong file.
+#[test]
+fn authority_defining_source_names_declaring_file_not_first_source() {
+    let helpers =
+        "package helpers\n Given\n  export derive bump(x:int):int = x + 1\n When\n Then\n";
+    let shop = "app Shop\nuse helpers {bump as importedBump}\nGiven\n Gadget { title:text, stock:int=0 }\n policy Gadget read=members fields=title\n contract Total { total:int }\n derive bump(x:int):int = x + 1\nWhen\n # Confidential totals granted to members.\n scenario totals() read=true scope=authority -> Total by=members\n  do\n   return Total {total=bump(count(Gadget))+importedBump(count(Gadget))}\nThen\n";
+    let mut db = SourceDb::new();
+    let helpers_id = db.add(
+        "authority-report-helpers.can".to_string(),
+        helpers.to_string(),
+    );
+    let shop_id = db.add("authority-report-shop.can".to_string(), shop.to_string());
+    let catalog = load(&db, &native_catalog());
+    let (program, diags) = check_program(&db, &[shop_id, helpers_id], Some(&catalog));
+    assert!(diags.is_empty(), "{diags:?}");
+    let (ir, _) = ir::build(&program, &db, Some(&catalog));
+    let js = js::emit_program(&ir).entry.js;
+    let descriptor = operation_descriptor(&js, "Shop.totals").expect("descriptor lowers");
+    assert!(
+        descriptor.contains("source:{\"module\":\"Shop\",\"path\":\"authority-report-shop.can\""),
+        "origin names the declaring file: {descriptor}"
+    );
+    assert!(
+        !descriptor.contains("authority-report-helpers.can"),
+        "imported helper file is not the origin: {descriptor}"
+    );
+}
+
+/// Ordinary descriptors carry no origin: viewer emission is untouched.
+#[test]
+fn ordinary_descriptor_carries_no_source_origin() {
+    let js = emit(ORDINARY_SOURCE, "ordinary-read-probe.can");
+    let descriptor = operation_descriptor(&js, "T.summarize").expect("descriptor lowers");
+    assert!(
+        !descriptor.contains("source:{"),
+        "no origin on ordinary output: {descriptor}"
     );
 }
