@@ -24,6 +24,20 @@ session/admission remain local implementation work. Hook guards and ordinary val
 authority; missing parent-read implementation is not a new value-use prohibition. Exact17/18 external/policy holds remain unchanged. Continue ready work
 through these checkpoints; do not mark the overall goal complete.
 
+### Accepted referenced-read batch (merge33) — 2026-10-17
+
+Main integrates `59c8c76ec`: authorized referenced-row reads in hooks via
+new owner `loadReference` (edge-match on candidate `{id}`, transaction
+snapshot with staged own-writes, decision/value sites, host caller-grant
+projection with revocation, exact denied/missing, order/rollback). Direct
+`event.after.<ref>.<leaf>` through declared singular stored references now
+lowers; ancestor fence intact, no `loadParent` bypass, no broad authority.
+Parent+reference tails and staged stay refused as characterization.
+Validation on frozen main producer `16402def` + native catalog `ca50`:
+reference joint 10/10, reference reads 13/13, parent 12/12 + 14/14,
+hook_hookrem 7/7, hook_lowering 26/26. Intake merged the pin-conflict keeping
+both truths (admitted references + refused tails).
+
 ### Accepted calendar-agenda batch (merge32) — 2026-10-16
 
 Main integrates `aa645a3a2` (C4): agenda `parent`/`columns` binding — IR
