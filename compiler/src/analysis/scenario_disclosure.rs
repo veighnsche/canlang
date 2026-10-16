@@ -12655,7 +12655,33 @@ impl<'a> Closure<'a> {
         {
             return Err(self.fail(effect.node, "set needs nonnullable direct stored receiver"));
         }
-        let mut paths = self.expr(NodeKey::of(receiver), module, env, calls)?;
+        // A set may target a bound child result row: consume its owning
+        // evaluated provenance in this flow, preserving caller, transaction
+        // and order. Other CallAs uses keep their existing refusal.
+        let receiver_key = NodeKey::of(receiver);
+        let bound_call = self
+            .resolve
+            .node_binding
+            .get(&receiver_key)
+            .or_else(|| {
+                receiver
+                    .children
+                    .iter()
+                    .find_map(|child| self.resolve.node_binding.get(&NodeKey::of(child)))
+            })
+            .and_then(|binding| match binding {
+                Binding::CallAs { node } => Some(*node),
+                _ => None,
+            });
+        let mut paths = match bound_call {
+            Some(node) => vec![env.get(&Local::Call(node)).cloned().ok_or_else(|| {
+                self.fail(
+                    receiver_key,
+                    "bound child result consumption needs its owning provenance",
+                )
+            })?],
+            None => self.expr(receiver_key, module, env, calls)?,
+        };
         if paths.iter().any(|path| path.record != Some(*model)) {
             return Err(self.fail(effect.node, "set receiver lacks binding provenance"));
         }
@@ -14138,9 +14164,12 @@ impl<'a> Closure<'a> {
         mut flows: Vec<Flow>,
         calls: &[NodeKey],
     ) -> Result<(Vec<Flow>, Vec<DisclosureReturn>), DisclosureDecline> {
-        if let Some(created) = effects
-            .iter()
-            .find(|effect| effect.verb == EffectVerb::Create)
+        // Void scenarios return no row, so no create/return profile applies;
+        // their creates are still individually disclosed below, in order.
+        if self.result_model.is_some()
+            && let Some(created) = effects
+                .iter()
+                .find(|effect| effect.verb == EffectVerb::Create)
         {
             let created_pair = self.checked_created_pair(effects, module, created);
             // Branch contents still pass the ordinary ordered Flow proof:
