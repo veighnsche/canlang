@@ -1,0 +1,16 @@
+app Shop
+use helpers {bump as importedBump}
+Given
+ Gadget { title:text, stock:int=0 }
+ policy Gadget read=members fields=title
+ contract Total { total:int }
+ derive bump(x:int):int = x + 1
+When
+ # Confidential totals granted to members.
+ scenario totals() read=true scope=authority -> Total by=members
+  do
+   return Total {total=bump(count(Gadget))+importedBump(count(Gadget))}
+ scenario peek() read=true -> Total by=members
+  do
+   return Total {total=bump(1)}
+Then

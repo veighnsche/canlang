@@ -282,6 +282,108 @@ golden `contributions.can`, unrelated to authority emission), `codegen`
 failures are its missing draft/dists), ordinary emission byte-identical
 base-vs-after. E6008 + host seam still pending Lane C11; outcome 9 stays
 OPEN.
+Codex MAIN-3: `dd974a84` reviewed at slice scope and merged — canonical
+main `a420a864` through `45f26d5a` (compiler/packages exact, installer
+docs preserved). SCOPE-4 direction applied: native instruction delivery
+failed honestly (wrong recipient ID — spawn output carried the task ID,
+correct C11 ID per C11-ID; plus C11 HEAD moved → lease invalid) and stays
+rejected as undelivered; C11's terminal handoff collected instead.
+Host seam integrated in `882daadc` (Lane C11 commit `7af821fb`): parent
+`authority-report-seam` 10/10, State neighbors 11/11 + 26/26 stand;
+t17b files 31/35 with 4 failures proven pre-existing by a without-seam
+`882daadc^` control (identical 4 fail; no novel failures). Integration
+hygiene: `packages/work/dist` foreign-main symlink replaced with an owned
+build (work/src unchanged since `2eeefdd4`) curing a TS2345 dual
+type-identity with the owned state dist; shared/main outputs untouched.
+Helper-consumer proof landed in `5398f931` (Lane C12 commit
+`ebd095dc`, test-only): the seam serves helper consumers with no source
+change — new 3/3 block, full seam file 13/13 in parent, t16b 37/0
+unchanged. SCOPE-4 gate satisfied (stored reads + helper consumer through
+the real seam). E6008 removal now unblocked as a finite Lane-A slice.
+E6008 removal `f516b976` (Lane A12 commit `43417bdf`) REVERTED in
+`0872fb13` per Codex REVIEW-9 — deliberate refusal restored until tested
+support lands; the removal commit is preserved in history, unintegrated.
+REVIEW-9 gaps (both must close before E6008 removal): (1) `882daadc`
+`bindAuthorityReportForRead` requires `artifact.sources.length===1` —
+incidental size restriction contradicting source-owned multi-source
+composition; must select the defining source via existing
+callable/module/checked-origin correspondence (path/hash/owner),
+fail closed on missing/ambiguous/tampered, accept additional valid +
+composed/imported helper sources; test standalone vs real multi-source
+composition. (2) `5398f931` exercises the real seam but with hand-written
+mirrors (opsModule/HELPER_PRELUDE/reconstructed operations), not an
+emitted source consumer as SCOPE-4 required — need one small actual .can
+fixture (stored read + local/imported helper, authority report + ordinary
+viewer) compiled with the real native catalog, real emitted assembly
+through invokeReadCanonical (grant output, viewer filtered/refusal,
+denied-by, mismatch/revocation). Outcome 9 family E stays OPEN.
+Human USER-COMPILED-1 reinforces C13 (no duplicate worker): fix both gaps
+with actual compiled Can source, no hand-reconstructed artifacts as
+language proof; handwritten adapter tests stay at bounded adapter scope
+only. After fix release, validate with the exact saved original24 argv
+(`/private/tmp/cancrm-helper-invariants-card-20261015-argv.json` +
+compile.json: 24 authored paths present, sha256 identical; 26 consumed
+records incl. 2 virtual can.generated via source-owned contributions),
+matching current native catalog/runtime and recording the catalog
+distinction vs the old Values baseline; freeze the consumed closure, reuse
+unchanged evidence. Real source compilation failures route to the
+compiler owner, never synthetic-JS evasion.
+REVIEW-9 gaps integrated: `4ef5985d` (Lane C13 `d07d048a`, defining-source
+selection via callable/module/checked-origin with path/hash/owner —
+missing/ambiguous/tampered refuse, extra valid + helper sources accepted;
+seam 18/18, t16b 37/0 in parent) and `9fad717b` (Lane C13 `bae13ddb`,
+real two-file .can fixture pair committed; compiled with the real native
+catalog → exit 10 sole E6008 on Shop.totals as expected while refusal
+stands; viewer-only positive control serves end-to-end through
+invokeReadCanonical). Three Lane-A mismatches routed with file-level
+evidence (no compiler-side evasion): (1) re-land E6008 removal `f516b976`
+after gaps close; (2) per-operation defining-source origin (or narrowed
+per-module maps) — real multi-source maps list every source in each map;
+(3) data-only AST selections for authority-body queries (callback
+where-predicates refused by decision mode; beyond-fixture).
+Joint emit-half proof (coordinator, real compiler): the committed
+fixture pair compiles with the real native catalog to exit 0 with ZERO
+diagnostics — E6008 gone for this path; artifact carries real
+sources (ed67eb52/b5e988a3), `Shop.totals` descriptor with
+scope/source/by/description/result, and dual-emitted helper callables.
+REVIEW-10 regression (Codex, in da4f7e68): data-only Int filters emit
+JSON numbers but canonical stored ints are strings — emitted eq/gt
+returns false on real rows; string compare would misorder 2/10; Number
+coercion loses big ints. Unfiltered-count fixture cannot catch it. Routed
+to A14 (defining owner, existing typed comparison only): numeric
+string-int equality/ordering incl. 2vs10/negative/big/null, real compiled
+filtered fixture over canonically created ints proven through host; no
+semantic redefinition. E6008 removal 74697e8f stands but is not whole
+acceptance; fail-closed refusals intact; main withholds this prefix
+pending fix.
+Fixed in `24321f44` (Lane A14 `53b07b37`, compiler: Int as canonical
+decimal strings, gate safe-int→int64, real filtered fixture pair + 2
+proofs) and `d348a643` (Lane A14 `218213a4`, State: declared-int filters
+via decodeValue+compareInt BigInt, no Number routing; new 2/2). Parent:
+19/19 authority, 2/2 filter, 37/37 authority+read, 27/27 descriptor-join,
+seam 20/20, joint 6/6 green. Null/missing false, undecodable fail-closed,
+viewer paths untouched. REVIEW-10 closed at implementation scope (Codex
+review pending); outcome 9 complete pending review.
+Serve half proven in `c68500d2` + test-typo fix (Lane C15 commit
+`adf31cc3`): `assembleModules` rewrites bare `@canlang/stdlib` to the
+real data-plane stdlib and registers the assembler-owned capability — no
+hand edits. Joint suite 6/6 in parent (run with CAN_COMPILER_BIN set to
+the shared-target binary; the default checkout-local path does not
+exist): real fixture pair emits zero diagnostics, member grant served
+from decision rows, viewer filtered, by-denied/tampered/drift refuse.
+Seam file stays 20/20. SCOPE-4 whole proof satisfied on real emitted
+bytes.
+Emission half integrated in `da4f7e68` (Lane A13 commit `ce43fa00`;
+SCOPE-5 receipt verified: stash restored, 4.7G private target cleaned,
+shared-target discipline, no new abstractions): authority descriptors
+carry checked `source:{module,path,sha256}`, authority-body model queries
+emit data-only `where:{op,field,value}` AST (rest keeps callback, still
+refused); viewer/ordinary emission byte-identical by stash-dance. Parent:
+owned file 17/17, outbound 13/13, boolean 8/8, cross-op 18/18,
+stored-query 6/6, syntax 61/62 (same recorded legacy-E1211 goldens).
+E6008 re-land deliberately deferred by A13 (correct sequencing): the seam
+must first verify `def.source` or the artifact is unservable — one-function
+Lane-C change, then re-land + joint real-fixture proof + original24.
 
 Outcome 9 family A implemented in `55c969d2` (Lane A commit `fac7bd70`):
 45/64 handler profiles (`on=Cap.event`) lower through canonical

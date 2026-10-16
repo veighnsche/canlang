@@ -28,6 +28,10 @@ Integrate released cross-operation gates, imported and archived first-query corr
 
 Integrate authority-report compiler body lowering and typed MCP grant advertisement, retaining the host-boundary compilation refusal. Incoming interval `80f29102..45f26d5a` accounts for 4 changed paths in `can18_merge_6_20261016` of the existing registry. Reuse authority-report9 tests, ordinary-emission byte equality and recorded neighbor/base-control results. Independent review confirms authority_body is scoped/restored per report, helper routing changes only decision variants, and E6008 remains until host integration passes. No production conflict or new source edits; original24 and executable authority consumer acceptance remain open. Existing defining owners and target allocations remain; focused new tests stay with Compiler. Reuse prior accumulated coverage; complete checkpoint remains unchanged. Original24 and required executable consumers remain open. Unfinished work stays in the running Muse checkout.
 
+### CAN18 incremental integration — can18_merge_7_20261016
+
+Integrate checked authority-report host binding, defining-source correspondence, real-source assembly tests, and canonical integer filtering at their existing owners. Incoming interval `45f26d5a..9a32ee03` accounts for 14 changed paths in `can18_merge_7_20261016` of the existing registry. Independent real compiled-source host tests pass 6/6; source-seam and canonical integer component tests pass 22/22; reuse unchanged compiler 19/19 and neighbor checks. Filtered Can source through the complete host chain remains pending USER-COMPILED-2; original24 and required executable consumers remain open, with no whole-outcome acceptance inferred. Existing defining owners and target allocations remain; focused new tests stay with Compiler. Reuse prior accumulated coverage; complete checkpoint remains unchanged. Original24 and required executable consumers remain open. Unfinished work stays in the running Muse checkout.
+
 ### Specification and installer documentation merge — 2026-10-15
 
 Merge installer commit `02470b74` into canonical `main` at `a70921e3`.

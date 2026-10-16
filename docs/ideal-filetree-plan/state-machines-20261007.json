@@ -72794,5 +72794,88 @@
     "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
     "checkpoint_advanced": false,
     "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
+  },
+  "can18_merge_7_20261016": {
+    "incremental_base": "45f26d5a52f0a45a1b0ec502e4b7167449abd28c",
+    "incoming_end": "9a32ee0380b5906dbfe9d6a8586ec18eec337a5b",
+    "retained_coverage": "reuse spec_installer_merge_reconciliation_20261015 and preceding CAN18 incremental merge entries; inherited complete checkpoint unchanged",
+    "changed_path_count": 14,
+    "rows": [
+      [
+        "compiler/src/codegen/ir.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/src/codegen/js.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/fixtures/scope-authority-int-filter-helpers.can",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/fixtures/scope-authority-int-filter.can",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/scope_authority_reports.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "implementation/compiler-completion/README.md",
+        "Compiler completion",
+        "existing finite execution record"
+      ],
+      [
+        "packages/cloudflare/src/runtime/authority-report-joint-serve.test.ts",
+        "cloudflare",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/cloudflare/src/runtime/authority-report-seam.test.ts",
+        "cloudflare",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/cloudflare/src/runtime/invoke.ts",
+        "cloudflare",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/cloudflare/test/fixtures/authority-report-helpers.can",
+        "cloudflare",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/cloudflare/test/fixtures/authority-report-shop.can",
+        "cloudflare",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/state/src/invocation/invoke-authority-int-filter.test.ts",
+        "state",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/state/src/policy/grants.ts",
+        "state",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/state/src/query/engine.ts",
+        "state",
+        "existing package source/test owner"
+      ]
+    ],
+    "choice": "Integrate checked authority-report host binding, defining-source correspondence, real-source assembly tests, and canonical integer filtering at their existing owners.",
+    "validation": "Independent real compiled-source host tests pass 6/6; source-seam and canonical integer component tests pass 22/22; reuse unchanged compiler 19/19 and neighbor checks. Filtered Can source through the complete host chain remains pending USER-COMPILED-2; original24 and required executable consumers remain open, with no whole-outcome acceptance inferred.",
+    "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
+    "checkpoint_advanced": false,
+    "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
   }
 }
