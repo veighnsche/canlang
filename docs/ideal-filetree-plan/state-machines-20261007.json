@@ -73666,5 +73666,93 @@
     "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
     "checkpoint_advanced": false,
     "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
+  },
+  "can18_merge_24_20261016": {
+    "incremental_base": "8b187b01834efa5cda6d8f09388d019dac888631",
+    "incoming_end": "910e7a75b37bf434eb47e74ee130a18be8c195b5",
+    "retained_coverage": "reuse spec_installer_merge_reconciliation_20261015 and preceding CAN18 incremental merge entries; inherited complete checkpoint unchanged",
+    "changed_path_count": 15,
+    "rows": [
+      [
+        "compiler/src/codegen/js.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/src/codegen/model_policy_profile.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/hook_lowering.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "packages/cloudflare/src/runtime/hook-parent-joint.test.ts",
+        "cloudflare",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/cloudflare/src/runtime/hook-parent-reads.test.ts",
+        "cloudflare",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/cloudflare/src/runtime/invoke.ts",
+        "cloudflare",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/cloudflare/test/fixtures/hook-parent-joint-helpers.can",
+        "cloudflare",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/cloudflare/test/fixtures/hook-parent-joint.can",
+        "cloudflare",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/cloudflare/test/fixtures/hook-parent-reads.can",
+        "cloudflare",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/state/src/index.ts",
+        "state",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/state/src/mutation/hook-parent-reads.test.ts",
+        "state",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/state/src/mutation/index.ts",
+        "state",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/state/src/mutation/models.ts",
+        "state",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/state/src/mutation/pipeline.ts",
+        "state",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/state/test/mutation/fixtures.ts",
+        "state",
+        "existing package source/test owner"
+      ]
+    ],
+    "choice": "Scope-2 hook parent reads: State loadParent(model,id,site) with scope-carried decision/value modes, compiler parent-content emission, host transitive row-shape bridge with public value projection, joint 9/9 acceptance.",
+    "validation": "hook_lowering 24/24, joint consumer 9/9, State 13/13 on frozen main producer a8fc25e9 + native catalog ca50; per-caller grants and record-typed helpers remain open.",
+    "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
+    "checkpoint_advanced": false,
+    "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
   }
 }

@@ -18161,3 +18161,8 @@ Accepted: Bound timeline collection activation the B17 withdrawal held back as p
 ## 2026-10-16 — can18_merge_23_20261016
 
 Accepted: Paged timeline next-link consumer: 26 admitted rows over actual emitted Can/HTTP, continuation without repeats, 400 fail-closed tampered cursor. Test-only follow-up to the bound-timeline intake; no producer change. Merge reviewed tested work incrementally into canonical `main`, preserving installer/specification changes and the active implementation branch. timeline-emitted-serve 2/2 on main with the intaken e36eea15 producer; main cloudflare rebuilt exit 0. Reconcile the living file-tree plan/registry over `5d0a7bdd..62112431383b820a197ee5f15ecb3836eeaddac3` with existing owners; retain the complete checkpoint and all outstanding acceptance gates. A merged component is not a claim that original24 or the remaining runtime workflows are complete.
+
+
+## 2026-10-16 — can18_merge_24_20261016
+
+Accepted: Scope-2 hook parent reads: State loadParent(model,id,site) with scope-carried decision/value modes, compiler parent-content emission, host transitive row-shape bridge with public value projection, joint 9/9 acceptance. Merge reviewed tested work incrementally into canonical `main`, preserving installer/specification changes and the active implementation branch. hook_lowering 24/24, joint consumer 9/9, State 13/13 on frozen main producer a8fc25e9 + native catalog ca50; per-caller grants and record-typed helpers remain open. Reconcile the living file-tree plan/registry over `8b187b018..HEAD` with existing owners; retain the complete checkpoint and all outstanding acceptance gates. A merged component is not a claim that original24 or the remaining runtime workflows are complete.
