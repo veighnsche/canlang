@@ -406,9 +406,12 @@ export function prepareSourceFilters(props: SourceFilterProps, factory: SourceFi
     if (condition.op !== "eq") throw new Error(`${factory}: owning finite-choice equality selection required`);
     return { op: "eq", field: condition.field, value: condition.value };
   });
-  if (filters.length !== 0 && typeof props.where === "function") {
-    throw new Error(`${factory}: typed filters require a data-only where predicate`);
-  }
+  // E5 (CAN18-v1, DESIGN 434/440/975/977): a function `where` is a source
+  // business restriction that conjoins with typed filter controls. The
+  // composed `{op:and,[where,...filters]}` flows to the query adapter,
+  // which evaluates the source predicate first on every granted row
+  // (permissions before controls; source failures are never reordered
+  // away by control exclusion).
   const where = filters.length === 0 ? props.where
     : props.where === undefined && filters.length === 1 ? filters[0]
     : { op: "and", args: [...(props.where === undefined ? [] : [props.where as QueryPredicate]), ...filters] };

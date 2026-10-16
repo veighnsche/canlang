@@ -1047,8 +1047,23 @@ describe("table", () => {
       /source filter preparation is unavailable/);
     await assert.rejects(table(withoutOccurrence));
     await assert.rejects(table(withoutFilter), /defaults require declared filter controls/);
-    await assert.rejects(table({ ...props, where: () => true }), /data-only where predicate/);
-    assert.equal(queries, 1); assert.deepEqual(bodies, []);
+    // E5 (CAN18-v1): a function source where conjoins with typed controls
+    // instead of refusing; the composed `{op:and,[where,...filters]}`
+    // reaches the query adapter intact.
+    const sourceWhere = () => true;
+    const conjunctiveContext = { ...context, query: async (invocation: unknown, model: string, args: ListQueryArgs) => {
+      queries++;
+      assert.deepEqual(args.where, { op: "and",
+        args: [sourceWhere, { op: "eq", field: "state", value: "confirmed" }] });
+      const result: ListQueryResult = { rows: [first, second], columns: [titleCol, ...filter] };
+      return result;
+    } };
+    await table({ ...props, where: sourceWhere, context: conjunctiveContext,
+      renderRow: (record: RowView, view: PresentationContext) => {
+        assert.equal(view, conjunctiveContext); bodies.push(record); return [`<p>body-${record.id}</p>`];
+      } });
+    assert.equal(queries, 2);
+    bodies.length = 0;
     await assert.rejects(table({ ...props, context: { ...context, query: async () => {
       queries++; return { rows: [first], columns: [titleCol] };
     } } }), /missing authorized filter field "state"/);
@@ -1056,7 +1071,7 @@ describe("table", () => {
     await assert.rejects(table({ ...props, context: { ...context, query: async () => {
       queries++; return { rows: [first, { ...second, fields: inheritedFields }], columns: [titleCol, ...filter] };
     } } }), /row "appointment-2" is missing projected filter field "state"/);
-    assert.equal(queries, 3); assert.deepEqual(bodies, []);
+    assert.equal(queries, 4); assert.deepEqual(bodies, []);
   });
 
   it("passes query args, invocation and model through", async () => {

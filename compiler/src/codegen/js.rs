@@ -3380,13 +3380,11 @@ fn collection_filter_props_are_valid(ir: &IrProgram, node: &IrUi) -> bool {
     }
     let mut selected = std::collections::HashMap::new();
     if let Some((_, filter)) = node.props.iter().find(|(key, _)| key == "filter") {
-        if node
-            .props
-            .iter()
-            .any(|(key, value)| key == "where" && matches!(value.expr, IrExpr::Lambda { .. }))
-        {
-            return false;
-        }
+        // E5 (CAN18-v1, DESIGN 434/440/975/977): a Lambda `where` is a
+        // business restriction that conjoins with typed filter controls
+        // (`{op:and,[where,...filters]}` at the query adapter); it is no
+        // longer a filter-profile refusal. Column/defaults validation
+        // below is unchanged.
         let IrExpr::Array(columns) = &filter.expr else {
             return false;
         };

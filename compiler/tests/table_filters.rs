@@ -63,13 +63,11 @@ fn checked_table_filters_defaults_and_protected_rows_reach_installed_consumers()
                 "defaults={state=preferences.window_state,state=\"open\"}",
             ),
         ),
-        (
-            "filtered-lambda",
-            source.replace(
-                "table row.Window columns=",
-                "table row.Window as visit where visit.from>=now columns=",
-            ),
-        ),
+        // E5 (CAN18-v1, DESIGN 434/440/975/977): the field-to-field
+        // comparison lowers to a Lambda where, which now conjoins with
+        // the admitted filter (`{op:and,[where,...filters]}` at the query
+        // adapter) instead of keeping an E6008. It is asserted admitted
+        // below; only genuinely unsupported selectors stay refused here.
     ] {
         let output = compile(&refused);
         assert_eq!(
@@ -79,20 +77,22 @@ fn checked_table_filters_defaults_and_protected_rows_reach_installed_consumers()
             String::from_utf8_lossy(&output.stdout)
         );
         let refused: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-        if name == "filtered-lambda" {
-            assert!(
-                refused["diagnostics"]
-                    .as_array()
-                    .unwrap()
-                    .iter()
-                    .any(|diagnostic| diagnostic["code"] == "E6008")
-            );
-        }
         assert!(
             refused.get("modules").is_none(),
             "{name}: no partial body artifact"
         );
     }
+    // E5: the table filter+lambda-where conjunction lowers cleanly.
+    let admitted = compile(&source.replace(
+        "table row.Window columns=",
+        "table row.Window as visit where visit.from>=visit.until columns=",
+    ));
+    assert!(
+        admitted.status.success(),
+        "filtered-lambda lowers: {}\n{}",
+        String::from_utf8_lossy(&admitted.stdout),
+        String::from_utf8_lossy(&admitted.stderr)
+    );
     let artifact = scratch.path().join("artifact.json");
     std::fs::write(&artifact, compiled.stdout).unwrap();
     let consumer = Command::new("node")

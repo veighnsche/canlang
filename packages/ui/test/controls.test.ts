@@ -600,13 +600,24 @@ describe("calendar agenda authored enum filters", () => {
       renderRow: async () => { bodies++; return ['authored body']; } };
     await calendar(props);
     assert.equal(queries, 1); assert.equal(bodies, 0);
-    await assert.rejects(calendar({ ...props, where: () => true }), /data-only where predicate/);
+    // E5 (CAN18-v1): a function source where conjoins with typed controls
+    // instead of refusing; the composed `{op:and,[where,...filters]}`
+    // reaches the query adapter intact.
+    const sourceWhere = () => true;
+    await calendar({ ...props, where: sourceWhere, context: { ...context, query: async (_invocation, model, args) => {
+      queries++;
+      assert.equal(model, 'Calendar.Appointment');
+      assert.deepEqual(args.where, { op: 'and', args: [sourceWhere,
+        { op: 'eq', field: 'state', value: 'confirmed' }] });
+      return { rows: [], columns: [] };
+    } } });
+    assert.equal(queries, 2); assert.equal(bodies, 0);
     await assert.rejects(calendar({ kind: 'agenda', context, model: props.model,
       startField: props.startField, endField: props.endField, empty: props.empty, defaults }),
       /defaults require declared filter controls/);
     await assert.rejects(calendar({ ...props, context: makeContext({ query: context.query }) }),
       /source filter preparation is unavailable/);
-    assert.equal(queries, 1); assert.equal(bodies, 0);
+    assert.equal(queries, 2); assert.equal(bodies, 0);
 
     const authorizedRow: RowView = { id: 'appointment-1', version: '2', fields: {
       starts: '2026-10-12T09:00:00Z', ends: '2026-10-12T09:30:00Z', state: 'confirmed',
@@ -620,7 +631,7 @@ describe("calendar agenda authored enum filters", () => {
     await assert.rejects(calendar({ ...props, context: { ...context, query: async () => {
       queries++; return { rows: [authorizedRow, missingOwnState], columns: filterFields };
     } } }), /row "appointment-2" is missing projected filter field "state"/);
-    assert.equal(queries, 3); assert.equal(bodies, 0);
+    assert.equal(queries, 4); assert.equal(bodies, 0);
   });
 });
 
