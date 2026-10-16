@@ -18196,3 +18196,8 @@ Accepted: Hook helper selected-variant emission repair: 175 linkage diagnostics 
 ## 2026-10-16 — can18_merge_30_20261016
 
 Accepted: Employees active_member source/closure seal: 4 original diagnostics cleared at defining producer with real State/Identity consumer. Merge reviewed tested work incrementally into canonical `main`, preserving installer/specification changes and the active implementation branch. staff consumer 1/1, membership 10/10 + bridge 10/10, originals 0 active_member on frozen bba50116/ca50. Reconcile the living file-tree plan/registry over `a54c86005..HEAD` with existing owners; retain the complete checkpoint and all outstanding acceptance gates. A merged component is not a claim that original24 or the remaining runtime workflows are complete.
+
+
+## 2026-10-16 — can18_merge_31_20261016
+
+Accepted: HOOKREM remainder pins: 0/11 spans covered by 434/442 (stored-reference hops, non-ancestry, no staged loader); refusals pinned, no production change. Merge reviewed tested work incrementally into canonical `main`, preserving installer/specification changes and the active implementation branch. hook_hookrem 7/7, hook_lowering 26/26 on main. Reconcile the living file-tree plan/registry over `ac4e52873..HEAD` with existing owners; retain the complete checkpoint and all outstanding acceptance gates. A merged component is not a claim that original24 or the remaining runtime workflows are complete.
