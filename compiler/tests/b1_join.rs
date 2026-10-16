@@ -11,18 +11,23 @@
 //!
 //! * Zero error-severity analysis diagnostics: B1 needs a supported source.
 //! * TeamTasks: `E6006 == 0` (every needed position bridged),
-//!   `E6007 == 0` (real catalog pins every builtin), `E6008 == 2`
-//!   (list filter and unsupported content value).
+//!   `E6007 == 0` (real catalog pins every builtin), `E6008 == 1`
+//!   (the bool-field list filter stays refused at the collection filter
+//!   validator with its named message; enum-backed option filters and
+//!   defaults plus text content lower via the recorded outcome-6
+//!   admissions).
 //!   NOTE: `can compile` (CLI policy) refuses to print an artifact
 //!   while `E6008`s report; this test drives `emit()` directly to pin
 //!   the artifact SHAPE those diagnostics accompany. A zero-`E6008`
 //!   source (`demo.can`, TeamTasks minus the unlowered lines)
 //!   compiles end to end via the CLI; see the phase-2 evidence note.
-//! * ExpenseFlow (B2a): `E6006 == 0`, `E6007 == 0`, `E6008 == 3`
-//!   with the real catalog: exact unsupported UI profiles remain refused;
-//!   nominal preference tabs, fixed order and named slots retain their
-//!   owning transport. Multi-value stat lowers as a visual join of
-//!   single-value stats (CAN18-v1 outcome 6 Lane B factory profiles).
+//! * ExpenseFlow (B2a): `E6006 == 0`, `E6007 == 0`, `E6008 == 0`
+//!   with the real catalog: every recorded shape is admitted (enum
+//!   option filter/defaults through the collection filter gate, the
+//!   multi-value stat visual join, nominal preference tabs, fixed order
+//!   and named slots); nothing genuinely unsupported remains, so no
+//!   refusal is pinned here — the TeamTasks list-filter refusal above
+//!   keeps the exact E6008 covered.
 //! * Entrypoint markers pinned from real emission (model shapes, CRUD
 //!   operations, page descriptors); no metadata spread.
 //! * Pages: exactly the 2 declared descriptors, exports resolved.
@@ -177,7 +182,7 @@ fn b1_teamtasks_artifact() {
     let (artifact, emit_diags) = emit(&program, &sources);
 
     // Exact emission profile: bridged (E6006=0), pinned (E6007=0),
-    // Two exact unsupported UI profiles (E6008). Nothing else may appear.
+    // one exact unsupported UI profile (E6008). Nothing else may appear.
     // (A2b closed the `delete` gap: bare delete lowers to deleteRecord.)
     for d in &emit_diags {
         if d.code != "E6006" && d.code != "E6007" && d.code != "E6008" {
@@ -201,16 +206,19 @@ fn b1_teamtasks_artifact() {
             "expected zero E6007 with the real catalog, got {e6007}"
         ));
     }
-    if e6008 != 2 {
-        failures.push(format!("expected E6008=2 pinned UI refusals, got {e6008}"));
+    if e6008 != 1 {
+        failures.push(format!("expected E6008=1 pinned UI refusal, got {e6008}"));
     }
     for (profile, expected) in [
         ("cannot lower tooltip:", 0),
         ("cannot lower collapse:", 0),
         ("cannot lower breadcrumbs:", 0),
         ("cannot lower edit:", 0),
-        ("cannot lower list: option filter", 1),
-        ("cannot lower content:", 1),
+        // The bool-field list filter fails the collection filter gate
+        // (no owned enum declarations): still refused, named message.
+        ("cannot lower list filters:", 1),
+        // Text content lowers via the recorded outcome-6 admission.
+        ("cannot lower content:", 0),
         ("cannot lower bound tabs", 0),
         ("cannot lower collection order", 0),
     ] {
@@ -314,8 +322,9 @@ fn b2_expenseflow_artifact() {
     let (artifact, emit_diags) = emit(&program, &sources);
 
     // Exact emission profile: everything bridges (E6006=0), pins
-    // (E6007=0); eight exact unsupported UI profiles retain E6008.
-    // Nominal preference tabs and fixed collection order are supported.
+    // (E6007=0); every recorded shape is admitted so no UI profile
+    // retains E6008. Nominal preference tabs and fixed collection order
+    // are supported.
     for d in &emit_diags {
         if d.code != "E6006" && d.code != "E6007" && d.code != "E6008" {
             failures.push(format!("unexpected codegen code {}: {}", d.code, d.message));
@@ -338,8 +347,8 @@ fn b2_expenseflow_artifact() {
             "expected zero E6007 with the real catalog, got {e6007}"
         ));
     }
-    if e6008 != 3 {
-        failures.push(format!("expected E6008=3 UI refusals, got {e6008}"));
+    if e6008 != 0 {
+        failures.push(format!("expected E6008=0 admitted UI profiles, got {e6008}"));
     }
     for (profile, expected) in [
         ("cannot lower breadcrumbs:", 0),
@@ -347,8 +356,11 @@ fn b2_expenseflow_artifact() {
         ("cannot lower action:", 0),
         ("cannot lower history:", 0),
         ("cannot lower stat:", 0),
-        ("cannot lower list: option filter", 1),
-        ("cannot lower list: option defaults", 1),
+        // The enum-backed option filter and defaults pass the collection
+        // filter gate (recorded admission): admitted, never refused.
+        ("cannot lower list: option filter", 0),
+        ("cannot lower list: option defaults", 0),
+        ("cannot lower list filters:", 0),
         ("cannot lower bound tabs", 0),
         ("cannot lower collection order", 0),
     ] {
@@ -440,7 +452,11 @@ fn validate_expenseflow_artifact(
         "$can$u$6261646765({context:$can$l$313a726f7756696577,value:$can$l$303a726f77.status})",
         "binding:{name:\"status\",options:",
         "current:preferences.status,version:c.preferenceVersions.reporting.status,postTo:c.pollUrl ?? c.path",
-        "preferenceFields:[{name:\"status\",options:[\"draft\",\"submitted\",\"approved\",\"rejected\"],defaultValue:\"submitted\"}]",
+        "preferenceFields:[{name:\"status\",options:[\"draft\",\"submitted\",\"approved\",\"rejected\"],defaultValue:\"submitted\",caption:$can$h$636865636b65645f6d657373616765(\"Status\",{nl:\"Status\"},undefined,\"en\"),optionLabels:{draft:$can$h$636865636b65645f6d657373616765(\"Draft\",{nl:\"Concept\"},undefined,\"en\"),submitted:$can$h$636865636b65645f6d657373616765(\"Submitted\",{nl:\"Ingediend\"},undefined,\"en\"),approved:$can$h$636865636b65645f6d657373616765(\"Approved\",{nl:\"Goedgekeurd\"},undefined,\"en\"),rejected:$can$h$636865636b65645f6d657373616765(\"Rejected\",{nl:\"Afgewezen\"},undefined,\"en\")}}]",
+        // The admitted option filter forwards the nullable expenses-page
+        // preference the defaults declaration binds (settings shell
+        // optionLabels included, as for the reporting page above).
+        "preferenceFields:[{name:\"status\",options:[\"draft\",\"submitted\",\"approved\",\"rejected\"],defaultValue:null,nullable:true,caption:$can$h$636865636b65645f6d657373616765(\"Status\",{nl:\"Status\"},undefined,\"en\"),optionLabels:{draft:$can$h$636865636b65645f6d657373616765(\"Draft\",{nl:\"Concept\"},undefined,\"en\"),submitted:$can$h$636865636b65645f6d657373616765(\"Submitted\",{nl:\"Ingediend\"},undefined,\"en\"),approved:$can$h$636865636b65645f6d657373616765(\"Approved\",{nl:\"Goedgekeurd\"},undefined,\"en\"),rejected:$can$h$636865636b65645f6d657373616765(\"Rejected\",{nl:\"Afgewezen\"},undefined,\"en\")}}]",
         "order:[\"-created\"]",
         "$can$l$313a726f7756696577.prepareForm({operation:\"expenses.approve\",arguments:{expense:$can$l$303a726f77}",
         "$can$l$313a726f7756696577.prepareForm({operation:\"expenses.reject\",arguments:{expense:$can$l$303a726f77}",
@@ -586,12 +602,25 @@ fn validate_expenseflow_artifact(
     {
         failures.push("requires lacks the canlang.builtins catalog pin".to_string());
     }
-    // Tests: one suite per operation with examples, each with the
-    // normative §13 factory shape and separate from production. The
+    // Tests: one suite per operation with examples plus one recipe-only
+    // suite per checked fixture (8c2dc7fe canonical providers), each with
+    // the normative §13 factory shape and separate from production. The
     // approve suite carries tables plus the causal sequence.
     let scopes: Vec<&str> = artifact.tests.iter().map(|t| t.scope.as_str()).collect();
-    if scopes != ["expenses.submit", "expenses.approve", "reporting.summarize"] {
-        failures.push(format!("suites {scopes:?} != submit/approve/summarize"));
+    if scopes
+        != [
+            "expenses.submit",
+            "expenses.approve",
+            "reporting.summarize",
+            "expenses.reviewer_one",
+            "expenses.reviewer_two",
+            "expenses.pending",
+            "reporting.mine",
+        ]
+    {
+        failures.push(format!(
+            "suites {scopes:?} != submit/approve/summarize + fixture recipes"
+        ));
     }
     for suite in &artifact.tests {
         if !suite.module.js.contains("return {fixtures:{") {
@@ -719,8 +748,11 @@ fn validate_artifact(artifact: &CompileArtifact, expected_sha: &str, failures: &
         "\"TeamTasks.Todo.create\":",
         "binding:{name:\"view\",options:[{value:\"all\",label:$can$h$636865636b65645f6d657373616765(\"All tasks\"",
         "current:preferences.view,version:c.preferenceVersions.TeamTasks.view,postTo:c.pollUrl ?? c.path",
-        "preferenceFields:[{name:\"view\",options:[\"all\",\"unfinished\",\"finished\"],defaultValue:\"all\"}]",
-        "order:[\"-created\"]",
+        "preferenceFields:[{name:\"view\",options:[\"all\",\"unfinished\",\"finished\"],defaultValue:\"all\",caption:$can$h$636865636b65645f6d657373616765(\"Task view\",{nl:\"Taakweergave\"},undefined,\"en\"),optionLabels:{all:$can$h$636865636b65645f6d657373616765(\"All tasks\",{nl:\"Alle taken\"},undefined,\"en\"),unfinished:$can$h$636865636b65645f6d657373616765(\"Unfinished tasks\",{nl:\"Open taken\"},undefined,\"en\"),finished:$can$h$636865636b65645f6d657373616765(\"Finished tasks\",{nl:\"Afgeronde taken\"},undefined,\"en\")}}]",
+        // The refused list degrades loudly instead of emitting a working
+        // descriptor: the exact throwing placeholder is pinned here, and
+        // no order descriptor may appear for it below.
+        "throw new Error(\"unsupported collection filter profile\")",
         "search:[\"title\"]",
         "pages:[$can$p$5465616d5461736b733a64657363726970746f723a2f,$can$p$5465616d4e6f7465733a64657363726970746f723a2f6e6f746573]",
     ] {
@@ -730,6 +762,11 @@ fn validate_artifact(artifact: &CompileArtifact, expected_sha: &str, failures: &
     }
     if entry.contains("...appDefinition") {
         failures.push("entrypoint spreads metadata (...appDefinition)".to_string());
+    }
+    // The refused list emits no order descriptor (the admitted
+    // ExpenseFlow list keeps `order:["-created"]`, pinned in its suite).
+    if entry.contains("order:[") {
+        failures.push("refused TeamTasks list must not emit an order descriptor".to_string());
     }
     // Every module: non-empty JS, valid map, allowlisted imports, no
     // test leakage.
@@ -833,27 +870,30 @@ fn validate_artifact(artifact: &CompileArtifact, expected_sha: &str, failures: &
     {
         failures.push("requires lacks the canlang.builtins catalog pin".to_string());
     }
-    // Tests: exactly the real update suite with the normative §13
-    // factory shape, separate from production.
-    if artifact.tests.len() != 1 {
-        failures.push(format!("tests len {} != 1 suite", artifact.tests.len()));
-    } else {
-        let suite = &artifact.tests[0];
-        if suite.scope != "TeamTasks.Todo.update" {
+    // Tests: the real update suite plus the canonical fixture-recipe
+    // provider (8c2dc7fe — every checked fixture owns one recipe-only
+    // suite), each with the normative §13 factory shape, separate from
+    // production.
+    let scopes: Vec<&str> = artifact.tests.iter().map(|t| t.scope.as_str()).collect();
+    if scopes != ["TeamTasks.Todo.update", "TeamTasks.task"] {
+        failures.push(format!("suites {scopes:?} != [update, task recipe]"));
+    }
+    for suite in &artifact.tests {
+        if !suite.module.js.contains("return {fixtures:{") {
             failures.push(format!(
-                "suite scope {:?} != TeamTasks.Todo.update",
+                "suite {} lacks normative fixtures return shape",
                 suite.scope
             ));
         }
-        if !suite.module.js.contains("return {fixtures:{") {
-            failures.push("suite lacks normative fixtures return shape".to_string());
-        }
         // Both halves of `{fixtures:{...},examples:[...]}`.
         if !suite.module.js.contains(",examples:[") {
-            failures.push("suite return lacks the examples half".to_string());
+            failures.push(format!(
+                "suite {} return lacks the examples half",
+                suite.scope
+            ));
         }
         if suite.module.js.contains("from \"./") || suite.module.js.contains("from \"../") {
-            failures.push("suite imports production modules".to_string());
+            failures.push(format!("suite {} imports production modules", suite.scope));
         }
     }
     // JSON envelope per artifact.ts.
