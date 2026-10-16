@@ -168,29 +168,83 @@ fn hook_datetime_max_and_coalesce_lower() {
     assert!(js.contains("c.now"), "owner clock read:\n{js}");
 }
 
-/// (Outcome 12, emit class at plan scope.) A hook mixing `now` with `emit`
-/// qualifies for the native runner, so the `now` gap clears while the
-/// emit effect keeps its exact refusal until the emit lowering lands.
+/// (Outcome 12, emit class.) The recorded change-notification shape
+/// (CanEmployee `changed`): same-model field comparisons gate an emit
+/// carrying the snapshot plus carried references on the native runner.
 #[test]
-fn hook_emit_keeps_exact_refusal_while_plan_admits() {
-    let src = "app T\nGiven\n M { due:datetime }\n event Changed { revision:int }\nWhen\n scenario changed on=M.update\n  do\n   if event.after.due>now\n    emit Changed {revision=event.after.version}\nThen\n";
+fn hook_emit_change_notification() {
+    let src = "app T\nGiven\n L { tz:text }\n E { home:L, active:bool, start:date, end:date?, role:text }\n event Changed { employee:E, home:L, active:bool }\nWhen\n scenario changed on=E.update\n  do\n   if event.before.home!=event.after.home or event.before.active!=event.after.active or event.before.start!=event.after.start or event.before.end!=event.after.end or event.before.role!=event.after.role\n    emit Changed {employee=event.after,home=event.after.home,active=event.after.active}\nThen\n";
     let (js, diags, path) = hook_js(src);
     let _ = std::fs::remove_file(&path);
+    assert!(diags.is_empty(), "change hook lowers: {diags:?}");
     assert!(
         js.contains("($candidate,$hookCtx,c)"),
-        "emit hook qualifies for the native runner:\n{js}"
+        "native runner:\n{js}"
     );
     assert!(
-        !diags.iter().any(|d| d.message.contains("hook contextual binding")),
-        "no contextual-binding gap: {}",
-        codes(&diags).join("\n")
+        js.contains("await emit(c,\"T.Changed\",{employee:event.after,home:event.after.home,active:event.after.active});"),
+        "deferred emit with snapshot and carried references:\n{js}"
+    );
+}
+
+/// (Outcome 12, emit class.) The recorded roster-notification shape
+/// (CanShift `availability_created`): an unconditional emit with null
+/// paths and parent linkage lowers on the native runner.
+#[test]
+fn hook_emit_null_paths_and_parent_linkage() {
+    let src = "app T\nGiven\n R { t:text }\n A in R { employee:text, from:datetime }\n event Review { employee:text, roster:R, account:text? }\nWhen\n scenario created on=A.create\n  do\n   emit Review {employee=event.after.employee,roster=event.after.parent,account=null}\nThen\n";
+    let (js, diags, path) = hook_js(src);
+    let _ = std::fs::remove_file(&path);
+    assert!(diags.is_empty(), "roster hook lowers: {diags:?}");
+    assert!(
+        js.contains("($candidate,$hookCtx,c)"),
+        "native runner:\n{js}"
     );
     assert!(
-        diags
-            .iter()
-            .any(|d| d.code == "E6008" && d.message.contains("emit effect")),
-        "emit keeps its exact refusal: {}",
-        codes(&diags).join("\n")
+        js.contains("await emit(c,\"T.Review\",{employee:event.after.employee,roster:event.after.parent,account:null});"),
+        "null paths and parent linkage preserved:\n{js}"
+    );
+}
+
+/// (Outcome 12, emit class.) The recorded revision shape (CanMaintain
+/// `revise_plan`): a staged row is created, emitted by binding, then
+/// cancelled by staged id — all through the native runner.
+#[test]
+fn hook_emit_staged_binding_payload() {
+    let src = "app T\nGiven\n Q { t:text }\n P in Q { rev:int }\n X in Q { r:int }\n event Step { cancellation:X }\nWhen\n scenario revise on=P.update\n  do\n   create X {parent=event.after.parent,r=event.before.rev+1} as change\n   emit Step {cancellation=change}\n   cancel change.id\nThen\n";
+    let (js, diags, path) = hook_js(src);
+    let _ = std::fs::remove_file(&path);
+    assert!(diags.is_empty(), "revision hook lowers: {diags:?}");
+    assert!(
+        js.contains("($candidate,$hookCtx,c)"),
+        "native runner:\n{js}"
+    );
+    assert!(
+        js.contains("await emit(c,\"T.Step\",{cancellation:$can$l$"),
+        "emit carries the staged binding:\n{js}"
+    );
+    assert!(
+        js.contains("$hookCtx.cancel($can$l$"),
+        "cancel addresses the staged id:\n{js}"
+    );
+}
+
+/// (Outcome 12, emit class.) Emit effects keep source order with the
+/// hook's guards, staged writes and cancellation: guards reject first,
+/// effects stage atomically, and timers coexist in one runner.
+#[test]
+fn hook_emit_keeps_guard_and_effect_order() {
+    let src = "app T\nGiven\n M { t:text }\n C in M { m:text }\n event Done { s:text }\nWhen\n scenario h on=M.create\n  do\n   require event.after.t!=\"x\"\n   create C {parent=event.after,m=\"note\"} as staged\n   emit Done {s=event.after.t}\n   cancel \"old\"\nThen\n";
+    let (js, diags, path) = hook_js(src);
+    let _ = std::fs::remove_file(&path);
+    assert!(diags.is_empty(), "ordered hook lowers: {diags:?}");
+    let guard = js.find("check(").expect("guard lowers");
+    let staged = js.find("$hookCtx.stage").expect("staged write lowers");
+    let emitted = js.find("await emit(c,").expect("emit lowers");
+    let cancelled = js.find("$hookCtx.cancel").expect("cancel lowers");
+    assert!(
+        guard < staged && staged < emitted && emitted < cancelled,
+        "guards, staged writes, emit, cancel keep source order:\n{js}"
     );
 }
 

@@ -52,9 +52,7 @@ pub fn local_hook_supported(program: &IrProgram, scenario: SymbolId) -> bool {
     }
     let mut locals = HashMap::new();
     let mut aliases: HashMap<String, (SymbolId, EventAlias)> = HashMap::new();
-    profile
-        .statements(guards, &mut locals, &mut aliases, 0)
-        .is_some()
+    profile.statements(guards, &mut locals, &mut aliases, 0).is_some()
         && profile
             .statements(effects, &mut locals, &mut aliases, 0)
             .is_some()
@@ -68,17 +66,20 @@ struct HookProfile<'a> {
     remaining: usize,
 }
 
-/// Event-rooted alias class for hook locals. A snapshot alias
+/// Row-binding class for hook locals. A snapshot alias
 /// (`let r = event.after`) carries the full trigger row, so its leaf and
 /// carried-reference fields read like the snapshot itself. A parent alias
 /// (`let l = event.after.parent`) carries only the engine's parent linkage
 /// identity (`{model, id}`): bare uses (containment linkage, query parents,
 /// carried payload values, `.id`) lower, while leaf reads and row-valued
-/// derives through it refuse with the transitive-load code.
+/// derives through it refuse with the transitive-load code. A staged
+/// binding (`create … as s`) carries the bound `{id}` identity for the
+/// same bare/`.id` uses.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum EventAlias {
     Snapshot,
     ParentIdentity,
+    Staged,
 }
 
 impl HookProfile<'_> {
@@ -548,9 +549,10 @@ impl HookProfile<'_> {
         }
     }
 
-    /// Classify a member-access base inside hooks: event-rooted rows (with
-    /// their identity-only flag) or full query rows bound as locals. The
-    /// `bool` is true exactly for parent-linkage identities.
+    /// Classify a member-access base inside hooks: bound rows (with their
+    /// identity-only flag) or full query rows bound as locals. The `bool`
+    /// is true exactly for identity-only rows (parent linkage, staged
+    /// bindings).
     fn member_base(
         &self,
         base: &TypedExpr,
@@ -558,7 +560,13 @@ impl HookProfile<'_> {
         locals: &HashMap<String, ResolvedType>,
     ) -> Option<(SymbolId, bool)> {
         if let Some((model, class)) = self.event_class(base, aliases) {
-            return Some((model, class == EventAlias::ParentIdentity));
+            return Some((
+                model,
+                matches!(
+                    class,
+                    EventAlias::ParentIdentity | EventAlias::Staged
+                ),
+            ));
         }
         if let IrExpr::Name(name) = &base.expr {
             if let Some(ty) = locals.get(name) {
@@ -646,10 +654,12 @@ impl HookProfile<'_> {
         }
         for arg in args {
             self.expr(arg, locals, aliases, depth + 1)?;
-            if self
-                .event_class(arg, aliases)
-                .is_some_and(|(_, class)| class == EventAlias::ParentIdentity)
-            {
+            if self.event_class(arg, aliases).is_some_and(|(_, class)| {
+                matches!(
+                    class,
+                    EventAlias::ParentIdentity | EventAlias::Staged
+                )
+            }) {
                 return None;
             }
         }
@@ -892,10 +902,13 @@ impl HookProfile<'_> {
                         self.input(self.model, changes, locals, aliases, depth + 1)?;
                     } else if let IrExpr::Name(name) = &record.expr {
                         // Staged update of a bound full row (contained
-                        // query items): addressed by model plus record id.
-                        // Same-model staging stays checker-barred (E4052);
-                        // event aliases never qualify as set targets.
-                        if aliases.contains_key(name) {
+                        // query items) or staged binding: addressed by
+                        // model plus record id. Same-model staging stays
+                        // checker-barred (E4052); event aliases never
+                        // qualify as set targets.
+                        if aliases.get(name).is_some_and(|(_, class)| {
+                            *class != EventAlias::Staged
+                        }) {
                             return None;
                         }
                         let mut row_ty = locals.get(name)?;
@@ -944,7 +957,12 @@ impl HookProfile<'_> {
                     inner_aliases.remove(item);
                     self.statements(body, &mut inner_locals, &mut inner_aliases, depth + 1)?;
                 }
-                IrStmt::Create { model, input, .. } => {
+                IrStmt::Create {
+                    model,
+                    input,
+                    binding,
+                    ..
+                } => {
                     let mut targets = self.program.items.iter().filter(|item| {
                         item.canonical == *model && matches!(item.kind, IrItemKind::Model { .. })
                     });
@@ -956,6 +974,19 @@ impl HookProfile<'_> {
                         return None;
                     }
                     self.input(target.id, input, locals, aliases, depth + 1)?;
+                    if let Some(name) = binding {
+                        // The bound `{id}` identity serves bare and `.id`
+                        // uses (emit payloads, cancellation keys); field
+                        // reads through it refuse like parent linkage.
+                        aliases.insert(name.clone(), (target.id, EventAlias::Staged));
+                        locals.insert(
+                            name.clone(),
+                            ResolvedType::Record {
+                                symbol: target.id,
+                                stored: true,
+                            },
+                        );
+                    }
                 }
                 IrStmt::If {
                     cond,

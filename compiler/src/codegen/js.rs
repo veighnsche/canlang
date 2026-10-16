@@ -3689,14 +3689,16 @@ struct HookState {
     native: bool,
 }
 
-/// Event-rooted alias class for hook `let` bindings. Snapshots carry the
-/// full trigger row; parent steps carry only the engine's `{model, id}`
-/// linkage identity; other event-derived values (leaf and reference reads)
-/// gap on deeper access. Untracked names lower normally.
+/// Event-rooted alias class for hook bindings. Snapshots carry the full
+/// trigger row; parent steps carry only the engine's `{model, id}` linkage
+/// identity; staged create bindings carry the bound `{id}` identity;
+/// other event-derived values (leaf and reference reads) gap on deeper
+/// access. Untracked names lower normally.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum HookAlias {
     Snapshot,
     Parent,
+    Staged,
     Value,
 }
 
@@ -3709,8 +3711,10 @@ enum HookBase {
     Root,
     Snapshot,
     Parent,
+    Staged,
     Shallow,
     DeepParent,
+    DeepStaged,
     DeepRef,
     Plain,
 }
@@ -4941,6 +4945,7 @@ impl<'a> Emitter<'a> {
                 match self.hook_alias_lookup(name) {
                     Some(Some(HookAlias::Snapshot)) => HookBase::Snapshot,
                     Some(Some(HookAlias::Parent)) => HookBase::Parent,
+                    Some(Some(HookAlias::Staged)) => HookBase::Staged,
                     Some(Some(HookAlias::Value)) | Some(None) | None => {
                         // Event-derived values and plain names expose no
                         // further event content; ordinary lowering owns them.
@@ -4972,8 +4977,10 @@ impl<'a> Emitter<'a> {
                     }
                 }
                 HookBase::Parent => HookBase::DeepParent,
+                HookBase::Staged => HookBase::DeepStaged,
                 HookBase::Shallow | HookBase::DeepRef => HookBase::DeepRef,
                 HookBase::DeepParent => HookBase::DeepParent,
+                HookBase::DeepStaged => HookBase::DeepStaged,
                 HookBase::Plain => HookBase::Plain,
             },
             _ => HookBase::Plain,
@@ -5048,6 +5055,17 @@ impl<'a> Emitter<'a> {
                     ))
                 }
             }
+            HookBase::Staged => {
+                if field == "id" {
+                    None
+                } else {
+                    Some(self.hook_gap(
+                        "hook staged content",
+                        "staged bindings carry identity only (`{id}`); staged field reads have no hook lowering",
+                        span,
+                    ))
+                }
+            }
             HookBase::Shallow | HookBase::DeepRef => Some(self.hook_gap(
                 "hook reference traversal",
                 "reads through event references need the transitive load and have no hook lowering",
@@ -5056,6 +5074,11 @@ impl<'a> Emitter<'a> {
             HookBase::DeepParent => Some(self.hook_gap(
                 "hook parent content",
                 "parent linkage carries identity only (`{model, id}`); parent field reads need the transitive load and have no hook lowering",
+                span,
+            )),
+            HookBase::DeepStaged => Some(self.hook_gap(
+                "hook staged content",
+                "staged bindings carry identity only (`{id}`); staged field reads have no hook lowering",
                 span,
             )),
         }
@@ -9239,7 +9262,7 @@ impl<'a> Emitter<'a> {
                 payload,
                 span,
             } => {
-                if self.hook.is_some() {
+                if self.in_hook() && !self.hook_native() {
                     self.unsupported(
                         "emit effect",
                         "Rule A stages no outbox writes from hooks; emit has no hook lowering",
@@ -9253,6 +9276,12 @@ impl<'a> Emitter<'a> {
                         *span,
                     )];
                 }
+                // Native hooks emit through the same deferred pipeline as
+                // scenarios (`await emit(c, …)` with the ambient context):
+                // guards lower ahead in source order, staged writes and
+                // timers commit atomically alongside, null payload paths
+                // are preserved, and post-commit handlers run in later
+                // transactions that never undo the committed source.
                 self.stdlib.insert("emit".to_string());
                 let payload_text = self.lower_expr(payload);
                 vec![(
@@ -9723,6 +9752,15 @@ impl<'a> Emitter<'a> {
             span,
         ));
         let id_ref = binding.clone().map(|name| self.bind(&name));
+        if self.in_hook() {
+            // Staged bindings carry the bound `{id}` identity: bare and
+            // `.id` uses lower; field reads gap loud (see hook_member_gap).
+            if let Some(source) = binding {
+                if let Some(scope) = self.hook_aliases.last_mut() {
+                    scope.insert(source.clone(), Some(HookAlias::Staged));
+                }
+            }
+        }
         let bind_line = match &id_ref {
             Some(name) => {
                 format!("{pad}const {name}={{id:$hookCtx.triggerId+\"/staged/\"+($stagedNext++)}};")

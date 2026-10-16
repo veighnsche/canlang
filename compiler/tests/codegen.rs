@@ -7322,32 +7322,28 @@ fn t31_plain_schedule_lowers() {
     t31_assert_parses(js, "plain-schedule");
 }
 
-/// (T31) `emit` in hooks is checker-clean but has no hook lowering (Rule A
-/// stages no outbox writes): loud E6008 with a fail-closed placeholder,
-/// while the hook entry itself still registers. Since the outcome-12
-/// owner-policy plan admits emit payloads, emit-only hooks qualify for the
-/// native runner (`($candidate,$hookCtx,c)`); the emit effect itself keeps
-/// its `E6008` until the hook emit lowering lands.
+/// (T31) `emit` in hooks is checker-clean and lowers on native runners
+/// through the deferred pipeline (`await emit(c, …)`), exactly like
+/// scenarios; legacy hooks keep the loud Rule A refusal (pinned by
+/// `t31_hook_stmt_backstops`). The hook entry registers either way.
 #[test]
-fn t31_hook_emit_unsupported() {
+fn t31_hook_emit_supported_natively() {
     let (catalog, path) = golden_catalog();
     let src = "app T\nGiven\n M { t:text }\n event Due { s:text }\nWhen\n scenario h on=M.create\n  do\n   emit Due {s=\"x\"}\nThen\n";
     let (db, program, result) = t31_program(src, &catalog);
     assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
     let (artifact, diags) = emit_test_only(&program, &db, &result, Some(&catalog));
     let _ = std::fs::remove_file(&path);
-    assert!(
-        diags
-            .iter()
-            .any(|d| d.code == "E6008" && d.message.contains("emit")),
-        "emit E6008: {diags:?}"
-    );
+    assert!(diags.is_empty(), "{diags:?}");
     let js = &artifact.modules[0].js;
     assert!(
         js.contains("($candidate,$hookCtx,c)"),
         "native runner binds ambient context:\n{js}"
     );
-    assert!(js.contains("has no lowering"), "placeholder:\n{js}");
+    assert!(
+        js.contains("await emit(c,\"T.Due\",{s:\"x\"});"),
+        "deferred emit:\n{js}"
+    );
 }
 
 /// (T31) Queries in hooks have no lowering: the engine hands hooks no
