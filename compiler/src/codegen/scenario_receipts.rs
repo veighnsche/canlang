@@ -4429,7 +4429,7 @@ fn checked_native_first_query_source_plan(
         || query.id.is_empty()
         || first.binding.kind != SyntaxKind::Let as u8
         || query.limit.is_some()
-        || query.archived
+        || (query.archived && scan.archived.is_some())
         || dependency.id.is_empty()
         || dependency.source != query.source
         || dependency.model != query.model
@@ -4502,7 +4502,7 @@ fn checked_native_first_query_source_plan(
                 })
                 .collect(),
             limit: None,
-            archived: "exclude".into(),
+            archived: if query.archived { "include" } else { "exclude" }.into(),
             dependencies: vec![ReceiptQueryDependency {
                 id: dependency.id.clone(),
                 source: transport_source(&dependency.source, entry_module)?,
@@ -5481,12 +5481,35 @@ pub(super) fn checked_first_query_order(
         source.clauses.as_slice(),
     ) {
         ([], [], [_, _]) => Some(()),
+        ([], [], [archived, _, _])
+            if matches!(
+                archived.kind,
+                crate::analysis::types::CheckedQueryClauseKind::Archived
+            ) =>
+        {
+            Some(())
+        }
         ([original], [actual], [_, _, clause])
             if original.field.is_none()
                 && original.field_name == "id"
                 && !original.descending
                 && actual.field == original.field_name
                 && actual.descending == original.descending
+                && clause.kind == crate::analysis::types::CheckedQueryClauseKind::Order
+                && clause.expressions.as_slice() == [original.node] =>
+        {
+            Some(())
+        }
+        ([original], [actual], [archived, _, _, clause])
+            if original.field.is_none()
+                && original.field_name == "id"
+                && !original.descending
+                && actual.field == original.field_name
+                && actual.descending == original.descending
+                && matches!(
+                    archived.kind,
+                    crate::analysis::types::CheckedQueryClauseKind::Archived
+                )
                 && clause.kind == crate::analysis::types::CheckedQueryClauseKind::Order
                 && clause.expressions.as_slice() == [original.node] =>
         {
@@ -5693,7 +5716,25 @@ fn checked_owner_first_query_ir<'a>(
         ordered: true,
         nonempty: false,
     };
-    let [alias, predicate, ..] = source.clauses.as_slice() else {
+    // A leading Archived clause pairs only with a disclosed include: the
+    // valueless include drops from IR, so any other combination refuses.
+    let clauses = source.clauses.as_slice();
+    let clauses = match clauses {
+        [archived, rest @ ..]
+            if matches!(
+                archived.kind,
+                crate::analysis::types::CheckedQueryClauseKind::Archived
+            ) =>
+        {
+            if !query.archived || scan.archived.is_some() {
+                return None;
+            }
+            rest
+        }
+        _ if query.archived => return None,
+        _ => clauses,
+    };
+    let [alias, predicate, ..] = clauses else {
         return None;
     };
     checked_first_query_order(query, scan)?;
@@ -5708,7 +5749,7 @@ fn checked_owner_first_query_ir<'a>(
         || query.projection.is_some()
         || query.cardinality_guard.is_some()
         || query.limit.is_some()
-        || query.archived
+        || (query.archived && scan.archived.is_some())
         || source.node != query.node
         || source.domain != query.domain
         || source.domain_type != array
