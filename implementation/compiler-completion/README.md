@@ -341,6 +341,16 @@ after gaps close; (2) per-operation defining-source origin (or narrowed
 per-module maps) — real multi-source maps list every source in each map;
 (3) data-only AST selections for authority-body queries (callback
 where-predicates refused by decision mode; beyond-fixture).
+Joint emit-half proof (coordinator, real compiler): the committed
+fixture pair compiles with the real native catalog to exit 0 with ZERO
+diagnostics — E6008 gone for this path; artifact carries real
+sources (ed67eb52/b5e988a3), `Shop.totals` descriptor with
+scope/source/by/description/result, and dual-emitted helper callables.
+Serve half (real emitted JS through invokeReadCanonical) routed to C15:
+staged real modules fail only on bare `@canlang/stdlib` `records`
+resolution (test seam uses the relative `dist/stdlib.js` shim instead);
+driver must use the verified-assembly/miniflare-durable precedent, not
+hand-edited artifacts.
 Emission half integrated in `da4f7e68` (Lane A13 commit `ce43fa00`;
 SCOPE-5 receipt verified: stash restored, 4.7G private target cleaned,
 shared-target discipline, no new abstractions): authority descriptors
