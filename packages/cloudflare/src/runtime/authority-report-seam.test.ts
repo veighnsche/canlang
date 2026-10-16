@@ -17,6 +17,14 @@
  * any decision read, and mid-evaluation membership change voids the
  * grant. Engine viewer/page refusals stay State-owned (11/11 green).
  *
+ * Helper-consumer proof (DESIGN §442, Lane-A dual-emission precedent):
+ * an authority body calling a pure helper (`derive` lowered once as the
+ * emitted variant, invoked with the ambient `c`) keeps decision mode
+ * inside the helper, so the helper-computed result grants to the
+ * admitted `by`. The same declaration consumed by viewer code keeps
+ * viewer restriction, and a corrupted helper body refuses instead of
+ * serving a grant.
+ *
  * Run from dist: root build, then
  * `node --test dist/runtime/authority-report-seam.test.js`.
  */
@@ -65,6 +73,8 @@ const POLICY_JSON = JSON.stringify({
     "Shop.totals": { by: ["members"] },
     "Shop.inspectAuthority": { by: ["members"] },
     "Shop.inspect": { by: ["members"] },
+    "Shop.helperTotals": { by: ["members"] },
+    "Shop.helperPeek": { by: ["members"] },
   },
   models: {
     "Shop.Gadget": { read: ["Gadget.read.1"], public: ["Gadget.read.1"] },
@@ -72,8 +82,14 @@ const POLICY_JSON = JSON.stringify({
 });
 
 /** Hand-written decision bodies mirroring the lowered shape Lane A will emit. */
-function opsModule(policyJson: string, operationsJson: string, registryOpsJson: string): string {
+function opsModule(
+  policyJson: string,
+  operationsJson: string,
+  registryOpsJson: string,
+  extra: { prelude?: string | undefined; shop?: string | undefined } = {},
+): string {
   return `import { records } from "../stdlib.js";
+${extra.prelude ?? ""}
 const readRules = { "Gadget.read.1": () => true };
 export function canApp() {
   return {
@@ -89,7 +105,7 @@ export function canApp() {
       },
       inspectAuthority: async (c, input) => input.gadget.stock,
       inspect: async (c, input) => input.gadget.title,
-    },
+${extra.shop ?? ""}    },
   };
 }
 export const appDefinition = {
@@ -163,10 +179,74 @@ const ORDINARY_OPERATIONS_JSON = JSON.stringify({
   },
 });
 
+/**
+ * Helper-consumer fixture (DESIGN §442 consuming-authority mode): the
+ * module-level `sumHelper` mirrors the once-emitted pure-helper variant
+ * Lane A lowers (`derive` calls resolve to the single emitted variant
+ * invoked with the ambient `c`). The authority body consumes it with
+ * the decision-mode `c`, so helper reads keep decision mode; the
+ * ordinary body consumes the same declaration with a viewer `c`.
+ */
+const HELPER_PRELUDE = `async function sumHelper(c) {
+  const rows = await records(c, "Shop.Gadget");
+  let sum = 0n;
+  for (const row of rows) sum += BigInt(row.stock);
+  return sum;
+}
+`;
+
+/** Tampered helper body: fails instead of computing the grant. */
+const HELPER_PRELUDE_TAMPERED = `async function sumHelper(c) {
+  throw new Error("tampered helper body");
+}
+`;
+
+const HELPER_SHOP_EXTRA = `      helperTotals: async (c) => sumHelper(c),
+      helperPeek: async (c) => sumHelper(c),
+`;
+
+const HELPER_AUTHORITY_OPERATIONS_JSON = JSON.stringify({
+  ...JSON.parse(AUTHORITY_OPERATIONS_JSON),
+  "Shop.helperTotals": {
+    handler: "Shop.helperTotals",
+    inputs: {},
+    scope: "authority",
+    by: "members",
+    read: true,
+    result: { type: "int" },
+    description: DESCRIPTION,
+  },
+  "Shop.helperPeek": {
+    handler: "Shop.helperPeek",
+    inputs: {},
+    by: "members",
+    read: true,
+    result: { type: "int" },
+    description: "Viewer helper probe; refuses the confidential field.",
+  },
+});
+
+function helperArtifactOperations(): unknown[] {
+  return [
+    ...defaultArtifactOperations(),
+    { name: "Shop.helperTotals", kind: "read", description: DESCRIPTION, inputs: { fields: [] }, result: { type: "int" } },
+    {
+      name: "Shop.helperPeek",
+      kind: "read",
+      description: "Viewer helper probe; refuses the confidential field.",
+      inputs: { fields: [] },
+      result: { type: "int" },
+    },
+  ];
+}
+
 interface ArtifactOptions {
   readonly operationsJson?: string;
   readonly artifactOperations?: unknown[];
   readonly sources?: Array<{ path: string; sha256: string }>;
+  readonly prelude?: string;
+  readonly shopExtra?: string;
+  readonly extraCallableIds?: string[];
 }
 
 function gadgetModel(): unknown {
@@ -241,6 +321,17 @@ function authorityArtifact(moduleJs: string, options: ArtifactOptions = {}): Com
         member: ["Shop", "inspect"],
         inputStyle: "parameters",
       },
+      ...(options.extraCallableIds ?? []).map((id) => {
+        const member = id.slice(id.indexOf(".") + 1);
+        return {
+          id,
+          kind: "operation",
+          module: "ops.mjs",
+          export: `Shop_${member}`,
+          member: ["Shop", member],
+          inputStyle: "parameters",
+        };
+      }),
     ],
     pages: [],
     requires: [{ capability: "state.parameters", min_version: 1 }],
@@ -317,6 +408,7 @@ async function seamSetup(options: ArtifactOptions = {}): Promise<SeamSetup> {
     POLICY_JSON,
     options.operationsJson ?? AUTHORITY_OPERATIONS_JSON,
     JSON.stringify(artifactOps),
+    { prelude: options.prelude, shop: options.shopExtra },
   );
   const opsPath = join(dir, "ops.mjs");
   writeFileSync(opsPath, moduleJs);
@@ -540,6 +632,74 @@ describe("authority report host seam (decision mode + result-as-grant)", () => {
     );
     assert.equal(error.code, "forbidden");
     assert.match(error.message, /authority changed/);
+  });
+});
+
+async function helperSeamSetup(prelude: string = HELPER_PRELUDE): Promise<SeamSetup> {
+  return seamSetup({
+    operationsJson: HELPER_AUTHORITY_OPERATIONS_JSON,
+    artifactOperations: helperArtifactOperations(),
+    prelude,
+    shopExtra: HELPER_SHOP_EXTRA,
+    extraCallableIds: ["Shop.helperTotals", "Shop.helperPeek"],
+  });
+}
+
+describe("authority report helper-consumer seam (DESIGN §442 consuming-authority mode)", () => {
+  it("grants a helper-computed result to the admitted by while viewer reads stay filtered", async () => {
+    const setup = await helperSeamSetup();
+    await seedStock(setup.store, setup.seed.now, "first", "3");
+    await seedStock(setup.store, setup.seed.now, "second", "4");
+    const served = (await invokeReadCanonical({
+      ...readOptions(setup, "Shop.helperTotals"),
+      identity: await identityFor(setup.seed, setup.seed.memberToken),
+    })) as { result: unknown; revision: unknown };
+    assert.equal(served.result, "7");
+
+    // Viewer contrast: the same rows project without the confidential field.
+    const viewer = (await invokeReadCanonical({
+      ...readOptions(setup, "Shop.Gadget.read"),
+      identity: await identityFor(setup.seed, setup.seed.memberToken),
+    })) as { records: Array<{ data: Record<string, unknown> }> };
+    assert.equal(viewer.records.length, 2);
+    for (const record of viewer.records) {
+      assert.deepEqual(Object.keys(record.data).sort(), ["code", "title"]);
+    }
+
+    // The grant is to the admitted `by`: outsiders refuse before any helper read.
+    const outsider = await identityFor(setup.seed, setup.seed.outsiderToken);
+    const denied = await captureError(() =>
+      invokeReadCanonical({ ...readOptions(setup, "Shop.helperTotals"), identity: outsider }),
+    );
+    assert.equal(denied.code, "forbidden");
+  });
+
+  it("refuses the same helper under viewer consumption without a grant", async () => {
+    // The same `sumHelper` declaration consumed by an ordinary read runs
+    // with a viewer `c`: touching the confidential field refuses loudly
+    // instead of obtaining decision authority (§442 second direction).
+    const setup = await helperSeamSetup();
+    await seedStock(setup.store, setup.seed.now, "hidden", "5");
+    const identity = await identityFor(setup.seed, setup.seed.memberToken);
+    const error = await captureError(() =>
+      invokeReadCanonical({ ...readOptions(setup, "Shop.helperPeek"), identity }),
+    );
+    assert.match(error.message, /not readable/);
+  });
+
+  it("refuses a corrupted helper body instead of serving a grant", async () => {
+    // A tampered helper that fails cannot serve a forged grant: the
+    // seam invokes bodies with `preserveThrown`, so the helper failure
+    // escapes loudly with no result served. (Semantic forgery that
+    // still type-checks is outside any runtime boundary; helper
+    // identity is pinned by the bound single source origin.)
+    const setup = await helperSeamSetup(HELPER_PRELUDE_TAMPERED);
+    await seedStock(setup.store, setup.seed.now, "hidden", "5");
+    const identity = await identityFor(setup.seed, setup.seed.memberToken);
+    const error = await captureError(() =>
+      invokeReadCanonical({ ...readOptions(setup, "Shop.helperTotals"), identity }),
+    );
+    assert.match(error.message, /tampered helper body/);
   });
 });
 
