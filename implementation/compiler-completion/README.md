@@ -7525,3 +7525,12 @@ emission + State hook runner + hook_lowering; B11: preference emission +
 interfaces test; no file overlap; cargo single-writer serialized). C18 hook
 batch stays unmerged-as-complete until the repeat path resolves; membership
 work reviewable independently. Active lanes: B11, C21 (2 of 3).
+
+**MAIN-7 acceptance, 2026-10-16 (Codex independent review):**
+Membership bridge 9/9 via released binary (no rebuild). Compiler slice
+accepted only (not whole membership runtime / original24). Main clean
+`98b7f48c`: `7a0f394b`→`993d0c10`, `8bf1bf38`→`5918e68c` + reconciliation
+(6 changed paths, checkpoint retained). Runtime seals unchanged; 347 stays
+historical capture. REVIEW-13 (bool) and REVIEW-14 (hook repeat) remain open
+and do not gate this bridge. Next original24 scheduled at a released/frozen
+closure after relevant fixes.
