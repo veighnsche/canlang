@@ -341,6 +341,17 @@ after gaps close; (2) per-operation defining-source origin (or narrowed
 per-module maps) — real multi-source maps list every source in each map;
 (3) data-only AST selections for authority-body queries (callback
 where-predicates refused by decision mode; beyond-fixture).
+Emission half integrated in `da4f7e68` (Lane A13 commit `ce43fa00`;
+SCOPE-5 receipt verified: stash restored, 4.7G private target cleaned,
+shared-target discipline, no new abstractions): authority descriptors
+carry checked `source:{module,path,sha256}`, authority-body model queries
+emit data-only `where:{op,field,value}` AST (rest keeps callback, still
+refused); viewer/ordinary emission byte-identical by stash-dance. Parent:
+owned file 17/17, outbound 13/13, boolean 8/8, cross-op 18/18,
+stored-query 6/6, syntax 61/62 (same recorded legacy-E1211 goldens).
+E6008 re-land deliberately deferred by A13 (correct sequencing): the seam
+must first verify `def.source` or the artifact is unservable — one-function
+Lane-C change, then re-land + joint real-fixture proof + original24.
 
 Outcome 9 family A implemented in `55c969d2` (Lane A commit `fac7bd70`):
 45/64 handler profiles (`on=Cap.event`) lower through canonical
