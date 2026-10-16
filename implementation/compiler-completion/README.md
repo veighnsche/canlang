@@ -381,9 +381,14 @@ imported helper reuse. Parent: joint 7/7, seam+t16b 57/57 green; t17b-flip
 no producer rebuild while it runs.
 Outcome-14 composition capture terminal (`evidence/original24-20261016.json`):
 exit 10, complete=true/omitted=0, 26 sources, diagnostics 573–582 → 347
-(346 E6008 + 1 E6007). The 1 E6007 is the retained post-13 `active_member` producer
-dependency labelled `lane-03` by the compiler. That label does not establish
-an external or policy hold; its defining local owner/release remains to resolve. Catalog: values
+(346 E6008 + 1 E6007). The 1 E6007 (`active_member`, "owner lane-03")
+is an INTERNAL producer dependency per OWNER-1, not an external hold:
+defining owner is the State membership producer
+(`dispatch-membership.ts`, `scenario-receipt.ts` checked occurrence +
+producer) with the compiler producer bridge; the gap is the checked
+`active_member` source/closure unavailable to the compiler, plus 4
+membership-observation lowerings lacking checked source/closure —
+all outcome-13 scope, authorized work. Catalog: values
 catalog sha 494fe52c (unchanged from old baseline — distinction is the
 compiler binary, which carries all integrated repairs; binary reports
 9a32ee03 = parent head). Regrouped E6008 remainder: native first-query
@@ -392,6 +397,21 @@ correspondence 90 (outcome-5), hooks query/context/derive 71 (outcome-12:
 dispatch guard receipt/Rule 23 (outcome-10), collection domain 10,
 formatted business 8 (outcome-7), archived factory 6. Executable
 success/rejection/rollback/replay consumers still to run.
+Finite execution view (all 46 messages sum to 346 E6008 + 1 E6007;
+occurrences are not features): query-correspondence 90 → 5 (C17 running);
+hook query/now/derive/emit 76 → 12 (queued Lane C after C17 releases
+disclosure/hook files); dispatch guard + IR-closure 27 → 10 (queued Lane C
+after); enum filter profiles 77 → 6 (B6 running); factory profiles 29
+(stat/timeline/preferences/copy/collapse/radial/hero/calendar-columns/
+steps/indicator/generic-filter) → 6 (same-owner follow-up after B6);
+collection domain/call-source/archived 17 → 6/12 (queued); formatted
+business/call-arg 9 → 7 (queued Lane B after B6); membership observation 4
++ active_member builtin 1 → 13 (OWNER-1 disposition above; queued Lane C
+after C17, receipt-path lease); call effects 7 → 11; invoice triggers 5
+→ 9 (carrier scope vs family D to be named); expression order 4 + history
+1 → 12 (queued with owner analysis). No third worker dispatched now: every
+remaining group shares files with active C17/B6; the queue above respects
+leases and starts as each releases.
 Serve half proven in `c68500d2` + test-typo fix (Lane C15 commit
 `adf31cc3`): `assembleModules` rewrites bare `@canlang/stdlib` to the
 real data-plane stdlib and registers the assembler-owned capability — no
