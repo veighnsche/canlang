@@ -7512,3 +7512,16 @@ discriminator: not(preferences.active ?? false) selects true, helper
 agrees), plus replacing B9's handwritten applyWhere engine with the existing
 State/Cloudflare query adapter. C18 hook batch and C20 membership stay ready
 for independent review, ungated on the bool criterion.
+
+**REVIEW-14 dispatch, 2026-10-16 (Codex 08:49Z+):**
+Hook repeat-workflow gap: second legitimate trigger on the same record
+collides at staged id u-1/staged/0 (hook_lowering.rs ~439 dodges via u-2
+probe switch; lower_hook_create emits triggerId+'/staged/'+counter with no
+invocation identity). Finite C21 (`01a143e9-bb8e-...`) owns reproduce +
+emitter/runtime contract + repair from existing invocation/operation identity
++ occurrence/ordinal; replay stays once-only; wrong-parent/stale negatives
+unchanged. Runs in PARALLEL with B11 after lease reconciliation (C21: hook
+emission + State hook runner + hook_lowering; B11: preference emission +
+interfaces test; no file overlap; cargo single-writer serialized). C18 hook
+batch stays unmerged-as-complete until the repeat path resolves; membership
+work reviewable independently. Active lanes: B11, C21 (2 of 3).
