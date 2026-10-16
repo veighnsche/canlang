@@ -346,6 +346,7 @@ fixture pair compiles with the real native catalog to exit 0 with ZERO
 diagnostics — E6008 gone for this path; artifact carries real
 sources (ed67eb52/b5e988a3), `Shop.totals` descriptor with
 scope/source/by/description/result, and dual-emitted helper callables.
+REVIEW-10 regression (Codex, in da4f7e68): data-only Int filters emit JSON numbers but canonical stored ints are strings — emitted eq/gt returns false on real rows; string compare would misorder 2/10; Number coercion loses big ints. Unfiltered-count fixture cannot catch it. Routed to A14 (defining owner, existing typed comparison only): numeric string-int equality/ordering incl. 2vs10/negative/big/null, real compiled filtered fixture over canonically created ints proven through host; no semantic redefinition. E6008 removal 74697e8f stands but is not whole acceptance; fail-closed refusals intact; main withholds this prefix pending fix.
 Serve half (real emitted JS through invokeReadCanonical) routed to C15:
 staged real modules fail only on bare `@canlang/stdlib` `records`
 resolution (test seam uses the relative `dist/stdlib.js` shim instead);
