@@ -140,6 +140,10 @@ Authorized referenced-row reads in hooks: loadReference owner with edge-match, s
 
 Parent-bound agenda saved defaults: compiler forwarding-only admit for reference-only apps; original defaults shape renders 200 end to end. Incoming interval `47981322..HEAD` accounts for 2 changed paths in `can18_merge_34_20261017` of the existing registry. agenda 1/1 x4 (one initial 0/1 flake, then 3/3 green + worker green), row/ref/joint green, UI 179/179, factory 33/33, enum 41/41 on frozen 93ea5761/ca50. Existing defining owners and target allocations remain; focused new tests stay with Compiler. Reuse prior accumulated coverage; complete checkpoint remains unchanged. Original24 and required executable consumers remain open. Unfinished work stays in the running Muse checkout.
 
+### CAN18 incremental integration — can18_merge_35_20261017
+
+Filter-remainder pins: 36 diagnostics classified (C2/C3 followers + 8 genuinely-new selectors), refusals pinned test-only. Incoming interval `24b6ad04..HEAD` accounts for 1 changed paths in `can18_merge_35_20261017` of the existing registry. filter_remainder_pins 8/8 on main. Existing defining owners and target allocations remain; focused new tests stay with Compiler. Reuse prior accumulated coverage; complete checkpoint remains unchanged. Original24 and required executable consumers remain open. Unfinished work stays in the running Muse checkout.
+
 ### Specification and installer documentation merge — 2026-10-15
 
 Merge installer commit `02470b74` into canonical `main` at `a70921e3`.

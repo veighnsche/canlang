@@ -74274,5 +74274,23 @@
     "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
     "checkpoint_advanced": false,
     "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
+  },
+  "can18_merge_35_20261017": {
+    "incremental_base": "24b6ad04e56bddc5ba9742f13e9ddb943c039de3",
+    "incoming_end": "0bcfab3b06c41fbbe32b20ffe1c9f1d0b7adf026",
+    "retained_coverage": "reuse spec_installer_merge_reconciliation_20261015 and preceding CAN18 incremental merge entries; inherited complete checkpoint unchanged",
+    "changed_path_count": 1,
+    "rows": [
+      [
+        "compiler/tests/filter_remainder_pins.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ]
+    ],
+    "choice": "Filter-remainder pins: 36 diagnostics classified (C2/C3 followers + 8 genuinely-new selectors), refusals pinned test-only.",
+    "validation": "filter_remainder_pins 8/8 on main.",
+    "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
+    "checkpoint_advanced": false,
+    "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
   }
 }
