@@ -24,6 +24,17 @@ session/admission remain local implementation work. Hook guards and ordinary val
 authority; missing parent-read implementation is not a new value-use prohibition. Exact17/18 external/policy holds remain unchanged. Continue ready work
 through these checkpoints; do not mark the overall goal complete.
 
+### Accepted helper-reuse repair (merge36) — 2026-10-17
+
+Main integrates `5898e5ae2`: hook helper variants are per-use — the same
+helper across parent + reference linkages emits two loader-correct variants
+(`hook`/`hookref`), each inheriting its call-site decision/value site;
+nested/imported helpers share selection; mixed kinds stay refused. The exact
+2231 discriminator now compiles clean on both spellings. Validation on
+frozen main producer `730bf47e` + native catalog `ca50`: discriminators 0
+diagnostics each, reference 10/10 + 13/13, parent 12/12, hook_lowering 26/26,
+hook_hookrem 7/7, hook_first_query 11/11.
+
 ### Accepted filter-remainder pins (merge35) — 2026-10-17
 
 Main integrates `0bcfab3b0` (test-only): all 36 remaining filter diagnostics
