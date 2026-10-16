@@ -7826,3 +7826,20 @@ commit (remain as the only parent dirt). RESOURCE-11 closed: 1.1GiB private
 target cleaned by owner, disk healthy, evidence binary preserved. Scoped
 commit ready for Codex intake (filter prerequisite + repair only). Sole
 active lane: C23.
+
+**B16 commit audit vs owner corrections + C23 hold, 2026-10-16:**
+C23 hold confirmed (no cargo until MAIN-FILTER-RELEASE; tree holds only its
+edits). Against 85aa467bb, all three /tmp owner corrections VERIFIED
+PRESENT: module+field scoping (module segment resolves before field),
+preferenceVersions + pollUrl??path pins (no shape-only substitutes),
+explicit-false preservation (strict spelling comparison, string POST/store),
+plus the two-app same-named-state consumer assertions. The single open
+divergence is architectural and new: B16 built filter-specific `filterField`
+with the explicit rationale that the settings-panel binder does not apply
+outside the settings frame, while the new direction names TabsBinding
+(presentation.ts:2023) + renderEnumPreferenceSettings (settings.ts:195) as
+the reuse target. Both owner paths exist; B16's path is committed and
+consumer-proven 1/1. No rework spawned — this is a Codex intake decision on
+the staged integration, not a coordinator rewrite. Resource flags unchanged
+on every shared build; B15 terminal (freeze happens at the capture
+sequence, not now).
