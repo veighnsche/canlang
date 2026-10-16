@@ -18042,3 +18042,12 @@ Accepted: Integrate the complete contained-first query compiler and State receiv
 ## 2026-10-16 — can18_merge_11_20261016
 
 Accepted: Integrate the checked membership producer bridge at its existing compiler owner, preserving unbound, planned and tampered-source refusals. Merge reviewed tested work incrementally into canonical `main`, preserving installer/specification changes and the active implementation branch. Select released7a0f394b/8bf1bf38 as main993d0c10/5918e68c independently of pending Boolean and hook repairs. Independent existing released membership bridge binary passes9/9 including original consumed/imported/multi-app closures, unrelated-IR refusal isolation, planned producer and tampered source. Reviewed exact source-span marking, original closure equality and occurrence-overlap gate; retained runtime source/receipt seals and unchanged neighbor checks. No build-cache allocation or active worker mutation. This closes the compiler bridge slice, not original24 or whole executable workflows. Reconcile the living file-tree plan/registry over `1fecfcbe..5918e68c` with existing owners; retain the complete checkpoint and all outstanding acceptance gates. A merged component is not a claim that original24 or the remaining runtime workflows are complete.
+
+## 2026-10-16 — deferred radial intake and frozen compiler input
+
+Accepted implementation process correction: radial intake `809438ccc` is
+reverted by `8e06613ed` after an independent consumer run used the shared
+compiler at pre-fix `e46013cb`. Production source is unchanged from the
+accepted `98b7f48c`; all work remains preserved. Qualify the complete
+focused radial IR/emission boundary against the released frozen compiler
+input before reintake. This changes no language rule or acceptance scope.

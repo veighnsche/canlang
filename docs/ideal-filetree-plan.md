@@ -622,3 +622,9 @@ All 27 secondary worktrees were checked against main and removed after preservin
 ### 2026-10-14 — readiness publication and branch pruning
 
 The reviewed prompt/source CLI, acceptance gate, shared action primitives/layout and app-local Playwright infrastructure are ready for publication with their focused checks and explicit corpus limitations recorded in DECISIONS. Actual screenshots and generated run reports remain outside Git; saved executable fixture contributions and conceptual references remain source inputs. Two acceptance defects found during review were repaired: reject false/computed form-submit targets and preserve native modal lifecycle during reconciliation. All remote feature heads were integrated before deletion; the cleaned local branch graph is retained in the external backup bundle, including unfinished historical proposals. No new merge occurred and the full coverage checkpoint is not advanced.
+
+Radial intake correction (2026-10-16): `809438ccc` / `8e06613ed` touch
+Compiler JS, its radial fixture and consumer test with zero net source
+change. Existing owners/allocations and complete checkpoint remain.
+Membership coverage through `98b7f48c` is retained; radial qualification
+is deferred for the correct frozen compiler closure.
