@@ -7132,7 +7132,9 @@ fn t31_nested_same_model_barred() {
 
 /// (T31) Hook run shape: the emitted run function adjusts the candidate,
 /// stages a parented child plus timers through the hook context, and
-/// registers under its trigger key with the scenario identity.
+/// registers under its trigger key with the scenario identity. Since the
+/// outcome-12 owner-policy plan admits this hook, it emits the native
+/// runner (`($candidate,$hookCtx,c)`) over the owner after snapshot.
 #[test]
 fn t31_hook_run_shape() {
     let (catalog, path) = golden_catalog();
@@ -7144,26 +7146,25 @@ fn t31_hook_run_shape() {
     assert!(diags.is_empty(), "{diags:?}");
     let js = &artifact.modules[0].js;
     // Registry entry: trigger key, scenario identity, engine op spelling.
+    // Native hooks collect in a `const hooks` member (legacy inlines the
+    // registry object instead).
     assert!(
         js.contains(
-            "hooks:{\"T.M.update\":{name:\"T.h\",ops:[\"update\"],run:async function $can$s$542e68("
+            "hooks={\"T.M.update\":{name:\"T.h\",ops:[\"update\"],run:async function $can$s$542e68("
         ),
         "registry:\n{js}"
     );
-    // Engine-shaped signature over the candidate and hook context.
+    // Native signature: the owner engine frame supplies the ambient
+    // operation context as `c`.
     assert!(
-        js.contains("run:async function $can$s$542e68($candidate,$hookCtx){"),
+        js.contains("run:async function $can$s$542e68($candidate,$hookCtx,c){"),
         "signature:\n{js}"
     );
-    // Live event views: after aliases the candidate's fields plus trigger
-    // identity and the reserved version; before is the frozen snapshot.
+    // Live event views: after merges the owner after snapshot with the
+    // candidate's fields plus the reserved version; before is frozen.
     assert!(
-        js.contains("const event={after:{...$candidate,id:$hookCtx.triggerId"),
+        js.contains("const event={before:$hookCtx.before,after:$hookCtx.after===null?null:{...$hookCtx.after,...$candidate,version:$hookCtx.after.version}};"),
         "after view:\n{js}"
-    );
-    assert!(
-        js.contains("version:($hookCtx.before?$hookCtx.before.version+1:1)"),
-        "reserved version:\n{js}"
     );
     assert!(js.contains("let $stagedNext=0;"), "staged counter:\n{js}");
     assert!(js.contains("let $pending;"), "pending temp:\n{js}");
@@ -7180,9 +7181,12 @@ fn t31_hook_run_shape() {
         js.contains("check(event.after.t !== \"x\");"),
         "guard:\n{js}"
     );
-    // Parented child: deterministic trigger-derived id, triggerId parenting.
+    // Parented child: operation-qualified staged id (C22 contract:
+    // triggerId/staged/<operationId>/<site>/<occurrence>[/<counter>], so
+    // distinct updates and distinct hooks create distinct children while
+    // one operation's replay restages its same id).
     assert!(
-        js.contains("const $can$l$303a63={id:$hookCtx.triggerId+\"/staged/\"+($stagedNext++)};"),
+        js.contains("const $can$l$303a63={id:$hookCtx.triggerId+\"/staged/\"+(($hookCtx.operationId??\"0\"))+\"/\"+\"T.h\"+\"/\"+(($hookCtx.hookOccurrence??0))+($can$n$31===0?\"\":\"/\"+$can$n$31)};"),
         "staged id:\n{js}"
     );
     assert!(
@@ -7321,29 +7325,28 @@ fn t31_plain_schedule_lowers() {
     t31_assert_parses(js, "plain-schedule");
 }
 
-/// (T31) `emit` in hooks is checker-clean but has no hook lowering (Rule A
-/// stages no outbox writes): loud E6008 with a fail-closed placeholder,
-/// while the hook entry itself still registers.
+/// (T31) `emit` in hooks is checker-clean and lowers on native runners
+/// through the deferred pipeline (`await emit(c, …)`), exactly like
+/// scenarios; legacy hooks keep the loud Rule A refusal (pinned by
+/// `t31_hook_stmt_backstops`). The hook entry registers either way.
 #[test]
-fn t31_hook_emit_unsupported() {
+fn t31_hook_emit_supported_natively() {
     let (catalog, path) = golden_catalog();
     let src = "app T\nGiven\n M { t:text }\n event Due { s:text }\nWhen\n scenario h on=M.create\n  do\n   emit Due {s=\"x\"}\nThen\n";
     let (db, program, result) = t31_program(src, &catalog);
     assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
     let (artifact, diags) = emit_test_only(&program, &db, &result, Some(&catalog));
     let _ = std::fs::remove_file(&path);
-    assert!(
-        diags
-            .iter()
-            .any(|d| d.code == "E6008" && d.message.contains("emit")),
-        "emit E6008: {diags:?}"
-    );
+    assert!(diags.is_empty(), "{diags:?}");
     let js = &artifact.modules[0].js;
     assert!(
-        js.contains("hooks:{\"T.M.create\""),
-        "entry registers:\n{js}"
+        js.contains("($candidate,$hookCtx,c)"),
+        "native runner binds ambient context:\n{js}"
     );
-    assert!(js.contains("has no lowering"), "placeholder:\n{js}");
+    assert!(
+        js.contains("await emit(c,\"T.Due\",{s:\"x\"});"),
+        "deferred emit:\n{js}"
+    );
 }
 
 /// (T31) Queries in hooks have no lowering: the engine hands hooks no
@@ -7412,7 +7415,7 @@ fn t31_hook_structural_eq_supported() {
 fn t31_hook_stmt_backstops() {
     let ir = fixture_ir();
     let mut emitter = Emitter::new(&ir);
-    emitter.enter_hook(SymbolId(0), false);
+    emitter.enter_hook(SymbolId(0), false, "T.h");
     let delete = IrStmt::Delete {
         record: typed(
             IrExpr::Name("row".to_string()),
@@ -7480,7 +7483,7 @@ fn t31_hook_stmt_backstops() {
 fn t31_hook_expr_gaps() {
     let ir = fixture_ir();
     let mut emitter = Emitter::new(&ir);
-    emitter.enter_hook(SymbolId(0), false);
+    emitter.enter_hook(SymbolId(0), false, "T.h");
     let query = typed(
         IrExpr::Query(IrQuery {
             source: None,
@@ -7580,7 +7583,7 @@ fn t31_hook_derive_call_native_context() {
     );
     // Legacy hook: still a gap.
     let mut legacy = Emitter::new(&ir);
-    legacy.enter_hook(SymbolId(0), false);
+    legacy.enter_hook(SymbolId(0), false, "T.h");
     assert!(
         legacy.lower_expr(&call).contains("throw"),
         "legacy hook placeholder"
@@ -7594,7 +7597,7 @@ fn t31_hook_derive_call_native_context() {
     );
     // Native hook: lowers to `name(c,1n)` with no gap.
     let mut native = Emitter::new(&ir);
-    native.enter_hook(SymbolId(0), true);
+    native.enter_hook(SymbolId(0), true, "T.h");
     let text = native.lower_expr(&call);
     let (diags, _, _, _) = native.finish();
     assert!(
@@ -7644,7 +7647,7 @@ fn t31_hook_ambient_call_native_context() {
     ] {
         // Legacy hook: still a gap.
         let mut legacy = Emitter::new(&ir);
-        legacy.enter_hook(SymbolId(0), false);
+        legacy.enter_hook(SymbolId(0), false, "T.h");
         assert!(
             legacy.lower_expr(expr).contains("throw"),
             "legacy hook placeholder: {what}"
@@ -7658,7 +7661,7 @@ fn t31_hook_ambient_call_native_context() {
         );
         // Native hook: lowers with the ambient context, no gap.
         let mut native = Emitter::new(&ir);
-        native.enter_hook(SymbolId(0), true);
+        native.enter_hook(SymbolId(0), true, "T.h");
         let text = native.lower_expr(expr);
         let (diags, _, _, _) = native.finish();
         assert!(
@@ -7705,7 +7708,7 @@ fn t31_hook_delivery_format_native_context() {
     ] {
         // Legacy hook: still a gap.
         let mut legacy = Emitter::new(&ir);
-        legacy.enter_hook(SymbolId(0), false);
+        legacy.enter_hook(SymbolId(0), false, "T.h");
         assert!(
             legacy.lower_expr(expr).contains("throw"),
             "legacy hook placeholder: {what}"
@@ -7719,7 +7722,7 @@ fn t31_hook_delivery_format_native_context() {
         );
         // Native hook: lowers with the ambient context, no gap.
         let mut native = Emitter::new(&ir);
-        native.enter_hook(SymbolId(0), true);
+        native.enter_hook(SymbolId(0), true, "T.h");
         let text = native.lower_expr(expr);
         let (diags, _, _, _) = native.finish();
         assert!(
@@ -7746,7 +7749,7 @@ fn t31_hook_judgment_specification_unsupported() {
     );
     for native in [false, true] {
         let mut emitter = Emitter::new(&ir);
-        emitter.enter_hook(SymbolId(0), native);
+        emitter.enter_hook(SymbolId(0), native, "T.h");
         assert!(
             emitter.lower_expr(&judgment).contains("throw"),
             "hook placeholder (native={native})"
@@ -7802,10 +7805,12 @@ fn t31_assert_parses(js: &str, stem: &str) {
 
 /// (T31) End to end: the emitted hook descriptor drives the REAL engine —
 /// a parented child plus cancel/schedule through admit, pipeline and one
-/// fenced commit, asserting receipt versions, history identity, the single
-/// revision step and the committed timer set. The bun driver imports the
-/// workspace engine sources directly (always current, no dist staleness)
-/// plus the byte-verbatim emitted module, which must import nothing.
+/// fenced commit, asserting versions, history identity, the single revision
+/// step and the committed timer set. Since the outcome-12 plan admits this
+/// hook, the driver installs the checked owner policies and runs the
+/// native runner (the policy-less interim path cannot serve owner hooks).
+/// The bun driver imports the workspace engine sources directly (always
+/// current, no dist staleness) plus the byte-verbatim emitted module.
 #[test]
 fn t31_e2e_emitted_hook_drives_engine() {
     let (catalog, path) = golden_catalog();
@@ -7816,70 +7821,85 @@ fn t31_e2e_emitted_hook_drives_engine() {
     let _ = std::fs::remove_file(&path);
     assert!(diags.is_empty(), "{diags:?}");
     let js = &artifact.modules[0].js;
-    for line in js.lines() {
-        assert!(
-            !line.trim_start().starts_with("import "),
-            "emitted hook must import nothing: {line}"
-        );
-    }
     let dir = t31_stage_dir("engine");
     std::fs::write(dir.join("emitted.mjs"), js).unwrap();
-    let fixtures = t31_workspace_root().join("packages/state/test/mutation/fixtures.ts");
-    assert!(fixtures.exists(), "engine fixtures: {}", fixtures.display());
+    std::fs::write(
+        dir.join("policies.json"),
+        serde_json::to_string(
+            &artifact
+                .model_policies
+                .as_ref()
+                .expect("native owner-policy descriptors"),
+        )
+        .expect("policies serialize"),
+    )
+    .unwrap();
+    let root = t31_workspace_root();
+    let fixtures = root.join("packages/state/test/mutation/fixtures.ts");
+    let invocation_fixtures = root.join("packages/state/test/invocation/fixtures.ts");
+    let memory = root.join("packages/state/src/storage/memory.ts");
+    let models = root.join("packages/state/src/mutation/models.ts");
+    let bindings = root.join("packages/state/src/mutation/model-policies.ts");
+    let pipeline = root.join("packages/state/src/mutation/pipeline.ts");
     let driver = r##"
 import { canApp } from './emitted.mjs';
-import {
-  setupMutation, modelDef, field, crudCreate, crudUpdate, mustLoad,
-  readCrudReceipt, asModel, asId, FIXED_NOW,
-} from '@@FIXTURES@@';
+import { readFileSync } from 'node:fs';
+import { seedRow, makeBatch, asId, asModel } from '@@INVOCATION@@';
+import { modelDef, field, FIXED_NOW, pipelineContext } from '@@FIXTURES@@';
+import { createTestMemoryStorage } from '@@MEMORY@@';
+import { buildModelTable } from '@@MODELS@@';
+import { bindOwnerModelPolicies } from '@@BINDINGS@@';
+import { beginOwnerMutation } from '@@PIPELINE@@';
 const verdict = {};
 try {
-  const desc = canApp().hooks['T.M.update'];
+  const registry = canApp();
+  const desc = registry.hooks['T.M.update'];
   verdict.hookName = desc.name;
   verdict.now = FIXED_NOW;
-  const world = await setupMutation([
-    modelDef('T.M', {
-      fields: { t: field(), timer: field(), due: field() },
-      hooks: [{ name: desc.name, ops: desc.ops, run: desc.run }],
-    }),
+  const descriptors = JSON.parse(readFileSync('./policies.json', 'utf8'));
+  const table = buildModelTable([
+    modelDef('T.M', { fields: { t: field(), timer: field(), due: field() } }),
     modelDef('T.C', { fields: { m: field() } }),
   ]);
-  await crudCreate(world, 'T.M', {
+  const policies = bindOwnerModelPolicies({ table, descriptors, bindings: registry.modelPolicyBindings });
+  const { store } = createTestMemoryStorage();
+  await seedRow(store, asModel('T.M'), {
     id: 'c-1', data: { t: 'new', timer: 'deadline:c-1', due: FIXED_NOW },
   });
-  const fence = await world.store.readRevision();
-  await world.store.commit({
-    expectedRevision: fence, writes: [], history: [], receipt: null, outbox: [],
-    schedules: [
+  {
+    const rev = await store.readRevision();
+    await store.commit(makeBatch(rev, { schedules: [
       { op: 'replace', key: 'deadline:old', at: FIXED_NOW, event: 'T.Due', payload: {} },
-    ],
-    uniqueClaims: [], uniqueReleases: [],
-  });
-  const revSeeded = await world.store.readRevision();
-  const { out, operationId } = await crudUpdate(
-    world, 'T.M', 'c-1', { version: 1, patch: { t: 'go' } },
-  );
-  verdict.status = out.status;
-  verdict.operationId = operationId;
-  verdict.revisionDelta = (await world.store.readRevision()) - revSeeded;
-  const m = await mustLoad(world.store, asModel('T.M'), 'c-1');
+    ] }));
+  }
+  const revSeeded = await store.readRevision();
+  const opId = '01999999-0000-7000-8000-0000000000e1';
+  const childId = 'c-1/staged/' + opId + '/T.h/0';
+  const session = await beginOwnerMutation({ table, store,
+    context: pipelineContext({ operation: 'T.M.update', operationId: opId }),
+    bounds: { maxWork: 1000, maxRows: 20 }, policies });
+  await session.stage({ op: 'update', model: asModel('T.M'), id: asId('c-1'), data: { t: 'go' } },
+    { cause: 'crud', input: { t: 'go' } });
+  const output = await session.finalize();
+  await store.commit(makeBatch(revSeeded, { writes: output.writes, history: output.history,
+    schedules: output.schedules, uniqueClaims: output.uniqueClaims, uniqueReleases: output.uniqueReleases }));
+  verdict.status = 'committed';
+  verdict.revisionDelta = (await store.readRevision()) - revSeeded;
+  const m = await store.load(asModel('T.M'), asId('c-1'));
   verdict.mVersion = m.version;
   verdict.mData = m.data;
-  const c = await mustLoad(world.store, asModel('T.C'), 'c-1/staged/0');
+  const c = await store.load(asModel('T.C'), asId(childId));
   verdict.childVersion = c.version;
   verdict.childParent = c.parent;
   verdict.childData = c.data;
-  const receipt = await readCrudReceipt(world, { operation: 'T.M.update', operationId });
-  verdict.receipt = receipt?.outcome.status === 'committed'
-    ? receipt.outcome.recordVersions : null;
-  const histM = await world.store.historyFor(asModel('T.M'), asId('c-1'));
-  const histC = await world.store.historyFor(asModel('T.C'), asId('c-1/staged/0'));
+  const histM = await store.historyFor(asModel('T.M'), asId('c-1'));
+  const histC = await store.historyFor(asModel('T.C'), asId(childId));
   const lastM = histM[histM.length - 1];
   const lastC = histC[histC.length - 1];
   verdict.historyOps = [lastM?.operation, lastC?.operation];
   verdict.historyOpIds = [lastM?.operationId, lastC?.operationId];
-  verdict.oldSchedule = await world.store.scheduleGet('deadline:old');
-  verdict.newSchedule = await world.store.scheduleGet('deadline:c-1');
+  verdict.oldSchedule = await store.scheduleGet('deadline:old');
+  verdict.newSchedule = await store.scheduleGet('deadline:c-1');
   verdict.ok = true;
 } catch (error) {
   verdict.ok = false;
@@ -7887,7 +7907,12 @@ try {
 }
 console.log(JSON.stringify(verdict));
 "##
-    .replace("@@FIXTURES@@", &fixtures.display().to_string());
+    .replace("@@FIXTURES@@", &fixtures.display().to_string())
+    .replace("@@INVOCATION@@", &invocation_fixtures.display().to_string())
+    .replace("@@MEMORY@@", &memory.display().to_string())
+    .replace("@@MODELS@@", &models.display().to_string())
+    .replace("@@BINDINGS@@", &bindings.display().to_string())
+    .replace("@@PIPELINE@@", &pipeline.display().to_string());
     std::fs::write(dir.join("driver.ts"), driver).unwrap();
     let bun = std::process::Command::new("bun").arg("--version").output();
     assert!(
@@ -7950,21 +7975,8 @@ console.log(JSON.stringify(verdict));
         Some("note"),
         "{stdout}"
     );
-    match get("receipt") {
-        Json::Arr(rows) => {
-            assert_eq!(rows.len(), 2, "{stdout}");
-            assert_eq!(rows[0].get("model").and_then(|v| v.as_str()), Some("T.M"));
-            assert_eq!(rows[0].get("id").and_then(|v| v.as_str()), Some("c-1"));
-            assert_eq!(rows[0].get("version").and_then(|v| v.as_i64()), Some(2));
-            assert_eq!(rows[1].get("model").and_then(|v| v.as_str()), Some("T.C"));
-            assert_eq!(
-                rows[1].get("id").and_then(|v| v.as_str()),
-                Some("c-1/staged/0")
-            );
-            assert_eq!(rows[1].get("version").and_then(|v| v.as_i64()), Some(1));
-        }
-        other => panic!("receipt versions: {other:?}"),
-    }
+    // Both writes land in the trigger's operation with one shared operation
+    // id: the staged child commits atomically with its source.
     match get("historyOps") {
         Json::Arr(ops) => {
             assert_eq!(ops.len(), 2, "{stdout}");
@@ -7976,8 +7988,8 @@ console.log(JSON.stringify(verdict));
     match get("historyOpIds") {
         Json::Arr(ids) => {
             assert_eq!(ids.len(), 2, "{stdout}");
-            assert_eq!(ids[0].as_str(), get("operationId").as_str());
-            assert_eq!(ids[1].as_str(), get("operationId").as_str());
+            assert_eq!(ids[0].as_str(), ids[1].as_str());
+            assert!(ids[0].as_str().is_some(), "{stdout}");
         }
         other => panic!("history op ids: {other:?}"),
     }
@@ -8011,7 +8023,9 @@ console.log(JSON.stringify(verdict));
 /// (T31) Attribution: a staged-write failure names the staging hook. The
 /// empty timer key is checker-clean (a value, never a type error) but the
 /// engine rejects it, attributing to the emitted hook identity — the
-/// scenario canonical threaded through emission.
+/// scenario canonical threaded through emission. Since the outcome-12 plan
+/// admits this hook, the driver installs the checked owner policies and
+/// runs the native runner.
 #[test]
 fn t31_e2e_staged_failure_names_hook() {
     let (catalog, path) = golden_catalog();
@@ -8024,28 +8038,58 @@ fn t31_e2e_staged_failure_names_hook() {
     let js = &artifact.modules[0].js;
     let dir = t31_stage_dir("attribution");
     std::fs::write(dir.join("emitted.mjs"), js).unwrap();
-    let fixtures = t31_workspace_root().join("packages/state/test/mutation/fixtures.ts");
-    assert!(fixtures.exists(), "engine fixtures: {}", fixtures.display());
+    std::fs::write(
+        dir.join("policies.json"),
+        serde_json::to_string(
+            &artifact
+                .model_policies
+                .as_ref()
+                .expect("native owner-policy descriptors"),
+        )
+        .expect("policies serialize"),
+    )
+    .unwrap();
+    let root = t31_workspace_root();
+    let fixtures = root.join("packages/state/test/mutation/fixtures.ts");
+    let invocation_fixtures = root.join("packages/state/test/invocation/fixtures.ts");
+    let memory = root.join("packages/state/src/storage/memory.ts");
+    let models = root.join("packages/state/src/mutation/models.ts");
+    let bindings = root.join("packages/state/src/mutation/model-policies.ts");
+    let pipeline = root.join("packages/state/src/mutation/pipeline.ts");
     let driver = r##"
 import { canApp } from './emitted.mjs';
-import {
-  setupMutation, modelDef, field, crudCreate, captureStateError, FIXED_NOW,
-} from '@@FIXTURES@@';
+import { readFileSync } from 'node:fs';
+import { asId, asModel } from '@@INVOCATION@@';
+import { modelDef, field, FIXED_NOW, pipelineContext } from '@@FIXTURES@@';
+import { createTestMemoryStorage } from '@@MEMORY@@';
+import { buildModelTable } from '@@MODELS@@';
+import { bindOwnerModelPolicies } from '@@BINDINGS@@';
+import { beginOwnerMutation } from '@@PIPELINE@@';
 const verdict = {};
 try {
-  const desc = canApp().hooks['T.M.create'];
+  const registry = canApp();
+  const desc = registry.hooks['T.M.create'];
   verdict.hookName = desc.name;
-  const world = await setupMutation([
-    modelDef('T.M', {
-      fields: { t: field(), due: field() },
-      hooks: [{ name: desc.name, ops: desc.ops, run: desc.run }],
-    }),
+  const descriptors = JSON.parse(readFileSync('./policies.json', 'utf8'));
+  const table = buildModelTable([
+    modelDef('T.M', { fields: { t: field(), due: field() } }),
   ]);
-  const error = await captureStateError(
-    crudCreate(world, 'T.M', { id: 'c-9', data: { t: 'new', due: FIXED_NOW } }),
-  );
-  verdict.code = error.code;
-  verdict.message = error.message;
+  const policies = bindOwnerModelPolicies({ table, descriptors, bindings: registry.modelPolicyBindings });
+  const { store } = createTestMemoryStorage();
+  const session = await beginOwnerMutation({ table, store,
+    context: pipelineContext({ operation: 'T.M.create' }),
+    bounds: { maxWork: 1000, maxRows: 20 }, policies });
+  let code = null;
+  let message = null;
+  try {
+    await session.stage({ op: 'create', model: asModel('T.M'), id: asId('c-9'), data: { t: 'new', due: FIXED_NOW } },
+      { cause: 'crud', input: { t: 'new', due: FIXED_NOW } });
+  } catch (error) {
+    code = error?.code ?? null;
+    message = String(error?.message ?? error);
+  }
+  verdict.code = code;
+  verdict.message = message;
   verdict.ok = true;
 } catch (error) {
   verdict.ok = false;
@@ -8053,7 +8097,12 @@ try {
 }
 console.log(JSON.stringify(verdict));
 "##
-    .replace("@@FIXTURES@@", &fixtures.display().to_string());
+    .replace("@@FIXTURES@@", &fixtures.display().to_string())
+    .replace("@@INVOCATION@@", &invocation_fixtures.display().to_string())
+    .replace("@@MEMORY@@", &memory.display().to_string())
+    .replace("@@MODELS@@", &models.display().to_string())
+    .replace("@@BINDINGS@@", &bindings.display().to_string())
+    .replace("@@PIPELINE@@", &pipeline.display().to_string());
     std::fs::write(dir.join("driver.ts"), driver).unwrap();
     let out = std::process::Command::new("bun")
         .arg("driver.ts")

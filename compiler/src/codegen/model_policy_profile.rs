@@ -1,8 +1,8 @@
 //! Conservative stored-field dependencies for the first native local-rule scope.
 use super::ir::IrCallTarget;
 use super::ir::{
-    IrBinOp, IrExpr, IrItemKind, IrModelRuleKind, IrModelRuleOrigin, IrOwner, IrProgram, IrRuleFn,
-    IrStmt, IrType, IrUnOp, TypedExpr,
+    IrBinOp, IrExpr, IrItemKind, IrModelRuleKind, IrModelRuleOrigin, IrOwner, IrProgram, IrQuery,
+    IrQueryDomain, IrRuleFn, IrStmt, IrType, IrUnOp, TypedExpr,
 };
 use crate::analysis::{NodeKey, types::SelectedCallTarget};
 use crate::analysis::{
@@ -51,8 +51,11 @@ pub fn local_hook_supported(program: &IrProgram, scenario: SymbolId) -> bool {
         return false;
     }
     let mut locals = HashMap::new();
-    profile.statements(guards, &mut locals, 0).is_some()
-        && profile.statements(effects, &mut locals, 0).is_some()
+    let mut aliases: HashMap<String, (SymbolId, EventAlias)> = HashMap::new();
+    profile.statements(guards, &mut locals, &mut aliases, 0).is_some()
+        && profile
+            .statements(effects, &mut locals, &mut aliases, 0)
+            .is_some()
 }
 
 struct HookProfile<'a> {
@@ -61,6 +64,22 @@ struct HookProfile<'a> {
     op: CrudOp,
     module: ModuleId,
     remaining: usize,
+}
+
+/// Row-binding class for hook locals. A snapshot alias
+/// (`let r = event.after`) carries the full trigger row, so its leaf and
+/// carried-reference fields read like the snapshot itself. A parent alias
+/// (`let l = event.after.parent`) carries only the engine's parent linkage
+/// identity (`{model, id}`): bare uses (containment linkage, query parents,
+/// carried payload values, `.id`) lower, while leaf reads and row-valued
+/// derives through it refuse with the transitive-load code. A staged
+/// binding (`create … as s`) carries the bound `{id}` identity for the
+/// same bare/`.id` uses.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EventAlias {
+    Snapshot,
+    ParentIdentity,
+    Staged,
 }
 
 impl HookProfile<'_> {
@@ -74,7 +93,7 @@ impl HookProfile<'_> {
 
     fn leaf(&self, ty: &ResolvedType) -> bool {
         match ty {
-            ResolvedType::Scalar(Scalar::Int | Scalar::Text | Scalar::Bool | Scalar::User | Scalar::Datetime | Scalar::Email | Scalar::Timezone) => true,
+            ResolvedType::Scalar(Scalar::Int | Scalar::Text | Scalar::Bool | Scalar::User | Scalar::Datetime | Scalar::Date | Scalar::Duration | Scalar::Email | Scalar::Timezone) => true,
             ResolvedType::Nullable(inner) => self.leaf(inner),
             ResolvedType::Enum { cases, owner: Some(owner) } => {
                 !cases.is_empty() && self.program.items.get(owner.0 as usize).is_some_and(|item| {
@@ -86,16 +105,59 @@ impl HookProfile<'_> {
         }
     }
 
+    /// Reference-shaped carried values: stored-record references (single,
+    /// nullable, or array) resolve to engine linkage identities at hook
+    /// runtime. They carry through payloads, query parents and linkage, and
+    /// compare by identity/structure — never through dereferenced fields.
+    fn carried_ref(&self, ty: &ResolvedType) -> bool {
+        match ty {
+            ResolvedType::Record { symbol, stored } => {
+                *stored
+                    && self
+                        .program
+                        .items
+                        .get(symbol.0 as usize)
+                        .is_some_and(|item| item.id == *symbol)
+            }
+            ResolvedType::Nullable(inner) => self.carried_ref(inner),
+            ResolvedType::Array { element, .. } => self.carried_ref(element),
+            _ => false,
+        }
+    }
+
     fn model_supported(&self, model: SymbolId) -> bool {
         self.program.items.get(model.0 as usize).is_some_and(|item| {
             item.id == model && item.module == self.module
                 && matches!(&item.kind, IrItemKind::Model { fields, .. } if fields.iter().all(|id| {
                     self.program.items.get(id.0 as usize).is_some_and(|field| {
                         field.id == *id && field.module == self.module
-                            && matches!(&field.kind, IrItemKind::Field { owner, ty: IrType::Known(ty), .. } if *owner == model && self.leaf(ty))
+                            && matches!(&field.kind, IrItemKind::Field { owner, ty: IrType::Known(ty), .. } if *owner == model && self.supported_field_type(ty))
                     })
                 }))
         })
+    }
+
+    /// Hook candidate field coverage: plain leaves plus file handles,
+    /// stored-record references and contract values. The hook engine
+    /// clones the candidate as plain data; these shapes carry as values
+    /// and are never dereferenced by the profile. Other nominals stay out.
+    fn supported_field_type(&self, ty: &ResolvedType) -> bool {
+        if self.leaf(ty) {
+            return true;
+        }
+        match ty {
+            ResolvedType::Scalar(Scalar::File) => true,
+            ResolvedType::Nullable(inner) => self.supported_field_type(inner),
+            ResolvedType::Array { element, .. } => self.supported_field_type(element),
+            ResolvedType::Record { symbol, stored: false } => self
+                .program
+                .items
+                .get(symbol.0 as usize)
+                .is_some_and(|item| {
+                    item.id == *symbol && matches!(&item.kind, IrItemKind::Contract { .. })
+                }),
+            _ => self.carried_ref(ty),
+        }
     }
 
     fn field(&self, model: SymbolId, name: &str, writable: bool) -> Option<&ResolvedType> {
@@ -135,8 +197,29 @@ impl HookProfile<'_> {
         else {
             return None;
         };
+        // Writable arrays carry leaf sequences (collected `select`
+        // projections); reference arrays stay out of hook inputs.
+        // Contract values write as plain constructed data, exactly like
+        // scenario inputs; they are never dereferenced by the profile.
+        fn writable_leaf(profile: &HookProfile, ty: &ResolvedType) -> bool {
+            match ty {
+                ResolvedType::Array { element, .. } => writable_leaf(profile, element),
+                // Contract values write as plain constructed data whatever
+                // persistence flag the field position carries; stored model
+                // references stay out of hook inputs.
+                ResolvedType::Record { symbol, .. } => profile
+                    .program
+                    .items
+                    .get(symbol.0 as usize)
+                    .is_some_and(|item| {
+                        item.id == *symbol
+                            && matches!(&item.kind, IrItemKind::Contract { .. })
+                    }),
+                ty => profile.leaf(ty),
+            }
+        }
         (*owner == model
-            && self.leaf(ty)
+            && (self.leaf(ty) || writable_leaf(self, ty))
             && (!writable || (server.is_none() && !modifiers.machine)))
             .then_some(ty)
     }
@@ -145,15 +228,6 @@ impl HookProfile<'_> {
         matches!(&expr.expr, IrExpr::Member { base, field }
             if field == "after" && base.ty == ResolvedType::Unknown
                 && matches!(&base.expr, IrExpr::Name(name) if name == "event"))
-    }
-
-    fn before(&self, expr: &TypedExpr) -> bool {
-        // Only update has a nonnull, immutable owning snapshot. Create's null
-        // side and every delete profile retain their existing refusals.
-        self.op == CrudOp::Update
-            && matches!(&expr.expr, IrExpr::Member { base, field }
-                if field == "before" && base.ty == ResolvedType::Unknown
-                    && matches!(&base.expr, IrExpr::Name(name) if name == "event"))
     }
 
     fn context(expr: &TypedExpr) -> bool {
@@ -206,14 +280,167 @@ impl HookProfile<'_> {
         }
     }
 
+    fn after_root(expr: &TypedExpr) -> bool {
+        matches!(&expr.expr, IrExpr::Member { base, field }
+            if field == "after"
+                && matches!(&base.expr, IrExpr::Name(name) if name == "event"))
+    }
+
+    fn before_root(expr: &TypedExpr) -> bool {
+        matches!(&expr.expr, IrExpr::Member { base, field }
+            if field == "before"
+                && matches!(&base.expr, IrExpr::Name(name) if name == "event"))
+    }
+
+    /// Resolve an event-rooted value to its owning model and alias class.
+    /// `event.after` (and `event.before` on update) carry the full trigger
+    /// snapshot; each `parent` step (and aliases bound to one) carries only
+    /// the engine's `{model, id}` linkage identity. Anything else is not
+    /// event-rooted.
+    fn event_class(
+        &self,
+        expr: &TypedExpr,
+        aliases: &HashMap<String, (SymbolId, EventAlias)>,
+    ) -> Option<(SymbolId, EventAlias)> {
+        if Self::after_root(expr) {
+            return Some((self.model, EventAlias::Snapshot));
+        }
+        if Self::before_root(expr) {
+            return (self.op == CrudOp::Update).then_some((self.model, EventAlias::Snapshot));
+        }
+        match &expr.expr {
+            IrExpr::Name(name) => aliases.get(name).copied(),
+            IrExpr::Member { base, field } if field == "parent" => {
+                let (child, _) = self.event_class(base, aliases)?;
+                let child_item = self.program.items.get(child.0 as usize)?;
+                if child_item.id != child {
+                    return None;
+                }
+                let IrItemKind::Model {
+                    owner: IrOwner::ChildOf(parent),
+                    ..
+                } = &child_item.kind
+                else {
+                    return None;
+                };
+                let parent_item = self.program.items.get(parent.0 as usize)?;
+                if parent_item.id != *parent || parent_item.module != self.module {
+                    return None;
+                }
+                Some((*parent, EventAlias::ParentIdentity))
+            }
+            _ => None,
+        }
+    }
+
+    /// Admitted array element shapes for hook reads: leaves and carried
+    /// references, so change detection over `text[]`/`Location[]` lowers
+    /// through the structural equality the emitter already uses in hooks.
+    fn hook_array_element(&self, ty: &ResolvedType) -> bool {
+        match ty {
+            ResolvedType::Array { element, .. } => self.hook_array_element(element),
+            ty => self.leaf(ty) || self.carried_ref(ty),
+        }
+    }
+
+    /// Readable hook field of an event-pathed model: reserved identity plus
+    /// leaf fields plus carried stored references. Parent-identity rows
+    /// expose only identity (`id`); every other field read through them
+    /// refuses — the engine never resolves parent content in hooks.
+    fn hook_snapshot_field(&self, model: SymbolId, name: &str, ty: &ResolvedType) -> bool {
+        if name == "id" {
+            return *ty == ResolvedType::Scalar(Scalar::Text);
+        }
+        if name == "version" {
+            return *ty == ResolvedType::Scalar(Scalar::Int);
+        }
+        if matches!(
+            name,
+            "parent"
+                | "created"
+                | "updated"
+                | "createdBy"
+                | "updatedBy"
+                | "archivedAt"
+        ) {
+            return false;
+        }
+        let Some(field_id) = self.program.items.iter().find_map(|item| {
+            (item.name == name
+                && item.module == self.module
+                && matches!(&item.kind, IrItemKind::Field { owner, ty: IrType::Known(_), .. } if *owner == model))
+            .then_some(item.id)
+        }) else {
+            return false;
+        };
+        let IrItemKind::Field {
+            ty: IrType::Known(field_ty),
+            modifiers,
+            server: _,
+            ..
+        } = &self.program.items[field_id.0 as usize].kind
+        else {
+            return false;
+        };
+        if modifiers.machine {
+            return false;
+        }
+        field_ty == ty
+            && (self.leaf(ty)
+                || self.carried_ref(ty)
+                || matches!(ty, ResolvedType::Array { .. }) && self.hook_array_element(ty))
+    }
+
+    /// Pure value builtins admitted in hooks with admitted arguments. Store
+    /// reads (`count`, `first`, `any`, ...), capability calls and receipt
+    /// joins stay out; `count` over an admitted contained query joins in
+    /// the query layer below.
+    fn pure_hook_builtin(id: &str) -> bool {
+        matches!(id, "local_instant" | "local_date" | "max")
+    }
+
+    /// Equality family shared by `==`/`!=` operands in hooks, mirroring the
+    /// emitted lowering: ordered scalars compare by value, stored references
+    /// by identity, arrays structurally. Decimal and money keep their hook
+    /// refusal; contracts and other nominals stay out.
+    fn hook_eq_family(left: &ResolvedType, right: &ResolvedType) -> bool {
+        fn stripped(ty: &ResolvedType) -> &ResolvedType {
+            match ty {
+                ResolvedType::Nullable(inner) => stripped(inner),
+                ty => ty,
+            }
+        }
+        match (stripped(left), stripped(right)) {
+            (
+                ResolvedType::Scalar(
+                    Scalar::Int | Scalar::Date | Scalar::Datetime | Scalar::Duration | Scalar::Bool | Scalar::Text,
+                ),
+                ResolvedType::Scalar(_),
+            ) => stripped(left) == stripped(right),
+            (ResolvedType::Enum { .. }, ResolvedType::Enum { .. }) => true,
+            (ResolvedType::Record { stored: true, .. }, ResolvedType::Record { stored: true, .. }) => true,
+            (
+                ResolvedType::Array { element: left, .. },
+                ResolvedType::Array { element: right, .. },
+            ) => HookProfile::hook_eq_family(left, right),
+            _ => false,
+        }
+    }
+
     fn expr(
         &mut self,
         expr: &TypedExpr,
         locals: &HashMap<String, ResolvedType>,
+        aliases: &HashMap<String, (SymbolId, EventAlias)>,
         depth: usize,
     ) -> Option<()> {
         self.step(depth)?;
         if Self::context(expr) {
+            return Some(());
+        }
+        // Bare event-rooted values (snapshots, parent linkage, aliases)
+        // carry into linkage, query parents, payloads and pure calls.
+        if self.event_class(expr, aliases).is_some() {
             return Some(());
         }
         match &expr.expr {
@@ -231,30 +458,46 @@ impl HookProfile<'_> {
             IrExpr::Name(name) if matches!(&expr.ty, ResolvedType::Enum { cases, .. } if self.leaf(&expr.ty) && cases.contains(name)) => {
                 Some(())
             }
-            IrExpr::Member { base, field } if Self::after(base) || self.before(base) => {
-                // Flattened IR may leave an intermediate wrapper untyped; only
-                // this exact owning candidate/update-before path and its checked
-                // business leaf qualify. Nullable/foreign snapshot shells refuse.
-                if base.ty != ResolvedType::Unknown
-                    && base.ty
-                        != (ResolvedType::Record {
-                            symbol: self.model,
-                            stored: true,
-                        })
-                {
+            IrExpr::Date(_) if expr.ty == ResolvedType::Scalar(Scalar::Date) => Some(()),
+            IrExpr::DurationMs(_) if expr.ty == ResolvedType::Scalar(Scalar::Duration) => {
+                Some(())
+            }
+            IrExpr::Array(items)
+                if matches!(&expr.ty, ResolvedType::Array { .. }) =>
+            {
+                for item in items {
+                    self.expr(item, locals, aliases, depth + 1)?;
+                }
+                Some(())
+            }
+            IrExpr::Object(entries) => {
+                for (_, value) in entries {
+                    self.expr(value, locals, aliases, depth + 1)?;
+                }
+                Some(())
+            }
+            IrExpr::Call { target, args } | IrExpr::BoundCall { target, args, .. } => {
+                self.hook_call(target, args, locals, aliases, depth + 1)
+            }
+            IrExpr::Query(query) => self.hook_query(query, locals, aliases, depth + 1),
+            IrExpr::Member { base, field } => {
+                let (model, identity_only) = self.member_base(base, aliases, locals)?;
+                if field == "id" {
+                    return (expr.ty == ResolvedType::Scalar(Scalar::Text)).then_some(());
+                }
+                if field == "version" && !identity_only {
+                    return (expr.ty == ResolvedType::Scalar(Scalar::Int)).then_some(());
+                }
+                if identity_only {
+                    // Parent linkage carries `{model, id}` only: version and
+                    // content reads through it refuse (transitive load,
+                    // sequenced follow-up — never a silent `undefined`).
                     return None;
                 }
-                // Reserved identity/version are readonly views of this exact
-                // trigger model. Mutation inputs still use field(..., true),
+                // Reserved identity/version are readonly views of the
+                // event-pathed row. Mutation inputs still use field(..., true),
                 // which refuses every metadata name.
-                match field.as_str() {
-                    "id" => return (expr.ty == ResolvedType::Scalar(Scalar::Text)).then_some(()),
-                    "version" => {
-                        return (expr.ty == ResolvedType::Scalar(Scalar::Int)).then_some(());
-                    }
-                    _ => {}
-                }
-                (self.field(self.model, field, false)? == &expr.ty).then_some(())
+                self.hook_snapshot_field(model, field, &expr.ty).then_some(())
             }
             IrExpr::Binary { op, left, right } => {
                 let bool_ty = ResolvedType::Scalar(Scalar::Bool);
@@ -265,32 +508,32 @@ impl HookProfile<'_> {
                 let allowed = match op {
                     IrBinOp::Eq | IrBinOp::Ne => {
                         expr.ty == bool_ty
-                            && (null_test
-                                || (left.ty == right.ty
-                                    && matches!(
-                                        &left.ty,
-                                        ResolvedType::Scalar(
-                                            Scalar::Text | Scalar::Int | Scalar::Bool
-                                        ) | ResolvedType::Enum { .. }
-                                    )
-                                    && self.leaf(&left.ty)))
+                            && (null_test || Self::hook_eq_family(&left.ty, &right.ty))
                     }
                     IrBinOp::Lt | IrBinOp::Le | IrBinOp::Gt | IrBinOp::Ge => {
-                        expr.ty == bool_ty && left.ty == int_ty && right.ty == int_ty
+                        expr.ty == bool_ty && Self::hook_ordered(&left.ty, &right.ty)
                     }
                     IrBinOp::And | IrBinOp::Or => {
                         expr.ty == bool_ty && left.ty == bool_ty && right.ty == bool_ty
                     }
-                    IrBinOp::Add | IrBinOp::Sub | IrBinOp::Mul => {
+                    IrBinOp::Add | IrBinOp::Sub => {
+                        Self::hook_additive(&expr.ty, &left.ty, &right.ty, *op)
+                    }
+                    IrBinOp::Mul => {
                         expr.ty == int_ty && left.ty == int_ty && right.ty == int_ty
+                    }
+                    IrBinOp::Coalesce => {
+                        right.ty == expr.ty
+                            && (left.ty == expr.ty
+                                || left.ty.nullable_inner() == Some(&expr.ty))
                     }
                     _ => false,
                 };
                 if !allowed {
                     return None;
                 }
-                self.expr(left, locals, depth + 1)?;
-                self.expr(right, locals, depth + 1)
+                self.expr(left, locals, aliases, depth + 1)?;
+                self.expr(right, locals, aliases, depth + 1)
             }
             IrExpr::Unary { op, operand }
                 if (matches!(op, IrUnOp::Not) && expr.ty == ResolvedType::Scalar(Scalar::Bool))
@@ -300,9 +543,266 @@ impl HookProfile<'_> {
                 if operand.ty != expr.ty {
                     return None;
                 }
-                self.expr(operand, locals, depth + 1)
+                self.expr(operand, locals, aliases, depth + 1)
             }
             _ => None,
+        }
+    }
+
+    /// Classify a member-access base inside hooks: bound rows (with their
+    /// identity-only flag) or full query rows bound as locals. The `bool`
+    /// is true exactly for identity-only rows (parent linkage, staged
+    /// bindings).
+    fn member_base(
+        &self,
+        base: &TypedExpr,
+        aliases: &HashMap<String, (SymbolId, EventAlias)>,
+        locals: &HashMap<String, ResolvedType>,
+    ) -> Option<(SymbolId, bool)> {
+        if let Some((model, class)) = self.event_class(base, aliases) {
+            return Some((
+                model,
+                matches!(
+                    class,
+                    EventAlias::ParentIdentity | EventAlias::Staged
+                ),
+            ));
+        }
+        if let IrExpr::Name(name) = &base.expr {
+            if let Some(ty) = locals.get(name) {
+                let mut ty = ty;
+                while let ResolvedType::Nullable(inner) = ty {
+                    ty = inner;
+                }
+                if let ResolvedType::Record { symbol, stored: true } = ty {
+                    return Some((*symbol, false));
+                }
+            }
+        }
+        None
+    }
+
+    /// Ordered comparison pairs admitted in hooks, mirroring the emitted
+    /// scalar comparators (all pure, carrier-free). Decimal and money keep
+    /// their existing refusals.
+    fn hook_ordered(left: &ResolvedType, right: &ResolvedType) -> bool {
+        fn stripped(ty: &ResolvedType) -> &ResolvedType {
+            match ty {
+                ResolvedType::Nullable(inner) => stripped(inner),
+                ty => ty,
+            }
+        }
+        matches!(
+            (stripped(left), stripped(right)),
+            (
+                ResolvedType::Scalar(
+                    Scalar::Int | Scalar::Duration | Scalar::Text | Scalar::Date | Scalar::Datetime,
+                ),
+                ResolvedType::Scalar(_),
+            )
+        ) && stripped(left) == stripped(right)
+    }
+
+    /// Additive shapes admitted in hooks: exact `int64` integer arithmetic
+    /// plus the emitted duration helpers (`now + 1ms`, duration sums, and
+    /// `datetime - datetime` spans). Money and decimal stay out.
+    fn hook_additive(result: &ResolvedType, left: &ResolvedType, right: &ResolvedType, op: IrBinOp) -> bool {
+        let int_ty = ResolvedType::Scalar(Scalar::Int);
+        let datetime_ty = ResolvedType::Scalar(Scalar::Datetime);
+        let duration_ty = ResolvedType::Scalar(Scalar::Duration);
+        if *result == int_ty && *left == int_ty && *right == int_ty {
+            return true;
+        }
+        match op {
+            IrBinOp::Add | IrBinOp::Sub => {
+                (*result == datetime_ty && *left == datetime_ty && *right == duration_ty)
+                    || (*result == duration_ty && *left == duration_ty && *right == duration_ty)
+                    || (op == IrBinOp::Sub
+                        && *result == duration_ty
+                        && *left == datetime_ty
+                        && *right == datetime_ty)
+            }
+            _ => false,
+        }
+    }
+
+    /// Pure call targets admitted in hooks with admitted arguments: checked
+    /// derives (pure functions of their arguments, invoked with the native
+    /// ambient context) and the recorded pure temporal/aggregate builtins.
+    /// Parent-identity arguments refuse — a `{model, id}` linkage is not
+    /// the row a derive reads. Store reads keep their query-layer join.
+    fn hook_call(
+        &mut self,
+        target: &IrCallTarget,
+        args: &[TypedExpr],
+        locals: &HashMap<String, ResolvedType>,
+        aliases: &HashMap<String, (SymbolId, EventAlias)>,
+        depth: usize,
+    ) -> Option<()> {
+        match target {
+            IrCallTarget::DeriveFn(_) => {}
+            IrCallTarget::Builtin { id, .. } if Self::pure_hook_builtin(id) => {}
+            IrCallTarget::Builtin { id, .. } if id == "count" => {
+                // `count` over an admitted contained query lowers through
+                // the generic supplied-array builtin on the lowered rows.
+                // Anything else countable stays on its existing path.
+                if args.len() != 1 || !matches!(&args[0].expr, IrExpr::Query(_)) {
+                    return None;
+                }
+            }
+            _ => return None,
+        }
+        for arg in args {
+            self.expr(arg, locals, aliases, depth + 1)?;
+            if self.event_class(arg, aliases).is_some_and(|(_, class)| {
+                matches!(
+                    class,
+                    EventAlias::ParentIdentity | EventAlias::Staged
+                )
+            }) {
+                return None;
+            }
+        }
+        Some(())
+    }
+
+    /// Model descriptor by canonical identity within this hook's module.
+    fn hook_model_by_canonical(&self, canonical: &str) -> Option<SymbolId> {
+        let mut targets = self.program.items.iter().filter(|item| {
+            item.canonical == *canonical
+                && item.module == self.module
+                && matches!(&item.kind, IrItemKind::Model { .. })
+        });
+        let target = targets.next()?;
+        if targets.next().is_some() {
+            return None;
+        }
+        Some(target.id)
+    }
+
+    /// Contained queries admitted in hooks: model domains whose parent
+    /// resolves through `event.after`/`event.before` (or an alias) to the
+    /// domain's declared containment parent. They lower through the
+    /// accepted query engine with the trigger's author/clock, so
+    /// before/after snapshots stay intact and reads observe committed
+    /// rows. Global scans, value domains, ordering, async predicates and
+    /// contract collections stay out with their existing refusals.
+    fn hook_query(
+        &mut self,
+        query: &IrQuery,
+        locals: &HashMap<String, ResolvedType>,
+        aliases: &HashMap<String, (SymbolId, EventAlias)>,
+        depth: usize,
+    ) -> Option<()> {
+        self.step(depth)?;
+        let IrQueryDomain::Model(domain) = &query.domain else {
+            return None;
+        };
+        if !query.order.is_empty()
+            || query.where_async
+            || query.contract_collection_call.is_some()
+            || query.value_order.is_some()
+        {
+            return None;
+        }
+        let target = self.hook_model_by_canonical(domain)?;
+        let target_item = self.program.items.get(target.0 as usize)?;
+        if target_item.id != target {
+            return None;
+        }
+        let IrItemKind::Model {
+            owner: IrOwner::ChildOf(declared_parent),
+            ..
+        } = &target_item.kind
+        else {
+            return None;
+        };
+        let parent = query.parent.as_deref()?;
+        let (parent_model, _) = self.event_class(parent, aliases)?;
+        if parent_model != *declared_parent {
+            return None;
+        }
+        if let Some(pred) = &query.where_pred {
+            if pred.ty != ResolvedType::Scalar(Scalar::Bool) {
+                return None;
+            }
+            let mut inner = locals.clone();
+            inner.insert(
+                query.where_param.clone(),
+                ResolvedType::Record {
+                    symbol: target,
+                    stored: true,
+                },
+            );
+            self.expr(pred, &inner, aliases, depth + 1)?;
+        }
+        if let Some(limit) = &query.limit {
+            if limit.ty != ResolvedType::Scalar(Scalar::Int) {
+                return None;
+            }
+            self.expr(limit, locals, aliases, depth + 1)?;
+        }
+        if let Some(archived) = &query.archived {
+            self.expr(archived, locals, aliases, depth + 1)?;
+        }
+        if let Some(body) = &query.select {
+            let param = query.select_param.clone()?;
+            let mut inner = locals.clone();
+            inner.insert(
+                param,
+                ResolvedType::Record {
+                    symbol: target,
+                    stored: true,
+                },
+            );
+            self.expr(body, &inner, aliases, depth + 1)?;
+        }
+        Some(())
+    }
+
+    /// Hook input compatibility: exact types, null into nullable, and
+    /// array values whose literal flags (`ordered`, `nonempty`) imply the
+    /// field's requirements. Checked assignment already validated the
+    /// value; the plan only confirms the shape it lowers.
+    fn hook_input_compatible(field: &ResolvedType, value: &ResolvedType) -> bool {
+        if field == value {
+            return true;
+        }
+        if *value == ResolvedType::Null {
+            return field.nullable_inner().is_some();
+        }
+        if let ResolvedType::Nullable(inner) = field {
+            return Self::hook_input_compatible(inner, value);
+        }
+        // Contract identities compare by symbol: field and value positions
+        // carry different persistence flags for the same contract.
+        if let (
+            ResolvedType::Record {
+                symbol: expected, ..
+            },
+            ResolvedType::Record { symbol: actual, .. },
+        ) = (field, value)
+        {
+            return expected == actual;
+        }
+        match (field, value) {
+            (
+                ResolvedType::Array {
+                    element: expected,
+                    ordered: ordered_field,
+                    nonempty: nonempty_field,
+                },
+                ResolvedType::Array {
+                    element: actual,
+                    ordered: ordered_value,
+                    nonempty: nonempty_value,
+                },
+            ) => {
+                Self::hook_input_compatible(expected, actual)
+                    && (!nonempty_field || *nonempty_value)
+                    && (!ordered_field || *ordered_value)
+            }
+            _ => false,
         }
     }
 
@@ -311,6 +811,7 @@ impl HookProfile<'_> {
         model: SymbolId,
         input: &TypedExpr,
         locals: &HashMap<String, ResolvedType>,
+        aliases: &HashMap<String, (SymbolId, EventAlias)>,
         depth: usize,
     ) -> Option<()> {
         let IrExpr::Object(entries) = &input.expr else {
@@ -321,12 +822,34 @@ impl HookProfile<'_> {
             if !names.insert(name) {
                 return None;
             }
+            if name == "parent" {
+                // Containment linkage carries the event-rooted parent
+                // identity; the staged-create lowering splits it off the
+                // data object into `{model, id}`. The value must resolve to
+                // the created model's declared parent.
+                let (parent, _) = self.event_class(value, aliases)?;
+                let target = self.program.items.get(model.0 as usize)?;
+                if target.id != model {
+                    return None;
+                }
+                let IrItemKind::Model {
+                    owner: IrOwner::ChildOf(declared),
+                    ..
+                } = &target.kind
+                else {
+                    return None;
+                };
+                if parent != *declared {
+                    return None;
+                }
+                self.expr(value, locals, aliases, depth + 1)?;
+                continue;
+            }
             let ty = self.field(model, name, true)?;
-            if ty != &value.ty && !(value.ty == ResolvedType::Null && ty.nullable_inner().is_some())
-            {
+            if !Self::hook_input_compatible(ty, &value.ty) {
                 return None;
             }
-            self.expr(value, locals, depth + 1)?;
+            self.expr(value, locals, aliases, depth + 1)?;
         }
         // Only supplied fields are inspected. Owning State resolves omissions,
         // including server actor/now fields and declared creation defaults.
@@ -337,15 +860,20 @@ impl HookProfile<'_> {
         &mut self,
         statements: &[IrStmt],
         locals: &mut HashMap<String, ResolvedType>,
+        aliases: &mut HashMap<String, (SymbolId, EventAlias)>,
         depth: usize,
     ) -> Option<()> {
         for statement in statements {
             self.step(depth)?;
             match statement {
                 IrStmt::Let { name, value, .. } => {
-                    self.expr(value, locals, depth + 1)?;
+                    self.expr(value, locals, aliases, depth + 1)?;
                     if !self.leaf(&value.ty) && !Self::context(value) {
-                        return None;
+                        // Event-rooted rows bind as aliases: snapshots carry
+                        // the full trigger row, parent steps only linkage
+                        // identity. Anything else non-leaf stays out.
+                        let (model, class) = self.event_class(value, aliases)?;
+                        aliases.insert(name.clone(), (model, class));
                     }
                     locals.insert(name.clone(), value.ty.clone());
                 }
@@ -353,28 +881,88 @@ impl HookProfile<'_> {
                     if cond.ty != ResolvedType::Scalar(Scalar::Bool) {
                         return None;
                     }
-                    self.expr(cond, locals, depth + 1)?;
+                    self.expr(cond, locals, aliases, depth + 1)?;
                 }
                 IrStmt::Set {
                     record, changes, ..
                 } => {
-                    if !Self::after(record)
-                        || (record.ty != ResolvedType::Unknown
-                            && record.ty
-                                != (ResolvedType::Record {
+                    if Self::after(record)
+                        && (record.ty == ResolvedType::Unknown
+                            || record.ty
+                                == (ResolvedType::Record {
                                     symbol: self.model,
                                     stored: true,
                                 }))
                     {
+                        // decode_record_path preserves this contextual target
+                        // as Unknown. The exact synthetic event.after path
+                        // above and this checked hook's trigger establish its
+                        // model; every supplied writable field is validated
+                        // against that model.
+                        self.input(self.model, changes, locals, aliases, depth + 1)?;
+                    } else if let IrExpr::Name(name) = &record.expr {
+                        // Staged update of a bound full row (contained
+                        // query items) or staged binding: addressed by
+                        // model plus record id. Same-model staging stays
+                        // checker-barred (E4052); event aliases never
+                        // qualify as set targets.
+                        if aliases.get(name).is_some_and(|(_, class)| {
+                            *class != EventAlias::Staged
+                        }) {
+                            return None;
+                        }
+                        let mut row_ty = locals.get(name)?;
+                        while let ResolvedType::Nullable(inner) = row_ty {
+                            row_ty = inner;
+                        }
+                        let ResolvedType::Record { symbol, stored: true } = row_ty
+                        else {
+                            return None;
+                        };
+                        self.input(*symbol, changes, locals, aliases, depth + 1)?;
+                    } else {
                         return None;
                     }
-                    // decode_record_path preserves this contextual target as
-                    // Unknown. The exact synthetic event.after path above and
-                    // this checked hook's trigger establish its model; every
-                    // supplied writable field is validated against that model.
-                    self.input(self.model, changes, locals, depth + 1)?;
                 }
-                IrStmt::Create { model, input, .. } => {
+                IrStmt::For {
+                    item, domain, limit, body, ..
+                } => {
+                    // Contained iteration only: the domain must be an
+                    // admitted contained query, and the item binds its full
+                    // rows for the body. The item shadows any event alias
+                    // under its name for the body's scope.
+                    self.expr(domain, locals, aliases, depth + 1)?;
+                    let IrExpr::Query(query) = &domain.expr else {
+                        return None;
+                    };
+                    let IrQueryDomain::Model(canonical) = &query.domain else {
+                        return None;
+                    };
+                    let target = self.hook_model_by_canonical(canonical)?;
+                    if let Some(bound) = limit {
+                        if bound.ty != ResolvedType::Scalar(Scalar::Int) {
+                            return None;
+                        }
+                        self.expr(bound, locals, aliases, depth + 1)?;
+                    }
+                    let mut inner_locals = locals.clone();
+                    inner_locals.insert(
+                        item.clone(),
+                        ResolvedType::Record {
+                            symbol: target,
+                            stored: true,
+                        },
+                    );
+                    let mut inner_aliases = aliases.clone();
+                    inner_aliases.remove(item);
+                    self.statements(body, &mut inner_locals, &mut inner_aliases, depth + 1)?;
+                }
+                IrStmt::Create {
+                    model,
+                    input,
+                    binding,
+                    ..
+                } => {
                     let mut targets = self.program.items.iter().filter(|item| {
                         item.canonical == *model && matches!(item.kind, IrItemKind::Model { .. })
                     });
@@ -385,7 +973,20 @@ impl HookProfile<'_> {
                     {
                         return None;
                     }
-                    self.input(target.id, input, locals, depth + 1)?;
+                    self.input(target.id, input, locals, aliases, depth + 1)?;
+                    if let Some(name) = binding {
+                        // The bound `{id}` identity serves bare and `.id`
+                        // uses (emit payloads, cancellation keys); field
+                        // reads through it refuse like parent linkage.
+                        aliases.insert(name.clone(), (target.id, EventAlias::Staged));
+                        locals.insert(
+                            name.clone(),
+                            ResolvedType::Record {
+                                symbol: target.id,
+                                stored: true,
+                            },
+                        );
+                    }
                 }
                 IrStmt::If {
                     cond,
@@ -396,9 +997,48 @@ impl HookProfile<'_> {
                     if cond.ty != ResolvedType::Scalar(Scalar::Bool) {
                         return None;
                     }
-                    self.expr(cond, locals, depth + 1)?;
-                    self.statements(then_branch, &mut locals.clone(), depth + 1)?;
-                    self.statements(else_branch, &mut locals.clone(), depth + 1)?;
+                    self.expr(cond, locals, aliases, depth + 1)?;
+                    self.statements(
+                        then_branch,
+                        &mut locals.clone(),
+                        &mut aliases.clone(),
+                        depth + 1,
+                    )?;
+                    self.statements(
+                        else_branch,
+                        &mut locals.clone(),
+                        &mut aliases.clone(),
+                        depth + 1,
+                    )?;
+                }
+                IrStmt::Schedule {
+                    key, at, payload, ..
+                } => {
+                    if key.ty != ResolvedType::Scalar(Scalar::Text) {
+                        return None;
+                    }
+                    self.expr(key, locals, aliases, depth + 1)?;
+                    self.expr(at, locals, aliases, depth + 1)?;
+                    if !matches!(&payload.expr, IrExpr::Object(_)) {
+                        return None;
+                    }
+                    self.expr(payload, locals, aliases, depth + 1)?;
+                }
+                IrStmt::Cancel { key, .. } => {
+                    if key.ty != ResolvedType::Scalar(Scalar::Text) {
+                        return None;
+                    }
+                    self.expr(key, locals, aliases, depth + 1)?;
+                }
+                IrStmt::Emit { payload, .. } => {
+                    // The emit lowering joins separately; the plan admits the
+                    // payload shape so sibling now/derive/query gaps clear on
+                    // native runners. Ordered guards, atomic staging and null
+                    // paths are verified at the lowering tests below.
+                    if !matches!(&payload.expr, IrExpr::Object(_)) {
+                        return None;
+                    }
+                    self.expr(payload, locals, aliases, depth + 1)?;
                 }
                 _ => return None,
             }
