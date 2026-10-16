@@ -214,6 +214,14 @@ return profile, supplied-type/Member provenance, CallAs consumption,
 root-occurrence, member-domain for, effect-closure arm) — M1-M4 refuted by
 instrumented run; fix belongs to the disclosure slice now owned by Lane C.
 Outcome 11 stays OPEN pending that slice.
+First disclosure slice in `5f8d5100` (Lane C commit `0f452362`, D2/D6):
+void scenarios skip the create/return profile gate and `set()` may target
+a bound model-result child row through owning `Local::Call` provenance;
+collect_owner admits child-walk creates proven in the child's own complete
+disclosure; receipts skip call-consumption linkage for void owners.
+`cross_operation_calls` 7/7 (2 new joins with emission) plus
+call-references/membership neighbors green in parent. Remaining: D1/D3/D5/
+D7/D8 and downstream collect_owner arms.
 
 Outcome 7 compiler slice in `dba896b5` (Lane B commit `8baafab8`): send
 statements to std EmailV1 + AlertsV1 notify lower formatted values inline
