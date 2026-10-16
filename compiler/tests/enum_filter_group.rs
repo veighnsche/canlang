@@ -43,9 +43,12 @@
 //! case inventory, and the host preparer compares the ordinary string
 //! equality. The C3 date/datetime followers (`business_date`, `paid`,
 //! `due`, `qualified_at`, `from`/`until`) stay refused below with their
-//! exact codes: date selectors would need range/between controls and
-//! zone-aware entry machinery that no collection surface owns, so 975
-//! settles the text half only. The C4 agenda bindings lower:
+//! exact codes: they need generated range/between controls that no
+//! collection surface owns yet (CORRECTION per 2321: DESIGN 1015-1025
+//! already accepts date/datetime eq/ne/lt/lte/gt/gte/between — dates are
+//! civil, datetimes canonical instants under existing zone rules, so this
+//! is local implementation work, not language exclusion). The C4 agenda
+//! bindings lower:
 //! a parent-bound (nested) agenda threads the enclosing row through the
 //! shared collection pipeline like a bound timeline, and agenda
 //! `columns=` names owned row fields the calendarAgenda factory renders
