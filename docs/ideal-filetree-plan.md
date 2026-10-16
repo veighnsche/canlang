@@ -108,6 +108,10 @@ Board/calendar filter E5-reuse proof: pure-enum conjunction pinned, model-refere
 
 Scope-2 per-fire caller value projection + record-helper parent reads: granted private copy succeeds, stranger denied, inline/helper equivalence. Incoming interval `5a47b332d..HEAD` accounts for 11 changed paths in `can18_merge_26_20261016` of the existing registry. joint 12/12, State 14/14, hook_lowering 26/26, consumer 7/7, board-calendar 1/1 on frozen d692f60e/ca50. Existing defining owners and target allocations remain; focused new tests stay with Compiler. Reuse prior accumulated coverage; complete checkpoint remains unchanged. Original24 and required executable consumers remain open. Unfinished work stays in the running Muse checkout.
 
+### CAN18 incremental integration — can18_merge_27_20261016
+
+Board/calendar model-reference filter C1 rule: reference equality controls with source-first failure order, opaque identity rendering; 44 frozen diags fixed, 0 regressions. Incoming interval `2c36843f..HEAD` accounts for 15 changed paths in `can18_merge_27_20261016` of the existing registry. reference consumer 1/1, E5 consumers 2/2, joint 12/12, State 14/14, enum 40/40, bool 27/27, hook_lowering 26/26 on frozen db864475/ca50. Existing defining owners and target allocations remain; focused new tests stay with Compiler. Reuse prior accumulated coverage; complete checkpoint remains unchanged. Original24 and required executable consumers remain open. Unfinished work stays in the running Muse checkout.
+
 ### Specification and installer documentation merge — 2026-10-15
 
 Merge installer commit `02470b74` into canonical `main` at `a70921e3`.

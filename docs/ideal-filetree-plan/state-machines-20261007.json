@@ -73845,5 +73845,93 @@
     "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
     "checkpoint_advanced": false,
     "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
+  },
+  "can18_merge_27_20261016": {
+    "incremental_base": "2c36843fa2fd680fc50cbeb79f27dc8da9507acd",
+    "incoming_end": "e86fb15833c36919bf876f5a9b85c1082fbbfe25",
+    "retained_coverage": "reuse spec_installer_merge_reconciliation_20261015 and preceding CAN18 incremental merge entries; inherited complete checkpoint unchanged",
+    "changed_path_count": 15,
+    "rows": [
+      [
+        "compiler/src/codegen/ir.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/src/codegen/js.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/collection_bool_filters.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/enum_filter_group.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "packages/cloudflare/src/runtime/board-calendar-reference-filter.test.ts",
+        "cloudflare",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/cloudflare/src/runtime/invoke.ts",
+        "cloudflare",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/contracts/src/presentation.ts",
+        "contracts",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/interfaces/src/http/pages.ts",
+        "interfaces",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/interfaces/src/http/presentation.ts",
+        "interfaces",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/state/src/policy/grants.ts",
+        "state",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/state/src/query/engine.ts",
+        "state",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/state/src/storage/memory.ts",
+        "state",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/state/src/storage/sqlite-codecs.ts",
+        "state",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/ui/src/collections.ts",
+        "ui",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/ui/src/settings.ts",
+        "ui",
+        "existing package source/test owner"
+      ]
+    ],
+    "choice": "Board/calendar model-reference filter C1 rule: reference equality controls with source-first failure order, opaque identity rendering; 44 frozen diags fixed, 0 regressions.",
+    "validation": "reference consumer 1/1, E5 consumers 2/2, joint 12/12, State 14/14, enum 40/40, bool 27/27, hook_lowering 26/26 on frozen db864475/ca50.",
+    "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
+    "checkpoint_advanced": false,
+    "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
   }
 }

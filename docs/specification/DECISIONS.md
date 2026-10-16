@@ -18176,3 +18176,8 @@ Accepted: Board/calendar filter E5-reuse proof: pure-enum conjunction pinned, mo
 ## 2026-10-16 — can18_merge_26_20261016
 
 Accepted: Scope-2 per-fire caller value projection + record-helper parent reads: granted private copy succeeds, stranger denied, inline/helper equivalence. Merge reviewed tested work incrementally into canonical `main`, preserving installer/specification changes and the active implementation branch. joint 12/12, State 14/14, hook_lowering 26/26, consumer 7/7, board-calendar 1/1 on frozen d692f60e/ca50. Reconcile the living file-tree plan/registry over `5a47b332d..HEAD` with existing owners; retain the complete checkpoint and all outstanding acceptance gates. A merged component is not a claim that original24 or the remaining runtime workflows are complete.
+
+
+## 2026-10-16 — can18_merge_27_20261016
+
+Accepted: Board/calendar model-reference filter C1 rule: reference equality controls with source-first failure order, opaque identity rendering; 44 frozen diags fixed, 0 regressions. Merge reviewed tested work incrementally into canonical `main`, preserving installer/specification changes and the active implementation branch. reference consumer 1/1, E5 consumers 2/2, joint 12/12, State 14/14, enum 40/40, bool 27/27, hook_lowering 26/26 on frozen db864475/ca50. Reconcile the living file-tree plan/registry over `2c36843f..HEAD` with existing owners; retain the complete checkpoint and all outstanding acceptance gates. A merged component is not a claim that original24 or the remaining runtime workflows are complete.
