@@ -6568,7 +6568,40 @@ async function loadLocalOwnerPolicyControl(input: {
               // Declared event/schedule projection is an owning prerequisite;
               // native payloads cannot be passed as an unchecked wire object.
               schedule: refuse, cancel: (key: string) => guarded(() => original.cancel(key)),
-              transitive: Object.freeze({ openScope: refuse, load: refuse }),
+              // Scope-2 hook parent reads (DESIGN434/442): the emitter calls
+              // transitive.load with the EXISTING (scope, model, id) arity;
+              // the consuming-site mode travels INSIDE the scope object
+              // (openScope threads it; no new primitive, no arity change,
+              // all scope/fence/source checks preserved). decision scopes
+              // serve bounded owner decision reads over staged-plus-
+              // committed rows through the defining State loader; value
+              // scopes enforce the triggering caller's row/field grants and
+              // refuse precisely (forbidden) on denial, or with the exact
+              // host-viewer requirement while the host projection is
+              // unserved — never null, never a silent owner upgrade.
+              // Helpers inherit their consuming site, so inline, local and
+              // imported loads share one meaning.
+              transitive: (() => {
+                const issued = new Set<object>();
+                const openScope = (site: unknown): object => guarded(() => {
+                  if (site !== 'decision' && site !== 'value') {
+                    throw new input.native.producers.errors('validation',
+                      'Hook parent read requires its decision or value site.');
+                  }
+                  const scope = Object.freeze({ mode: site });
+                  issued.add(scope);
+                  return scope;
+                });
+                const load = (scope: unknown, model: unknown, id: unknown): Promise<unknown> => guarded(() => {
+                  if (typeof scope !== 'object' || scope === null || !issued.has(scope)) {
+                    throw new input.native.producers.errors('validation',
+                      'Native hook parent scope is closed or foreign.');
+                  }
+                  return original.loadParent(model as ModelName, id as RecordId,
+                    (scope as { mode: 'decision' | 'value' }).mode);
+                });
+                return Object.freeze({ openScope, load });
+              })(),
             });
             try {
               const answer: unknown = await (run as (candidate: Record<string, unknown>, bridge: unknown, c: HandlerContext) => unknown)(fields(candidate), bridge, c);

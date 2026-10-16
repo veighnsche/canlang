@@ -20,18 +20,21 @@ import type {
 } from '@canlang/contracts';
 import type { MutationEnvelope, MutationResult } from '@canlang/contracts';
 import {
+  assertOwnerMutationHookContext,
   buildModelTable,
   crudDefs,
   crudExecute,
   type CrudDefsOptions,
   type InterimFieldDef,
   type InterimHook,
+  type InterimHookContext,
   type InterimHookOp,
   type InterimInvariant,
   type InterimLock,
   type InterimModelDef,
   type InterimRefDef,
   type ModelTable,
+  type OwnerMutationHookParentRead,
 } from '../../src/mutation/index.js';
 import { invoke } from '../../src/invocation/invoke.js';
 import type { ExecuteHandler } from '../../src/invocation/invoke.js';
@@ -120,6 +123,18 @@ export function hook(
   run: InterimHook['run'],
 ): InterimHook {
   return { name, ops, run };
+}
+
+/** Scope-2 imported-helper parent read: the exact decision-site load a hook
+ * body would issue inline, proving an imported helper consumes its actual
+ * call-site meaning (same loader, same site, row verdict never boolean). */
+export async function readHookParentDecision(
+  ctx: InterimHookContext,
+  model: ModelName,
+  id: RecordId,
+): Promise<OwnerMutationHookParentRead> {
+  assertOwnerMutationHookContext(ctx);
+  return ctx.loadParent(model, id, 'decision');
 }
 
 /** One interim invariant over the final provisional state. */
