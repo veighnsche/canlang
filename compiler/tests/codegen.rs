@@ -7181,9 +7181,11 @@ fn t31_hook_run_shape() {
         js.contains("check(event.after.t !== \"x\");"),
         "guard:\n{js}"
     );
-    // Parented child: deterministic trigger-derived id, triggerId parenting.
+    // Parented child: occurrence-qualified staged id (C21 repeat contract:
+    // triggerId/staged/<occurrence>[/<counter>], so distinct updates create
+    // distinct children while one operation's replay restages its same id).
     assert!(
-        js.contains("const $can$l$303a63={id:$hookCtx.triggerId+\"/staged/\"+($stagedNext++)};"),
+        js.contains("const $can$l$303a63={id:$hookCtx.triggerId+\"/staged/\"+(($hookCtx.hookOccurrence??0))+($can$n$31===0?\"\":\"/\"+$can$n$31)};"),
         "staged id:\n{js}"
     );
     assert!(
