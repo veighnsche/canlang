@@ -1490,6 +1490,7 @@ interface StateTransactProducer {
   }): BoundReadPageInvoker;
   createReadScenarioInvoker?(input: {
     readonly registry: ReadonlyMap<string, unknown>;
+    readonly models?: ReadonlyArray<CanonicalModelDescriptor>;
     readonly policy: unknown;
     readonly store: StoragePort;
     readonly memberships: CanonicalMembershipReader;
@@ -13146,7 +13147,8 @@ export async function invokeReadCanonical(
     const createReader = loaded.producers.transact.createReadScenarioInvoker;
     if (createReader === undefined) throw new Error('State producer has no generated read scenario invoker.');
     const reader = createReader({
-      registry: loaded.registry, policy: loaded.policy, store: opts.store, memberships: opts.memberships,
+      registry: loaded.registry, models: loaded.models, policy: loaded.policy, store: opts.store,
+      memberships: opts.memberships,
     });
     return reader({
       envelope: { operation: opts.operation, inputs: opts.inputs }, identity: opts.identity,
