@@ -116,6 +116,10 @@ Board/calendar model-reference filter C1 rule: reference equality controls with 
 
 Board row/card binding + renderRow slot with sequential failure order; covers evidence481 + checklist updates since merge27. Incoming interval `329fe779..HEAD` accounts for 10 changed paths in `can18_merge_28_20261016` of the existing registry. row-children 1/1, reference 1/1, joint 12/12, UI 128/128 on frozen 729d7f41/ca50. Existing defining owners and target allocations remain; focused new tests stay with Compiler. Reuse prior accumulated coverage; complete checkpoint remains unchanged. Original24 and required executable consumers remain open. Unfinished work stays in the running Muse checkout.
 
+### CAN18 incremental integration — can18_merge_29_20261016
+
+Hook helper selected-variant emission repair: 175 linkage diagnostics gone, genuine refusals retained; canonical 298. Incoming interval `647ca7fd..HEAD` accounts for 2 changed paths in `can18_merge_29_20261016` of the existing registry. joint 12/12, row 1/1, ref 1/1, State 14/14, hook_lowering 26/26 on frozen f9653497/ca50. Existing defining owners and target allocations remain; focused new tests stay with Compiler. Reuse prior accumulated coverage; complete checkpoint remains unchanged. Original24 and required executable consumers remain open. Unfinished work stays in the running Muse checkout.
+
 ### Specification and installer documentation merge — 2026-10-15
 
 Merge installer commit `02470b74` into canonical `main` at `a70921e3`.
