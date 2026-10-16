@@ -334,6 +334,19 @@ preserve frozen evaluation; std Email matching unchanged.
 `outbound_format_sinks` 13/13, `ui_adapter` 15/15, hook probes 10/10 pass
 in the integrated parent.
 
+Stale B2 terminal delivery (commits `47d188e4` outcome-6, `d79af412`
+outcome-7 on old base `35ca092e`): NOT integrated — both scopes are
+superseded in parent with run (not authored-only) evidence. Outcome-6 is
+covered by `b164788b` + `30252241` + the TS remainder (leaves 69/69,
+collections 124/124, panels 35/35, ui_adapter 15/15, ui_original 31/31;
+B2's TS tests were never run). Outcome-7 `d79af412` lacks the pinned
+`catch.AlertsV1` classification (`pinned_alert_notify` in parent
+`js.rs:4492`); integrating it would regress the REVIEW-6 fix, and
+parent's 13/13 supersedes B2's 10/10. B2 worktree/snapshots preserved;
+its 5.1GiB private target cleaned after terminal owner release (no
+consumer; shared target untouched, 18GiB free). No lane-B work remains
+outstanding.
+
 Outcome 13 implemented in `9eb4644a` (Lane C commit `5bb44a62`): bound
 capabilities link against their checked versioned declaration instead of
 demanding a lane-02 catalog entry (25 E6007s); unversioned declarations and
