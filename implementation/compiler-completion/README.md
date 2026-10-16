@@ -250,9 +250,18 @@ un-ignored). Parent: `stored_query_profiles` 3/3 with 0 ignored plus
 cross-operation 18/18, call-references 5/5, query-facts 8/8,
 native-first 17/17, native-pair 3/3, codegen-t31-filter 33/33 green.
 One cherry-pick conflict (both-added test file) resolved by taking the
-repaired un-ignored attributes with identical bodies. Outcome 5
-implemented at probe scope (Codex review pending). Exemplary ownership:
-no production files touched outside the lane.
+repaired un-ignored attributes with identical bodies. REVIEW-8 findings
+resolved: `41ec5dc5` (Lane C10 `6bfe6ac0`) orders guarded archived arms
+before plain arity arms — archived-without-order shapes now reach the
+archived arm, with a no-order positive + default-exclude control;
+`05a81205` (Lane C10 `3f341b60`, test-only) pins foreign provider-path
+refusal through the existing `match_stored_contract_source` seal
+(path/sha256/uniqueness), no repair needed. Parent:
+`stored_query_profiles` 6/6 with 0 ignored, cross-operation 18/18,
+call-references 5/5 green. Lease verified: C10 touched only its two
+files; C9's State commit touches only `packages/state/*` — no overlap.
+Outcome 5 implemented at probe scope (Codex review pending). Exemplary
+ownership: no production files touched outside the lane.
 
 Outcome 9 family A implemented in `55c969d2` (Lane A commit `fac7bd70`):
 45/64 handler profiles (`on=Cap.event`) lower through canonical
