@@ -18151,3 +18151,8 @@ explicit-items and collection modes (never combined). Proven by compiled
 timeline shapes plus real-factory rendering over source query rows:
 parent scope, authored order, empty state, body/query failure propagation,
 and page cursor binding.
+
+
+## 2026-10-16 — can18_merge_22_20261016
+
+Accepted: Bound timeline collection activation the B17 withdrawal held back as premature: decode_collection for single-template bound sequences with plain field order and parent/order admission, js factory allowlist plus page-occurrence emission, and the UI collection adapter serving authorized rows through the shared items path with empty, failure and cursor behavior. Money/calendar/agenda-columns refusals are untouched. Merge reviewed tested work incrementally into canonical `main`, preserving installer/specification changes and the active implementation branch. Main validation on freshly built e36eea15 with frozen ca50 catalog: factory 33/33, emitted timeline HTTP consumer 1/1 (fails on the pre-fix producer), timeline units 6/6, hook/enum/bool/b1/agenda/table/ui_adapter suites green, C24 batteries 14/14, contained 10/10, A15 drive 3/3; all builds exit 0. Reconcile the living file-tree plan/registry over `c688dca08..5d0a7bdd` with existing owners; retain the complete checkpoint and all outstanding acceptance gates. A merged component is not a claim that original24 or the remaining runtime workflows are complete.
