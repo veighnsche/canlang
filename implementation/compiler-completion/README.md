@@ -356,6 +356,14 @@ filtered fixture over canonically created ints proven through host; no
 semantic redefinition. E6008 removal 74697e8f stands but is not whole
 acceptance; fail-closed refusals intact; main withholds this prefix
 pending fix.
+Fixed in `24321f44` (Lane A14 `53b07b37`, compiler: Int as canonical
+decimal strings, gate safe-int→int64, real filtered fixture pair + 2
+proofs) and `d348a643` (Lane A14 `218213a4`, State: declared-int filters
+via decodeValue+compareInt BigInt, no Number routing; new 2/2). Parent:
+19/19 authority, 2/2 filter, 37/37 authority+read, 27/27 descriptor-join,
+seam 20/20, joint 6/6 green. Null/missing false, undecodable fail-closed,
+viewer paths untouched. REVIEW-10 closed at implementation scope (Codex
+review pending); outcome 9 complete pending review.
 Serve half proven in `c68500d2` + test-typo fix (Lane C15 commit
 `adf31cc3`): `assembleModules` rewrites bare `@canlang/stdlib` to the
 real data-plane stdlib and registers the assembler-owned capability — no
