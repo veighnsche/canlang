@@ -210,6 +210,71 @@ test('collection enum filters reject malformed source, defaults and current sele
   assert.equal(queries, 0); assert.equal(bodies, 0);
 });
 
+test('collection bool toggle filters preserve typed conditions, precedence and refusals', () => {
+  // Columns transcribed verbatim from actual `can compile` output for a
+  // recorded enum+bool filter shape (see
+  // test/fixtures/bool-toggle-filters-compiled.json, emitted by the Lane B
+  // compiler batch): enum columns keep case-name conditions while `bool`
+  // columns select strict booleans. Request text `"true"`/`"false"` parses
+  // to booleans; the spellings never travel as truthy filter values.
+  const occurrence = 'page:/hello/list:1';
+  const fields: ColumnMeta[] = [
+    { field: 'kind', label: 'kind', type: 'enum:Probe.Customer.kind', valueLabels: { individual: 'individual', company: 'company' } },
+    { field: 'active', label: 'active', type: 'bool', valueLabels: { true: 'true', false: 'false' } },
+  ];
+  const prepare = (entries: [string, string][]) => {
+    const request = testRequest(`/hello?${new URLSearchParams(entries)}`);
+    return buildPresentationContext({ request, pathname: '/hello', isPartial: false, appDefaultLocale: 'en',
+      csrfToken: '', principal: fakeIdentity(), query: async () => ({ rows: [], columns: [] }) }).prepareCollectionFilters!;
+  };
+  const plain = prepare([]);
+  assert.deepEqual(plain(occurrence, fields), []);
+  assert.deepEqual(plain(occurrence, fields, { kind: 'company', active: true }),
+    [{ field: 'kind', op: 'eq', value: 'company' }, { field: 'active', op: 'eq', value: true }]);
+  assert.deepEqual(plain(occurrence, fields, { active: false }),
+    [{ field: 'active', op: 'eq', value: false }]);
+  assert.deepEqual(plain(occurrence, fields, { kind: null, active: null }), []);
+  for (const conditions of [
+    plain(occurrence, fields, { active: true }),
+    prepare([[collectionFilterName(occurrence, 'active'), 'true']])(occurrence, fields),
+    prepare([[collectionFilterName(occurrence, 'active'), 'false']])(occurrence, fields, { active: true }),
+  ]) {
+    for (const condition of conditions) {
+      assert.equal(condition.op, 'eq');
+    }
+  }
+  const[toggled] = plain(occurrence, fields, { active: true });
+  assert.equal(typeof toggled!.value, 'boolean');
+  // Saved/request precedence: explicit request wins, explicit clear stays cleared.
+  assert.deepEqual(
+    prepare([[collectionFilterName(occurrence, 'active'), 'false']])(occurrence, fields, { active: true }),
+    [{ field: 'active', op: 'eq', value: false }]);
+  assert.deepEqual(
+    prepare([[collectionFilterName(occurrence, 'active'), '']])(occurrence, fields, { active: true }), []);
+  assert.deepEqual(
+    prepare([[collectionFilterName(occurrence, 'kind'), 'individual']])(occurrence, fields, { kind: 'company', active: true }),
+    [{ field: 'kind', op: 'eq', value: 'individual' }, { field: 'active', op: 'eq', value: true }]);
+  const refuses = (run: () => unknown) => assert.throws(run, (error: unknown) =>
+    typeof error === 'object' && error !== null && 'code' in error && error.code === 'validation');
+  for (const entries of [
+    [[collectionFilterName(occurrence, 'active'), 'yes']],
+    [[collectionFilterName(occurrence, 'active'), 'True']],
+    [[collectionFilterName(occurrence, 'active'), '1']],
+    [[collectionFilterName(occurrence, 'active'), 'true'], [collectionFilterName(occurrence, 'active'), 'false']],
+    [[collectionFilterName(occurrence, 'unknown'), 'true']],
+    [['filter[active]', 'true']], [['f[active]', 'true']],
+  ] as [string, string][][]) refuses(() => prepare(entries)(occurrence, fields));
+  for (const defaults of [{ unknown: true }, { active: 'true' }, { active: '' }, { active: 1 }, { kind: true }] as
+    Record<string, unknown>[]) {
+    refuses(() => plain(occurrence, fields, defaults as Record<string, string | boolean | null>));
+  }
+  for (const columns of [[fields[1]!, fields[1]!], [{ ...fields[1]!, type: 'boolean' }],
+    [{ ...fields[1]!, valueLabels: { true: 'true' } }], [{ ...fields[1]!, valueLabels: { true: 'true', false: 'false', extra: 'x' } }],
+    [{ ...fields[1]!, valueLabels: {} }], [{ ...fields[1]!, field: '' }]]) {
+    refuses(() => plain(occurrence, columns));
+  }
+});
+
 test('calendar agenda consumes occurrence enum filters through the unchanged authorized query context', async () => {
   const occurrence = 'page:/hello/agenda:1';
   const filter: ColumnMeta = { field: 'state', label: 'State', type: 'enum:Calendar.Booking.state',
