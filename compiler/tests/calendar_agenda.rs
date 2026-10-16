@@ -55,11 +55,16 @@ fn checked_agenda_body_filters_and_preferences_reach_installed_consumers() {
             "explicit-history-row",
             source.replace("   actions cancel", "   actions cancel\n   history row"),
         ),
+        // A bare bool `where` now lowers data-only and composes with
+        // filters, so the lambda-where refusal is pinned with a genuinely
+        // non-data-only predicate: field-to-field comparison stays a
+        // Lambda where, which keeps the exact E6008 at the agenda
+        // validator below.
         (
             "filtered-lambda",
             source.replace(
                 "calendar Visit start=from",
-                "calendar Visit as row where row.host_ok start=from",
+                "calendar Visit as row where row.from>=row.until start=from",
             ),
         ),
     ] {

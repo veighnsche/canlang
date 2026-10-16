@@ -63,11 +63,16 @@ fn checked_table_filters_defaults_and_protected_rows_reach_installed_consumers()
                 "defaults={state=preferences.window_state,state=\"open\"}",
             ),
         ),
+        // The `visit.from>=now` time predicate composes with filters since
+        // 42a593b0 (checked table time predicates), so the lambda-where
+        // refusal is pinned with a genuinely non-data-only predicate:
+        // field-to-field comparison lowers to a Lambda where, which keeps
+        // the exact E6008 at the collection filter validator below.
         (
             "filtered-lambda",
             source.replace(
                 "table row.Window columns=",
-                "table row.Window as visit where visit.from>=now columns=",
+                "table row.Window as visit where visit.from>=visit.until columns=",
             ),
         ),
     ] {
