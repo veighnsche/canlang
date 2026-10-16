@@ -1,0 +1,15 @@
+app RadialBoundary
+Given
+ Account { title:text, done:int?, total:int }
+ derive Account.progress:decimal = 50/100 label="P"
+ policy Account read=public
+When
+Then
+ page /literal title="Literal"
+  radial_progress 50 max=100
+ page /completion title="Completion"
+  list Account
+   radial_progress row.progress max=100
+ page /bounds title="Bounds"
+  list Account
+   radial_progress row.done max=row.total
