@@ -7568,3 +7568,16 @@ clean HEAD, bool-reader region only, C21-dirt avoidance + C21-first
 integration order explicit). REVIEW-16 stays with active B12 (no duplicate).
 Lanes at cap 3: C21 (hook repeat), B12 (radial numeric), B13 (bool reader).
 Shared-target writers serialized; original24 frozen closure preserved.
+
+**Coordinator intake, 2026-10-16 (C21 verified + deferred clean round closed):**
+C21 (`c77f1392`, emitter/runtime occurrence contract) VERIFIED: hook_lowering
+19/19 incl. the repeat discriminator (second update creates its child,
+replay restages same id and stays once-only). The t31_hook_run_shape failure
+was its intended contract change (proved at clean-B11 control where t31
+passes without C21); coordinator updated the single pin to the
+occurrence-qualified shape in `ec768ce9` (test-only, no source touched) —
+codegen back to 143 + 4 pre-existing. Clean-binary round with rebuilt `can`
+from the clean tree: calendar_agenda 1/1, gallery_runtime 3/3, table_filters
+1/1, bool-page+http 38/38, contained-first joint + joint-serve 12/12, state
+contained-first 5/5. All prior "deferred" items now verified clean; no
+dirty-binary caveat remains. Active lanes: B12 (radial), B13 (bool reader).
