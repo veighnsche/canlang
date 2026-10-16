@@ -158,6 +158,26 @@ function checkedPreferenceFields(descriptor: PageDescriptor): NonNullable<PageDe
       names.add(field.name);
       continue;
     }
+    // C2 text-equality preference leaf (DESIGN 975 scalar): a plain-text
+    // control carries no case options and no save control; the default
+    // is a bounded string or null (empty means no restriction, DESIGN
+    // 1023) and the saved value validates as a bounded string, never
+    // against an inventory. Only the compiler emits this shape (empty
+    // options with no reference flag); enum/bool leaves always carry
+    // their spellings below. The POST save path keeps refusing text
+    // leaves with validation: no save control admits them.
+    if (Array.isArray(field.options) && field.options.length === 0) {
+      if (typeof field.name !== 'string' || !/^[A-Za-z][A-Za-z0-9_]*$/u.test(field.name) ||
+          names.has(field.name) ||
+          (field.defaultValue === null
+            ? field.nullable !== true
+            : typeof field.defaultValue !== 'string' || field.defaultValue.length > 200 ||
+              /[\u0000-\u001f\u007f]/.test(field.defaultValue))) {
+        throw new Error('Invalid source preference descriptor.');
+      }
+      names.add(field.name);
+      continue;
+    }
     if (field.reference !== undefined || typeof field.name !== 'string' || !/^[A-Za-z][A-Za-z0-9_]*$/u.test(field.name) ||
         names.has(field.name) || !Array.isArray(field.options) || field.options.length === 0 ||
         field.options.some(value => typeof value !== 'string' || value === '') ||
@@ -203,13 +223,22 @@ async function preferenceSource(
     const saved = await deps.preferences.read(key);
     // Reference identities validate as opaque strings (bounded like
     // search input), never against a case inventory: unknown references
-    // simply match nothing downstream (DESIGN 1027).
+    // simply match nothing downstream (DESIGN 1027). Text values
+    // validate the same way (C2 text-equality rule, DESIGN 975 scalar):
+    // a bounded string with no inventory to violate, so an unknown
+    // saved string narrows to no rows downstream instead of failing
+    // materialization; empty stays no restriction (DESIGN 1023).
+    const textLeaf = field.reference !== true &&
+      Array.isArray(field.options) && field.options.length === 0;
     const savedOk = saved === null || !checkedPreferenceVersion(saved.version) || saved.version === '0'
       ? saved === null
       : field.reference === true
         ? typeof saved.value === 'string' && saved.value !== '' && saved.value.length <= 200 &&
           !/[\u0000-\u001f\u007f]/.test(saved.value)
-        : field.options.includes(saved.value);
+        : textLeaf
+          ? typeof saved.value === 'string' && saved.value.length <= 200 &&
+            !/[\u0000-\u001f\u007f]/.test(saved.value)
+          : field.options.includes(saved.value);
     if (!savedOk) {
       throw new Error('Invalid saved page preference.');
     }

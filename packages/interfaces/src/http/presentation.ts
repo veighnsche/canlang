@@ -45,12 +45,15 @@ const unavailablePageRecords: PageRecordsReader = async () => {
 
 /**
  * Request selectors choose only admitted values from the owning readable
- * inventory: enum case names, strict booleans for `bool` toggle columns, or
- * typed opaque identities for `user`/`member`/`ref:` reference columns
+ * inventory: enum case names, strict booleans for `bool` toggle columns,
+ * bounded free text for `text` columns (C2 text-equality rule, DESIGN 975
+ * scalar + operator table: ordinary string equality, never a spelling
+ * inventory), or typed opaque identities for `user`/`member`/`ref:`
+ * reference columns
  * (DESIGN 977: reference equality is not an enum spelling, so no case
  * inventory applies; unknown or inaccessible references simply match nothing,
  * DESIGN 1027). Conditions carry typed predicate values (booleans stay
- * booleans; reference identities stay `{id}` objects; the spellings
+ * booleans; text stays strings; reference identities stay `{id}` objects; the spellings
  * `"true"`/`"false"` only travel in column metadata and request text, never
  * as truthy filter values). Defaults initialize only declared controls
  * (DESIGN 975); explicit request selection or clear wins per control.
@@ -77,10 +80,22 @@ function collectionFilterPreparer(params: URLSearchParams): NonNullable<Presenta
       if (property === undefined || !property.enumerable || !('value' in property)) refuse();
       return Object.freeze({ id: opaqueId(property.value) });
     };
+    // C2 text-equality free text from request/defaults (DESIGN 975
+    // scalar + operator table): a bounded non-empty string without
+    // control characters, like search input. Well-formed values compare
+    // by the ordinary string equality downstream, never a spelling
+    // inventory; malformed input refuses. Empty means no restriction
+    // (DESIGN 1023) and is mapped to null by the callers, never passed
+    // here.
+    const filterText = (value: unknown): string => {
+      if (typeof value !== 'string' || value === '' || value.length > 200 ||
+          /[\u0000-\u001f\u007f]/.test(value)) refuse();
+      return value as string;
+    };
     if (typeof occurrence !== 'string' || occurrence.length === 0) refuse();
     let prefix: string;
     try { prefix = `${COLLECTION_FILTER_PREFIX}${encodeURIComponent(occurrence)}:`; } catch { return refuse(); }
-    const inventories = new Map<string, { readonly kind: 'enum' | 'bool' | 'ref'; readonly cases: Set<string> }>();
+    const inventories = new Map<string, { readonly kind: 'enum' | 'bool' | 'ref' | 'text'; readonly cases: Set<string> }>();
     for (const column of fields) {
       if (typeof column !== 'object' || column === null) refuse();
       const field = own(column, 'field'), type = own(column, 'type'), labels = own(column, 'valueLabels');
@@ -99,6 +114,15 @@ function collectionFilterPreparer(params: URLSearchParams): NonNullable<Presenta
         if (cases.length !== 0) refuse();
         try { collectionFilterName(occurrence, field); } catch { return refuse(); }
         inventories.set(field, { kind: 'ref', cases: new Set() });
+        continue;
+      }
+      // C2 text-equality rule (DESIGN 975 scalar): a `text` control
+      // carries no spellings, exactly like a reference: the descriptor
+      // must not smuggle an option inventory alongside the free text.
+      if (type === 'text') {
+        if (cases.length !== 0) refuse();
+        try { collectionFilterName(occurrence, field); } catch { return refuse(); }
+        inventories.set(field, { kind: 'text', cases: new Set() });
         continue;
       }
       if (typeof type !== 'string' || !type.startsWith('enum:') || type.slice(5).trim().length === 0 ||
@@ -125,6 +149,13 @@ function collectionFilterPreparer(params: URLSearchParams): NonNullable<Presenta
               : referenceIdentity(value));
             continue;
           }
+        } else if (entry.kind === 'text') {
+          // C2 text-equality rule (DESIGN 975 scalar + 1023): a text
+          // default is a bounded string or null; empty means no
+          // restriction, exactly like a cleared request value.
+          if (value !== null && typeof value !== 'string') refuse();
+          selected.set(field, value === null || value === '' ? null : filterText(value));
+          continue;
         } else if (value !== null && (typeof value !== 'string' || !entry.cases.has(value))) refuse();
         selected.set(field, value as string | boolean | null);
       }
@@ -146,6 +177,15 @@ function collectionFilterPreparer(params: URLSearchParams): NonNullable<Presenta
       if (entry.kind === 'ref') {
         seen.add(field);
         selected.set(field, value === '' ? null : Object.freeze({ id: opaqueId(value) }));
+        continue;
+      }
+      // C2 text-equality rule: request text validates like defaults
+      // (bounded, no control characters); empty clears the control
+      // (DESIGN 1023). The emitted condition stays the existing
+      // `eq` shape below.
+      if (entry.kind === 'text') {
+        seen.add(field);
+        selected.set(field, value === '' ? null : filterText(value));
         continue;
       }
       if (value !== '' && !entry.cases.has(value)) refuse();

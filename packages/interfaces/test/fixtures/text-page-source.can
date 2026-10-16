@@ -1,0 +1,10 @@
+app Probe
+Given
+ Customer { name:text, category:text }
+ policy Customer read=public
+When
+Then
+ preferences { category:text? }
+ page /customers title="Customers"
+  list Customer columns=name,category filter=category defaults={category=preferences.category} display=split
+  list Customer columns=name,category filter=category defaults={category="ops"} display=split

@@ -299,21 +299,23 @@ export interface PageDescriptor {
   readonly order?: bigint;
   readonly group?: MessageValue;
   readonly nav?: "none";
-  /** Source-owned enum selectors that this page can save for its current actor/team. */
+  /** Source-owned filter selectors (enum cases, bool spellings, or free text) that this page can save for its current actor/team. */
   readonly preferenceFields?: readonly {
     readonly name: string;
+    /** Case spellings for enum/bool leaves; empty for reference/text leaves, which carry no inventory. */
     readonly options: readonly string[];
     /** Source field and enum-case captions, resolved in the viewer locale. */
     readonly caption?: MessageValue;
     readonly optionLabels?: Readonly<Record<string, MessageValue>>;
-    /** Only the original nullable enum initial default; saved values stay cases. */
+    /** Only the original nullable initial default; saved enum values stay cases, saved text stays a bounded string. */
     readonly nullable?: true;
     readonly defaultValue: string | null;
     /**
      * Reference preference leaf behind a filter default (DESIGN 977):
      * no case options, no literal default; the saved identity stays
-     * opaque and validates as an opaque string. Reference fields carry
-     * no save control: storage accepts enum cases only.
+     * opaque and validates as an opaque string. Reference and text
+     * leaves carry no save control: only enum/bool selections save
+     * through the preference form.
      */
     readonly reference?: true;
   }[];

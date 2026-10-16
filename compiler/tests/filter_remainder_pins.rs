@@ -29,24 +29,30 @@
 //! | CanLeave calendar | location,from,until | from/until (date, C3); location ref is an admitted leftover | already pinned (`calendar_date_selector_refuses`) |
 //! | CanMaintain list (Asset) | location,category,retired | category (text, C2); location ref + retired bool are admitted leftovers | already pinned (`text_selector_refuses`) |
 //! | CanField board (Job) | location,state,skill | skill (text, C2) | already pinned (`board_text_selector_refuses`) |
-//! | CanField calendar (Job) | location,state,skill | skill (text, C2) | NEW pin below (calendar+text was never pinned; only calendar+date was) |
+//! | CanField calendar (Job) | location,state,skill | skill (text, C2) | ADMITTED by the C2 text-equality rule (DESIGN 975 scalar + operator table); pin below now asserts lowering |
 //! | CanMember preferences x2 | toggle current_only | inline owning-bool toggle presentation has no source-to-factory profile | NEW pin below |
 //! | CanRent preferences | toggle arrival_open | same family as above | covered by the same NEW pin |
 //! | CanLeave preferences | input year + input bucket | inline scalar input presentation has no source-to-factory profile | NEW pin below |
 //! | CanRent board | pagination child | board factory does not consume the `page` property | NEW pin below |
 //!
-//! No new rule is admitted here: every remainder shape bottoms out on
-//! a C2/C3/dotted/int follower (already pinned) or on a genuinely-new
-//! selector (currency scalar, nullable user, derived bool, containing
-//! parent, inline preferences presentation, board pagination) for
-//! which this batch makes exactly one named choice each — stay loudly
-//! refused with the exact E6008 below. No new primitive, no symmetry
-//! generalization (nullable user is not admitted from admitted user;
-//! derived bool is not admitted from admitted stored bool; board
-//! `page` is not admitted from list/table `page`), no weakened
-//! permissions or refusals, no original rewrites. The recorded `where`
-//! clauses accompanying refused filters (parent/actor restrictions)
-//! are outside this filter batch.
+//! C2 text-equality admission (CAN18-v1, DESIGN 975 scalar + operator
+//! table): the CanField calendar `skill:text` selector lowers as an
+//! exact equality control beside its admitted location/enum siblings,
+//! so its pin below asserts lowering. Every other remainder shape
+//! bottoms out on a C3/dotted/int follower (already pinned) or on a
+//! genuinely-new selector (currency scalar, nullable user, derived
+//! bool, containing parent, inline preferences presentation, board
+//! pagination) for which this batch makes exactly one named choice
+//! each — stay loudly refused with the exact E6008 below. No new
+//! primitive beyond the text rule, no symmetry generalization
+//! (nullable user is not admitted from admitted user; derived bool is
+//! not admitted from admitted stored bool; board `page` is not
+//! admitted from list/table `page`; validated string-likes, nullable
+//! text model fields, computed text defaults and date selectors are
+//! not admitted from admitted plain text), no weakened permissions or
+//! refusals, no original rewrites. The recorded `where` clauses
+//! accompanying refused filters (parent/actor restrictions) are
+//! outside this filter batch.
 //!
 //! Like the CLI, every stage runs and contributes diagnostics; each
 //! pin below asserts the exact E6008 refusal the frozen capture
@@ -92,6 +98,11 @@ fn assert_refuses(source: &str, code: &str, fragment: &str) {
             && diags.iter().any(|d| d.contains(fragment)),
         "expected {code} containing {fragment:?}, got: {diags:?}"
     );
+}
+
+fn assert_lowers(source: &str) {
+    let diags = emit_all(source);
+    assert!(diags.is_empty(), "unexpected diagnostics: {diags:?}");
 }
 
 /// Recorded CanInvoice shape (`currency:currency` on Invoice in
@@ -187,16 +198,15 @@ fn board_pagination_option_refuses() {
     );
 }
 
-/// Recorded CanField calendar shape (`skill:text` beside admitted
-/// location and state siblings): a text field is not a finite-choice
-/// selector on agendas either, so the calendar keeps its exact E6008
-/// checker refusal (a refused calendar filter keeps the checker
-/// refusal alone).
+/// C2 text-equality rule on agendas (CAN18-v1, DESIGN 975 scalar +
+/// operator table): the recorded CanField calendar shape lowers. The
+/// plain owned `skill:text` selector conjoins beside the admitted
+/// location reference and enum through the same E5 conjunction; the
+/// agenda keeps no second lowering refusal for the admitted filter,
+/// exactly like the admitted calendar shapes.
 #[test]
-fn calendar_text_selector_refuses() {
-    assert_refuses(
-        "app Probe\nGiven\n Location { name:text }\n Job { title:text, from:datetime, until:datetime, location:Location, skill:text, state:enum(pending,done)=pending }\n policy Location read=public\n policy Job read=public\nWhen\nThen\n preferences { location:Location?, state:Job.state? }\n page /dispatch title=\"Dispatch\"\n  calendar Job start=from end=until filter=location,state,skill defaults={location=preferences.location,state=preferences.state}\n   badge row.state\n",
-        "E6008",
-        "calendar filters need distinct checked owned enum fields",
+fn calendar_text_selector_lowers() {
+    assert_lowers(
+        "app Probe\nGiven\n Location { name:text }\n Job { title:text, from:datetime, until:datetime, location:Location, skill:text, state:enum(pending,done)=pending }\n policy Location read=public\n policy Job read=public\nWhen\nThen\n preferences { location:Location?, state:Job.state?, skill:text? }\n page /dispatch title=\"Dispatch\"\n  calendar Job start=from end=until filter=location,state,skill defaults={location=preferences.location,state=preferences.state,skill=preferences.skill}\n   badge row.state\n",
     );
 }

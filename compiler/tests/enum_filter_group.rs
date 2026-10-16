@@ -18,8 +18,10 @@
 //! What stays refused with exact codes: the frozen original24 capture's
 //! remaining filter occurrences stay refused — every table/list/board/
 //! calendar filter refusal bottoms out on a genuinely unsupported selector
-//! (text `bucket`/`category`/`skill`, int `year`, date `paid`, datetime
-//! `qualified_at`, dotted paths), `archived=include` with no consumed
+//! (int `year`, date `paid`/`business_date`/`due`, datetime
+//! `qualified_at`, dotted paths; nullable `text?` model fields,
+//! validated string-likes, and computed text defaults are likewise not
+//! admitted from the text rule below), `archived=include` with no consumed
 //! factory profile, or an expression `order=` with no §13 lowering. Each keeps its exact named
 //! E6008 refusal below (base control: B6 Lambda-where/defaults-key/
 //! co-fields/dotted-path disposition; outcome-5/12 for archived/order);
@@ -32,9 +34,18 @@
 //! a stored-model reference (`location`), a `user` reference (`owner`),
 //! or a `member` reference lowers beside enum/bool siblings through typed
 //! opaque identity — reference equality is not an enum spelling, so no
-//! case inventory applies. The C2 text followers (`category`, `skill`)
-//! and C3 date/datetime followers (`business_date`, `from`/`until`) stay
-//! refused below with their exact codes. The C4 agenda bindings lower:
+//! case inventory applies.
+//!
+//! C2 text-equality rule (CAN18-v1, DESIGN 975 scalar + operator table):
+//! a plain owned `text` field (`bucket`/`category`/`skill`) lowers as an
+//! exact equality control beside enum/bool/reference siblings: the saved
+//! `text?` read (or a text literal, or null) lowers verbatim with no
+//! case inventory, and the host preparer compares the ordinary string
+//! equality. The C3 date/datetime followers (`business_date`, `paid`,
+//! `due`, `qualified_at`, `from`/`until`) stay refused below with their
+//! exact codes: date selectors would need range/between controls and
+//! zone-aware entry machinery that no collection surface owns, so 975
+//! settles the text half only. The C4 agenda bindings lower:
 //! a parent-bound (nested) agenda threads the enclosing row through the
 //! shared collection pipeline like a bound timeline, and agenda
 //! `columns=` names owned row fields the calendarAgenda factory renders
@@ -290,12 +301,78 @@ fn model_reference_selector_lowers() {
     );
 }
 
-/// Recorded CanLeave shape: a text field is not a finite-choice
-/// selector even with a matching text preference default.
+/// C2 text-equality rule (CAN18-v1, DESIGN 975 scalar + operator
+/// table): the recorded CanLeave shape lowers. A plain owned `text`
+/// field is an exact equality control with a matching `text?`
+/// preference default: the saved read lowers verbatim with no case
+/// inventory, and null stays no initial restriction (DESIGN 975).
 #[test]
-fn text_selector_refuses() {
-    assert_refuses(
+fn text_selector_lowers() {
+    assert_lowers(
         "app Probe\nGiven\n Request { bucket:text }\n policy Request read=public\nWhen\nThen\n preferences { bucket:text? }\n page /requests title=\"Requests\"\n  list Request columns=bucket filter=bucket defaults={bucket=preferences.bucket}\n",
+    );
+}
+
+/// C2 text-equality rule: a text literal default matches the text
+/// control exactly (DESIGN 975 scalar), lowering verbatim.
+#[test]
+fn text_literal_default_lowers() {
+    assert_lowers(
+        "app Probe\nGiven\n Request { bucket:text }\n policy Request read=public\nWhen\nThen\n preferences { bucket:text? }\n page /requests title=\"Requests\"\n  list Request columns=bucket filter=bucket defaults={bucket=\"review\"}\n",
+    );
+}
+
+/// C2 text-equality rule: no default is no initial restriction
+/// (DESIGN 975: null means no initial restriction), so the bare text
+/// control lowers.
+#[test]
+fn text_selector_without_default_lowers() {
+    assert_lowers(
+        "app Probe\nGiven\n Request { bucket:text }\n policy Request read=public\nWhen\nThen\n page /requests title=\"Requests\"\n  list Request columns=bucket filter=bucket\n",
+    );
+}
+
+/// C2 text-equality rule on tables: the same shared gate covers the
+/// recorded CanMaintain shape (list) and its table sibling alike.
+#[test]
+fn table_text_selector_lowers() {
+    assert_lowers(
+        "app Probe\nGiven\n Asset { name:text, category:text }\n policy Asset read=public\nWhen\nThen\n preferences { category:text? }\n page /assets title=\"Assets\"\n  table Asset columns=name,category order=name filter=category defaults={category=preferences.category}\n",
+    );
+}
+
+/// A nullable owned `text?` model field is not admitted from the
+/// admitted plain `text` selector: the selector gate takes the exact
+/// non-nullable text type, mirroring the enum precedent.
+#[test]
+fn nullable_text_model_field_refuses() {
+    assert_refuses(
+        "app Probe\nGiven\n Request { bucket:text? }\n policy Request read=public\nWhen\nThen\n preferences { bucket:text? }\n page /requests title=\"Requests\"\n  list Request columns=bucket filter=bucket defaults={bucket=preferences.bucket}\n",
+        "E6008",
+        "need distinct checked owned enum fields",
+    );
+}
+
+/// A validated string-like is not admitted from the admitted plain
+/// `text` selector: `email` keeps its exact E6008 refusal. No
+/// symmetry generalization.
+#[test]
+fn email_selector_refuses() {
+    assert_refuses(
+        "app Probe\nGiven\n Contact { address:email }\n policy Contact read=public\nWhen\nThen\n preferences { address:email? }\n page /contacts title=\"Contacts\"\n  list Contact columns=address filter=address defaults={address=preferences.address}\n",
+        "E6008",
+        "need distinct checked owned enum fields",
+    );
+}
+
+/// No computed text default is admitted (no B14 analog): a `??`
+/// fallback across two saved text reads keeps its exact E6008
+/// refusal. Only a text literal, a direct saved text read, or null
+/// lower.
+#[test]
+fn computed_text_default_refuses() {
+    assert_refuses(
+        "app Probe\nGiven\n Request { bucket:text }\n policy Request read=public\nWhen\nThen\n preferences { bucket:text?, backup:text? }\n page /requests title=\"Requests\"\n  list Request columns=bucket filter=bucket defaults={bucket=preferences.bucket ?? preferences.backup}\n",
         "E6008",
         "need distinct checked owned enum fields",
     );
@@ -473,17 +550,41 @@ fn reference_filter_descriptor_carries_no_enum_spelling() {
     );
 }
 
-/// C2 text follower (recorded CanField `skill` shape): a text field is
-/// not a reference or finite-choice selector even with a matching text
-/// preference default, so the board keeps its exact E6008 refusals.
+/// C2 text-equality rule on boards (CAN18-v1, DESIGN 975 scalar +
+/// operator table): the recorded CanField `skill` shape lowers. The
+/// plain owned `text` selector conjoins beside the admitted enum
+/// through the same E5 conjunction, with the saved text read lowering
+/// verbatim and no case inventory.
 #[test]
-fn board_text_selector_refuses() {
-    let source = "app Probe\nGiven\n Job { title:text, skill:text, state:enum(open,closed)=open }\n policy Job read=public\nWhen\nThen\n preferences { skill:text?, state:Job.state? }\n page /dispatch title=\"Dispatch\"\n  board Job by=state columns=title,skill filter=skill,state defaults={skill=preferences.skill,state=preferences.state}\n";
-    assert_refuses(source, "E6008", "board filters need distinct checked owned enum fields");
-    assert_refuses(
-        source,
-        "E6008",
-        "cannot lower board filters: enum fields and defaults need matching owned declarations and data-only where",
+fn board_text_selector_lowers() {
+    assert_lowers(
+        "app Probe\nGiven\n Job { title:text, skill:text, state:enum(open,closed)=open }\n policy Job read=public\nWhen\nThen\n preferences { skill:text?, state:Job.state? }\n page /dispatch title=\"Dispatch\"\n  board Job by=state columns=title,skill filter=skill,state defaults={skill=preferences.skill,state=preferences.state}\n",
+    );
+}
+
+/// C2 text-equality emission: the text descriptor carries the `text`
+/// type with no value labels, and the saved read stays verbatim with
+/// no bool spelling-decoding wrapper.
+#[test]
+fn text_filter_descriptor_carries_no_spellings() {
+    let js = emit_js(
+        "app Probe\nGiven\n Request { bucket:text }\n policy Request read=public\nWhen\nThen\n preferences { bucket:text? }\n page /requests title=\"Requests\"\n  list Request columns=bucket filter=bucket defaults={bucket=preferences.bucket}\n",
+    );
+    assert!(
+        js.contains("type:\"text\""),
+        "text descriptor names its kind, got: {js}"
+    );
+    assert!(
+        js.contains("valueLabels:{}"),
+        "text descriptors carry no spellings, got: {js}"
+    );
+    assert!(
+        js.contains("bucket:(preferences.bucket ?? null)"),
+        "the saved text read stays verbatim, got: {js}"
+    );
+    assert!(
+        !js.contains("value=>{if(value==null)"),
+        "no bool spelling-decoding wrapper on text reads, got: {js}"
     );
 }
 
