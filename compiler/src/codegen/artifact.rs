@@ -381,6 +381,13 @@ pub fn assemble(
     let mut referenced: Vec<ReferencedBuiltin> = ir.referenced_builtins.clone();
     referenced.extend(js.referenced_builtins.iter().cloned());
     referenced.extend(test_builtins.iter().cloned());
+    // Observations the lowering bound to the State membership producer carry
+    // their exact checked source and selected call closure, so they resolve
+    // to that defining owner. Only genuinely unbound references refuse here
+    // with the producer's exact availability code.
+    referenced.retain(|used| {
+        used.id != "active_member" || !js.membership_bound.contains(&used.span)
+    });
     diags.extend(check_builtin_availability(&referenced, catalog));
     let mut tests = Vec::with_capacity(test_modules.len());
     for test in test_modules {

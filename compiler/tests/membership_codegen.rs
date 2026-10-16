@@ -1,5 +1,5 @@
 //! Actual checked source emission; native observation authority has its owning join.
-use canlang_compiler::analysis::catalog::{Availability, Catalog, CatalogRequest, load_catalog};
+use canlang_compiler::analysis::catalog::{Catalog, CatalogRequest, load_catalog};
 use canlang_compiler::analysis::{CheckedProgram, check_program};
 use canlang_compiler::codegen::{EmitOptions, EmitSources, emit, ir, js};
 use canlang_compiler::diagnostic::DiagnosticResult;
@@ -173,12 +173,10 @@ fn checked_membership_emits_exact_source_arguments_and_true_site_stages() {
             options: EmitOptions::new(),
         },
     );
-    if catalog.lookup("active_member").unwrap().availability == Availability::External {
-        assert_eq!(diagnostics.len(), 1, "{diagnostics:?}");
-        assert_eq!(diagnostics[0].code, "E6007", "{diagnostics:?}");
-    } else {
-        assert!(diagnostics.is_empty(), "{diagnostics:?}");
-    }
+    // Bound observations resolve to their defining State membership producer,
+    // so the generic catalog's external marker no longer reports — even when
+    // the installed catalog leaves `active_member` external.
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
     let emitted = &artifact.modules[0].js;
     assert!(
         emitted.contains("export function canMembershipSources()"),
