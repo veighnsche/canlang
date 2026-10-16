@@ -6,6 +6,9 @@
 //! refusal surface (recursion, order/omission/duplication skew, void
 //! bindings). No native rows or File authority are issued.
 //!
+//! Admitted sub-shapes (Lane C D2/D6): void children with creates, and
+//! `set` on a bound model-result child, join below with receipt emission.
+//!
 //! Pending contract (the original 7 need disclosure gates owned outside
 //! this lane; each reason below is the observed
 //! `ScenarioDisclosure::Declined` reason on a faithful minimal shape):
@@ -238,6 +241,56 @@ fn scalar_member_operand_joins_with_original_spelling() {
             .expect("checked scalar-member CALL source");
     assert_eq!(calls.len(), 1);
     assert_eq!(source_text(&db, calls[0].inputs[1].source), "leaf.note");
+}
+
+#[test]
+fn void_create_child_joins_and_emits_receipt_call() {
+    let (db, ir) = joined(
+        "void-create",
+        r#"  export scenario vc_child(branch:Branch,title:text) by=members
+   do
+    create Leaf {parent=branch,note=title} as leaf
+    set leaf {note=title}
+  scenario vc_parent(branch:Branch,title:text) by=members
+   do call vc_child {branch,title}
+"#,
+        "t.vc_parent",
+    );
+    let owner = item(&ir, "t.vc_parent");
+    assert!(matches!(
+        ir.scenario_disclosures[&owner.id],
+        ScenarioDisclosure::Complete(_)
+    ));
+    let child = item(&ir, "t.vc_child");
+    assert!(matches!(
+        ir.scenario_disclosures[&child.id],
+        ScenarioDisclosure::Complete(_)
+    ));
+    let _ = db;
+}
+
+#[test]
+fn bound_child_result_set_joins_and_emits_receipt_call() {
+    let (db, ir) = joined(
+        "bound-set",
+        r#"  export scenario bs_child(branch:Branch,title:text) -> Branch by=members
+   do
+    create Branch {parent=branch.parent,title} as made
+    return made
+  scenario bs_parent(branch:Branch,title:text) -> Branch by=members
+   do
+    call bs_child {branch,title} as made
+    set made {title}
+    return made
+"#,
+        "t.bs_parent",
+    );
+    let owner = item(&ir, "t.bs_parent");
+    assert!(matches!(
+        ir.scenario_disclosures[&owner.id],
+        ScenarioDisclosure::Complete(_)
+    ));
+    let _ = db;
 }
 
 fn effects_mut<'a>(ir: &'a mut IrProgram, name: &str) -> &'a mut Vec<IrStmt> {

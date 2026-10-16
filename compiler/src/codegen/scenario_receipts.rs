@@ -9528,6 +9528,10 @@ fn checked_scenario_create(
         ordered_created_model_effects(ir, owner, first.node, first.model, &first.binding, db)?;
     } else if checked_created_model_result(ir, owner) == Some(*model) {
         ordered_created_model_effects(ir, owner, proof.node, *model, binding, db)?;
+    } else if matches!(&owner.kind, IrItemKind::Scenario { result: None, .. }) {
+        // Void scenarios own no result row; the individually checked create
+        // executes terminally in the same transaction in source order, so no
+        // call-consumption linkage applies.
     } else {
         ordered_intermediate_call_create(ir, owner, checked, proof.node, *model, binding, db)?;
     }
@@ -9711,6 +9715,10 @@ fn checked_created_statements(
         .iter()
         .any(|statement| matches!(statement, IrStmt::Send { when: Some(_), .. }))
         && checked_created_model_result(ir, owner) == Some(result_original.model);
+    // Void scenarios own no result row; a set on their individually checked
+    // created row executes terminally in the same transaction in source
+    // order, so no guarded-send linkage applies.
+    let void_owner = matches!(&owner.kind, IrItemKind::Scenario { result: None, .. });
     for (statement, authored) in guards
         .iter()
         .zip(authored_guards)
@@ -9748,7 +9756,7 @@ fn checked_created_statements(
                 changes,
                 when: None,
                 span,
-            } if guarded_created => {
+            } if guarded_created || void_owner => {
                 let mut paths = authored
                     .children
                     .iter()
