@@ -69,12 +69,13 @@ struct HookProfile<'a> {
 /// Row-binding class for hook locals. A snapshot alias
 /// (`let r = event.after`) carries the full trigger row, so its leaf and
 /// carried-reference fields read like the snapshot itself. A parent alias
-/// (`let l = event.after.parent`) carries only the engine's parent linkage
-/// identity (`{model, id}`): bare uses (containment linkage, query parents,
-/// carried payload values, `.id`) lower, while leaf reads and row-valued
-/// derives through it refuse with the transitive-load code. A staged
+/// (`let l = event.after.parent`) carries the engine's parent linkage
+/// identity (`{model, id}`) for bare uses (containment linkage, query
+/// parents, carried payload values, `.id`); declared leaf/carried fields
+/// read through it via the transitive parent load, while row-valued
+/// derives through the bare linkage still refuse. A staged
 /// binding (`create … as s`) carries the bound `{id}` identity for the
-/// same bare/`.id` uses.
+/// same bare/`.id` uses; content reads through it still refuse.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum EventAlias {
     Snapshot,
@@ -345,8 +346,9 @@ impl HookProfile<'_> {
 
     /// Readable hook field of an event-pathed model: reserved identity plus
     /// leaf fields plus carried stored references. Parent-identity rows
-    /// expose only identity (`id`); every other field read through them
-    /// refuses — the engine never resolves parent content in hooks.
+    /// expose identity (`id`) directly; declared leaf/carried fields read
+    /// through them via the transitive parent load (same declared-field
+    /// correspondence as snapshots).
     fn hook_snapshot_field(&self, model: SymbolId, name: &str, ty: &ResolvedType) -> bool {
         if name == "id" {
             return *ty == ResolvedType::Scalar(Scalar::Text);
@@ -489,9 +491,22 @@ impl HookProfile<'_> {
                     return (expr.ty == ResolvedType::Scalar(Scalar::Int)).then_some(());
                 }
                 if identity_only {
-                    // Parent linkage carries `{model, id}` only: version and
-                    // content reads through it refuse (transitive load,
-                    // sequenced follow-up — never a silent `undefined`).
+                    // Staged bindings carry `{id}` only and stay refused.
+                    // Parent linkage carries `{model, id}` for bare uses;
+                    // declared leaf/carried fields read through it via the
+                    // transitive parent load (same correspondence as
+                    // snapshots). Version and undeclared fields still refuse
+                    // — never a silent `undefined`.
+                    if field == "version" {
+                        return None;
+                    }
+                    if self
+                        .event_class(base, aliases)
+                        .is_some_and(|(_, class)| class == EventAlias::ParentIdentity)
+                        && self.hook_snapshot_field(model, field, &expr.ty)
+                    {
+                        return Some(());
+                    }
                     return None;
                 }
                 // Reserved identity/version are readonly views of the
