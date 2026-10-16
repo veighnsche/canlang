@@ -80,6 +80,17 @@ original24 and required executable consumers remain open. The last
 composition capture is still 347 diagnostic occurrences, not a current
 post-fix count. Continue the existing finite execution queue.
 
+### Radial intake deferred — 2026-10-16
+
+The independent radial consumer run used the mutable shared compiler at
+`e46013cb`, before the numeric fix, and failed at the BigInt maximum.
+That run does not qualify the released fix. A premature integration
+`809438ccc` was immediately reverted in `8e06613ed`; production source
+matches the accepted `98b7f48c` checkpoint, and the implementation remains
+preserved in the run. Reintake requires the correct frozen compiler input
+and the focused decimal IR admission as well as the emission boundary.
+No whole UI/composition acceptance or new diagnostic count follows.
+
 ### Finite conformance gaps
 
 There are **18 recorded outcomes**, not 18 patches or 573 independent features.
