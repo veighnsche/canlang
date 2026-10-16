@@ -18274,3 +18274,8 @@ Accepted: C2 text-equality rule: DESIGN 975 scalar eq with request/default/clear
 ## 2026-10-16 — can18_merge_39_20261017
 
 Accepted: Slice-D runtime half: whole-row first-selected replay bound as existing model result lifetime; replay returns same record, exact failure matrix. Merge reviewed tested work incrementally into canonical `main`, preserving installer/specification changes and the active implementation branch. native-first-replay vitest 1/1, receipt neighbors 14/14+13/13+12/12 on main dists + frozen 982e9eda/ca50. Reconcile the living file-tree plan/registry over `d734f19d..HEAD` with existing owners; retain the complete checkpoint and all outstanding acceptance gates. A merged component is not a claim that original24 or the remaining runtime workflows are complete.
+
+
+## 2026-10-16 — can18_merge_40_20261017
+
+Accepted: C2 installed-consumer closure: real assembled-worker text consumer (defaults/request/clear/unknown/malformed/denied/revocation); no production change. Merge reviewed tested work incrementally into canonical `main`, preserving installer/specification changes and the active implementation branch. installed 1/1 x3 after one initial 0/1 (recorded flake pattern, under watch). Reconcile the living file-tree plan/registry over `c7f2f42d..HEAD` with existing owners; retain the complete checkpoint and all outstanding acceptance gates. A merged component is not a claim that original24 or the remaining runtime workflows are complete.

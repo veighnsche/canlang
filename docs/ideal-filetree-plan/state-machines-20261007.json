@@ -74499,5 +74499,23 @@
     "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
     "checkpoint_advanced": false,
     "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
+  },
+  "can18_merge_40_20261017": {
+    "incremental_base": "c7f2f42da403e0e8a26efc9992e85a634d76a0cb",
+    "incoming_end": "01a246969d89dbe349368d08eba8a4853951177d",
+    "retained_coverage": "reuse spec_installer_merge_reconciliation_20261015 and preceding CAN18 incremental merge entries; inherited complete checkpoint unchanged",
+    "changed_path_count": 1,
+    "rows": [
+      [
+        "packages/cloudflare/src/runtime/text-page-source-installed.test.ts",
+        "cloudflare",
+        "existing package source/test owner"
+      ]
+    ],
+    "choice": "C2 installed-consumer closure: real assembled-worker text consumer (defaults/request/clear/unknown/malformed/denied/revocation); no production change.",
+    "validation": "installed 1/1 x3 after one initial 0/1 (recorded flake pattern, under watch).",
+    "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
+    "checkpoint_advanced": false,
+    "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
   }
 }

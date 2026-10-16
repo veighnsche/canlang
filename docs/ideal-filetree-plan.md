@@ -160,6 +160,10 @@ C2 text-equality rule: DESIGN 975 scalar eq with request/default/clear precedenc
 
 Slice-D runtime half: whole-row first-selected replay bound as existing model result lifetime; replay returns same record, exact failure matrix. Incoming interval `d734f19d..HEAD` accounts for 3 changed paths in `can18_merge_39_20261017` of the existing registry. native-first-replay vitest 1/1, receipt neighbors 14/14+13/13+12/12 on main dists + frozen 982e9eda/ca50. Existing defining owners and target allocations remain; focused new tests stay with Compiler. Reuse prior accumulated coverage; complete checkpoint remains unchanged. Original24 and required executable consumers remain open. Unfinished work stays in the running Muse checkout.
 
+### CAN18 incremental integration — can18_merge_40_20261017
+
+C2 installed-consumer closure: real assembled-worker text consumer (defaults/request/clear/unknown/malformed/denied/revocation); no production change. Incoming interval `c7f2f42d..HEAD` accounts for 1 changed paths in `can18_merge_40_20261017` of the existing registry. installed 1/1 x3 after one initial 0/1 (recorded flake pattern, under watch). Existing defining owners and target allocations remain; focused new tests stay with Compiler. Reuse prior accumulated coverage; complete checkpoint remains unchanged. Original24 and required executable consumers remain open. Unfinished work stays in the running Muse checkout.
+
 ### Specification and installer documentation merge — 2026-10-15
 
 Merge installer commit `02470b74` into canonical `main` at `a70921e3`.
