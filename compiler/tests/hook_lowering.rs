@@ -583,6 +583,224 @@ console.log(JSON.stringify(verdict));
     );
 }
 
+/// (Outcome 12, repeat class, C21.) A source hook creating a revision/audit
+/// child on update: two distinct admitted updates of one parent must EACH
+/// create the authored child (distinct staged identities), while replaying
+/// ONE operation stages its same deterministic id and stays once-only (the
+/// re-stage is refused; no extra child appears).
+#[test]
+fn hook_repeat_update_stages_distinct_children() {
+    let src = "app T\nGiven\n M { t:text, done:bool }\n C in M { m:text }\n event Due { s:text }\n derive mark():text = \"hooked\"\nWhen\n scenario h on=M.update\n  do\n   if event.after.done==false\n    let tagged=mark()\n    set event.after {t=tagged}\n    create C {parent=event.after,m=tagged} as staged\n    cancel \"deadline:old\"\n    schedule event.after.id at=now event=Due {s=tagged}\nThen\n";
+    let (catalog, catalog_path) = hook_catalog();
+    let (db, program, result) = check_hook(src, &catalog);
+    assert!(
+        result.diagnostics.is_empty(),
+        "hook source checks clean: {:?}",
+        result.diagnostics
+    );
+    let (artifact, diags) = emit_hook(&program, &db, &result, &catalog);
+    let _ = std::fs::remove_file(&catalog_path);
+    assert!(diags.is_empty(), "{diags:?}");
+    let js = &artifact.modules[0].js;
+    let policies = serde_json::to_string(
+        &artifact
+            .model_policies
+            .as_ref()
+            .expect("native owner-policy descriptors"),
+    )
+    .expect("policies serialize");
+    let dir = stage_dir("repeat-engine");
+    std::fs::write(dir.join("emitted.mjs"), js).unwrap();
+    std::fs::write(dir.join("policies.json"), &policies).unwrap();
+    let root = workspace_root();
+    let fixtures = root.join("packages/state/test/mutation/fixtures.ts");
+    let invocation_fixtures = root.join("packages/state/test/invocation/fixtures.ts");
+    let memory = root.join("packages/state/src/storage/memory.ts");
+    let models = root.join("packages/state/src/mutation/models.ts");
+    let bindings = root.join("packages/state/src/mutation/model-policies.ts");
+    let pipeline = root.join("packages/state/src/mutation/pipeline.ts");
+    for path in [&fixtures, &invocation_fixtures, &memory, &models, &bindings, &pipeline] {
+        assert!(path.exists(), "engine source: {}", path.display());
+    }
+    let driver = r##"
+import { canApp } from './emitted.mjs';
+import { readFileSync } from 'node:fs';
+import { seedRow, makeBatch, asId, asModel } from '@@INVOCATION@@';
+import { modelDef, field, FIXED_NOW, pipelineContext } from '@@FIXTURES@@';
+import { createTestMemoryStorage } from '@@MEMORY@@';
+import { buildModelTable } from '@@MODELS@@';
+import { bindOwnerModelPolicies } from '@@BINDINGS@@';
+import { beginOwnerMutation } from '@@PIPELINE@@';
+const verdict = {};
+try {
+  const registry = canApp();
+  const descriptors = JSON.parse(readFileSync('./policies.json', 'utf8'));
+  const table = buildModelTable([
+    modelDef('T.M', { fields: { t: field(), done: field() } }),
+    modelDef('T.C', { fields: { m: field() } }),
+  ]);
+  const policies = bindOwnerModelPolicies({ table, descriptors, bindings: registry.modelPolicyBindings });
+  const { store } = createTestMemoryStorage();
+  await seedRow(store, asModel('T.M'), { id: 'u-1', data: { t: 'new', done: false } });
+  // Two DISTINCT admitted operation identities driving updates of one parent.
+  const opA = '01999999-0000-7000-8000-00000000000a';
+  const opB = '01999999-0000-7000-8000-00000000000b';
+  async function admittedUpdate(operationId, data) {
+    const rev = await store.readRevision();
+    const session = await beginOwnerMutation({ table, store,
+      context: pipelineContext({ operation: 'T.M.update', operationId }),
+      bounds: { maxWork: 1000, maxRows: 20 }, policies });
+    await session.stage({ op: 'update', model: asModel('T.M'), id: asId('u-1'), data },
+      { cause: 'crud', input: data });
+    const output = await session.finalize();
+    await store.commit(makeBatch(rev, { writes: output.writes, history: output.history,
+      schedules: output.schedules, uniqueClaims: output.uniqueClaims, uniqueReleases: output.uniqueReleases }));
+  }
+  async function replayRefused(operationId, data) {
+    const session = await beginOwnerMutation({ table, store,
+      context: pipelineContext({ operation: 'T.M.update', operationId }),
+      bounds: { maxWork: 1000, maxRows: 20 }, policies });
+    try {
+      await session.stage({ op: 'update', model: asModel('T.M'), id: asId('u-1'), data },
+        { cause: 'crud', input: data });
+      return 'staged';
+    } catch (error) {
+      return String(error?.message ?? error);
+    }
+  }
+  async function childAt(id) {
+    const c = await store.load(asModel('T.C'), asId(id));
+    return c === null ? null : { version: c.version, parent: c.parent, data: c.data };
+  }
+  await admittedUpdate(opA, { t: 'go' });
+  verdict.childA = await childAt('u-1/staged/0');
+  verdict.replayA1 = await replayRefused(opA, { t: 'go' });
+  verdict.childAAfterReplay = await childAt('u-1/staged/1');
+  await admittedUpdate(opB, { t: 'go2' });
+  verdict.childB = await childAt('u-1/staged/1');
+  const m = await store.load(asModel('T.M'), asId('u-1'));
+  verdict.mVersion = m.version;
+  verdict.mData = m.data;
+  verdict.timer = await store.scheduleGet('u-1');
+  verdict.replayA2 = await replayRefused(opA, { t: 'go' });
+  verdict.childAfterReplays = await childAt('u-1/staged/2');
+  verdict.ok = true;
+} catch (error) {
+  verdict.ok = false;
+  verdict.error = String(error?.stack ?? error);
+}
+console.log(JSON.stringify(verdict));
+"##
+    .replace("@@INVOCATION@@", &invocation_fixtures.display().to_string())
+    .replace("@@FIXTURES@@", &fixtures.display().to_string())
+    .replace("@@MEMORY@@", &memory.display().to_string())
+    .replace("@@MODELS@@", &models.display().to_string())
+    .replace("@@BINDINGS@@", &bindings.display().to_string())
+    .replace("@@PIPELINE@@", &pipeline.display().to_string());
+    std::fs::write(dir.join("driver.ts"), driver).unwrap();
+    let out = std::process::Command::new("bun")
+        .arg("driver.ts")
+        .current_dir(&dir)
+        .output()
+        .expect("spawn bun driver");
+    assert!(
+        out.status.success(),
+        "driver failed: stdout={} stderr={}",
+        String::from_utf8_lossy(&out.stdout),
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let verdict: serde_json::Value =
+        serde_json::from_str(stdout.trim()).expect("verdict parses");
+    assert_eq!(
+        verdict.get("ok").and_then(|v| v.as_bool()),
+        Some(true),
+        "verdict: {stdout}"
+    );
+    let child_a = verdict.get("childA").expect("first child: {stdout}");
+    assert_eq!(
+        child_a.get("version").and_then(|v| v.as_i64()),
+        Some(1),
+        "first update creates its child: {stdout}"
+    );
+    assert_eq!(
+        child_a
+            .get("parent")
+            .and_then(|v| v.get("id"))
+            .and_then(|v| v.as_str()),
+        Some("u-1"),
+        "exact parent: {stdout}"
+    );
+    assert_eq!(
+        child_a
+            .get("data")
+            .and_then(|v| v.get("m"))
+            .and_then(|v| v.as_str()),
+        Some("hooked"),
+        "authored child content: {stdout}"
+    );
+    assert!(
+        verdict
+            .get("replayA1")
+            .and_then(|v| v.as_str())
+            .is_some_and(|s| s.contains("Record already exists")),
+        "replay of one operation stays once-only: {stdout}"
+    );
+    assert_eq!(
+        verdict.get("childAAfterReplay"),
+        Some(&serde_json::Value::Null),
+        "replay creates no extra child: {stdout}"
+    );
+    let child_b = verdict.get("childB").expect("second child: {stdout}");
+    assert_eq!(
+        child_b.get("version").and_then(|v| v.as_i64()),
+        Some(1),
+        "second update creates its own child: {stdout}"
+    );
+    assert_eq!(
+        child_b
+            .get("parent")
+            .and_then(|v| v.get("id"))
+            .and_then(|v| v.as_str()),
+        Some("u-1"),
+        "exact parent: {stdout}"
+    );
+    assert_eq!(
+        child_b
+            .get("data")
+            .and_then(|v| v.get("m"))
+            .and_then(|v| v.as_str()),
+        Some("hooked"),
+        "authored child content: {stdout}"
+    );
+    assert_eq!(
+        verdict.get("mVersion").and_then(|v| v.as_i64()),
+        Some(3),
+        "both updates applied: {stdout}"
+    );
+    let timer = verdict.get("timer").expect("timer: {stdout}");
+    assert_eq!(
+        timer
+            .get("payload")
+            .and_then(|v| v.get("s"))
+            .and_then(|v| v.as_str()),
+        Some("hooked"),
+        "ordered schedule preserved across the repeat: {stdout}"
+    );
+    assert!(
+        verdict
+            .get("replayA2")
+            .and_then(|v| v.as_str())
+            .is_some_and(|s| s.contains("Record already exists")),
+        "late replay stays once-only: {stdout}"
+    );
+    assert_eq!(
+        verdict.get("childAfterReplays"),
+        Some(&serde_json::Value::Null),
+        "replays create no extra children: {stdout}"
+    );
+}
+
 /// (Outcome 12, query class.) The recorded snapshot shape (CanRent
 /// `snapshot_Resource_create`, CanMaintain `report_window` hooks):
 /// `count` over a contained child collection plus a derive of the

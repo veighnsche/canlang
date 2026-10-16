@@ -238,6 +238,16 @@ export interface InterimHookContext {
    * on create, so the id is the only pending handle there).
    */
   readonly triggerId: RecordId;
+  /**
+   * C21: checked per-trigger hook occurrence ordinal. Counts committed
+   * update entries for the trigger record from OTHER operations (via their
+   * recorded operation identity) plus this operation's prior fires of the
+   * same hook, so each distinct admitted trigger of one record stages a
+   * distinct staged id while replaying one operation restages its same id.
+   * Optional so hand-built contexts keep today's base-0 identity; the
+   * pipeline always sets it and emitted hooks fall back to 0 when absent.
+   */
+  readonly hookOccurrence?: number;
   /** Stage one secondary write for atomic commit with the trigger. */
   readonly stage: (write: InterimHookStagedWrite) => void;
   /** Stage one timer replace for atomic commit with the trigger. */

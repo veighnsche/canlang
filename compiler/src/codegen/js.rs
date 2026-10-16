@@ -9903,20 +9903,40 @@ impl<'a> Emitter<'a> {
                 }
             }
         }
-        let bind_line = match &id_ref {
+        // C21 staged identity: `triggerId/staged/<occurrence>` for the
+        // first create of a fire, `.../<occurrence>/<counter>` after.
+        // The occurrence base is the owning runtime's checked hook
+        // occurrence (`$hookCtx.hookOccurrence`: committed other-operation
+        // updates plus this operation's prior fires of the same hook);
+        // `??0` keeps hand-built contexts on the historical base-0 identity.
+        let slot = binding_ident("n", &self.binding_seq.to_string());
+        self.binding_seq += 1;
+        let id_value = format!(
+            "$hookCtx.triggerId+\"/staged/\"+(($hookCtx.hookOccurrence??0))+({slot}===0?\"\":\"/\"+{slot})"
+        );
+        let mut lines: Vec<(String, Span)> = match &id_ref {
             Some(name) => {
-                format!("{pad}const {name}={{id:$hookCtx.triggerId+\"/staged/\"+($stagedNext++)}};")
+                vec![
+                    (format!("{pad}const {slot}=$stagedNext++;"), span),
+                    (format!("{pad}const {name}={{id:{id_value}}};"), span),
+                ]
             }
             None => {
-                format!("{pad}$pending={{id:$hookCtx.triggerId+\"/staged/\"+($stagedNext++)}};")
+                vec![
+                    (format!("{pad}const {slot}=$stagedNext++;"), span),
+                    (format!("{pad}$pending={{id:{id_value}}};"), span),
+                ]
             }
         };
         let id_ref = id_ref.unwrap_or_else(|| "$pending".to_string());
-        let stage_line = format!(
-            "{pad}$hookCtx.stage({{op:\"create\",model:{},id:{id_ref}.id{parent_text},data:{data}}});",
-            js_string(model)
-        );
-        vec![(bind_line, span), (stage_line, span)]
+        lines.push((
+            format!(
+                "{pad}$hookCtx.stage({{op:\"create\",model:{},id:{id_ref}.id{parent_text},data:{data}}});",
+                js_string(model)
+            ),
+            span,
+        ));
+        lines
     }
 
     /// Lower a `set` inside a hook: `set event.after` assigns the same
