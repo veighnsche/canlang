@@ -410,9 +410,18 @@ return-row/operands/orders (sequenced follow-ups). Runtime honoring pending
 same compiler-join-first pattern as the archive slice);
 hook query/now/derive/emit 76 → 12 (queued Lane C after C17 releases
 disclosure/hook files); dispatch guard + IR-closure 27 → 10 (queued Lane C
-after); enum filter profiles 77 → 6 (B6 running); factory profiles 29
+after); enum filter profiles 77 → 6 (bool path in `c053c711` Lane B6 `9068d6b2`
+14/14-admission, `539b8269` render, `5945b1c9` preparer 37/37 with
+real-artifact chain proof, `ef3f9563` composition lock 15/15; parent
+bool 15/15, preparer 37/37, collections 125/125, panels 35/35 green;
+interfaces/dist converted to owned build for the changed sources. B6
+disposition: 7 clear at compile, 61 refused with exact reasons
+(model-ref dominance, Lambda-where, defaults-key, co-fields, dotted
+path, derived-bool — not absorbed); B6 flags routed: stale
+table_filters.rs filtered-lambda negative + factory profiles 29
 (stat/timeline/preferences/copy/collapse/radial/hero/calendar-columns/
-steps/indicator/generic-filter) → 6 (same-owner follow-up after B6);
+steps/indicator/generic-filter) → 6 (B7 follow-up); bool row-query
+mapping + executable consumers remain State/runtime-owned);
 collection domain/call-source/archived 17 → 6/12 (queued); formatted
 business/call-arg 9 → 7 (queued Lane B after B6); membership observation 4
 + active_member builtin 1 → 13 (OWNER-1 disposition above; queued Lane C
