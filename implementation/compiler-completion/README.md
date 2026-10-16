@@ -7647,3 +7647,15 @@ by an unknown actor after the last rebuild) — rebuilt owned dist, test green;
 environmental, not a source regression. No active lanes remain; original24
 frozen re-capture is next (exact saved argv + current catalog + frozen
 binary, single capture, no rebuild mid-run).
+
+**MAIN-8 acceptance, 2026-10-16 (Codex independent review):**
+Radial batch accepted as `553b1fc44` (c039 emission/test + ONLY the decimal
+IR prerequisite from 788e3661, no unrelated factory shapes), reconciled in
+clean main `9c9f1e004`. Independent released radial consumer 1/1 passed
+against the reserved ecadf351f `can` with no compiler/cache writes during the
+read window. Prior bad intake stays reverted. Hook_lowering 21/21 green;
+C22 repair reviewed at bounded collision scope (full hook producer/base and
+bool stacks remain Codex intake work, not counted as merged). Original24
+frozen capture running in background against the frozen closure; record
+diagnostics by outcome/root cause at terminal, then continue outcome-14 and
+ready groups. Holds 17/18 retained.
