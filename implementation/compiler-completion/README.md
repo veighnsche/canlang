@@ -261,6 +261,9 @@ invocation (delivery/completion + recurring-tick suites 2/2 each, family-A
 suite green). Per Codex AUTHORITY-1, family E is NOT a design hold (DESIGN
 434/442/522 already define the grant); the missing §13 emission/runtime
 marker is an implementation gap now assigned with family D's named repair.
+Coordinator ruling recorded in DECISIONS.md (no JEV: frozen text decides):
+decision-mode body reads (§442) + explicit result grant to `by` (§522);
+fail-closed E6008 until the runtime boundary lands.
 
 Outcome 11 test map in parent (Lane A commit, 5/5 join positives +
 refusal surface incl. E3005 recursion): all 7 original calls die at
