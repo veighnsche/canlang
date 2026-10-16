@@ -192,6 +192,28 @@ fn undeclared_bool_default_refuses() {
     );
 }
 
+/// Recorded nesting (CanSuccess/CanContract): a refused outer list keeps
+/// its checker refusal while an admitted nested bool table lowers quietly
+/// alongside it. (The harness returns after checker diagnostics, so the
+/// lowering-stage outer refusal surfaces only in the full CLI pipeline;
+/// the nested table must stay quiet in both.)
+#[test]
+fn refused_outer_list_keeps_admitted_nested_bool_table_quiet() {
+    let diags = emit_all(
+        "app Probe\nGiven\n Location { name:text }\n Account { title:text, location:Location }\n Milestone in Account { title:text, done:bool=false }\n policy Location read=public\n policy Account read=public\nWhen\nThen\n preferences { location:Location? }\n page /a title=\"A\"\n  list Account columns=title,location filter=location defaults={location=preferences.location}\n   table row.Milestone columns=title,done order=title filter=done\n",
+    );
+    assert!(
+        diags
+            .iter()
+            .any(|d| d.contains("list filters need distinct")),
+        "expected the outer list field refusal, got: {diags:?}"
+    );
+    assert!(
+        diags.iter().all(|d| !d.contains("table filters")),
+        "nested bool table must lower quietly, got: {diags:?}"
+    );
+}
+
 /// Lambda-where plus filter composition stays refused at lowering even
 /// when the selectors themselves are admitted (recorded Repair shape).
 #[test]
