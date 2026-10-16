@@ -11,23 +11,22 @@
 //!
 //! * Zero error-severity analysis diagnostics: B1 needs a supported source.
 //! * TeamTasks: `E6006 == 0` (every needed position bridged),
-//!   `E6007 == 0` (real catalog pins every builtin), `E6008 == 1`
-//!   (the bool-field list filter stays refused at the collection filter
-//!   validator with its named message; enum-backed option filters and
-//!   defaults plus text content lower via the recorded outcome-6
-//!   admissions).
+//!   `E6007 == 0` (real catalog pins every builtin), `E6008 == 0`
+//!   (E5, CAN18-v1: the bool-field list filter conjoins with its Lambda
+//!   source where at the collection filter gate instead of refusing —
+//!   the same proven `{op:and,[where,...filters]}` conjunction as the
+//!   enum/bool pin suites; enum-backed option filters and defaults plus
+//!   text content lower via the recorded outcome-6 admissions).
 //!   NOTE: `can compile` (CLI policy) refuses to print an artifact
-//!   while `E6008`s report; this test drives `emit()` directly to pin
-//!   the artifact SHAPE those diagnostics accompany. A zero-`E6008`
-//!   source (`demo.can`, TeamTasks minus the unlowered lines)
-//!   compiles end to end via the CLI; see the phase-2 evidence note.
+//!   while `E6008`s report; with zero `E6008`s TeamTasks itself now
+//!   compiles end to end via the CLI.
 //! * ExpenseFlow (B2a): `E6006 == 0`, `E6007 == 0`, `E6008 == 0`
 //!   with the real catalog: every recorded shape is admitted (enum
 //!   option filter/defaults through the collection filter gate, the
 //!   multi-value stat visual join, nominal preference tabs, fixed order
 //!   and named slots); nothing genuinely unsupported remains, so no
-//!   refusal is pinned here — the TeamTasks list-filter refusal above
-//!   keeps the exact E6008 covered.
+//!   refusal is pinned here — E6008 emission shape stays covered by the
+//!   per-batch refusal pins (enum/bool/table suites).
 //! * Entrypoint markers pinned from real emission (model shapes, CRUD
 //!   operations, page descriptors); no metadata spread.
 //! * Pages: exactly the 2 declared descriptors, exports resolved.
@@ -206,17 +205,17 @@ fn b1_teamtasks_artifact() {
             "expected zero E6007 with the real catalog, got {e6007}"
         ));
     }
-    if e6008 != 1 {
-        failures.push(format!("expected E6008=1 pinned UI refusal, got {e6008}"));
+    if e6008 != 0 {
+        failures.push(format!("expected E6008=0 with the E5 conjunction, got {e6008}"));
     }
     for (profile, expected) in [
         ("cannot lower tooltip:", 0),
         ("cannot lower collapse:", 0),
         ("cannot lower breadcrumbs:", 0),
         ("cannot lower edit:", 0),
-        // The bool-field list filter fails the collection filter gate
-        // (no owned enum declarations): still refused, named message.
-        ("cannot lower list filters:", 1),
+        // E5: the bool-field list filter passes the collection filter
+        // gate (typed bool toggle conjoins with the Lambda source where).
+        ("cannot lower list filters:", 0),
         // Text content lowers via the recorded outcome-6 admission.
         ("cannot lower content:", 0),
         ("cannot lower bound tabs", 0),
@@ -749,11 +748,13 @@ fn validate_artifact(artifact: &CompileArtifact, expected_sha: &str, failures: &
         "binding:{name:\"view\",options:[{value:\"all\",label:$can$h$636865636b65645f6d657373616765(\"All tasks\"",
         "current:preferences.view,version:c.preferenceVersions.TeamTasks.view,postTo:c.pollUrl ?? c.path",
         "preferenceFields:[{name:\"view\",options:[\"all\",\"unfinished\",\"finished\"],defaultValue:\"all\",caption:$can$h$636865636b65645f6d657373616765(\"Task view\",{nl:\"Taakweergave\"},undefined,\"en\"),optionLabels:{all:$can$h$636865636b65645f6d657373616765(\"All tasks\",{nl:\"Alle taken\"},undefined,\"en\"),unfinished:$can$h$636865636b65645f6d657373616765(\"Unfinished tasks\",{nl:\"Open taken\"},undefined,\"en\"),finished:$can$h$636865636b65645f6d657373616765(\"Finished tasks\",{nl:\"Afgeronde taken\"},undefined,\"en\")}}]",
-        // The refused list degrades loudly instead of emitting a working
-        // descriptor: the exact throwing placeholder is pinned here, and
-        // no order descriptor may appear for it below.
-        "throw new Error(\"unsupported collection filter profile\")",
+        // E5: the admitted list emits a working descriptor — its typed
+        // bool filter, source predicate and fixed ordering lower instead
+        // of degrading to the throwing placeholder.
+        "filter:[{field:\"done\"",
+        "where:($can$l$303a7461736b)=>",
         "search:[\"title\"]",
+        "order:[\"-created\"]",
         "pages:[$can$p$5465616d5461736b733a64657363726970746f723a2f,$can$p$5465616d4e6f7465733a64657363726970746f723a2f6e6f746573]",
     ] {
         if !entry.contains(marker) {
@@ -763,10 +764,8 @@ fn validate_artifact(artifact: &CompileArtifact, expected_sha: &str, failures: &
     if entry.contains("...appDefinition") {
         failures.push("entrypoint spreads metadata (...appDefinition)".to_string());
     }
-    // The refused list emits no order descriptor (the admitted
-    // ExpenseFlow list keeps `order:["-created"]`, pinned in its suite).
-    if entry.contains("order:[") {
-        failures.push("refused TeamTasks list must not emit an order descriptor".to_string());
+    if entry.contains("unsupported collection filter profile") {
+        failures.push("admitted TeamTasks list must not keep the refusal placeholder".to_string());
     }
     // Every module: non-empty JS, valid map, allowlisted imports, no
     // test leakage.

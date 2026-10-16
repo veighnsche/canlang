@@ -55,18 +55,11 @@ fn checked_agenda_body_filters_and_preferences_reach_installed_consumers() {
             "explicit-history-row",
             source.replace("   actions cancel", "   actions cancel\n   history row"),
         ),
-        // A bare bool `where` now lowers data-only and composes with
-        // filters, so the lambda-where refusal is pinned with a genuinely
-        // non-data-only predicate: field-to-field comparison stays a
-        // Lambda where, which keeps the exact E6008 at the agenda
-        // validator below.
-        (
-            "filtered-lambda",
-            source.replace(
-                "calendar Visit start=from",
-                "calendar Visit as row where row.from>=row.until start=from",
-            ),
-        ),
+        // E5 (CAN18-v1, DESIGN 434/440/975/977): a field-to-field
+        // comparison lowers to a Lambda where, which now conjoins with
+        // the admitted filter (`{op:and,[where,...filters]}` at the query
+        // adapter) instead of keeping an E6008. It is asserted admitted
+        // below; only genuinely unsupported selectors stay refused here.
     ] {
         let output = compile(&refused);
         assert_eq!(
@@ -76,20 +69,22 @@ fn checked_agenda_body_filters_and_preferences_reach_installed_consumers() {
             String::from_utf8_lossy(&output.stdout)
         );
         let refused: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-        if name == "filtered-lambda" {
-            assert!(
-                refused["diagnostics"]
-                    .as_array()
-                    .unwrap()
-                    .iter()
-                    .any(|diagnostic| diagnostic["code"] == "E6008")
-            );
-        }
         assert!(
             refused.get("modules").is_none(),
             "{name}: no partial body artifact"
         );
     }
+    // E5: the agenda filter+lambda-where conjunction lowers cleanly.
+    let admitted = compile(&source.replace(
+        "calendar Visit start=from",
+        "calendar Visit as row where row.from>=row.until start=from",
+    ));
+    assert!(
+        admitted.status.success(),
+        "filtered-lambda lowers: {}\n{}",
+        String::from_utf8_lossy(&admitted.stdout),
+        String::from_utf8_lossy(&admitted.stderr)
+    );
     let artifact = scratch.path().join("artifact.json");
     std::fs::write(&artifact, compiled.stdout).unwrap();
     let consumer = Command::new("node")
