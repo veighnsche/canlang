@@ -1,7 +1,9 @@
 /** Frozen `{text,locale}` carrier acceptance in recorded outbound sinks. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import type { OperationId, OperationName, OutboxIntent } from '@canlang/contracts';
 import { createBoundMailAdapter } from './bound-mail.js';
+import type { BoundMailAdapterOptions } from './bound-mail.js';
 
 const BINDING = {
   deployment: 'deployment.mail',
@@ -39,29 +41,35 @@ function definition() {
   };
 }
 
-function options(seen: unknown[], extra: Record<string, unknown> = {}) {
+function options(
+  seen: unknown[],
+  extra: Pick<BoundMailAdapterOptions, 'userRecipients'> = {},
+): BoundMailAdapterOptions {
   return {
     appDefinition: definition(),
     binding: { ...BINDING },
     resolveInstalledMailSender: () => ({
       binding: { ...BINDING },
       mail: {
-        send: async (input: unknown) => {
+        send: async (input) => {
           seen.push(input);
           return { delivery_id: 'intent-1', status: 'succeeded', result: { reference: 'ref-1' }, error: null };
         },
-        reconcile: async () => null,
+        reconcile: async () => ({ delivery_id: 'intent-1', status: 'unknown', result: null, error: null }),
       },
     }),
     ...extra,
   };
 }
 
-function intent(target: string, args: Record<string, unknown>) {
+function intent(target: string, args: Record<string, unknown>): OutboxIntent {
   return {
     intentId: 'intent-1',
+    operation: 'CarrierProbe.probe' as OperationName,
+    operationId: 'probe-op-1' as OperationId,
     target,
     arguments: { binding: 'mail', from: 'deployment.mail', arguments: args },
+    occurrenceIndex: 0,
   };
 }
 
@@ -110,7 +118,16 @@ test('private-mail path stays intact with carriers', async () => {
   const adapter = createBoundMailAdapter(options(seen, {
     userRecipients: {
       teamId: 'team-a',
-      findMembership: async () => ({ status: 'active', user_id: 'user-1', team_id: 'team-a' }),
+      findMembership: async () => ({
+        membership_id: 'm-1',
+        team_id: 'team-a',
+        user_id: 'user-1',
+        is_owner: false,
+        roles: [],
+        status: 'active',
+        created_at: '2026-01-01T00:00:00.000Z',
+        updated_at: '2026-01-01T00:00:00.000Z',
+      }),
       findUserById: async () => ({ user_id: 'user-1', email: 'member@example.test', email_verified: true }),
     },
   }));
