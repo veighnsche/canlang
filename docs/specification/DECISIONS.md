@@ -17936,3 +17936,21 @@ source, grants, independent assertions, training inputs or datasets change.
 The original composition and required executable consumers remain unfinished
 under the finite completion record; this specification commit claims no production
 or all-v1 implementation readiness.
+
+## CAN18 scope=authority grant semantics (2026-10-16, coordinator ruling, Codex AUTHORITY-1)
+
+**Choice.** Family E implementation needs no JEV consultation: the frozen
+text already decides. Per DESIGN §442, body reads inside a
+`read=true scope=authority` scenario run in *decision mode* (bounded
+authority state at the resolved storage owner; helpers retain this mode
+only when consumed by that decision). Per DESIGN §522, the scenario's
+typed result is an *explicit information grant to `by`*. So: decision-mode
+body reads (bounded, no read-policy recursion) + granted result (Alt A in
+the worker's report). "Authority decision data does not become a result
+grant" except through this explicit report boundary; ordinary `read=true`
+stays viewer-filtered.
+
+**Consequence.** Implement the §13 emission marker + runtime authority-mode
+evaluation with fail-closed enforcement (E6008 stays until the runtime
+boundary lands). No broad effect system, no viewer-read privileging, no
+authoring boilerplate.
