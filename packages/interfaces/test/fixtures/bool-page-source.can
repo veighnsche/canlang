@@ -1,0 +1,13 @@
+app Probe
+Given
+ Customer { name:text, kind:enum(individual,company), active:bool=true }
+ derive inverted(x:bool?):bool = not(x ?? false)
+ policy Customer read=public
+When
+Then
+ preferences { kind:Customer.kind?, active:bool? }
+ page /customers title="Customers"
+  list Customer columns=name,kind,active filter=kind,active defaults={kind=preferences.kind,active=preferences.active} display=split
+  list Customer columns=name,active filter=active defaults={active=not(preferences.active ?? false)} display=split
+  list Customer columns=name,active filter=active defaults={active=inverted(preferences.active)} display=split
+  list Customer columns=name,active filter=active defaults={active=(preferences.active ?? false) == false} display=split

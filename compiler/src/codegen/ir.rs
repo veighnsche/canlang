@@ -17438,6 +17438,191 @@ impl<'a> Cx<'a> {
         ))
     }
 
+    /// B13: own one bool preference leaf behind a computed filter
+    /// default. The leaf must name an owned bool preference field of this
+    /// module whose checked read type is exactly the leaf type: plain
+    /// `bool` or nullable bool. Both read spellings decode at the checked
+    /// typed reader, so both may enter operator positions.
+    fn owned_bool_preference(
+        &self,
+        scope: &Scope,
+        field: &str,
+        ty: &ResolvedType,
+    ) -> Option<(SymbolId, SymbolId)> {
+        let inner = ty.nullable_inner().unwrap_or(ty);
+        if inner != &ResolvedType::Scalar(Scalar::Bool) {
+            return None;
+        }
+        let found = self.program.symbols.iter().find(|symbol| {
+            symbol.name.as_str() == field
+                && symbol.module == scope.module
+                && matches!(&symbol.kind, SymbolKind::Field { owner, .. }
+                    if self.program.symbols.get(owner.0 as usize).is_some_and(|item| {
+                        item.module == scope.module
+                            && matches!(&item.kind, SymbolKind::Preferences { fields } if fields.contains(&symbol.id))
+                    }))
+        })?;
+        if self.program.types.symbol_types.get(&found.id) != Some(ty) {
+            return None;
+        }
+        let SymbolKind::Field { owner, .. } = &found.kind else {
+            return None;
+        };
+        Some((found.id, *owner))
+    }
+
+    /// B13: admit one derive-helper call returning bool over admitted
+    /// arguments. The target must resolve to a checked derive function;
+    /// call-site visibility was already scoped by checking, so imported
+    /// and local helpers agree here.
+    fn bool_preference_call(
+        &self,
+        scope: &Scope,
+        target: &IrCallTarget,
+        args: &[TypedExpr],
+        expr: &TypedExpr,
+        out: &mut Vec<(SymbolId, SymbolId, bool)>,
+    ) -> bool {
+        let IrCallTarget::DeriveFn(canonical) = target else {
+            return false;
+        };
+        expr.ty == ResolvedType::Scalar(Scalar::Bool)
+            && self.program.symbols.iter().any(|symbol| {
+                symbol.canonical.as_str() == canonical.as_str()
+                    && matches!(&symbol.kind, SymbolKind::DeriveFn { .. })
+            })
+            && args
+                .iter()
+                .all(|arg| self.collect_bool_preference_leaves(scope, arg, out))
+    }
+
+    /// B13: admit one computed bool filter default, collecting the owned
+    /// bool preference leaves it reads. The checked type does the work:
+    /// the root must type exactly `bool`, every `preferences.*` leaf must
+    /// read an owned (nullable-)bool preference field of this module, and
+    /// every other node must be a pure value form (a bool literal, a
+    /// boolean operator, or a checked derive-helper call returning bool).
+    /// Reads decode at the checked typed reader, so operator positions
+    /// only consume already-boolean values; anything else keeps the
+    /// refusal in the caller. `out` is only read when this returns true.
+    fn collect_bool_preference_leaves(
+        &self,
+        scope: &Scope,
+        expr: &TypedExpr,
+        out: &mut Vec<(SymbolId, SymbolId, bool)>,
+    ) -> bool {
+        match &expr.expr {
+            IrExpr::Bool(_) => expr.ty == ResolvedType::Scalar(Scalar::Bool),
+            IrExpr::Member { base, field } => {
+                if !matches!(&base.expr, IrExpr::Name(name) if name == "preferences") {
+                    return false;
+                }
+                let nullable = match &expr.ty {
+                    ResolvedType::Scalar(Scalar::Bool) => false,
+                    ResolvedType::Nullable(inner)
+                        if inner.as_ref() == &ResolvedType::Scalar(Scalar::Bool) =>
+                    {
+                        true
+                    }
+                    _ => return false,
+                };
+                let Some((field_id, owner)) = self.owned_bool_preference(scope, field, &expr.ty)
+                else {
+                    return false;
+                };
+                out.push((field_id, owner, nullable));
+                true
+            }
+            IrExpr::Binary { left, right, .. } => {
+                expr.ty == ResolvedType::Scalar(Scalar::Bool)
+                    && self.collect_bool_preference_leaves(scope, left, out)
+                    && self.collect_bool_preference_leaves(scope, right, out)
+            }
+            IrExpr::Unary { operand, .. } => {
+                expr.ty == ResolvedType::Scalar(Scalar::Bool)
+                    && self.collect_bool_preference_leaves(scope, operand, out)
+            }
+            IrExpr::Call { target, args } => {
+                self.bool_preference_call(scope, target, args, expr, out)
+            }
+            IrExpr::BoundCall {
+                target,
+                args,
+                slots,
+            } => {
+                slots.iter().all(|slot| slot.is_some())
+                    && self.bool_preference_call(scope, target, args, expr, out)
+            }
+            _ => false,
+        }
+    }
+
+    /// B13: register one owned bool preference leaf behind a filter
+    /// default, sharing the direct-read descriptor contract: the entry is
+    /// nullable exactly when the leaf read is, carries the bool-case
+    /// options, and records the declared literal default. A missing
+    /// field, a server-owned field, a missing non-nullable default, or a
+    /// non-literal default keeps the refusal in the caller.
+    fn register_bool_filter_preference(
+        &mut self,
+        word: &str,
+        field_id: SymbolId,
+        owner: SymbolId,
+        nullable: bool,
+        options: &[String],
+        span: Span,
+    ) -> Option<()> {
+        let refuse = || {
+            Diagnostic::error(
+                "E6008",
+                format!(
+                    "{word} filters need distinct checked owned enum fields and matching defaults"
+                ),
+                span,
+            )
+        };
+        let Some(symbol) = self.program.symbols.get(field_id.0 as usize).cloned() else {
+            self.diags.push(refuse());
+            return None;
+        };
+        let (_, default, server, _, _, _) = self.decode_field(&symbol, owner);
+        let default_value = match default {
+            Some(IrDefault::Literal(value)) => match value.expr {
+                IrExpr::Bool(selected) => Some(selected.to_string()),
+                IrExpr::Null if nullable => None,
+                _ => {
+                    self.diags.push(refuse());
+                    return None;
+                }
+            },
+            None if nullable => None,
+            _ => {
+                self.diags.push(refuse());
+                return None;
+            }
+        };
+        if server.is_some() {
+            self.diags.push(refuse());
+            return None;
+        }
+        if !self
+            .page_preference_fields
+            .iter()
+            .any(|field| field.name == symbol.name)
+        {
+            let label = self.decode_reused_field_label_parts(&symbol);
+            self.page_preference_fields.push(IrPreferenceField {
+                name: symbol.name,
+                options: options.to_vec(),
+                default_value,
+                nullable,
+                caption: label.as_ref().and_then(|label| label.text.clone()),
+                option_labels: label.map(|label| label.values).unwrap_or_default(),
+            });
+        }
+        Some(())
+    }
+
     fn decode_collection_filters(
         &mut self,
         scope: &Scope,
@@ -17503,20 +17688,34 @@ impl<'a> Cx<'a> {
                 fail(self, path.span);
                 return None;
             };
-            let ResolvedType::Enum {
-                cases,
-                owner: Some(enum_owner),
-            } = &ty
-            else {
-                fail(self, path.span);
-                return None;
+            // A filter selector is a distinct owned finite-choice field: an
+            // owned enum, or a plain bool (the recorded `active`/`done`
+            // toggle shapes). Anything else keeps the exact E6008 below.
+            let (type_text, cases) = match &ty {
+                ResolvedType::Enum {
+                    cases,
+                    owner: Some(enum_owner),
+                } if !cases.is_empty()
+                    && cases.iter().collect::<HashSet<_>>().len() == cases.len()
+                    && self.program.types.symbol_types.get(enum_owner) == Some(&ty) =>
+                {
+                    (format!("enum:{}", self.type_id(&ty)), cases.clone())
+                }
+                ResolvedType::Scalar(Scalar::Bool) => (
+                    "bool".to_string(),
+                    vec!["true".to_string(), "false".to_string()],
+                ),
+                _ => {
+                    fail(self, path.span);
+                    return None;
+                }
             };
             if symbol.id != field_id || symbol.name != *name
                 || !matches!(symbol.kind, SymbolKind::Field { owner, .. } if owner == model)
                 || !self.program.symbols.get(model.0 as usize).is_some_and(|item| item.module == symbol.module && matches!(&item.kind, SymbolKind::Model { fields, .. } if fields.contains(&field_id)))
-                || cases.is_empty() || cases.iter().collect::<HashSet<_>>().len() != cases.len()
-                || self.program.types.symbol_types.get(enum_owner) != Some(&ty)
-                || selected.insert(name.clone(), ty.clone()).is_some()
+                || selected
+                    .insert(name.clone(), (ty.clone(), cases.clone()))
+                    .is_some()
             { fail(self,path.span); return None; }
             let label = self.decode_reused_field_label_parts(&symbol);
             let caption = label
@@ -17551,10 +17750,7 @@ impl<'a> Cx<'a> {
                 IrExpr::Object(vec![
                     ("field".to_string(), text(name.clone(), path.span)),
                     ("label".to_string(), caption),
-                    (
-                        "type".to_string(),
-                        text(format!("enum:{}", self.type_id(&ty)), path.span),
-                    ),
+                    ("type".to_string(), text(type_text, path.span)),
                     (
                         "valueLabels".to_string(),
                         TypedExpr::new(
@@ -17597,7 +17793,7 @@ impl<'a> Cx<'a> {
                     fail(self, entry.span);
                     return None;
                 };
-                let Some(expected) = selected.get(&name) else {
+                let Some((expected, field_cases)) = selected.get(&name) else {
                     fail(self, entry.span);
                     return None;
                 };
@@ -17606,15 +17802,42 @@ impl<'a> Cx<'a> {
                     return None;
                 }
                 let decoded = self.decode_expr(scope, value);
-                let ResolvedType::Enum { cases, .. } = expected else {
-                    return None;
+                let bool_filter = matches!(expected, ResolvedType::Scalar(Scalar::Bool));
+                let enum_cases = match expected {
+                    ResolvedType::Enum { cases, .. } => Some(cases),
+                    ResolvedType::Scalar(Scalar::Bool) => None,
+                    _ => return None,
                 };
-                let literal = matches!(&decoded.expr, IrExpr::Text(case) if cases.contains(case) && (decoded.ty == *expected || matches!(decoded.ty, ResolvedType::Scalar(Scalar::Text))))
+                let literal = enum_cases.is_some_and(|cases| {
+                    matches!(&decoded.expr, IrExpr::Text(case) if cases.contains(case) && (decoded.ty == *expected || matches!(decoded.ty, ResolvedType::Scalar(Scalar::Text))))
+                }) || (bool_filter
+                    && matches!(&decoded.expr, IrExpr::Bool(_))
+                    && decoded.ty == *expected)
                     || matches!(
                         (&decoded.expr, &decoded.ty),
                         (IrExpr::Null, ResolvedType::Null)
                     );
-                if !literal {
+                // B13: a computed bool default over decoded bool
+                // preference reads (see `collect_bool_preference_leaves`).
+                // Leaf registration below runs only when every leaf
+                // resolved, sharing the direct-read descriptor contract.
+                let mut nested = Vec::new();
+                let computed = bool_filter
+                    && !literal
+                    && self.collect_bool_preference_leaves(scope, &decoded, &mut nested);
+                if computed {
+                    for (field_id, owner, nullable) in nested {
+                        self.register_bool_filter_preference(
+                            word,
+                            field_id,
+                            owner,
+                            nullable,
+                            field_cases,
+                            value.span,
+                        )?;
+                    }
+                }
+                if !literal && !computed {
                     let mut identity = value;
                     while identity.kind == SyntaxKind::Group {
                         let Some(inner) = kids(identity)
@@ -17651,40 +17874,57 @@ impl<'a> Cx<'a> {
                         || self.program.types.symbol_types.get(&field_id) != Some(&decoded.ty)
                         || !self.program.symbols.get(owner.0 as usize).is_some_and(|item| matches!(&item.kind,SymbolKind::Preferences { fields } if fields.contains(&field_id)))
                     { fail(self,value.span); return None; }
-                    let (_, default, server, _, _, _) = self.decode_field(&symbol, owner);
-                    let default_value = match default {
-                        Some(IrDefault::Literal(value)) => match value.expr {
-                            IrExpr::Text(case) if cases.contains(&case) => Some(case),
-                            IrExpr::Null if nullable => None,
+                    if bool_filter {
+                        // Direct bool reads share the computed-leaf
+                        // descriptor contract exactly.
+                        self.register_bool_filter_preference(
+                            word,
+                            field_id,
+                            owner,
+                            nullable,
+                            field_cases,
+                            value.span,
+                        )?;
+                    } else {
+                        let (_, default, server, _, _, _) = self.decode_field(&symbol, owner);
+                        let default_value = match default {
+                            Some(IrDefault::Literal(value)) => match value.expr {
+                                IrExpr::Text(case)
+                                    if enum_cases.is_some_and(|known| known.contains(&case)) =>
+                                {
+                                    Some(case)
+                                }
+                                IrExpr::Null if nullable => None,
+                                _ => {
+                                    fail(self, value.span);
+                                    return None;
+                                }
+                            },
+                            None if nullable => None,
                             _ => {
                                 fail(self, value.span);
                                 return None;
                             }
-                        },
-                        None if nullable => None,
-                        _ => {
+                        };
+                        if server.is_some() {
                             fail(self, value.span);
                             return None;
                         }
-                    };
-                    if server.is_some() {
-                        fail(self, value.span);
-                        return None;
-                    }
-                    if !self
-                        .page_preference_fields
-                        .iter()
-                        .any(|field| field.name == symbol.name)
-                    {
-                        let label = self.decode_reused_field_label_parts(&symbol);
-                        self.page_preference_fields.push(IrPreferenceField {
-                            name: symbol.name,
-                            options: cases.clone(),
-                            default_value,
-                            nullable,
-                            caption: label.as_ref().and_then(|label| label.text.clone()),
-                            option_labels: label.map(|label| label.values).unwrap_or_default(),
-                        });
+                        if !self
+                            .page_preference_fields
+                            .iter()
+                            .any(|field| field.name == symbol.name)
+                        {
+                            let label = self.decode_reused_field_label_parts(&symbol);
+                            self.page_preference_fields.push(IrPreferenceField {
+                                name: symbol.name,
+                                options: field_cases.clone(),
+                                default_value,
+                                nullable,
+                                caption: label.as_ref().and_then(|label| label.text.clone()),
+                                option_labels: label.map(|label| label.values).unwrap_or_default(),
+                            });
+                        }
                     }
                 }
                 entries.push((name, decoded));

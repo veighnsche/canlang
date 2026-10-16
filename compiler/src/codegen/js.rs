@@ -3228,27 +3228,33 @@ fn collection_filter_props_are_valid(ir: &IrProgram, node: &IrUi) -> bool {
             let Some(item) = field(name) else {
                 return false;
             };
+            // A filter column selects a distinct owned finite-choice model
+            // field: an owned enum or a plain bool toggle. Anything else
+            // keeps the refusal below.
             let IrItemKind::Field {
-                ty:
-                    IrType::Known(
-                        ty @ ResolvedType::Enum {
-                            owner: Some(owner),
-                            cases,
-                        },
-                    ),
+                ty: IrType::Known(ty),
                 ..
             } = &item.kind
             else {
                 return false;
             };
-            if text("type")
-                != ir
-                    .items
-                    .get(owner.0 as usize)
-                    .map(|item| format!("enum:{}", item.canonical))
-                    .as_deref()
-                || selected.insert(name, ty).is_some()
-            {
+            let expected_cases: Option<&[String]> = match ty {
+                ResolvedType::Enum {
+                    owner: Some(owner),
+                    cases,
+                } if text("type")
+                    == ir
+                        .items
+                        .get(owner.0 as usize)
+                        .map(|item| format!("enum:{}", item.canonical))
+                        .as_deref() =>
+                {
+                    Some(cases)
+                }
+                ResolvedType::Scalar(Scalar::Bool) if text("type") == Some("bool") => None,
+                _ => return false,
+            };
+            if selected.insert(name, ty).is_some() {
                 return false;
             }
             let Some((_, labels)) = parts.iter().find(|(key, _)| key == "valueLabels") else {
@@ -3257,10 +3263,20 @@ fn collection_filter_props_are_valid(ir: &IrProgram, node: &IrUi) -> bool {
             let IrExpr::Object(labels) = &labels.expr else {
                 return false;
             };
-            if labels.iter().map(|(key, _)| key).collect::<Vec<_>>()
-                != cases.iter().collect::<Vec<_>>()
-                || !parts.iter().any(|(key, _)| key == "label")
-            {
+            let labels_match = match expected_cases {
+                Some(cases) => {
+                    labels.iter().map(|(key, _)| key).collect::<Vec<_>>()
+                        == cases.iter().collect::<Vec<_>>()
+                }
+                None => {
+                    labels
+                        .iter()
+                        .map(|(key, _)| key.as_str())
+                        .collect::<Vec<_>>()
+                        == vec!["true", "false"]
+                }
+            };
+            if !labels_match || !parts.iter().any(|(key, _)| key == "label") {
                 return false;
             }
         }
@@ -3277,20 +3293,30 @@ fn collection_filter_props_are_valid(ir: &IrProgram, node: &IrUi) -> bool {
             if !seen.insert(name) {
                 return false;
             }
-            let ResolvedType::Enum { cases, .. } = expected else {
-                return false;
+            let bool_default = matches!(expected, ResolvedType::Scalar(Scalar::Bool));
+            let enum_cases = match expected {
+                ResolvedType::Enum { cases, .. } => Some(cases),
+                ResolvedType::Scalar(Scalar::Bool) => None,
+                _ => return false,
             };
             let valid = match &value.expr {
                 IrExpr::Text(case) => {
-                    cases.contains(case)
+                    enum_cases.is_some_and(|cases| {
+                        cases.contains(case)
+                            && (value.ty == **expected
+                                || matches!(value.ty, ResolvedType::Scalar(Scalar::Text)))
+                    }) || (bool_default
+                        && (case == "true" || case == "false")
                         && (value.ty == **expected
-                            || matches!(value.ty, ResolvedType::Scalar(Scalar::Text)))
+                            || matches!(value.ty, ResolvedType::Scalar(Scalar::Text))))
                 }
+                IrExpr::Bool(_) => bool_default && value.ty == **expected,
                 IrExpr::Null => true,
                 IrExpr::Member { base, .. } if matches!(&base.expr, IrExpr::Name(name) if name == "preferences") => {
                     value.ty == **expected
                         || matches!(&value.ty, ResolvedType::Nullable(inner) if inner.as_ref() == *expected)
                 }
+                _ if bool_default => bool_filter_default_shape(ir, value),
                 _ => false,
             };
             if !valid {
@@ -3299,6 +3325,71 @@ fn collection_filter_props_are_valid(ir: &IrProgram, node: &IrUi) -> bool {
         }
     }
     true
+}
+
+/// B13: computed bool filter defaults over decoded bool preference
+/// reads. The checked type does the work: the root must type exactly
+/// `bool`, every `preferences.*` leaf must read a (nullable-)bool
+/// preference, and every other node must be a pure value form (a bool
+/// literal, a boolean operator, or a checked derive-helper call
+/// returning bool). Reads decode at the typed reader above, so operator
+/// positions only consume already-boolean values and no sink coercion
+/// applies; anything else keeps the refusal in the caller.
+fn bool_filter_default_shape(ir: &IrProgram, value: &TypedExpr) -> bool {
+    match &value.expr {
+        IrExpr::Bool(_) => value.ty == ResolvedType::Scalar(Scalar::Bool),
+        IrExpr::Member { base, .. } if matches!(&base.expr, IrExpr::Name(name) if name == "preferences") =>
+        {
+            matches!(
+                value.ty.nullable_inner().unwrap_or(&value.ty),
+                ResolvedType::Scalar(Scalar::Bool)
+            )
+        }
+        IrExpr::Binary { left, right, .. } => {
+            value.ty == ResolvedType::Scalar(Scalar::Bool)
+                && bool_filter_default_shape(ir, left)
+                && bool_filter_default_shape(ir, right)
+        }
+        IrExpr::Unary { operand, .. } => {
+            value.ty == ResolvedType::Scalar(Scalar::Bool) && bool_filter_default_shape(ir, operand)
+        }
+        IrExpr::Call { target, args } => bool_filter_derive_call(ir, target, args, value),
+        IrExpr::BoundCall {
+            target,
+            args,
+            slots,
+        } => {
+            slots.iter().all(|slot| slot.is_some())
+                && bool_filter_derive_call(ir, target, args, value)
+        }
+        _ => false,
+    }
+}
+
+/// A derive-helper call returning bool over admitted arguments. The
+/// target must resolve to a checked derive function returning bool;
+/// visibility was already scoped by checking.
+fn bool_filter_derive_call(
+    ir: &IrProgram,
+    target: &IrCallTarget,
+    args: &[TypedExpr],
+    value: &TypedExpr,
+) -> bool {
+    let IrCallTarget::DeriveFn(canonical) = target else {
+        return false;
+    };
+    value.ty == ResolvedType::Scalar(Scalar::Bool)
+        && ir.items.iter().any(|item| {
+            item.canonical.as_str() == canonical.as_str()
+                && matches!(
+                    &item.kind,
+                    IrItemKind::DeriveFn {
+                        result: IrType::Known(ResolvedType::Scalar(Scalar::Bool)),
+                        ..
+                    }
+                )
+        })
+        && args.iter().all(|arg| bool_filter_default_shape(ir, arg))
 }
 
 /// Writable selector controls currently admitted by the source lowering.
@@ -6188,6 +6279,35 @@ impl<'a> Emitter<'a> {
                 } else {
                     let optional = if op == "?." { "?." } else { "" };
                     format!("{base_text}{optional}[{}]", js_string(field))
+                };
+                // B13 defining-owner bool decoding: a bool preference read
+                // decodes its string-typed store spelling at this checked
+                // typed reader, before any bool expression consumes it.
+                // Nullable reads stay nullable: null stays null, real
+                // booleans pass through, "true"/"false" become booleans,
+                // and anything else throws a validation refusal (never
+                // truthy, never a silent filter). Non-nullable reads keep
+                // their declared absence contract: the strict spelling
+                // decoding maps real booleans and "true"/"false" only, so
+                // a missing value never becomes a nullable success and
+                // malformed spellings still refuse. Non-bool reads lower
+                // verbatim.
+                let member = if matches!(&base.expr, IrExpr::Name(name) if name == "preferences")
+                    && matches!(
+                        expr.ty.nullable_inner().unwrap_or(&expr.ty),
+                        ResolvedType::Scalar(Scalar::Bool)
+                    ) {
+                    if expr.ty.nullable_inner().is_some() {
+                        format!(
+                            "(value=>{{if(value==null)return null;if(value===true)return true;if(value===false)return false;if(value===\"true\")return true;if(value===\"false\")return false;throw{{code:\"validation\",message:\"Invalid bool preference.\"}}}})({member})"
+                        )
+                    } else {
+                        format!(
+                            "(value=>{{if(value===true)return true;if(value===false)return false;if(value===\"true\")return true;if(value===\"false\")return false;throw{{code:\"validation\",message:\"Invalid bool preference.\"}}}})({member})"
+                        )
+                    }
+                } else {
+                    member
                 };
                 if expr.ty.nullable_inner().is_some() {
                     format!("({member} ?? null)")
