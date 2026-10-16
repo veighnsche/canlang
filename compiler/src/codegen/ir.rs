@@ -17689,6 +17689,200 @@ impl<'a> Cx<'a> {
         Some(())
     }
 
+    /// B14: own one enum preference leaf behind a computed filter
+    /// default. The leaf must name an owned enum preference field of this
+    /// module whose checked read type is the filter's owned enum or its
+    /// nullable form. Saved enum values are already case spellings, so
+    /// reads lower verbatim and the host preparer refuses unknown
+    /// spellings against the column inventory; no decoding wrapper and
+    /// no truthiness apply.
+    fn owned_enum_preference(
+        &self,
+        scope: &Scope,
+        field: &str,
+        ty: &ResolvedType,
+        expected: &ResolvedType,
+    ) -> Option<(SymbolId, SymbolId)> {
+        if !matches!(expected, ResolvedType::Enum { .. }) {
+            return None;
+        }
+        let leaf = ty == expected
+            || matches!(ty, ResolvedType::Nullable(inner) if inner.as_ref() == expected);
+        if !leaf {
+            return None;
+        }
+        let found = self.program.symbols.iter().find(|symbol| {
+            symbol.name.as_str() == field
+                && symbol.module == scope.module
+                && matches!(&symbol.kind, SymbolKind::Field { owner, .. }
+                    if self.program.symbols.get(owner.0 as usize).is_some_and(|item| {
+                        item.module == scope.module
+                            && matches!(&item.kind, SymbolKind::Preferences { fields } if fields.contains(&symbol.id))
+                    }))
+        })?;
+        if self.program.types.symbol_types.get(&found.id) != Some(ty) {
+            return None;
+        }
+        let SymbolKind::Field { owner, .. } = &found.kind else {
+            return None;
+        };
+        Some((found.id, *owner))
+    }
+
+    /// B14: admit one derive-helper call returning the filter's owned
+    /// enum (or its nullable form) over admitted arguments. The target
+    /// must resolve to a checked derive function; call-site visibility
+    /// was already scoped by checking, so imported and local helpers
+    /// agree here.
+    fn enum_preference_call(
+        &self,
+        scope: &Scope,
+        target: &IrCallTarget,
+        args: &[TypedExpr],
+        expr: &TypedExpr,
+        expected: &ResolvedType,
+        out: &mut Vec<(SymbolId, SymbolId, bool)>,
+    ) -> bool {
+        let IrCallTarget::DeriveFn(canonical) = target else {
+            return false;
+        };
+        (expr.ty == *expected
+            || matches!(&expr.ty, ResolvedType::Nullable(inner) if inner.as_ref() == expected))
+            && self.program.symbols.iter().any(|symbol| {
+                symbol.canonical.as_str() == canonical.as_str()
+                    && matches!(&symbol.kind, SymbolKind::DeriveFn { .. })
+            })
+            && args
+                .iter()
+                .all(|arg| self.collect_enum_preference_leaves(scope, arg, expected, out))
+    }
+
+    /// B14: admit one computed enum filter default, collecting the owned
+    /// enum preference leaves it reads. The checked type does the work:
+    /// every node must type as the filter's owned enum or its nullable
+    /// form, every `preferences.*` leaf must read an owned preference
+    /// field of that enum of this module, and every other node must be a
+    /// pure value form (a `??` fallback over admitted reads or a checked
+    /// derive-helper call returning the enum). Enum has no non-null
+    /// literal spelling, so computed defaults over nullable saved reads
+    /// stay nullable-typed; null stays absent at the host preparer
+    /// exactly like a cleared saved read, never a case. Anything else
+    /// keeps the refusal in the caller. `out` is only read when this
+    /// returns true.
+    fn collect_enum_preference_leaves(
+        &self,
+        scope: &Scope,
+        expr: &TypedExpr,
+        expected: &ResolvedType,
+        out: &mut Vec<(SymbolId, SymbolId, bool)>,
+    ) -> bool {
+        if !matches!(expected, ResolvedType::Enum { .. }) {
+            return false;
+        }
+        let typed = expr.ty == *expected
+            || matches!(&expr.ty, ResolvedType::Nullable(inner) if inner.as_ref() == expected);
+        if !typed {
+            return false;
+        }
+        match &expr.expr {
+            IrExpr::Member { base, field } => {
+                if !matches!(&base.expr, IrExpr::Name(name) if name == "preferences") {
+                    return false;
+                }
+                let nullable = expr.ty != *expected;
+                let Some((field_id, owner)) =
+                    self.owned_enum_preference(scope, field, &expr.ty, expected)
+                else {
+                    return false;
+                };
+                out.push((field_id, owner, nullable));
+                true
+            }
+            IrExpr::Binary { left, right, .. } => {
+                self.collect_enum_preference_leaves(scope, left, expected, out)
+                    && self.collect_enum_preference_leaves(scope, right, expected, out)
+            }
+            IrExpr::Call { target, args } => {
+                self.enum_preference_call(scope, target, args, expr, expected, out)
+            }
+            IrExpr::BoundCall {
+                target,
+                args,
+                slots,
+            } => {
+                slots.iter().all(|slot| slot.is_some())
+                    && self.enum_preference_call(scope, target, args, expr, expected, out)
+            }
+            _ => false,
+        }
+    }
+
+    /// B14: register one owned enum preference leaf behind a filter
+    /// default, sharing the direct-read descriptor contract: the entry is
+    /// nullable exactly when the leaf read is, carries the enum-case
+    /// options, and records the declared literal default. A missing
+    /// field, a server-owned field, a missing non-nullable default, or a
+    /// non-literal default keeps the refusal in the caller.
+    fn register_enum_filter_preference(
+        &mut self,
+        word: &str,
+        field_id: SymbolId,
+        owner: SymbolId,
+        nullable: bool,
+        options: &[String],
+        span: Span,
+    ) -> Option<()> {
+        let refuse = || {
+            Diagnostic::error(
+                "E6008",
+                format!(
+                    "{word} filters need distinct checked owned enum fields and matching defaults"
+                ),
+                span,
+            )
+        };
+        let Some(symbol) = self.program.symbols.get(field_id.0 as usize).cloned() else {
+            self.diags.push(refuse());
+            return None;
+        };
+        let (_, default, server, _, _, _) = self.decode_field(&symbol, owner);
+        let default_value = match default {
+            Some(IrDefault::Literal(value)) => match value.expr {
+                IrExpr::Text(case) if options.contains(&case) => Some(case),
+                IrExpr::Null if nullable => None,
+                _ => {
+                    self.diags.push(refuse());
+                    return None;
+                }
+            },
+            None if nullable => None,
+            _ => {
+                self.diags.push(refuse());
+                return None;
+            }
+        };
+        if server.is_some() {
+            self.diags.push(refuse());
+            return None;
+        }
+        if !self
+            .page_preference_fields
+            .iter()
+            .any(|field| field.name == symbol.name)
+        {
+            let label = self.decode_reused_field_label_parts(&symbol);
+            self.page_preference_fields.push(IrPreferenceField {
+                name: symbol.name,
+                options: options.to_vec(),
+                default_value,
+                nullable,
+                caption: label.as_ref().and_then(|label| label.text.clone()),
+                option_labels: label.map(|label| label.values).unwrap_or_default(),
+            });
+        }
+        Some(())
+    }
+
     fn decode_collection_filters(
         &mut self,
         scope: &Scope,
@@ -17903,7 +18097,33 @@ impl<'a> Cx<'a> {
                         )?;
                     }
                 }
-                if !literal && !computed {
+                // B14: a computed enum default over owned enum
+                // preference reads (see
+                // `collect_enum_preference_leaves`). Leaf registration
+                // below runs only when every leaf resolved, sharing the
+                // direct-read descriptor contract.
+                let mut enum_nested = Vec::new();
+                let enum_computed = !bool_filter
+                    && !literal
+                    && self.collect_enum_preference_leaves(
+                        scope,
+                        &decoded,
+                        expected,
+                        &mut enum_nested,
+                    );
+                if enum_computed {
+                    for (field_id, owner, nullable) in enum_nested {
+                        self.register_enum_filter_preference(
+                            word,
+                            field_id,
+                            owner,
+                            nullable,
+                            field_cases,
+                            value.span,
+                        )?;
+                    }
+                }
+                if !literal && !computed && !enum_computed {
                     let mut identity = value;
                     while identity.kind == SyntaxKind::Group {
                         let Some(inner) = kids(identity)
