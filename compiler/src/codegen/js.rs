@@ -3951,6 +3951,23 @@ pub struct Emitter<'a> {
     /// `Some` classifies the binding; `None` shadows an outer alias with a
     /// plain value. Consulted only while hook lowering is active.
     hook_aliases: Vec<HashMap<String, Option<HookAlias>>>,
+    /// Closure nesting inside hook lowering (lambdas and query row
+    /// closures). Top-level parent-content reads lower via the transitive
+    /// parent load (`await` is legal in the async run function); nested
+    /// closures keep the loud `E6008` until their async carrier is defined.
+    hook_closure_depth: usize,
+    /// Decision nesting inside hook lowering (hook firing/guard/decision
+    /// expressions per DESIGN §442, including `if` conditions such as
+    /// `if event.after.parent.active and not event.after.done`).
+    /// Parent loads inside decisions carry mode `'decision'` in the scope
+    /// object (recorded bounded owner read, no resulting grant); body/value
+    /// copies carry `'value'` (current caller grants retained). Pure helpers
+    /// inherit the consuming site (no Boolean-result privilege). Raw loads
+    /// without a mode never exist, so body values never gain the guard's
+    /// owner authority. The existing `transitive.load(scope,model,id)`
+    /// arity and all scope/fence/source checks are preserved; only the
+    /// scope object carries the mode.
+    hook_decision_depth: usize,
     /// Bounded-loop sequence: each `for ... limit` binds its own
     /// `$forRowsN` fetch, so sequential loops never redeclare one
     /// binding (source order keeps numbering deterministic).
@@ -4045,8 +4062,9 @@ struct HookState {
 }
 
 /// Event-rooted alias class for hook bindings. Snapshots carry the full
-/// trigger row; parent steps carry only the engine's `{model, id}` linkage
-/// identity; staged create bindings carry the bound `{id}` identity;
+/// trigger row; parent steps carry the engine's `{model, id}` linkage
+/// identity for bare uses, with declared fields loading via the transitive
+/// parent load; staged create bindings carry the bound `{id}` identity;
 /// other event-derived values (leaf and reference reads) gap on deeper
 /// access. Untracked names lower normally.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -4058,7 +4076,8 @@ enum HookAlias {
 }
 
 /// Event-chain base classes for hook member lowering. Depth-1 snapshot
-/// reads and parent-linkage identities lower; anything through them gaps
+/// reads, parent-linkage identities and top-level declared parent fields
+/// (via the transitive parent load) lower; anything else through them gaps
 /// loud instead of reading `undefined` off an identity object.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum HookBase {
@@ -4147,6 +4166,8 @@ impl<'a> Emitter<'a> {
             pages: Vec::new(),
             hook: None,
             hook_aliases: vec![HashMap::new()],
+            hook_closure_depth: 0,
+            hook_decision_depth: 0,
             loop_seq: 0,
             bindings: vec![HashMap::new()],
             binding_seq: 0,
@@ -5152,6 +5173,8 @@ impl<'a> Emitter<'a> {
     /// Leave hook lowering, restoring scenario lowering.
     pub fn exit_hook(&mut self) {
         self.hook = None;
+        self.hook_closure_depth = 0;
+        self.hook_decision_depth = 0;
         for scope in &mut self.hook_aliases {
             scope.clear();
         }
@@ -5380,17 +5403,116 @@ impl<'a> Emitter<'a> {
         None
     }
 
+    /// Declared trigger parent for hook parent-content loads: the trigger
+    /// model's `ChildOf` parent in the same module (the existing source
+    /// correspondence `event_class` uses). `None` for top-level triggers.
+    fn hook_parent_model(&self) -> Option<(SymbolId, String)> {
+        let trigger = self.hook.as_ref()?.trigger;
+        let trigger_item = self.ir.items.get(trigger.0 as usize)?;
+        if trigger_item.id != trigger {
+            return None;
+        }
+        let IrItemKind::Model {
+            owner: IrOwner::ChildOf(parent),
+            ..
+        } = &trigger_item.kind
+        else {
+            return None;
+        };
+        let parent_item = self.ir.items.get(parent.0 as usize)?;
+        if parent_item.id != *parent || parent_item.module != trigger_item.module {
+            return None;
+        }
+        Some((*parent, parent_item.canonical.clone()))
+    }
+
+    /// Whether `field` is a declared readable parent field for the
+    /// transitive load: same declared-field correspondence as snapshots
+    /// (leaf scalars, carried stored references, arrays thereof), never
+    /// machine fields or reserved metadata. Conservative on enums (refuse)
+    /// so profile/emission never diverge into a silent wrong value.
+    fn hook_parent_field_allowed(
+        &self,
+        parent: SymbolId,
+        field: &str,
+        expr_ty: &ResolvedType,
+    ) -> bool {
+        if matches!(
+            field,
+            "id" | "model" | "version" | "parent" | "created" | "updated" | "createdBy" | "updatedBy" | "archivedAt"
+        ) {
+            return false;
+        }
+        let Some(parent_item) = self.ir.items.get(parent.0 as usize) else {
+            return false;
+        };
+        if parent_item.id != parent {
+            return false;
+        };
+        let Some(field_id) = self.ir.items.iter().find_map(|item| {
+            (item.name == field
+                && matches!(&item.kind, IrItemKind::Field { owner, ty: IrType::Known(_), .. } if *owner == parent))
+            .then_some(item.id)
+        }) else {
+            return false;
+        };
+        let IrItemKind::Field {
+            ty: IrType::Known(field_ty),
+            modifiers,
+            ..
+        } = &self.ir.items[field_id.0 as usize].kind
+        else {
+            return false;
+        };
+        if modifiers.machine || field_ty != expr_ty {
+            return false;
+        }
+        self.hook_parent_value_allowed(field_ty)
+    }
+
+    /// Readable parent value shapes: leaf scalars (nullable included),
+    /// carried stored references and arrays thereof. Enums stay refused
+    /// (loud) until their same-module correspondence is pinned.
+    fn hook_parent_value_allowed(&self, ty: &ResolvedType) -> bool {
+        match ty {
+            ResolvedType::Scalar(
+                crate::analysis::types::Scalar::Int
+                | crate::analysis::types::Scalar::Text
+                | crate::analysis::types::Scalar::Bool
+                | crate::analysis::types::Scalar::User
+                | crate::analysis::types::Scalar::Datetime
+                | crate::analysis::types::Scalar::Date
+                | crate::analysis::types::Scalar::Duration
+                | crate::analysis::types::Scalar::Email
+                | crate::analysis::types::Scalar::Timezone,
+            ) => true,
+            ResolvedType::Nullable(inner) => self.hook_parent_value_allowed(inner),
+            ResolvedType::Record { symbol, stored } => {
+                *stored
+                    && self
+                        .ir
+                        .items
+                        .get(symbol.0 as usize)
+                        .is_some_and(|item| item.id == *symbol)
+            }
+            ResolvedType::Array { element, .. } => self.hook_parent_value_allowed(element),
+            _ => false,
+        }
+    }
+
     /// Traversal guard for hook member reads. Returns the throwing
     /// placeholder (after reporting `E6008`) exactly when the read passes
-    /// through parent linkage or event reference content, which the hook
-    /// engine exposes as identity/`undefined` rather than rows. Depth-1
-    /// snapshot reads, linkage identities and ordinary names lower as
+    /// through event reference content, staged identities, nested closures
+    /// or undeclared parent fields, which have no hook lowering. Depth-1
+    /// snapshot reads, linkage identities, ordinary names and top-level
+    /// declared parent fields (via the transitive parent load) lower as
     /// before.
     fn hook_member_gap(
         &mut self,
         base: &TypedExpr,
         field: &str,
         span: Span,
+        expr_ty: &ResolvedType,
     ) -> Option<String> {
         match self.hook_base_class(base) {
             HookBase::Event => {
@@ -5408,10 +5530,51 @@ impl<'a> Emitter<'a> {
             HookBase::Parent => {
                 if field == "id" || field == "model" {
                     None
+                } else if self.hook_closure_depth > 0 {
+                    Some(self.hook_gap(
+                        "hook parent content",
+                        "parent field reads inside hook closures have no hook lowering",
+                        span,
+                    ))
+                } else if let Some((parent, canonical)) = self.hook_parent_model()
+                    && self.hook_parent_field_allowed(parent, field, expr_ty)
+                {
+                    // Consuming-site mode rides inside the scope object;
+                    // `transitive.load(scope,model,id)` arity and all
+                    // scope/fence/source checks are unchanged. Decisions
+                    // (hook firing/guard/decision expressions, including
+                    // `if` conditions; helpers inherit the site) open a
+                    // `'decision'` scope; body/value copies open `'value'`.
+                    // Denied/withheld/missing-required reads throw their
+                    // precise failure before value access; legitimate
+                    // nullable normalization (`?? null`, which never catches
+                    // thrown errors) keeps its meaning.
+                    let site = if self.hook_decision_depth > 0 {
+                        "decision"
+                    } else {
+                        "value"
+                    };
+                    let base_text = self.lower_expr(base);
+                    let base_text = parenthesize_operand(&base_text, &base.expr);
+                    let access = if object_key(field) == field {
+                        format!(".{field}")
+                    } else {
+                        format!("[{}]", js_string(field))
+                    };
+                    let read = format!(
+                        "(await (async($hookParent)=>{{if($hookParent==null)throw new Error(\"hook parent content missing\");const $hookScope=await $hookCtx.transitive.openScope({});const $hookRow=await $hookCtx.transitive.load($hookScope,{},$hookParent.id);if($hookRow===null)throw new Error(\"hook parent content missing\");return $hookRow.data{access};}})({base_text}))",
+                        js_string(site),
+                        js_string(&canonical),
+                    );
+                    if expr_ty.nullable_inner().is_some() {
+                        Some(format!("({read} ?? null)"))
+                    } else {
+                        Some(read)
+                    }
                 } else {
                     Some(self.hook_gap(
                         "hook parent content",
-                        "parent linkage carries identity only (`{model, id}`); parent field reads need the transitive load and have no hook lowering",
+                        "parent linkage carries identity only (`{model, id}`); undeclared parent field reads have no hook lowering",
                         span,
                     ))
                 }
@@ -6518,7 +6681,8 @@ impl<'a> Emitter<'a> {
                 format!("judgmentSpecification(c,{}{options})", js_string(judgment))
             }
             IrExpr::Member { base, field } => {
-                if self.in_hook() && let Some(gap) = self.hook_member_gap(base, field, span)
+                if self.in_hook()
+                    && let Some(gap) = self.hook_member_gap(base, field, span, &expr.ty)
                 {
                     return gap;
                 }
@@ -6826,7 +6990,14 @@ impl<'a> Emitter<'a> {
             IrExpr::Lambda { param, body } => {
                 self.enter_scope();
                 let param = self.bind(param);
+                let in_hook = self.in_hook();
+                if in_hook {
+                    self.hook_closure_depth += 1;
+                }
                 let body_text = self.lower_expr(body);
+                if in_hook {
+                    self.hook_closure_depth -= 1;
+                }
                 self.exit_scope();
                 if expr_uses_async(body) || self.boolean_body {
                     format!("async({param})=>{body_text}")
@@ -8986,7 +9157,14 @@ impl<'a> Emitter<'a> {
                     } else {
                         self.enter_scope();
                         let row = self.bind(&query.where_param);
+                        let in_hook = self.in_hook();
+                        if in_hook {
+                            self.hook_closure_depth += 1;
+                        }
                         let body = self.lower_expr(pred);
+                        if in_hook {
+                            self.hook_closure_depth -= 1;
+                        }
                         self.exit_scope();
                         if self.native_source_predicates {
                             let prefix = if query.where_async || self.boolean_body {
@@ -9130,7 +9308,14 @@ impl<'a> Emitter<'a> {
         };
         self.enter_scope();
         let param = self.bind(param);
+        let in_hook = self.in_hook();
+        if in_hook {
+            self.hook_closure_depth += 1;
+        }
         let body = self.lower_expr(projection);
+        if in_hook {
+            self.hook_closure_depth -= 1;
+        }
         self.exit_scope();
         // A constructed contract/object is an expression, not an arrow's
         // statement block. Keep the same once-only field evaluation order.
@@ -9921,7 +10106,16 @@ impl<'a> Emitter<'a> {
             }
             IrStmt::Require { cond, span } => {
                 self.stdlib.insert("check".to_string());
+                // Hook firing/guard/decision expressions (DESIGN §442):
+                // parent loads here carry `'decision'` in the scope.
+                let in_hook = self.in_hook();
+                if in_hook {
+                    self.hook_decision_depth += 1;
+                }
                 let cond_text = self.lower_expr(cond);
+                if in_hook {
+                    self.hook_decision_depth -= 1;
+                }
                 vec![(format!("{pad}check({cond_text});"), *span)]
             }
             IrStmt::If {
@@ -9930,7 +10124,17 @@ impl<'a> Emitter<'a> {
                 else_branch,
                 span,
             } => {
+                // `if` conditions are hook decisions (e.g.
+                // `if event.after.parent.active and not event.after.done`);
+                // branch bodies stay body/value. Helpers inherit the site.
+                let in_hook = self.in_hook();
+                if in_hook {
+                    self.hook_decision_depth += 1;
+                }
                 let cond_text = self.lower_expr(cond);
+                if in_hook {
+                    self.hook_decision_depth -= 1;
+                }
                 let mut lines = vec![(format!("{pad}if ({cond_text}) {{"), *span)];
                 let then_choice = self.receipt_choice(*span, "then");
                 if !then_choice.is_empty() {
@@ -9965,7 +10169,15 @@ impl<'a> Emitter<'a> {
             } => {
                 // JavaScript switch evaluates its subject once, including an
                 // awaited observation, before any selected arm's effects.
+                // A match subject is a decision like `if` conditions.
+                let in_hook = self.in_hook();
+                if in_hook {
+                    self.hook_decision_depth += 1;
+                }
                 let subject_text = self.lower_expr(subject);
+                if in_hook {
+                    self.hook_decision_depth -= 1;
+                }
                 let mut lines = vec![(format!("{pad}switch ({subject_text}) {{"), *span)];
                 for arm in arms {
                     lines.push((

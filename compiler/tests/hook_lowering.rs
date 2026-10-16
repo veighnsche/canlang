@@ -248,25 +248,364 @@ fn hook_emit_keeps_guard_and_effect_order() {
     );
 }
 
-/// (Outcome 12, out-of-scope.) Reads through parent linkage
-/// (`event.after.parent.active`, CanSuccess `arm`, CanMaintain timers)
-/// refuse loud: the engine carries `{model, id}` only, so lowering the
-/// read would evaluate `undefined`. The transitive load is the sequenced
-/// follow-up, never a silent guard.
+/// (Outcome 12, C27.) Declared parent fields read through the linkage
+/// (`event.after.parent.active`) via the transitive parent load: the
+/// consuming-site mode rides inside the scope object
+/// (`openScope("decision")` for hook firing/guard/decision expressions
+/// including `if` conditions, `"value"` for body copies; helpers inherit
+/// the site), while `transitive.load(scope,model,id)` arity and all
+/// scope/fence/source checks are unchanged. No raw modeless load exists.
 #[test]
-fn hook_parent_content_refused_loud() {
+fn hook_parent_content_loads_declared_field() {
     let src = "app T\nGiven\n M { active:bool }\n C in M { t:text }\nWhen\n scenario arm on=C.create\n  do\n   if event.after.parent.active\n    set event.after {t=\"armed\"}\nThen\n";
     let (js, diags, path) = hook_js(src);
     let _ = std::fs::remove_file(&path);
+    assert!(diags.is_empty(), "parent hook lowers: {diags:?}");
+    assert!(
+        js.contains("($candidate,$hookCtx,c)"),
+        "native runner binds ambient context:\n{js}"
+    );
+    assert!(
+        js.contains("openScope(\"decision\")"),
+        "guard consumption threads decision mode:\n{js}"
+    );
+    assert!(
+        js.contains("transitive.load($hookScope,\"T.M\","),
+        "parent loads through the existing transitive scope/load:\n{js}"
+    );
+    assert!(
+        !js.contains("has no lowering"),
+        "no fail-closed placeholder:\n{js}"
+    );
+}
+
+/// (Outcome 12, negative.) Undeclared parent fields stay loud: only
+/// declared leaf/carried fields load; anything else keeps the exact
+/// `E6008` instead of reading `undefined` off the linkage.
+#[test]
+fn hook_parent_undeclared_stays_refused() {
+    let src = "app T\nGiven\n M { active:bool }\n C in M { t:text }\nWhen\n scenario arm on=C.create\n  do\n   if event.after.parent.nope\n    set event.after {t=\"armed\"}\nThen\n";
+    let (catalog, catalog_path) = hook_catalog();
+    let (db, program, result) = check_hook(src, &catalog);
+    let _ = std::fs::remove_file(&catalog_path);
+    if !result.diagnostics.is_empty() {
+        assert!(
+            result.diagnostics.iter().any(|d| d.code.starts_with("E")),
+            "checker refuses unknown field: {:?}",
+            result.diagnostics
+        );
+        return;
+    }
+    let (artifact, diags) = emit_hook(&program, &db, &result, &catalog);
+    let js = artifact.modules[0].js.clone();
     assert!(
         diags.iter().any(|d| d.code == "E6008"
             && d.message.contains("hook parent content")),
-        "parent content refuses loud: {}",
+        "undeclared parent content refuses loud: {}",
         codes(&diags).join("\n")
     );
     assert!(
         js.contains("has no lowering"),
         "fail-closed placeholder:\n{js}"
+    );
+}
+
+/// (Outcome 12, C27 hp-alias, engine proof.) A native child-create hook
+/// reading parent content through an alias (`let p=event.after.parent`;
+/// `if p.active` decides, `let n=p.tag` copies) drives the REAL owning
+/// pipeline: the guard threads `"decision"`, the body copy threads
+/// `"value"` (both via scope-carried transitive loads, same
+/// `load(scope,model,id)` arity), and committed parents gate + supply the
+/// staged child. Active parent arms with the parent's own tag (not a
+/// hardcoded literal); inactive parent leaves the child untouched.
+#[test]
+fn hook_hp_alias_parent_load_drives_owner_pipeline() {
+    let src = "app T\nGiven\n M { active:bool, tag:text }\n C in M { t:text }\nWhen\n scenario arm on=C.create\n  do\n   let p=event.after.parent\n   if p.active\n    let n=p.tag\n    set event.after {t=n}\nThen\n";
+    let (catalog, catalog_path) = hook_catalog();
+    let (db, program, result) = check_hook(src, &catalog);
+    assert!(
+        result.diagnostics.is_empty(),
+        "hp-alias source checks clean: {:?}",
+        result.diagnostics
+    );
+    let (artifact, diags) = emit_hook(&program, &db, &result, &catalog);
+    let _ = std::fs::remove_file(&catalog_path);
+    assert!(diags.is_empty(), "{diags:?}");
+    let js = &artifact.modules[0].js;
+    assert!(
+        js.contains("($candidate,$hookCtx,c)"),
+        "native runner binds ambient context:\n{js}"
+    );
+    assert!(
+        js.contains("openScope(\"decision\")"),
+        "guard threads decision mode:\n{js}"
+    );
+    assert!(
+        js.contains("openScope(\"value\")"),
+        "body copy threads value mode:\n{js}"
+    );
+    assert!(
+        !js.contains("has no lowering"),
+        "no fail-closed placeholder:\n{js}"
+    );
+    let policies = serde_json::to_string(
+        &artifact
+            .model_policies
+            .as_ref()
+            .expect("native owner-policy descriptors"),
+    )
+    .expect("policies serialize");
+    let dir = stage_dir("hp-alias-engine");
+    std::fs::write(dir.join("emitted.mjs"), js).unwrap();
+    std::fs::write(dir.join("policies.json"), &policies).unwrap();
+    let root = workspace_root();
+    let fixtures = root.join("packages/state/test/mutation/fixtures.ts");
+    let invocation_fixtures = root.join("packages/state/test/invocation/fixtures.ts");
+    let memory = root.join("packages/state/src/storage/memory.ts");
+    let models = root.join("packages/state/src/mutation/models.ts");
+    let bindings = root.join("packages/state/src/mutation/model-policies.ts");
+    let pipeline = root.join("packages/state/src/mutation/pipeline.ts");
+    for path in [&fixtures, &invocation_fixtures, &memory, &models, &bindings, &pipeline] {
+        assert!(path.exists(), "engine source: {}", path.display());
+    }
+    let driver = r##"
+import { canApp } from './emitted.mjs';
+import { readFileSync } from 'node:fs';
+import { seedRow, makeBatch, asId, asModel } from '@@INVOCATION@@';
+import { modelDef, field, pipelineContext } from '@@FIXTURES@@';
+import { createTestMemoryStorage } from '@@MEMORY@@';
+import { buildModelTable } from '@@MODELS@@';
+import { bindOwnerModelPolicies } from '@@BINDINGS@@';
+import { beginOwnerMutation } from '@@PIPELINE@@';
+const verdict = {};
+try {
+  const registry = canApp();
+  const descriptors = JSON.parse(readFileSync('./policies.json', 'utf8'));
+  const table = buildModelTable([
+    modelDef('T.M', { fields: { active: field(), tag: field() } }),
+    modelDef('T.C', { fields: { t: field() } }),
+  ]);
+  const policies = bindOwnerModelPolicies({ table, descriptors, bindings: registry.modelPolicyBindings });
+  const { store } = createTestMemoryStorage();
+  await seedRow(store, asModel('T.M'), { id: 'p-on', data: { active: true, tag: 'armed-on' } });
+  await seedRow(store, asModel('T.M'), { id: 'p-off', data: { active: false, tag: 'armed-off' } });
+  async function createChild(id, parentId) {
+    const rev = await store.readRevision();
+    const session = await beginOwnerMutation({ table, store,
+      context: pipelineContext({ operation: 'T.C.create' }),
+      bounds: { maxWork: 1000, maxRows: 20 }, policies });
+    await session.stage({ op: 'create', model: asModel('T.C'), id: asId(id),
+      parent: { model: asModel('T.M'), id: asId(parentId) }, data: { t: 'new' } },
+      { cause: 'crud', input: { t: 'new' } });
+    const output = await session.finalize();
+    await store.commit(makeBatch(rev, { writes: output.writes, history: output.history,
+      schedules: output.schedules, uniqueClaims: output.uniqueClaims, uniqueReleases: output.uniqueReleases }));
+  }
+  await createChild('c-on', 'p-on');
+  await createChild('c-off', 'p-off');
+  const on = await store.load(asModel('T.C'), asId('c-on'));
+  const off = await store.load(asModel('T.C'), asId('c-off'));
+  verdict.on = on === null ? null : on.data;
+  verdict.off = off === null ? null : off.data;
+  verdict.ok = true;
+} catch (error) {
+  verdict.ok = false;
+  verdict.error = String(error?.stack ?? error);
+}
+console.log(JSON.stringify(verdict));
+"##
+    .replace("@@INVOCATION@@", &invocation_fixtures.display().to_string())
+    .replace("@@FIXTURES@@", &fixtures.display().to_string())
+    .replace("@@MEMORY@@", &memory.display().to_string())
+    .replace("@@MODELS@@", &models.display().to_string())
+    .replace("@@BINDINGS@@", &bindings.display().to_string())
+    .replace("@@PIPELINE@@", &pipeline.display().to_string());
+    std::fs::write(dir.join("driver.ts"), driver).unwrap();
+    let out = std::process::Command::new("bun")
+        .arg("driver.ts")
+        .current_dir(&dir)
+        .output()
+        .expect("spawn bun driver");
+    assert!(
+        out.status.success(),
+        "driver failed: stdout={} stderr={}",
+        String::from_utf8_lossy(&out.stdout),
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let verdict: serde_json::Value =
+        serde_json::from_str(stdout.trim()).expect("verdict parses");
+    assert_eq!(
+        verdict.get("ok").and_then(|v| v.as_bool()),
+        Some(true),
+        "verdict: {stdout}"
+    );
+    assert_eq!(
+        verdict
+            .get("on")
+            .and_then(|v| v.get("t"))
+            .and_then(|v| v.as_str()),
+        Some("armed-on"),
+        "active parent arms with the parent tag copy: {stdout}"
+    );
+    assert_eq!(
+        verdict
+            .get("off")
+            .and_then(|v| v.get("t"))
+            .and_then(|v| v.as_str()),
+        Some("new"),
+        "inactive parent leaves the child untouched: {stdout}"
+    );
+}
+
+/// (Outcome 12, C27 hp-helper, engine proof.) A native child-create hook
+/// calling a checked helper with parent content plus the ambient clock
+/// (`gated(parent.active, now)`, same `await s$gated(c,…)` equivalence as
+/// outside hooks) drives the REAL owning pipeline: the parent arg inherits
+/// the guard's `"decision"` site, the helper runs with the ambient context
+/// (a missing `c` would throw on `c.now` instead), and committed parents
+/// gate the staged child. No rewritten helper, no Boolean-result privilege.
+#[test]
+fn hook_hp_helper_parent_load_with_ambient_drives_owner_pipeline() {
+    let src = "app T\nGiven\n M { active:bool }\n C in M { t:text }\n derive gated(v:bool, at:datetime):bool = v\nWhen\n scenario arm on=C.create\n  do\n   if gated(event.after.parent.active,now)\n    set event.after {t=\"armed\"}\nThen\n";
+    let (catalog, catalog_path) = hook_catalog();
+    let (db, program, result) = check_hook(src, &catalog);
+    assert!(
+        result.diagnostics.is_empty(),
+        "hp-helper source checks clean: {:?}",
+        result.diagnostics
+    );
+    let (artifact, diags) = emit_hook(&program, &db, &result, &catalog);
+    let _ = std::fs::remove_file(&catalog_path);
+    assert!(diags.is_empty(), "{diags:?}");
+    let js = &artifact.modules[0].js;
+    assert!(
+        js.contains("($candidate,$hookCtx,c)"),
+        "native runner binds ambient context:\n{js}"
+    );
+    assert!(
+        js.contains("openScope(\"decision\")"),
+        "helper parent arg inherits the guard decision site:\n{js}"
+    );
+    assert!(
+        js.contains("(c,"),
+        "helper invoked with ambient context (same equivalence as outside hooks):\n{js}"
+    );
+    assert!(
+        js.contains("c.now"),
+        "ambient clock read:\n{js}"
+    );
+    assert!(
+        !js.contains("has no lowering"),
+        "no fail-closed placeholder:\n{js}"
+    );
+    let policies = serde_json::to_string(
+        &artifact
+            .model_policies
+            .as_ref()
+            .expect("native owner-policy descriptors"),
+    )
+    .expect("policies serialize");
+    let dir = stage_dir("hp-helper-engine");
+    std::fs::write(dir.join("emitted.mjs"), js).unwrap();
+    std::fs::write(dir.join("policies.json"), &policies).unwrap();
+    let root = workspace_root();
+    let fixtures = root.join("packages/state/test/mutation/fixtures.ts");
+    let invocation_fixtures = root.join("packages/state/test/invocation/fixtures.ts");
+    let memory = root.join("packages/state/src/storage/memory.ts");
+    let models = root.join("packages/state/src/mutation/models.ts");
+    let bindings = root.join("packages/state/src/mutation/model-policies.ts");
+    let pipeline = root.join("packages/state/src/mutation/pipeline.ts");
+    for path in [&fixtures, &invocation_fixtures, &memory, &models, &bindings, &pipeline] {
+        assert!(path.exists(), "engine source: {}", path.display());
+    }
+    let driver = r##"
+import { canApp } from './emitted.mjs';
+import { readFileSync } from 'node:fs';
+import { seedRow, makeBatch, asId, asModel } from '@@INVOCATION@@';
+import { modelDef, field, pipelineContext } from '@@FIXTURES@@';
+import { createTestMemoryStorage } from '@@MEMORY@@';
+import { buildModelTable } from '@@MODELS@@';
+import { bindOwnerModelPolicies } from '@@BINDINGS@@';
+import { beginOwnerMutation } from '@@PIPELINE@@';
+const verdict = {};
+try {
+  const registry = canApp();
+  const descriptors = JSON.parse(readFileSync('./policies.json', 'utf8'));
+  const table = buildModelTable([
+    modelDef('T.M', { fields: { active: field() } }),
+    modelDef('T.C', { fields: { t: field() } }),
+  ]);
+  const policies = bindOwnerModelPolicies({ table, descriptors, bindings: registry.modelPolicyBindings });
+  const { store } = createTestMemoryStorage();
+  await seedRow(store, asModel('T.M'), { id: 'p-on', data: { active: true } });
+  await seedRow(store, asModel('T.M'), { id: 'p-off', data: { active: false } });
+  async function createChild(id, parentId) {
+    const rev = await store.readRevision();
+    const session = await beginOwnerMutation({ table, store,
+      context: pipelineContext({ operation: 'T.C.create' }),
+      bounds: { maxWork: 1000, maxRows: 20 }, policies });
+    await session.stage({ op: 'create', model: asModel('T.C'), id: asId(id),
+      parent: { model: asModel('T.M'), id: asId(parentId) }, data: { t: 'new' } },
+      { cause: 'crud', input: { t: 'new' } });
+    const output = await session.finalize();
+    await store.commit(makeBatch(rev, { writes: output.writes, history: output.history,
+      schedules: output.schedules, uniqueClaims: output.uniqueClaims, uniqueReleases: output.uniqueReleases }));
+  }
+  await createChild('c-on', 'p-on');
+  await createChild('c-off', 'p-off');
+  const on = await store.load(asModel('T.C'), asId('c-on'));
+  const off = await store.load(asModel('T.C'), asId('c-off'));
+  verdict.on = on === null ? null : on.data;
+  verdict.off = off === null ? null : off.data;
+  verdict.ok = true;
+} catch (error) {
+  verdict.ok = false;
+  verdict.error = String(error?.stack ?? error);
+}
+console.log(JSON.stringify(verdict));
+"##
+    .replace("@@INVOCATION@@", &invocation_fixtures.display().to_string())
+    .replace("@@FIXTURES@@", &fixtures.display().to_string())
+    .replace("@@MEMORY@@", &memory.display().to_string())
+    .replace("@@MODELS@@", &models.display().to_string())
+    .replace("@@BINDINGS@@", &bindings.display().to_string())
+    .replace("@@PIPELINE@@", &pipeline.display().to_string());
+    std::fs::write(dir.join("driver.ts"), driver).unwrap();
+    let out = std::process::Command::new("bun")
+        .arg("driver.ts")
+        .current_dir(&dir)
+        .output()
+        .expect("spawn bun driver");
+    assert!(
+        out.status.success(),
+        "driver failed: stdout={} stderr={}",
+        String::from_utf8_lossy(&out.stdout),
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let verdict: serde_json::Value =
+        serde_json::from_str(stdout.trim()).expect("verdict parses");
+    assert_eq!(
+        verdict.get("ok").and_then(|v| v.as_bool()),
+        Some(true),
+        "verdict: {stdout}"
+    );
+    assert_eq!(
+        verdict
+            .get("on")
+            .and_then(|v| v.get("t"))
+            .and_then(|v| v.as_str()),
+        Some("armed"),
+        "active parent arms through the helper with ambient clock: {stdout}"
+    );
+    assert_eq!(
+        verdict
+            .get("off")
+            .and_then(|v| v.get("t"))
+            .and_then(|v| v.as_str()),
+        Some("new"),
+        "inactive parent leaves the child untouched: {stdout}"
     );
 }
 
