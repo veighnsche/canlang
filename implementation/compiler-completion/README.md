@@ -24,6 +24,16 @@ session/admission remain local implementation work. Hook guards and ordinary val
 authority; missing parent-read implementation is not a new value-use prohibition. Exact17/18 external/policy holds remain unchanged. Continue ready work
 through these checkpoints; do not mark the overall goal complete.
 
+### Accepted filter-remainder pins (merge35) — 2026-10-17
+
+Main integrates `0bcfab3b0` (test-only): all 36 remaining filter diagnostics
+classified — C2/C3 followers (qualified_at/dotted, category+business_date,
+paid, bucket/year, from/until, skill, due) plus 8 genuinely-new selectors
+(currency scalar, nullable `user?`, derived bools, containing-parent
+linkage, inline presentations, board pagination→page, calendar text), each
+pinned loud. Validation: filter_remainder_pins 8/8 on main. Zero production
+changes; first C2/C3 rule dispatched next.
+
 ### Accepted agenda saved-defaults gap (merge34) — 2026-10-17
 
 Main integrates `9a8447df6`: parent-bound `defaults={location=...}` 422 was
