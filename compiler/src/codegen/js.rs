@@ -2888,7 +2888,7 @@ fn ui_prop_is_admitted(factory: &str, key: &str) -> bool {
             key,
             "model" | "parent" | "order" | "page"
         ),
-        "filter" => matches!(key, "model" | "filter" | "defaults"),
+        "filter" => matches!(key, "binding" | "caption"),
         "copy" => matches!(key, "value" | "label" | "id"),
         "toggle" => key == "field",
         "swap" => key == "active",
@@ -3111,6 +3111,199 @@ fn collect_form_usages(node: &IrUi, page: &str, out: &mut Vec<FormUsage>) {
     for child in &node.children {
         collect_form_usages(child, page, out);
     }
+}
+
+/// B16: validate the standalone saved-preference filter binding against
+/// current lowered declarations. The page-body control edits the owning
+/// saved preference through the existing page-preference save path (the
+/// descriptor's `preferenceFields` over the caller-path POST with CSRF
+/// plus compare-and-set version); the sibling collection keeps its own
+/// occurrence controls and serving, so no query authority is carried
+/// here. Raw or edited UI metadata cannot acquire a preference editor
+/// by shape alone: the version chain's module segment resolves the
+/// owning module first, then the binding name must resolve to a checked
+/// preference field of that module's `Preferences` owner whose checked
+/// type is an owned finite-choice (or its nullable form), options must
+/// be exactly that choice's cases in order, and the current read must
+/// be that preference.
+fn standalone_filter_binding_is_valid(ir: &IrProgram, node: &IrUi) -> bool {
+    if node
+        .props
+        .iter()
+        .map(|(key, _)| key)
+        .collect::<std::collections::HashSet<_>>()
+        .len()
+        != node.props.len()
+    {
+        return false;
+    }
+    if node.props.len() > 2
+        || !node
+            .props
+            .iter()
+            .all(|(key, _)| matches!(key.as_str(), "binding" | "caption"))
+    {
+        return false;
+    }
+    let Some((_, binding)) = node.props.iter().find(|(key, _)| key == "binding") else {
+        return false;
+    };
+    let IrExpr::Object(parts) = &binding.expr else {
+        return false;
+    };
+    if parts.len() != 5
+        || parts
+            .iter()
+            .map(|(key, _)| key)
+            .collect::<std::collections::HashSet<_>>()
+            .len()
+            != 5
+    {
+        return false;
+    }
+    let part = |key: &str| parts.iter().find(|(name, _)| name == key).map(|(_, value)| value);
+    let (Some(name), Some(options), Some(current), Some(version), Some(post_to)) = (
+        part("name"),
+        part("options"),
+        part("current"),
+        part("version"),
+        part("postTo"),
+    ) else {
+        return false;
+    };
+    let IrExpr::Text(name) = &name.expr else {
+        return false;
+    };
+    if name.is_empty() {
+        return false;
+    }
+    let IrExpr::Array(options) = &options.expr else {
+        return false;
+    };
+    if options.is_empty() {
+        return false;
+    }
+    let mut values = Vec::new();
+    for option in options {
+        let IrExpr::Object(fields) = &option.expr else {
+            return false;
+        };
+        let value = fields
+            .iter()
+            .find(|(key, _)| key == "value")
+            .and_then(|(_, value)| {
+                if let IrExpr::Text(value) = &value.expr {
+                    Some(value.as_str())
+                } else {
+                    None
+                }
+            });
+        let Some(value) = value else {
+            return false;
+        };
+        if value.is_empty() || !fields.iter().any(|(key, _)| key == "label") {
+            return false;
+        }
+        values.push(value);
+    }
+    if values.iter().collect::<std::collections::HashSet<_>>().len() != values.len() {
+        return false;
+    }
+    // The current read is that preference: a direct `preferences.<name>` leaf.
+    let IrExpr::Member { base, field } = &current.expr else {
+        return false;
+    };
+    if field != name || !matches!(&base.expr, IrExpr::Name(base) if base == "preferences") {
+        return false;
+    }
+    // The version travels the dispatcher-owned compare-and-set chain for
+    // this preference: exactly `c.preferenceVersions.<module>.<name>`.
+    // The module segment resolves the owning module BEFORE the field
+    // lookup below, so a second app's ordinary same-named preference
+    // can never satisfy (or break) this app's binding.
+    let IrExpr::Member { base, field } = &version.expr else {
+        return false;
+    };
+    if field != name {
+        return false;
+    }
+    let IrExpr::Member { base, field } = &base.expr else {
+        return false;
+    };
+    let module_segment = field.clone();
+    if module_segment.is_empty() {
+        return false;
+    }
+    let IrExpr::Member { base, field } = &base.expr else {
+        return false;
+    };
+    if field != "preferenceVersions"
+        || !matches!(&base.expr, IrExpr::Name(base) if base == "c")
+    {
+        return false;
+    }
+    // The POST target is the actual caller-text coalesce the bound-tabs
+    // owner emits (`c.pollUrl ?? c.path`), not any coalesce by shape.
+    let IrExpr::Binary { op, left, right } = &post_to.expr else {
+        return false;
+    };
+    if !matches!(op, IrBinOp::Coalesce) || post_to.ty != ResolvedType::Scalar(Scalar::Text) {
+        return false;
+    }
+    let IrExpr::Member { base, field } = &left.expr else {
+        return false;
+    };
+    if field != "pollUrl" || !matches!(&base.expr, IrExpr::Name(base) if base == "c") {
+        return false;
+    }
+    let IrExpr::Member { base, field } = &right.expr else {
+        return false;
+    };
+    if field != "path" || !matches!(&base.expr, IrExpr::Name(base) if base == "c") {
+        return false;
+    }
+    // The binding names a checked preference field of THIS module's
+    // `Preferences` owner; options are exactly its owned finite-choice
+    // cases in order and the read types as the preference, so an
+    // equivalent other-app reuse keeps its own meaning.
+    let Some(module) = ir.modules.iter().find(|module| module.name == module_segment) else {
+        return false;
+    };
+    let preference = ir.items.iter().find(|item| {
+        item.name == *name
+            && item.module == module.id
+            && matches!(&item.kind, IrItemKind::Field { owner, .. }
+                if ir.items.get(owner.0 as usize).is_some_and(|declared| {
+                    declared.module == module.id
+                        && matches!(&declared.kind, IrItemKind::Preferences { fields, .. } if fields.contains(&item.id))
+                }))
+    });
+    let Some(preference) = preference else {
+        return false;
+    };
+    let IrItemKind::Field {
+        ty: IrType::Known(ty),
+        ..
+    } = &preference.kind
+    else {
+        return false;
+    };
+    if current.ty != *ty {
+        return false;
+    }
+    let expected: &[String] = match ty.nullable_inner().unwrap_or(ty) {
+        ResolvedType::Enum {
+            owner: Some(_),
+            cases,
+        } if !cases.is_empty()
+            && cases.iter().collect::<std::collections::HashSet<_>>().len() == cases.len() =>
+        {
+            cases
+        }
+        ResolvedType::Scalar(Scalar::Bool) => return values == ["true", "false"],
+        _ => return false,
+    };
+    values == expected.iter().map(String::as_str).collect::<Vec<_>>()
 }
 
 /// Validate the finite collection carrier against current lowered declarations;
@@ -11057,10 +11250,10 @@ impl<'a> Emitter<'a> {
             );
             return self.throw_expr("unsupported table filter profile");
         }
-        if node.factory == "filter" && !collection_filter_props_are_valid(self.ir, node) {
+        if node.factory == "filter" && !standalone_filter_binding_is_valid(self.ir, node) {
             self.unsupported(
                 "standalone filter",
-                "enum fields and defaults need matching owned declarations",
+                "an owned saved-preference binding with matching cases needs checked preference declarations",
                 node.span,
             );
             return self.throw_expr("unsupported standalone filter profile");

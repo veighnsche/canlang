@@ -18338,7 +18338,7 @@ impl<'a> Cx<'a> {
                 span,
             )
         };
-        let (type_text, cases) = match &model_ty {
+        let cases = match &model_ty {
             ResolvedType::Enum {
                 cases,
                 owner: Some(enum_owner),
@@ -18346,33 +18346,25 @@ impl<'a> Cx<'a> {
                 && cases.iter().collect::<HashSet<_>>().len() == cases.len()
                 && self.program.types.symbol_types.get(enum_owner) == Some(&model_ty) =>
             {
-                (format!("enum:{}", self.type_id(&model_ty)), cases.clone())
+                cases.clone()
             }
-            ResolvedType::Scalar(Scalar::Bool) => (
-                "bool".to_string(),
-                vec!["true".to_string(), "false".to_string()],
-            ),
+            ResolvedType::Scalar(Scalar::Bool) => {
+                vec!["true".to_string(), "false".to_string()]
+            }
             _ => {
                 fail(self, header.span);
                 return None;
             }
         };
-        let label = self.decode_reused_field_label_parts(&model_symbol);
-        let caption = label
-            .as_ref()
-            .and_then(|label| label.text.as_ref())
-            .map(|caption| {
-                TypedExpr::new(
-                    IrExpr::Message(caption.clone()),
-                    ResolvedType::Scalar(Scalar::Text),
-                    header.span,
-                )
-            })
-            .unwrap_or_else(|| text(model_symbol.name.clone(), header.span));
-        let value_labels = cases
+        // B16: option labels come from the edited preference's own label
+        // parts (the reuse chain already inherits the owned model field's
+        // captions), the same source the page preference descriptor below
+        // carries, so the control and the settings panel caption agree.
+        let pref_label = self.decode_reused_field_label_parts(&pref_symbol);
+        let options = cases
             .iter()
             .map(|case| {
-                let caption = label
+                let caption = pref_label
                     .as_ref()
                     .and_then(|label| label.values.iter().find(|(value, _)| value == case))
                     .map(|(_, caption)| {
@@ -18383,26 +18375,23 @@ impl<'a> Cx<'a> {
                         )
                     })
                     .unwrap_or_else(|| text(case.clone(), header.span));
-                (case.clone(), caption)
+                TypedExpr::new(
+                    IrExpr::Object(vec![
+                        ("value".to_string(), text(case.clone(), header.span)),
+                        ("label".to_string(), caption),
+                    ]),
+                    ResolvedType::Unknown,
+                    header.span,
+                )
             })
-            .collect();
-        let column = TypedExpr::new(
-            IrExpr::Object(vec![
-                ("field".to_string(), text(model_symbol.name.clone(), header.span)),
-                ("label".to_string(), caption),
-                ("type".to_string(), text(type_text, header.span)),
-                (
-                    "valueLabels".to_string(),
-                    TypedExpr::new(
-                        IrExpr::Object(value_labels),
-                        ResolvedType::Unknown,
-                        header.span,
-                    ),
-                ),
-            ]),
-            ResolvedType::Unknown,
-            header.span,
-        );
+            .collect::<Vec<_>>();
+        let binding_caption = pref_label.as_ref().and_then(|label| label.text.clone()).map(|caption| {
+            TypedExpr::new(
+                IrExpr::Message(caption),
+                ResolvedType::Scalar(Scalar::Text),
+                header.span,
+            )
+        });
         // The saved default registers the owning page preference exactly as
         // a collection default does; the shell renders both from the same
         // preference fields.
@@ -18442,41 +18431,81 @@ impl<'a> Cx<'a> {
             .iter()
             .any(|field| field.name == pref_symbol.name)
         {
-            let label = self.decode_reused_field_label_parts(&pref_symbol);
             self.page_preference_fields.push(IrPreferenceField {
                 name: pref_symbol.name.clone(),
                 options: cases.clone(),
                 default_value,
                 nullable,
-                caption: label.as_ref().and_then(|label| label.text.clone()),
-                option_labels: label.map(|label| label.values).unwrap_or_default(),
+                caption: pref_label.as_ref().and_then(|label| label.text.clone()),
+                option_labels: pref_label.map(|label| label.values).unwrap_or_default(),
             });
+        }
+        // B16: the control edits the owning saved preference through the
+        // existing page-preference save path (the descriptor entry above),
+        // so it carries the bound-tabs binding shape — name, owned
+        // finite-choice options, the saved read, its compare-and-set
+        // version and the caller POST target — never the collection
+        // descriptor the field-owner `filter()` control cannot consume.
+        let ctx = TypedExpr::new(
+            IrExpr::Name("c".to_string()),
+            ResolvedType::Unknown,
+            header.span,
+        );
+        let member = |base: TypedExpr, field: String| {
+            TypedExpr::new(
+                IrExpr::Member {
+                    base: Box::new(base),
+                    field,
+                },
+                ResolvedType::Unknown,
+                header.span,
+            )
+        };
+        let module_name = self
+            .program
+            .modules
+            .iter()
+            .find(|module| module.id == scope.module)?
+            .name
+            .clone();
+        let version = member(
+            member(
+                member(ctx.clone(), "preferenceVersions".to_string()),
+                module_name,
+            ),
+            pref_symbol.name.clone(),
+        );
+        let post_to = TypedExpr::new(
+            IrExpr::Binary {
+                op: IrBinOp::Coalesce,
+                left: Box::new(member(ctx.clone(), "pollUrl".to_string())),
+                right: Box::new(member(ctx, "path".to_string())),
+            },
+            ResolvedType::Scalar(Scalar::Text),
+            header.span,
+        );
+        let binding = TypedExpr::new(
+            IrExpr::Object(vec![
+                ("name".to_string(), text(pref_symbol.name.clone(), header.span)),
+                (
+                    "options".to_string(),
+                    TypedExpr::new(IrExpr::Array(options), ResolvedType::Unknown, header.span),
+                ),
+                ("current".to_string(), decoded),
+                ("version".to_string(), version),
+                ("postTo".to_string(), post_to),
+            ]),
+            ResolvedType::Unknown,
+            header.span,
+        );
+        let mut props = vec![("binding".to_string(), binding)];
+        if let Some(caption) = binding_caption {
+            props.push(("caption".to_string(), caption));
         }
         Some(IrUi {
             view: None,
             factory: "filter".to_string(),
-            props: vec![
-                (
-                    "model".to_string(),
-                    TypedExpr::new(
-                        IrExpr::Text(self.canonical(model)),
-                        ResolvedType::Scalar(Scalar::Text),
-                        header.span,
-                    ),
-                ),
-                (
-                    "filter".to_string(),
-                    TypedExpr::new(IrExpr::Array(vec![column]), ResolvedType::Unknown, header.span),
-                ),
-                (
-                    "defaults".to_string(),
-                    TypedExpr::new(
-                        IrExpr::Object(vec![(model_symbol.name.clone(), decoded)]),
-                        ResolvedType::Unknown,
-                        header.span,
-                    ),
-                ),
-            ],
+            props,
             children: Vec::new(),
             row_scope: None,
             gate: self.decode_gate(scope, node),

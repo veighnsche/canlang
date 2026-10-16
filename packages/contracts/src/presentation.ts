@@ -951,7 +951,53 @@ export interface OtpProps extends FieldControlProps {
  * `filter` field-owner production: finite-choice input with Filter
  * presentation. The view-preference production arrives with C8 preferences.
  */
-export interface FilterProps extends FieldControlProps {}
+export interface FilterFieldProps extends FieldControlProps {}
+
+/** One owned-preference option doubling as a filter value. */
+export interface FilterPreferenceOption {
+  readonly value: string;
+  readonly label: MessageValue;
+}
+
+/**
+ * Owned saved-preference binding: the standalone page-body filter doubles
+ * as its selector. Radios carry the preference field name and POST
+ * name=<value> plus CSRF and the compare-and-set version to the caller
+ * path — the same save shape the bound tabset selector uses.
+ */
+export interface FilterPreferenceBinding {
+  /** Preference field name carried by the radios. */
+  readonly name: string;
+  readonly options: readonly FilterPreferenceOption[];
+  /**
+   * Saved selection. Decoded bool reads arrive as real booleans while
+   * option values stay the canonical "true"/"false" spellings; the
+   * control compares strictly so an explicit false stays selected.
+   * POST/store remain the existing string-valued contract.
+   */
+  readonly current?: string | boolean | null;
+  /** Saved snapshot version; sent with the save for compare-and-set. */
+  readonly version?: string;
+  /** Caller-owned persistence path; the form POSTs name=<value> + CSRF. */
+  readonly postTo: string;
+}
+
+/**
+ * Standalone saved-preference filter: Filter presentation over the owned
+ * preference binding above, rendered in authored page-body position. The
+ * sibling collection keeps its own occurrence controls and serving.
+ */
+export interface FilterPreferenceProps {
+  readonly context: PresentationContext;
+  readonly binding: FilterPreferenceBinding;
+  readonly caption?: MessageValue;
+}
+
+/**
+ * `filter` factory props: either the field-owner production or the
+ * standalone saved-preference binding, never both.
+ */
+export type FilterProps = FilterFieldProps | FilterPreferenceProps;
 
 /**
  * `calendar` agenda production: date-grouped authorized collection query
