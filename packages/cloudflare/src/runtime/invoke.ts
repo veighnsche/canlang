@@ -12591,13 +12591,132 @@ async function readAuthorityScopeMarker(opts: CanonicalReadOpts): Promise<unknow
 /**
  * Bind the checked authority-report fact onto the loaded generated read
  * def (the State `bindAuthorityReportScope` precedent from `4c6fe535`):
- * the §13 marker plus the checked read descriptor and the single
+ * the §13 marker plus the checked read descriptor and the defining
  * checked source origin. Every disagreement refuses with `validation`
  * before any row is served; an already-bound def stays bound (one bind
  * per artifact load). Description/result shape refusal stays
  * State-owned: the bind rechecks the bounded description and the
  * declared grant type beside the host checks here.
+ *
+ * Defining-source selection (REVIEW-9 gap 1): the exact owning source is
+ * selected through the existing callable/module/checked-origin
+ * correspondence — the operation's callable names its emitted module,
+ * that module's map names the checked source paths, and each named path
+ * must have exactly one artifact source whose sha256 matches the mapped
+ * content hash (path/hash) while the bound module names the declaring
+ * owner. Missing, ambiguous, or tampered owning sources refuse; unrelated
+ * additional valid sources and composed/imported helper sources in other
+ * modules are accepted. Never picks the first source and never weakens
+ * the assembler/State seals beside this selection.
  */
+async function selectAuthorityDefiningSource(
+  loaded: LoadedCanonicalDescriptors, opts: CanonicalReadOpts,
+): Promise<{ readonly path: string; readonly sha256: string }> {
+  const StateError = loaded.producers.errors;
+  const name = `Operation ${JSON.stringify(opts.operation)}`;
+  const sources = opts.artifact.sources;
+  if (!Array.isArray(sources) || sources.length === 0) {
+    throw new StateError("validation", `${name} is an authority report without a checked source origin; refusing.`);
+  }
+  for (const entry of sources) {
+    if (typeof entry !== "object" || entry === null || Array.isArray(entry) ||
+        typeof (entry as { path?: unknown }).path !== "string" ||
+        ((entry as { path?: unknown }).path as string).length === 0 ||
+        typeof (entry as { sha256?: unknown }).sha256 !== "string" ||
+        !/^[0-9a-f]{64}$/.test(((entry as { sha256?: unknown }).sha256 as string))) {
+      throw new StateError("validation", `${name} is an authority report with a malformed checked source origin; refusing.`);
+    }
+  }
+  const separator = opts.operation.lastIndexOf(".");
+  const ownerPackage = separator <= 0 ? "" : opts.operation.slice(0, separator);
+  if (ownerPackage === "") {
+    throw new StateError("validation", `${name} is an authority report without its declaring owner; refusing.`);
+  }
+  const callables = opts.artifact.callables;
+  const matching = Array.isArray(callables) ? callables.filter(candidate =>
+    typeof candidate === "object" && candidate !== null &&
+    (candidate as { id?: unknown }).id === opts.operation &&
+    (candidate as { kind?: unknown }).kind === "operation" &&
+    typeof (candidate as { module?: unknown }).module === "string" &&
+    ((candidate as { module?: unknown }).module as string).length > 0) : [];
+  if (matching.length !== 1) {
+    throw new StateError("validation", `${name} is an authority report without its callable/module correspondence; refusing.`);
+  }
+  const callableModule = ((matching[0] as { module?: unknown }).module as string);
+  const modules = opts.artifact.modules;
+  if (!Array.isArray(modules) || modules.length === 0) {
+    // Direct path without module metadata (existing adapter-boundary
+    // fixtures): a lone checked source stays bound; multiple sources
+    // without module correspondence cannot select a defining source, so
+    // refuse rather than guess.
+    if (sources.length === 1) {
+      const only = sources[0] as { path: string; sha256: string };
+      return { path: only.path, sha256: only.sha256 };
+    }
+    throw new StateError("validation", `${name} is an authority report without its defining source module correspondence; refusing.`);
+  }
+  const byPath = new Map<string, { path: string; sha256: string }>();
+  for (const entry of sources) {
+    const typed = entry as { path: string; sha256: string };
+    if (byPath.has(typed.path)) {
+      throw new StateError("validation", `${name} is an authority report with an ambiguous checked source origin; refusing.`);
+    }
+    byPath.set(typed.path, typed);
+  }
+  const verifiedByModule = new Map<string, string[]>();
+  for (const entry of modules) {
+    if (typeof entry !== "object" || entry === null || Array.isArray(entry) ||
+        typeof (entry as { path?: unknown }).path !== "string" ||
+        ((entry as { path?: unknown }).path as string).length === 0) {
+      throw new StateError("validation", `${name} is an authority report with a malformed checked source module; refusing.`);
+    }
+    const modulePath = (entry as { path: string }).path;
+    if (verifiedByModule.has(modulePath)) {
+      throw new StateError("validation", `${name} is an authority report with an ambiguous checked source module; refusing.`);
+    }
+    const map = (entry as { map?: unknown }).map;
+    if (typeof map !== "object" || map === null || Array.isArray(map) ||
+        !Array.isArray((map as { sources?: unknown }).sources) ||
+        !Array.isArray((map as { sourcesContent?: unknown }).sourcesContent) ||
+        ((map as { sources: unknown[] }).sources.length !==
+          (map as { sourcesContent: unknown[] }).sourcesContent.length)) {
+      throw new StateError("validation", `${name} is an authority report without its checked source map; refusing.`);
+    }
+    const listed = (map as { sources: unknown[] }).sources;
+    const contents = (map as { sourcesContent: unknown[] }).sourcesContent;
+    const verified: string[] = [];
+    for (let index = 0; index < listed.length; index++) {
+      const path = listed[index];
+      const content = contents[index];
+      if (typeof path !== "string" || path.length === 0 || typeof content !== "string") {
+        throw new StateError("validation", `${name} is an authority report with a malformed checked source origin; refusing.`);
+      }
+      const claimed = byPath.get(path);
+      if (claimed === undefined) {
+        throw new StateError("validation", `${name} is an authority report without its checked source origin; refusing.`);
+      }
+      const actual = await sha256HexText(content);
+      if (!timingSafeEqualHex(actual, claimed.sha256)) {
+        throw new StateError("validation", `${name} is an authority report with a tampered checked source origin; refusing.`);
+      }
+      verified.push(path);
+    }
+    verifiedByModule.set(modulePath, verified);
+  }
+  const definingPaths = verifiedByModule.get(callableModule);
+  if (definingPaths === undefined) {
+    throw new StateError("validation", `${name} is an authority report without its defining source module correspondence; refusing.`);
+  }
+  if (definingPaths.length !== 1) {
+    throw new StateError("validation", `${name} is an authority report with an ambiguous defining source; refusing.`);
+  }
+  const defining = byPath.get(definingPaths[0]!);
+  if (defining === undefined) {
+    throw new StateError("validation", `${name} is an authority report without its checked source origin; refusing.`);
+  }
+  return { path: defining.path, sha256: defining.sha256 };
+}
+
 async function bindAuthorityReportForRead(
   loaded: LoadedCanonicalDescriptors, opts: CanonicalReadOpts, scope: unknown,
 ): Promise<void> {
@@ -12610,11 +12729,7 @@ async function bindAuthorityReportForRead(
   if (descriptor === undefined || descriptor.kind !== "read") {
     throw new StateError("validation", `${name} is an authority report without its checked read descriptor; refusing.`);
   }
-  const sources = opts.artifact.sources;
-  const single = Array.isArray(sources) && sources.length === 1 ? sources[0] : undefined;
-  if (single === undefined) {
-    throw new StateError("validation", `${name} is an authority report without a single checked source origin; refusing.`);
-  }
+  const defining = await selectAuthorityDefiningSource(loaded, opts);
   const separator = opts.operation.lastIndexOf(".");
   const ownerPackage = separator <= 0 ? "" : opts.operation.slice(0, separator);
   const def = generatedScenarioDef({ def: loaded.registry.get(opts.operation) });
@@ -12629,7 +12744,7 @@ async function bindAuthorityReportForRead(
     typeof import("@canlang/state/invocation/invoke").bindAuthorityReportScope;
   bind(def, {
     description: descriptor.description,
-    source: { path: single.path, sha256: single.sha256, module: ownerPackage },
+    source: { path: defining.path, sha256: defining.sha256, module: ownerPackage },
   });
 }
 
