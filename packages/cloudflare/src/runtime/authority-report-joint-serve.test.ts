@@ -14,7 +14,12 @@
  *
  * Five probes: member grant serves, viewer reads stay filtered,
  * by-denied callers refuse before any decision read, tampered checked
- * sources refuse, and moved decision rows void the grant.
+ * sources refuse, and moved decision rows void the grant. A sixth probe
+ * compiles the REAL committed int-filter fixture pair
+ * (`compiler/tests/fixtures/scope-authority-int-filter{,-helpers}.can`)
+ * and serves `Shop.stockReport` over canonically stored int-string rows:
+ * equality on 10, numeric 2-vs-10 ordering, the negative case, and
+ * beyond-safe-integer exactness through the local + imported helpers.
  *
  * Run from dist: root build, then
  * `node --test dist/runtime/authority-report-joint-serve.test.js`.
@@ -51,6 +56,11 @@ const HELPERS_FIXTURE = "packages/cloudflare/test/fixtures/authority-report-help
 const SHOP_SHA256 = "ed67eb52e80ec44faccc64c28e8820499447bc59385ac9ed4edd2fa934d60871";
 const HELPERS_SHA256 = "b5e988a3b1d0f75e952f137cd22ea78359300ffeebe19f3daa9f2f2aa3b39fc4";
 const DESCRIPTION = "Confidential totals granted to members.";
+const FILTER_SHOP_FIXTURE = "compiler/tests/fixtures/scope-authority-int-filter.can";
+const FILTER_HELPERS_FIXTURE = "compiler/tests/fixtures/scope-authority-int-filter-helpers.can";
+const FILTER_SHOP_SHA256 = "961a28232da34a6be615d6c3694337e911a1de8f7f9e3bf878c7a6af52779807";
+const FILTER_HELPERS_SHA256 = "680b118afa57d23686c52edc44b9ecb530314cd1a93d23977734bbe04411df41";
+const FILTER_DESCRIPTION = "Confidential filtered stock totals granted to members.";
 
 const tempDirs: string[] = [];
 after(() => {
@@ -116,8 +126,49 @@ async function compileAndAssemble(): Promise<Shared> {
   return shared;
 }
 
+async function compileAndAssembleFiltered(): Promise<Shared> {
+  if (filtered !== undefined) return filtered;
+  const compiler = process.env.CAN_COMPILER_BIN ?? join(root, "compiler/target/debug/can");
+  const catalog = fileURLToPath(distribution.catalog);
+  const env = { ...process.env };
+  delete env.CAN_CATALOG;
+  let stdout: string;
+  try {
+    ({ stdout } = await execFileAsync(
+      compiler,
+      ["compile", "--format=json", "--native-scenario-receipts", "--catalog", catalog, FILTER_SHOP_FIXTURE, FILTER_HELPERS_FIXTURE],
+      { cwd: root, env, timeout: 60_000, maxBuffer: 32 * 1024 * 1024 },
+    ));
+  } catch (error) {
+    const out = error as { stdout?: unknown; stderr?: unknown; message?: unknown };
+    throw new Error(
+      `joint-serve filtered fixture compile failed: ${String(out.message)} stdout=${String(out.stdout ?? "").slice(0, 2000)}`,
+    );
+  }
+  const parsed: unknown = JSON.parse(stdout);
+  assert.ok(typeof parsed === "object" && parsed !== null);
+  assert.ok(!("diagnostics" in parsed), "zero diagnostics on the real native catalog compile");
+  assert.equal((parsed as { artifact_version?: unknown }).artifact_version, 1);
+  const artifact = parsed as CompileArtifact;
+  assert.ok(artifact.modules.length > 0, "real emitted modules present");
+  const workDir = join(tempDir(), "modules");
+  const asm = await assembleModules(
+    { artifact, sourcePath: "authority-report-joint-serve-filtered" },
+    {
+      workDir,
+      stdlibUrl: import.meta.resolve("@canlang/cloudflare/runtime/stdlib"),
+      uiUrl: import.meta.resolve("@canlang/ui"),
+    },
+  );
+  filtered = { artifact, asm, workDir };
+  return filtered;
+}
+
+let filtered: Shared | undefined;
+
 before(async () => {
   await compileAndAssemble();
+  await compileAndAssembleFiltered();
 });
 
 function readOptions(setup: { asm: AssembledModules; artifact: CompileArtifact; store: StoragePort; seed: SeededIdentity }, operation: string) {
@@ -347,5 +398,46 @@ describe("authority report joint serve (real emission through the host seam)", (
     assert.ok(queries > 1, "decision read ran before the drift");
     assert.equal(error.code, "forbidden");
     assert.match(error.message, /authority changed/);
+  });
+
+  it("serves filtered int totals from the real filtered emission", { timeout: 120_000 }, async () => {
+    const { artifact, asm } = await compileAndAssembleFiltered();
+    const byPath = new Map(artifact.sources.map((entry) => [entry.path, entry.sha256]));
+    assert.equal(byPath.get(FILTER_SHOP_FIXTURE), FILTER_SHOP_SHA256);
+    assert.equal(byPath.get(FILTER_HELPERS_FIXTURE), FILTER_HELPERS_SHA256);
+    const report = artifact.operations?.find((entry) => entry.name === "Shop.stockReport");
+    assert.ok(report !== undefined && report.kind === "read");
+    assert.equal(report.description, FILTER_DESCRIPTION);
+    assert.ok(report.result !== undefined, "grant result declared");
+    const callableIds = new Set(artifact.callables.map((entry) => `${entry.kind}:${entry.id}`));
+    assert.ok(callableIds.has("operation:Shop.stockReport"));
+    assert.ok(callableIds.has("pure:Shop.bump"), "local helper dual-emitted");
+    assert.ok(callableIds.has("pure:intfilterhelpers.bump"), "imported helper dual-emitted");
+    const callable = artifact.callables.find((entry) => entry.id === "Shop.stockReport");
+    assert.ok(callable !== undefined);
+    const namespace = await importVerifiedAssemblyModule(asm, callable.module, artifact) as Record<string, unknown>;
+    const appDefinition = namespace["appDefinition"] as { operations: Record<string, Record<string, unknown>> };
+    const staged = appDefinition.operations["Shop.stockReport"];
+    assert.ok(staged !== undefined, "staged Shop.stockReport descriptor present");
+    assert.equal(staged["scope"], "authority");
+    assert.equal(staged["by"], "members");
+    assert.equal(staged["read"], true);
+    assert.deepEqual(staged["source"], { module: "Shop", path: FILTER_SHOP_FIXTURE, sha256: FILTER_SHOP_SHA256 });
+    // Rows ride the canonical int wire (decimal strings, already canonical).
+    const { store } = createTestMemoryStorage();
+    const seed = await seedIdentity();
+    await seedGadget(store, seed.now, "two", "item-two", "2");
+    await seedGadget(store, seed.now, "ten", "item-ten", "10");
+    await seedGadget(store, seed.now, "neg", "item-neg", "-5");
+    await seedGadget(store, seed.now, "big", "item-big", "9007199254740993");
+    const served = (await invokeReadCanonical({
+      ...readOptions({ asm, artifact, store, seed }, "Shop.stockReport"),
+      identity: await identityFor(seed, seed.memberToken),
+    })) as { result: unknown };
+    // eqTen=bump(count == 10)=2 (equality); aboveTwo=count(> 2)=2 — the
+    // 2-vs-10 discriminator (lexicographic order would serve 1);
+    // belowZero=count(< 0)=1 (negatives); bigExact=importedBump(count ==
+    // 2^53+1)=2 (beyond-safe-integer exactness, imported helper reuse).
+    assert.deepEqual(served.result, { eqTen: "2", aboveTwo: "2", belowZero: "1", bigExact: "2" });
   });
 });
