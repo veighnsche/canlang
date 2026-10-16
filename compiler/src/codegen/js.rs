@@ -2776,8 +2776,10 @@ fn is_ui_factory(factory: &str) -> bool {
             | "renderActionScope"
             | "primaryActions"
             | "actions"
+            | "accordion"
             | "alert"
             | "badge"
+            | "board"
             | "breadcrumbs"
             | "button"
             | "calendar"
@@ -2787,9 +2789,12 @@ fn is_ui_factory(factory: &str) -> bool {
             | "collapse"
             | "content"
             | "copy"
+            | "countdown"
             | "deleteRecord"
+            | "diff"
             | "divider"
             | "drawer"
+            | "dropdown"
             | "edit"
             | "fab"
             | "fieldset"
@@ -2807,17 +2812,21 @@ fn is_ui_factory(factory: &str) -> bool {
             | "modal"
             | "pagination"
             | "progress"
+            | "radialProgress"
             | "range"
             | "renderState"
             | "radio"
             | "select"
             | "stat"
             | "status"
+            | "steps"
+            | "swap"
             | "table"
             | "tabs"
             | "text"
             | "textarea"
             | "title"
+            | "toggle"
             | "tooltip"
             | "validator"
     )
@@ -2847,7 +2856,31 @@ fn ui_prop_is_admitted(factory: &str, key: &str) -> bool {
                 | "order"
                 | "search"
                 | "count"
+                | "filter"
+                | "defaults"
         ),
+        "board" => matches!(
+            key,
+            "model"
+                | "parent"
+                | "where"
+                | "limit"
+                | "cursor"
+                | "empty"
+                | "columns"
+                | "order"
+                | "search"
+                | "count"
+                | "filter"
+                | "defaults"
+                | "by"
+        ),
+        "copy" => matches!(key, "value" | "label" | "id"),
+        "toggle" => key == "field",
+        "swap" => key == "active",
+        "steps" => key == "items",
+        "countdown" => matches!(key, "value" | "caption"),
+        "radialProgress" => matches!(key, "value" | "max" | "caption"),
         "gallery" => matches!(
             key,
             "model"
@@ -3318,6 +3351,70 @@ fn guard_spellings(by: &[IrGuard]) -> (Vec<String>, bool) {
     (spellings, gated)
 }
 
+/// Transcribe one role gate to its ordered State `ByPredicate` JSON leaf:
+/// built-in actor spellings stay bare strings, declared roles become
+/// `{role}` objects. This mirrors the native T16 receiver's legacy
+/// (top-level bare strings) versus nested (bare builtins, `{role}`
+/// objects) transcription rules; `packages/state/src/policy/roles.ts`
+/// stays the authority and is reused read-only.
+fn by_role_leaf(id: &str) -> String {
+    if matches!(id, "members" | "owner" | "authenticated" | "public") {
+        js_string(id)
+    } else {
+        format!("{{\"role\":{}}}", js_string(id))
+    }
+}
+
+/// Transcribe one admission guard to its ordered State `ByPredicate` tree,
+/// preserving source order for lazy `and`/`or` evaluation. Returns `None`
+/// for subject/expression content with no static tree form, so the caller
+/// keeps the loud `gated` refusal instead of inventing a spelling.
+fn by_predicate_tree(guard: &IrGuard) -> Option<String> {
+    match guard {
+        IrGuard::Role(id) => Some(by_role_leaf(id)),
+        IrGuard::And(_) | IrGuard::Or(_) => {
+            let key = if matches!(guard, IrGuard::And(_)) {
+                "and"
+            } else {
+                "or"
+            };
+            let mut terms = Vec::new();
+            flatten_guard_terms(guard, key, &mut terms)?;
+            if terms.is_empty() {
+                return None;
+            }
+            Some(format!("{{\"{key}\":[{terms}]}}", terms = terms.join(",")))
+        }
+        IrGuard::Not(inner) => Some(format!("{{\"not\":{}}}", by_predicate_tree(inner)?)),
+        IrGuard::Subject { .. } | IrGuard::Expr(_) => None,
+    }
+}
+
+/// Splice same-combinator nesting so an authored `a or b or c` chain emits
+/// one ordered term list. Flattening is associative with identical
+/// left-to-right short-circuit order; mixed operators keep their explicit
+/// nesting, and untranscribable content still refuses via `None`.
+fn flatten_guard_terms(guard: &IrGuard, key: &str, terms: &mut Vec<String>) -> Option<()> {
+    match guard {
+        IrGuard::And(inner) if key == "and" => {
+            for guard in inner {
+                flatten_guard_terms(guard, key, terms)?;
+            }
+            Some(())
+        }
+        IrGuard::Or(inner) if key == "or" => {
+            for guard in inner {
+                flatten_guard_terms(guard, key, terms)?;
+            }
+            Some(())
+        }
+        _ => {
+            terms.push(by_predicate_tree(guard)?);
+            Some(())
+        }
+    }
+}
+
 /// A read grant may expose the same actor role identity as operation
 /// admission only when its entire checked predicate is that role gate.
 /// Row filters and expression rules retain registry-only metadata, so
@@ -3405,6 +3502,42 @@ fn operation_policy_entry(
         members.push("gated:true".to_string());
     }
     Some(format!("{{{}}}", members.join(",")))
+}
+
+/// One `policy.operations` entry with Boolean admission trees. A lone role
+/// gate keeps its exact historical `by:["spelling"]` bytes; a pure role-only
+/// compound gate emits its ordered `ByPredicate` tree as the single `by`
+/// term (the native receiver AND-joins top-level terms, so one term is the
+/// tree itself). Subject/expression gates keep the loud `gated:true` marker
+/// without an invented tree. `requires`/`when` pass through unchanged: CRUD
+/// `when` stays a sealed marker, never inlined data.
+fn operation_policy_tree_entry(by: &[IrGuard], requires: usize, has_when: bool) -> Option<String> {
+    if let [IrGuard::Role(_)] = by {
+        let (spellings, gated) = guard_spellings(by);
+        return operation_policy_entry(&spellings, gated, requires, has_when);
+    }
+    if !by.is_empty() {
+        let mut terms = Vec::with_capacity(by.len());
+        for guard in by {
+            match by_predicate_tree(guard) {
+                Some(tree) => terms.push(tree),
+                None => {
+                    let (spellings, gated) = guard_spellings(by);
+                    return operation_policy_entry(&spellings, gated, requires, has_when);
+                }
+            }
+        }
+        let mut members = vec![format!("by:[{}]", terms.join(","))];
+        if requires > 0 {
+            members.push(format!("requires:{requires}"));
+        }
+        if has_when {
+            members.push("when:true".to_string());
+        }
+        return Some(format!("{{{}}}", members.join(",")));
+    }
+    let (spellings, gated) = guard_spellings(by);
+    operation_policy_entry(&spellings, gated, requires, has_when)
 }
 
 // These private markers are never emitted. Binary-family validation and
@@ -3515,6 +3648,9 @@ struct NativeQuerySource {
 struct HookState {
     /// Trigger model symbol (same-model backstop inside lowering).
     trigger: SymbolId,
+    /// Native hooks receive the ambient operation context (`c`) from the
+    /// owning engine frame; legacy hooks bind no `c`.
+    native: bool,
 }
 
 impl<'a> Emitter<'a> {
@@ -4332,6 +4468,195 @@ impl<'a> Emitter<'a> {
         false
     }
 
+    /// Recorded human/outbound send sinks that admit localized formatted
+    /// text (outcome 7): std mail subject/body and the pinned
+    /// `catch.AlertsV1.notify(value:Alert)` message path (DESIGN §9.1).
+    /// Returned paths are send-args field segments; every other formatted
+    /// position keeps refusing, including mail `to` and send guards.
+    fn outbound_sink_paths(&self, operation: &str) -> Option<&'static [&'static [&'static str]]> {
+        if operation == "std.EmailV1.send" || operation == "std.EmailV1.send_user" {
+            return Some(&[&["subject"], &["body"]]);
+        }
+        if self.pinned_alert_notify(operation) {
+            return Some(&[&["value", "message"]]);
+        }
+        None
+    }
+
+    /// The custom adapter classifies the exact human-text path on the pinned
+    /// capability signature: `catch.AlertsV1` version 1,
+    /// `notify(value:Alert) -> AlertAccepted` with the defining
+    /// `Alert {source:text, destination:url, message:text}` schema. Field
+    /// name alone is insufficient, so an unrelated same-named capability,
+    /// an altered version, or an altered parameter schema keeps refusing.
+    fn pinned_alert_notify(&self, operation: &str) -> bool {
+        if operation != "catch.AlertsV1.notify" {
+            return false;
+        }
+        let Some(op) = self.ir.items.iter().find(|item| {
+            item.canonical == "catch.AlertsV1.notify"
+                && matches!(&item.kind, IrItemKind::CapabilityOp { params, .. } if params.len() == 1)
+        }) else {
+            return false;
+        };
+        let IrItemKind::CapabilityOp { params, result } = &op.kind else {
+            return false;
+        };
+        let Some(cap) = self.ir.items.iter().find(|item| {
+            item.canonical == "catch.AlertsV1"
+                && matches!(
+                    &item.kind,
+                    IrItemKind::Capability {
+                        version: Some(1),
+                        ..
+                    }
+                )
+        }) else {
+            return false;
+        };
+        let IrItemKind::Capability { ops, .. } = &cap.kind else {
+            return false;
+        };
+        if !ops.contains(&op.id) {
+            return false;
+        }
+        let Some(param) = self.ir.items.get(params[0].0 as usize) else {
+            return false;
+        };
+        if param.name != "value" {
+            return false;
+        }
+        let IrItemKind::Param {
+            ty: IrType::Known(ResolvedType::Record { symbol: alert, .. }),
+            ..
+        } = &param.kind
+        else {
+            return false;
+        };
+        let Some(alert_item) = self.ir.items.get(alert.0 as usize) else {
+            return false;
+        };
+        if alert_item.canonical != "catch.Alert" {
+            return false;
+        }
+        let IrType::Known(ResolvedType::Record {
+            symbol: accepted, ..
+        }) = result
+        else {
+            return false;
+        };
+        let Some(accepted_item) = self.ir.items.get(accepted.0 as usize) else {
+            return false;
+        };
+        if accepted_item.canonical != "catch.AlertAccepted" {
+            return false;
+        }
+        let IrItemKind::Contract { fields, .. } = &alert_item.kind else {
+            return false;
+        };
+        let mut actual = Vec::with_capacity(fields.len());
+        for id in fields {
+            let Some(field) = self.ir.items.get(id.0 as usize) else {
+                return false;
+            };
+            let IrItemKind::Field {
+                ty: IrType::Known(ty),
+                ..
+            } = &field.kind
+            else {
+                return false;
+            };
+            let type_id = match ty {
+                ResolvedType::Scalar(scalar) => scalar.as_str().to_string(),
+                ResolvedType::Nullable(inner) => match inner.as_ref() {
+                    ResolvedType::Scalar(scalar) => format!("{}?", scalar.as_str()),
+                    _ => return false,
+                },
+                _ => return false,
+            };
+            actual.push((field.name.clone(), type_id));
+        }
+        actual
+            == [
+                ("source".to_string(), "text".to_string()),
+                ("destination".to_string(), "url".to_string()),
+                ("message".to_string(), "text".to_string()),
+            ]
+    }
+
+    /// Field-segment paths of formatted values under `expr`, mirroring
+    /// `expr_formatted` conservatively: a tainted shape placed imprecisely
+    /// is reported at its own position (fail closed).
+    fn formatted_positions(&self, expr: &TypedExpr) -> Vec<(Vec<String>, Span)> {
+        let mut out = Vec::new();
+        let mut hidden: HashMap<String, usize> = HashMap::new();
+        let mut path = Vec::new();
+        self.collect_formatted(expr, &mut path, &mut hidden, &mut out);
+        out
+    }
+
+    fn collect_formatted(
+        &self,
+        expr: &TypedExpr,
+        path: &mut Vec<String>,
+        hidden: &mut HashMap<String, usize>,
+        out: &mut Vec<(Vec<String>, Span)>,
+    ) {
+        match &expr.expr {
+            IrExpr::Format { .. } => {
+                out.push((path.clone(), expr.span));
+            }
+            IrExpr::Name(name) => {
+                if hidden.get(name.as_str()).copied().unwrap_or(0) == 0
+                    && self
+                        .formatted_bindings
+                        .iter()
+                        .rev()
+                        .find_map(|scope| scope.get(name))
+                        .copied()
+                        .unwrap_or(false)
+                {
+                    out.push((path.clone(), expr.span));
+                }
+            }
+            IrExpr::Member { base, .. } => self.collect_formatted(base, path, hidden, out),
+            IrExpr::Call { target, args } | IrExpr::BoundCall { target, args, .. } => {
+                if matches!(target, IrCallTarget::DeriveFn(id) if self.formatted_derives.contains(id))
+                {
+                    if self.expr_formatted(expr) {
+                        out.push((path.clone(), expr.span));
+                    }
+                } else {
+                    for arg in args {
+                        self.collect_formatted(arg, path, hidden, out);
+                    }
+                }
+            }
+            IrExpr::Binary { left, right, .. } => {
+                self.collect_formatted(left, path, hidden, out);
+                self.collect_formatted(right, path, hidden, out);
+            }
+            IrExpr::Unary { operand, .. } => self.collect_formatted(operand, path, hidden, out),
+            IrExpr::Array(items) => {
+                for item in items {
+                    self.collect_formatted(item, path, hidden, out);
+                }
+            }
+            IrExpr::Object(entries) => {
+                for (key, value) in entries {
+                    path.push(key.clone());
+                    self.collect_formatted(value, path, hidden, out);
+                    path.pop();
+                }
+            }
+            _ => {
+                if self.expr_formatted(expr) {
+                    out.push((path.clone(), expr.span));
+                }
+            }
+        }
+    }
+
     fn formatted_refusal(&mut self, sink: &str, span: Span) -> String {
         self.unsupported(sink,
             "localized formatting is presentation-only; this consumer has no admitted presentation sink contract",
@@ -4389,8 +4714,8 @@ impl<'a> Emitter<'a> {
 
     /// Enter hook lowering for one trigger model: statements stage through
     /// `$hookCtx` and ambient-context expressions report `E6008`.
-    pub fn enter_hook(&mut self, trigger: SymbolId) {
-        self.hook = Some(HookState { trigger });
+    pub fn enter_hook(&mut self, trigger: SymbolId, native: bool) {
+        self.hook = Some(HookState { trigger, native });
     }
 
     /// Leave hook lowering, restoring scenario lowering.
@@ -4508,6 +4833,12 @@ impl<'a> Emitter<'a> {
     /// Whether hook lowering is active.
     fn in_hook(&self) -> bool {
         self.hook.is_some()
+    }
+
+    /// Whether hook lowering may consume the ambient operation context.
+    /// Only native hooks receive `c`; legacy hooks fail these reads closed.
+    fn hook_native(&self) -> bool {
+        self.hook.as_ref().is_some_and(|hook| hook.native)
     }
 
     /// Hook-context gap: `what` needs the ambient operation context, which
@@ -5842,10 +6173,10 @@ impl<'a> Emitter<'a> {
                 )
             }
             IrExpr::HasRole { role, person } => {
-                if self.in_hook() {
+                if self.in_hook() && !self.hook_native() {
                     return self.hook_gap(
                         "hook role gate",
-                        "role gates need the ambient context, which hooks do not receive",
+                        "role gates need the ambient context, which legacy hooks do not receive",
                         span,
                     );
                 }
@@ -6710,10 +7041,10 @@ impl<'a> Emitter<'a> {
                 {
                     return specialized;
                 }
-                if self.in_hook() {
+                if self.in_hook() && !self.hook_native() {
                     return self.hook_gap(
                         "hook derive call",
-                        "derive calls need the ambient context (c), which hooks do not receive",
+                        "derive calls need the ambient context (c), which legacy hooks do not receive",
                         span,
                     );
                 }
@@ -6747,10 +7078,10 @@ impl<'a> Emitter<'a> {
                 )
             }
             IrCallTarget::CapabilityOp(canonical) => {
-                if self.in_hook() {
+                if self.in_hook() && !self.hook_native() {
                     return self.hook_gap(
                         "hook capability call",
-                        "capability calls need the ambient context, which hooks do not receive",
+                        "capability calls need the ambient context, which legacy hooks do not receive",
                         span,
                     );
                 }
@@ -8141,7 +8472,34 @@ impl<'a> Emitter<'a> {
                 std::iter::once(domain).chain(limit.iter()).collect()
             }
         };
-        if let Some(value) = consumers.iter().find(|value| self.expr_formatted(value)) {
+        // Recorded human/outbound sends admit localized formatted text at
+        // their classified human-text paths (lowered inline through the
+        // shared formatter, frozen at send construction in authored order).
+        // Guards and every other formatted position keep refusing.
+        if let IrStmt::Send {
+            args,
+            when,
+            operation,
+            ..
+        } = stmt
+        {
+            if let Some(guard) = when.iter().find(|value| self.expr_formatted(value)) {
+                let refused = self.formatted_refusal("formatted business statement", guard.span);
+                return vec![(format!("{pad}{refused};"), guard.span)];
+            }
+            let positions = self.formatted_positions(args);
+            let admitted = self.outbound_sink_paths(operation).is_some_and(|allowed| {
+                positions.iter().all(|(path, _)| {
+                    allowed.iter().any(|ok| {
+                        ok.len() == path.len() && ok.iter().zip(path).all(|(a, b)| a == b)
+                    })
+                })
+            });
+            if !admitted && let Some((_, span)) = positions.first() {
+                let refused = self.formatted_refusal("formatted business statement", *span);
+                return vec![(format!("{pad}{refused};"), *span)];
+            }
+        } else if let Some(value) = consumers.iter().find(|value| self.expr_formatted(value)) {
             let refused = self.formatted_refusal("formatted business statement", value.span);
             return vec![(format!("{pad}{refused};"), value.span)];
         }
@@ -9952,6 +10310,21 @@ impl<'a> Emitter<'a> {
             );
             return self.throw_expr("unsupported table filter profile");
         }
+        if matches!(node.factory.as_str(), "list" | "board")
+            && node
+                .props
+                .iter()
+                .any(|(key, _)| matches!(key.as_str(), "filter" | "defaults"))
+            && !collection_filter_props_are_valid(self.ir, node)
+        {
+            let what = format!("{} filters", node.factory);
+            self.unsupported(
+                &what,
+                "enum fields and defaults need matching owned declarations and data-only where",
+                node.span,
+            );
+            return self.throw_expr("unsupported collection filter profile");
+        }
         if node.factory == "gallery" && !collection_filter_props_are_valid(self.ir, node) {
             self.unsupported(
                 "gallery",
@@ -9988,7 +10361,7 @@ impl<'a> Emitter<'a> {
                 {
                     matches!(value.expr, IrExpr::Bool(true))
                 }
-                "field" if node.factory == "checkbox" => {
+                "field" if node.factory == "checkbox" || node.factory == "toggle" => {
                     matches!(value.ty, ResolvedType::Scalar(Scalar::Text))
                 }
                 "kind" | "field" if node.factory == "calendar" => {
@@ -10256,6 +10629,8 @@ impl<'a> Emitter<'a> {
                     || node.props.iter().any(|(key, value)| {
                         key == "page" && matches!(value.expr, IrExpr::Bool(true))
                     })))
+            || (node.factory == "board"
+                && node.props.iter().any(|(key, _)| key == "filter"))
         {
             // A URL locator names this source collection occurrence. The
             // owning factory selects only from its fresh authorized result.
@@ -10330,7 +10705,7 @@ impl<'a> Emitter<'a> {
             } else if key == "order"
                 && matches!(
                     node.factory.as_str(),
-                    "list" | "table" | "gallery" | "calendar"
+                    "list" | "table" | "gallery" | "calendar" | "board"
                 )
                 && let Some(dispatched) = self.lower_dispatched_order(value)
             {
@@ -10575,7 +10950,7 @@ impl<'a> Emitter<'a> {
                         })
                         .collect();
                     props.push(format!("actions:[{}]", rest.join(",")));
-                } else if matches!(node.factory.as_str(), "chatBubble" | "modal" | "drawer") {
+                } else if matches!(node.factory.as_str(), "chatBubble" | "modal" | "drawer" | "dropdown" | "swap" | "diff") {
                     // The actual factories consume named slot props, not
                     // children or a standalone slot factory. Keep authored
                     // slot order and evaluate each descendant exactly once.
@@ -12965,15 +13340,13 @@ impl<'a> Emitter<'a> {
         for item in &self.ir.items {
             match &item.kind {
                 IrItemKind::Scenario { by, guards, .. } => {
-                    let (spellings, gated) = guard_spellings(by);
-                    let entry = operation_policy_entry(&spellings, gated, guards.len(), false);
+                    let entry = operation_policy_tree_entry(by, guards.len(), false);
                     if let Some(entry) = entry {
                         operations.push(format!("{}:{entry}", js_string(&item.canonical)));
                     }
                 }
                 IrItemKind::CrudOp { by, has_when, .. } => {
-                    let (spellings, gated) = guard_spellings(by);
-                    let entry = operation_policy_entry(&spellings, gated, 0, *has_when);
+                    let entry = operation_policy_tree_entry(by, 0, *has_when);
                     if let Some(entry) = entry {
                         operations.push(format!("{}:{entry}", js_string(&item.canonical)));
                     }
@@ -12993,30 +13366,40 @@ impl<'a> Emitter<'a> {
     }
 
     /// The `by:` member for one admission gate: the role spelling for a
-    /// single gate, or a loud `E6008` (the handler still enforces the
-    /// full gate).
+    /// lone gate, the ordered State `ByPredicate` tree for a pure role-only
+    /// Boolean gate, or a loud `E6008` for subject/expression gates (the
+    /// executable handler still enforces the full gate either way).
     fn by_member(&mut self, by: &[IrGuard], span: Span) -> Option<String> {
-        let [guard] = by else {
-            if by.is_empty() {
-                return None;
-            }
-            self.unsupported(
-                "by admission",
-                "compound gates have no operations-member lowering",
-                span,
-            );
+        if by.is_empty() {
             return None;
-        };
-        match guard {
-            IrGuard::Role(id) => Some(js_string(id)),
-            _ => {
-                self.unsupported(
-                    "by admission",
-                    "expression gates have no operations-member lowering",
-                    span,
-                );
-                None
+        }
+        if let [IrGuard::Role(id)] = by {
+            return Some(js_string(id));
+        }
+        let mut terms = Vec::with_capacity(by.len());
+        for guard in by {
+            match by_predicate_tree(guard) {
+                Some(tree) => terms.push(tree),
+                None => {
+                    self.unsupported(
+                        "by admission",
+                        if by.len() == 1 {
+                            "expression gates have no operations-member lowering"
+                        } else {
+                            "compound gates have no operations-member lowering"
+                        },
+                        span,
+                    );
+                    return None;
+                }
             }
+        }
+        if terms.len() == 1 {
+            // The native receiver AND-joins top-level terms, so one term is
+            // the tree itself.
+            Some(terms.pop().unwrap_or_default())
+        } else {
+            Some(format!("{{\"and\":[{terms}]}}", terms = terms.join(",")))
         }
     }
 
@@ -15514,7 +15897,8 @@ impl<'a> Emitter<'a> {
     /// functions with their decoded bodies.
     /// Emit the `hooks` map: one engine-shaped `{name, ops, run}`
     /// descriptor per pre-commit hook, keyed by source trigger. The run
-    /// function binds `($candidate, $hookCtx)`, builds the live `event`
+    /// function binds `($candidate, $hookCtx)` (native also binds `c`),
+    /// builds the live `event`
     /// Checked native hooks receive State's original projected snapshots and
     /// owning context; their policy binding reuses this exact callback. Legacy
     /// profiles retain the existing engine convention until their owner joins.
@@ -15574,7 +15958,7 @@ impl<'a> Emitter<'a> {
             );
             out.push(item.span, Some(item.canonical.clone()), "let $pending;");
             self.enter_scope();
-            self.enter_hook(hook.model);
+            self.enter_hook(hook.model, native);
             for guard in guards {
                 for (line, span) in self.lower_stmt(guard, 0) {
                     out.push(span, Some(item.canonical.clone()), &line);

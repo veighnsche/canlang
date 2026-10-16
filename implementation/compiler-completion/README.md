@@ -100,11 +100,146 @@ Outcome 2 implemented in `b27cd734` (Lane B commit `847798e1`): checker and
 JS emission admit `Nullable(Url)` for link only, static absent-URL marker,
 no href plus shared localized label on null; denied/presenter failures still
 throw; gate/operand/failure order unchanged. Focused
-`compiler/tests/nullable_url_link.rs` passes 3/3. TS render coverage
-(`packages/ui` leaves test, `ui_adapter` absent-URL cases) is authored but
-unrun: the shared main `node_modules` links resolve into main sources, and
-this run authorizes no private install — TS validation awaits a Codex
-decision on install ownership.
+`compiler/tests/nullable_url_link.rs` passes 3/3. TS render coverage now
+also runs via the Codex-authorized task-owned symlink overlay (root and
+per-package `node_modules` link externals to the compatible main cache and
+`@canlang/*` to integration owners; unchanged Values/Cloudflare `dist`
+reused read-only after zero-diff source verification; changed Contracts/UI
+built into owned integration `dist`; draft pinned at `4990400` from the
+local main copy after the remote ref fetch failed): `leaves.test.js`
+69/69 pass including the 3 absent-URL cases (no href, shared EN/NL
+unavailable label, authored caption, File caption default), and
+`ui_adapter nullable_url_link_destinations_render_present_and_absent_states`
+passes (present + absent states, one static marker per link). Overlay and
+owned-output cleanup owner is the coordinator; shared cache never written.
+
+Codex CHECK-RELEASE-1 acceptance (2026-10-15): independent outcome-1 probes
+PASS 5/5 at `35ca092e` (canonical flags/shared target, CLI exit 0; named
+required/unrelated defaults clean, named explicit default rejects E3011,
+eager unused helper actual rejects E3011, two reversed-named explicit-default
+arguments reject two E3011). Evidence at
+`/Users/vince/.codex/muse-runs/can-conformance-20261015/evidence/codex-boundary-probes/outcome.json`
+plus source/result siblings; Codex LINK-ACCEPT-1 acceptance (2026-10-15):
+independent package runtime checks 6/6 PASS against the built integration UI
+dist (absent URL disabled/no-href/EN caption, present URL escaping with zero
+File presenter calls, escaped authored caption, NL label, File presenter
+error identity, missing-presenter failure), evidence
+`/Users/vince/.codex/muse-runs/can-conformance-20261015/evidence/codex-link-probe.mjs`.
+Scope for both is the recorded probe set, not whole-app/order proof;
+scope is static admission availability. No further outcome-1 finding; the
+reserved cargo slot is released and compiler/package work resumed.
+
+Codex REVIEW-3 disposition (2026-10-15, takes precedence): no blanket
+page-require purity rollback. The UnsafePage `require member(actor)` case is
+not closed by the old base refusal alone; the repair direction is to name
+the exact normative authority fact it lacks (if any) and enforce that fact
+consistently, else retain admission and revise the expectation with the
+accepted DESIGN 0/3/9 + row-3 rule. Outcomes 3/4 stay OPEN pending that
+disposition; nested container gates and render-gate inventory remain ready
+local implementation gaps, not new language restrictions; native/imported-
+helper/order/denial/revocation conformance still required at recorded scope.
+
+Review-3 disposition applied (2026-10-15): the repair worker found no
+missing authority fact in the UnsafePage case (person/team supplied via the
+null-short-circuiting helper, no row read, no stored-row grant implicated;
+DESIGN §0 bounded read, §9 page-denial on false), so admission from
+`9e794037` stands and the old refusal expectation is revised with the
+accepted rule — corroborated by twin admissions
+`unbound_page_guards_admit_bounded_reads` (outcome 3) and UNBOUND_PAGE
+(outcome 4) for the identical shape. Outcomes 3 (`d1c9ab1b`, 7/7
+contextual equivalence) and 4 (`9e794037`, 8/8 inventory) are implemented;
+`membership_calls` 7/7 with the twin admit blocks; all six focused suites
+(33 tests) pass in the integrated parent. Genuine defaults/server-
+initializer restrictions and independent refusals preserved.
+
+Outcome 10 implemented in `466db826` (Lane C commit `08ee88fb`): guarded
+send occurrences reading a stored email field now pass native correspondence
+(`Scalar::Email` admitted to both field_type_id and receipt-transport
+gates, reusing accepted send-guard Rule machinery, no runtime/ABI change);
+stale/foreign authority still refuses and effects stage once in source
+order. Focused `compiler/tests/native_dispatch_email_inputs.rs` passes 3/3
+in the integrated parent; owning/inventory, admission, link, producer and
+hook suites unchanged per worker report. Codex review pending.
+
+Outcome 12 slice implemented in `a052ced3` (Lane C commit `4b64015f`):
+native hook runners bind ($candidate,$hookCtx,c) via HookState enter_hook,
+gating only the legacy derive-call E6008 gap; new
+`t31_hook_derive_call_native_context` probe passes. The commit also repairs
+three IrModule fixture initializers missing `runtime_bindings` without which
+the codegen test target does not compile at all — verified at base
+(`E0063`, pre-existing). Residual codegen failures are now classified by the REVIEW-5 discriminating
+check (base + ONLY the three mechanical fixture repairs, no production
+changes, same 7 tests): at base-control 0/7 pass; in the integrated parent
+3/7 pass — both e2e hook drivers and `localized_format` are FIXED by the
+outcome-12 hook lowering. The remaining 4 (`sequence_as_binding`,
+`catalog_factories`, both goldens) fail identically with zero of our source
+changes applied: pre-existing and unrelated to this slice. The broader
+76-occurrence scope and native consumer remain open. Codex review pending.
+
+Outcome 6 checker slice in `b164788b` (recovered B2 commit `4cab6503`):
+slotted groups, selection headers and original payload shapes lower;
+`ui_original_bindings` 25/25 pass. UI `list`/`board` render kinds remain
+open (B2's TS edits do not typecheck: unadmitted kinds, exact errors
+recorded for the successor). One `ui_adapter` case now fails: bare
+`metrics 1` publishes while B2's suite admits only row-bound metrics —
+stale expectation vs over-admission decided by the B-lane successor in
+`30252241` commit: bare page-level `metrics 1`/`copy Value`
+are admitted per DESIGN §9 (no row-scope requirement; constants need no
+grant) — old E6008 expectations stale, with twin page-level coverage;
+empty/suite/multi-header shapes still refuse at boundary codes.
+`ui_adapter` 15/15 and `ui_original_bindings` 31/31 pass in the integrated
+parent. UI `list`/`board` kinds closed by the TS remainder commit (shared
+source-filter factory extended to list/board with table/gallery pipeline,
+`BoardProps.occurrence`, labelless copy with its own value): `leaves`
+69/69, `collections` 124/124, `panels` 35/35 pass against owned rebuilt
+dists. Outcome 6 is implemented at checker/render scope (Codex review pending)
+EXCEPT one exact criterion kept OPEN per Codex REVIEW-7: bare styled cards
+must parse — probe `card $Shared` still fails E1215 expected value
+expression (evidence `/tmp/can18-style-probe-result.json`; no parser file
+changed since base, so parser-attributed, not formatter/output). Completed
+decoder/list-board/metrics slices retained. Owner: Lane B parser repair
+(heading-free card with named/inline style parses per GRAMMAR; headed
+cards stay valid; nonvisual/priority-action restrictions stay); closure on
+the probe parsing + one focused parser/check test.
+CLOSED at implementation scope: repair commit parses `card $Shared` (E1215
+gone; syntax 61/62 with the single golden failure byte-identical to base
+legacy E1211s, pre-existing); rebuilt CLI on the exact probe reports only
+E6008 missing saved generation output — the separately distinguished
+non-syntax matter. Outcome 6 is implemented (Codex review pending).
+
+Outcome 11 test map in parent (Lane A commit, 5/5 join positives +
+refusal surface incl. E3005 recursion): all 7 original calls die at
+`ScenarioDisclosure::Declined` via gates D1-D8 (param eligibility, void
+return profile, supplied-type/Member provenance, CallAs consumption,
+root-occurrence, member-domain for, effect-closure arm) — M1-M4 refuted by
+instrumented run; fix belongs to the disclosure slice now owned by Lane C.
+Outcome 11 stays OPEN pending that slice.
+First disclosure slice in `5f8d5100` (Lane C commit `0f452362`, D2/D6):
+void scenarios skip the create/return profile gate and `set()` may target
+a bound model-result child row through owning `Local::Call` provenance;
+collect_owner admits child-walk creates proven in the child's own complete
+disclosure; receipts skip call-consumption linkage for void owners.
+`cross_operation_calls` 7/7 (2 new joins with emission) plus
+call-references/membership neighbors green in parent. Remaining: D1/D3/D5/
+D7/D8 and downstream collect_owner arms.
+
+Outcome 7 compiler slice in `dba896b5` (Lane B commit `8baafab8`): send
+statements to std EmailV1 + AlertsV1 notify lower formatted values inline
+through the shared formatter, frozen at send construction in authored
+order; guards, stored writes and other positions still refuse; private-mail
+recipient path untouched. `outbound_format_sinks` 7/7 pass (now 13/13 with the sink-fix positives/
+negatives); runtime schema/adapter acceptance of the `{text,locale}`
+carrier is sequenced as a Lane-C slice and the 31-occurrence regroup needs
+full composition, so outcome 7 stays OPEN.
+
+Codex REVIEW-6 fix in `af7f23df` (Lane C commit `1601e753`): the notify
+human-text sink is classified on the pinned `catch.AlertsV1` version-1
+declaration (`notify(value:Alert)`, exact Alert schema) instead of
+operation-suffix spelling; unrelated owners, altered versions/schemas and
+non-message paths refuse; imported-alias and let-bound helper positives
+preserve frozen evaluation; std Email matching unchanged.
+`outbound_format_sinks` 13/13, `ui_adapter` 15/15, hook probes 10/10 pass
+in the integrated parent.
 
 Outcome 13 implemented in `9eb4644a` (Lane C commit `5bb44a62`): bound
 capabilities link against their checked versioned declaration instead of

@@ -1712,6 +1712,17 @@ fn collect_owner(
             }
             IrStmt::Create { .. }
                 if super::scenario_receipts::checked_created_model_result(ir, owner).is_some() => {}
+            // A child-walk create already proven in the child's own complete
+            // disclosure executes in the joined transaction in source order;
+            // only unproven top-level creates need M2/supplied accounting.
+            IrStmt::Create { span, .. }
+                if is_child
+                    && checked.effects.iter().any(|proof| {
+                        matches!(&proof.kind, DisclosureEffectKind::Create { .. })
+                            && proof.node.file == span.file
+                            && proof.node.start == span.start
+                            && proof.node.end == span.end
+                    }) => {}
             IrStmt::Create { span, .. } if depth == 0 => {
                 intermediate_creates.insert(*span);
             }

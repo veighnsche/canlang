@@ -13445,6 +13445,408 @@ impl<'a> Cx<'a> {
         })
     }
 
+    /// Decode a slotted group with a closed slot schema (`dropdown`,
+    /// `diff`): no header, no attributes, exactly the required slots once
+    /// each, no other children. Slots dissolve into named props at emission.
+    fn decode_slotted_group(
+        &mut self,
+        scope: &Scope,
+        node: &SyntaxNode,
+        row_ctx: Option<(SymbolId, String)>,
+        word: &str,
+        required: &[&str],
+        optional: &[&str],
+    ) -> Option<IrUi> {
+        self.decode_slotted_group_inner(scope, node, row_ctx, word, required, optional, false)
+    }
+
+    /// Shared slotted-group shape; `header` permits the caller-decoded
+    /// selection header (`swap` selects on a bool).
+    fn decode_slotted_group_inner(
+        &mut self,
+        scope: &Scope,
+        node: &SyntaxNode,
+        row_ctx: Option<(SymbolId, String)>,
+        word: &str,
+        required: &[&str],
+        optional: &[&str],
+        header: bool,
+    ) -> Option<IrUi> {
+        self.check_ui_attributes(node, word, &[]);
+        if !header
+            && kids(node)
+                .into_iter()
+                .any(|n| is_expression(n.kind) || n.kind == SyntaxKind::MessageValue)
+        {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                format!("cannot lower {word}: {word} takes no header"),
+                node.span,
+            ));
+            return None;
+        }
+        if !ui_attributes(self.db, node).is_empty() {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                format!("cannot lower {word}: {word} takes no options"),
+                node.span,
+            ));
+            return None;
+        }
+        let mut seen: Vec<String> = Vec::new();
+        for child in kids(node).into_iter().filter(|n| is_ui_node(n.kind)) {
+            if child.kind != SyntaxKind::Slot {
+                self.diags.push(Diagnostic::error(
+                    "E6008",
+                    format!("cannot lower {word}: {word} takes only its named slots"),
+                    child.span,
+                ));
+                return None;
+            }
+            match slot_name(self.db, child) {
+                Some(name)
+                    if (required.contains(&name.as_str())
+                        || optional.contains(&name.as_str()))
+                        && !seen.contains(&name) =>
+                {
+                    seen.push(name)
+                }
+                _ => {
+                    self.diags.push(Diagnostic::error(
+                        "E6008",
+                        format!("cannot lower {word}: {word} takes only its named slots"),
+                        child.span,
+                    ));
+                    return None;
+                }
+            }
+        }
+        for slot in required {
+            if !seen.iter().any(|name| name == slot) {
+                self.diags.push(Diagnostic::error(
+                    "E6008",
+                    format!("cannot lower {word}: {word} needs its {slot} slot"),
+                    node.span,
+                ));
+                return None;
+            }
+        }
+        let children = self.decode_ui_children(scope, node, row_ctx);
+        Some(IrUi {
+            view: None,
+            factory: word.to_string(),
+            props: Vec::new(),
+            children,
+            row_scope: None,
+            gate: self.decode_gate(scope, node),
+            span: node.span,
+        })
+    }
+
+    /// Decode a `swap`: one bool header selecting the `off`/`on` slots.
+    fn decode_swap(
+        &mut self,
+        scope: &Scope,
+        node: &SyntaxNode,
+        row_ctx: Option<(SymbolId, String)>,
+    ) -> Option<IrUi> {
+        let headers: Vec<&SyntaxNode> = kids(node)
+            .into_iter()
+            .filter(|n| is_expression(n.kind))
+            .collect();
+        let [header] = headers.as_slice() else {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower swap: swap takes one bool header".to_string(),
+                node.span,
+            ));
+            return None;
+        };
+        let state = self.decode_expr(scope, header);
+        if state.ty != ResolvedType::Scalar(Scalar::Bool) {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower swap: swap selects on a bool".to_string(),
+                header.span,
+            ));
+            return None;
+        }
+        let mut group = self.decode_slotted_group_inner(scope, node, row_ctx, "swap", &["off", "on"], &[], true)?;
+        group.props.push(("active".to_string(), state));
+        Some(group)
+    }
+
+    /// Decode `steps`: one or more `item` slots, each a single text stage.
+    /// Stages carry labels only (tones/markers have no source spelling).
+    fn decode_steps(
+        &mut self,
+        scope: &Scope,
+        node: &SyntaxNode,
+        row_ctx: Option<(SymbolId, String)>,
+    ) -> Option<IrUi> {
+        let _ = row_ctx;
+        self.check_ui_attributes(node, "steps", &[]);
+        if kids(node)
+            .into_iter()
+            .any(|n| is_expression(n.kind) || n.kind == SyntaxKind::MessageValue)
+        {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower steps: steps take no header".to_string(),
+                node.span,
+            ));
+            return None;
+        }
+        if !ui_attributes(self.db, node).is_empty() {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower steps: steps take no options".to_string(),
+                node.span,
+            ));
+            return None;
+        }
+        let slots: Vec<&SyntaxNode> = kids(node)
+            .into_iter()
+            .filter(|n| {
+                n.kind == SyntaxKind::Slot && slot_name(self.db, n).as_deref() == Some("item")
+            })
+            .collect();
+        if slots.is_empty()
+            || kids(node)
+                .into_iter()
+                .filter(|n| is_ui_node(n.kind))
+                .any(|n| n.kind != SyntaxKind::Slot || slot_name(self.db, n).as_deref() != Some("item"))
+        {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower steps: steps take one or more item slots".to_string(),
+                node.span,
+            ));
+            return None;
+        }
+        let mut items = Vec::new();
+        for slot in slots {
+            let texts: Vec<&SyntaxNode> = kids(slot)
+                .into_iter()
+                .filter(|n| {
+                    (n.kind == SyntaxKind::UiLeaf && ui_word(self.db, n) == "text")
+                        || n.kind == SyntaxKind::MessageValue
+                })
+                .collect();
+            if texts.len() != 1 {
+                self.diags.push(Diagnostic::error(
+                    "E6008",
+                    "cannot lower steps: each item slot takes one text stage".to_string(),
+                    slot.span,
+                ));
+                return None;
+            }
+            let label = if texts[0].kind == SyntaxKind::MessageValue {
+                self.decode_ui_header_value(scope, texts[0])
+            } else {
+                let headers: Vec<&SyntaxNode> = kids(texts[0])
+                    .into_iter()
+                    .filter(|n| is_expression(n.kind) || n.kind == SyntaxKind::MessageValue)
+                    .collect();
+                if headers.len() != 1 {
+                    self.diags.push(Diagnostic::error(
+                        "E6008",
+                        "cannot lower steps: each item slot takes one text stage".to_string(),
+                        texts[0].span,
+                    ));
+                    return None;
+                }
+                self.decode_ui_header_value(scope, headers[0])
+            };
+            items.push(TypedExpr::new(
+                IrExpr::Object(vec![("label".to_string(), label)]),
+                ResolvedType::Unknown,
+                slot.span,
+            ));
+        }
+        Some(IrUi {
+            view: None,
+            factory: "steps".to_string(),
+            props: vec![(
+                "items".to_string(),
+                TypedExpr::new(IrExpr::Array(items), ResolvedType::Unknown, node.span),
+            )],
+            children: Vec::new(),
+            row_scope: None,
+            gate: self.decode_gate(scope, node),
+            span: node.span,
+        })
+    }
+
+    /// Decode an `accordion`: a suite of collapse children only.
+    fn decode_accordion(
+        &mut self,
+        scope: &Scope,
+        node: &SyntaxNode,
+        row_ctx: Option<(SymbolId, String)>,
+    ) -> Option<IrUi> {
+        self.check_ui_attributes(node, "accordion", &[]);
+        if kids(node)
+            .into_iter()
+            .any(|n| is_expression(n.kind) || n.kind == SyntaxKind::MessageValue)
+        {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower accordion: accordion takes no header".to_string(),
+                node.span,
+            ));
+            return None;
+        }
+        if !ui_attributes(self.db, node).is_empty() {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower accordion: accordion takes no options".to_string(),
+                node.span,
+            ));
+            return None;
+        }
+        if kids(node).into_iter().filter(|n| is_ui_node(n.kind)).any(|n| {
+            n.kind != SyntaxKind::CatalogItem || ui_word(self.db, n) != "collapse"
+        }) {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower accordion: accordion takes collapse children only".to_string(),
+                node.span,
+            ));
+            return None;
+        }
+        let children = self.decode_ui_children(scope, node, row_ctx);
+        if children.is_empty() {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower accordion: accordion takes collapse children only".to_string(),
+                node.span,
+            ));
+            return None;
+        }
+        Some(IrUi {
+            view: None,
+            factory: "accordion".to_string(),
+            props: Vec::new(),
+            children,
+            row_scope: None,
+            gate: self.decode_gate(scope, node),
+            span: node.span,
+        })
+    }
+
+    /// Decode a `countdown`: one numeric header (view-only remaining time)
+    /// with an optional caption for its accessible name.
+    fn decode_countdown(&mut self, scope: &Scope, node: &SyntaxNode) -> Option<IrUi> {
+        self.check_ui_attributes(node, "countdown", &["caption"]);
+        let headers: Vec<&SyntaxNode> = kids(node)
+            .into_iter()
+            .filter(|n| is_expression(n.kind))
+            .collect();
+        let [header] = headers.as_slice() else {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower countdown: countdown takes one numeric header".to_string(),
+                node.span,
+            ));
+            return None;
+        };
+        let mut props = Vec::new();
+        for (name, value) in ui_attributes(self.db, node) {
+            if name != "caption" {
+                continue;
+            }
+            let Some(value) = value else {
+                self.diags.push(Diagnostic::error(
+                    "E6008",
+                    "cannot lower countdown: countdown caption takes a value".to_string(),
+                    node.span,
+                ));
+                return None;
+            };
+            props.push(("caption".to_string(), self.decode_ui_header_value(scope, value)));
+        }
+        if kids(node).into_iter().any(|n| is_ui_node(n.kind)) {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower countdown: countdown takes no content suite".to_string(),
+                node.span,
+            ));
+            return None;
+        }
+        let value = self.decode_expr(scope, header);
+        if !matches!(
+            value.ty.nullable_inner().unwrap_or(&value.ty),
+            ResolvedType::Scalar(Scalar::Int | Scalar::Decimal | Scalar::Duration)
+        ) {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower countdown: countdown takes a numeric header".to_string(),
+                header.span,
+            ));
+            return None;
+        }
+        props.push(("value".to_string(), value));
+        Some(IrUi {
+            view: None,
+            factory: "countdown".to_string(),
+            props,
+            children: Vec::new(),
+            row_scope: None,
+            gate: self.decode_gate(scope, node),
+            span: node.span,
+        })
+    }
+
+    /// Decode a `radial_progress`: one integer header with a required max,
+    /// sharing the progress value contract in circular presentation.
+    fn decode_radial_progress(
+        &mut self,
+        scope: &Scope,
+        node: &SyntaxNode,
+        row_ctx: Option<(SymbolId, String)>,
+    ) -> Option<IrUi> {
+        self.check_ui_attributes(node, "radial_progress", &["max"]);
+        let headers: Vec<&SyntaxNode> = kids(node)
+            .into_iter()
+            .filter(|n| is_expression(n.kind))
+            .collect();
+        let maxima: Vec<(String, Option<&SyntaxNode>)> = ui_attributes(self.db, node)
+            .into_iter()
+            .filter(|(name, _)| name == "max")
+            .collect();
+        let ([header], [(_, Some(maximum))]) = (headers.as_slice(), maxima.as_slice()) else {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower radial_progress: radial_progress needs one integer value and one explicit max".to_string(),
+                node.span,
+            ));
+            return None;
+        };
+        let value = self.decode_expr(scope, header);
+        let maximum = self.decode_expr(scope, maximum);
+        if value.ty.nullable_inner().unwrap_or(&value.ty) != &ResolvedType::Scalar(Scalar::Int)
+            || maximum.ty != ResolvedType::Scalar(Scalar::Int)
+            || !self.decode_ui_children(scope, node, row_ctx).is_empty()
+        {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower radial_progress: radial_progress needs body-free compatible integer values".to_string(),
+                node.span,
+            ));
+            return None;
+        }
+        Some(IrUi {
+            view: None,
+            factory: "radialProgress".to_string(),
+            props: vec![("value".into(), value), ("max".into(), maximum)],
+            children: Vec::new(),
+            row_scope: None,
+            gate: self.decode_gate(scope, node),
+            span: node.span,
+        })
+    }
+
     /// Original record details use the released activated-body contract.
     /// A selector conveys no grant: only the enclosing queried RowView owns
     /// this body and its current row/parent aliases.
@@ -13550,6 +13952,7 @@ impl<'a> Cx<'a> {
             }
             "label" | "validator" => self.decode_field_fragment(scope, node, word),
             "checkbox" => self.decode_bool_checkbox(scope, node, row_ctx),
+            "toggle" => self.decode_bool_control(scope, node, "toggle", row_ctx),
             "range" | "file_input" => self.decode_owned_control(scope, node, word, row_ctx),
             "progress" => self.decode_integer_progress(scope, node, row_ctx),
             "loading" => self.decode_loading(scope, node),
@@ -13563,6 +13966,13 @@ impl<'a> Cx<'a> {
             }
             "calendar" => self.decode_date_calendar(scope, node, row_ctx),
             "collapse" => self.decode_disclosure(scope, node, word, row_ctx),
+            "dropdown" => self.decode_slotted_group(scope, node, row_ctx, "dropdown", &["trigger", "content"], &[]),
+            "swap" => self.decode_swap(scope, node, row_ctx),
+            "diff" => self.decode_slotted_group(scope, node, row_ctx, "diff", &["before", "after"], &[]),
+            "steps" => self.decode_steps(scope, node, row_ctx),
+            "accordion" => self.decode_accordion(scope, node, row_ctx),
+            "countdown" => self.decode_countdown(scope, node),
+            "radial_progress" => self.decode_radial_progress(scope, node, row_ctx),
             "hero" => self.decode_compact_hero(scope, node, row_ctx),
             "footer" => self.decode_compact_footer(scope, node, row_ctx),
             "fieldset" => Some(self.decode_fieldset(scope, node, row_ctx)),
@@ -13583,7 +13993,7 @@ impl<'a> Cx<'a> {
             "status" => self.decode_status(scope, node, row_ctx),
             "breadcrumbs" => Some(self.decode_breadcrumbs(scope, node, row_ctx)),
             "pagination" => Some(self.decode_pagination(scope, node, row_ctx)),
-            "stat" => Some(self.decode_stat(scope, node, row_ctx)),
+            "stat" => self.decode_stat(scope, node, row_ctx),
             "alert" => Some(self.decode_alert(scope, node, row_ctx)),
             "join" => Some(self.decode_join(scope, node, row_ctx)),
             _ => {
@@ -13831,8 +14241,21 @@ impl<'a> Cx<'a> {
             input
                 .and_then(|id| self.program.types.symbol_types.get(&id))
                 .is_some_and(|ty| match word {
-                    "range" => *ty == ResolvedType::Scalar(Scalar::Int),
-                    "file_input" => *ty == ResolvedType::Scalar(Scalar::File),
+                    // Sliders cover whole and fractional owning numerics;
+                    // the runtime renders exact values without guessing bounds.
+                    "range" => matches!(
+                        ty,
+                        ResolvedType::Scalar(Scalar::Int | Scalar::Decimal)
+                    ),
+                    // An optional file input stays empty when no file is
+                    // chosen; nullability is not a separate control.
+                    "file_input" => {
+                        *ty == ResolvedType::Scalar(Scalar::File)
+                            || matches!(
+                                ty,
+                                ResolvedType::Nullable(inner) if inner.as_ref() == &ResolvedType::Scalar(Scalar::File)
+                            )
+                    }
                     _ => false,
                 })
         });
@@ -14045,7 +14468,32 @@ impl<'a> Cx<'a> {
             if !scope.in_field_owner || !scope.form_fields.as_ref().is_some_and(|fields| fields.contains(selector)) {
                 return false;
             }
+            if !scope.form_bound_fields.as_ref().is_some_and(|bound| !bound.contains(selector)) {
+                return false;
+            }
             let Some(op) = scope.field_operation else { return false; };
+            if let Some(symbol) = self.program.symbols.get(op.0 as usize)
+                && let SymbolKind::Scenario { params, trusted: false, .. } = &symbol.kind
+            {
+                let Some(data) = self.program.effects.scenarios.get(&op) else { return false; };
+                if symbol.id != op || data.scenario != op || data.module != symbol.module
+                    || data.on.is_some() || data.read || data.expose_none
+                    || !params.iter().copied().eq(data.params.iter().map(|param| param.param)) { return false; }
+                return data.params.iter().enumerate().any(|(index, param)| {
+                    self.program.symbols.get(param.param.0 as usize).is_some_and(|input| {
+                        input.id == param.param && input.module == symbol.module && input.name == *selector
+                            && matches!(&input.kind, SymbolKind::Param { owner, index: position, type_node }
+                                if *owner == op && *position == index && *type_node == param.type_node)
+                            && self.program.types.symbol_types.get(&input.id).is_some_and(|ty| {
+                                ty == &ResolvedType::Scalar(Scalar::Date)
+                                    || matches!(
+                                        ty,
+                                        ResolvedType::Nullable(inner) if inner.as_ref() == &ResolvedType::Scalar(Scalar::Date)
+                                    )
+                            })
+                    })
+                });
+            }
             let Some(data) = self.program.effects.crud_ops.get(&op) else { return false; };
             if data.op != op || !matches!(data.operation, CrudOp::Create | CrudOp::Update)
                 || !self.program.effects.cruds.get(&data.crud_decl).is_some_and(|crud| {
@@ -14059,7 +14507,13 @@ impl<'a> Cx<'a> {
             self.program.effects.models.get(&data.model).is_some_and(|model| model.fields.iter().any(|field| {
                 self.program.symbols.get(field.field.0 as usize).is_some_and(|symbol| {
                     symbol.name == *selector && matches!(symbol.kind, SymbolKind::Field { owner, .. } if owner == data.model)
-                        && self.program.types.symbol_types.get(&symbol.id) == Some(&ResolvedType::Scalar(Scalar::Date))
+                        && self.program.types.symbol_types.get(&symbol.id).is_some_and(|ty| {
+                            ty == &ResolvedType::Scalar(Scalar::Date)
+                                || matches!(
+                                    ty,
+                                    ResolvedType::Nullable(inner) if inner.as_ref() == &ResolvedType::Scalar(Scalar::Date)
+                                )
+                        })
                 })
             }))
         });
@@ -14095,7 +14549,20 @@ impl<'a> Cx<'a> {
         node: &SyntaxNode,
         row_ctx: Option<(SymbolId, String)>,
     ) -> Option<IrUi> {
-        self.check_ui_attributes(node, "checkbox", &[]);
+        self.decode_bool_control(scope, node, "checkbox", row_ctx)
+    }
+
+    /// Decode a body-free owned writable bool input (`checkbox`, `toggle`)
+    /// with no options. Ownership and the bool type resolve exactly as the
+    /// existing checkbox profile; only the factory word differs.
+    fn decode_bool_control(
+        &mut self,
+        scope: &Scope,
+        node: &SyntaxNode,
+        word: &str,
+        row_ctx: Option<(SymbolId, String)>,
+    ) -> Option<IrUi> {
+        self.check_ui_attributes(node, word, &[]);
         let headers: Vec<_> = kids(node)
             .into_iter()
             .filter(|child| is_expression(child.kind))
@@ -14145,10 +14612,10 @@ impl<'a> Cx<'a> {
                 .into_iter()
                 .any(|child| is_ui_node(child.kind) || child.kind == SyntaxKind::MessageValue)
         {
-            self.diags.push(Diagnostic::error("E6008", "cannot lower checkbox: only a body-free owned writable bool input with no options is supported".to_string(), node.span));
+            self.diags.push(Diagnostic::error("E6008", format!("cannot lower {word}: only a body-free owned writable bool input with no options is supported"), node.span));
             return None;
         }
-        Some(self.decode_field_control(scope, node, "checkbox", row_ctx))
+        Some(self.decode_field_control(scope, node, word, row_ctx))
     }
 
     /// Label and feedback placements consume the same selected writable
@@ -15560,17 +16027,61 @@ impl<'a> Cx<'a> {
         scope: &Scope,
         node: &SyntaxNode,
         row_ctx: Option<(SymbolId, String)>,
-    ) -> IrUi {
+    ) -> Option<IrUi> {
         let mut props = Vec::new();
         let headers: Vec<&SyntaxNode> = kids(node)
             .iter()
             .filter(|n| is_expression(n.kind) || n.kind == SyntaxKind::MessageValue)
             .copied()
             .collect();
+        let slotted = kids(node).iter().any(|n| n.kind == SyntaxKind::Slot);
+        if slotted {
+            if !headers.is_empty() {
+                self.diags.push(Diagnostic::error("E6008", "cannot lower stat: a slotted stat takes no value header".to_string(), node.span));
+                return None;
+            }
+            if let Some(value) = self.decode_stat_slot(scope, node, "value", row_ctx.clone()) {
+                props.push(("value".to_string(), value));
+            } else {
+                return None;
+            }
+            for slot in ["title", "description"] {
+                if let Some(caption) = self.decode_stat_slot(scope, node, slot, row_ctx.clone()) {
+                    props.push((slot.to_string(), caption));
+                }
+            }
+            if kids(node).iter().any(|n| {
+                n.kind == SyntaxKind::Slot
+                    && slot_name(self.db, n).is_some_and(|name| !matches!(name.as_str(), "value" | "title" | "description"))
+            }) {
+                self.diags.push(Diagnostic::error("E6008", "cannot lower stat: stat admits only value, title and description slots".to_string(), node.span));
+                return None;
+            }
+            if kids(node)
+                .iter()
+                .filter(|n| is_ui_node(n.kind))
+                .any(|n| n.kind != SyntaxKind::Slot || slot_name(self.db, n).is_none())
+            {
+                self.diags.push(Diagnostic::error("E6008", "cannot lower stat: a slotted stat takes only its named slots".to_string(), node.span));
+                return None;
+            }
+            return Some(IrUi {
+                view: None,
+                factory: "stat".to_string(),
+                props,
+                children: Vec::new(),
+                row_scope: None,
+                gate: self.decode_gate(scope, node),
+                span: node.span,
+            });
+        }
         let children = self.decode_ui_children(scope, node, row_ctx);
         match headers.as_slice() {
             [header] if children.is_empty() => props.push(("value".to_string(), self.decode_ui_header_value(scope, header))),
-            _ => self.diags.push(Diagnostic::error("E6008", "cannot lower stat: only one value header without a slotted suite has an owning factory profile".to_string(), node.span)),
+            _ => {
+                self.diags.push(Diagnostic::error("E6008", "cannot lower stat: only one value header without a slotted suite has an owning factory profile".to_string(), node.span));
+                return None;
+            }
         }
         for (name, value) in ui_attributes(self.db, node) {
             if let Some(value) = value {
@@ -15595,7 +16106,7 @@ impl<'a> Cx<'a> {
                 props.push((name.clone(), decoded));
             }
         }
-        IrUi {
+        Some(IrUi {
             view: None,
             factory: "stat".to_string(),
             props,
@@ -15603,7 +16114,116 @@ impl<'a> Cx<'a> {
             row_scope: None,
             gate: self.decode_gate(scope, node),
             span: node.span,
+        })
+    }
+
+    /// Extract one named stat slot's single text value (`value`, `title`
+    /// or `description`). `None` when the slot is absent; loud `E6008`
+    /// when present but not a single text value.
+    fn decode_stat_slot(
+        &mut self,
+        scope: &Scope,
+        node: &SyntaxNode,
+        slot: &str,
+        row_ctx: Option<(SymbolId, String)>,
+    ) -> Option<TypedExpr> {
+        let _ = row_ctx;
+        let mut found = kids(node).into_iter().filter(|n| {
+            n.kind == SyntaxKind::Slot && slot_name(self.db, n).as_deref() == Some(slot)
+        });
+        let slot_node = found.next()?;
+        if found.next().is_some() {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                format!("cannot lower stat: duplicate {slot} slot"),
+                node.span,
+            ));
+            return None;
         }
+        let texts: Vec<&SyntaxNode> = kids(slot_node)
+            .into_iter()
+            .filter(|n| {
+                (n.kind == SyntaxKind::UiLeaf && ui_word(self.db, n) == "text")
+                    || n.kind == SyntaxKind::MessageValue
+            })
+            .collect();
+        let text_keys: Vec<NodeKey> = texts.iter().map(|n| NodeKey::of(n)).collect();
+        let foreign = kids(slot_node)
+            .into_iter()
+            .filter(|n| is_ui_node(n.kind))
+            .any(|n| !text_keys.contains(&NodeKey::of(n)));
+        if texts.len() != 1 || foreign {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                format!("cannot lower stat: {slot} slot takes one text value"),
+                slot_node.span,
+            ));
+            return None;
+        }
+        let text_node = texts[0];
+        if text_node.kind == SyntaxKind::MessageValue {
+            return Some(self.decode_ui_header_value(scope, text_node));
+        }
+        let headers: Vec<&SyntaxNode> = kids(text_node)
+            .into_iter()
+            .filter(|n| is_expression(n.kind) || n.kind == SyntaxKind::MessageValue)
+            .collect();
+        if headers.len() != 1 {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                format!("cannot lower stat: {slot} slot takes one text value"),
+                text_node.span,
+            ));
+            return None;
+        }
+        Some(self.decode_ui_header_value(scope, headers[0]))
+    }
+
+    /// Decode a `content` leaf: one text value or message, preserving
+    /// plain-text paragraphs. A null value renders as empty (no invented
+    /// absent wording); other types keep their existing refusal.
+    fn decode_content_value(
+        &mut self,
+        scope: &Scope,
+        node: &SyntaxNode,
+    ) -> Option<TypedExpr> {
+        let headers: Vec<&SyntaxNode> = kids(node)
+            .into_iter()
+            .filter(|n| is_expression(n.kind) || n.kind == SyntaxKind::MessageValue)
+            .collect();
+        let [header] = headers.as_slice() else {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower content: content takes one text value".to_string(),
+                node.span,
+            ));
+            return None;
+        };
+        // Probe the checked type without decoding (decoding twice would
+        // duplicate diagnostics); only nullable text takes the new path.
+        let nullable_text = matches!(
+            self.node_type(header),
+            ResolvedType::Nullable(inner) if inner.as_ref() == &ResolvedType::Scalar(Scalar::Text)
+        );
+        if !nullable_text {
+            // Non-null values keep the existing caption contract exactly,
+            // including the parameterized-message binding refusal.
+            return self.decode_single_ui_caption(scope, node, "content");
+        }
+        let value = self.decode_ui_header_value(scope, header);
+        Some(TypedExpr::new(
+            IrExpr::Binary {
+                op: IrBinOp::Coalesce,
+                left: Box::new(value),
+                right: Box::new(TypedExpr::new(
+                    IrExpr::Text(String::new()),
+                    ResolvedType::Scalar(Scalar::Text),
+                    header.span,
+                )),
+            },
+            ResolvedType::Scalar(Scalar::Text),
+            header.span,
+        ))
     }
 
     /// Decode `alert`: an expression-only leaf or a readable-content
@@ -16365,6 +16985,72 @@ impl<'a> Cx<'a> {
 
     /// The collection filter is an enum-field declaration, not a query parser
     /// or an authorization grant. Its receiving preference remains page-owned.
+    /// Decode a board's `by=` enum grouping: one owned enum field whose
+    /// case names partition rows into groups.
+    fn decode_board_grouping(
+        &mut self,
+        scope: &Scope,
+        node: &SyntaxNode,
+        model: SymbolId,
+    ) -> Option<TypedExpr> {
+        let mut fail = || {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower board: board groups by one owned enum field".to_string(),
+                node.span,
+            ));
+        };
+        let group = ui_attributes(self.db, node)
+            .into_iter()
+            .find(|(name, _)| name == "by")
+            .and_then(|(_, value)| value);
+        let Some(group) = group else {
+            fail();
+            return None;
+        };
+        let paths: Vec<&SyntaxNode> = if group.kind == SyntaxKind::Selectors {
+            kids(group).into_iter().collect()
+        } else {
+            vec![group]
+        };
+        let [path] = paths.as_slice() else {
+            fail();
+            return None;
+        };
+        let names = selector_strings(self.db, path);
+        let name = names
+            .first()
+            .filter(|_| names.len() == 1 && path.kind == SyntaxKind::Path)
+            .cloned();
+        let field_id =
+            name.as_ref()
+                .and_then(|name| self.fields.get(&(model, name.clone())).copied());
+        let owned = name.as_ref().is_some_and(|name| {
+            field_id.is_some_and(|field_id| {
+                self.program.symbols.get(field_id.0 as usize).is_some_and(|symbol| {
+                    symbol.id == field_id
+                        && symbol.name == *name
+                        && symbol.module == scope.module
+                        && matches!(&symbol.kind, SymbolKind::Field { owner, .. } if *owner == model)
+                        && self.program.symbols.get(model.0 as usize).is_some_and(|item| {
+                            matches!(&item.kind, SymbolKind::Model { fields, .. } if fields.contains(&field_id))
+                        })
+                }) && self.program.types.symbol_types.get(&field_id).is_some_and(|ty| {
+                    matches!(ty, ResolvedType::Enum { cases, .. } if !cases.is_empty())
+                })
+            })
+        });
+        if !owned {
+            fail();
+            return None;
+        }
+        Some(TypedExpr::new(
+            IrExpr::Text(name.unwrap_or_default()),
+            ResolvedType::Scalar(Scalar::Text),
+            path.span,
+        ))
+    }
+
     fn decode_collection_filters(
         &mut self,
         scope: &Scope,
@@ -17388,7 +18074,7 @@ impl<'a> Cx<'a> {
                 }
             }
         }
-        if !matches!(word, "list" | "table" | "calendar" | "gallery") {
+        if !matches!(word, "list" | "table" | "calendar" | "gallery" | "board") {
             self.diags.push(Diagnostic::error(
                 "E6008",
                 format!(
@@ -17411,9 +18097,15 @@ impl<'a> Cx<'a> {
                 "parent", "empty", "limit", "cursor", "columns", "order", "search", "display",
                 "filter", "defaults",
             ]
+        } else if word == "board" {
+            &[
+                "parent", "empty", "limit", "cursor", "by", "columns", "order", "search",
+                "filter", "defaults",
+            ]
         } else {
             &[
                 "parent", "empty", "limit", "cursor", "columns", "order", "search", "display",
+                "filter", "defaults",
             ]
         };
         self.check_ui_attributes(node, word, admitted);
@@ -17525,17 +18217,17 @@ impl<'a> Cx<'a> {
             props.push(("startField".to_string(), start));
             props.push(("endField".to_string(), end));
         }
-        if matches!(word, "calendar" | "table" | "gallery") {
+        if matches!(word, "calendar" | "table" | "gallery" | "list" | "board") {
             if let Some(filters) = self.decode_collection_filters(scope, node, id, word) {
                 props.extend(filters);
-            } else if word == "table" {
+            } else if matches!(word, "table" | "list" | "board") {
                 // Retain the original authored table/body in raw IR while
                 // making the unsupported filter impossible to publish.
                 props.push((
                     "filter".to_string(),
                     TypedExpr::new(
                         IrExpr::Unsupported {
-                            what: "table filters".to_string(),
+                            what: format!("{word} filters"),
                             why: "no matching owned enum/default profile".to_string(),
                         },
                         ResolvedType::Unknown,
@@ -17545,6 +18237,12 @@ impl<'a> Cx<'a> {
             } else {
                 return None;
             }
+        }
+        if word == "board" {
+            let Some(group) = self.decode_board_grouping(scope, node, id) else {
+                return None;
+            };
+            props.push(("by".to_string(), group));
         }
         if let Some(head) = head {
             props.push((
@@ -17610,7 +18308,7 @@ impl<'a> Cx<'a> {
                 continue;
             }
             match name.as_str() {
-                "filter" | "defaults" if matches!(word, "calendar" | "table" | "gallery") => {}
+                "filter" | "defaults" if matches!(word, "calendar" | "table" | "gallery" | "list" | "board") => {}
                 "order" | "search" | "filter" | "columns" => {
                     if name == "order" && value.kind == SyntaxKind::PreferenceOrder {
                         if let Some(prop) = self.decode_preference_order(scope, value) {
@@ -18102,15 +18800,11 @@ impl<'a> Cx<'a> {
         if word == "action" {
             return self.decode_row_action(scope, node, row_ctx);
         }
-        if matches!(word, "metrics" | "copy") {
-            self.diags.push(Diagnostic::error(
-                "E6008",
-                format!(
-                    "cannot lower {word}: the source profile has no complete owning factory payload"
-                ),
-                node.span,
-            ));
-            return None;
+        if word == "copy" {
+            return self.decode_copy(scope, node);
+        }
+        if word == "metrics" {
+            return self.decode_metrics(scope, node, row_ctx);
         }
         // A2b: `delete` maps to the `deleteRecord` js name with
         // inferred props; every other leaf keeps its word.
@@ -18143,10 +18837,14 @@ impl<'a> Cx<'a> {
                     TypedExpr::new(IrExpr::Array(exprs), ResolvedType::Unknown, node.span),
                 ));
             }
-            "content" | "title" => {
-                let key = if word == "title" { "text" } else { "value" };
+            "content" => {
+                if let Some(value) = self.decode_content_value(scope, node) {
+                    props.push(("value".to_string(), value));
+                }
+            }
+            "title" => {
                 if let Some(value) = self.decode_single_ui_caption(scope, node, word) {
-                    props.push((key.to_string(), value));
+                    props.push(("text".to_string(), value));
                 }
             }
             _ => {
@@ -18179,6 +18877,134 @@ impl<'a> Cx<'a> {
             factory: word.to_string(),
             props,
             children,
+            row_scope: None,
+            gate,
+            span: node.span,
+        })
+    }
+
+    /// Decode a `copy` leaf: one text expression header, no content suite.
+    /// A null value renders as empty (nothing to copy); the accessible
+    /// label defaults to the value at the UI factory, so no wording is
+    /// invented here.
+    fn decode_copy(&mut self, scope: &Scope, node: &SyntaxNode) -> Option<IrUi> {
+        let headers: Vec<&SyntaxNode> = kids(node)
+            .iter()
+            .filter(|n| is_expression(n.kind) || n.kind == SyntaxKind::MessageValue)
+            .copied()
+            .collect();
+        let [header] = headers.as_slice() else {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower copy: copy takes one value expression".to_string(),
+                node.span,
+            ));
+            return None;
+        };
+        let value = self.decode_ui_header_value(scope, header);
+        let plain_text = value.ty == ResolvedType::Scalar(Scalar::Text);
+        let nullable_text = matches!(
+            &value.ty,
+            ResolvedType::Nullable(inner) if inner.as_ref() == &ResolvedType::Scalar(Scalar::Text)
+        );
+        if !plain_text && !nullable_text {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower copy: copy takes text values".to_string(),
+                header.span,
+            ));
+            return None;
+        }
+        let nullable = nullable_text;
+        let value = if nullable {
+            TypedExpr::new(
+                IrExpr::Binary {
+                    op: IrBinOp::Coalesce,
+                    left: Box::new(value),
+                    right: Box::new(TypedExpr::new(
+                        IrExpr::Text(String::new()),
+                        ResolvedType::Scalar(Scalar::Text),
+                        header.span,
+                    )),
+                },
+                ResolvedType::Scalar(Scalar::Text),
+                header.span,
+            )
+        } else {
+            value
+        };
+        if kids(node).iter().any(|n| is_ui_node(n.kind)) {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower copy: copy takes no content suite".to_string(),
+                node.span,
+            ));
+            return None;
+        }
+        Some(IrUi {
+            view: None,
+            factory: "copy".to_string(),
+            props: vec![("value".to_string(), value)],
+            children: Vec::new(),
+            row_scope: None,
+            gate: self.decode_gate(scope, node),
+            span: node.span,
+        })
+    }
+
+    /// Decode a `metrics` leaf: one typed scalar per expression through the
+    /// shared stat contract (a single stat, or a visual join of stats).
+    fn decode_metrics(
+        &mut self,
+        scope: &Scope,
+        node: &SyntaxNode,
+        _row_ctx: Option<(SymbolId, String)>,
+    ) -> Option<IrUi> {
+        let headers: Vec<&SyntaxNode> = kids(node)
+            .iter()
+            .filter(|n| is_expression(n.kind) || n.kind == SyntaxKind::MessageValue)
+            .copied()
+            .collect();
+        if headers.is_empty() {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower metrics: metrics takes value expressions".to_string(),
+                node.span,
+            ));
+            return None;
+        }
+        if kids(node).iter().any(|n| is_ui_node(n.kind)) {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower metrics: metrics takes no content suite".to_string(),
+                node.span,
+            ));
+            return None;
+        }
+        let mut stats = Vec::new();
+        for header in headers {
+            let value = self.decode_ui_header_value(scope, header);
+            stats.push(IrUi {
+                view: None,
+                factory: "stat".to_string(),
+                props: vec![("value".to_string(), value)],
+                children: Vec::new(),
+                row_scope: None,
+                gate: None,
+                span: header.span,
+            });
+        }
+        let gate = self.decode_gate(scope, node);
+        if stats.len() == 1 {
+            let mut stat = stats.pop().expect("single metric");
+            stat.gate = gate;
+            return Some(stat);
+        }
+        Some(IrUi {
+            view: None,
+            factory: "join".to_string(),
+            props: Vec::new(),
+            children: stats,
             row_scope: None,
             gate,
             span: node.span,

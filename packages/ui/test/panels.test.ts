@@ -726,6 +726,13 @@ describe("copy", () => {
     assert.ok(html.includes(`id="api-key" readonly`), html);
   });
 
+  it("labels a labelless value with itself", async () => {
+    const html = await copy({ context: makeContext(), value: "TOKEN-1" });
+    assert.ok(html.includes("<label>TOKEN-1"), html);
+    assert.ok(html.includes(`<input type="text" class="input" readonly value="TOKEN-1">`), html);
+    assert.ok(!html.includes("<button"), html);
+  });
+
   it("fails closed on missing labels and non-string values", async () => {
     await assert.rejects(copy({ context: makeContext(), value: "v", label: "" }), /must not be empty/);
     await assert.rejects(

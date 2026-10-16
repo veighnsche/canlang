@@ -5685,6 +5685,11 @@ fn native_result_type(ty: &ResolvedType) -> bool {
 }
 
 /// Exact first State scalar profile; nominal aliases never become text here.
+/// Email is a supported dependency transport identity alongside the other
+/// disclosed string-like scalars: the checked `email` type_id round-trips
+/// through the native receipt and the Values wire codec, which native
+/// dispatch (row 10) needs for record email inputs such as a mail recipient.
+/// Any other unlisted scalar still fails closed here.
 pub(super) fn supported_type_id(type_id: &str) -> bool {
     let base = type_id.strip_suffix('?').unwrap_or(type_id);
     let base = base.strip_suffix("[]").unwrap_or(base);
@@ -5692,6 +5697,7 @@ pub(super) fn supported_type_id(type_id: &str) -> bool {
         base,
         "int"
             | "text"
+            | "email"
             | "bool"
             | "decimal"
             | "money"
@@ -9522,6 +9528,10 @@ fn checked_scenario_create(
         ordered_created_model_effects(ir, owner, first.node, first.model, &first.binding, db)?;
     } else if checked_created_model_result(ir, owner) == Some(*model) {
         ordered_created_model_effects(ir, owner, proof.node, *model, binding, db)?;
+    } else if matches!(&owner.kind, IrItemKind::Scenario { result: None, .. }) {
+        // Void scenarios own no result row; the individually checked create
+        // executes terminally in the same transaction in source order, so no
+        // call-consumption linkage applies.
     } else {
         ordered_intermediate_call_create(ir, owner, checked, proof.node, *model, binding, db)?;
     }
@@ -9705,6 +9715,10 @@ fn checked_created_statements(
         .iter()
         .any(|statement| matches!(statement, IrStmt::Send { when: Some(_), .. }))
         && checked_created_model_result(ir, owner) == Some(result_original.model);
+    // Void scenarios own no result row; a set on their individually checked
+    // created row executes terminally in the same transaction in source
+    // order, so no guarded-send linkage applies.
+    let void_owner = matches!(&owner.kind, IrItemKind::Scenario { result: None, .. });
     for (statement, authored) in guards
         .iter()
         .zip(authored_guards)
@@ -9742,7 +9756,7 @@ fn checked_created_statements(
                 changes,
                 when: None,
                 span,
-            } if guarded_created => {
+            } if guarded_created || void_owner => {
                 let mut paths = authored
                     .children
                     .iter()

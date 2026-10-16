@@ -1222,9 +1222,42 @@ pub fn checked_read_boolean_site(
     predicate: NodeKey,
     statement: NodeKey,
 ) -> Option<CheckedDecisionSite> {
-    if types.node_types.get(&predicate) != Some(&ResolvedType::Scalar(Scalar::Bool)) {
-        return None;
-    }
+    // A Boolean result never defines permission to read (DESIGN §3): the
+    // caller admits every valid derived/page consumer shape, including
+    // non-Boolean derived fields reusing this same observer join. The
+    // predicate type still travels in each serialized call argument.
+    let collected = collect_read_calls(db, trees, resolve, types, effects, module, predicate)?;
+    Some(CheckedDecisionSite {
+        owner,
+        source: collected.source,
+        node: predicate,
+        statement,
+        stage: CheckedDecisionStage::ReadPredicate,
+        position: Vec::new(),
+        calls: collected.calls,
+    })
+}
+
+/// Owning call set behind a checked read observer: the verified source origin
+/// plus every checked decision call under the predicate, in source order.
+#[derive(Debug, Clone, PartialEq)]
+pub struct CollectedReadCalls {
+    pub source: DisclosureSource,
+    pub calls: Vec<CheckedDecisionCall>,
+}
+
+/// Model- or page-scoped callers wrap this with their own owner/stage; a
+/// page without a record owner serializes the same set without inventing one.
+#[allow(clippy::too_many_arguments)]
+pub fn collect_read_calls(
+    db: &SourceDb,
+    trees: &[(SourceId, SyntaxNode)],
+    resolve: &ResolveTables,
+    types: &TypeTable,
+    effects: &EffectTables,
+    module: ModuleId,
+    predicate: NodeKey,
+) -> Option<CollectedReadCalls> {
     let mut nodes = HashMap::new();
     let mut pending = trees
         .iter()
@@ -1270,13 +1303,8 @@ pub fn checked_read_boolean_site(
         &mut 0,
         0,
     )?;
-    Some(CheckedDecisionSite {
-        owner,
+    Some(CollectedReadCalls {
         source: cx.source(module, predicate).ok()?,
-        node: predicate,
-        statement,
-        stage: CheckedDecisionStage::ReadPredicate,
-        position: Vec::new(),
         calls,
     })
 }
@@ -12627,7 +12655,33 @@ impl<'a> Closure<'a> {
         {
             return Err(self.fail(effect.node, "set needs nonnullable direct stored receiver"));
         }
-        let mut paths = self.expr(NodeKey::of(receiver), module, env, calls)?;
+        // A set may target a bound child result row: consume its owning
+        // evaluated provenance in this flow, preserving caller, transaction
+        // and order. Other CallAs uses keep their existing refusal.
+        let receiver_key = NodeKey::of(receiver);
+        let bound_call = self
+            .resolve
+            .node_binding
+            .get(&receiver_key)
+            .or_else(|| {
+                receiver
+                    .children
+                    .iter()
+                    .find_map(|child| self.resolve.node_binding.get(&NodeKey::of(child)))
+            })
+            .and_then(|binding| match binding {
+                Binding::CallAs { node } => Some(*node),
+                _ => None,
+            });
+        let mut paths = match bound_call {
+            Some(node) => vec![env.get(&Local::Call(node)).cloned().ok_or_else(|| {
+                self.fail(
+                    receiver_key,
+                    "bound child result consumption needs its owning provenance",
+                )
+            })?],
+            None => self.expr(receiver_key, module, env, calls)?,
+        };
         if paths.iter().any(|path| path.record != Some(*model)) {
             return Err(self.fail(effect.node, "set receiver lacks binding provenance"));
         }
@@ -14110,9 +14164,12 @@ impl<'a> Closure<'a> {
         mut flows: Vec<Flow>,
         calls: &[NodeKey],
     ) -> Result<(Vec<Flow>, Vec<DisclosureReturn>), DisclosureDecline> {
-        if let Some(created) = effects
-            .iter()
-            .find(|effect| effect.verb == EffectVerb::Create)
+        // Void scenarios return no row, so no create/return profile applies;
+        // their creates are still individually disclosed below, in order.
+        if self.result_model.is_some()
+            && let Some(created) = effects
+                .iter()
+                .find(|effect| effect.verb == EffectVerb::Create)
         {
             let created_pair = self.checked_created_pair(effects, module, created);
             // Branch contents still pass the ordinary ordered Flow proof:
@@ -15188,12 +15245,18 @@ fn ordinary_file_array(ty: &ResolvedType) -> bool {
         if element.as_ref() == &ResolvedType::Scalar(Scalar::File))
 }
 
+/// Email joins the disclosed primitives: stored email fields are ordinary
+/// checked scalars with a String MCP mapping and a Values wire codec, and
+/// native dispatch (row 10) must seal record email inputs such as a mail
+/// recipient. Other unlisted scalars keep failing closed; each needs its own
+/// probe before admission.
 fn primitive_type(ty: &ResolvedType) -> bool {
     matches!(
         ty,
         ResolvedType::Scalar(
             Scalar::Int
                 | Scalar::Text
+                | Scalar::Email
                 | Scalar::Bool
                 | Scalar::Decimal
                 | Scalar::Money
