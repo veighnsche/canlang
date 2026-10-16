@@ -7707,3 +7707,12 @@ only; factory-788 extensions await intake, not merged). Independent page +
 HTTP 38/38 on immutable compiler. Supersedes MAIN-9 bool-not-accepted.
 Original24 still 351 failing; scoped consumers don't close whole workflows.
 B14 inputs unchanged.
+
+**Coordinator intake, 2026-10-16 (B14 verified):**
+B14 (`55c36c2df`, computed enum filter defaults over owned preference reads)
+VERIFIED: enum_filter_group 28/28 (per-kind admission + residuals with exact
+code/message), b1 2/2, bool 27/27, factory 28, table/calendar/gallery/radial
+green, hooks 21/21, codegen 143 + same 4 pre-existing names. Unsupported
+shapes (model-ref/text/int/date/datetime selectors, nested agenda, archived,
+expression order) keep exact refusals — extension, not absorption. Sole
+active lane: C23 (first-query).
