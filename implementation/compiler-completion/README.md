@@ -175,6 +175,27 @@ outcome-12 hook lowering. The remaining 4 (`sequence_as_binding`,
 `catalog_factories`, both goldens) fail identically with zero of our source
 changes applied: pre-existing and unrelated to this slice. The broader
 76-occurrence scope and native consumer remain open. Codex review pending.
+Delivery/message slice in `5ac99533` (Lane C commit `1fcd3eb3`): async
+native hook runners lower `await delivery(c,..)` and
+`h_localized_format(c,..)` like the role-gate precedent; legacy gaps stay
+E6008; judgment specifications keep pinned refusal in both flavors.
+`t31_hook*` 12/12 pass in the integrated parent; codegen 143 pass with only
+the 4 known pre-existing residuals.
+Outcome-7 runtime carrier verified: test-typing repair (exact contract
+shapes, `bound-mail.ts` untouched) makes owned `tsc` clean and
+`bound-mail-carrier.test.js` passes 4/4 in the integrated parent (carrier
+resolution, plain-string stability, private-mail path, malformed
+refusals). Outcome 7 is implemented: compiler lowering 13/13 + runtime
+carrier 4/4 (Codex review pending; 31-occurrence regroup belongs to
+outcome-14 composition).
+
+Outcome 9 family D implemented: bounded PaymentsV1 terminal completions
+admitted with correlation queries and receipt emission; `payment_*
+3/3` plus `standard_completion*` neighbors green in parent (worker-
+worktree failures were missing-overlay environmental, confirmed by
+parent-overlay green). Whole-program gates still fail on original24 until
+remaining composition diagnostics clear (safety gate, not relaxed).
+Outcome 9 stays OPEN pending family E grant implementation.
 
 Outcome 6 checker slice in `b164788b` (recovered B2 commit `4cab6503`):
 slotted groups, selection headers and original payload shapes lower;
@@ -216,6 +237,15 @@ failures kept. `boolean_operation_admission` 8/8 plus outbound/ui-adapter
 neighbors green in parent. Native policy receiving remains for Codex
 behavioral review. Codex review pending.
 
+Outcome 5 probes in `967d95af` (Lane B5 test-only commit `f6eb5bde`):
+three ignored red probes (cross-package import first, imported-helper
+guard first, archived-include first; green by default, red under
+`--ignored`). Localized without scope violation: import slice declines in
+`checked_first_query_source` (owner.module gate, Lane C disclosure);
+archive slice is plan-guard/receipt/emitter/runtime join (Lane C runtime).
+Outcome 5 stays OPEN pending those Lane C repairs. Exemplary ownership:
+no production files touched outside the lane.
+
 Outcome 9 family A implemented in `55c969d2` (Lane A commit `fac7bd70`):
 45/64 handler profiles (`on=Cap.event`) lower through canonical
 invocation (1-arm `HandlerSource::CapabilityEvent` → `Declared` mapping,
@@ -231,6 +261,44 @@ invocation (delivery/completion + recurring-tick suites 2/2 each, family-A
 suite green). Per Codex AUTHORITY-1, family E is NOT a design hold (DESIGN
 434/442/522 already define the grant); the missing §13 emission/runtime
 marker is an implementation gap now assigned with family D's named repair.
+Coordinator ruling recorded in DECISIONS.md (no JEV: frozen text decides):
+decision-mode body reads (§442) + explicit result grant to `by` (§522);
+fail-closed E6008 until the runtime boundary lands.
+
+Outcomes 15/16 scouted read-only (Lane C8, no builds/edits): both HELD,
+no ready batch. Outcome 15 waits on the released predecessor/desired-
+revision tuple (Compiler snapshot + State/activation host), the retained-
+work inventory, and activation-host output/authorization (none authorized
+by this spec edit). Outcome 16 waits on Dev/Interfaces verified-ingress
+(C06), Work/Dev provider+dispatch+receipt outputs and the Capability
+instance matcher (C08), the Dev authentic tuple + key correction (C18),
+frozen options/request/association + provider tuple (C20), and the
+supported Corpus workflow release. Future 15/16 batches would touch
+checker/emission (A10) and disclosure (C7) paths; do not dispatch until
+a named consumer above is released.
+Local-vs-external review (HANDOFF-2, before final closure): outcome-15
+missing tuple is external — a real predecessor/desired-revision tuple
+cannot be invented locally (fabrication), and activation output is
+explicitly unauthorized by this spec edit; the S9-Q08 leg is internally
+blocked on unreleased CF/State wire/disclosure outputs. Outcome-16 gaps
+are all held on unreleased cross-row outputs (Dev/Interfaces ingress,
+Work/Dev provider+dispatch, Capability matcher/key correction, Corpus
+workflow) outside current canonical scope — retained-held, not ready
+local work. Neither row converts to local implementation without its
+named release.
+
+Outcome 9 family E compiler slice in `bc5bc188` (Lane A commit `662826a7`):
+`read=true scope=authority` without a `#` description refuses E3001;
+`IrItemKind::Scenario.scope_authority` carries the checked fact; JS
+operations descriptor gains `scope:"authority"` with a throwing
+no-runtime-boundary handler (fail-closed) and MCP omits the grant; E6008
+kept with message naming the pending runtime boundary. New
+`scope_authority_reports` 7/7 plus admission 4/4, outbound 13/13, boolean
+8/8, cross-operation 7/7, capability-event 2/2, ui-original 31/31 green in
+parent. Runtime half OPEN: decision-mode body evaluation + result-as-grant
+in `packages/state` `invoke.ts` (hardcodes viewer) — routed to Lane C as
+C7's next batch after its current disclosure/12-rest/5-repair scope, no
+new lane. Outcome 9 stays OPEN pending that runtime boundary.
 
 Outcome 11 test map in parent (Lane A commit, 5/5 join positives +
 refusal surface incl. E3005 recursion): all 7 original calls die at
@@ -247,6 +315,16 @@ disclosure; receipts skip call-consumption linkage for void owners.
 `cross_operation_calls` 7/7 (2 new joins with emission) plus
 call-references/membership neighbors green in parent. Remaining: D1/D3/D5/
 D7/D8 and downstream collect_owner arms.
+Stale A3 pre-edit report (terminal, no edits, worktree retained with only
+the authorized values/dist symlink): on its reconstructed 24-file set the
+7 calls check as valid `DisclosureEffectKind::Call` and fail downstream
+at the emission join (static-call join yields no site → §13 unsupported),
+naming `codegen/scenario_calls.rs` as its file. This contrasts with the
+parent test map above (calls die at disclosure Declined); the two runs
+differ in base and input set (A3 total 537 vs retained 573). Both
+observations are preserved for the Lane C owner; no ownership change —
+the disclosure slice stays with C7, which must reconcile the check-stage
+vs emission-stage failure site with evidence before editing either side.
 
 Outcome 7 compiler slice in `dba896b5` (Lane B commit `8baafab8`): send
 statements to std EmailV1 + AlertsV1 notify lower formatted values inline
@@ -265,6 +343,19 @@ non-message paths refuse; imported-alias and let-bound helper positives
 preserve frozen evaluation; std Email matching unchanged.
 `outbound_format_sinks` 13/13, `ui_adapter` 15/15, hook probes 10/10 pass
 in the integrated parent.
+
+Stale B2 terminal delivery (commits `47d188e4` outcome-6, `d79af412`
+outcome-7 on old base `35ca092e`): NOT integrated — both scopes are
+superseded in parent with run (not authored-only) evidence. Outcome-6 is
+covered by `b164788b` + `30252241` + the TS remainder (leaves 69/69,
+collections 124/124, panels 35/35, ui_adapter 15/15, ui_original 31/31;
+B2's TS tests were never run). Outcome-7 `d79af412` lacks the pinned
+`catch.AlertsV1` classification (`pinned_alert_notify` in parent
+`js.rs:4492`); integrating it would regress the REVIEW-6 fix, and
+parent's 13/13 supersedes B2's 10/10. B2 worktree/snapshots preserved;
+its 5.1GiB private target cleaned after terminal owner release (no
+consumer; shared target untouched, 18GiB free). No lane-B work remains
+outstanding.
 
 Outcome 13 implemented in `9eb4644a` (Lane C commit `5bb44a62`): bound
 capabilities link against their checked versioned declaration instead of

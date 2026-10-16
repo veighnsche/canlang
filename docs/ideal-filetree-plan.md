@@ -16,6 +16,10 @@ Integrate reviewed State-read inventory/reuse, original UI bindings and styles, 
 
 Integrate provider-event handler identity, nullable completion payloads, recurring tick emission and native hook delivery/message lowering. Incoming interval `46bbb4ed..5ac99533` accounts for 7 changed paths in `can18_merge_3_20261016` of the existing registry. Reuse focused capability2/completion2/tick2 and hook12 tests plus recorded neighbor suites. Static review confirms typed identities, nullable envelope agreement, integer interval and existing async native context; legacy refusals and full runtime consumer gates remain. Existing defining owners and target allocations remain; focused new tests stay with Compiler. Reuse prior accumulated coverage; complete checkpoint remains unchanged. Original24 and required executable consumers remain open. Unfinished work stays in the running Muse checkout.
 
+### CAN18 incremental integration — can18_merge_4_20261016
+
+Integrate frozen mail-carrier runtime, bounded standard payment-completion emission, stored-query red probes and fail-closed authority-report compiler marker. Incoming interval `5ac99533..f9209893` accounts for 11 changed paths in `can18_merge_4_20261016` of the existing registry. Reuse carrier package tsc/4 tests plus independent6adapter checks, payment3/negative refusal controls, authority7 and recorded neighbors. Source review retains checked owner/type/binding correspondence, finite completion profile and deliberate authority E6008/stub; queries and runtime authority remain unfinished. Only conflict was independent DECISIONS append blocks; both retained verbatim. Existing defining owners and target allocations remain; focused new tests stay with Compiler. Reuse prior accumulated coverage; complete checkpoint remains unchanged. Original24 and required executable consumers remain open. Unfinished work stays in the running Muse checkout.
+
 ### Specification and installer documentation merge — 2026-10-15
 
 Merge installer commit `02470b74` into canonical `main` at `a70921e3`.

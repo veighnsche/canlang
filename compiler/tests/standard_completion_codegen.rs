@@ -367,7 +367,10 @@ fn public_email_cli_does_not_release_unbound_or_unsupported_terminal_sources() {
     use serde_json::Value;
     use std::process::Command;
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
-    let unsupported = "app UnsupportedTerminal\nuse std {PaymentsV1 as Cash} from=deployment.cash\nGiven\nWhen\n scenario observed on=Cash.cancel.completed\n  do let result=event.result\nThen\n";
+    // `std.PaymentsV1.cancel` left this refusal list when family D
+    // released the four PaymentsV1 terminal carriers (outcome 9):
+    // `ErrorsV1.report` remains outside the released set.
+    let unsupported = "app UnsupportedTerminal\nuse std {ErrorsV1 as Problems} from=deployment.problems\nGiven\nWhen\n scenario observed on=Problems.report.completed\n  do let result=event.result\nThen\n";
     let read_handler = "app ReadTerminal\nuse std {EmailV1 as Mail} from=deployment.mail\nGiven\nWhen\n scenario observed on=Mail.send.completed read=true\n  do let status=event.status\nThen\n";
     for (source, code) in [
         (SOURCE.to_string(), "E6008"),
