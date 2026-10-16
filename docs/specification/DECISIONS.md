@@ -18191,3 +18191,8 @@ Accepted: Board row/card binding + renderRow slot with sequential failure order;
 ## 2026-10-16 — can18_merge_29_20261016
 
 Accepted: Hook helper selected-variant emission repair: 175 linkage diagnostics gone, genuine refusals retained; canonical 298. Merge reviewed tested work incrementally into canonical `main`, preserving installer/specification changes and the active implementation branch. joint 12/12, row 1/1, ref 1/1, State 14/14, hook_lowering 26/26 on frozen f9653497/ca50. Reconcile the living file-tree plan/registry over `647ca7fd..HEAD` with existing owners; retain the complete checkpoint and all outstanding acceptance gates. A merged component is not a claim that original24 or the remaining runtime workflows are complete.
+
+
+## 2026-10-16 — can18_merge_30_20261016
+
+Accepted: Employees active_member source/closure seal: 4 original diagnostics cleared at defining producer with real State/Identity consumer. Merge reviewed tested work incrementally into canonical `main`, preserving installer/specification changes and the active implementation branch. staff consumer 1/1, membership 10/10 + bridge 10/10, originals 0 active_member on frozen bba50116/ca50. Reconcile the living file-tree plan/registry over `a54c86005..HEAD` with existing owners; retain the complete checkpoint and all outstanding acceptance gates. A merged component is not a claim that original24 or the remaining runtime workflows are complete.

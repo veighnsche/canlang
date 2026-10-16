@@ -120,6 +120,10 @@ Board row/card binding + renderRow slot with sequential failure order; covers ev
 
 Hook helper selected-variant emission repair: 175 linkage diagnostics gone, genuine refusals retained; canonical 298. Incoming interval `647ca7fd..HEAD` accounts for 2 changed paths in `can18_merge_29_20261016` of the existing registry. joint 12/12, row 1/1, ref 1/1, State 14/14, hook_lowering 26/26 on frozen f9653497/ca50. Existing defining owners and target allocations remain; focused new tests stay with Compiler. Reuse prior accumulated coverage; complete checkpoint remains unchanged. Original24 and required executable consumers remain open. Unfinished work stays in the running Muse checkout.
 
+### CAN18 incremental integration — can18_merge_30_20261016
+
+Employees active_member source/closure seal: 4 original diagnostics cleared at defining producer with real State/Identity consumer. Incoming interval `a54c86005..HEAD` accounts for 9 changed paths in `can18_merge_30_20261016` of the existing registry. staff consumer 1/1, membership 10/10 + bridge 10/10, originals 0 active_member on frozen bba50116/ca50. Existing defining owners and target allocations remain; focused new tests stay with Compiler. Reuse prior accumulated coverage; complete checkpoint remains unchanged. Original24 and required executable consumers remain open. Unfinished work stays in the running Muse checkout.
+
 ### Specification and installer documentation merge — 2026-10-15
 
 Merge installer commit `02470b74` into canonical `main` at `a70921e3`.
