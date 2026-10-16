@@ -1,38 +1,47 @@
-//! CAN18-v1 HOOKREM remainder pins: the 11 exact hook spans from the
+//! CAN18-v1 HOOKREM remainder pins: 7 of the 11 exact hook spans from the
 //! authoritative read-only capture
 //! `/Users/vince/Projects/canlang/evidence/original24-main-20261016.json`
 //! (298 E6008; do NOT merge into inputs) stay loudly refused with the exact
-//! missing prerequisite named.
+//! missing prerequisite named. The other 4 (direct reference-traversal:
+//! file 6 `event.after.plan.months` 30244..30267; file 14
+//! `event.after.location.timezone` 8978..9007 + 9331..9360; file 20
+//! `event.after.location.timezone` 15653..15682) are now ADMITTED by the
+//! C26-reference defining-owner loader below — their three synthetic pins
+//! assert the admitted `transitive.loadReference` lowering (coverage
+//! retained, not deleted), with positive State/host/joint consumers proving
+//! the behavior. Only the admitted direct shape changed its diagnostic.
 //!
 //! Coverage determination (read against the landed scope-2 stack at the
 //! defining owners — compiler emission in `codegen/js.rs`, State
-//! `loadParent` in `packages/state/src/mutation/pipeline.ts`, host
-//! `transitive.load` bridge in `packages/cloudflare/src/runtime/invoke.ts`
-//! — under accepted DESIGN 434/442, which admits hook reads over the
-//! trigger's exact containment ancestry classified by consuming site):
+//! `loadParent`/`loadReference` in `packages/state/src/mutation/pipeline.ts`,
+//! host `transitive.load`/`loadReference` bridge in
+//! `packages/cloudflare/src/runtime/invoke.ts` — under accepted DESIGN
+//! 434/442, which admits hook reads over the trigger's exact containment
+//! ancestry AND (new) its declared stored references, each classified by
+//! consuming site):
 //!
 //! * parent-content x5 (file 19 `event.after.parent.parent.location.timezone`
 //!   11789..11832 + 12187..12230; file 20
 //!   `event.after.parent.location.timezone` 14464..14500 + 14962..14998 +
 //!   15223..15259): every chain ends in a STORED-REFERENCE hop
-//!   (`Agreement.location`, `Asset.location`) outside trigger containment.
-//!   State `loadParent` serves ancestors only and refuses non-ancestors at
-//!   its containment bound (pinned by retained
+//!   (`Agreement.location`, `Asset.location`) outside trigger containment
+//!   AFTER a parent hop. State `loadParent` serves ancestors only and
+//!   refuses non-ancestors at its containment bound (pinned by retained
 //!   `non-ancestor reads refuse without distinguishing the miss`); the
 //!   compiler gaps the outermost access with `hook parent content: ...
 //!   parent field reads need the transitive load and have no hook lowering`.
-//!   Implementation gap (not a language prohibition): no transitive
-//!   reference-load owner exists yet. A future owner must carry the exact
-//!   committed-vs-staged snapshot and caller grants on referenced rows;
-//!   until such a mechanism lands, these stay refused. See 2139 correction.
-//! * reference-traversal x4 (file 6 `event.after.plan.months` 30244..30267;
-//!   file 14 `event.after.location.timezone` 8978..9007 + 9331..9360;
-//!   file 20 `event.after.location.timezone` 15653..15682): reads through
-//!   event references (`Membership.plan`, `Account.location`,
-//!   top-level `Asset.location`) — non-ancestry under the CURRENT ancestor
-//!   fence. Same missing prerequisite: `reads through event references need
-//!   the transitive load and have no hook lowering`. Stays refused until a
-//!   reference-load owner lands (C27 scope is not a prohibition).
+//!   Implementation gap for TAILS (not a language prohibition): parent+reference
+//!   tails need a chained loader (parent then reference) with combined
+//!   snapshot/authority — out of this finite first shape; a future owner must
+//!   carry the exact snapshot and caller grants. Stays refused until then.
+//! * reference-traversal x4 ADMITTED (see above): direct
+//!   `event.after.<ref>.<leaf>` reads through a declared singular stored
+//!   reference (`Membership.plan`, `Account.location`, top-level
+//!   `Asset.location`) lower via the new owner `loadReference` (edge-match
+//!   on the candidate `{id}`, transaction snapshot with staged own-writes,
+//!   decision/value sites, host caller-grant projection with revocation,
+//!   exact denied/missing failures, order/rollback preserved) — never
+//!   through `loadParent`'s ancestor fence (which stays intact).
 //! * staged x2 (file 8 `policy_snapshot_1.sequence` 59122..59148 +
 //!   59519..59545): staged bindings carry identity only (`{id}`); no
 //!   staged-content loader exists at any owner yet. Missing prerequisite:
@@ -40,12 +49,14 @@
 //!   created-record/source association and current staged view. Stays
 //!   refused until then.
 //!
-//! Each test below compiles a check-clean synthetic app with the exact
-//! remainder shape and pins the loud E6008 plus the fail-closed
-//! placeholder. The covered depth-1 prefix (`event.after.parent.zone`)
-//! keeps lowering through the landed stack — proved inside the `??`
-//! composition test. Retained suites (joint 12/12, State 14/14,
-//! hook_lowering 26/26, consumer 7/7) are NOT touched by this file.
+//! Each non-admitted test below compiles a check-clean synthetic app with
+//! the exact remainder shape and pins the loud E6008 plus the fail-closed
+//! placeholder. The three admitted reference tests assert the new lowering
+//! (`transitive.loadReference` at the value site, no placeholder). The
+//! covered depth-1 prefix (`event.after.parent.zone`) keeps lowering
+//! through the landed stack — proved inside the `??` composition test.
+//! Retained suites (joint 12/12, State 14/14, hook_lowering 26/26 — with
+//! its reference pin now admitted like here — consumer 7/7) stay green.
 //!
 //! TEST-ONLY: same explicit test-only incomplete-analysis acknowledgment
 //! with a hermetic catalog as `hook_lowering.rs`. Nothing here claims
@@ -223,56 +234,89 @@ fn hookrem_covered_prefix_lowers_while_tail_refuses() {
 
 /// File 6 shape (span 30244..30267): `event.after.plan.months` — read
 /// through the stored `Membership.plan` reference into `Plan.months`.
-/// Non-ancestry by construction; needs the transitive reference load.
+/// CAN18-v1 C26-reference ADMITTED (same defining-owner mechanism as file
+/// 14): direct snapshot stored-reference reads lower through
+/// `transitive.loadReference` (never through `loadParent`'s ancestor
+/// fence) at the consuming value site, with State edge-match (candidate
+/// `{id}` equality), transaction snapshot, caller-grant projection,
+/// revocation, and exact denied/missing failures. Parent tails and staged
+/// content below keep their refusal pins — only direct reference shapes
+/// changed, with positive State/host/joint consumers proving it.
 #[test]
 fn hookrem_plan_reference_traversal_refused() {
     let src = "app T\nGiven\n P { months:int }\n M { plan:P, months:int }\nWhen\n scenario snap on=M.create\n  do set event.after {months=event.after.plan.months}\nThen\n";
     let (js, diags, path) = hookrem_js(src);
     let _ = std::fs::remove_file(&path);
     assert!(
-        diags.iter().any(|d| d.code == "E6008"
-            && d.message.contains("hook reference traversal")
-            && d.message.contains("need the transitive load")),
-        "plan reference traversal refuses loud: {}",
+        diags.iter().all(|d| d.code != "E6008"),
+        "plan reference traversal lowers (no E6008): {}",
         codes(&diags).join("\n")
     );
-    assert!(js.contains("has no lowering"), "fail-closed placeholder:\n{js}");
+    assert!(
+        js.contains("transitive.loadReference"),
+        "reference loader, never the ancestor fence:\n{js}"
+    );
+    assert!(
+        js.contains("transitive.openScope(\"value\")"),
+        "value-site scope for body copies:\n{js}"
+    );
+    assert!(!js.contains("has no lowering"), "no fail-closed placeholder:\n{js}");
 }
 
 /// File 14 shape (spans 8978..9007, 9331..9360):
 /// `event.after.location.timezone` on the child trigger (`Account in
 /// Customer`) — read through the stored `Account.location` reference.
+/// CAN18-v1 C26-reference ADMITTED (first shape): same mechanism as above,
+/// proven by `hook-reference-reads` (State 13), `hook-reference-joint`
+/// (host 10), and the `hook_reference_traversal_refused_loud` lowering pin
+/// (now admitted). Only direct shapes changed.
 #[test]
 fn hookrem_child_location_reference_refused() {
     let src = "app T\nGiven\n L { tz:text }\n K { name:text }\n M in K { loc:L, note:text }\nWhen\n scenario arm on=M.create\n  do\n   let z=event.after.loc.tz\n   set event.after {note=z}\nThen\n";
     let (js, diags, path) = hookrem_js(src);
     let _ = std::fs::remove_file(&path);
     assert!(
-        diags.iter().any(|d| d.code == "E6008"
-            && d.message.contains("hook reference traversal")
-            && d.message.contains("need the transitive load")),
-        "child location traversal refuses loud: {}",
+        diags.iter().all(|d| d.code != "E6008"),
+        "child location traversal lowers (no E6008): {}",
         codes(&diags).join("\n")
     );
-    assert!(js.contains("has no lowering"), "fail-closed placeholder:\n{js}");
+    assert!(
+        js.contains("transitive.loadReference"),
+        "reference loader, never the ancestor fence:\n{js}"
+    );
+    assert!(
+        js.contains("transitive.openScope(\"value\")"),
+        "value-site scope for body copies:\n{js}"
+    );
+    assert!(!js.contains("has no lowering"), "no fail-closed placeholder:\n{js}");
 }
 
 /// File 20 retire_asset shape (span 15653..15682):
 /// `event.after.location.timezone` where the trigger itself is top-level
 /// (`Asset`, no parent) — the first hop is already a stored reference.
+/// CAN18-v1 C26-reference ADMITTED (same mechanism): top-level triggers
+/// read their declared stored references through the same owner snapshot
+/// and caller-grant projection; the ancestor fence stays intact because
+/// the load never goes through `loadParent`.
 #[test]
 fn hookrem_toplevel_location_reference_refused() {
     let src = "app T\nGiven\n L { tz:text }\n A { loc:L, note:text }\nWhen\n scenario arm on=A.create\n  do\n   let z=event.after.loc.tz\n   set event.after {note=z}\nThen\n";
     let (js, diags, path) = hookrem_js(src);
     let _ = std::fs::remove_file(&path);
     assert!(
-        diags.iter().any(|d| d.code == "E6008"
-            && d.message.contains("hook reference traversal")
-            && d.message.contains("need the transitive load")),
-        "top-level location traversal refuses loud: {}",
+        diags.iter().all(|d| d.code != "E6008"),
+        "top-level location traversal lowers (no E6008): {}",
         codes(&diags).join("\n")
     );
-    assert!(js.contains("has no lowering"), "fail-closed placeholder:\n{js}");
+    assert!(
+        js.contains("transitive.loadReference"),
+        "reference loader, never the ancestor fence:\n{js}"
+    );
+    assert!(
+        js.contains("transitive.openScope(\"value\")"),
+        "value-site scope for body copies:\n{js}"
+    );
+    assert!(!js.contains("has no lowering"), "no fail-closed placeholder:\n{js}");
 }
 
 /// File 8 shape (spans 59122..59148, 59519..59545):

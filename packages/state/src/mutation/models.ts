@@ -263,6 +263,24 @@ export interface OwnerMutationHookParentReads {
 }
 
 /**
+ * CAN18-v1 reference loader at the defining State owner: exact-ID loads over
+ * the trigger's DECLARED stored references only (file 14 `Account.location`
+ * first shape), served from the owner transaction snapshot (staged
+ * own-writes win, never raw committed storage). Same consuming-site
+ * authority as parent loads: `decision` serves at owner authority with no
+ * withheld fields; `value` serves the exact row with every data field
+ * withheld for the host viewer projection. The ancestor fence in
+ * `loadParent` is untouched — referenced identities never go through it.
+ * Guessed/foreign/tampered ids refuse at the reference bound without
+ * distinguishing the miss; genuine-but-missing targets are `not_found`.
+ */
+export type OwnerMutationHookReferenceSite = OwnerMutationHookParentSite;
+export type OwnerMutationHookReferenceRead = OwnerMutationHookParentRead;
+export interface OwnerMutationHookReferenceReads {
+  load(model: ModelName, id: RecordId, site: OwnerMutationHookReferenceSite): Promise<OwnerMutationHookReferenceRead>;
+}
+
+/**
  * Hook run context: provisional-before row, caller intent, attribution.
  *
  * T31 (Rule A): `before` is a deep-frozen snapshot — hook mutation attempts

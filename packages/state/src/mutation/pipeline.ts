@@ -59,6 +59,8 @@ import {
   type OwnerMutationHookParentRead,
   type OwnerMutationHookParentReads,
   type OwnerMutationHookParentSite,
+  type OwnerMutationHookReferenceRead,
+  type OwnerMutationHookReferenceSite,
   type InterimModelDef,
   type InterimServerInit,
   type ModelTable,
@@ -190,6 +192,13 @@ export interface OwnerMutationHookContext extends InterimHookContext {
    * requirement. Loader failures are hook failures: the batch voids.
    */
   readonly loadParent: OwnerMutationHookParentReads['load'];
+  /**
+   * CAN18-v1 referenced-row loader (file 14 `Account.location` first
+   * shape): exact-ID loads over the trigger's declared stored references,
+   * same snapshot/authority/rollback as `loadParent`. Never a `loadParent`
+   * bypass — non-ancestor identities stay out of the ancestor fence.
+   */
+  readonly loadReference: import('./models.js').OwnerMutationHookReferenceReads['load'];
 }
 const ownerHookContexts = new WeakSet<object>();
 
@@ -1306,6 +1315,61 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
         return Object.freeze({ model, row: deepFreeze(structuredClone(row)) as StoredRow,
           withheld: Object.freeze(withheld) });
       })();
+      // CAN18-v1 referenced-row loader for this fire (file 14
+      // `Account.location` first shape). Same snapshot/authority/rollback
+      // as `loadParent`, over the trigger's DECLARED stored references —
+      // never through the ancestor fence above. The entry candidate
+      // supplies the authoritative reference edge: only (model,id) equal
+      // to the trigger's current `{id}` value for a declared ref field
+      // targeting that model serves. Anything else (foreign models,
+      // guessed ids, the trigger itself, tampered edges) exceeds the
+      // trigger reference bound without distinguishing the miss.
+      // Withheld semantics match `loadParent` exactly so the host viewer
+      // projection narrows value reads per the triggering caller's
+      // row/field authority (revocation included); decision reads serve
+      // at owner authority. Missing genuine targets are `not_found`.
+      const entryCandidate: Readonly<Record<string, unknown>> = current;
+      const loadReference = (
+        model: ModelName, id: RecordId, site: OwnerMutationHookReferenceSite,
+      ): Promise<OwnerMutationHookReferenceRead> => (async () => {
+        if (owner !== undefined && !hookActive) {
+          throw new StateError('validation', 'Owner hook scope is closed.');
+        }
+        healthy();
+        consumeWork();
+        if (site !== 'decision' && site !== 'value') {
+          throw new StateError('validation', 'Hook reference read requires its decision or value site.');
+        }
+        if (!table.has(model) || typeof id !== 'string' || id === '') {
+          throw new StateError('validation', 'Owner mutation reads require a known model and record identity.');
+        }
+        const triggerDef = table.get(def.model);
+        if (triggerDef === undefined) {
+          throw new StateError('validation', 'Hook reference read exceeds its trigger reference bound.');
+        }
+        const candidateRefs = triggerDef.refs.filter((ref) => (ref.model as string) === (model as string));
+        if (candidateRefs.length === 0) {
+          throw new StateError('validation', 'Hook reference read exceeds its trigger reference bound.');
+        }
+        let edgeMatches = false;
+        for (const ref of candidateRefs) {
+          consumeWork();
+          const value = getDataPath(entryCandidate, ref.field);
+          if (typeof value === 'object' && value !== null && !Array.isArray(value) &&
+            (value as Readonly<Record<string, unknown>>)['id'] === (id as string)) {
+            edgeMatches = true;
+            break;
+          }
+        }
+        if (!edgeMatches) {
+          throw new StateError('validation', 'Hook reference read exceeds its trigger reference bound.');
+        }
+        const row = await getRow(model, id);
+        if (row === null) throw new StateError('not_found', 'Referenced record not found.');
+        const withheld = site === 'decision' ? new Set<string>() : new Set<string>(Object.keys(row.data));
+        return Object.freeze({ model, row: deepFreeze(structuredClone(row)) as StoredRow,
+          withheld: Object.freeze(withheld) });
+      })();
       const ctx: InterimHookContext = {
         before: frozenBefore,
         op,
@@ -1360,7 +1424,7 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
       // mutate the pipeline candidate nor smuggle uncloneable values forward
       // (or retain an alias and mutate it after returning).
       const carrier: InterimHookContext | OwnerMutationHookContext = owner === undefined ? ctx : Object.freeze({
-        ...ctx, context: stageContext, input: options.input!, loadParent,
+        ...ctx, context: stageContext, input: options.input!, loadParent, loadReference,
         after: op === 'remove' ? null : deepFreeze({
           id: triggerId, version: before === null ? 1 as RecordVersion : nextVersion(def.model, triggerId, before),
           created: before?.created ?? now, updated: now, createdBy: before?.createdBy ?? actor,

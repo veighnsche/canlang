@@ -1,0 +1,7 @@
+package hprefjointhelpers
+ use HookReferenceJoint {Location}
+ Given
+  export derive isActiveExt(loc:Location):bool = loc.timezone=="UTC"
+  export derive zoneExt(loc:Location):text = loc.timezone
+ When
+ Then

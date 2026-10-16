@@ -3983,6 +3983,13 @@ pub struct Emitter<'a> {
     /// would lower hook-only restrictions over ordinary helpers no hook
     /// ever calls, reporting `E6008` at previously-clean sites.
     hook_variant_selected: BTreeSet<String>,
+    /// CAN18-v1 reference variants: subset of `hook_variant_selected`
+    /// whose selecting call sites carried reference linkages (file 14
+    /// first shape). Parent variants stay in `selected` only. A derive
+    /// selected for both kinds at different sites stays fail-closed at
+    /// the second site (see `hook_derive_call`) so one emitted variant
+    /// never mixes loaders.
+    hook_variant_reference: std::collections::HashSet<String>,
     diags: Vec<Diagnostic>,
     builtins: Vec<ReferencedBuiltin>,
     callables: Vec<JsCallable>,
@@ -4021,6 +4028,12 @@ pub struct Emitter<'a> {
     /// context path differs (`c.transitive`, the ambient context the
     /// module-scope helper receives, rather than `$hookCtx.transitive`).
     hook_helper_links: Option<HashMap<String, (SymbolId, String)>>,
+    /// True while emitting a reference-variant helper body (see
+    /// `hook_variant_reference`): linkage reads lower through
+    /// `c.transitive.loadReference` at the inherited site. False (parent
+    /// variants) keeps the existing `c.transitive.load`. `None` outside
+    /// helper emission mirrors `hook_helper_links`.
+    hook_helper_reference: bool,
     /// Bounded-loop sequence: each `for ... limit` binds its own
     /// `$forRowsN` fetch, so sequential loops never redeclare one
     /// binding (source order keeps numbering deterministic).
@@ -4152,7 +4165,11 @@ enum HookBase {
 /// (`Refuse`, reported as `E6008` by the caller).
 enum HookDerive {
     AsIs,
-    Hook((String, String)),
+    /// Hook variant plus inherited site plus whether the selecting linkage
+    /// is a reference edge (file-14 first shape) rather than a parent edge.
+    /// Call sites record the kind so one emitted variant never mixes
+    /// loaders; mixed uses stay fail-closed.
+    Hook((String, String, bool)),
     Refuse,
 }
 
@@ -4224,6 +4241,7 @@ impl<'a> Emitter<'a> {
             relative: BTreeMap::new(),
             derive_calls: BTreeSet::new(),
             hook_variant_selected: BTreeSet::new(),
+            hook_variant_reference: std::collections::HashSet::new(),
             diags: Vec::new(),
             builtins: Vec::new(),
             callables: Vec::new(),
@@ -4233,6 +4251,7 @@ impl<'a> Emitter<'a> {
             hook_closure_depth: 0,
             hook_decision_depth: 0,
             hook_helper_links: None,
+            hook_helper_reference: false,
             loop_seq: 0,
             bindings: vec![HashMap::new()],
             binding_seq: 0,
@@ -5498,6 +5517,69 @@ impl<'a> Emitter<'a> {
         Some((*parent, parent_item.canonical.clone()))
     }
 
+    /// Declared stored-reference link for direct snapshot reference reads
+    /// (CAN18-v1 file 14 `Account.location` first shape): `base` is
+    /// `event.after.<ref>` or `event.before.<ref>` (or the same through a
+    /// snapshot alias), where `<ref>` is a declared singular stored
+    /// reference field on the trigger model. Returns the reference field
+    /// name plus the target model (symbol and canonical) for the
+    /// transitive reference load. `None` for parent linkages, staged
+    /// bindings, deeper chains and non-reference fields — those keep their
+    /// existing classification.
+    fn hook_reference_link(&self, base: &TypedExpr) -> Option<(String, SymbolId, String)> {
+        let crate::codegen::ir::IrExpr::Member { base: root, field: ref_field } = &base.expr else {
+            return None;
+        };
+        if !matches!(
+            self.hook_base_class(root),
+            HookBase::Root | HookBase::Snapshot
+        ) {
+            return None;
+        }
+        let trigger = self.hook.as_ref()?.trigger;
+        // A trigger may carry several items with one field name across its
+        // model/CRUD surfaces; take the declared singular stored reference
+        // (not merely the first name/owner match) so CRUD inclusion never
+        // shadows the model edge.
+        let mut target_opt: Option<SymbolId> = None;
+        for item in self.ir.items.iter() {
+            if item.name != *ref_field {
+                continue;
+            }
+            let IrItemKind::Field {
+                owner,
+                ty: IrType::Known(field_ty),
+                ..
+            } = &item.kind
+            else {
+                continue;
+            };
+            if *owner != trigger {
+                continue;
+            }
+            match field_ty {
+                ResolvedType::Record { symbol, stored: true } => {
+                    target_opt = Some(*symbol);
+                    break;
+                }
+                ResolvedType::Nullable(inner) => match &**inner {
+                    ResolvedType::Record { symbol, stored: true } => {
+                        target_opt = Some(*symbol);
+                        break;
+                    }
+                    _ => continue,
+                },
+                _ => continue,
+            }
+        }
+        let target = target_opt?;
+        let target_item = self.ir.items.get(target.0 as usize)?;
+        if target_item.id != target {
+            return None;
+        }
+        Some((ref_field.clone(), target, target_item.canonical.clone()))
+    }
+
     /// Whether `field` is a declared readable parent field for the
     /// transitive load: same declared-field correspondence as snapshots
     /// (leaf scalars, carried stored references, arrays thereof), never
@@ -5521,25 +5603,34 @@ impl<'a> Emitter<'a> {
         if parent_item.id != parent {
             return false;
         };
-        let Some(field_id) = self.ir.items.iter().find_map(|item| {
-            (item.name == field
-                && matches!(&item.kind, IrItemKind::Field { owner, ty: IrType::Known(_), .. } if *owner == parent))
-            .then_some(item.id)
-        }) else {
-            return false;
-        };
-        let IrItemKind::Field {
-            ty: IrType::Known(field_ty),
-            modifiers,
-            ..
-        } = &self.ir.items[field_id.0 as usize].kind
-        else {
-            return false;
-        };
-        if modifiers.machine || field_ty != expr_ty {
-            return false;
+        // Several items may share one field name across model/CRUD
+        // surfaces; admit when ANY declared field with this name on the
+        // model matches the read type and allowed shape (CRUD inclusion
+        // never shadows the model edge).
+        for item in self.ir.items.iter() {
+            if item.name != field {
+                continue;
+            }
+            let IrItemKind::Field {
+                owner,
+                ty: IrType::Known(field_ty),
+                modifiers,
+                ..
+            } = &item.kind
+            else {
+                continue;
+            };
+            if *owner != parent {
+                continue;
+            }
+            if modifiers.machine || field_ty != expr_ty {
+                continue;
+            }
+            if self.hook_parent_value_allowed(field_ty) {
+                return true;
+            }
         }
-        self.hook_parent_value_allowed(field_ty)
+        false
     }
 
     /// Readable parent value shapes: leaf scalars (nullable included),
@@ -5662,7 +5753,58 @@ impl<'a> Emitter<'a> {
                     ))
                 }
             }
-            HookBase::Shallow | HookBase::DeepRef => Some(self.hook_gap(
+            HookBase::Shallow => {
+                if field == "id" || field == "model" {
+                    None
+                } else if self.hook_closure_depth > 0 {
+                    Some(self.hook_gap(
+                        "hook reference content",
+                        "reference field reads inside hook closures have no hook lowering",
+                        span,
+                    ))
+                } else if let Some((_ref_field, target, canonical)) = self.hook_reference_link(base)
+                    && self.hook_parent_field_allowed(target, field, expr_ty)
+                {
+                    // CAN18-v1 direct snapshot reference reads (file 14
+                    // `Account.location` first shape): same consuming-site
+                    // mode/site/arity discipline as parent loads, through
+                    // the defining State `loadReference` — never through
+                    // `loadParent`'s ancestor fence. Decisions open
+                    // `'decision'` scopes; body/value copies open `'value'`
+                    // for the host caller projection. Denied/withheld/
+                    // missing reads throw before value access; nullable
+                    // normalization keeps its meaning.
+                    let site = if self.hook_decision_depth > 0 {
+                        "decision"
+                    } else {
+                        "value"
+                    };
+                    let base_text = self.lower_expr(base);
+                    let base_text = parenthesize_operand(&base_text, &base.expr);
+                    let access = if object_key(field) == field {
+                        format!(".{field}")
+                    } else {
+                        format!("[{}]", js_string(field))
+                    };
+                    let read = format!(
+                        "(await (async($hookRef)=>{{if($hookRef==null)throw new Error(\"hook reference content missing\");const $hookScope=await $hookCtx.transitive.openScope({});const $hookRow=await $hookCtx.transitive.loadReference($hookScope,{},$hookRef.id);if($hookRow===null)throw new Error(\"hook reference content missing\");return $hookRow.data{access};}})({base_text}))",
+                        js_string(site),
+                        js_string(&canonical),
+                    );
+                    if expr_ty.nullable_inner().is_some() {
+                        Some(format!("({read} ?? null)"))
+                    } else {
+                        Some(read)
+                    }
+                } else {
+                    Some(self.hook_gap(
+                        "hook reference traversal",
+                        "reads through event references need the transitive load and have no hook lowering",
+                        span,
+                    ))
+                }
+            }
+            HookBase::DeepRef => Some(self.hook_gap(
                 "hook reference traversal",
                 "reads through event references need the transitive load and have no hook lowering",
                 span,
@@ -5693,7 +5835,40 @@ impl<'a> Emitter<'a> {
                 return true;
             }
         }
-        self.in_hook() && self.hook_base_class(arg) == HookBase::Parent
+        if !self.in_hook() {
+            return false;
+        }
+        if self.hook_base_class(arg) == HookBase::Parent {
+            return true;
+        }
+        // CAN18-v1 reference linkages (file 14 `Account.location` first
+        // shape): direct snapshot stored-reference edges carry the same
+        // linkage meaning as parent linkages for helper selection —
+        // identity only, with declared fields loading through the
+        // reference loader at the inheriting site.
+        if self.hook_base_class(arg) == HookBase::Shallow && self.hook_reference_link(arg).is_some() {
+            return true;
+        }
+        false
+    }
+
+    /// Whether a call argument carries a hook REFERENCE linkage (distinct
+    /// from a parent linkage): a direct snapshot stored-reference edge for
+    /// the file-14 first shape. Used to select the reference loader for
+    /// helper variants; parent linkages keep the parent loader.
+    fn hook_reference_linkage_arg(&self, arg: &TypedExpr) -> bool {
+        if let Some(links) = &self.hook_helper_links {
+            // Inside helper bodies, linkage-ness is by param name alone;
+            // the loader kind is decided at variant emission from the
+            // selecting call sites (see `hook_variant_kind`). Here we only
+            // classify hook-body call args.
+            if matches!(&arg.expr, IrExpr::Name(name) if links.contains_key(name)) {
+                return false;
+            }
+        }
+        self.in_hook()
+            && self.hook_base_class(arg) == HookBase::Shallow
+            && self.hook_reference_link(arg).is_some()
     }
 
     /// Record-helper call shape for one derive target: pure (`AsIs`), the
@@ -5721,14 +5896,31 @@ impl<'a> Emitter<'a> {
             return HookDerive::Refuse;
         };
         if helper {
-            return HookDerive::Hook((variant, "$hookSite".to_string()));
+            // Nested linkage inside a variant body inherits the outer
+            // variant's loader kind (parent vs reference) via
+            // `hook_helper_reference` at emission; the inner selection
+            // carries that kind forward so mixed nesting stays fail-closed
+            // at the call site below.
+            return HookDerive::Hook((variant, "$hookSite".to_string(), self.hook_helper_reference));
+        }
+        // Top-level hook-body call: classify parent vs reference linkages.
+        // Mixed kinds in one call stay fail-closed — one emitted variant
+        // never mixes loaders.
+        let has_parent = args.iter().any(|arg| {
+            self.hook_helper_links.is_none()
+                && self.in_hook()
+                && self.hook_base_class(arg) == HookBase::Parent
+        });
+        let has_reference = args.iter().any(|arg| self.hook_reference_linkage_arg(arg));
+        if has_parent && has_reference {
+            return HookDerive::Refuse;
         }
         let site = if self.hook_decision_depth > 0 {
             "\"decision\""
         } else {
             "\"value\""
         };
-        HookDerive::Hook((variant, site.to_string()))
+        HookDerive::Hook((variant, site.to_string(), has_reference))
     }
 
     /// One stored-record parameter's hook linkage: source name plus the
@@ -5777,10 +5969,12 @@ impl<'a> Emitter<'a> {
     /// `loc` is a record-typed parameter): identity (`.id`) lowers
     /// ordinarily; declared fields load through `c.transitive` at the
     /// inherited `$hookSite` (same declared-field correspondence and
-    /// nullable normalization as inline parent loads, same arity and
-    /// fence checks — only the context path differs, since module-scope
-    /// helpers receive `c`, not `$hookCtx`). Anything else (closures,
-    /// undeclared fields) gaps loud with `E6008`.
+    /// nullable normalization as inline loads, same arity and fence
+    /// checks — only the context path differs, since module-scope helpers
+    /// receive `c`, not `$hookCtx`). Parent variants use `load`; reference
+    /// variants (file-14 first shape, see `hook_variant_reference`) use
+    /// `loadReference` — never through the ancestor fence. Anything else
+    /// (closures, undeclared fields) gaps loud with `E6008`.
     fn hook_helper_member(
         &mut self,
         base: &TypedExpr,
@@ -5823,10 +6017,17 @@ impl<'a> Emitter<'a> {
         } else {
             format!("[{}]", js_string(field))
         };
-        let read = format!(
-            "(await (async($hookLink)=>{{if($hookLink==null)throw new Error(\"hook parent content missing\");const $hookScope=await c.transitive.openScope($hookSite);const $hookRow=await c.transitive.load($hookScope,{},$hookLink.id);if($hookRow===null)throw new Error(\"hook parent content missing\");return $hookRow.data{access};}})({link}))",
-            js_string(&canonical),
-        );
+        let read = if self.hook_helper_reference {
+            format!(
+                "(await (async($hookLink)=>{{if($hookLink==null)throw new Error(\"hook reference content missing\");const $hookScope=await c.transitive.openScope($hookSite);const $hookRow=await c.transitive.loadReference($hookScope,{},$hookLink.id);if($hookRow===null)throw new Error(\"hook reference content missing\");return $hookRow.data{access};}})({link}))",
+                js_string(&canonical),
+            )
+        } else {
+            format!(
+                "(await (async($hookLink)=>{{if($hookLink==null)throw new Error(\"hook parent content missing\");const $hookScope=await c.transitive.openScope($hookSite);const $hookRow=await c.transitive.load($hookScope,{},$hookLink.id);if($hookRow===null)throw new Error(\"hook parent content missing\");return $hookRow.data{access};}})({link}))",
+                js_string(&canonical),
+            )
+        };
         if expr_ty.nullable_inner().is_some() {
             Some(format!("({read} ?? null)"))
         } else {
@@ -8133,9 +8334,35 @@ impl<'a> Emitter<'a> {
                         );
                         return self.throw_expr("unsupported hook derive linkage");
                     }
-                    HookDerive::Hook((variant, site)) => {
+                    HookDerive::Hook((variant, site, is_reference)) => {
+                        // One variant never mixes loaders: a derive selected
+                        // for both parent and reference linkages at different
+                        // sites stays fail-closed at the second site.
+                        if self.hook_variant_selected.contains(canonical) {
+                            let was_reference = self.hook_variant_reference.contains(canonical);
+                            if was_reference != is_reference {
+                                self.unsupported(
+                                    "hook derive call",
+                                    "linkage arguments need their record-parameter hook variant",
+                                    span,
+                                );
+                                return self.throw_expr("unsupported hook derive linkage");
+                            }
+                        } else {
+                            self.hook_variant_selected.insert(canonical.clone());
+                            if is_reference {
+                                self.hook_variant_reference.insert(canonical.clone());
+                            }
+                        }
+                        // Nested linkage inside a variant body inherits the
+                        // outer kind: the inner selection already carried it
+                        // above, and the same mixed check applies — but the
+                        // inner `selected` bookkeeping above used the call
+                        // site's own record; for `helper` (nested) calls the
+                        // outer `hook_helper_reference` already decided the
+                        // loader, so no extra bookkeeping beyond the shared
+                        // selected/reference sets is needed here.
                         self.derive_calls.insert(canonical.clone());
-                        self.hook_variant_selected.insert(canonical.clone());
                         let mut all = vec!["c".to_string(), site];
                         all.extend(parts.iter().cloned());
                         return format!(
@@ -17659,9 +17886,12 @@ impl<'a> Emitter<'a> {
                 defaults.push_str(&format!("if({bound}===undefined){{{bound}={value};}}"));
             }
         }
+        let is_reference = self.hook_variant_reference.contains(&canonical);
         let prior = self.hook_helper_links.replace(links);
+        let prior_ref = std::mem::replace(&mut self.hook_helper_reference, is_reference);
         let body_text = self.lower_expr(hook_body);
         self.hook_helper_links = prior;
+        self.hook_helper_reference = prior_ref;
         out.push(
             span,
             Some(canonical),

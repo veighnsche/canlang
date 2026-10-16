@@ -830,23 +830,36 @@ fn hook_record_helper_staged_linkage_refused_loud() {
     );
 }
 
-/// (Outcome 12, out-of-scope.) Reads through event references
-/// (`event.after.location.timezone`, CanSuccess `account_created`,
-/// CanMaintain `activate_plan`) refuse loud for the same reason.
+/// (CAN18-v1 C26-reference, file 14 `Account.location` first shape.)
+/// Direct snapshot stored-reference reads (`event.after.<ref>.<leaf>`
+/// with a declared singular stored reference and allowed leaf scalar)
+/// lower through the defining-owner reference loader
+/// (`transitive.loadReference`, never through `loadParent`'s ancestor
+/// fence) at the consuming decision/value site. Deeper chains
+/// (`parent.<ref>`, `<ref>.<leaf>.<x>`) and staged content keep their
+/// refusal pins below — only this direct shape changed, with positive
+/// State/host/joint consumers proving the admitted behavior.
 #[test]
 fn hook_reference_traversal_refused_loud() {
     let src = "app T\nGiven\n L { tz:text }\n M { loc:L, due:datetime }\nWhen\n scenario arm on=M.create\n  do\n   if event.after.due>now\n    set event.after {due=event.after.due}\n   require event.after.loc.tz!=\"\"\nThen\n";
     let (js, diags, path) = hook_js(src);
     let _ = std::fs::remove_file(&path);
     assert!(
-        diags.iter().any(|d| d.code == "E6008"
-            && d.message.contains("hook reference traversal")),
-        "reference traversal refuses loud: {}",
+        diags.iter().all(|d| d.code != "E6008"),
+        "direct reference traversal lowers (no E6008): {}",
         codes(&diags).join("\n")
     );
     assert!(
-        js.contains("has no lowering"),
-        "fail-closed placeholder:\n{js}"
+        js.contains("transitive.loadReference"),
+        "reference loader, never the ancestor fence:\n{js}"
+    );
+    assert!(
+        js.contains("transitive.openScope(\"decision\")"),
+        "decision-site scope:\n{js}"
+    );
+    assert!(
+        !js.contains("has no lowering"),
+        "no fail-closed placeholder for the admitted shape:\n{js}"
     );
 }
 
