@@ -529,6 +529,124 @@ console.log(JSON.stringify(verdict));
     );
 }
 
+/// (Outcome 12, query class.) The recorded snapshot shape (CanRent
+/// `snapshot_Resource_create`, CanMaintain `report_window` hooks):
+/// `count` over a contained child collection plus a derive of the
+/// snapshot parent lower on the native runner with the trigger clock.
+#[test]
+fn hook_contained_count_and_snapshot_create() {
+    let src = "app T\nGiven\n M { t:text }\n N in M { seq:int, u:text }\n derive label(v:text):text = v\nWhen\n scenario snap on=M.create\n  do\n   let resource=event.after\n   create N {parent=resource,seq=count(resource.N)+1,u=label(resource.t)} as snap\nThen\n";
+    let (js, diags, path) = hook_js(src);
+    let _ = std::fs::remove_file(&path);
+    assert!(diags.is_empty(), "snapshot hook lowers: {diags:?}");
+    assert!(
+        js.contains("($candidate,$hookCtx,c)"),
+        "native runner:\n{js}"
+    );
+    assert!(
+        js.contains("await records(c,"),
+        "contained read through the query engine:\n{js}"
+    );
+    assert!(js.contains("count("), "aggregate:\n{js}");
+    assert!(
+        js.contains("$hookCtx.stage"),
+        "snapshot stages atomically:\n{js}"
+    );
+}
+
+/// (Outcome 12, query class.) The recorded projection shape (Locations
+/// `snapshot_Location_create`): a contained `select` over child rows
+/// collects into the staged snapshot input on the native runner.
+#[test]
+fn hook_contained_select_projection() {
+    let src = "app T\nGiven\n M { t:text }\n D in M { day:text }\n N in M { days:text[] }\nWhen\n scenario snap on=M.update\n  do\n   let location=event.after\n   create N {parent=location,days=location.D as d select d.day} as snap\nThen\n";
+    let (js, diags, path) = hook_js(src);
+    let _ = std::fs::remove_file(&path);
+    assert!(diags.is_empty(), "select hook lowers: {diags:?}");
+    assert!(
+        js.contains("($candidate,$hookCtx,c)"),
+        "native runner:\n{js}"
+    );
+    assert!(
+        js.contains("await records(c,"),
+        "contained read through the query engine:\n{js}"
+    );
+    assert!(
+        js.contains("$hookCtx.stage"),
+        "snapshot stages atomically:\n{js}"
+    );
+}
+
+/// (Outcome 12, query class.) The recorded contract-projection shape
+/// (Locations `snapshot_Location_create`): a contained `select`
+/// constructing contract values collects into the staged snapshot.
+#[test]
+fn hook_contained_select_contract_projection() {
+    let src = "app T\nGiven\n M { t:text, active:bool }\n W in M { weekday:text, opens:text }\n contract Week { weekday:text, opens:text }\n N in M { active:bool, weeks:Week[] }\nWhen\n scenario snap on=M.update\n  do\n   let location=event.after\n   create N {parent=location,active=location.active,weeks=location.W as hours select Week {weekday=hours.weekday,opens=hours.opens}} as snap\nThen\n";
+    let (js, diags, path) = hook_js(src);
+    let _ = std::fs::remove_file(&path);
+    assert!(diags.is_empty(), "contract select hook lowers: {diags:?}");
+    assert!(
+        js.contains("($candidate,$hookCtx,c)"),
+        "native runner:\n{js}"
+    );
+    assert!(
+        js.contains("await records(c,"),
+        "contained read through the query engine:\n{js}"
+    );
+    assert!(
+        js.contains("$hookCtx.stage"),
+        "snapshot stages atomically:\n{js}"
+    );
+}
+
+/// (Outcome 12, query class.) The recorded iteration shape (CanSuccess
+/// `account_changed`): a bounded `for` over contained children stages
+/// per-row updates plus cancel/schedule through the hook context.
+#[test]
+fn hook_for_loop_over_contained_children() {
+    let src = "app T\nGiven\n A { t:text }\n F in A { due:datetime, done:bool }\n event Tick { s:text }\nWhen\n scenario changed on=A.update\n  do\n   for followup in event.after.F as item where not item.done limit=10\n    set followup {done=true}\n    cancel followup.id\n    schedule followup.id at=followup.due event=Tick {s=\"tick\"}\nThen\n";
+    let (js, diags, path) = hook_js(src);
+    let _ = std::fs::remove_file(&path);
+    assert!(diags.is_empty(), "for hook lowers: {diags:?}");
+    assert!(
+        js.contains("($candidate,$hookCtx,c)"),
+        "native runner:\n{js}"
+    );
+    assert!(
+        js.contains("await records(c,"),
+        "domain reads through the query engine:\n{js}"
+    );
+    assert!(
+        js.contains("$hookCtx.stage"),
+        "per-row updates stage atomically:\n{js}"
+    );
+    assert!(
+        js.contains("$hookCtx.schedule") && js.contains("$hookCtx.cancel"),
+        "timers stage through the hook context:\n{js}"
+    );
+}
+
+/// (Outcome 12, out-of-scope.) Global scans stay refused in hooks: only
+/// contained reads over `event.after`/`event.before` lower, so a hook
+/// can never sweep a foreign model. The exact query code names it.
+#[test]
+fn hook_global_scan_stays_refused() {
+    let src = "app T\nGiven\n M { t:text }\n N { u:text }\nWhen\n scenario h on=M.create\n  do\n   let n=count(N)\n   set event.after {t=\"x\"}\nThen\n";
+    let (js, diags, path) = hook_js(src);
+    let _ = std::fs::remove_file(&path);
+    assert!(
+        diags.iter().any(|d| d.code == "E6008"
+            && d.message.contains("hook query")),
+        "global scan keeps its exact refusal: {}",
+        codes(&diags).join("\n")
+    );
+    assert!(
+        js.contains("has no lowering"),
+        "fail-closed placeholder:\n{js}"
+    );
+}
+
 /// (Outcome 12, negative.) Cross-package mutation from a hook still
 /// refuses at checking: hooks never acquire a foreign owner.
 #[test]

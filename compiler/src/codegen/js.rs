@@ -6230,13 +6230,18 @@ impl<'a> Emitter<'a> {
                 format!("{{{}}}", parts.join(","))
             }
             IrExpr::Query(query) => {
-                if self.in_hook() {
+                if self.in_hook() && !self.hook_native() {
                     return self.hook_gap(
                         "hook query",
                         "hooks read event.after/event.before; queries have no hook lowering",
                         span,
                     );
                 }
+                // Native hooks lower contained reads over the event
+                // snapshots through the accepted query engine with the
+                // trigger's author/clock (`c`); the owner-policy plan
+                // admits only event-rooted contained queries. Snapshots
+                // stay intact and reads observe committed rows.
                 self.lower_query(query, span)
             }
             IrExpr::DeliveryRead {
