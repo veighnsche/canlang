@@ -10586,15 +10586,6 @@ impl<'a> Emitter<'a> {
                 "max" if node.factory == "progress" => {
                     value.ty == ResolvedType::Scalar(Scalar::Int)
                 }
-                "value" if node.factory == "radialProgress" => {
-                    matches!(
-                        value.ty.nullable_inner().unwrap_or(&value.ty),
-                        ResolvedType::Scalar(Scalar::Int | Scalar::Decimal)
-                    )
-                }
-                "max" if node.factory == "radialProgress" => {
-                    value.ty == ResolvedType::Scalar(Scalar::Int)
-                }
                 "kind" if node.factory == "renderState" => {
                     matches!(&value.expr, IrExpr::Text(kind) if kind == "loading")
                 }
@@ -10931,37 +10922,16 @@ impl<'a> Emitter<'a> {
                 } else {
                     predicate
                 }
-            } else if node.factory == "progress" || node.factory == "radialProgress" {
-                let decimal_value = node.factory == "radialProgress"
-                    && key == "value"
-                    && matches!(
-                        value.ty.nullable_inner().unwrap_or(&value.ty),
-                        ResolvedType::Scalar(Scalar::Decimal)
-                    );
-                if decimal_value {
-                    // Recorded decimal completion fraction (50/100): the
-                    // wire-canonical exact decimal text (R2a, the same text
-                    // decimalToString owns) becomes the finite JS number the
-                    // contracts/UI boundary owns; encodeValue is already in
-                    // the page runtime. Unconvertible values stay
-                    // presentation-invalid (NaN -> role=alert); the int max
-                    // throw below still wins over a bad value.
-                    self.stdlib.insert("encodeValue".to_string());
-                    let expression = self.lower_business_expr(value, "decimal radial progress");
-                    format!(
-                        "(value=>{{if(value==null)return null;let text;if(typeof value===\"bigint\"){{text=value.toString(10);}}else if(typeof value===\"number\"){{if(!Number.isFinite(value))return NaN;return value;}}else{{try{{text=encodeValue(\"decimal\",value);}}catch(e){{return NaN;}}}}const number=Number(text);if(!Number.isFinite(number))return NaN;return number;}})({expression})"
-                    )
+            } else if node.factory == "progress" {
+                let expression = self.lower_business_expr(value, "integer progress");
+                let invalid = if key == "value" {
+                    "return NaN;"
                 } else {
-                    let expression = self.lower_business_expr(value, "integer progress");
-                    let invalid = if key == "value" {
-                        "return NaN;"
-                    } else {
-                        "throw new RangeError('progress maximum is not exactly displayable');"
-                    };
-                    format!(
-                        "(value=>{{if(value==null)return null;const number=Number(value);if(!Number.isSafeInteger(number)){{{invalid}}}return number;}})({expression})"
-                    )
-                }
+                    "throw new RangeError('progress maximum is not exactly displayable');"
+                };
+                format!(
+                    "(value=>{{if(value==null)return null;const number=Number(value);if(!Number.isSafeInteger(number)){{{invalid}}}return number;}})({expression})"
+                )
             } else if node.factory == "history" && key == "record" {
                 original_history_row
                     .clone()
