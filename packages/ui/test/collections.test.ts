@@ -2465,6 +2465,79 @@ describe("board", () => {
     assert.equal(queries, 1);
     assert.equal(preparations, 1);
   });
+
+  it("renders the renderRow slot per card with partitioned actions", async () => {
+    const seen: SeenCall[] = [];
+    const context = boardContext(seen, {
+      rows: [
+        row("a", { title: "First", state: "open" }),
+        row("b", { title: "Second", state: "closed" }),
+      ],
+      columns: [titleCol, stateCol],
+    });
+    const calls: string[] = [];
+    const page = await loadHtml(
+      await board({
+        context,
+        model: "TeamTasks.Todo",
+        by: "state",
+        columns: ["title"],
+        empty: "No todos",
+        renderRow: (current, view) => {
+          assert.equal(view, context);
+          calls.push(current.id);
+          return [
+            `<div class="can-primary-actions" data-can-primary-actions><button>Go-${current.id}</button></div>`,
+            `<p>note-${current.id}</p>`,
+          ];
+        },
+      }),
+    );
+    try {
+      assert.deepEqual(calls, ["a", "b"]);
+      const items = page.document.querySelectorAll("li[data-row]");
+      assert.equal(items.length, 2);
+      for (const item of items) {
+        const id = item.getAttribute("data-row");
+        assert.ok(item.hasAttribute("data-can-row-actions"));
+        const content = item.querySelector(".can-row-content")?.textContent ?? "";
+        const actions = item.querySelector(".can-row-actions")?.textContent ?? "";
+        assert.ok(content.includes(`note-${id}`), content);
+        assert.ok(actions.includes(`Go-${id}`), actions);
+        assert.ok(content.includes("First") || content.includes("Second"), content);
+      }
+    } finally {
+      await page.close();
+    }
+  });
+
+  it("renders the renderRow body without an actions region when no actions apply", async () => {
+    const seen: SeenCall[] = [];
+    const context = boardContext(seen, {
+      rows: [row("a", { title: "First", state: "open" })],
+      columns: [titleCol, stateCol],
+    });
+    const page = await loadHtml(
+      await board({
+        context,
+        model: "TeamTasks.Todo",
+        by: "state",
+        columns: ["title"],
+        empty: "No todos",
+        renderRow: (current) => [`<p>note-${current.id}</p>`],
+      }),
+    );
+    try {
+      const item = page.document.querySelector("li[data-row='a']");
+      assert.ok(item !== null);
+      assert.ok(!item.hasAttribute("data-can-row-actions"));
+      assert.equal(item.querySelector(".can-row-actions"), null);
+      assert.ok((item.textContent ?? "").includes("note-a"));
+      assert.ok((item.textContent ?? "").includes("First"));
+    } finally {
+      await page.close();
+    }
+  });
 });
 
 // ---------------------------------------------------------------------------

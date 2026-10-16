@@ -157,6 +157,28 @@ fn board_enum_bool_filter_with_matching_defaults_lowers() {
     ));
 }
 
+/// Board row/card binding: authored row children thread row_scope exactly
+/// like the accepted table/list row-child path, so the page-render JS
+/// carries a bound `renderRow` closure instead of an eager `c is not
+/// defined` crash. A childless board on the same shape emits no `renderRow`.
+#[test]
+fn board_row_children_lower_to_bound_render_row() {
+    let js = emit_js(&format!(
+        "{HEAD}  board Customer as c by=kind columns=name filter=kind defaults={{kind=preferences.kind}}\n   text row.name\n"
+    ));
+    assert!(
+        js.contains("renderRow:"),
+        "board row children bind a row closure, got: {js}"
+    );
+    let plain = emit_js(&format!(
+        "{HEAD}  board Customer as c by=kind columns=name filter=kind defaults={{kind=preferences.kind}}\n"
+    ));
+    assert!(
+        !plain.contains("renderRow:"),
+        "childless board keeps column-only emission, got: {plain}"
+    );
+}
+
 /// Recorded agenda shape: a top-level calendar enum filter with a
 /// matching owned declaration and saved default lowers end to end.
 #[test]

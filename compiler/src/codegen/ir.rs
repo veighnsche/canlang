@@ -19994,7 +19994,7 @@ impl<'a> Cx<'a> {
             .collect();
         let gate = self.decode_gate(scope, node);
         let row_scope = (matches!(word, "list" | "calendar" | "timeline")
-            || ((matches!(word, "table" | "gallery") || split) && !children.is_empty()))
+            || ((matches!(word, "table" | "gallery" | "board") || split) && !children.is_empty()))
         .then_some((row_name, "rowView".to_string()));
         Some(IrUi {
             view: None,
