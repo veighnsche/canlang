@@ -7483,3 +7483,16 @@ remaining refusals pinned by exact gate message (bool-field list filter),
 loud-degradation pins (throwing placeholder + absent order descriptor),
 stat canary kept, preference/suite shapes pinned; no blanket zeroing. B9
 bool-page test still running (sole active lane).
+
+**Coordinator intake, 2026-10-16 (B9 verified, B10 routed):**
+B9 VERIFIED in parent (`721035bf`, landed directly on branch): real-source
+bool toggle page — real compiler, verbatim emitted bytes, descriptor from
+artifact.pages, handlePageRequest over true/false rows. 1/1 green (defaults,
+typed predicates, clear, saved/request precedence + composition for the
+string-saved enum field, malformed/denied refusals with zero queries) and
+http-presentation 37/37, both reproduced by coordinator. REVIEW-11.2 partly
+closed with one routed gap: saved BOOL spellings refuse safely at validation
+(zero queries) pending compiler-emission coercion — no owned fix existed in
+B9's files, honestly recorded, not weakened. Finite successor B10
+(`01a143db-d438-...`) owns the defining-owner coercion repair with B9's test
+as acceptance probe. Sole active lane: B10.
