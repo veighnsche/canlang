@@ -18249,3 +18249,8 @@ Accepted: Authorized referenced-row reads in hooks: loadReference owner with edg
 ## 2026-10-16 — can18_merge_34_20261017
 
 Accepted: Parent-bound agenda saved defaults: compiler forwarding-only admit for reference-only apps; original defaults shape renders 200 end to end. Merge reviewed tested work incrementally into canonical `main`, preserving installer/specification changes and the active implementation branch. agenda 1/1 x4 (one initial 0/1 flake, then 3/3 green + worker green), row/ref/joint green, UI 179/179, factory 33/33, enum 41/41 on frozen 93ea5761/ca50. Reconcile the living file-tree plan/registry over `47981322..HEAD` with existing owners; retain the complete checkpoint and all outstanding acceptance gates. A merged component is not a claim that original24 or the remaining runtime workflows are complete.
+
+
+## 2026-10-16 — can18_merge_35_20261017
+
+Accepted: Filter-remainder pins: 36 diagnostics classified (C2/C3 followers + 8 genuinely-new selectors), refusals pinned test-only. Merge reviewed tested work incrementally into canonical `main`, preserving installer/specification changes and the active implementation branch. filter_remainder_pins 8/8 on main. Reconcile the living file-tree plan/registry over `24b6ad04..HEAD` with existing owners; retain the complete checkpoint and all outstanding acceptance gates. A merged component is not a claim that original24 or the remaining runtime workflows are complete.
