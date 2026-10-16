@@ -45,7 +45,11 @@ nested/imported helpers share selection; mixed kinds stay refused. The exact
 2231 discriminator now compiles clean on both spellings. Validation on
 frozen main producer `730bf47e` + native catalog `ca50`: discriminators 0
 diagnostics each, reference 10/10 + 13/13, parent 12/12, hook_lowering 26/26,
-hook_hookrem 7/7, hook_first_query 11/11.
+hook_hookrem 7/7, hook_first_query 11/11. Runtime acceptance closed (2256):
+same shared/separate pair through the real host — matched success, mismatch
+exact `rule_failed` with no added trigger, TRUE revocation (membership
+removed) `forbidden` with no new rows; prior stranger-only check retained
+as-is, not as revocation proof. No production repair needed.
 
 ### Accepted filter-remainder pins (merge35) — 2026-10-17
 
