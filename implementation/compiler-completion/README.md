@@ -7604,3 +7604,18 @@ stay unmerged-as-complete until these pass. B13 (bool reader) disjoint and
 undisturbed. Original24 re-capture queued after the next released/frozen
 producer closure (B13/C22); disk 6GiB — no large allocations. Active lanes:
 B13, C22 (2 of 3).
+
+**FROZEN-9 intake, 2026-10-16 (Codex diagnosis ACKed):**
+Coordinator's B12 1/1 ran against the mutable shared `can` (version
+e46013cb, pre-c039 — B13's older-base build had overwritten it), so it is
+NOT valid independent proof of c039; the fail-before/pass-after claim stays
+with B12's own evidence only. No broad reruns. Next action (after B13's
+exact release): build current committed root `can` ONCE in the reserved slot,
+freeze that binary + native catalog for the radial re-validation and the
+original24 capture (or hold an explicit read reservation during consumers);
+no worker compiler writes during the frozen window. Radial batch scope is
+complete in parent: IR decimal admission (`decode_radial_progress`,
+int|decimal value + int max) is present via B8's integrated stack — no new
+factory-shape import. Main's c039 cherry-pick + revert (809438ccc,
+8e06613ed) leaves clean main byte-identical to 98b7f48c; no radial merge
+claim until frozen validation passes.
