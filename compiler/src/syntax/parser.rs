@@ -7166,10 +7166,13 @@ impl<'a> Parser<'a> {
                 let mut inner = Vec::new();
                 self.builder.leaf(&mut inner, &head);
                 // The approved catalog profile permits a card with no
-                // heading: nothing follows, or an attribute does (no valid
-                // heading starts with `NAME =`).
+                // heading: nothing follows, an attribute does (no valid
+                // heading starts with `NAME =`), or a style suffix does
+                // (`$` never starts a heading expression).
                 let heading_omitted = word == "card"
-                    && (cursor.done() || (cursor.at_any_name() && cursor.peek_is_eq()));
+                    && (cursor.done()
+                        || cursor.at_p(Punct::Dollar)
+                        || (cursor.at_any_name() && cursor.peek_is_eq()));
                 if !heading_omitted {
                     let stop: Stop = &|w| attr_kind(header, w).is_some();
                     let heading = self.parse_expr(cursor, stop, true, true)?;

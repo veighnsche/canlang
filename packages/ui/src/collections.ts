@@ -230,11 +230,15 @@ export async function list(props: ListProps): Promise<string> {
     assertControls(props.controls, "list");
     assertConsistentContext(props.context, props.controls.context, "list");
   }
+  const args = queryArgs(props, "list");
+  const { conditions, where } = prepareSourceFilters(props, "list");
   const result = await props.context.query(
     props.context.invocation,
     props.model,
-    queryArgs(props, "list"),
+    { ...args, ...(where === undefined ? {} : { where }) },
   );
+  const filterControls = sourceFilterControls(props, conditions, result.columns, result.rows.length === 0, "list");
+  for (const row of result.rows) assertSourceFilterRow(props, row, "list");
   const metas: ColumnMeta[] = [];
   if (props.columns !== undefined) {
     const byField = new Map(result.columns.map(column => [column.field, column]));
@@ -255,7 +259,7 @@ export async function list(props: ListProps): Promise<string> {
       }
     }
   }
-  const heading = `${props.search === undefined ? "" : sourceSearchForm(props.context)}` +
+  const heading = `${filterControls}${props.search === undefined ? "" : sourceSearchForm(props.context)}` +
     sourceCount(props, result.totalCount);
   if (result.rows.length === 0) {
     if (props.controls === undefined) {
@@ -382,7 +386,10 @@ export async function gallery(props: GalleryProps): Promise<string> {
 
 type SourceFilterProps = Pick<TableProps, "context" | "filter" | "defaults" | "occurrence" | "where">;
 
-export function prepareSourceFilters(props: SourceFilterProps, factory: "calendar agenda" | "table" | "gallery"): {
+/** Collection kinds sharing the owned enum-filter pipeline. */
+type SourceFilterFactory = "calendar agenda" | "table" | "gallery" | "list" | "board";
+
+export function prepareSourceFilters(props: SourceFilterProps, factory: SourceFilterFactory): {
   readonly conditions: readonly FilterCondition[]; readonly where: unknown;
 } {
   if (props.defaults !== undefined && props.filter === undefined) {
@@ -408,7 +415,7 @@ export function prepareSourceFilters(props: SourceFilterProps, factory: "calenda
   return { conditions, where };
 }
 
-export function assertSourceFilterRow(props: SourceFilterProps, row: RowView, factory: "calendar agenda" | "table" | "gallery"): void {
+export function assertSourceFilterRow(props: SourceFilterProps, row: RowView, factory: SourceFilterFactory): void {
   for (const field of props.filter ?? []) {
     if (!Object.hasOwn(row.fields, field.field)) {
       throw new Error(`${factory}: row "${row.id}" is missing projected filter field "${field.field}"`);
@@ -422,7 +429,7 @@ export function sourceFilterControls(
   conditions: readonly FilterCondition[],
   columns: readonly ColumnMeta[],
   empty: boolean,
-  factory: "calendar agenda" | "table" | "gallery",
+  factory: SourceFilterFactory,
 ): string {
   const fields = props.filter ?? [];
   if (fields.length === 0) return "";
@@ -1168,11 +1175,15 @@ export async function board(props: BoardProps): Promise<string> {
     assertControls(props.controls, "board");
     assertConsistentContext(props.context, props.controls.context, "board");
   }
+  const args = queryArgs(props, "board");
+  const { conditions, where } = prepareSourceFilters(props, "board");
   const result = await props.context.query(
     props.context.invocation,
     props.model,
-    queryArgs(props, "board"),
+    { ...args, ...(where === undefined ? {} : { where }) },
   );
+  const filterControls = sourceFilterControls(props, conditions, result.columns, result.rows.length === 0, "board");
+  for (const row of result.rows) assertSourceFilterRow(props, row, "board");
   const byField = new Map<string, ColumnMeta>();
   for (const column of result.columns) {
     byField.set(column.field, column);
@@ -1194,9 +1205,9 @@ export async function board(props: BoardProps): Promise<string> {
   }
   if (result.rows.length === 0) {
     if (props.controls === undefined) {
-      return renderState({ context: props.context, kind: "empty", message: props.empty });
+      return `${filterControls}${await renderState({ context: props.context, kind: "empty", message: props.empty })}`;
     }
-    return wrapWithControls(props.controls, await emptyBody(props.controls, props), props);
+    return filterControls + await wrapWithControls(props.controls, await emptyBody(props.controls, props), props);
   }
   const byMeta = byField.get(props.by)!;
   const metas: ColumnMeta[] = [];
@@ -1246,9 +1257,9 @@ export async function board(props: BoardProps): Promise<string> {
     .join("");
   const boardHtml = `<div class="flex gap-4">${sections}</div>`;
   if (props.controls === undefined) {
-    return `${boardHtml}${moreNote(props, result.nextCursor)}`;
+    return `${filterControls}${boardHtml}${moreNote(props, result.nextCursor)}`;
   }
-  return wrapWithControls(props.controls, boardHtml, props);
+  return filterControls + await wrapWithControls(props.controls, boardHtml, props);
 }
 
 /** One board card: rowHeading title plus one labeled paragraph per column. */

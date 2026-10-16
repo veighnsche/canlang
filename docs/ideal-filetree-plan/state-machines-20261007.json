@@ -72444,5 +72444,143 @@
     "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
     "checkpoint_advanced": false,
     "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
+  },
+  "can18_merge_2_20261016": {
+    "incremental_base": "35ca092eeb3366e4ebca174003ce132a4c21a6a4",
+    "incoming_end": "46bbb4ed0c5c12af0f3f16a1f9070028fd8f135a",
+    "retained_coverage": "reuse spec_installer_merge_reconciliation_20261015 and preceding CAN18 incremental merge entries; inherited complete checkpoint unchanged",
+    "changed_path_count": 25,
+    "rows": [
+      [
+        "compiler/src/analysis/scenario_disclosure.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/src/analysis/types.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/src/codegen/ir.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/src/codegen/js.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/src/codegen/scenario_calls.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/src/codegen/scenario_decisions.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/src/codegen/scenario_receipts.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/src/syntax/parser.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/boolean_operation_admission.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/codegen.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/contextual_state_read_composition.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/cross_operation_calls.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/membership_calls.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/native_dispatch_email_inputs.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/outbound_format_sinks.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/owning_source_inventory.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/syntax.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/ui_adapter.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/ui_original_bindings.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "implementation/compiler-completion/README.md",
+        "Compiler completion",
+        "existing finite execution record"
+      ],
+      [
+        "packages/contracts/src/presentation.ts",
+        "contracts",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/ui/src/collections.ts",
+        "ui",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/ui/src/panels.ts",
+        "ui",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/ui/test/collections.test.ts",
+        "ui",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/ui/test/panels.test.ts",
+        "ui",
+        "existing package source/test owner"
+      ]
+    ],
+    "choice": "Integrate reviewed State-read inventory/reuse, original UI bindings and styles, native hook context, checked email dispatch, cross-operation D2/D6, pinned outbound classification and Boolean admission.",
+    "validation": "Reuse recorded focused compiler suites, UI69/124/35, comparable-base codegen controls, and independent collection6/style-original1/Boolean-receiver7 checks. No production merge conflicts; four identical pre-existing codegen residuals and original composition/native-consumer gates remain explicitly open.",
+    "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
+    "checkpoint_advanced": false,
+    "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
   }
 }
