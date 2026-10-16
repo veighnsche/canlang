@@ -7675,3 +7675,10 @@ effects ~8 (11); invoice triggers 5 (9); history/collapse/hero/preferences
 contract, reader decoding) surfacing checked refusals, not new breakage.
 Next: outcome-14 executable consumers + ready-group owners (enum filters,
 first-query engine slice); holds 17/18 retained.
+
+**Coordinator intake, 2026-10-16 (D14 verified):**
+D14 (`a56ada7b8`, outcome-14 executable consumers) VERIFIED 4/4 on the
+frozen binary: success/rejection/rollback/replay consumers over accepted
+batches (443 lines, 71 exact assertions, fixtures reused verbatim, zero
+production changes). Coordinator reproduced green. B14 (enum filters) sole
+active lane.
