@@ -1,0 +1,6 @@
+package hpjointhelpers
+ Given
+  export derive isActiveExt(v:bool):bool = v
+  export derive zoneExt(v:text):text = v
+ When
+ Then
