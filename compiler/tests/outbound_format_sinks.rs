@@ -43,30 +43,107 @@ When
 Then
 ";
 
-const NOTIFY_MESSAGE: &str = "app NotifyProbe
+const NOTIFY_MESSAGE: &str = "app catch
 Given
- contract Alert { source:text, destination:url?, message:text }
+ contract Alert { source:text, destination:url, message:text }
  contract AlertAccepted { reference:text }
  capability AlertsV1 version=1
   notify(value:Alert) -> AlertAccepted
 When
- scenario ping(enabled:bool) -> int by=members
+ scenario ping(target:url,enabled:bool) -> int by=members
   do
-   send AlertsV1.notify {value={source=\"probe\",message=format(\"Job heartbeat missed\"@{nl=\"Heartbeat van taak gemist\"},locale=null)}} when=enabled as attempt
+   send AlertsV1.notify {value={source=\"probe\",destination=target,message=format(\"Job heartbeat missed\"@{nl=\"Heartbeat van taak gemist\"},locale=null)}} when=enabled as attempt
    return 1
 Then
 ";
 
-const NOTIFY_SOURCE: &str = "app NotifyProbe
+const NOTIFY_HELPER: &str = "app catch
+Given
+ contract Alert { source:text, destination:url, message:text }
+ contract AlertAccepted { reference:text }
+ capability AlertsV1 version=1
+  notify(value:Alert) -> AlertAccepted
+When
+ scenario ping(target:url,enabled:bool) -> int by=members
+  do
+   let held=format(\"Job heartbeat missed\"@{nl=\"Heartbeat van taak gemist\"},locale=null)
+   send AlertsV1.notify {value={source=\"probe\",destination=target,message=held}} when=enabled as attempt
+   return 1
+Then
+";
+
+const NOTIFY_ALIAS: &str = "app CatchAlias uses=[catch,probe]
+package catch
+ Given
+  export contract Alert { source:text, destination:url, message:text }
+  export contract AlertAccepted { reference:text }
+  export capability AlertsV1 version=1
+   notify(value:Alert) -> AlertAccepted
+ When
+ Then
+package probe
+ use catch {AlertsV1 as Alerts}
+ Given
+ When
+  scenario ping(target:url,enabled:bool) -> int by=members
+   do
+    send Alerts.notify {value={source=\"probe\",destination=target,message=format(\"Job heartbeat missed\"@{nl=\"Heartbeat van taak gemist\"},locale=null)}} when=enabled as attempt
+    return 1
+ Then
+";
+
+const NOTIFY_SOURCE: &str = "app catch
+Given
+ contract Alert { source:text, destination:url, message:text }
+ contract AlertAccepted { reference:text }
+ capability AlertsV1 version=1
+  notify(value:Alert) -> AlertAccepted
+When
+ scenario ping(target:url,enabled:bool) -> int by=members
+  do
+   send AlertsV1.notify {value={source=format(\"probe\"@{nl=\"sonde\"},locale=null),destination=target,message=\"Missed\"}} when=enabled as attempt
+   return 1
+Then
+";
+
+const NOTIFY_FOREIGN: &str = "app probe
+Given
+ contract Alert { source:text, destination:url, message:text }
+ contract AlertAccepted { reference:text }
+ capability AlertsV1 version=1
+  notify(value:Alert) -> AlertAccepted
+When
+ scenario ping(target:url,enabled:bool) -> int by=members
+  do
+   send AlertsV1.notify {value={source=\"probe\",destination=target,message=format(\"Job heartbeat missed\"@{nl=\"Heartbeat van taak gemist\"},locale=null)}} when=enabled as attempt
+   return 1
+Then
+";
+
+const NOTIFY_VERSION: &str = "app catch
+Given
+ contract Alert { source:text, destination:url, message:text }
+ contract AlertAccepted { reference:text }
+ capability AlertsV1 version=2
+  notify(value:Alert) -> AlertAccepted
+When
+ scenario ping(target:url,enabled:bool) -> int by=members
+  do
+   send AlertsV1.notify {value={source=\"probe\",destination=target,message=format(\"Job heartbeat missed\"@{nl=\"Heartbeat van taak gemist\"},locale=null)}} when=enabled as attempt
+   return 1
+Then
+";
+
+const NOTIFY_SCHEMA: &str = "app catch
 Given
  contract Alert { source:text, destination:url?, message:text }
  contract AlertAccepted { reference:text }
  capability AlertsV1 version=1
   notify(value:Alert) -> AlertAccepted
 When
- scenario ping(enabled:bool) -> int by=members
+ scenario ping(target:url,enabled:bool) -> int by=members
   do
-   send AlertsV1.notify {value={source=format(\"probe\"@{nl=\"sonde\"},locale=null),message=\"Missed\"}} when=enabled as attempt
+   send AlertsV1.notify {value={source=\"probe\",message=format(\"Job heartbeat missed\"@{nl=\"Heartbeat van taak gemist\"},locale=null)}} when=enabled as attempt
    return 1
 Then
 ";
@@ -225,22 +302,154 @@ fn mail_send_user_subject_format_lowers_with_recipient_path_intact() {
 #[test]
 fn notify_value_message_format_lowers() {
     let (_db, _program, ir, _catalog) = fixture("notify-message", NOTIFY_MESSAGE);
-    let (lines, diags) = lower_sends(&ir, "NotifyProbe.ping");
+    let (lines, diags) = lower_sends(&ir, "catch.ping");
     assert!(diags.is_empty(), "{diags:?}");
     let send = send_line(&lines);
-    assert!(send.contains("AlertsV1.notify"), "{send}");
+    assert!(send.contains("catch.AlertsV1.notify"), "{send}");
+    assert!(send.contains("message:(("), "{send}");
+}
+
+#[test]
+fn notify_helper_bound_message_format_lowers() {
+    let (_db, _program, ir, _catalog) = fixture("notify-helper", NOTIFY_HELPER);
+    // Lower every effect in authored order like real emission, so the
+    // immutable let alias is classified before the send consumes it.
+    let owner = item(&ir, "catch.ping");
+    let IrItemKind::Scenario { effects, .. } = &owner.kind else {
+        panic!("catch.ping must be a scenario");
+    };
+    let mut emitter = js::Emitter::new(&ir);
+    let mut lines = Vec::new();
+    for stmt in effects {
+        lines.extend(
+            emitter
+                .lower_stmt(stmt, 1)
+                .into_iter()
+                .map(|(line, _)| line),
+        );
+    }
+    let (diags, _, _, _) = emitter.finish();
+    assert!(diags.is_empty(), "{diags:?}");
+    let send = send_line(&lines);
+    assert!(send.contains("catch.AlertsV1.notify"), "{send}");
+    // The immutable alias evaluates the shared formatter exactly once at
+    // the let and the sink references the frozen value: same meaning as
+    // the inline shape, no duplicate evaluation.
+    let all = lines.join("\n");
+    assert_eq!(
+        all.matches("6c6f63616c697a65645f666f726d6174").count(),
+        1,
+        "one frozen format evaluation total: {all}"
+    );
+    assert!(
+        send.contains("message:$can$l$"),
+        "sink references the frozen alias: {send}"
+    );
+}
+
+const NOTIFY_HELPER_SOURCE: &str = "app catch
+Given
+ contract Alert { source:text, destination:url, message:text }
+ contract AlertAccepted { reference:text }
+ capability AlertsV1 version=1
+  notify(value:Alert) -> AlertAccepted
+When
+ scenario ping(target:url,enabled:bool) -> int by=members
+  do
+   let held=format(\"probe\"@{nl=\"sonde\"},locale=null)
+   send AlertsV1.notify {value={source=held,destination=target,message=\"Missed\"}} when=enabled as attempt
+   return 1
+Then
+";
+
+#[test]
+fn notify_helper_bound_non_message_path_refuses() {
+    let (_db, _program, ir, _catalog) = fixture("notify-helper-source", NOTIFY_HELPER_SOURCE);
+    let owner = item(&ir, "catch.ping");
+    let IrItemKind::Scenario { effects, .. } = &owner.kind else {
+        panic!("catch.ping must be a scenario");
+    };
+    let mut emitter = js::Emitter::new(&ir);
+    let mut lines = Vec::new();
+    for stmt in effects {
+        lines.extend(
+            emitter
+                .lower_stmt(stmt, 1)
+                .into_iter()
+                .map(|(line, _)| line),
+        );
+    }
+    let (diags, _, _, _) = emitter.finish();
+    let codes: Vec<String> = diags
+        .iter()
+        .map(|d| format!("{}:{}", d.code, d.message))
+        .collect();
+    // The alias is really classified (not vacuously admitted): a let-bound
+    // format at a non-human-text path still refuses.
+    assert!(
+        codes
+            .iter()
+            .any(|d| d.starts_with("E6008:") && d.contains("formatted")),
+        "aliased value.source must refuse: {codes:?}"
+    );
+    let _ = lines;
+}
+
+#[test]
+fn notify_imported_alias_format_lowers() {
+    let (_db, _program, ir, _catalog) = fixture("notify-alias", NOTIFY_ALIAS);
+    let (lines, diags) = lower_sends(&ir, "probe.ping");
+    assert!(diags.is_empty(), "{diags:?}");
+    let send = send_line(&lines);
+    assert!(send.contains("catch.AlertsV1.notify"), "{send}");
     assert!(send.contains("message:(("), "{send}");
 }
 
 #[test]
 fn notify_non_message_path_format_refuses() {
     let (_db, _program, ir, _catalog) = fixture("notify-source", NOTIFY_SOURCE);
-    let (_lines, diags) = lower_sends(&ir, "NotifyProbe.ping");
+    let (_lines, diags) = lower_sends(&ir, "catch.ping");
     assert!(
         diags
             .iter()
             .any(|d| d.starts_with("E6008:") && d.contains("formatted")),
         "value.source must refuse: {diags:?}"
+    );
+}
+
+#[test]
+fn notify_unrelated_owner_format_refuses() {
+    let (_db, _program, ir, _catalog) = fixture("notify-foreign", NOTIFY_FOREIGN);
+    let (_lines, diags) = lower_sends(&ir, "probe.ping");
+    assert!(
+        diags
+            .iter()
+            .any(|d| d.starts_with("E6008:") && d.contains("formatted")),
+        "unrelated AlertsV1 owner must refuse: {diags:?}"
+    );
+}
+
+#[test]
+fn notify_altered_version_format_refuses() {
+    let (_db, _program, ir, _catalog) = fixture("notify-version", NOTIFY_VERSION);
+    let (_lines, diags) = lower_sends(&ir, "catch.ping");
+    assert!(
+        diags
+            .iter()
+            .any(|d| d.starts_with("E6008:") && d.contains("formatted")),
+        "altered capability version must refuse: {diags:?}"
+    );
+}
+
+#[test]
+fn notify_altered_schema_format_refuses() {
+    let (_db, _program, ir, _catalog) = fixture("notify-schema", NOTIFY_SCHEMA);
+    let (_lines, diags) = lower_sends(&ir, "catch.ping");
+    assert!(
+        diags
+            .iter()
+            .any(|d| d.starts_with("E6008:") && d.contains("formatted")),
+        "altered Alert schema must refuse: {diags:?}"
     );
 }
 
