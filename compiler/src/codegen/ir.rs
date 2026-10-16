@@ -10461,11 +10461,21 @@ impl<'a> Cx<'a> {
             .as_ref()
             .and_then(|key| self.decode_message_value(symbol.module, key));
         let description = self.owner_description(symbol.module, &data.node);
-        // Family E: `scope=authority` reports lower without `E6008`: the
-        // decision-mode runtime boundary landed (State decision mode +
-        // host read seam + helper-consumer proof), so emission carries
-        // the §13 marker, the decision-mode body and the grant
-        // advertisement with host evaluation.
+        if data.scope_authority {
+            // Family E keeps its `E6008` until the host-seam (Lane-C)
+            // decision-mode runtime boundary lands: emission already
+            // carries the §13 marker, the decision-mode body and the
+            // grant advertisement, but no host boundary yet evaluates
+            // decision-mode body reads or serves the typed result.
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                format!(
+                    "cannot lower scenario {}: scope=authority awaits its host-seam runtime authority boundary; emitting the §13 marker, decision-mode body and grant advertisement",
+                    symbol.canonical,
+                ),
+                symbol.span,
+            ));
+        }
         // Pre-commit hooks use the engine context. Ordinary declared events
         // retain their checked identity and existing `{event}` handler ABI.
         let event_source = match &data.on {
