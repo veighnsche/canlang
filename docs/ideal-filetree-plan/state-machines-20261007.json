@@ -73628,5 +73628,43 @@
     "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
     "checkpoint_advanced": false,
     "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
+  },
+  "can18_merge_23_20261016": {
+    "incremental_base": "5d0a7bddf3b58838a540d070e9003da409c739fb",
+    "incoming_end": "62112431383b820a197ee5f15ecb3836eeaddac3",
+    "retained_coverage": "reuse spec_installer_merge_reconciliation_20261015 and preceding CAN18 incremental merge entries; inherited complete checkpoint unchanged",
+    "changed_path_count": 5,
+    "rows": [
+      [
+        "docs/ideal-filetree-plan.md",
+        "existing owner",
+        "retain current allocation"
+      ],
+      [
+        "docs/ideal-filetree-plan/state-machines-20261007.json",
+        "existing owner",
+        "retain current allocation"
+      ],
+      [
+        "docs/specification/DECISIONS.md",
+        "Specification",
+        "existing accepted design/decision owner"
+      ],
+      [
+        "implementation/compiler-completion/README.md",
+        "Compiler completion",
+        "existing finite execution record"
+      ],
+      [
+        "packages/cloudflare/src/runtime/timeline-emitted-serve.test.ts",
+        "cloudflare",
+        "existing package source/test owner"
+      ]
+    ],
+    "choice": "Paged timeline next-link consumer: 26 admitted rows over actual emitted Can/HTTP, continuation without repeats, 400 fail-closed tampered cursor. Test-only follow-up to the bound-timeline intake; no producer change.",
+    "validation": "timeline-emitted-serve 2/2 on main with the intaken e36eea15 producer; main cloudflare rebuilt exit 0.",
+    "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
+    "checkpoint_advanced": false,
+    "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
   }
 }

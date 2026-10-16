@@ -92,6 +92,10 @@ Native due Work invocation/store/fence association plus guard/presence-consumed 
 
 Bound timeline collection activation the B17 withdrawal held back as premature: decode_collection for single-template bound sequences with plain field order and parent/order admission, js factory allowlist plus page-occurrence emission, and the UI collection adapter serving authorized rows through the shared items path with empty, failure and cursor behavior. Money/calendar/agenda-columns refusals are untouched. Incoming interval `c688dca08..5d0a7bdd` accounts for 9 changed paths in `can18_merge_22_20261016` of the existing registry. Main validation on freshly built e36eea15 with frozen ca50 catalog: factory 33/33, emitted timeline HTTP consumer 1/1 (fails on the pre-fix producer), timeline units 6/6, hook/enum/bool/b1/agenda/table/ui_adapter suites green, C24 batteries 14/14, contained 10/10, A15 drive 3/3; all builds exit 0. Existing defining owners and target allocations remain; focused new tests stay with Compiler. Reuse prior accumulated coverage; complete checkpoint remains unchanged. Original24 and required executable consumers remain open. Unfinished work stays in the running Muse checkout.
 
+### CAN18 incremental integration — can18_merge_23_20261016
+
+Paged timeline next-link consumer: 26 admitted rows over actual emitted Can/HTTP, continuation without repeats, 400 fail-closed tampered cursor. Test-only follow-up to the bound-timeline intake; no producer change. Incoming interval `5d0a7bdd..62112431383b820a197ee5f15ecb3836eeaddac3` accounts for 5 changed paths in `can18_merge_23_20261016` of the existing registry. timeline-emitted-serve 2/2 on main with the intaken e36eea15 producer; main cloudflare rebuilt exit 0. Existing defining owners and target allocations remain; focused new tests stay with Compiler. Reuse prior accumulated coverage; complete checkpoint remains unchanged. Original24 and required executable consumers remain open. Unfinished work stays in the running Muse checkout.
+
 ### Specification and installer documentation merge — 2026-10-15
 
 Merge installer commit `02470b74` into canonical `main` at `a70921e3`.
