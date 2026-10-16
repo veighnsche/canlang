@@ -255,6 +255,11 @@ pub enum IrItemKind {
         result: Option<ResolvedType>,
         /// Whether `read=true` was declared (G1).
         read: bool,
+        /// Whether `scope=authority` was declared (outcome 9 family E):
+        /// the checked source fact, carried so the §13 operations
+        /// marker and the fail-closed handler stub agree with analysis.
+        /// Ordinary reads leave this false and emit byte-identical output.
+        scope_authority: bool,
         /// `by=` admission gate (G1; empty when absent).
         by: Vec<IrGuard>,
         /// `label=` caption (G1).
@@ -5751,6 +5756,7 @@ impl<'a> Cx<'a> {
                 );
                 let (
                     read,
+                    scope_authority,
                     by,
                     label,
                     description,
@@ -5775,6 +5781,7 @@ impl<'a> Cx<'a> {
                     cohort,
                     result,
                     read,
+                    scope_authority,
                     by,
                     label,
                     description,
@@ -10351,10 +10358,12 @@ impl<'a> Cx<'a> {
             .flatten()
     }
 
+    #[allow(clippy::type_complexity)]
     fn decode_scenario(
         &mut self,
         symbol: &crate::analysis::resolve::Symbol,
     ) -> (
+        bool,
         bool,
         Vec<IrGuard>,
         Option<IrMessage>,
@@ -10367,6 +10376,7 @@ impl<'a> Cx<'a> {
         Option<IrEventSource>,
     ) {
         let empty = (
+            false,
             false,
             Vec::new(),
             None,
@@ -10452,10 +10462,14 @@ impl<'a> Cx<'a> {
             .and_then(|key| self.decode_message_value(symbol.module, key));
         let description = self.owner_description(symbol.module, &data.node);
         if data.scope_authority {
+            // Family E keeps its `E6008` until the Lane-C decision-mode
+            // runtime boundary lands: the §13 record below publishes the
+            // checked marker, but no boundary yet evaluates decision-mode
+            // body reads or serves the typed result as a grant.
             self.diags.push(Diagnostic::error(
                 "E6008",
                 format!(
-                    "cannot lower scenario {}: scope=authority has no §13 emission",
+                    "cannot lower scenario {}: scope=authority awaits its runtime authority boundary; emitting the fail-closed §13 marker only",
                     symbol.canonical,
                 ),
                 symbol.span,
@@ -10610,8 +10624,12 @@ impl<'a> Cx<'a> {
         // T34-F6: the checked `each=` cohort decodes verbatim (analysis
         // owns the contract; the IR never re-derives it).
         let cohort = data.cohort.as_ref().map(IrCohort::from);
+        // Family E: the marker is the checked analysis fact read from
+        // the actual `scope` attribute node — never re-derived here —
+        // so IR, §13 emission and the checker agree on one source fact.
         (
             data.read,
+            data.scope_authority,
             by,
             label,
             description,
