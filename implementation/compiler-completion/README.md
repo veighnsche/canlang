@@ -60,6 +60,35 @@ in-target `7cfd0578` + `ca50`: rust predicate 17/17, conjunction
 20/20, neighbors green; CLI probes exit 0 with refusals intact. No
 original24 movement claimed.
 
+### Actor-facts guard admission (1126/1151/1216) — 2026-10-17
+
+Literal `actor.email` / `actor.email_verified` reads in a first-query
+`require` admit the sealed contextual `actorFacts` projection. Analysis
+pins the literal actor base with checked User type through the
+grouping-transparent occurrence; the source matcher admits only the
+exact decoded `c.actorFacts.<field>` shape with nested receiver
+type/span seals (middle User over the authored occurrence, inner
+Unknown `c` over the wrapper), and the arm is scoped to that receiver
+so ordinary stored `email`-typed member reads keep the generic path
+(1216: fixture `I.email` is the original `email` type, not `text`).
+Aliases, user inputs and hook bindings never match. Fixture
+`first-query-actor-guard.can` carries navigation-parent first,
+conjunction guard, and the void if/create/set workflow with original
+email typing. Validation on rebuilt in-target binary + `ca50`: actor
+integration 4/4, lib actor-fact units 2/2, installed consumer 1/1
+(match/replay + mismatch/unverified/outsider/revoked no-write),
+neighbors lib predicate-filter 24/24 + conjunction 18/18 + ifbranch 7/7
++ hook-first 11/11 + native-first 17/17 + replay 4/4 + qualified 4/4 +
+stored-query 9/9 + scope-authority 19/19 + predicate-reuse 1/1 +
+first-query-sources 7/7, nav consumer 2/2; CLI probes exit 0 with
+refusals intact. Full-lib has 4 pre-existing main failures (stack
+overflow + 3 assertion failures, all reproduced on clean tree via
+stash). Record narrowing (1101): emitted predicate read registries
+carry an intentional registry-only fallback, not a lost predicate. The
+fixture sources its create parent from a param to isolate the actor
+slice; the original void `create D{parent=invitation.parent,...}` State
+data-dep gate is the next prerequisite. No original24 movement claimed.
+
 ### Navigation-parent first-query admission (0946/1011) — 2026-10-17
 
 Contained first queries may select through the one-hop containment
