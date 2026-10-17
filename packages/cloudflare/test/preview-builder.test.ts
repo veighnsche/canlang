@@ -104,10 +104,17 @@ it('model-backed preview still refuses inactive owner activation', async () => {
   expect(result.confirm).toHaveBeenCalledTimes(1);
 });
 
-it('a direct File declaration refuses before activation or worker allocation', async () => {
-  const result = await setup([{ name: 'Office.Attachment', fields: [{ name: 'content', field: { kind: 'file' } }] }]);
-  expect(result.failure).toMatchObject({ name: 'PreviewAdmissionError', code: 'FILES_UNAVAILABLE' });
-  expect(mocks.start).not.toHaveBeenCalled();
+it('a typed File declaration uses the current local Files receiver and implicit R2 binding', async () => {
+  const result = await setup([{ name: 'Office.Attachment', fields: [{ name: 'content', field: { kind: 'file' } }] }],
+    true, [{}], [{}], [{ owner: 'Office', name: 'FILES', binding: 'FILES', kind: 'r2', implicit: true }]);
+  expect(result.failure).toBe(result.probeReached);
+  const configured = mocks.start.mock.calls[1]![0];
+  expect(configured.vars.CAN_LOCAL_FILES).toBe(true);
+  expect(configured.r2Buckets).toEqual([{ binding: 'FILES', id: expect.any(String) }]);
+  expect(configured.r2Persist).toContain('/r2');
+  expect(result.confirm).toHaveBeenCalledTimes(2);
+  expect(result.bucket.put).toHaveBeenCalledTimes(1);
+  expect(result.bucket.delete).toHaveBeenCalledTimes(1);
 });
 
 it('omitted models use global DB activation without owner configuration', async () => {

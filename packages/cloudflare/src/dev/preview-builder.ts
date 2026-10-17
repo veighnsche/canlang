@@ -31,7 +31,6 @@ import {
 import type { SessionServicePreview } from "./session-service.js";
 import type { CompiledExampleInput } from "./example-runner.js";
 import { openRetainedPreviewState } from "./preview-state.js";
-import { artifactNeedsFiles } from "../runtime/artifact.js";
 import { configureLocalBindings, planLocalBindings, probeLocalR2, type LocalBindingImplementations } from "./local-bindings.js";
 
 const PROFILE = "local-d1-identity";
@@ -188,9 +187,6 @@ function admitPreviewInputs(artifact: CompileArtifact, capture: SingleFileCaptur
   }
   if (artifact.pages.length === 0 && (artifact.operations?.length ?? 0) === 0) {
     fail("PROFILE_UNSUPPORTED", "preview profile requires at least one page or checked operation");
-  }
-  if (artifactNeedsFiles(artifact)) {
-    fail("FILES_UNAVAILABLE", "can-dev has no Files receiver; use the installed Soda target with separate development data and HTTPS");
   }
   for (const requirement of artifact.requires) {
     const supportedVersion = requirement.capability === "canlang.builtins" ? 0 : 1;
