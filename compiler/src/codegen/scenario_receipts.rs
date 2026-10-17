@@ -11513,6 +11513,27 @@ fn assignment_inventory_matches(ty: &ResolvedType, field: &JsModelField) -> bool
         ResolvedType::Array { element, .. } => (element.as_ref(), true),
         ty => (ty, false),
     };
+    if let ResolvedType::Enum { cases, .. } = element {
+        // Plain stored-enum assignment through the identical enum(...)
+        // inventory as the declared field. Machine lifecycle enums keep
+        // their transition-recipe refusal, and arrays never gain this
+        // profile; the checked literal already guarantees case membership.
+        if array || cases.is_empty() || field.machine.is_some() {
+            return false;
+        }
+        let JsModelFieldType::Enum { values } = &field.field else {
+            return false;
+        };
+        if values != cases {
+            return false;
+        }
+        let expected = format!(
+            "enum({}){}",
+            cases.join(","),
+            if nullable { "?" } else { "" }
+        );
+        return native_result_type(ty) && inventory_type(field).as_deref() == Some(expected.as_str());
+    }
     let ResolvedType::Scalar(scalar) = element else {
         return false;
     };
