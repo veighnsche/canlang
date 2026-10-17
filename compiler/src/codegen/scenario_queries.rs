@@ -2058,24 +2058,39 @@ fn checked_first_query_plan(
     {
         return None;
     }
-    let [dependency] = q.dependencies.as_slice() else {
-        return None;
-    };
-    let field = nominal(program, ir, dependency.field)?;
-    if !declared.contains(&field.id)
-        || dependency.id.is_empty()
-        || dependency.source != q.source
-        || dependency.model != q.model
-        || dependency.model_name != model.canonical
-        || dependency.field_name != field.name
-        || dependency.role != DependencyRole::Control
-        || !dependency.calls.is_empty()
-        || field_type(program, ir, field.id, q.model)? != &dependency.ty
+    // Every recorded ordered conjunct dependency verifies like the former
+    // single one: nonempty unique IDs, exact source/model/role/calls/schema
+    // correspondence. A single predicate is the one-element case.
+    if q.dependencies.is_empty()
         || declared.iter().any(|id| {
             ir.items
                 .get(id.0 as usize)
                 .is_none_or(|item| item.name == "id")
         })
+    {
+        return None;
+    }
+    let mut conjuncts = Vec::new();
+    for dependency in q.dependencies.iter() {
+        let field = nominal(program, ir, dependency.field)?;
+        if !declared.contains(&field.id)
+            || dependency.id.is_empty()
+            || dependency.source != q.source
+            || dependency.model != q.model
+            || dependency.model_name != model.canonical
+            || dependency.field_name != field.name
+            || dependency.role != DependencyRole::Control
+            || !dependency.calls.is_empty()
+            || field_type(program, ir, field.id, q.model)? != &dependency.ty
+        {
+            return None;
+        }
+        conjuncts.push((dependency, field));
+    }
+    let mut seen = HashSet::new();
+    if conjuncts
+        .iter()
+        .any(|(dependency, _)| !seen.insert(&dependency.id))
     {
         return None;
     }
@@ -2174,13 +2189,16 @@ fn checked_first_query_plan(
                 .collect(),
             limit: None,
             archived: if q.archived { "include" } else { "exclude" }.into(),
-            dependencies: vec![ReceiptQueryDependency {
-                id: dependency.id.clone(),
-                source: origin(&dependency.source, entry),
-                role: ReceiptRole::Control,
-                field: field.name.clone(),
-                type_id: dependency.type_id.clone(),
-            }],
+            dependencies: conjuncts
+                .iter()
+                .map(|(dependency, field)| ReceiptQueryDependency {
+                    id: dependency.id.clone(),
+                    source: origin(&dependency.source, entry),
+                    role: ReceiptRole::Control,
+                    field: field.name.clone(),
+                    type_id: dependency.type_id.clone(),
+                })
+                .collect(),
         }],
         returns: checked_returns
             .returns

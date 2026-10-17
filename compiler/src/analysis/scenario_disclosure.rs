@@ -152,6 +152,10 @@ pub struct DisclosureFirstQuery {
     pub overload: usize,
     pub binding: NodeKey,
     pub operand: NodeKey,
+    /// Later `and`-conjunct operands in source order; empty for a single
+    /// predicate. The first conjunct stays in `operand` so single-predicate
+    /// readers keep working unchanged.
+    pub extra_operands: Vec<NodeKey>,
     /// DESIGN442 guard-consumed mark: the confined single-`Let(first)` plus
     /// single-`Require` hook slice consumes this occurrence only as a
     /// decision (hook_first_event + checked_first_query_source +
@@ -8290,47 +8294,104 @@ impl<'a> Closure<'a> {
             return None;
         }
         let predicate_node = predicate.expressions[0];
-        let (member, operand) = self.query_binary(predicate_node, "==")?;
-        let field = self.query_member(member, alias.node, fact.model)?;
-        let field_ty = self.types.symbol_types.get(&field)?;
-        let operand = self.query_group(operand)?;
-        // C23 hook slice: the row field compares against one declared text
-        // field of the trusted event payload. The event value is handler
-        // context, so the query carries no transported input.
-        let event_operand = hook_event
-            .is_some_and(|event| self.query_hook_event_operand(event, operand, field_ty).is_some());
-        if !fields.contains(&field)
-            || !primitive_type(field_ty)
-            || self.types.node_types.get(&self.query_group(member)?) != Some(field_ty)
-            || (!event_operand && self.nodes.get(&operand)?.kind != SyntaxKind::NameRef)
-            || self.types.node_types.get(&operand) != Some(field_ty)
-            || self.types.node_types.get(&predicate_node)
-                != Some(&ResolvedType::Scalar(Scalar::Bool))
-            || fields.iter().any(|field| {
-                self.resolve
-                    .symbols
-                    .get(field.0 as usize)
-                    .is_none_or(|field| field.name == "id")
-            })
-        {
+        // A where predicate is one `==` conjunct or an `and` chain of them,
+        // flattened order-preserving. Any other shape (`or`, comparisons,
+        // calls) keeps the closure refusal below.
+        let mut pending = vec![predicate_node];
+        let mut conjuncts = Vec::new();
+        while let Some(node) = pending.pop() {
+            if let Some((left, right)) = self.query_binary(node, "and") {
+                pending.push(right);
+                pending.push(left);
+                continue;
+            }
+            conjuncts.push(node);
+        }
+        if conjuncts.is_empty() {
             return None;
         }
-        let inputs = if event_operand {
-            Vec::new()
-        } else if matches!(
-            self.query_binding(operand),
-            Some(Binding::Context(ContextVar::Actor(_)))
-        ) && *field_ty == ResolvedType::Scalar(Scalar::User)
-            && self.word(self.nodes.get(&operand)?)? == "actor"
-        {
-            Vec::new()
-        } else {
-            let parameter = self.query_parameter(scenario, operand)?;
-            if self.types.symbol_types.get(&parameter) != Some(field_ty) {
+        if fields.iter().any(|field| {
+            self.resolve
+                .symbols
+                .get(field.0 as usize)
+                .is_none_or(|field| field.name == "id")
+        }) {
+            return None;
+        }
+        // Each conjunct admits exactly like the former single predicate: a
+        // stored-row field compared against an actor/param/event operand.
+        // Dependencies and transported inputs accumulate per conjunct.
+        let mut members: Vec<(
+            NodeKey,
+            SymbolId,
+            ResolvedType,
+            NodeKey,
+            Option<(NodeKey, SymbolId)>,
+        )> = Vec::new();
+        for conjunct in &conjuncts {
+            let (member, operand) = self.query_binary(*conjunct, "==")?;
+            let field = self.query_member(member, alias.node, fact.model)?;
+            let field_ty = self.types.symbol_types.get(&field)?.clone();
+            let operand = self.query_group(operand)?;
+            // C23 hook slice: the row field compares against one declared text
+            // field of the trusted event payload. The event value is handler
+            // context, so the query carries no transported input.
+            let event_operand = hook_event.is_some_and(|event| {
+                self.query_hook_event_operand(event, operand, &field_ty)
+                    .is_some()
+            });
+            if !fields.contains(&field)
+                || !primitive_type(&field_ty)
+                || self.types.node_types.get(&self.query_group(member)?) != Some(&field_ty)
+                || (!event_operand && self.nodes.get(&operand)?.kind != SyntaxKind::NameRef)
+                || self.types.node_types.get(&operand) != Some(&field_ty)
+                || self.types.node_types.get(conjunct) != Some(&ResolvedType::Scalar(Scalar::Bool))
+            {
                 return None;
             }
-            vec![(operand, parameter)]
-        };
+            let input = if event_operand {
+                None
+            } else if matches!(
+                self.query_binding(operand),
+                Some(Binding::Context(ContextVar::Actor(_)))
+            ) && field_ty == ResolvedType::Scalar(Scalar::User)
+                && self.word(self.nodes.get(&operand)?)? == "actor"
+            {
+                None
+            } else {
+                let parameter = self.query_parameter(scenario, operand)?;
+                if self.types.symbol_types.get(&parameter) != Some(&field_ty) {
+                    return None;
+                }
+                Some((operand, parameter))
+            };
+            members.push((member, field, field_ty, operand, input));
+        }
+        // Bound before dependencies: the opaque query id anchors them.
+        let id = self.opaque("query", fact.query, "").ok()?;
+        let dependencies = members
+            .iter()
+            .map(|(member, field, _, _, _)| {
+                self.query_dependency(
+                    *member,
+                    scenario.module,
+                    fact.model,
+                    *field,
+                    DependencyRole::Control,
+                    &id,
+                )
+            })
+            .collect::<Option<Vec<_>>>()?;
+        let inputs = members
+            .iter()
+            .filter_map(|(_, _, _, _, input)| *input)
+            .collect::<Vec<_>>();
+        let operand = members.first().map(|member| member.3)?;
+        let extra_operands = members
+            .iter()
+            .skip(1)
+            .map(|member| member.3)
+            .collect::<Vec<_>>();
         // Only authored ordering has a source node. An empty list preserves
         // the canonical stored-query created/id default at the engine boundary.
         let order = if let Some(order) = order {
@@ -8360,7 +8421,6 @@ impl<'a> Closure<'a> {
         // the actual terminal source anchor; only the checked Return census
         // may publish return identities or disclosure associations.
         let returned = scenario.effects.last()?;
-        let id = self.opaque("query", fact.query, "").ok()?;
         let source = self.source(scenario.module, fact.query).ok()?;
         let influences = [
             InfluenceKind::QueryExistence,
@@ -8382,14 +8442,7 @@ impl<'a> Closure<'a> {
         })
         .collect::<Option<Vec<_>>>()?;
         Some(DisclosureQuery {
-            dependencies: vec![self.query_dependency(
-                member,
-                scenario.module,
-                fact.model,
-                field,
-                DependencyRole::Control,
-                &id,
-            )?],
+            dependencies,
             id,
             source,
             node: fact.query,
@@ -8410,6 +8463,7 @@ impl<'a> Closure<'a> {
                 overload: fact.overload,
                 binding: binding.node,
                 operand,
+                extra_operands,
                 // DESIGN442: the guard/presence-consumed marks land in the
                 // source-facts pass below, where the Require consumptions
                 // for this scenario are known. Unmarked here so every
