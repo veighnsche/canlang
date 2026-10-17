@@ -1,0 +1,22 @@
+app AnyFirstProbe
+Given
+ P {v:int,active:bool=true}
+ C in P {account:user,role:enum(administrator,booker),active:bool=true}
+ D in P {account:user,role:C.role,w:int}
+ I in P {role:C.role}
+ policy P read=members fields=v,active
+ policy C read=members fields=parent,account,role,active
+ policy D read=members fields=parent,account,role,w
+ policy I read=members fields=parent,role
+When
+ crud P by=members fields=v
+ crud C by=members fields=parent,account,role,active
+ crud D by=members fields=parent,account,role,w
+ crud I by=members fields=parent,role
+ scenario accept(invitation:I) by=members
+  require not any(invitation.parent.C as grant,grant.account==actor and grant.role==invitation.role and grant.active)
+  do
+   let c=first(invitation.parent.C as c where c.account==actor and c.role==invitation.role order=c.id)
+   require c!=null
+   create D {parent=invitation.parent,account=actor,role=invitation.role,w=1} as d
+Then

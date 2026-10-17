@@ -41,7 +41,7 @@ import { readLiveScenarioFile, checkRetainedScenarioFile, scenarioFileField, sce
 import { storedNominalType, storedNominalField, storedNominalWire, storedNominalFileRefs, savedNominalWire, type StoredNominalFieldProfile } from './scenario-stored-value.js';
 import { storedReferenceField, storedReferenceWire, type StoredReferenceFieldProfile } from './scenario-stored-reference.js';
 import { bindScenarioQuerySelection, scenarioQuerySelectionWire, type ScenarioQuerySelectionMetadata, type ScenarioQuerySelectionProfile } from './scenario-query-selection.js';
-import { bindScenarioQueryAny, checkSavedScenarioQueryAny, type ScenarioQueryAnyMetadata, type ScenarioQueryAnyProfile } from './scenario-query-any.js';
+import { bindScenarioQueryAny, checkDirectPredicateCall, checkSavedScenarioQueryAny, type ScenarioQueryAnyMetadata, type ScenarioQueryAnyProfile } from './scenario-query-any.js';
 import { bindScenarioNarrowedFields, scenarioNarrowedFieldControls, type ScenarioNarrowedFieldBinding } from './scenario-narrowed-field.js';
 import { FenceConflictError } from '../storage/port.js';
 import { bindFileReferenceProfile, fileReferenceOccurrences, type FileReferenceProfile } from '../ports/file-reference-profile.js';
@@ -1537,14 +1537,25 @@ export function bindScenarioReceiptQueryProducer(def: GeneratedOperationDef, pro
   for (const metadata of list(dataCopy(producer.any ?? []))) {
     const any = metadata as ScenarioQueryAnyMetadata;
     const owner = membershipProducers.get(def);
-    if ('kind' in any && any.kind === 'predicate' && any.sourceCall !== undefined &&
+    // A direct leading-any guard carries no helper owner census, so it
+    // cannot satisfy the membership-producer association below. Its exact
+    // checked call record is verified here instead against the installed
+    // owner/source producer; the `direct` bit alone authorizes nothing.
+    if ('kind' in any && any.kind === 'predicate' && (any as { direct?: unknown }).direct === true) {
+      const query = bound.plan.queries?.find(query => query.id === any.queryId);
+      if (query === undefined) return invalid('direct predicate requires its exact checked query.');
+      checkDirectPredicateCall(def.name, bound.plan.source, query, (any as { sourceCall?: unknown }).sourceCall,
+        (any as { call?: unknown }).call);
+    } else if ('kind' in any && any.kind === 'predicate' && any.sourceCall !== undefined &&
         (owner === undefined || owner.app !== producer.app || stableStringify(owner.source) !== stableStringify(membershipSource(def, bound)))) {
       return invalid('imported predicate query requires this definition actual bound owner source producer.');
     }
     const profile = bindScenarioQueryAny(bound, any, owner === undefined ? undefined : {
       owner: def.name, source: membershipSource(def, bound), sites: owner.sites,
     });
-    if (bound.resultModel === undefined || selections.has(profile.queryId) || anyQueries.has(profile.queryId) ||
+    // Void effect-tail workflows carry no created-model consumer; their
+    // bound ANY profile is already sealed and source grants still apply.
+    if ((bound.resultModel === undefined && bound.type !== 'void') || selections.has(profile.queryId) || anyQueries.has(profile.queryId) ||
         readPolicies === undefined || !('grants' in readPolicies.get(profile.model)!)) return invalid('ANY requires its contained created-model consumer and original source grants.');
     anyQueries.set(profile.queryId, profile);
   }

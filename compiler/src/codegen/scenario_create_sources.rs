@@ -1306,7 +1306,7 @@ struct SourceExpressions<'a> {
     query_alias: Option<(&'a str, &'a str)>,
 }
 
-impl SourceExpressions<'_> {
+impl<'a> SourceExpressions<'a> {
     fn prefix_statement(&self, actual: &IrStmt, node: &SyntaxNode, depth: usize) -> Option<()> {
         if depth > 64 {
             return None;
@@ -1521,6 +1521,31 @@ impl SourceExpressions<'_> {
             return None;
         }
         super::scenario_calls::checked_source(self.ir, owner, self.db)
+    }
+
+    /// Unique scenario owner holding this exact checked create. The
+    /// direct leading-any composition has no transcript source, so the
+    /// legacy transcript lookup above cannot supply its owner.
+    fn create_owner(&self) -> Option<&'a IrItem> {
+        let mut owners = self.ir.items.iter().filter(|owner| {
+            self.ir
+                .scenario_disclosures
+                .get(&owner.id)
+                .and_then(|value| value.source_facts())
+                .is_some_and(|source| {
+                    source.source == self.original.source
+                        && source.creates.as_deref().is_some_and(|creates| {
+                            creates
+                                .iter()
+                                .any(|created| created.node == self.original.node)
+                        })
+                })
+        });
+        let owner = owners.next()?;
+        if owners.next().is_some() {
+            return None;
+        }
+        Some(owner)
     }
 
     fn transcript_call(&self, actual: &TypedExpr, key: NodeKey, depth: usize) -> Option<()> {
@@ -4408,10 +4433,27 @@ impl SourceExpressions<'_> {
                 },
                 SyntaxKind::Call,
             ) if self.operands && id == "any" => {
-                let source = self.transcript_source()?;
-                let owner = self.ir.items.get(source.scenario.0 as usize)?;
-                super::scenario_receipts::checked_any_query_ir(self.ir, owner, actual, self.db)?;
-                source_path(children.first()?, self.text)? == "any"
+                if source_path(children.first()?, self.text)? != "any" {
+                    return None;
+                }
+                let legacy = self.transcript_source().and_then(|source| {
+                    let owner = self.ir.items.get(source.scenario.0 as usize)?;
+                    super::scenario_receipts::checked_any_query_ir(
+                        self.ir, owner, actual, self.db,
+                    )?;
+                    Some(())
+                });
+                if legacy.is_none() {
+                    // Direct leading `require not any(...)` over the
+                    // composed any/first shape: no transcript source
+                    // exists, so the composition matcher supplies the
+                    // same exact guard/call/domain correspondence.
+                    let owner = self.create_owner()?;
+                    super::scenario_receipts::checked_any_first_query_ir(
+                        self.ir, owner, actual, self.db,
+                    )?;
+                }
+                true
             }
             (
                 IrExpr::Call {

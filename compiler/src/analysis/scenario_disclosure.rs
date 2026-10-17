@@ -7402,7 +7402,21 @@ impl<'a> Closure<'a> {
         let model = fact.model;
         let owner = self.checked_count_model(model, scenario.module)?;
         let (receiver, collection) = self.count_member(query.domain)?;
-        let parameter = self.query_parameter(scenario, receiver)?;
+        // Direct `p.C`: the receiver is the parameter itself. Navigation
+        // `i.parent.C`: the receiver is the one-hop containment link off
+        // a default-free stored-record parameter (mirrors the admitted
+        // first-query domain owner: base must bind the scenario parameter
+        // through the `parent` link; the path helper below seals lineage).
+        let parameter = match self.query_parameter(scenario, receiver) {
+            Some(parameter) => parameter,
+            None => {
+                let (base, field) = self.count_member(receiver)?;
+                if field != "parent" {
+                    return None;
+                }
+                self.query_parameter(scenario, base)?
+            }
+        };
         let (parent, hops) = self.checked_call_parent_path(receiver, parameter, 0)?;
         self.checked_count_model(parent, scenario.module)?;
         let parameter_symbol = self.resolve.symbols.get(parameter.0 as usize)?;
@@ -7445,7 +7459,69 @@ impl<'a> Closure<'a> {
             .map(|part| self.word(part))
             .collect::<Option<Vec<_>>>()?;
         let predicate_node = self.query_group(*predicate)?;
-        let field = self.query_member(predicate_node, alias.node, model)?;
+        // An any predicate is one bool conjunct or an `and` chain of them,
+        // flattened order-preserving (mirrors the admitted first-query
+        // where owner). Each conjunct is either a `member == operand`
+        // comparison or a bare bool member read; the former single
+        // `unfinished` profile is the one-conjunct bare case.
+        let mut pending = vec![predicate_node];
+        let mut conjuncts = Vec::new();
+        while let Some(node) = pending.pop() {
+            if let Some((left, right)) = self.query_binary(node, "and") {
+                pending.push(right);
+                pending.push(left);
+                continue;
+            }
+            conjuncts.push(node);
+        }
+        if conjuncts.is_empty() {
+            return None;
+        }
+        let mut members: Vec<(NodeKey, SymbolId)> = Vec::new();
+        for conjunct in &conjuncts {
+            if let Some((member, operand)) = self.query_binary(*conjunct, "==") {
+                let field = self.query_member(member, alias.node, model)?;
+                let field_ty = self.types.symbol_types.get(&field)?.clone();
+                let operand = self.query_group(operand)?;
+                let case_operand = matches!(&field_ty, ResolvedType::Enum { cases, .. } if !cases.is_empty())
+                    && self.types.resolved_cases.contains(&operand);
+                let actor_operand = matches!(
+                    self.query_binding(operand),
+                    Some(Binding::Context(ContextVar::Actor(_)))
+                ) && field_ty == ResolvedType::Scalar(Scalar::User)
+                    && self.word(self.nodes.get(&operand)?)? == "actor";
+                let member_operand = if case_operand || actor_operand {
+                    false
+                } else {
+                    self.query_member_operand(scenario, operand)
+                        .filter(|(_, operand_field, _)| {
+                            self.types.symbol_types.get(operand_field) == Some(&field_ty)
+                        })
+                        .is_some()
+                };
+                if !(primitive_type(&field_ty)
+                    || matches!(&field_ty, ResolvedType::Enum { cases, .. } if !cases.is_empty()))
+                    || self.types.node_types.get(&self.query_group(member)?) != Some(&field_ty)
+                    || (!case_operand
+                        && !actor_operand
+                        && !member_operand
+                        && self.nodes.get(&operand)?.kind != SyntaxKind::NameRef)
+                    || self.types.node_types.get(&operand) != Some(&field_ty)
+                    || self.types.node_types.get(conjunct) != Some(&ResolvedType::Scalar(Scalar::Bool))
+                {
+                    return None;
+                }
+                members.push((member, field));
+            } else {
+                let field = self.query_member(*conjunct, alias.node, model)?;
+                if self.types.symbol_types.get(&field) != Some(&boolean)
+                    || self.types.node_types.get(conjunct) != Some(&ResolvedType::Scalar(Scalar::Bool))
+                {
+                    return None;
+                }
+                members.push((*conjunct, field));
+            }
+        }
         if fact.node != call
             || fact.builtin != "any"
             || fact.overload != *overload
@@ -7468,8 +7544,9 @@ impl<'a> Closure<'a> {
             || !alias.expressions.is_empty()
             || alias_words != ["as", name.as_str()]
             || collection != owner.name
-            || hops != 0
-            || !self.original_reference_parameter(receiver, parameter)
+            || hops > 1
+            || !(self.original_reference_parameter(receiver, parameter)
+                || self.original_navigation_parameter(receiver, parameter))
             || self.model_has_field(parent, collection)
             || !matches!(owner.kind,SymbolKind::Model {owner:ModelOwner::ChildOf(actual),..} if actual==parent)
             || self.effects.models.get(&model)?.owner != ModelOwner::ChildOf(parent)
@@ -7479,10 +7556,22 @@ impl<'a> Closure<'a> {
             || parameter_data.param != parameter
             || parameter_data.type_node != type_node
             || parameter_data.default.is_some()
-            || self.word(self.nodes.get(&receiver)?)? != parameter_symbol.name
-            || self.query_member_name(predicate_node, alias.node, model) != Some("unfinished")
+            || {
+                // Direct receiver spells exactly the parameter name.
+                // A navigated `param.parent` receiver spells exactly the
+                // parameter base plus the sealed single-hop containment
+                // link (structural lineage is proven by
+                // original_navigation_parameter above).
+                if self.word(self.nodes.get(&receiver)?)? == parameter_symbol.name {
+                    false
+                } else {
+                    let (base, field) = self.count_member(receiver)?;
+                    hops != 1
+                        || field != "parent"
+                        || self.word(self.nodes.get(&base)?)? != parameter_symbol.name
+                }
+            }
             || self.types.node_types.get(&predicate_node) != Some(&boolean)
-            || self.types.symbol_types.get(&field) != Some(&boolean)
         {
             return None;
         }
@@ -7515,18 +7604,24 @@ impl<'a> Closure<'a> {
             return None;
         }
         let returned = scenario.effects.last()?;
-        if returned.verb != EffectVerb::Return {
-            return None;
-        }
+        // Value-bearing tails anchor the query on their explicit return
+        // (the long-standing admitted shape). Void effect tails anchor on
+        // the final effect itself, mirroring the helper-any owner; the
+        // collector still proves the scenario's own return/effect
+        // correspondence downstream.
+        let return_node = returned.node;
         let id = self.opaque("query", node, "").ok()?;
-        let dependencies = vec![self.query_dependency(
-            predicate_node,
-            scenario.module,
-            model,
-            field,
-            DependencyRole::Control,
-            &id,
-        )?];
+        let mut dependencies = Vec::new();
+        for (member, field) in &members {
+            dependencies.push(self.query_dependency(
+                *member,
+                scenario.module,
+                model,
+                *field,
+                DependencyRole::Control,
+                &id,
+            )?);
+        }
         let influences = [
             InfluenceKind::QueryExistence,
             InfluenceKind::QueryCardinality,
@@ -7561,7 +7656,7 @@ impl<'a> Closure<'a> {
             limit: None,
             archived: false,
             cardinality_guard: None,
-            return_node: returned.node,
+            return_node,
             projection: None,
             first: None,
             count: None,
@@ -11741,7 +11836,8 @@ impl<'a> Closure<'a> {
                 else {
                     return Err(self.fail(key, "any needs its original parent type"));
                 };
-                if !self.original_reference_parameter(*receiver, *parameter)
+                if !(self.original_reference_parameter(*receiver, *parameter)
+                    || self.original_navigation_parameter(*receiver, *parameter))
                     || !env.get(&Local::Symbol(*parameter)).is_some_and(|value| {
                         value.record == Some(*parent)
                             && matches!(value.reference_origin,

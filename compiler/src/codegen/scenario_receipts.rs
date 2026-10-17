@@ -3185,6 +3185,482 @@ pub(super) fn checked_any_query_ir<'a>(
     Some(query)
 }
 
+/// Exact original leading `not any(...)` guard over a navigated parent
+/// collection, joined with a same-scenario `first` selection: the two-query
+/// `[any, first]` composition census. Mirrors the single-query any owner pin
+/// for pin, but admits the navigated `param.parent` receiver (sealed through
+/// the existing one-hop containment owner), one Control dependency per
+/// authored `and` conjunct (field comparison or bare bool read), and a void
+/// effect tail. Any other shape keeps the refusal.
+/// Resolved one-hop containment parent for the direct leading-any
+/// composition. The input model I (parameter declaration) stays distinct
+/// from the resolved parent model P (navigated `param.parent` link): the
+/// child collection is contained under P, never scanned under the input
+/// row. Shared by the matcher and the emitted plan edge so the lineage
+/// cannot drift between them.
+pub(super) fn checked_any_first_parent<'a, 'b>(
+    ir: &'a IrProgram,
+    owner: &'a IrItem,
+    any: &crate::analysis::scenario_disclosure::DisclosureQuery,
+    actual: &'b TypedExpr,
+    db: &SourceDb,
+) -> Option<(
+    &'a IrItem,
+    crate::analysis::SymbolId,
+    &'b TypedExpr,
+    &'b TypedExpr,
+    crate::analysis::SymbolId,
+)> {
+    // Returns (parameter item, input model I, parent expr, parent base
+    // expr, resolved parent model P).
+    let facts = super::scenario_calls::checked_source(ir, owner, db)?;
+    let args = match &actual.expr {
+        IrExpr::Call { args, .. } => args.as_slice(),
+        IrExpr::BoundCall { args, .. } => args.as_slice(),
+        _ => return None,
+    };
+    let [domain, _] = args else {
+        return None;
+    };
+    let IrExpr::Query(scan) = &domain.expr else {
+        return None;
+    };
+    let [(receiver, parameter_id)] = any.inputs.as_slice() else {
+        return None;
+    };
+    let parameter = ir.items.get(parameter_id.0 as usize)?;
+    let IrItemKind::Param {
+        owner: parameter_owner,
+        index,
+        ty:
+            IrType::Known(ResolvedType::Record {
+                symbol: input_id,
+                stored: true,
+            }),
+        default: None,
+        default_node: None,
+        default_copy_source: None,
+        array_bounds: None,
+        ..
+    } = &parameter.kind
+    else {
+        return None;
+    };
+    let original_parameter = facts.parameters.get(*index)?;
+    // Navigated collection: the scan parent is the `param.parent` link.
+    // The decoded IR base must match the exact original NameRef child
+    // occurrence and the declared input type, not just the parameter name.
+    let source_receiver = checked_effect_node(ir, owner, *receiver, db)?;
+    let text = &db.get(receiver.file)?.text;
+    let mut bases = source_receiver
+        .children
+        .iter()
+        .filter(|part| part.kind == SyntaxKind::NameRef);
+    let mut fields = source_receiver
+        .children
+        .iter()
+        .filter(|part| part.kind == SyntaxKind::Name);
+    let (Some(base), None) = (bases.next(), bases.next()) else {
+        return None;
+    };
+    let (Some(field), None) = (fields.next(), fields.next()) else {
+        return None;
+    };
+    if source_receiver.kind != SyntaxKind::Member
+        || text.get(base.span.start as usize..base.span.end as usize)? != parameter.name
+        || text.get(field.span.start as usize..field.span.end as usize)? != "parent"
+        || text.get(receiver.start as usize..receiver.end as usize)?
+            != format!("{}.parent", parameter.name)
+    {
+        return None;
+    }
+    let parent = scan.parent.as_deref()?;
+    let IrExpr::Member {
+        base: parent_base,
+        field: parent_field,
+    } = &parent.expr
+    else {
+        return None;
+    };
+    let IrExpr::Name(parent_base_name) = &parent_base.expr else {
+        return None;
+    };
+    if parent_field != "parent"
+        || parent_base_name != &parameter.name
+        || parent_base.span != base.span
+        || parent_base.ty != original_parameter.ty
+        || parent.span != node_span(*receiver)
+    {
+        return None;
+    }
+    // The input model (I, from the parameter declaration) and the resolved
+    // parent model (P, from the navigated link) stay distinct: the child
+    // collection is contained under P, not under the input row.
+    let ResolvedType::Record {
+        symbol: parent_model,
+        stored: true,
+    } = parent.ty
+    else {
+        return None;
+    };
+    let model = ir.items.get(any.model.0 as usize)?;
+    let IrItemKind::Scenario { params, .. } = &owner.kind else {
+        return None;
+    };
+    // The navigation parent must be the input model's owning containment
+    // parent, and the child collection must hang under the same parent.
+    let contracts = facts.stored_contracts.as_deref()?;
+    let input_schema = contracts
+        .iter()
+        .find(|schema| schema.model && schema.id == *input_id)?;
+    if *parameter_owner != owner.id
+        || params.get(*index) != Some(parameter_id)
+        || original_parameter.parameter != *parameter_id
+        || original_parameter.default.is_some()
+        || original_parameter.ty != parent_base.ty
+        || input_schema.parent != Some(parent_model)
+        || !matches!(&model.kind, IrItemKind::Model {owner:IrOwner::ChildOf(value),..} if *value==parent_model)
+    {
+        return None;
+    }
+    Some((parameter, *input_id, parent, parent_base, parent_model))
+}
+
+pub(super) fn checked_any_first_query_ir<'a>(
+    ir: &'a IrProgram,
+    owner: &'a IrItem,
+    actual: &TypedExpr,
+    db: &SourceDb,
+) -> Option<&'a crate::analysis::scenario_disclosure::DisclosureQuery> {
+    let facts = super::scenario_calls::checked_source(ir, owner, db)?;
+    if checked_native_query_influences(facts.queries.as_deref()?)?.len() != 8 {
+        return None;
+    }
+    let [any, first] = facts.queries.as_deref()? else {
+        return None;
+    };
+    if any.first.is_some()
+        || any.count.is_some()
+        || any.projection.is_some()
+        || any.cardinality_guard.is_some()
+        || any.alias.is_none()
+        || any.predicate.is_none()
+        || first.first.is_none()
+        || first.count.is_some()
+    {
+        return None;
+    }
+    let boolean = ResolvedType::Scalar(Scalar::Bool);
+    let IrItemKind::Scenario { guards, params, .. } = &owner.kind else {
+        return None;
+    };
+    // Exactly one leading `require not any(...)` guard carries `actual`.
+    let mut statements = guards.iter().filter_map(|statement| {
+        let IrStmt::Require { cond, span } = statement else {
+            return None;
+        };
+        let IrExpr::Unary {
+            op: super::ir::IrUnOp::Not,
+            operand,
+        } = &cond.expr
+        else {
+            return None;
+        };
+        std::ptr::eq(operand.as_ref(), actual).then_some((cond, *span))
+    });
+    let (condition, statement) = statements.next()?;
+    let (target, args, slots) = match &actual.expr {
+        IrExpr::Call { target, args } => (target, args.as_slice(), None),
+        IrExpr::BoundCall {
+            target,
+            args,
+            slots,
+        } => (target, args.as_slice(), Some(slots.as_slice())),
+        _ => return None,
+    };
+    let [domain, predicate] = args else {
+        return None;
+    };
+    let IrExpr::Query(scan) = &domain.expr else {
+        return None;
+    };
+    if scan.value_order.is_some() {
+        return None;
+    }
+    let IrExpr::Lambda { param, body } = &predicate.expr else {
+        return None;
+    };
+    let checked = scan.source.as_deref()?;
+    let collection = scan.collection_call.as_deref()?;
+    let [alias] = checked.clauses.as_slice() else {
+        return None;
+    };
+    let crate::analysis::types::CheckedQueryClauseKind::As { name } = &alias.kind else {
+        return None;
+    };
+    if param != name {
+        return None;
+    }
+    // Shared sealed one-hop lineage: input I, resolved parent P, child C
+    // and the original base occurrence stay bound together here.
+    let (_parameter, parent_id, parent, parent_base, _parent_model) =
+        checked_any_first_parent(ir, owner, any, actual, db)?;
+    let record = ResolvedType::Record {
+        symbol: any.model,
+        stored: true,
+    };
+    let array = ResolvedType::Array {
+        element: Box::new(record.clone()),
+        ordered: true,
+        nonempty: false,
+    };
+    let model = ir.items.get(any.model.0 as usize)?;
+    // Flatten the authored `and` chain order-preserving; each leaf carries
+    // exactly one recorded Control dependency, in order.
+    let mut pending = vec![body.as_ref()];
+    let mut leaves: Vec<&TypedExpr> = Vec::new();
+    while let Some(node) = pending.pop() {
+        if let IrExpr::Binary {
+            op: super::ir::IrBinOp::And,
+            left,
+            right,
+        } = &node.expr
+        {
+            if node.ty != boolean {
+                return None;
+            }
+            pending.push(right.as_ref());
+            pending.push(left.as_ref());
+            continue;
+        }
+        leaves.push(node);
+    }
+    if leaves.len() != any.dependencies.len() || leaves.is_empty() {
+        return None;
+    }
+    let text = &db.get(actual.span.file)?.text;
+    let mut seen = std::collections::HashSet::new();
+    let mut census: Vec<(&Span, &ResolvedType)> = vec![
+        (&actual.span, &actual.ty),
+        (&body.span, &body.ty),
+        (&parent.span, &parent.ty),
+        (&parent_base.span, &parent_base.ty),
+    ];
+    for (leaf, dependency) in leaves.iter().zip(any.dependencies.iter()) {
+        let (member, field_name, operand) = match &leaf.expr {
+            IrExpr::Binary {
+                op: super::ir::IrBinOp::Eq,
+                left,
+                right,
+            } => {
+                let IrExpr::Member { base, field } = &left.expr else {
+                    return None;
+                };
+                let IrExpr::Name(base_name) = &base.expr else {
+                    return None;
+                };
+                if base_name != param || base.ty != record {
+                    return None;
+                }
+                (left.as_ref(), field.as_str(), Some(right.as_ref()))
+            }
+            IrExpr::Member { base, field } => {
+                let IrExpr::Name(base_name) = &base.expr else {
+                    return None;
+                };
+                if base_name != param || base.ty != record {
+                    return None;
+                }
+                (*leaf, field.as_str(), None)
+            }
+            _ => return None,
+        };
+        let member_ty = member.ty.clone();
+        if leaf.ty != boolean
+            || dependency.ty != member_ty
+            || (operand.is_none() != (member_ty == boolean))
+        {
+            return None;
+        }
+        // Decoded member spans may include surrounding trivia (e.g. the
+        // space after `and`); trim ASCII whitespace for the spelling
+        // comparison only. Node identity stays pinned by the exact
+        // (span, type) census below.
+        let member_text = text
+            .get(member.span.start as usize..member.span.end as usize)
+            .map(str::trim);
+        if member_text != Some(format!("{param}.{field_name}").as_str()) {
+            return None;
+        }
+        if let Some(operand) = operand {
+            if operand.ty != member_ty {
+                return None;
+            }
+            // Operand is the contextual actor read or a member read
+            // off a real scenario parameter (the alias row itself is never
+            // an operand base); anything else keeps the refusal. The base
+            // spelling, member field bytes, and (span, type) census below
+            // seal the exact authored expression.
+            let IrExpr::Member { base, field: operand_field } = &operand.expr else {
+                return None;
+            };
+            let IrExpr::Name(operand_base) = &base.expr else {
+                return None;
+            };
+            let operand_text = text
+                .get(operand.span.start as usize..operand.span.end as usize)
+                .map(str::trim)?;
+            if operand_text == "actor" {
+                // Contextual actor read: exact synthetic carrier identity
+                // (base `c`, Unknown type, base span is the operand span),
+                // mirroring the established first-query predicate owner.
+                // Anything else under actor bytes keeps the refusal.
+                if operand_field != "actor"
+                    || !matches!(&base.expr, IrExpr::Name(name) if name == "c")
+                    || base.ty != ResolvedType::Unknown
+                    || base.span != operand.span
+                    || operand.ty != ResolvedType::Scalar(Scalar::User)
+                {
+                    return None;
+                }
+            } else {
+                let owner_param = params.iter().find_map(|id| {
+                    let item = ir.items.get(id.0 as usize)?;
+                    (item.name == *operand_base).then_some(item)
+                });
+                let Some(owner_param) = owner_param else {
+                    return None;
+                };
+                if operand_text != format!("{operand_base}.{operand_field}")
+                    || owner_param.name == *param
+                {
+                    return None;
+                }
+            }
+            census.push((&operand.span, &operand.ty));
+        }
+        if dependency.role != DependencyRole::Control
+            || dependency.model != any.model
+            || dependency.model_name != model.canonical
+            || dependency.field_name != field_name
+            || !dependency.calls.is_empty()
+            || dependency.query_id.is_some()
+            || dependency.id.is_empty()
+            || !seen.insert(&dependency.id)
+            || node_span(dependency.node) != member.span
+        {
+            return None;
+        }
+        census.push((&leaf.span, &leaf.ty));
+        census.push((&member.span, &member.ty));
+    }
+    let sites = facts.decision_sites.as_deref()?;
+    let mut original_calls =
+        sites
+            .iter()
+            .filter(|site| {
+                site.owner==owner.id
+        && node_span(site.statement)==statement && node_span(site.node)==condition.span
+        && site.stage==crate::analysis::scenario_disclosure::CheckedDecisionStage::LeadingRequire
+        && site.source==facts.source
+            })
+            .flat_map(|site| &site.calls)
+            .filter(|call| node_span(call.node) == actual.span);
+    let original_call = original_calls.next()?;
+    let expression_types = facts.expression_types.as_deref()?;
+    if statements.next().is_some()
+        || original_calls.next().is_some()
+        || !matches!(target,IrCallTarget::Builtin {id,awaited:false} if id=="any")
+        || slots.is_some_and(|slots| slots != [Some(0), Some(1)])
+        || actual.ty != boolean
+        || condition.ty != boolean
+        || predicate.ty != boolean
+        || body.ty != boolean
+        || collection.node != original_call.node
+        || collection.builtin != "any"
+        || collection.overload != 0
+        || collection.model != any.model
+        || collection.query != any.node
+        || Some(collection.alias) != any.alias
+        || collection.alias != alias.node
+        || collection
+            .predicate
+            .as_ref()
+            .is_none_or(|value| Some(value.node) != any.predicate || value.ty != boolean)
+        || original_call.target
+            != (crate::analysis::scenario_disclosure::CheckedDecisionCallTarget::Builtin {
+                id: "any".into(),
+                overload: 0,
+            })
+        || original_call.arguments
+            != vec![
+                (any.node, array.clone()),
+                (any.predicate?, boolean.clone()),
+            ]
+        || original_call.slots != [Some(0), Some(1)]
+        || !original_call.defaults.is_empty()
+        || !original_call.chain.is_empty()
+        || original_call.source != facts.source
+        || original_call.module != owner.module
+        || checked.node != any.node
+        || checked.domain != any.domain
+        || checked.projection.is_some()
+        || checked.domain_type != array
+        || checked.result != array
+        || domain.ty != array
+        || domain.span != node_span(any.node)
+        || scan.contract_collection_call.is_some()
+        || scan.where_pred.is_some()
+        || scan.where_async
+        || scan.select.is_some()
+        || scan.select_param.is_some()
+        || !scan.order.is_empty()
+        || scan.limit.is_some()
+        || scan.archived.is_some()
+        || !matches!(&scan.domain,super::ir::IrQueryDomain::Model(value) if value==&model.canonical)
+        || !census.iter().all(|(span, ty)| {
+            expression_types
+                .iter()
+                .any(|(node, actual_ty)| node_span(*node) == **span && *actual_ty == **ty)
+        })
+    {
+        return None;
+    }
+    for id in [any.model, parent_id] {
+        let mut schemas = facts
+            .stored_contracts
+            .as_deref()?
+            .iter()
+            .filter(|schema| schema.id == id && schema.model);
+        let schema = schemas.next()?;
+        if schemas.next().is_some() || schema.source != any.source {
+            return None;
+        }
+        match_stored_contract_schema(ir, schema, db)?;
+        for field in &schema.fields {
+            match_stored_contract_field(ir, field, db)?;
+        }
+        if id == any.model {
+            for dependency in any.dependencies.iter() {
+                if schema
+                    .fields
+                    .iter()
+                    .filter(|field| {
+                        field.id == dependency.field
+                            && field.name == dependency.field_name
+                            && field.ty == dependency.ty
+                    })
+                    .count()
+                    != 1
+                {
+                    return None;
+                }
+            }
+        }
+    }
+    Some(any)
+}
+
 /// Exact original leading helper call joined to its source-owned ANY census.
 /// This source/IR proof does not install or execute a native query callback.
 pub(super) fn checked_helper_any_query_ir<'a>(
@@ -3210,9 +3686,9 @@ pub(super) fn checked_helper_any_query_ir<'a>(
     Some(query)
 }
 
-pub(super) fn checked_native_any_query_plan(
-    ir: &IrProgram,
-    owner: &IrItem,
+pub(super) fn checked_native_any_query_plan<'a>(
+    ir: &'a IrProgram,
+    owner: &'a IrItem,
     query: &crate::analysis::scenario_disclosure::DisclosureQuery,
     db: &SourceDb,
     entry: &str,
@@ -3220,7 +3696,7 @@ pub(super) fn checked_native_any_query_plan(
     let IrItemKind::Scenario { guards, .. } = &owner.kind else {
         return None;
     };
-    let mut calls = guards.iter().filter_map(|statement| {
+    let calls = guards.iter().filter_map(|statement| {
         let IrStmt::Require { cond, .. } = statement else {
             return None;
         };
@@ -3231,22 +3707,37 @@ pub(super) fn checked_native_any_query_plan(
         else {
             return None;
         };
-        (checked_any_query_ir(ir, owner, operand, db) == Some(query)).then_some(operand.as_ref())
+        let legacy = checked_any_query_ir(ir, owner, operand, db) == Some(query);
+        let composition =
+            !legacy && checked_any_first_query_ir(ir, owner, operand, db) == Some(query);
+        (legacy || composition).then_some((operand.as_ref(), composition))
     });
-    calls.next()?;
-    if calls.next().is_some() {
+    let matched = calls.collect::<Vec<_>>();
+    let [(operand, composition)] = matched.as_slice() else {
         return None;
-    }
+    };
+    let operand = *operand;
+    let composition = *composition;
     let [(_, parameter)] = query.inputs.as_slice() else {
         return None;
     };
     let parameter = ir.items.get(parameter.0 as usize)?;
-    let IrItemKind::Param {
-        ty: IrType::Known(ResolvedType::Record { symbol: parent, .. }),
-        ..
-    } = &parameter.kind
-    else {
-        return None;
+    // The composed navigated edge resolves the parent model P through the
+    // shared sealed lineage; the legacy direct shape keeps the parameter's
+    // own declared model.
+    let parent_model = if composition {
+        let (_, _, _, _, resolved) =
+            checked_any_first_parent(ir, owner, query, operand, db)?;
+        resolved
+    } else {
+        let IrItemKind::Param {
+            ty: IrType::Known(ResolvedType::Record { symbol: parent, .. }),
+            ..
+        } = &parameter.kind
+        else {
+            return None;
+        };
+        *parent
     };
     Some(ReceiptQuery {
         id: query.id.clone(),
@@ -3254,7 +3745,7 @@ pub(super) fn checked_native_any_query_plan(
         model: query.model_name.clone(),
         parent: Some(ReceiptQueryParent {
             source: transport_source(&query.source, entry)?,
-            model: ir.items.get(parent.0 as usize)?.canonical.clone(),
+            model: ir.items.get(parent_model.0 as usize)?.canonical.clone(),
             origin: ReceiptQueryParentOrigin::AdmittedReference {
                 parameter: parameter.name.clone(),
             },
@@ -3272,6 +3763,127 @@ pub(super) fn checked_native_any_query_plan(
                     role: ReceiptRole::Control,
                     field: read.field_name.clone(),
                     type_id: read.type_id.clone(),
+                })
+            })
+            .collect::<Option<Vec<_>>>()?,
+    })
+}
+
+/// Direct leading-`any` plan for the `[any, first]` composition: the checked
+/// any fragment plus returns carrying exactly this query's four influences,
+/// so the generic merge can join it with the first-query plan. Mirrors the
+/// first-query plan's returns filter; anything else refuses.
+/// Void effect tails carry no returned model: the scenario declares no
+/// value result, its source facts declare none, and every checked return
+/// has no model result. Query, influence and effect correspondence still
+/// applies in full; created-model anchoring stays with the defining effect
+/// prover, mirroring the admitted standalone-first void shape.
+pub(super) fn checked_void_effect_tail(
+    owner: &IrItem,
+    checked: &crate::analysis::scenario_disclosure::CheckedScenarioDisclosure,
+) -> bool {
+    if !matches!(&owner.kind, IrItemKind::Scenario { result: None, .. }) {
+        return false;
+    }
+    let Some(facts) = checked.source_facts.as_deref() else {
+        return false;
+    };
+    if facts.result.is_some() {
+        return false;
+    }
+    if checked.returns.is_empty() {
+        return false;
+    }
+    checked
+        .returns
+        .iter()
+        .all(|returned| returned.model_result.is_none())
+}
+
+pub(super) fn checked_native_any_direct_query_plan(
+    ir: &IrProgram,
+    owner: &IrItem,
+    query: &crate::analysis::scenario_disclosure::DisclosureQuery,
+    db: &SourceDb,
+    entry: &str,
+) -> Option<ReceiptDisclosurePlan> {
+    use crate::analysis::scenario_disclosure::{InfluenceKind, ScenarioDisclosure};
+    let fragment = checked_native_any_query_plan(ir, owner, query, db, entry)?;
+    let facts = super::scenario_calls::checked_source(ir, owner, db)?;
+    let census = checked_native_query_influences(facts.queries.as_deref()?)?;
+    if !facts
+        .queries
+        .as_deref()?
+        .iter()
+        .any(|fact| fact.id == query.id)
+    {
+        return None;
+    }
+    let ScenarioDisclosure::Complete(checked) = ir.scenario_disclosures.get(&owner.id)? else {
+        return None;
+    };
+    if checked.returns.is_empty() {
+        return None;
+    }
+    for returned in &checked.returns {
+        if returned.source != query.source {
+            return None;
+        }
+        for influence in &returned.influences {
+            if !census.contains(influence) {
+                return None;
+            }
+        }
+    }
+    let mut kinds = std::collections::HashSet::new();
+    let mut ids = std::collections::HashSet::new();
+    let mut influences = Vec::new();
+    for influence in &query.influences {
+        let kind = match influence.kind {
+            InfluenceKind::QueryExistence => "query-existence",
+            InfluenceKind::QueryCardinality => "query-cardinality",
+            InfluenceKind::QueryMembership => "query-membership",
+            InfluenceKind::QueryOrder => "query-order",
+            InfluenceKind::AbsentReference => return None,
+        };
+        if influence.id.is_empty()
+            || !ids.insert(&influence.id)
+            || !kinds.insert(kind)
+            || influence.source != query.source
+            || influence.node != query.node
+            || influence.query_id.as_deref() != Some(query.id.as_str())
+        {
+            return None;
+        }
+        influences.push(receipt_influence(influence)?);
+    }
+    if kinds.len() != 4 {
+        return None;
+    }
+    Some(ReceiptDisclosurePlan {
+        version: 1,
+        source: transport_source(&query.source, entry)?,
+        queries: vec![fragment],
+        returns: checked
+            .returns
+            .iter()
+            .map(|returned| {
+                Some(ReceiptReturn {
+                    id: returned.id.clone(),
+                    source: transport_source(&returned.source, entry)?,
+                    influences: influences
+                        .iter()
+                        .filter(|value| {
+                            returned
+                                .influences
+                                .iter()
+                                .any(|original| original.id == value.id)
+                        })
+                        .cloned()
+                        .collect(),
+                    dependencies: Vec::new(),
+                    intrinsics: Vec::new(),
+                    projection: None,
                 })
             })
             .collect::<Option<Vec<_>>>()?,
@@ -3709,6 +4321,30 @@ pub(super) fn checked_native_query_influences(
                     <= first.first.as_ref()?.binding.start
                 && ancestor.inputs.len() == 1
                 && ancestor.inputs[0].1 == count.count.as_ref()?.contained_parent?.1 => {}
+        // A leading stored-model `any` guard over the same navigated
+        // parent collection plus one `first` selection: the guard runs
+        // before the let (authored order), both read under the same
+        // scenario source/return/model/parameter correspondence. No
+        // count query participates.
+        [any, first]
+            if any.first.is_none()
+                && any.count.is_none()
+                && any.projection.is_none()
+                && any.cardinality_guard.is_none()
+                && any.alias.is_some()
+                && any.predicate.is_some()
+                && first.first.is_some()
+                && first.count.is_none()
+                && first.projection.is_none()
+                && first.cardinality_guard.is_none()
+                && any.source == first.source
+                && any.return_node == first.return_node
+                && any.model == first.model
+                && any.inputs.len() == 1
+                && first.inputs.len() == 1
+                && any.inputs[0].1 == first.inputs[0].1
+                && any.node.end <= first.first.as_ref()?.binding.start
+                && any.id != first.id => {}
         [any, ancestor, first, count]
             if any.first.is_none()
                 && any.count.is_none()
@@ -4017,6 +4653,12 @@ fn checked_native_first_query_plan<'a>(
         }
         [query] => {
             checked_native_first_query_source_plan(ir, owner, checked, query, entry_module, db)?
+        }
+        [any, first] if any.first.is_none() && any.count.is_none() => {
+            let any_plan = checked_native_any_direct_query_plan(ir, owner, any, db, entry_module);
+            let first_plan =
+                checked_native_first_query_source_plan(ir, owner, checked, first, entry_module, db);
+            merge_native_query_plans(any_plan?, first_plan?)?
         }
         [first, count] => merge_native_query_plans(
             checked_native_first_query_source_plan(ir, owner, checked, first, entry_module, db)?,
@@ -4596,14 +5238,16 @@ fn checked_native_first_query_source_plan(
         .queries
         .as_ref()
         .is_some_and(|queries| queries.len() == 1 && queries[0].first.is_some());
+    let void_tail = !standalone_first && checked_void_effect_tail(owner, checked);
     if query.projection.is_some()
         || query.cardinality_guard.is_some()
         || query.source != checked.source
         || checked.returns.iter().any(|returned| {
             returned.source != checked.source
                 || !standalone_first
+                    && !void_tail
                     && result_statement_at(effects, node_span(returned.node)).is_none()
-                || !standalone_first && returned.model_result.is_none()
+                || !standalone_first && !void_tail && returned.model_result.is_none()
                 || if let Some(census) = &mixed {
                     returned
                         .influences
@@ -6454,7 +7098,7 @@ fn checked_owner_first_query_ir<'a>(
     Some(query)
 }
 
-fn transport_source(source: &DisclosureSource, entry_module: &str) -> Option<ReceiptSource> {
+pub(super) fn transport_source(source: &DisclosureSource, entry_module: &str) -> Option<ReceiptSource> {
     if source.path.is_empty()
         || source.sha256.len() != 64
         || !source
@@ -9595,7 +10239,7 @@ fn match_effect_proofs(
             ) => {
                 let db = db?;
                 if crud.is_none() {
-                    checked_scenario_create(
+                    let ok = checked_scenario_create(
                         ir,
                         owner,
                         models,
@@ -9603,7 +10247,11 @@ fn match_effect_proofs(
                         proof,
                         *sites.effects.get(&site)?,
                         db,
-                    )?;
+                    )
+                    .is_some();
+                    if !ok {
+                        return None;
+                    }
                     continue;
                 }
                 if !checked_inputs.is_empty() {
@@ -11005,13 +11653,17 @@ fn checked_created_statements(
                         | SyntaxKind::Call
                 )
             })?;
-            super::scenario_create_sources::checked_create_expression(
+            let ok = super::scenario_create_sources::checked_create_expression(
                 ir,
                 original,
                 value,
                 NodeKey::of(node),
                 db,
-            )?;
+            )
+            .is_some();
+            if !ok {
+                return None;
+            }
         }
     }
     Some(())
@@ -12871,6 +13523,15 @@ impl<'a> Sites<'a> {
                     IrExpr::Unary { operand, .. } => push!(Visit::Expression(operand)),
                     IrExpr::Call { target, args } | IrExpr::BoundCall { target, args, .. } => {
                         if matches!(target,IrCallTarget::Builtin {id,awaited:false} if id=="any")
+                            && checked_any_first_query_ir(ir, owner, expression, db?).is_some()
+                        {
+                            // Direct leading `require not any(...)` guard over
+                            // the composed any/first shape: its predicate reads
+                            // travel the native query observation path (like
+                            // first above), never ordinary parent row reads.
+                            continue;
+                        }
+                        if matches!(target,IrCallTarget::Builtin {id,awaited:false} if id=="any")
                             && ir
                                 .scenario_disclosures
                                 .get(&owner.id)
@@ -13293,6 +13954,10 @@ mod transcript_selection_tests;
 #[cfg(test)]
 #[path = "scenario_enum_data_transport_tests.rs"]
 mod enum_data_transport_tests;
+
+#[cfg(test)]
+#[path = "any_first_retained_tests.rs"]
+mod any_first_retained_tests;
 
 #[cfg(test)]
 mod root_pair_schema_tests {

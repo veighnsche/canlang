@@ -555,6 +555,164 @@ fn serialize_query_any_prepared(
     else {
         return None;
     };
+    // Direct leading `require not any(...)` composition metadata: the
+    // predicate profile with its exact LeadingRequire source-call
+    // association. The defining matcher re-proves guard/call/domain
+    // correspondence per query here; indices address the same filtered
+    // decision sites the runtime consumes.
+    let (composed_metadata, composed_ids): (Vec<serde_json::Value>, Vec<String>) = (|| {
+        use crate::analysis::scenario_disclosure::{
+            CheckedDecisionCallTarget, CheckedDecisionStage,
+        };
+        let mut metadata = Vec::new();
+        let mut composed = Vec::new();
+        for q in source
+            .queries
+            .as_deref()?
+            .iter()
+            .filter(|q| q.first.is_none() && q.count.is_none() && q.projection.is_none())
+        {
+            let mut collections = program
+                .types
+                .checked_collection_calls
+                .values()
+                .filter(|call| call.builtin == "any" && call.query == q.node);
+            let collection = collections.next()?;
+            if collections.next().is_some() {
+                return None;
+            }
+            let mut actual_calls = guards.iter().filter_map(|guard| {
+                let IrStmt::Require { cond, span } = guard else {
+                    return None;
+                };
+                let IrExpr::Unary {
+                    op: IrUnOp::Not,
+                    operand,
+                } = &cond.expr
+                else {
+                    return None;
+                };
+                same_span(collection.node, operand.span)
+                    .then_some((operand.as_ref(), cond.span, *span))
+            });
+            let (call, cond_span, guard_span) = actual_calls.next()?;
+            if actual_calls.next().is_some() {
+                return None;
+            }
+            if super::scenario_receipts::checked_any_first_query_ir(ir, owner, call, db)
+                != Some(q)
+            {
+                continue;
+            }
+            let parent = super::scenario_receipts::checked_any_first_parent(ir, owner, q, call, db);
+            let (_, _, _, _, parent_model) = parent?;
+            let sites: Vec<_> = source
+                .decision_sites
+                .as_deref()?
+                .iter()
+                .filter(|site| {
+                    !matches!(
+                        site.stage,
+                        CheckedDecisionStage::ReadPolicy
+                            | CheckedDecisionStage::ReadPredicate
+                            | CheckedDecisionStage::SendDispatch
+                    )
+                })
+                .collect();
+            let mut found = Vec::new();
+            for (site_index, site) in sites.iter().enumerate() {
+                for (call_index, original_call) in site.calls.iter().enumerate() {
+                    if site.owner == owner.id
+                        && site.stage == CheckedDecisionStage::LeadingRequire
+                        && same_span(site.statement, guard_span)
+                        && same_span(site.node, cond_span)
+                        && site.source == source.source
+                        && same_span(original_call.node, call.span)
+                        && matches!(&original_call.target, CheckedDecisionCallTarget::Builtin{id,overload} if id=="any" && *overload==0)
+                        && original_call.arguments.len() == 2
+                        && original_call.arguments[0].0 == q.node
+                        && Some(original_call.arguments[1].0) == q.predicate
+                        && original_call.slots == [Some(0), Some(1)]
+                        && original_call.defaults.is_empty()
+                        && original_call.chain.is_empty()
+                        && original_call.source == source.source
+                        && original_call.module == owner.module
+                    {
+                        found.push((site_index, call_index, site, original_call));
+                    }
+                }
+            }
+            let [matched] = found.as_slice() else {
+                return None;
+            };
+            let (site_index, call_index, _site, original_call) = *matched;
+            for id in [q.model, parent_model] {
+                let schema = source
+                    .stored_contracts
+                    .as_deref()?
+                    .iter()
+                    .find(|schema| schema.id == id && schema.model)?;
+                super::scenario_receipts::match_stored_contract_schema(ir, schema, db)?;
+                for field in &schema.fields {
+                    super::scenario_receipts::match_stored_contract_field(ir, field, db)?;
+                }
+            }
+            // Direct chain-free guard calls carry the exact checked call
+            // record for the runtime to re-verify against the installed
+            // owner/source producer: LeadingRequire stage, builtin `any`,
+            // source/model argument slots and empty chain. The `direct`
+            // bit only routes past helper-chain resolution; it authorizes
+            // nothing by itself, and every field below is sealed.
+            let (domain_node, predicate_node) =
+                (original_call.arguments[0].0, original_call.arguments[1].0);
+            let predicate_bool = matches!(
+                program.types.node_types.get(&predicate_node),
+                Some(crate::analysis::ResolvedType::Scalar(crate::analysis::Scalar::Bool))
+            );
+            let domain_model = match program.types.node_types.get(&domain_node) {
+                Some(crate::analysis::ResolvedType::Array { element, .. })
+                    if matches!(element.as_ref(),
+                        crate::analysis::ResolvedType::Record { symbol, .. } if *symbol == q.model) =>
+                {
+                    format!("{model}[]", model = q.model_name)
+                }
+                _ => return None,
+            };
+            if !predicate_bool
+                || original_call.node.start >= original_call.node.end
+                || domain_node.start < original_call.node.start
+                || domain_node.end > original_call.node.end
+                || predicate_node.start < original_call.node.start
+                || predicate_node.end > original_call.node.end
+            {
+                return None;
+            }
+            let call_source =
+                super::scenario_receipts::transport_source(&original_call.source, entry_module)?;
+            metadata.push(serde_json::json!({"kind":"predicate","queryId":q.id,
+            "dependencyIds":q.dependencies.iter().map(|read|&read.id).collect::<Vec<_>>(),
+            "sourceCall":{"siteIndex":site_index,"callIndex":call_index},"direct":true,
+            "call":{
+                "owner":owner.canonical,
+                "stage":"leading-require",
+                "siteIndex":site_index,
+                "callIndex":call_index,
+                "source":call_source,
+                "node":{"start":original_call.node.start,"end":original_call.node.end},
+                "target":{"kind":"builtin","id":"any","overload":0},
+                "arguments":[
+                    {"type":domain_model,
+                        "node":{"start":domain_node.start,"end":domain_node.end}},
+                    {"type":"bool",
+                        "node":{"start":predicate_node.start,"end":predicate_node.end}}
+                ],
+                "slots":[0,1],
+                "chain":[]}}));
+            composed.push(q.id.clone());
+        }
+        Some((metadata, composed))
+    })()?;
+
     let boolean = ResolvedType::Scalar(Scalar::Bool);
     let mut metadata = Vec::new();
     for q in source
@@ -563,6 +721,11 @@ fn serialize_query_any_prepared(
         .iter()
         .filter(|q| q.first.is_none() && q.count.is_none() && q.projection.is_none())
     {
+        // Composition queries already carry predicate metadata above;
+        // the single-bool loop below cannot express their shape.
+        if composed_ids.iter().any(|id| id == &q.id) {
+            continue;
+        }
         let mut calls = program
             .types
             .checked_collection_calls
@@ -720,6 +883,7 @@ fn serialize_query_any_prepared(
         }
         metadata.push(serde_json::json!({"queryId":q.id,"dependencyId":dependency.id}));
     }
+    metadata.extend(composed_metadata);
     (!metadata.is_empty()).then_some(serde_json::Value::Array(metadata))
 }
 
@@ -832,12 +996,16 @@ fn collect_complete_query_receipt_prepared(
             {
                 return None;
             }
+            let void_tail = !standalone_first
+                && !mixed
+                && super::scenario_receipts::checked_void_effect_tail(owner, original_checked);
             for (returned, emitted) in selected_returns.iter().zip(&plan.returns) {
                 if !standalone_first
+                    && !void_tail
                     && super::scenario_receipts::checked_created_model_result(ir, owner).is_none()
                     || returned.id != emitted.id
                     || returned.source != original.source_facts()?.source
-                    || !standalone_first && returned.model_result.is_none()
+                    || !standalone_first && !void_tail && returned.model_result.is_none()
                     || !mixed && !standalone_first && returned.influences != expected_influences
                     || standalone_first
                         && returned
@@ -1026,9 +1194,19 @@ fn checked_query_plan_full(
         super::scenario_receipts::checked_native_query_influences(queries)?;
         let mut plans = queries.iter().map(|query| {
             if query.first.is_some() {
-                checked_first_query_plan(program, ir, owner, query, db, entry_module)
-            } else {
+                let plan = checked_first_query_plan(program, ir, owner, query, db, entry_module);
+                plan
+            } else if query.count.is_some() {
                 checked_count_query_plan(program, ir, owner, query, db, entry_module)
+            } else {
+                let plan = super::scenario_receipts::checked_native_any_direct_query_plan(
+                    ir,
+                    owner,
+                    query,
+                    db,
+                    entry_module,
+                );
+                plan
             }
         });
         let mut combined = plans.next()??;
