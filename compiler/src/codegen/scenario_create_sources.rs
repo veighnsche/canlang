@@ -168,6 +168,7 @@ pub(super) fn checked_created_schema(
         ir,
         db,
         original,
+        owner: None,
         nodes: &nodes,
         text,
         operands: false,
@@ -852,6 +853,7 @@ pub(super) fn checked_create_expression(
         ir,
         db,
         original,
+        owner: None,
         nodes: &nodes,
         text,
         operands: true,
@@ -865,6 +867,7 @@ pub(super) fn checked_create_expression(
 /// The caller retains responsibility for its position before the original Create.
 pub(super) fn checked_create_prefix_if(
     ir: &IrProgram,
+    owner: &IrItem,
     original: &CheckedScenarioCreate,
     actual: &IrStmt,
     node: NodeKey,
@@ -888,6 +891,7 @@ pub(super) fn checked_create_prefix_if(
         ir,
         db,
         original,
+        owner: Some(owner),
         nodes: &nodes,
         text: &db.get(node.file)?.text,
         operands: true,
@@ -1072,6 +1076,7 @@ fn checked_field_trait_modifiers(
             ir,
             db,
             original,
+            owner: None,
             nodes: &nodes,
             text,
             operands: false,
@@ -1268,6 +1273,10 @@ struct SourceExpressions<'a> {
     ir: &'a IrProgram,
     db: &'a SourceDb,
     original: &'a CheckedScenarioCreate,
+    /// Owning scenario item, borrowed only for the conditional branch-arm
+    /// prefix matcher (nested-set receiver classification). Unset matchers
+    /// refuse nested sets.
+    owner: Option<&'a IrItem>,
     nodes: &'a HashMap<NodeKey, &'a SyntaxNode>,
     text: &'a str,
     operands: bool,
@@ -1356,6 +1365,110 @@ impl SourceExpressions<'_> {
                 {
                     self.prefix_statement(actual, authored, depth + 1)?;
                 }
+                Some(())
+            }
+            // Arm-nested creates need only kind+span correspondence here:
+            // their entry correspondence is proven by the owning create
+            // check (which runs for nested creates too), and arm admission
+            // itself is owned by the conditional branch rule.
+            IrStmt::Create { span, .. }
+                if node.kind == SyntaxKind::Create && node.span == *span =>
+            {
+                Some(())
+            }
+            // Arm-nested sets carry the same source correspondence as
+            // top-level sets: the receiver span and sealed type must match
+            // the authored `set` path, the receiver must be the conditional
+            // binding, a pre-bound row, or the checked first-query row, and
+            // every changed entry must match the authored object. Kind+span
+            // alone would admit IR whose operands no longer match the .can.
+            IrStmt::Set {
+                record,
+                changes,
+                when: None,
+                span,
+            } if node.kind == SyntaxKind::Set && node.span == *span => {
+                let owner = self.owner?;
+                let IrExpr::Name(_) = &record.expr else {
+                    return None;
+                };
+                let mut paths = node
+                    .children
+                    .iter()
+                    .filter(|child| child.kind == SyntaxKind::Path);
+                let receiver = paths.next()?;
+                if paths.next().is_some()
+                    || record.span != receiver.span
+                    || self
+                        .original
+                        .expression_types
+                        .iter()
+                        .find(|(at, _)| *at == NodeKey::of(receiver))
+                        .is_none_or(|(_, ty)| ty != &record.ty)
+                {
+                    return None;
+                }
+                let receiver_name =
+                    super::scenario_receipts::direct_source_path_name(receiver, self.text)?;
+                if receiver_name == self.original.binding {
+                    super::scenario_receipts::created_record_name_matches(
+                        record,
+                        &ResolvedType::Record {
+                            symbol: self.original.model,
+                            stored: true,
+                        },
+                        &self.original.binding,
+                        *span,
+                        self.db,
+                    )?;
+                } else {
+                    let IrItemKind::Scenario {
+                        effects: owner_effects,
+                        params: owner_params,
+                        ..
+                    } = &owner.kind
+                    else {
+                        return None;
+                    };
+                    let mut prebound = false;
+                    for id in owner_params.iter() {
+                        if self
+                            .ir
+                            .items
+                            .get(id.0 as usize)
+                            .is_some_and(|item| item.name == receiver_name)
+                        {
+                            prebound = true;
+                        }
+                    }
+                    for effect in owner_effects.iter() {
+                        if matches!(effect, IrStmt::Let { name, .. } if name == receiver_name) {
+                            prebound = true;
+                        }
+                    }
+                    if !prebound || !matches!(&record.ty, ResolvedType::Record { stored: true, .. })
+                    {
+                        let selected = super::scenario_receipts::checked_first_query_row(
+                            self.ir, owner, record, self.db,
+                        )?;
+                        if record.ty
+                            != (ResolvedType::Record {
+                                symbol: selected.id,
+                                stored: true,
+                            })
+                        {
+                            return None;
+                        }
+                    }
+                }
+                super::scenario_receipts::checked_created_object_entries(
+                    self.ir,
+                    self.original,
+                    changes,
+                    node,
+                    *span,
+                    self.db,
+                )?;
                 Some(())
             }
             _ => None,
@@ -3581,6 +3694,7 @@ impl SourceExpressions<'_> {
             ir: self.ir,
             db: self.db,
             original: self.original,
+            owner: None,
             nodes: &defining_nodes,
             text: defining_text,
             operands: true,
@@ -4240,6 +4354,7 @@ impl SourceExpressions<'_> {
                     ir: self.ir,
                     db: self.db,
                     original: self.original,
+                    owner: self.owner,
                     nodes: self.nodes,
                     text: self.text,
                     operands: self.operands,
@@ -5232,6 +5347,7 @@ mod tests {
             ir,
             db,
             original,
+            owner: None,
             nodes: &nodes,
             text: &db.get(original.node.file).unwrap().text,
             operands: true,
@@ -5856,5 +5972,142 @@ Then
             checked_create_expression(&changed, &original, &cond, node, &db).is_none(),
             "body-only membership deletion must refuse"
         );
+    }
+
+    const IFBRANCH: &str = include_str!("../../tests/fixtures/first-query-ifbranch-create.can");
+
+    fn ifbranch_fixture() -> (SourceDb, IrProgram) {
+        let mut db = SourceDb::new();
+        let file = db.add("ifbranch-create.can".into(), IFBRANCH.into());
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap()
+            .to_path_buf();
+        let catalog_path = root.join("packages/cloudflare/dist/native-catalog.json");
+        let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+            flag: Some(&catalog_path),
+            env: None,
+            cwd: &root,
+            primary: Span::new(file, 0, 0),
+        });
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let catalog = catalog.unwrap();
+        let (program, diagnostics) = check_program(&db, &[file], Some(&catalog));
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let (ir, diagnostics) = super::super::ir::build(&program, &db, Some(&catalog));
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        (db, ir)
+    }
+
+    /// 0526 source correspondence: an arm-nested `set` whose IR receiver or
+    /// operands no longer match the authored .can must refuse, even though
+    /// kind, span, model, and field types still line up. Facts stay
+    /// original; only the emitted IR is mutated. Before the repair,
+    /// kind+span alone admitted the tampered operand.
+    #[test]
+    fn branch_arm_nested_set_needs_exact_source_correspondence() {
+        use super::super::ir::IrExpr;
+        use super::checked_create_prefix_if;
+        let (db, ir) = ifbranch_fixture();
+        let owner = ir
+            .items
+            .iter()
+            .find(|item| item.canonical == "IfBranchSources.go_branch")
+            .unwrap();
+        let IrItemKind::Scenario { effects, .. } = &owner.kind else {
+            panic!("scenario");
+        };
+        let branch = effects
+            .iter()
+            .find(|effect| matches!(effect, IrStmt::If { .. }))
+            .unwrap();
+        let IrStmt::If { span, .. } = branch else {
+            panic!("branch");
+        };
+        let original = ir.scenario_disclosures[&owner.id]
+            .source_facts()
+            .unwrap()
+            .creates
+            .as_deref()
+            .unwrap()
+            .first()
+            .unwrap();
+        let node = node_at(&db, *span);
+        assert!(
+            checked_create_prefix_if(&ir, owner, original, branch, node, &db).is_some(),
+            "genuine arm prefix must match"
+        );
+        for mode in ["operand", "receiver-span"] {
+            let mut tampered = ir.clone();
+            let tampered_owner = tampered
+                .items
+                .iter_mut()
+                .find(|item| item.canonical == "IfBranchSources.go_branch")
+                .unwrap();
+            let IrItemKind::Scenario { effects, .. } = &mut tampered_owner.kind else {
+                panic!("scenario");
+            };
+            let tampered_branch = effects
+                .iter_mut()
+                .find(|effect| matches!(effect, IrStmt::If { .. }))
+                .unwrap();
+            let IrStmt::If { else_branch, .. } = tampered_branch else {
+                panic!("branch");
+            };
+            let IrStmt::Set {
+                record, changes, ..
+            } = &mut else_branch[0]
+            else {
+                panic!("arm set");
+            };
+            match mode {
+                // `set c {v=m}` rewritten to 777: same span and int type,
+                // but no longer the authored operand.
+                "operand" => {
+                    let IrExpr::Object(entries) = &mut changes.expr else {
+                        panic!("object");
+                    };
+                    entries[0].1.expr = IrExpr::Int(777);
+                }
+                // Same operand, but the receiver no longer sits on the
+                // authored `set` path span.
+                _ => {
+                    record.span =
+                        Span::new(record.span.file, record.span.start + 1, record.span.end);
+                }
+            }
+            let tampered_owner = tampered
+                .items
+                .iter()
+                .find(|item| item.canonical == "IfBranchSources.go_branch")
+                .unwrap();
+            let IrItemKind::Scenario { effects, .. } = &tampered_owner.kind else {
+                panic!("scenario");
+            };
+            let tampered_branch = effects
+                .iter()
+                .find(|effect| matches!(effect, IrStmt::If { .. }))
+                .unwrap();
+            let tampered_original = tampered.scenario_disclosures[&tampered_owner.id]
+                .source_facts()
+                .unwrap()
+                .creates
+                .as_deref()
+                .unwrap()
+                .first()
+                .unwrap();
+            assert!(
+                checked_create_prefix_if(
+                    &tampered,
+                    tampered_owner,
+                    tampered_original,
+                    tampered_branch,
+                    node,
+                    &db
+                )
+                .is_none(),
+                "{mode}: tampered arm set must refuse"
+            );
+        }
     }
 }
