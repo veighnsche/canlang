@@ -1756,7 +1756,8 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
         entry_module,
         db,
         &returned_paths,
-    )?;
+    );
+    let first_plan = first_plan?;
     let sites = Sites::collect(ir, item, send_guards, db)?;
     match_effect_proofs(ir, item, models, checked, &sites, db, send_guards)?;
     let mut profile_scalar_pairs = HashMap::new();
@@ -4503,9 +4504,9 @@ fn checked_native_first_query_source_plan(
         return None;
     }
     let first = query.first.as_ref()?;
-    let [dependency] = query.dependencies.as_slice() else {
+    if query.dependencies.is_empty() {
         return None;
-    };
+    }
     let IrItemKind::Scenario { effects, .. } = &owner.kind else {
         return None;
     };
@@ -4556,25 +4557,33 @@ fn checked_native_first_query_source_plan(
         || first.binding.kind != SyntaxKind::Let as u8
         || query.limit.is_some()
         || (query.archived && scan.archived.is_some())
-        || dependency.id.is_empty()
-        || dependency.source != query.source
-        || dependency.model != query.model
-        || dependency.model_name != query.model_name
-        || dependency.role != DependencyRole::Control
-        || !dependency.calls.is_empty()
         || query.influences.len() != 4
     {
         return None;
     }
     // Retain exact source and declaration membership even when the selected
-    // row is not an original parameter or the model being returned.
+    // row is not an original parameter or the model being returned. Every
+    // recorded ordered conjunct dependency verifies like the former single
+    // one: nonempty unique IDs, exact source/model/role/calls correspondence,
+    // and schema field/type membership.
     let model = checked_first_query_schema(ir, owner, query, db)?;
-    if !model.fields.iter().any(|field| {
-        field.id == dependency.field
-            && field.name == dependency.field_name
-            && field.ty == dependency.ty
-    }) {
-        return None;
+    let mut seen_dependency_ids = HashSet::new();
+    for dependency in query.dependencies.iter() {
+        if dependency.id.is_empty()
+            || !seen_dependency_ids.insert(dependency.id.as_str())
+            || dependency.source != query.source
+            || dependency.model != query.model
+            || dependency.model_name != query.model_name
+            || dependency.role != DependencyRole::Control
+            || !dependency.calls.is_empty()
+            || !model.fields.iter().any(|field| {
+                field.id == dependency.field
+                    && field.name == dependency.field_name
+                    && field.ty == dependency.ty
+            })
+        {
+            return None;
+        }
     }
     let kinds = [
         InfluenceKind::QueryExistence,
@@ -4656,13 +4665,19 @@ fn checked_native_first_query_source_plan(
                 .collect(),
             limit: None,
             archived: if query.archived { "include" } else { "exclude" }.into(),
-            dependencies: vec![ReceiptQueryDependency {
-                id: dependency.id.clone(),
-                source: transport_source(&dependency.source, entry_module)?,
-                role: ReceiptRole::Control,
-                field: dependency.field_name.clone(),
-                type_id: dependency.type_id.clone(),
-            }],
+            dependencies: query
+                .dependencies
+                .iter()
+                .map(|dependency| {
+                    Some(ReceiptQueryDependency {
+                        id: dependency.id.clone(),
+                        source: transport_source(&dependency.source, entry_module)?,
+                        role: ReceiptRole::Control,
+                        field: dependency.field_name.clone(),
+                        type_id: dependency.type_id.clone(),
+                    })
+                })
+                .collect::<Option<Vec<_>>>()?,
         }],
         returns: checked
             .returns
@@ -5779,45 +5794,60 @@ pub(super) fn checked_first_query_predicate(
     scan: &super::ir::IrQuery,
 ) -> Option<()> {
     let first = query.first.as_ref()?;
-    let [dependency] = query.dependencies.as_slice() else {
-        return None;
-    };
-    let ResolvedType::Scalar(scalar) = &dependency.ty else {
-        return None;
-    };
-    if !matches!(
-        scalar,
-        Scalar::Bool
-            | Scalar::Int
-            | Scalar::Decimal
-            | Scalar::Text
-            | Scalar::Money
-            | Scalar::Date
-            | Scalar::Datetime
-            | Scalar::Duration
-            | Scalar::Currency
-            | Scalar::User
-    ) || dependency.type_id != scalar.as_str()
-        || dependency.role != DependencyRole::Control
-        || dependency.source != query.source
-        || dependency.model != query.model
-        || dependency.model_name != query.model_name
-        || !dependency.calls.is_empty()
-    {
-        return None;
+    // Every recorded dependency is a scalar Control read of the queried
+    // model; a conjunction records one per conjunct. Anything else keeps
+    // the closure refusal.
+    for dependency in query.dependencies.iter() {
+        let ResolvedType::Scalar(scalar) = &dependency.ty else {
+            return None;
+        };
+        if !matches!(
+            scalar,
+            Scalar::Bool
+                | Scalar::Int
+                | Scalar::Decimal
+                | Scalar::Text
+                | Scalar::Money
+                | Scalar::Date
+                | Scalar::Datetime
+                | Scalar::Duration
+                | Scalar::Currency
+                | Scalar::User
+        ) || dependency.type_id != scalar.as_str()
+            || dependency.role != DependencyRole::Control
+            || dependency.source != query.source
+            || dependency.model != query.model
+            || dependency.model_name != query.model_name
+            || !dependency.calls.is_empty()
+        {
+            return None;
+        }
     }
     let predicate = scan.where_pred.as_deref()?;
-    let IrExpr::Binary {
-        op: IrBinOp::Eq,
-        left,
-        right,
-    } = &predicate.expr
-    else {
+    // Flatten an `and` chain order-preserving; a lone `==` is one conjunct.
+    let mut pending = vec![predicate];
+    let mut conjuncts = Vec::new();
+    while let Some(part) = pending.pop() {
+        if let IrExpr::Binary {
+            op: IrBinOp::And,
+            left,
+            right,
+        } = &part.expr
+        {
+            pending.push(right);
+            pending.push(left);
+            continue;
+        }
+        conjuncts.push(part);
+    }
+    if conjuncts.is_empty() || conjuncts.len() != query.dependencies.len() {
         return None;
-    };
-    let IrExpr::Member { base, field } = &left.expr else {
+    }
+    let mut operand_nodes = vec![first.operand];
+    operand_nodes.extend_from_slice(&first.extra_operands);
+    if operand_nodes.len() != conjuncts.len() {
         return None;
-    };
+    }
     let original_predicate = node_span(query.predicate?);
     // Lowering erases only grouping wrappers. The checked source expression
     // matcher/fresh owner join still validates the exact inner expression.
@@ -5825,109 +5855,172 @@ pub(super) fn checked_first_query_predicate(
         || predicate.span.start < original_predicate.start
         || predicate.span.end > original_predicate.end
         || predicate.ty != ResolvedType::Scalar(Scalar::Bool)
-        || left.span != node_span(dependency.node)
-        || left.ty != dependency.ty
-        || right.span != node_span(first.operand)
-        || right.ty != dependency.ty
-        || field != &dependency.field_name
-        || !matches!(&base.expr, IrExpr::Name(name) if name == &scan.where_param)
-        || base.ty
-            != (ResolvedType::Record {
-                symbol: query.model,
-                stored: true,
-            })
     {
         return None;
     }
-    match query.inputs.as_slice() {
-        [] if *scalar == Scalar::User => {
-            let IrExpr::Member { base, field } = &right.expr else {
-                return None;
-            };
-            (field == "actor"
-                && matches!(&base.expr, IrExpr::Name(name) if name == "c")
-                && base.ty == ResolvedType::Unknown
-                && base.span == right.span)
-                .then_some(())
+    // Pair each conjunct with its field dependency; duplicate fields pair
+    // in order. The field cross-check keeps the pairing honest.
+    let mut unmatched: Vec<_> = query.dependencies.iter().collect();
+    // Per-conjunct member/operand correspondence; operand classes resolve
+    // below. Param-class conjuncts record their index for input cover.
+    let mut param_conjuncts = Vec::new();
+    for (index, conjunct) in conjuncts.iter().enumerate() {
+        let IrExpr::Binary {
+            op: IrBinOp::Eq,
+            left,
+            right,
+        } = &conjunct.expr
+        else {
+            return None;
+        };
+        let IrExpr::Member { base, field } = &left.expr else {
+            return None;
+        };
+        let position = unmatched
+            .iter()
+            .position(|dependency| &dependency.field_name == field)?;
+        let dependency = unmatched.remove(position);
+        let ResolvedType::Scalar(scalar) = &dependency.ty else {
+            return None;
+        };
+        if left.span != node_span(dependency.node)
+            || left.ty != dependency.ty
+            || right.span != node_span(operand_nodes[index])
+            || right.ty != dependency.ty
+            || !matches!(&base.expr, IrExpr::Name(name) if name == &scan.where_param)
+            || base.ty
+                != (ResolvedType::Record {
+                    symbol: query.model,
+                    stored: true,
+                })
+        {
+            return None;
         }
-        [] if *scalar == Scalar::Text => {
-            // C23 hook slice: the operand is one declared text field of
-            // the handler's trusted event payload. The disclosure proved
-            // the field declaration and type; this join pins the exact
-            // occurrence to the declared event record and that field.
-            let IrExpr::Member {
-                base,
-                field: event_field,
-            } = &right.expr
-            else {
-                return None;
-            };
-            let ResolvedType::Record {
-                symbol,
-                stored: false,
-            } = &base.ty
-            else {
-                return None;
-            };
-            let event = ir.items.get(symbol.0 as usize)?;
-            let IrItemKind::Event { fields } = &event.kind else {
-                return None;
-            };
-            let IrItemKind::Scenario { event_source, .. } = &owner.kind else {
-                return None;
-            };
-            let super::ir::IrEventSource::Declared(canonical) = event_source.as_ref()? else {
-                return None;
-            };
-            (event.canonical == *canonical
-                && matches!(&base.expr, IrExpr::Name(name) if name == "event")
-                && fields.iter().any(|field| {
-                    ir.items.get(field.0 as usize).is_some_and(|item| {
-                        item.name == *event_field
-                            && matches!(&item.kind, IrItemKind::Field { ty: IrType::Known(ty), .. } if ty == &dependency.ty)
-                    })
-                }))
-            .then_some(())
+        match &right.expr {
+            IrExpr::Member { .. } => {
+                // Actor/event operands carry no transported input, so no
+                // inputs entry may name them.
+                if query
+                    .inputs
+                    .iter()
+                    .any(|(node, _)| *node == operand_nodes[index])
+                {
+                    return None;
+                }
+                match scalar {
+                    Scalar::User => {
+                        let IrExpr::Member { base, field } = &right.expr else {
+                            return None;
+                        };
+                        (field == "actor"
+                            && matches!(&base.expr, IrExpr::Name(name) if name == "c")
+                            && base.ty == ResolvedType::Unknown
+                            && base.span == right.span)
+                            .then_some(())?;
+                    }
+                    Scalar::Text => {
+                        // C23 hook slice: the operand is one declared text field of
+                        // the handler's trusted event payload. The disclosure proved
+                        // the field declaration and type; this join pins the exact
+                        // occurrence to the declared event record and that field.
+                        let IrExpr::Member {
+                            base,
+                            field: event_field,
+                        } = &right.expr
+                        else {
+                            return None;
+                        };
+                        let ResolvedType::Record {
+                            symbol,
+                            stored: false,
+                        } = &base.ty
+                        else {
+                            return None;
+                        };
+                        let event = ir.items.get(symbol.0 as usize)?;
+                        let IrItemKind::Event { fields } = &event.kind else {
+                            return None;
+                        };
+                        let IrItemKind::Scenario { event_source, .. } = &owner.kind else {
+                            return None;
+                        };
+                        let super::ir::IrEventSource::Declared(canonical) =
+                            event_source.as_ref()?
+                        else {
+                            return None;
+                        };
+                        (event.canonical == *canonical
+                            && matches!(&base.expr, IrExpr::Name(name) if name == "event")
+                            && fields.iter().any(|field| {
+                                ir.items.get(field.0 as usize).is_some_and(|item| {
+                                    item.name == *event_field
+                                        && matches!(&item.kind, IrItemKind::Field { ty: IrType::Known(ty), .. } if ty == &dependency.ty)
+                                })
+                            }))
+                        .then_some(())?;
+                    }
+                    _ => return None,
+                }
+            }
+            IrExpr::Name(_) => {
+                param_conjuncts.push((index, dependency));
+            }
+            _ => return None,
         }
-        [(operand, parameter)] if *operand == first.operand => {
-            let facts = ir.scenario_disclosures.get(&owner.id)?.source_facts()?;
-            let IrItemKind::Scenario {
-                params,
-                read: false,
-                ..
-            } = &owner.kind
-            else {
-                return None;
-            };
-            let actual = ir.items.get(parameter.0 as usize)?;
-            let IrItemKind::Param {
-                owner: parameter_owner,
-                index,
-                ty: IrType::Known(ty),
-                default: None,
-                default_node: None,
-                default_copy_source: None,
-                array_bounds: None,
-                ..
-            } = &actual.kind
-            else {
-                return None;
-            };
-            let original = facts.parameters.get(*index)?;
-            (params.get(*index) == Some(parameter)
-                && *parameter_owner == owner.id
-                && actual.id == *parameter
-                && actual.module == owner.module
-                && actual.canonical == format!("{}.{}", owner.canonical, actual.name)
-                && original.parameter == *parameter
-                && original.default.is_none()
-                && original.ty == dependency.ty
-                && *ty == dependency.ty
-                && matches!(&right.expr, IrExpr::Name(name) if name == &actual.name))
-            .then_some(())
-        }
-        _ => None,
     }
+    // Transported inputs cover exactly the param-class conjuncts: each
+    // entry verifies against one recorded operand, and every recorded
+    // param conjunct is covered exactly once.
+    let facts = ir.scenario_disclosures.get(&owner.id)?.source_facts()?;
+    let IrItemKind::Scenario {
+        params,
+        read: false,
+        ..
+    } = &owner.kind
+    else {
+        return None;
+    };
+    for (entry_operand, parameter) in query.inputs.iter() {
+        let position = param_conjuncts
+            .iter()
+            .position(|(index, _)| operand_nodes[*index] == *entry_operand)?;
+        let (index, dependency) = param_conjuncts.remove(position);
+        let IrExpr::Binary { right, .. } = &conjuncts[index].expr else {
+            return None;
+        };
+        let actual = ir.items.get(parameter.0 as usize)?;
+        let IrItemKind::Param {
+            owner: parameter_owner,
+            index,
+            ty: IrType::Known(ty),
+            default: None,
+            default_node: None,
+            default_copy_source: None,
+            array_bounds: None,
+            ..
+        } = &actual.kind
+        else {
+            return None;
+        };
+        let original = facts.parameters.get(*index)?;
+        if !(params.get(*index) == Some(parameter)
+            && *parameter_owner == owner.id
+            && actual.id == *parameter
+            && actual.module == owner.module
+            && actual.canonical == format!("{}.{}", owner.canonical, actual.name)
+            && original.parameter == *parameter
+            && original.default.is_none()
+            && original.ty == dependency.ty
+            && *ty == dependency.ty
+            && matches!(&right.expr, IrExpr::Name(name) if name == &actual.name))
+        {
+            return None;
+        }
+    }
+    if !param_conjuncts.is_empty() {
+        return None;
+    }
+    Some(())
 }
 
 pub(super) fn checked_first_query_ir<'a>(

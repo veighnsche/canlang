@@ -1477,8 +1477,10 @@ export function bindScenarioReceiptQueryProducer(def: GeneratedOperationDef, pro
     }
     const interval = firstQueryNode(metadata.query), node = firstQueryNode(metadata.node), statement = firstQueryNode(metadata.statement);
     if (query === undefined || !checkedFirstQueryParent(bound, def, query, policy, readPolicies) || query.limit !== null || query.archived !== 'exclude' ||
-        query.dependencies.length !== 1 || query.dependencies[0]!.role !== 'control' ||
-        !['bool','int','decimal','text','money','date','datetime','duration','currency','user'].includes(query.dependencies[0]!.type) ||
+        query.dependencies.length === 0 ||
+        query.dependencies.some(dependency => dependency.role !== 'control' ||
+          !['bool','int','decimal','text','money','date','datetime','duration','currency','user'].includes(dependency.type)) ||
+        new Set(query.dependencies.map(dependency => dependency.id)).size !== query.dependencies.length ||
         query.order.some(order => order.field !== 'id' || order.direction !== 'asc') ||
         stableStringify(metadata.source) !== stableStringify(query.source) ||
         stableStringify(metadata.source) !== stableStringify(bound.plan.source) ||
