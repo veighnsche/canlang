@@ -1,5 +1,17 @@
 # Living ideal file-tree plan for Canlang
 
+**ICU contract follow-up, 2026-10-18 (`0bb480bef`):** the
+[finite shared-parser proposal](ideal-filetree-plan/rust-package-audit/icu-shared-parser-plan.md)
+reconciles Values/UI/compiler grammar, compiler coverage scanners and runtime
+usage order against current source and the existing C09I packets. Proposed
+allocation: Values owns the TS syntax module and narrow diagnostic surface;
+UI consumes it while retaining its renderer; Compiler consolidates native syntax
+and usage in its analysis owner. These are proposed leaves, not accepted moves
+or a Rust/Wasm release. A later common Rust core would use the existing Values
+owner only after its finite comparison. Documentation and advisory records do
+not change product coverage, current task identities or the complete checkpoint.
+Native preparation and implementation remain held.
+
 **Additional package Rust audit, 2026-10-18 (`08dc8c392`):** the
 [13-package opportunity audit](ideal-filetree-plan/rust-package-audit/README.md)
 accounts for all 1,511 tracked package paths, with explicit inspection depth,

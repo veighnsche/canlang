@@ -27,6 +27,15 @@ These are optional candidates, not new canonical tasks, implementation-ready
 packets or prerequisites for existing A/V/W/C04 outcomes. Native preparation and
 all original holds remain in force as recorded below.
 
+The [ICU shared-parser proposal](../ideal-filetree-plan/rust-package-audit/icu-shared-parser-plan.md)
+now completes candidate 1's source investigation at `0bb480bef`: one explicit
+grammar profile, Values parser reuse by UI, and consolidation of compiler parsing
+and usage discovery. Its finite packets reuse existing C09I corrections, preserve
+host adapters and keep a single Rust/Wasm parser as a separate later evaluation.
+The profile/change list is decision-ready; implementation remains unreleased.
+This adds no dependency to the three current port packets or permission to start
+native preparation.
+
 ### Implemented and credited
 
 | Owner / original scope | Current implementation and evidence | Limit that remains |

@@ -1,0 +1,183 @@
+{
+  "kind": "advice, not evidence or implementation authorization",
+  "public_source_verification": "Repository marked Public; all five exact source URLs opened without credentials. Product source at local HEAD0bb480bef is unchanged from this public08dc8c392 pin. No local paths, private instructions or credentials sent as context.",
+  "state": {
+    "purpose": "Advise a finite parser consolidation proposal for a public open-source project; no implementation or speedup is presumed.",
+    "public_repository": "https://github.com/veighnsche/canlang",
+    "public_sources": [
+      "https://raw.githubusercontent.com/veighnsche/canlang/08dc8c3928f53c7a06984136ac52ff944360075c/packages/values/src/icu.ts",
+      "https://raw.githubusercontent.com/veighnsche/canlang/08dc8c3928f53c7a06984136ac52ff944360075c/packages/ui/src/messages.ts",
+      "https://raw.githubusercontent.com/veighnsche/canlang/08dc8c3928f53c7a06984136ac52ff944360075c/compiler/src/analysis/examples.rs",
+      "https://raw.githubusercontent.com/veighnsche/canlang/08dc8c3928f53c7a06984136ac52ff944360075c/compiler/Cargo.toml",
+      "https://raw.githubusercontent.com/veighnsche/canlang/08dc8c3928f53c7a06984136ac52ff944360075c/docs/specification/DESIGN.md"
+    ],
+    "facts": [
+      "DESIGN requires one bounded ICU profile: named arguments, number/integer, date/time, nested plural/selectordinal/select with other, exact numeric cases, apostrophe-friendly quoting, no offsets/custom styles/rich handlers. It defines nearest plural pound but not pound outside plural.",
+      "Values has a public TS parser/AST, exact bigint selectors, unsigned decimal selector lexemes, normalized duplicates, finite CLDR categories and argument depth32. Values accepts pound outside plural as literal. UI has a private parser, broader keys and signed exact selectors, no explicit depth cap, weaker quoting/category checks and different syntax errors with UTF16 offsets.",
+      "UI already imports/depends on Values. UI and Values renderers have different scalar admission, decimal scale and localized digit behavior; replacing the renderer would change unrelated behavior. UI resolves locale and converts all supplied operands before parsing; Values rendering parses first. Locale, Intl, typed binding and host errors should remain with their existing adapters.",
+      "Compiler has a Rust parser mixing grammar/type checks and a separate permissive placeholder scanner. They disagree on friendly apostrophes, whitespace and branch scans. Typed anonymous descriptors now reuse the checker; named coverage diagnostics remain separate. Number style-before-type and date/time type-before-style order are observable.",
+      "Compiler already depends on the private values-semantics Rust crate. Values has explicit synchronous Wasm bootstrap and a JSON op transport but public parsing currently works without Wasm. JS string code units, public AST bigint fields and error offsets need preservation across a Rust boundary. No complete parser startup/copy/render workload benchmark has been established.",
+      "A prior pinned FormatJS0.3.1 comparison retained the bounded scanner because published exact selector and parse-time depth APIs failed the required profile. A new full ICU dependency is not assumed."
+    ]
+  },
+  "requests": [
+    {
+      "variant": 1,
+      "questions": {
+        "architecture": {
+          "type": "choice",
+          "instructions": "Which finite consolidation architecture best meets the public project contract at proportionate total maintenance and delivery cost? Compare all alternatives on the same observable behavior; do not infer unmeasured performance.",
+          "criteria": {
+            "aligned_independent": "Keep the three parser implementations, resolve the grammar contract and correct each owner using the same finite cases. Lowest integration change, but retains duplication and drift risk.",
+            "ts_first_shared_contract": "Share the Values TS parser with UI, consolidate compiler grammar and usage into one Rust implementation using the same contract/cases, preserve adapters, and defer a cross-language Wasm switch to a finite comparison. Removes UI/scanner duplication now; retains two grammar implementations.",
+            "rust_shared_execution": "Propose one Values-owned Rust grammar core for native compiler plus Wasm-backed Values/UI execution, with existing public wrappers. Removes cross-language grammar duplication, but requires startup, UTF16/string transport, error and installed-host work before adoption."
+          }
+        },
+        "outside_plural_pound": {
+          "type": "choice",
+          "instructions": "Which outside-plural pound policy should the shared bounded grammar propose, considering runtime compatibility, compiler diagnostics and the stated specification gap?",
+          "criteria": {
+            "literal": "Specify unquoted pound outside any plural as literal, matching both runtime implementations; inside plural use nearest plural through nested select.",
+            "reject": "Specify unquoted pound outside plural as an error, matching compiler; require runtime callers to quote it.",
+            "defer": "Leave this lexical policy unresolved until a concrete additional use case is available, retaining the current mismatch meanwhile."
+          }
+        }
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "answers": {
+          "architecture": {
+            "type": "choice",
+            "choice": "ts_first_shared_contract",
+            "confidence": 0.94,
+            "probabilities": {
+              "aligned_independent": 0.04,
+              "ts_first_shared_contract": 0.96,
+              "rust_shared_execution": 0.0
+            }
+          },
+          "outside_plural_pound": {
+            "type": "choice",
+            "choice": "literal",
+            "confidence": 0.91,
+            "probabilities": {
+              "literal": 0.94,
+              "reject": 0.02,
+              "defer": 0.04
+            }
+          }
+        },
+        "usage": {
+          "input_tokens": 1373,
+          "output_tokens": 88
+        }
+      }
+    },
+    {
+      "variant": 2,
+      "questions": {
+        "architecture": {
+          "type": "choice",
+          "instructions": "Select the most justified next parser ownership proposal from these public source facts. Weigh removed duplication against diagnostic, synchronous API, transport and host-delivery costs; performance benefit is unknown.",
+          "criteria": {
+            "aligned_independent": "Keep the three parser implementations, resolve the grammar contract and correct each owner using the same finite cases. Lowest integration change, but retains duplication and drift risk.",
+            "ts_first_shared_contract": "Share the Values TS parser with UI, consolidate compiler grammar and usage into one Rust implementation using the same contract/cases, preserve adapters, and defer a cross-language Wasm switch to a finite comparison. Removes UI/scanner duplication now; retains two grammar implementations.",
+            "rust_shared_execution": "Propose one Values-owned Rust grammar core for native compiler plus Wasm-backed Values/UI execution, with existing public wrappers. Removes cross-language grammar duplication, but requires startup, UTF16/string transport, error and installed-host work before adoption."
+          }
+        },
+        "outside_plural_pound": {
+          "type": "choice",
+          "instructions": "Choose the proposed meaning of unquoted pound when there is no enclosing plural, balancing existing runtimes and compiler behavior under the incomplete written rule.",
+          "criteria": {
+            "literal": "Specify unquoted pound outside any plural as literal, matching both runtime implementations; inside plural use nearest plural through nested select.",
+            "reject": "Specify unquoted pound outside plural as an error, matching compiler; require runtime callers to quote it.",
+            "defer": "Leave this lexical policy unresolved until a concrete additional use case is available, retaining the current mismatch meanwhile."
+          }
+        }
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "answers": {
+          "architecture": {
+            "type": "choice",
+            "choice": "ts_first_shared_contract",
+            "confidence": 0.98,
+            "probabilities": {
+              "aligned_independent": 0.01,
+              "ts_first_shared_contract": 0.99,
+              "rust_shared_execution": 0.0
+            }
+          },
+          "outside_plural_pound": {
+            "type": "choice",
+            "choice": "literal",
+            "confidence": 0.88,
+            "probabilities": {
+              "literal": 0.92,
+              "reject": 0.02,
+              "defer": 0.06
+            }
+          }
+        },
+        "usage": {
+          "input_tokens": 1374,
+          "output_tokens": 88
+        }
+      }
+    },
+    {
+      "variant": 3,
+      "questions": {
+        "architecture": {
+          "type": "choice",
+          "instructions": "Recommend the bounded path for aligning ICU parsing across the TS Values/UI callers and Rust compiler. Account equally for required semantics, retained host adapters, integration work and residual drift risk.",
+          "criteria": {
+            "aligned_independent": "Keep the three parser implementations, resolve the grammar contract and correct each owner using the same finite cases. Lowest integration change, but retains duplication and drift risk.",
+            "ts_first_shared_contract": "Share the Values TS parser with UI, consolidate compiler grammar and usage into one Rust implementation using the same contract/cases, preserve adapters, and defer a cross-language Wasm switch to a finite comparison. Removes UI/scanner duplication now; retains two grammar implementations.",
+            "rust_shared_execution": "Propose one Values-owned Rust grammar core for native compiler plus Wasm-backed Values/UI execution, with existing public wrappers. Removes cross-language grammar duplication, but requires startup, UTF16/string transport, error and installed-host work before adoption."
+          }
+        },
+        "outside_plural_pound": {
+          "type": "choice",
+          "instructions": "Resolve the shared-profile proposal for top-level pound: literal output, syntax refusal, or explicitly deferred policy. Use the described compatibility and language facts rather than assuming full ICU adoption.",
+          "criteria": {
+            "literal": "Specify unquoted pound outside any plural as literal, matching both runtime implementations; inside plural use nearest plural through nested select.",
+            "reject": "Specify unquoted pound outside plural as an error, matching compiler; require runtime callers to quote it.",
+            "defer": "Leave this lexical policy unresolved until a concrete additional use case is available, retaining the current mismatch meanwhile."
+          }
+        }
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "answers": {
+          "architecture": {
+            "type": "choice",
+            "choice": "ts_first_shared_contract",
+            "confidence": 0.97,
+            "probabilities": {
+              "aligned_independent": 0.01,
+              "ts_first_shared_contract": 0.98,
+              "rust_shared_execution": 0.01
+            }
+          },
+          "outside_plural_pound": {
+            "type": "choice",
+            "choice": "literal",
+            "confidence": 0.69,
+            "probabilities": {
+              "literal": 0.79,
+              "reject": 0.04,
+              "defer": 0.17
+            }
+          }
+        },
+        "usage": {
+          "input_tokens": 1381,
+          "output_tokens": 88
+        }
+      }
+    }
+  ],
+  "api_reference": "https://docs.typesafe.ai/api",
+  "question_reference": "https://docs.typesafe.ai/primitives/choice"
+}
