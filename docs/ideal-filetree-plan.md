@@ -1,5 +1,29 @@
 # Living ideal file-tree plan for Canlang
 
+**Approved ICU profile and shared TS syntax, 2026-10-18 (base `5b27e7bdd`):**
+the human released the Values/UI parser packet in the
+[current finite ICU plan](ideal-filetree-plan/rust-package-audit/icu-shared-parser-plan.md).
+Values now owns `packages/values/src/icu-syntax.ts`: the existing AST, bounded
+grammar, exact-selector normalization and narrow UTF16 diagnostic facts.
+`icu.ts` retains the public ValueError wrapper and rendering/usage owner;
+`index.ts` exposes the shared syntax result. UI's `messages.ts` consumes that AST
+with its existing renderer and ordinary Error adapter; its duplicate parser and
+private AST are removed. The Values fixture and Values/UI tests cover the common
+profile, unchanged AST/errors, exact rendering, operand order and captions.
+DESIGN and DECISIONS record the approved lexical rules; the package audit and
+Rust navigation point to this one completion record. Compiler consolidation and
+the separate UI usage join remain pending; no compiler, Rust/Wasm, distribution
+manifest or native-preparation owner changed.
+
+Contracts/Values/UI TypeScript emit/typechecks passed. The 241 focused tests
+passed; the affected 165 parser/message tests passed again after diagnostic
+corrections, reusing the unchanged 76 locale/component results. An isolated copy
+of emitted package entry points passed shared syntax, exact branch, fallback,
+caption and error checks. This is selected local implementation evidence, not
+the later compiled-to-installed join or full formatter parity. No merge occurred;
+retain accumulated coverage and the complete review checkpoint. Native
+preparation remains **HUMAN HOLD**.
+
 **ICU contract follow-up, 2026-10-18 (`0bb480bef`):** the
 [finite shared-parser proposal](ideal-filetree-plan/rust-package-audit/icu-shared-parser-plan.md)
 reconciles Values/UI/compiler grammar, compiler coverage scanners and runtime
@@ -10,7 +34,8 @@ and usage in its analysis owner. These are proposed leaves, not accepted moves
 or a Rust/Wasm release. A later common Rust core would use the existing Values
 owner only after its finite comparison. Documentation and advisory records do
 not change product coverage, current task identities or the complete checkpoint.
-Native preparation and implementation remain held.
+At this planning checkpoint, native preparation and implementation remained held;
+the later finite TS release is recorded above.
 
 Main integration completed at `9ef381a75` by fast-forward from `0bb480bef`.
 Incremental reconciliation accounts for all seven documentation paths: the ICU

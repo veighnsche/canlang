@@ -2,7 +2,7 @@
 
 ## Current execution view — 2026-10-18
 
-This is the single current execution view for the existing Rust migration. Source inspection: main `ede59d051`; later accepted package outcomes are credited below. The original task IDs, dependencies, acceptance clauses and defining owners remain in [tasks.json](remaining-work/tasks.json) and the [subsystem plans](../research/package-subsystem-ports-20261006/implementation-plans/README.md). The numbered historical sequence below is evidence, not another dispatch queue. This update authorizes documentation only: implementation remains stopped and existing holds remain in force.
+This is the single current execution view for the existing Rust migration. Source inspection: main `ede59d051`; later accepted package outcomes are credited below. The original task IDs, dependencies, acceptance clauses and defining owners remain in [tasks.json](remaining-work/tasks.json) and the [subsystem plans](../research/package-subsystem-ports-20261006/implementation-plans/README.md). The numbered historical sequence below is evidence, not another dispatch queue. Unreleased implementation remains stopped and existing holds remain in force; the separately released Shared TS syntax completion is credited below.
 
 ### Finite packet detail reconciled after origin sync
 
@@ -16,25 +16,34 @@ Current-byte Node binding smoke recorded below is already credited; it does not
 replace installed/vendor/workerd delivery evidence. No accepted recovery work is
 reopened. All native-preparation/source-adoption/default/publication holds remain.
 
-### Additional package opportunities — proposals only
+### Additional package opportunities — TS syntax completed; other packets unreleased
 
 The [full packages opportunity audit](../ideal-filetree-plan/rust-package-audit/README.md)
 at merged source `08dc8c392` covers all 13 packages and 1,511 tracked paths.
 It retains the priorities below and proposes finite contract/cost evaluations
 for message syntax, exact Judgment response decoding, State batch ordering and
 generation diffing. Files byte analysis is conditional on actual workload demand.
-These are optional candidates, not new canonical tasks, implementation-ready
-packets or prerequisites for existing A/V/W/C04 outcomes. Native preparation and
-all original holds remain in force as recorded below.
+These add no canonical tasks or prerequisites for existing A/V/W/C04 outcomes.
+Only the separately released TS syntax packet below is complete; other candidates
+remain unreleased. Native preparation and all original holds remain in force as
+recorded below.
 
-The [ICU shared-parser proposal](../ideal-filetree-plan/rust-package-audit/icu-shared-parser-plan.md)
-now completes candidate 1's source investigation at `0bb480bef`: one explicit
-grammar profile, Values parser reuse by UI, and consolidation of compiler parsing
-and usage discovery. Its finite packets reuse existing C09I corrections, preserve
-host adapters and keep a single Rust/Wasm parser as a separate later evaluation.
-The profile/change list is decision-ready; implementation remains unreleased.
-This adds no dependency to the three current port packets or permission to start
-native preparation.
+The [ICU shared-parser plan](../ideal-filetree-plan/rust-package-audit/icu-shared-parser-plan.md)
+retains its historical source matrix at `0bb480bef`. The user approved its grammar
+profile and released only **Shared TS syntax**, now complete: Values owns one TS
+syntax/normalization/diagnostic implementation behind its compatible public
+wrapper; UI consumes its AST through root `parseMessageSyntax` and keeps its own
+renderer. The duplicate UI parser/AST is removed. Contracts/Values/UI emitted and
+typechecked. The focused ICU/locale/messages/components run passed 241 tests;
+after diagnostic fixes the affected ICU/messages run passed 165, reusing the
+unchanged 76 results. Shared grammar corpus coverage is 24 accepted and 40 refused
+cases, with owner diagnostics, depth and rendering checks.
+
+Compiler parse/usage consolidation and UI full-signature/all-branch/all-variant
+usage remain **unreleased proposals**; joined compiler completion remains pending.
+The finite plan reuses existing C09I corrections and keeps a single Rust/Wasm
+parser as a separate dormant evaluation. This adds no dependency to the three
+current port packets and does not release native preparation.
 
 ### Implemented and credited
 

@@ -1,12 +1,13 @@
 # Additional Rust opportunities across packages
 
-**18 October 2026 — planning only, source `08dc8c3928f53c7a06984136ac52ff944360075c`.**
-All **13 packages / 1,511 tracked paths** are accounted for. The checkout was
-clean at intake; source remains at the merged compiler/Rust-plan checkpoint.
-No implementation, build, product test, benchmark, dependency install, default
-switch or native preparation was started. Findings concern the complete package
-portfolio and candidate workflows; this is not exhaustive line-by-line
-correctness/security certification of all source, tests or generated binaries.
+**18 October 2026 — audit baseline `08dc8c3928f53c7a06984136ac52ff944360075c`; candidate 1 TS syntax completion recorded below.**
+All **13 packages / 1,511 tracked paths** were accounted for at the historical
+baseline. The checkout was clean at intake. That planning audit started no
+implementation, build, product test, benchmark, dependency install, default switch
+or native preparation. A subsequent user release approved the message grammar
+profile and completed only the Shared TS syntax packet. Findings concern the
+complete package portfolio and candidate workflows; this is not exhaustive
+line-by-line correctness/security certification of all source, tests or generated binaries.
 
 **Recommendation:** finish the existing Values/validation/Work consumer and
 asset work first. Additional Rust is most plausible for a few whole, bounded
@@ -35,13 +36,14 @@ add no prerequisites to existing work. Native preparation remains **HUMAN HOLD**
 The currently dependency-ready packets stay `ports:V02.6`,
 `ports:C04.values-assets`, and `ports:W02.5` with its `C04.graph` handoff, after a
 new finite implementation release. Their original acceptance and setup limits
-are unchanged. New candidates below have decision or measurement prerequisites;
-none becomes implementation-ready merely because a pure function exists.
+are unchanged. Unreleased candidates below have decision or measurement
+prerequisites; none becomes implementation-ready merely because a pure function exists.
 
 ## Package-by-package allocation
 
-Counts include production, tests, fixtures, hidden/build/configuration files and
-generated artifacts. They are coverage counts, not runtime size or priority.
+Counts at the historical audit baseline include production, tests, fixtures,
+hidden/build/configuration files and generated artifacts. They are coverage
+counts, not updated implementation totals, runtime size or priority.
 All existing leaves retain their current defining owner unless an original plan
 already selects a successor. No new Rust successor leaf/package is accepted here.
 
@@ -70,8 +72,9 @@ Detailed owners, callers and source evidence:
 ## Ranked additional candidates and finite next outcomes
 
 This ordering is an engineering judgment about potential consistency/portability
-and total cost, not a measured throughput ranking. “First output” is the finite
-remaining decision/evaluation; it is not approval to implement a pilot now.
+and total cost, not a measured throughput ranking. For unreleased candidates,
+“first output” is the finite remaining decision/evaluation; it is not approval
+to implement a pilot now. Candidate 1 records its separately released TS completion.
 A retain-TS decision completes an evaluation successfully. No generic new ABI,
 package, carrier, library or native executable is selected in advance.
 
@@ -81,22 +84,24 @@ package, carrier, library or native executable is selected in advance.
 message consumer. Existing files: `values/src/icu.ts`, `ui/src/messages.ts`,
 `compiler/src/analysis/examples.rs` and related placeholder checks.
 
-**Concrete gap:** three related parsers have materially different acceptance,
-error and evaluation order. Verified examples: compiler rejects literal `#`
-outside plural while Values accepts it; exact selector signs/duplicate
-normalization differ; argument names, whitespace, rich tags, nesting limits and
-UTF16 offsets differ. UI validates locale/operands before parsing; Values renders
-by parsing first. Adopting one implementation silently would change behavior.
+**Historical gap:** three related parsers had materially different acceptance,
+errors and evaluation order. The [ICU matrix](icu-shared-parser-plan.md) retains
+that source-derived baseline at `0bb480bef`, including literal `#`, exact
+selectors, names, whitespace, rich tags, nesting and UTF16 offsets. Compiler
+integration remains pending. UI still admits locale/operands before parsing;
+Values still parses first.
 
-**Contract investigation completed, proposal pending:** the
-[source-current ICU matrix and finite shared-parser plan](icu-shared-parser-plan.md)
-at `0bb480bef` traces syntax, usage scanners and actual consumers. It recommends
-an explicit Values-based profile, sharing the TS parser with UI, and one compiler
-grammar/usage parser. This initially retains two implementations of one contract;
-a single Rust/Wasm implementation has a separate bounded evaluation. The plan
-reuses existing C09I correctness IDs and identifies intentional grammar,
-diagnostic and UI all-branch/all-variant changes. Profile approval and a finite
-implementation release remain necessary; neither is implied by this audit.
+**Approved grammar; Shared TS syntax released and complete:** Values now owns
+syntax/normalization/narrow diagnostics in `src/icu-syntax.ts`, with the existing
+`icu.ts` wrapper preserving ValueError/AST contracts and root `parseMessageSyntax`
+exported for UI. UI uses those nodes in its own renderer; its duplicate parser
+and AST are removed. The shared corpus has 24 accepted and 40 refused cases.
+Contracts/Values/UI emitted and typechecked; the focused run passed 241 tests,
+then the affected ICU/messages scope passed 165 after diagnostic fixes with the
+unchanged 76 results reused. This closes only the TS syntax packet. Compiler
+consolidation, UI full-signature/all-branch/all-variant usage and joined compiler
+completion remain unreleased proposals. A single Rust/Wasm implementation stays
+a separate dormant evaluation; native preparation remains **HUMAN HOLD**.
 
 **If a single Rust implementation is later selected:** consume that agreed grammar/error profile; remove
 one actual duplicate parsing responsibility, keep host Intl/date/plural formatting,
@@ -212,11 +217,12 @@ the implementation language does not supply permissions, atomicity or security.
 
 ## Dependencies, ownership and future lanes
 
-The first ICU contract decision, Judgment host-need check, State order profile
-comparison and generation diff workload comparison are independent **optional
-planning/evaluation scopes**. They consume current source/consumer outputs, not
-another owner's entire plan. None is released by this audit. Files and other
-lower candidates remain dormant until a concrete trigger exists.
+The ICU grammar decision and separately released TS syntax packet are complete
+at their recorded scope. Its remaining compiler/usage packets, Judgment host-need
+check, State order profile comparison and generation diff workload comparison
+remain independent **unreleased planning/evaluation scopes**. They consume named
+source/consumer outputs, not another owner's entire plan. Files and other lower
+candidates remain dormant until a concrete trigger exists.
 
 If a later release chooses them, assign one writer per defining package leaf;
 serialize shared Values semantic/binding edits, global manifests/lockfiles and
@@ -280,8 +286,9 @@ completed. No private instructions, local paths or secrets were sent as context.
   successors. Optional new Rust allocations require the exact decisions above;
   no canonical task acceptance, queue dependencies or original holds changed.
 
-Documentation validation checks the exact inventory union, unique paths and source
-checkpoint, local references and JSON parsing, proposal/hold consistency and
-whitespace; confirms product source and original runtime/ledger manifests are
-unchanged. Existing behavior checks are reused at their recorded scope. No product
-checks or performance claims are added by this audit.
+The original audit's documentation validation checked the exact inventory union,
+unique paths, source checkpoint, local references, JSON parsing, proposal/hold
+consistency and whitespace, with product source and original runtime/ledger
+manifests unchanged at that stage. The later TS implementation and focused checks
+are credited once under candidate 1 above. Other existing behavior checks retain
+their recorded scope; no performance or joined compiler claim is added here.
