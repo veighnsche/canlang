@@ -1,17 +1,19 @@
 //! Retained-facts tamper coverage for the plain enum data transport.
 //!
+//! Retained-facts tamper coverage for the plain enum data transport.
+//!
 //! `checked_plain_enum_data_transport` admits a reused-enum data read only
 //! when the nominal enum path pins through the declaring owner Field item
 //! (canonical plus cases) and the read-field descriptor carries the same
-//! sealed cases. These units hold the original checked facts fixed and
-//! mutate only the retained IR copy or the descriptor struct: a forged
-//! owner canonical, widened owner cases, or narrowed descriptor values
-//! must each refuse, through the defining helper and through the full
-//! `collect_native_scenario_receipt_with_feasibility` collector.
+//! sealed cases. These units call the defining helper directly with the
+//! original checked facts fixed and mutate only the retained IR copy or
+//! the descriptor struct: a forged owner canonical, widened owner cases,
+//! or narrowed descriptor values must each refuse. The honest emitted
+//! receipt path is covered by the integration consumer, not re-proven here.
 use super::*;
 use crate::analysis::catalog::{Catalog, CatalogRequest, load_catalog};
 use crate::analysis::{CheckedProgram, SymbolId, check_program};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 const SOURCE: &str = r#"app EnumTamperProbe
 Given
@@ -43,13 +45,7 @@ fn fixture() -> (SourceDb, CheckedProgram, IrProgram, Catalog) {
     let mut db = SourceDb::new();
     let file = db.add("enum-tamper-probe.can".into(), SOURCE.into());
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
-    let primary = PathBuf::from("/Users/vince/Projects/canlang");
-    let primary_catalog = primary.join("packages/cloudflare/dist/native-catalog.json");
-    let path = if primary_catalog.is_file() {
-        primary_catalog
-    } else {
-        root.join("packages/cloudflare/dist/native-catalog.json")
-    };
+    let path = root.join("packages/cloudflare/dist/native-catalog.json");
     let (catalog, diagnostics) = load_catalog(&CatalogRequest {
         flag: Some(&path),
         env: None,
@@ -128,8 +124,14 @@ fn honest_reused_enum_read_transports_sealed_identity() {
 #[test]
 fn forged_owner_canonical_refuses() {
     let (db, _program, mut ir, _catalog) = fixture();
-    assert_eq!(honest_transport(&ir, &db), Some(TRANSPORT.to_string()));
-    let owner = owner_id(&ir);
+    // Snapshot every retained input before mutating the IR copy.
+    let (owner, cases) = owner_enum(&ir);
+    let descriptor = read_descriptor(&ir, &db);
+    assert_eq!(
+        checked_plain_enum_data_transport(&ir, NOMINAL, &cases, owner, &descriptor),
+        Some(TRANSPORT.to_string()),
+        "honest reused-enum read admits before any tamper"
+    );
     // Retain the item identity; forge only the nominal path the check pins.
     let index = ir
         .items
@@ -137,9 +139,8 @@ fn forged_owner_canonical_refuses() {
         .position(|item| item.id == owner)
         .expect("retained owner item");
     ir.items[index].canonical.push_str(".forged");
-    let cases = owner_cases(&ir, owner);
     assert_eq!(
-        checked_plain_enum_data_transport(&ir, NOMINAL, &cases, owner, &read_descriptor(&ir, &db)),
+        checked_plain_enum_data_transport(&ir, NOMINAL, &cases, owner, &descriptor),
         None,
         "nominal path no longer pins the declaring field"
     );
@@ -148,24 +149,31 @@ fn forged_owner_canonical_refuses() {
 #[test]
 fn widened_owner_cases_refuse() {
     let (db, _program, mut ir, _catalog) = fixture();
-    assert_eq!(honest_transport(&ir, &db), Some(TRANSPORT.to_string()));
-    let forged = ir
+    // Snapshot every retained input before mutating the IR copy.
+    let (owner, cases) = owner_enum(&ir);
+    let descriptor = read_descriptor(&ir, &db);
+    assert_eq!(
+        checked_plain_enum_data_transport(&ir, NOMINAL, &cases, owner, &descriptor),
+        Some(TRANSPORT.to_string()),
+        "honest reused-enum read admits before any tamper"
+    );
+    let index = ir
         .items
-        .iter_mut()
-        .find(|item| item.canonical == NOMINAL)
-        .expect("declaring enum field");
+        .iter()
+        .position(|item| item.id == owner)
+        .expect("retained owner item");
     let IrItemKind::Field {
-        ty: IrType::Known(ResolvedType::Enum { cases, .. }),
+        ty: IrType::Known(ResolvedType::Enum { cases: forged, .. }),
         ..
-    } = &mut forged.kind
+    } = &mut ir.items[index].kind
     else {
         panic!("declaring field carries the enum");
     };
-    cases.push("billing".to_string());
+    forged.push("billing".to_string());
     assert_eq!(
-        honest_transport(&ir, &db),
+        checked_plain_enum_data_transport(&ir, NOMINAL, &cases, owner, &descriptor),
         None,
-        "owner cases no longer match the read type"
+        "owner cases no longer match the retained read type"
     );
 }
 
