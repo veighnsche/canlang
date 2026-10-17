@@ -8340,16 +8340,24 @@ impl<'a> Closure<'a> {
                 self.query_hook_event_operand(event, operand, &field_ty)
                     .is_some()
             });
+            // Closed enum cases compare like the former scalar operands; a
+            // case literal carries no transported input.
+            let case_operand =
+                matches!(&field_ty, ResolvedType::Enum { cases, .. } if !cases.is_empty())
+                    && self.types.resolved_cases.contains(&operand);
             if !fields.contains(&field)
-                || !primitive_type(&field_ty)
+                || !(primitive_type(&field_ty)
+                    || matches!(&field_ty, ResolvedType::Enum { cases, .. } if !cases.is_empty()))
                 || self.types.node_types.get(&self.query_group(member)?) != Some(&field_ty)
-                || (!event_operand && self.nodes.get(&operand)?.kind != SyntaxKind::NameRef)
+                || (!event_operand
+                    && !case_operand
+                    && self.nodes.get(&operand)?.kind != SyntaxKind::NameRef)
                 || self.types.node_types.get(&operand) != Some(&field_ty)
                 || self.types.node_types.get(conjunct) != Some(&ResolvedType::Scalar(Scalar::Bool))
             {
                 return None;
             }
-            let input = if event_operand {
+            let input = if event_operand || case_operand {
                 None
             } else if matches!(
                 self.query_binding(operand),
@@ -9010,6 +9018,15 @@ impl<'a> Closure<'a> {
             }
             ResolvedType::Array { .. } if self.reference_operand_type_id(ty).is_some() => {
                 self.reference_operand_type_id(ty)?
+            }
+            // The State query owner recomputes an inline enum's identity
+            // from the artifact field descriptor (`enum(a,b)`), so
+            // first-query enum dependencies spell the cases rather than
+            // the owner canonical. Sealed checks still run first; the exact
+            // declaration binding stays with the schema owners.
+            ResolvedType::Enum { cases, .. } if !cases.is_empty() => {
+                self.field_type_id(node, field, ty).ok()?;
+                format!("enum({})", cases.join(","))
             }
             _ => self.field_type_id(node, field, ty).ok()?,
         };

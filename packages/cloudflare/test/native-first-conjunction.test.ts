@@ -339,3 +339,162 @@ test('native conjunction first query selects on every conjunct with order, rollb
       await worker?.dispose(); await rm(directory, { recursive: true, force: true });
     }
   });
+
+test('native enum first query selects on actor plus enum param and closed case',
+  { timeout: 180000 }, async () => {
+    const ENUM_APP = 'ConjEnumSources';
+    const ED = asModel(`${ENUM_APP}.D`);
+    const enumFixture = join(root, 'compiler/tests/fixtures/first-query-conjunction-enum.can');
+    const directory = await mkdtemp(join(tmpdir(), 'can-native-first-enum-'));
+    let worker: Miniflare | undefined;
+    let capture: Awaited<ReturnType<typeof import('../src/dev/source-capture.js')['captureSingleFileSource']>> | undefined;
+    try {
+      const { assembleModules } = await nodeImport(installed('runtime/modules.js')) as typeof import('../src/runtime/modules.js');
+      const { buildInvoker } = await nodeImport(installed('worker/assembly.js')) as typeof import('../src/worker/assembly.js');
+      const { installedLocalPreviewInputInventory } = await nodeImport(installed('dev/preview-inputs.js')) as typeof import('../src/dev/preview-inputs.js');
+      const { captureIsCurrent, captureSingleFileSource, verifyCompilerSources } = await nodeImport(installed('dev/source-capture.js')) as typeof import('../src/dev/source-capture.js');
+      const { compileCapturedSingleFile } = await nodeImport(installed('dev/compiler-check.js')) as typeof import('../src/dev/compiler-check.js');
+      const { createD1Storage, ensureSchema } = await nodeImport(stateInstalled('storage/d1.js')) as typeof import('@canlang/state/storage/d1');
+      const originalSource = await readFile(enumFixture);
+      const compilerPath = process.env.CAN_COMPILER_BIN ?? join(root, 'compiler/target/debug/can');
+      const catalogPath = process.env.CAN_NATIVE_CATALOG ?? join(root, 'packages/cloudflare/dist/native-catalog.json');
+      capture = await captureSingleFileSource({ checkoutRoot: root, appPath: enumFixture,
+        profile: 'native-first-enum', compilerPath, catalogPath,
+        helpIndexPath: join(root, 'docs/specification/CONSTRUCT-HELP.md'),
+        ...installedLocalPreviewInputInventory(root, compilerPath), inputInventory: 'installed-local-preview',
+        semanticOptions: { nativeScenarioReceipts: 'true' } });
+      assert.equal(await captureIsCurrent(capture), true);
+      const compiled = await compileCapturedSingleFile(capture);
+      assert.equal(compiled.kind, 'artifact', compiled.kind === 'diagnostics' ? JSON.stringify(compiled.envelope.diagnostics) : compiled.kind);
+      if (compiled.kind !== 'artifact') throw new Error('Enum source did not compile');
+      const artifact: CompileArtifact = compiled.artifact, originalArtifact = JSON.stringify(artifact);
+      assert.equal(verifyCompilerSources(capture, { complete: true, sources: artifact.sources }).ok, true);
+      const expectedDeps: Record<string, Array<{ field: string; type: string }>> = {
+        [`${ENUM_APP}.go_enum`]: [{ field: 'account', type: 'user' }, { field: 'role', type: 'enum(administrator,booker)' }],
+        [`${ENUM_APP}.go_lit`]: [{ field: 'role', type: 'enum(administrator,booker)' }],
+      };
+      for (const [name, deps] of Object.entries(expectedDeps)) {
+        const operation = artifact.operations?.find(operation => operation.name === name); assert.ok(operation, name);
+        const plan = operation.result!.disclosure; assert.ok(plan);
+        const [query] = plan.queries ?? []; assert.ok(query);
+        assert.deepEqual((query.dependencies ?? []).map(dep => ({ field: dep.field, type: dep.type })), deps, `${name} carries the sealed enum identity`);
+      }
+      const asm = await assembleModules({ artifact, sourcePath: enumFixture }, { workDir: join(directory, 'modules'), stdlibUrl: installed('runtime/stdlib.js') });
+      worker = new Miniflare({ compatibilityDate: '2026-07-15', modules: true,
+        script: 'export default { fetch() { return new Response("ok"); } }',
+        d1Databases: { IDENTITY: 'first-enum-identity', OWNER: 'first-enum-owner' }, d1Persist: join(directory, 'd1') });
+      const identityDb = await worker.getD1Database('IDENTITY') as unknown as D1Database;
+      const ownerDb = await worker.getD1Database('OWNER') as unknown as D1Database;
+      await ensureIdentitySchema(identityDb); await ensureSchema(ownerDb);
+      const baseTime = Date.now(); let now = baseTime;
+      const clock = { nowMs: () => now }, identities = createD1IdentityStore(identityDb, { clock });
+      const team = await identities.createTeam({ timezone: 'UTC' });
+      async function actor(email: string) {
+        const user = await identities.createUser({ email, password_hash: 'unused', email_verified: true });
+        const membership = await identities.createMembership({ team_id: team.team_id, user_id: user.user_id, is_owner: false, roles: [] });
+        const token = `native-first-enum-${user.user_id}`;
+        await identities.createSession({ user_id: user.user_id, token_sha256: await sha256HexText(token),
+          last_team_id: team.team_id, expires_at: new Date(baseTime + 3600_000).toISOString() });
+        const current = () => resolveIdentity(identities, { session_token: token }, { clock });
+        return { membership, current, identity: await current() };
+      }
+      const member = await actor('first-enum-member@example.test');
+      const other = await actor('first-enum-other@example.test');
+      const outsider = await identities.createUser({ email: 'first-enum-outsider@example.test', password_hash: 'unused', email_verified: true });
+      const outsiderToken = 'native-first-enum-outsider';
+      await identities.createSession({ user_id: outsider.user_id, token_sha256: await sha256HexText(outsiderToken),
+        last_team_id: team.team_id, expires_at: new Date(baseTime + 3600_000).toISOString() });
+      const outsiderIdentity = await resolveIdentity(identities, { session_token: outsiderToken }, { clock });
+      const underlying = createD1Storage(ownerDb);
+      const store: StoragePort = underlying;
+      const invoker = buildInvoker(artifact, asm, store, { appId: ENUM_APP, memberships: identities, source: 'http', now: clock.nowMs });
+      let sequence = 1000;
+      const envelope = (operation: string, inputs: MutationEnvelope['inputs']): MutationEnvelope => ({
+        operation, operation_id: uuidv7(baseTime, ++sequence), inputs });
+      const invoke = (input: MutationEnvelope) => invoker.invokeMutation(input, member.identity);
+      const dRows = async () => (await store.query({ model: ED, authority: 'owner' }) as unknown as Array<{ data: Record<string, unknown> }>);
+
+      now = baseTime + 10;
+      const parent = await invoker.invokeMutation({ operation: `${ENUM_APP}.P.create`, operation_id: uuidv7(baseTime, ++sequence), inputs: { v: '1' } }, member.identity);
+      assert.ok('result' in parent, JSON.stringify(parent));
+      const parentId = ((parent.result as unknown as { records?: ReadonlyArray<{ id: string; version: number }> }).records ?? [])[0]!.id;
+      const parentVersion = String(((parent.result as unknown as { records?: ReadonlyArray<{ id: string; version: number }> }).records ?? [])[0]!.version);
+      async function seedChild(accountId: string, role: string) {
+        const child = await invoker.invokeMutation({ operation: `${ENUM_APP}.C.create`, operation_id: uuidv7(baseTime, ++sequence),
+          inputs: { parent: { id: parentId }, account: { id: accountId }, role } }, member.identity);
+        assert.ok('result' in child, JSON.stringify(child));
+      }
+      await seedChild(member.membership.user_id, 'administrator');
+      await seedChild(member.membership.user_id, 'booker');
+      await seedChild(other.membership.user_id, 'administrator');
+
+      // Actor plus enum param: member's administrator row matches.
+      now = baseTime + 20;
+      {
+        const outcome = await invoke(envelope(`${ENUM_APP}.go_enum`, { p: { id: parentId, version: parentVersion }, r: 'administrator' }));
+        assert.ok('result' in outcome, JSON.stringify(outcome));
+        assert.equal(outcome.result.status, 'committed');
+        assert.equal(await dRows().then(rows => rows.length), 1);
+        assert.deepEqual((await dRows())[0]!.data, { w: '1' });
+      }
+
+      // Same actor, other case: member's booker row matches.
+      now = baseTime + 30;
+      {
+        const outcome = await invoke(envelope(`${ENUM_APP}.go_enum`, { p: { id: parentId, version: parentVersion }, r: 'booker' }));
+        assert.ok('result' in outcome, JSON.stringify(outcome));
+        assert.equal(outcome.result.status, 'committed');
+        assert.equal(await dRows().then(rows => rows.length), 2);
+      }
+
+      // Closed case literal: first administrator row overall.
+      now = baseTime + 40;
+      {
+        const outcome = await invoke(envelope(`${ENUM_APP}.go_lit`, { p: { id: parentId, version: parentVersion } }));
+        assert.ok('result' in outcome, JSON.stringify(outcome));
+        assert.equal(outcome.result.status, 'committed');
+        assert.equal(await dRows().then(rows => rows.length), 3);
+        assert.deepEqual((await dRows())[2]!.data, { w: '2' });
+      }
+
+      // An authorized caller with no matching row fails the require with
+      // no writes: other holds only an administrator row, so booker
+      // matches nothing for them while the same call succeeds for member.
+      now = baseTime + 50;
+      {
+        const dCount = await dRows().then(rows => rows.length);
+        const outcome = await invoker.invokeMutation(
+          envelope(`${ENUM_APP}.go_enum`, { p: { id: parentId, version: parentVersion }, r: 'booker' }), other.identity);
+        assert.ok('error' in outcome, JSON.stringify(outcome));
+        assert.equal(outcome.error.code, 'rule_failed', JSON.stringify(outcome));
+        assert.equal(await dRows().then(rows => rows.length), dCount);
+      }
+
+      // A caller without membership is denied at the operation boundary.
+      {
+        const dCount = await dRows().then(rows => rows.length);
+        const outcome = await invoker.invokeMutation(
+          envelope(`${ENUM_APP}.go_enum`, { p: { id: parentId, version: parentVersion }, r: 'administrator' }), outsiderIdentity);
+        assert.ok('error' in outcome, JSON.stringify(outcome));
+        assert.equal(outcome.error.code, 'forbidden', JSON.stringify(outcome));
+        assert.equal(await dRows().then(rows => rows.length), dCount);
+      }
+
+      // Revoking membership withholds execution with no writes.
+      await identities.removeMembership(member.membership.membership_id);
+      {
+        const dCount = await dRows().then(rows => rows.length);
+        const revoked = envelope(`${ENUM_APP}.go_enum`, { p: { id: parentId, version: parentVersion }, r: 'administrator' });
+        const revokedOutcome = await invoker.invokeMutation(revoked, member.identity);
+        assert.ok('error' in revokedOutcome, JSON.stringify(revokedOutcome));
+        assert.equal(revokedOutcome.error.code, 'forbidden', JSON.stringify(revokedOutcome));
+        assert.equal(await dRows().then(rows => rows.length), dCount);
+      }
+
+      assert.deepEqual(await readFile(enumFixture), originalSource);
+      assert.equal(JSON.stringify(artifact), originalArtifact); assert.equal(await captureIsCurrent(capture), true);
+      assert.equal(createHash('sha256').update(originalSource).digest('hex'), artifact.sources.find(source => resolve(source.path) === enumFixture)!.sha256);
+    } finally {
+      await worker?.dispose(); await rm(directory, { recursive: true, force: true });
+    }
+  });

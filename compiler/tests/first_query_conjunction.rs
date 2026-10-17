@@ -7,7 +7,10 @@
 //! plan carries every ordered dependency with unique IDs.
 //!
 //! Deliberately still refused: `or` shapes, non-`==` comparisons, unknown
-//! fields (early E2013), and anything outside the admitted operand classes.
+//! fields (early E2013), forged enum cases (early E2001), and anything
+//! outside the admitted operand classes. Enum-typed fields admit with
+//! enum params and closed case literals; the emitted plan carries the
+//! compiler-sealed enum identity.
 use canlang_compiler::analysis::catalog::{Catalog, CatalogRequest, load_catalog};
 use canlang_compiler::analysis::{CheckedProgram, check_program};
 use canlang_compiler::codegen::ir;
@@ -40,6 +43,32 @@ When
 Then
 "#,
         pred = pred,
+    )
+}
+
+fn conj_enum_go(pred: &str, params: &str) -> String {
+    format!(
+        r#"app ConjEnumProbe
+Given
+ P {{v:int}}
+ C in P {{account:user,role:enum(administrator,booker)}}
+ D {{w:int}}
+ policy P read=members fields=v
+ policy C read=members fields=parent,account,role
+ policy D read=members fields=w
+When
+ crud P by=members fields=v
+ crud C by=members fields=parent,account,role
+ scenario go(p:P,{params}) -> int by=members
+  do
+   let c=first(p.C as c where {pred} order=c.id)
+   require c!=null
+   create D {{w=1}} as d
+   return 1
+Then
+"#,
+        pred = pred,
+        params = params,
     )
 }
 
@@ -124,7 +153,7 @@ fn query_dep_fields<'a>(prepared: &'a Value, operation_name: &str) -> Vec<&'a st
         panic!("one first query")
     };
     let deps = query["dependencies"].as_array().unwrap();
-    assert!(deps.len() >= 2, "conjunction emits every ordered conjunct");
+    assert!(!deps.is_empty(), "every conjunct emits its dependency");
     let mut ids: Vec<&str> = Vec::new();
     let fields = deps
         .iter()
@@ -237,6 +266,65 @@ fn conj_unknown_field_refuses_early() {
             diagnostic.code == "E2013" && diagnostic.message.contains("unknown member")
         }),
         "unknown conjunct field keeps its loud early refusal, got {diagnostics:?}"
+    );
+    let _ = db;
+}
+
+#[test]
+fn conj_enum_param_admits() {
+    let (db, program, _, catalog) = fixture_source(
+        "conj-enum-param.can",
+        &conj_enum_go("c.account==actor and c.role==r", "r:C.role"),
+    );
+    let (prepared, diagnostics) = prepared_artifact(&program, &db, &catalog);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    assert_eq!(
+        query_dep_fields(&prepared, "ConjEnumProbe.go"),
+        ["account", "role"],
+        "actor plus enum-param conjuncts emit in source order"
+    );
+    let _ = db;
+}
+
+#[test]
+fn conj_enum_literal_admits() {
+    let (db, program, _, catalog) =
+        fixture_source("conj-enum-lit.can", &conj_enum_go("c.role==administrator", "n:int"));
+    let (prepared, diagnostics) = prepared_artifact(&program, &db, &catalog);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    assert_eq!(
+        query_dep_fields(&prepared, "ConjEnumProbe.go"),
+        ["role"],
+        "closed case literal emits its single dependency"
+    );
+    let _ = db;
+}
+
+#[test]
+fn conj_forged_case_refuses_early() {
+    // A case name outside the declared enum never resolves: the refusal
+    // lands at check_program before any disclosure/receipt gate runs.
+    // Observed against the real compiler: E2001 unresolved name 'nobody'.
+    let mut db = SourceDb::new();
+    let file = db.add(
+        "conj-case.can".into(),
+        conj_enum_go("c.role==nobody", "n:int"),
+    );
+    let path = native_catalog_path();
+    let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+        flag: Some(&path),
+        env: None,
+        cwd: &root(),
+        primary: Span::new(file, 0, 0),
+    });
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let catalog = catalog.unwrap();
+    let (_, diagnostics) = check_program(&db, &[file], Some(&catalog));
+    assert!(
+        diagnostics.iter().any(|diagnostic| {
+            diagnostic.code == "E2001" && diagnostic.message.contains("unresolved name")
+        }),
+        "forged enum case keeps its loud early refusal, got {diagnostics:?}"
     );
     let _ = db;
 }

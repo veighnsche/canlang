@@ -1479,7 +1479,12 @@ export function bindScenarioReceiptQueryProducer(def: GeneratedOperationDef, pro
     if (query === undefined || !checkedFirstQueryParent(bound, def, query, policy, readPolicies) || query.limit !== null || query.archived !== 'exclude' ||
         query.dependencies.length === 0 ||
         query.dependencies.some(dependency => dependency.role !== 'control' ||
-          !['bool','int','decimal','text','money','date','datetime','duration','currency','user'].includes(dependency.type)) ||
+          (!['bool','int','decimal','text','money','date','datetime','duration','currency','user'].includes(dependency.type) &&
+            !(dependency.type.length > 0 && bound.artifactModels.get(query.model)?.fields.some(field => field.name === dependency.field &&
+              typeof field.field === 'object' && field.field !== null &&
+              (field.field as { kind?: unknown }).kind === 'enum' &&
+              Array.isArray((field.field as { values?: unknown }).values) &&
+              (field.field as { values: unknown[] }).values.length > 0)))) ||
         new Set(query.dependencies.map(dependency => dependency.id)).size !== query.dependencies.length ||
         query.order.some(order => order.field !== 'id' || order.direction !== 'asc') ||
         stableStringify(metadata.source) !== stableStringify(query.source) ||

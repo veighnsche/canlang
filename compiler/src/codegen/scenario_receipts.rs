@@ -5794,26 +5794,35 @@ pub(super) fn checked_first_query_predicate(
     scan: &super::ir::IrQuery,
 ) -> Option<()> {
     let first = query.first.as_ref()?;
-    // Every recorded dependency is a scalar Control read of the queried
-    // model; a conjunction records one per conjunct. Anything else keeps
-    // the closure refusal.
+    // Every recorded dependency is a scalar-or-enum Control read of the
+    // queried model; a conjunction records one per conjunct. Anything else
+    // keeps the closure refusal.
     for dependency in query.dependencies.iter() {
-        let ResolvedType::Scalar(scalar) = &dependency.ty else {
-            return None;
+        // An inline enum spells its own identity (`enum(a,b)`) without
+        // resolve tables; a named enum keeps the sealed schema owners as
+        // the binding authority and stays nonempty here.
+        let type_ok = match &dependency.ty {
+            ResolvedType::Scalar(scalar) => {
+                matches!(
+                    scalar,
+                    Scalar::Bool
+                        | Scalar::Int
+                        | Scalar::Decimal
+                        | Scalar::Text
+                        | Scalar::Money
+                        | Scalar::Date
+                        | Scalar::Datetime
+                        | Scalar::Duration
+                        | Scalar::Currency
+                        | Scalar::User
+                ) && dependency.type_id == scalar.as_str()
+            }
+            ResolvedType::Enum { cases, .. } if !cases.is_empty() => {
+                dependency.type_id == format!("enum({})", cases.join(","))
+            }
+            _ => false,
         };
-        if !matches!(
-            scalar,
-            Scalar::Bool
-                | Scalar::Int
-                | Scalar::Decimal
-                | Scalar::Text
-                | Scalar::Money
-                | Scalar::Date
-                | Scalar::Datetime
-                | Scalar::Duration
-                | Scalar::Currency
-                | Scalar::User
-        ) || dependency.type_id != scalar.as_str()
+        if !type_ok
             || dependency.role != DependencyRole::Control
             || dependency.source != query.source
             || dependency.model != query.model
@@ -5880,8 +5889,13 @@ pub(super) fn checked_first_query_predicate(
             .iter()
             .position(|dependency| &dependency.field_name == field)?;
         let dependency = unmatched.remove(position);
-        let ResolvedType::Scalar(scalar) = &dependency.ty else {
-            return None;
+        // Member operands only admit the scalar actor/event classes below;
+        // enum member reads stay refused (deferred scope). Params and
+        // closed enum cases flow through the Name/Text arms.
+        let scalar = match &dependency.ty {
+            ResolvedType::Scalar(scalar) => Some(scalar),
+            ResolvedType::Enum { .. } => None,
+            _ => return None,
         };
         if left.span != node_span(dependency.node)
             || left.ty != dependency.ty
@@ -5907,6 +5921,9 @@ pub(super) fn checked_first_query_predicate(
                 {
                     return None;
                 }
+                let Some(scalar) = scalar else {
+                    return None;
+                };
                 match scalar {
                     Scalar::User => {
                         let IrExpr::Member { base, field } = &right.expr else {
@@ -5964,6 +5981,22 @@ pub(super) fn checked_first_query_predicate(
             }
             IrExpr::Name(_) => {
                 param_conjuncts.push((index, dependency));
+            }
+            IrExpr::Text(case) => {
+                // A closed enum case lowers to text with the enum type. The
+                // case must belong to this dependency's own declared cases,
+                // and no transported input may name it.
+                let ResolvedType::Enum { cases, .. } = &dependency.ty else {
+                    return None;
+                };
+                if !cases.contains(case)
+                    || query
+                        .inputs
+                        .iter()
+                        .any(|(node, _)| *node == operand_nodes[index])
+                {
+                    return None;
+                }
             }
             _ => return None,
         }
@@ -13536,6 +13569,7 @@ mod branch_trailing_set_receiver_tests {
     }
 }
 
+#[cfg(test)]
 mod conjunct_predicate_correspondence_tests {
     use super::*;
     use crate::analysis::catalog::{CatalogRequest, load_catalog};
@@ -13546,19 +13580,25 @@ mod conjunct_predicate_correspondence_tests {
     const CONJ: &str = r#"app ConjTamper
 Given
  P {v:int}
- C in P {v:int,role:text}
+ C in P {v:int,role:text,kind:enum(administrator,booker)}
  D {w:int}
  policy P read=members fields=v
- policy C read=members fields=parent,v,role
+ policy C read=members fields=parent,v,role,kind
  policy D read=members fields=w
 When
  crud P by=members fields=v
- crud C by=members fields=parent,v,role
+ crud C by=members fields=parent,v,role,kind
  scenario go_t(p:P,n:int,r:text,s:text) -> int by=members
   do
    let c=first(p.C as c where c.v==n and c.role==r order=c.id)
    require c!=null
    create D {w=n} as d
+   return 1
+ scenario go_e(p:P) -> int by=members
+  do
+   let e=first(p.C as e where e.kind==administrator order=e.id)
+   require e!=null
+   create D {w=1} as d
    return 1
 Then
 "#;
@@ -13586,9 +13626,27 @@ Then
         (db, ir)
     }
 
+    fn owner_by_name<'a>(ir: &'a IrProgram, canonical: &str) -> &'a IrItem {
+        ir.items
+            .iter()
+            .find(|item| item.canonical == canonical)
+            .unwrap()
+    }
+
     fn first_scan<'a>(
         ir: &'a IrProgram,
         owner: &'a IrItem,
+    ) -> (
+        &'a crate::analysis::scenario_disclosure::DisclosureQuery,
+        &'a super::super::ir::IrQuery,
+    ) {
+        first_scan_expecting(ir, owner, 2)
+    }
+
+    fn first_scan_expecting<'a>(
+        ir: &'a IrProgram,
+        owner: &'a IrItem,
+        expected_dependencies: usize,
     ) -> (
         &'a crate::analysis::scenario_disclosure::DisclosureQuery,
         &'a super::super::ir::IrQuery,
@@ -13608,7 +13666,11 @@ Then
             .iter()
             .find(|query| query.first.is_some())
             .unwrap();
-        assert_eq!(query.dependencies.len(), 2, "two conjuncts recorded");
+        assert_eq!(
+            query.dependencies.len(),
+            expected_dependencies,
+            "recorded conjunct count"
+        );
         let first = query.first.as_ref().unwrap();
         let IrItemKind::Scenario { effects, .. } = &owner.kind else {
             panic!("scenario");
@@ -13787,6 +13849,66 @@ Then
             checked_first_query_predicate(&tampered, tampered_owner, tampered_query, tampered_scan)
                 .is_none(),
             "reordered conjuncts against original facts must refuse"
+        );
+    }
+
+    #[test]
+    fn forged_enum_case_against_original_facts_refuses() {
+        let (_db, ir) = fixture();
+        let owner = owner_by_name(&ir, "ConjTamper.go_e");
+        let (query, scan) = first_scan_expecting(&ir, owner, 1);
+        let binding = node_span(query.first.as_ref().unwrap().binding);
+        assert!(
+            checked_first_query_predicate(&ir, owner, query, scan).is_some(),
+            "genuine closed-case pair must admit"
+        );
+        let mut tampered = ir.clone();
+        let tampered_owner = tampered
+            .items
+            .iter_mut()
+            .find(|item| item.canonical == "ConjTamper.go_e")
+            .unwrap();
+        let IrItemKind::Scenario { effects, .. } = &mut tampered_owner.kind else {
+            panic!("scenario");
+        };
+        let call = effects
+            .iter_mut()
+            .find_map(|effect| match effect {
+                IrStmt::Let { value, span, .. } if *span == binding => Some(value),
+                _ => None,
+            })
+            .unwrap();
+        let (IrExpr::Call { args, .. } | IrExpr::BoundCall { args, .. }) = &mut call.expr else {
+            panic!("first call");
+        };
+        let [domain] = args.as_mut_slice() else {
+            panic!("one domain");
+        };
+        let IrExpr::Query(scan) = &mut domain.expr else {
+            panic!("query domain");
+        };
+        let predicate = scan.where_pred.as_mut().unwrap();
+        let IrExpr::Binary {
+            op: IrBinOp::Eq,
+            right: case,
+            ..
+        } = &mut predicate.expr
+        else {
+            panic!("lone case ==");
+        };
+        // Same span and enum type; only the case leaves the declared set.
+        let IrExpr::Text(name) = &mut case.expr else {
+            panic!("case literal");
+        };
+        assert_eq!(name, "administrator", "honest case");
+        *name = "superadmin".to_string();
+        let tampered_owner = owner_by_name(&tampered, "ConjTamper.go_e");
+        let (tampered_query, tampered_scan) =
+            first_scan_expecting(&tampered, tampered_owner, 1);
+        assert!(
+            checked_first_query_predicate(&tampered, tampered_owner, tampered_query, tampered_scan)
+                .is_none(),
+            "forged enum case against original facts must refuse"
         );
     }
 }
