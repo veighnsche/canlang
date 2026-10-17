@@ -1,5 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { date, datetime, encodeValue, parseDecimal, ValueError } from "@canlang/values";
 import {
   formatMessage,
@@ -445,6 +446,140 @@ describe("formatMessage select/number/date/money", () => {
       }),
       "xy",
     );
+  });
+});
+
+describe("shared ICU syntax consumer", () => {
+  it("accepts and refuses the approved shared grammar corpus through UI formatting", () => {
+    const corpus = JSON.parse(readFileSync(new URL(
+      "../../../values/test/fixtures/icu-profile.json", import.meta.url,
+    ), "utf8")) as {
+      accepted: Array<{ id: string; pattern: string }>;
+      refused: Array<{ id: string; pattern: string }>;
+    };
+    const args = {
+      n: { type: "int", value: 5n },
+      m: { type: "int", value: 2n },
+      i: { type: "int", value: 1n },
+      d: { type: "date", value: "2026-10-18" },
+      t: { type: "datetime", value: "2026-10-18T12:00:00Z" },
+      s: { type: "text", value: "active-case" },
+      name: { type: "text", value: "reader" },
+      "0": { type: "text", value: "zero" },
+      _: { type: "text", value: "underscore" },
+      a_1: { type: "text", value: "identifier" },
+    };
+    for (const { id, pattern } of corpus.accepted) {
+      assert.doesNotThrow(() => formatMessage(pattern, { locale: "en", args }), id);
+    }
+    for (const { id, pattern } of corpus.refused) {
+      assert.throws(() => formatMessage(pattern, { locale: "en", args }),
+        { name: "Error" }, id);
+    }
+  });
+
+  it("renders shared quoting, whitespace and nearest-plural pound nodes", () => {
+    const args = {
+      n: { type: "int", value: 5n },
+      inner: { type: "int", value: 2n },
+      s: { type: "text", value: "active-case" },
+      "0": { type: "text", value: "zero" },
+      _: { type: "text", value: "underscore" },
+    };
+    for (const [pattern, expected] of [
+      ["'{''}'", "{'}"],
+      ["'|' and '|", "'|' and '|"],
+      ["Don't {0}: {_}", "Don't zero: underscore"],
+      ["{n,\tnumber}", "5"],
+      ["{\uFEFFn\t}", "5"],
+      ["# {n,plural,other {# {s,select,active-case {# '{#}' {inner,plural,other {#}} #} other {no}} #}} #",
+        "# 5 5 {#} 2 5 5 #"],
+      ["<3 and a < b", "<3 and a < b"],
+      ["surrogate \uD800", "surrogate \uD800"],
+    ] as const) {
+      assert.equal(formatMessage(pattern, { locale: "en", args }), expected, pattern);
+    }
+  });
+
+  it("counts every nested argument up to the shared depth bound", () => {
+    const nested = (leaf: string) => "{n,select,other {".repeat(32) + leaf + "}}".repeat(32);
+    const args = { n: { type: "text", value: "x" } };
+    assert.equal(formatMessage(nested("text"), { args }), "text");
+    assert.throws(() => formatMessage(nested("{n}"), { args }),
+      /nesting exceeds the maximum depth of 32/);
+  });
+
+  it("keeps ordinary UI errors, JSON patterns and unchanged UTF16 offsets", () => {
+    const duplicate = "{n,plural,other {a} other {b}}";
+    const duplicateExact = "{n,plural,=01.00 {a} =1 {b} other {c}}";
+    const branch = "{n,plural,other x}";
+    const exact = "{n,plural,=.5 {a} other {b}}";
+    const cases: ReadonlyArray<readonly [string, number, string]> = [
+      ["😀}", 2, "unmatched closing brace"],
+      ["😀'{", 3, "unterminated quoted literal"],
+      ["😀{}", 2, "empty argument name"],
+      ["{n,choice}", 0, "format choice needs a style or options"],
+      ["{n,choice,x}", 0, "unsupported format choice"],
+      ["{n,choice", 9, "expected comma or closing brace"],
+      ["{n,123}", 0, "format 123 needs a style or options"],
+      ["{n,number2}", 0, "format number2 needs a style or options"],
+      ["{n,number2,x}", 0, "unsupported format number2"],
+      ["{n,number2", 10, "expected comma or closing brace"],
+      ["{n,plural}", 0, "format plural needs a style or options"],
+      ["{n,number,percent}", 0, "unsupported number style percent"],
+      ["{n,number,currency x}", 0, "unexpected input in number style"],
+      ["{n,number,::currency/USD}", 0, "unsupported number style ::currency/USD"],
+      ["{d,date,tiny}", 0, "unsupported date style tiny"],
+      ["{d,date,yyyy-MM-dd}", 0, "unsupported date style yyyy-MM-dd"],
+      ["{n,number,integer x}", 0, "unexpected input in number style"],
+      ["{n,number,integer2}", 0, "unsupported number style integer2"],
+      ["{d,date,medium-extra}", 0, "unsupported date style medium-extra"],
+      ["{n,number,,}", 0, "unexpected input in number style"],
+      ["{n,number,", 0, "unexpected input in number style"],
+      ["{n,plural,one {a}}", 0, 'format plural requires an "other" option'],
+      [duplicate, duplicate.lastIndexOf("other") + 5, "duplicate option other"],
+      [duplicateExact, duplicateExact.lastIndexOf("=1") + 2, "duplicate option =1"],
+      ["{n,plural,offset:1 other {a}}", 10, "plural offsets are not supported"],
+      ["{n,plural,other {a}", 0, "unterminated option list"],
+      ["{n,plural,other {", 17, "unterminated option, expected closing brace"],
+      [branch, branch.indexOf("x"), "expected message for option other"],
+      [exact, exact.indexOf("=") + 1, "invalid exact numeric case"],
+      ["{n,plural,=1.{x} other{y}}", 11, "invalid exact numeric case"],
+      ["{n,plural,=1{x} =1.{y} other{z}}", 17, "invalid exact numeric case"],
+    ];
+    for (const [pattern, offset, why] of cases) {
+      assert.throws(() => formatMessage(pattern), (error: unknown) => {
+        assert.equal(error instanceof Error, true);
+        assert.equal(Object.getPrototypeOf(error), Error.prototype);
+        assert.equal((error as Error).message,
+          `message pattern error at offset ${offset}: ${why} in ${JSON.stringify(pattern)}`);
+        return true;
+      }, pattern);
+    }
+  });
+
+  it("retains eager supplied-value admission before syntax and selected-branch usage", () => {
+    const args = { unused: { type: "int", value: 1.5 } };
+    for (const pattern of ["}", "literal", "{s,select,yes {ok} other {{missing}}}"]) {
+      assert.throws(() => formatMessage(pattern, { args }),
+        { name: "TypeError", message: 'message argument "unused": int number value must be a safe integer' });
+    }
+    // Full-signature and all-branch usage checks remain a separate packet.
+    const descriptor = message("{s,select,yes {ok} other {{missing}}}", { nl: "}" },
+      { s: { type: "text", value: "yes" } });
+    assert.equal(formatMessage(descriptor, { appDefaultLocale: "en" }), "ok");
+  });
+
+  it("uses only own supplied bindings while accepting own special-looking names", () => {
+    const inherited = Object.create({ x: { type: "text", value: "inherited" } });
+    assert.throws(() => formatMessage("{x}", { args: inherited }),
+      /undeclared argument "x"/);
+    const own = Object.create({ x: { type: "text", value: "inherited" } });
+    Object.defineProperties(own, {
+      x: { enumerable: true, value: { type: "text", value: "own" } },
+      ["__proto__"]: { enumerable: true, value: { type: "text", value: "special" } },
+    });
+    assert.equal(formatMessage("{x} {__proto__}", { args: own }), "own special");
   });
 });
 

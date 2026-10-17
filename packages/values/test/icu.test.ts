@@ -1,5 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { Decimal } from "../src/decimal.js";
 import { ValueError } from "../src/errors.js";
 import {
@@ -31,6 +32,102 @@ function intParam(value: bigint): MessageParam {
 function textParam(value: string): MessageParam {
   return { type: "text", value };
 }
+
+const grammarProfile = JSON.parse(
+  readFileSync(new URL("../../test/fixtures/icu-profile.json", import.meta.url), "utf8"),
+) as {
+  accepted: Array<{ id: string; pattern: string }>;
+  refused: Array<{ id: string; pattern: string }>;
+};
+
+describe("shared bounded grammar corpus", () => {
+  for (const { id, pattern } of grammarProfile.accepted) {
+    it(`accepts ${id}`, () => {
+      assert.doesNotThrow(() => parseMessageFormat(pattern));
+    });
+  }
+  for (const { id, pattern } of grammarProfile.refused) {
+    it(`refuses ${id}`, () => {
+      assertValueError(() => parseMessageFormat(pattern), "invalid-construction");
+    });
+  }
+});
+
+describe("public parser compatibility", () => {
+  it("keeps node shapes, default styles and exact ordered selectors", () => {
+    assert.deepEqual(parseMessageFormat("Hi {name}{n,number}{i,number,integer}{d,date}{t,time}"), [
+      { kind: "text", value: "Hi " },
+      { kind: "arg", name: "name" },
+      { kind: "number", name: "n", integerOnly: false },
+      { kind: "number", name: "i", integerOnly: true },
+      { kind: "date", name: "d", style: "medium" },
+      { kind: "time", name: "t", style: "medium" },
+    ]);
+    assert.deepEqual(parseMessageFormat("{n,selectordinal,=01.00{one} =000.5000{half} =9007199254740993{large} other{#}}"), [{
+      kind: "plural", name: "n", ordinal: true,
+      branches: [
+        { selector: "=1", exact: { coef: 1n, scale: 0 }, nodes: [{ kind: "text", value: "one" }] },
+        { selector: "=0.5", exact: { coef: 5n, scale: 1 }, nodes: [{ kind: "text", value: "half" }] },
+        { selector: "=9007199254740993", exact: { coef: 9007199254740993n, scale: 0 }, nodes: [{ kind: "text", value: "large" }] },
+        { selector: "other", exact: null, nodes: [{ kind: "pound" }] },
+      ],
+    }]);
+  });
+
+  it("retains UTF16 literals and quoted syntax without exposing cursors", () => {
+    assert.deepEqual(parseMessageFormat("😀\ud800'{''}'\udfff"), [{ kind: "text", value: "😀\ud800{'}\udfff" }]);
+    assert.deepEqual(parseMessageFormat("{n,plural,other{'#' #}}"), [{
+      kind: "plural", name: "n", ordinal: false,
+      branches: [{ selector: "other", exact: null, nodes: [
+        { kind: "text", value: "# " }, { kind: "pound" },
+      ] }],
+    }]);
+    assert.deepEqual(parseMessageFormat("'|"), [{ kind: "text", value: "'|" }]);
+  });
+
+  it("preserves the existing shallow freeze boundary", () => {
+    const ast = parseMessageFormat("{n,plural,=1{{s,select,other{x}}} other{#}}");
+    const plural = ast[0];
+    assert.ok(plural?.kind === "plural");
+    const branch = plural.branches[0];
+    assert.ok(branch);
+    assert.equal(Object.isFrozen(ast), true);
+    assert.equal(Object.isFrozen(plural), true);
+    assert.equal(Object.isFrozen(plural.branches), true);
+    assert.equal(Object.isFrozen(branch), true);
+    assert.equal(Object.isFrozen(branch.exact), true);
+    assert.equal(Object.isFrozen(branch.nodes), true);
+    const nested = branch.nodes[0];
+    assert.ok(nested?.kind === "select");
+    assert.equal(Object.isFrozen(nested), false);
+    assert.equal(Object.isFrozen(nested.branches), false);
+  });
+
+  it("preserves ValueError identity, fields and representative exact messages", () => {
+    const failures: Array<[unknown, string]> = [
+      [null, "message pattern must be text"],
+      ["}", "invalid message pattern: unmatched closing brace"],
+      ["{}", "invalid message pattern: expected an argument name after '{'"],
+      ["'{n}", "invalid message pattern: unterminated quoted literal"],
+      ["{n,number,}", "invalid message pattern: expected a number style after 'number,'"],
+      ["{d,date, }", "invalid message pattern: expected a date style after 'date,'"],
+      ["{n,plural,=01.00{x} =1{y} other{z}}", "invalid message pattern: duplicate plural branch '=1'"],
+      ["{n,plural,one{x}}", "invalid message pattern: plural requires a mandatory 'other' branch"],
+      ["<b>x</b>", "invalid message pattern: rich-text tags are outside the bounded profile"],
+    ];
+    for (const [pattern, message] of failures) {
+      assert.throws(() => parseMessageFormat(pattern as string), (error: unknown) => {
+        assert.ok(error instanceof ValueError);
+        assert.equal(error.name, "ValueError");
+        assert.equal(error.kind, "value");
+        assert.equal(error.code, "invalid-construction");
+        assert.equal(error.message, message);
+        assert.deepEqual(Object.keys(error).sort(), ["code", "kind", "name"]);
+        return true;
+      });
+    }
+  });
+});
 
 describe("bounded profile accept matrix", () => {
   it("renders static text and empty patterns", () => {
@@ -285,14 +382,20 @@ describe("bounded profile reject matrix", () => {
   });
 
   it("rejects nesting deeper than 32 levels", () => {
-    const nest = (levels: number): string =>
-      "{v, select, other {".repeat(levels) + "deep" + "}".repeat(levels * 2);
+    const nest = (levels: number, leaf = "deep"): string =>
+      "{v, select, other {".repeat(levels) + leaf + "}".repeat(levels * 2);
     assertValueError(() => parseMessageFormat(nest(33)), "invalid-construction");
     assertValueError(
       () => renderMessage(nest(33), { v: textParam("x") }, "en"),
       "invalid-construction",
     );
     assert.equal(parseMessageFormat(nest(32)).length, 1);
+    assert.equal(parseMessageFormat(nest(31, "{n}")).length, 1);
+    assert.throws(() => parseMessageFormat(nest(32, "{n}")), {
+      name: "ValueError",
+      code: "invalid-construction",
+      message: "invalid message pattern: nesting exceeds the maximum depth of 32",
+    });
   });
 
   it("rejects malformed param shapes and values", () => {

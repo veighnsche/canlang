@@ -12,6 +12,7 @@ export * from "./decimal.js";
 export * from "./equality.js";
 export * from "./errors.js";
 export * from "./icu.js";
+export { parseMessageSyntax, type MessageSyntaxDiagnostic, type MessageSyntaxKind, type MessageSyntaxResult } from "./icu-syntax.js";
 export * from "./int.js";
 export * from "./kinds.js";
 export * from "./locale.js";

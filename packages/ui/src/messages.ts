@@ -27,7 +27,16 @@ import {
   type ResolvedMessage,
   type ThemeTokens,
 } from "@canlang/contracts";
-import { encodeValue, isDateValue, isDatetime, isDecimal } from "@canlang/values";
+import {
+  encodeValue,
+  isDateValue,
+  isDatetime,
+  isDecimal,
+  parseMessageSyntax,
+  type MessageNode,
+  type MessageSyntaxDiagnostic,
+  type ParsedMessage,
+} from "@canlang/values";
 
 export { DEFAULT_THEME, PRESENTATION_CONTRACT_VERSION };
 export type { Bcp47Tag, MessageParams, ResolvedMessage, ThemeTokens };
@@ -366,242 +375,92 @@ function toOperand(name: string, param: MessageParamValue): ScalarOperand {
 }
 
 // ---------------------------------------------------------------------------
-// ICU-profile parser (bounded subset; offsets/choice/skeletons rejected)
+// Shared syntax diagnostics; UI retains its ordinary Error boundary.
 // ---------------------------------------------------------------------------
-
-type PatternNode =
-  | { readonly kind: "text"; readonly value: string; readonly substitute: boolean }
-  | {
-      readonly kind: "arg";
-      readonly name: string;
-      readonly format: "plain" | "number" | "date" | "time" | "plural" | "selectordinal" | "select";
-      readonly style?: string;
-      readonly options?: ReadonlyArray<{ readonly key: string; readonly nodes: PatternNode[] }>;
-    };
 
 function patternError(pattern: string, offset: number, why: string): Error {
   return new Error(`message pattern error at offset ${offset}: ${why} in ${JSON.stringify(pattern)}`);
 }
 
-class PatternParser {
-  private pos = 0;
-  constructor(private readonly pattern: string) {}
-
-  parseTop(): PatternNode[] {
-    const nodes = this.parseMessage(false);
-    if (this.pos !== this.pattern.length) {
-      throw patternError(this.pattern, this.pos, "unexpected trailing input");
-    }
-    return nodes;
-  }
-
-  private parseMessage(nested: boolean): PatternNode[] {
-    const nodes: PatternNode[] = [];
-    let text = "";
-    let literal = false;
-    const flush = () => {
-      if (text !== "") {
-        nodes.push({ kind: "text", value: text, substitute: !literal });
-        text = "";
-        literal = false;
-      }
-    };
-    // Quoted spans never undergo `#` substitution; split runs on transitions.
-    const append = (value: string, isLiteral: boolean) => {
-      if (text !== "" && isLiteral !== literal) {
-        flush();
-      }
-      literal = isLiteral;
-      text += value;
-    };
-    while (this.pos < this.pattern.length) {
-      const ch = this.pattern[this.pos] as string;
-      if (ch === "'") {
-        const next = this.pattern[this.pos + 1];
-        if (next === "'") {
-          append("'", false);
-          this.pos += 2;
-        } else if (next === "{" || next === "}" || next === "#" || next === "|") {
-          // Quoted literal: consume up to the closing apostrophe.
-          this.pos += 1;
-          const end = this.pattern.indexOf("'", this.pos);
-          if (end === -1) {
-            throw patternError(this.pattern, this.pos, "unterminated quoted literal");
-          }
-          append(this.pattern.slice(this.pos, end), true);
-          this.pos = end + 1;
-        } else {
-          // Lone apostrophe before ordinary text stays literal (ICU lenient mode).
-          append("'", false);
-          this.pos += 1;
-        }
-      } else if (ch === "{") {
-        flush();
-        nodes.push(this.parseArgument());
-      } else if (ch === "}") {
-        if (!nested) {
-          throw patternError(this.pattern, this.pos, "unmatched closing brace");
-        }
-        flush();
-        return nodes;
+function syntaxError(pattern: string, diagnostic: MessageSyntaxDiagnostic): Error {
+  const { kind, format, token } = diagnostic;
+  const argumentStart = diagnostic.argumentStart ?? diagnostic.offset;
+  let offset = diagnostic.offset;
+  let why = diagnostic.message;
+  switch (kind) {
+    case "unmatched-close":
+      why = "unmatched closing brace";
+      break;
+    case "unterminated-branch":
+      why = "unterminated option, expected closing brace";
+      break;
+    case "expected-name":
+      offset = argumentStart;
+      why = "empty argument name";
+      break;
+    case "expected-comma":
+      why = "expected comma or closing brace";
+      break;
+    case "expected-type":
+    case "unsupported-type":
+      if (pattern[diagnostic.offset] === "}") {
+        offset = argumentStart;
+        why = `format ${token ?? ""} needs a style or options`;
+      } else if (pattern[diagnostic.offset] === ",") {
+        offset = argumentStart;
+        why = `unsupported format ${token ?? ""}`;
       } else {
-        append(ch, false);
-        this.pos += 1;
+        why = "expected comma or closing brace";
       }
-    }
-    if (nested) {
-      throw patternError(this.pattern, this.pos, "unterminated option, expected closing brace");
-    }
-    flush();
-    return nodes;
+      break;
+    case "missing-branches":
+      offset = argumentStart;
+      why = `format ${format} needs a style or options`;
+      break;
+    case "expected-style":
+    case "unsupported-style":
+      offset = argumentStart;
+      // Explicit empty styles are newly refused by the approved grammar.
+      if (token !== undefined && token !== "") {
+        why = pattern.slice(diagnostic.offset).trimStart().startsWith("}")
+          ? `unsupported ${format} style ${token}`
+          : `unexpected input in ${format} style`;
+      } else if (!pattern.slice(diagnostic.offset).trimStart().startsWith("}")) {
+        why = `unexpected input in ${format} style`;
+      }
+      break;
+    case "expected-style-end":
+      offset = argumentStart;
+      why = `unexpected input in ${format} style`;
+      break;
+    case "unsupported-offset":
+      why = "plural offsets are not supported";
+      break;
+    case "invalid-exact":
+      why = "invalid exact numeric case";
+      break;
+    case "duplicate-selector":
+      why = `duplicate option ${token}`;
+      break;
+    case "expected-selector":
+      why = "empty option selector";
+      break;
+    case "expected-branch":
+      why = `expected message for option ${token}`;
+      break;
+    case "expected-branch-end":
+      why = "expected closing brace for option";
+      break;
+    case "missing-other":
+      offset = argumentStart;
+      why = `format ${format} requires an "other" option`;
+      break;
+    case "unterminated-options":
+      offset = argumentStart;
+      why = "unterminated option list";
+      break;
   }
-
-  private parseArgument(): PatternNode {
-    const start = this.pos;
-    this.pos += 1; // consume {
-    this.skipSpaces();
-    const name = this.parseName();
-    if (name === "") {
-      throw patternError(this.pattern, start, "empty argument name");
-    }
-    this.skipSpaces();
-    if (this.pattern[this.pos] === "}") {
-      this.pos += 1;
-      return { kind: "arg", name, format: "plain" };
-    }
-    if (this.pattern[this.pos] !== ",") {
-      throw patternError(this.pattern, this.pos, "expected comma or closing brace");
-    }
-    this.pos += 1;
-    this.skipSpaces();
-    const format = this.parseName();
-    this.skipSpaces();
-    if (this.pattern[this.pos] === "}") {
-      this.pos += 1;
-      if (format === "number" || format === "date" || format === "time") {
-        return { kind: "arg", name, format, style: "" };
-      }
-      throw patternError(this.pattern, start, `format ${format} needs a style or options`);
-    }
-    if (this.pattern[this.pos] !== ",") {
-      throw patternError(this.pattern, this.pos, "expected comma or closing brace");
-    }
-    this.pos += 1;
-    this.skipSpaces();
-    if (format === "number" || format === "date" || format === "time") {
-      const style = this.parseName();
-      this.skipSpaces();
-      if (this.pattern[this.pos] !== "}") {
-        throw patternError(this.pattern, start, `unexpected input in ${format} style`);
-      }
-      this.pos += 1;
-      if (format === "number" && style !== "" && style !== "integer") {
-        throw patternError(this.pattern, start, `unsupported number style ${style}`);
-      }
-      if (
-        (format === "date" || format === "time") &&
-        style !== "" &&
-        style !== "short" &&
-        style !== "medium" &&
-        style !== "long" &&
-        style !== "full"
-      ) {
-        throw patternError(this.pattern, start, `unsupported ${format} style ${style}`);
-      }
-      return { kind: "arg", name, format, style };
-    }
-    if (format === "plural" || format === "selectordinal" || format === "select") {
-      if (this.pattern.startsWith("offset:", this.pos)) {
-        throw patternError(this.pattern, this.pos, "plural offsets are not supported");
-      }
-      const options: Array<{ key: string; nodes: PatternNode[] }> = [];
-      const seen = new Set<string>();
-      for (;;) {
-        this.skipSpaces();
-        if (this.pos >= this.pattern.length) {
-          throw patternError(this.pattern, start, "unterminated option list");
-        }
-        if (this.pattern[this.pos] === "}") {
-          this.pos += 1;
-          break;
-        }
-        let key: string;
-        if (
-          (format === "plural" || format === "selectordinal") &&
-          this.pattern[this.pos] === "="
-        ) {
-          this.pos += 1;
-          const raw = this.parseExactNumber();
-          key = `=${decimalKey(raw)}`;
-        } else {
-          key = this.parseName();
-        }
-        if (key === "") {
-          throw patternError(this.pattern, this.pos, "empty option selector");
-        }
-        if (seen.has(key)) {
-          throw patternError(this.pattern, this.pos, `duplicate option ${key}`);
-        }
-        seen.add(key);
-        this.skipSpaces();
-        if (this.pattern[this.pos] !== "{") {
-          throw patternError(this.pattern, this.pos, `expected message for option ${key}`);
-        }
-        this.pos += 1;
-        const nodes = this.parseMessage(true);
-        if (this.pattern[this.pos] !== "}") {
-          throw patternError(this.pattern, this.pos, "expected closing brace for option");
-        }
-        this.pos += 1;
-        options.push({ key, nodes });
-      }
-      if (!seen.has("other")) {
-        throw patternError(this.pattern, start, `format ${format} requires an "other" option`);
-      }
-      return { kind: "arg", name, format, options };
-    }
-    throw patternError(this.pattern, start, `unsupported format ${format}`);
-  }
-
-  private skipSpaces(): void {
-    while (this.pos < this.pattern.length && this.pattern[this.pos] === " ") {
-      this.pos += 1;
-    }
-  }
-
-  private parseName(): string {
-    const start = this.pos;
-    while (this.pos < this.pattern.length) {
-      const ch = this.pattern[this.pos] as string;
-      if (ch === " " || ch === "," || ch === "{" || ch === "}") break;
-      this.pos += 1;
-    }
-    return this.pattern.slice(start, this.pos);
-  }
-
-  private parseExactNumber(): string {
-    const start = this.pos;
-    if (this.pattern[this.pos] === "-" || this.pattern[this.pos] === "+") {
-      this.pos += 1;
-    }
-    let digits = false;
-    while (this.pos < this.pattern.length && /[0-9]/.test(this.pattern[this.pos] as string)) {
-      digits = true;
-      this.pos += 1;
-    }
-    if (this.pattern[this.pos] === ".") {
-      this.pos += 1;
-      while (this.pos < this.pattern.length && /[0-9]/.test(this.pattern[this.pos] as string)) {
-        digits = true;
-        this.pos += 1;
-      }
-    }
-    const raw = this.pattern.slice(start, this.pos);
-    if (!digits || !DECIMAL_RE.test(raw)) {
-      throw patternError(this.pattern, start, "invalid exact numeric case");
-    }
-    return raw;
-  }
+  return patternError(pattern, offset, why);
 }
 
 // ---------------------------------------------------------------------------
@@ -879,7 +738,9 @@ export function formatMessageResult(
     }
     operands.set(name, toOperand(name, param));
   }
-  const nodes = new PatternParser(text).parseTop();
+  const parsed = parseMessageSyntax(text);
+  if (!parsed.ok) throw syntaxError(text, parsed.diagnostic);
+  const nodes = parsed.nodes;
   const state: FormatState = {
     operands,
     locale,
@@ -901,11 +762,13 @@ function operandOf(state: FormatState, name: string): ScalarOperand {
   return operand;
 }
 
-function renderNodes(nodes: readonly PatternNode[], state: FormatState): string {
+function renderNodes(nodes: ParsedMessage, state: FormatState): string {
   let out = "";
   for (const node of nodes) {
     if (node.kind === "text") {
-      out += renderText(node, state);
+      out += node.value;
+    } else if (node.kind === "pound") {
+      out += renderPound(state);
     } else {
       out += renderArgument(node, state);
     }
@@ -913,29 +776,28 @@ function renderNodes(nodes: readonly PatternNode[], state: FormatState): string 
   return out;
 }
 
-/** Render literal text, expanding `#` to the nearest enclosing plural number. */
-function renderText(node: Extract<PatternNode, { kind: "text" }>, state: FormatState): string {
-  const value = node.value;
-  if (!node.substitute || !value.includes("#")) return value;
+/** Render `#` using the nearest enclosing plural number and UI exact formatting. */
+function renderPound(state: FormatState): string {
   const current = state.pluralStack[state.pluralStack.length - 1];
-  if (current === undefined) return value;
-  const formatted =
-    current.kind === "int"
-      ? formatIntExact(current.value, state.locale)
-      : formatDecimalExact(current.text, state.locale);
-  return value.replace(/#/g, formatted);
+  if (current === undefined) return "#";
+  return current.kind === "int"
+    ? formatIntExact(current.value, state.locale)
+    : formatDecimalExact(current.text, state.locale);
 }
 
-function renderArgument(node: Extract<PatternNode, { kind: "arg" }>, state: FormatState): string {
+function renderArgument(
+  node: Exclude<MessageNode, { kind: "text" | "pound" }>,
+  state: FormatState,
+): string {
   const operand = operandOf(state, node.name);
-  switch (node.format) {
-    case "plain":
+  switch (node.kind) {
+    case "arg":
       return renderPlain(operand, state);
     case "number": {
       if (operand.kind !== "int" && operand.kind !== "decimal") {
         throw new Error(`message argument "${node.name}": number needs int or decimal`);
       }
-      if (node.style === "integer") {
+      if (node.integerOnly) {
         if (operand.kind !== "int") {
           throw new Error(`message argument "${node.name}": number,integer needs int`);
         }
@@ -947,62 +809,50 @@ function renderArgument(node: Extract<PatternNode, { kind: "arg" }>, state: Form
     }
     case "date":
     case "time": {
-      if (node.format === "time" && operand.kind === "date") {
+      if (node.kind === "time" && operand.kind === "date") {
         throw new Error(`message argument "${node.name}": date-only values have no time`);
       }
       if (operand.kind !== "date" && operand.kind !== "datetime") {
-        throw new Error(`message argument "${node.name}": ${node.format} needs date or datetime`);
+        throw new Error(`message argument "${node.name}": ${node.kind} needs date or datetime`);
       }
-      const style = (node.style === "" || node.style === undefined ? "medium" : node.style) as
-        | "short"
-        | "medium"
-        | "long"
-        | "full";
       if (operand.kind === "date") {
         // Civil dates never shift: format at UTC regardless of viewer zone.
         return new Intl.DateTimeFormat(state.locale, {
-          dateStyle: style,
+          dateStyle: node.style,
           timeZone: "UTC",
         }).format(new Date(`${operand.iso}T00:00:00Z`));
       }
-      if (node.format === "date") {
+      if (node.kind === "date") {
         return new Intl.DateTimeFormat(state.locale, {
-          dateStyle: style,
+          dateStyle: node.style,
           timeZone: state.timeZone,
         }).format(new Date(operand.iso));
       }
       return new Intl.DateTimeFormat(state.locale, {
-        timeStyle: style,
+        timeStyle: node.style,
         timeZone: state.timeZone,
       }).format(new Date(operand.iso));
     }
-    case "plural":
-    case "selectordinal": {
-      if (node.format === "selectordinal" && operand.kind !== "int") {
+    case "plural": {
+      if (node.ordinal && operand.kind !== "int") {
         throw new Error(`message argument "${node.name}": selectordinal needs int`);
       }
       if (operand.kind !== "int" && operand.kind !== "decimal") {
         throw new Error(`message argument "${node.name}": plural needs int or decimal`);
       }
-      const options = node.options as NonNullable<typeof node.options>;
       const key =
         operand.kind === "int" ? decimalKey(operand.value.toString(10)) : decimalKey(operand.text);
-      const exact = options.find((option) => option.key === `=${key}`);
-      if (exact !== undefined) {
-        state.pluralStack.push(operand);
-        try {
-          return renderNodes(exact.nodes, state);
-        } finally {
-          state.pluralStack.pop();
-        }
-      }
-      const category = selectPluralCategory(operand, state.locale, node.format === "selectordinal");
-      const match =
-        options.find((option) => option.key === category) ??
-        (options.find((option) => option.key === "other") as { nodes: PatternNode[] });
+      const exact = node.branches.find((branch) => branch.selector === `=${key}`);
+      // Category selection remains lazy: an exact branch must not invoke Intl
+      // or impose UI's category-selection numeric limits on an exact operand.
+      const category = exact === undefined
+        ? selectPluralCategory(operand, state.locale, node.ordinal) : undefined;
+      const match = exact ??
+        node.branches.find((branch) => branch.selector === category) ??
+        node.branches.find((branch) => branch.selector === "other");
       state.pluralStack.push(operand);
       try {
-        return renderNodes(match.nodes, state);
+        return renderNodes(match!.nodes, state);
       } finally {
         state.pluralStack.pop();
       }
@@ -1012,11 +862,10 @@ function renderArgument(node: Extract<PatternNode, { kind: "arg" }>, state: Form
       if (operand.kind === "string" || operand.kind === "enum") key = operand.value;
       else if (operand.kind === "bool") key = operand.value ? "true" : "false";
       else throw new Error(`message argument "${node.name}": select needs text, bool or enum`);
-      const options = node.options as NonNullable<typeof node.options>;
       const match =
-        options.find((option) => option.key === key) ??
-        (options.find((option) => option.key === "other") as { nodes: PatternNode[] });
-      return renderNodes(match.nodes, state);
+        node.branches.find((branch) => branch.selector === key) ??
+        node.branches.find((branch) => branch.selector === "other");
+      return renderNodes(match!.nodes, state);
     }
   }
 }
