@@ -394,6 +394,23 @@ rows). Scope stays members-only: original authenticated accept and
 reference-array helper recover remain ready work. No original24
 movement claimed here; frozen-producer re-qualification follows intake.
 
+### Authenticated any/first composition (original accept shape) — 2026-10-17
+
+The same navigated `invitation.parent.C` × `first` composition now
+admits `by=authenticated` via a one-clause widening at the defining
+any-profile owner (`checked_any_query_source` only); sibling owners
+(`checked_run_reference`, `checked_pure_input_guard`) are untouched,
+and the recover reference-array helper closure stays ready work. The
+installed authenticated consumer proves the executable half: member
+commit with transported enum role and parent edge, retained replay,
+active-grant `rule_failed`, stranger and role-mismatch refusals, and
+`forbidden` for the membership-less outsider and the revoked member
+at the model-query grant boundary — each refusal with no new D rows.
+Tests: compiler source-shapes 7/7, installed authenticated 1/1;
+retained-IR 3/3, State 11/11 and members installed 2/2 reused
+unchanged. No original24 movement claimed here; frozen-producer
+re-qualification follows intake.
+
 ### Enum transport tamper seals + accept/recover split — 2026-10-17
 
 The merge_63 transport helper is extracted as

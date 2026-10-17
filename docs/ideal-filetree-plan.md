@@ -281,6 +281,23 @@ unchanged. Original authenticated accept and reference-array helper
 recover remain ready work. Unfinished work stays in the running Muse
 checkout.
 
+### CAN18 incremental integration — can18_merge_66_20261017
+
+Authenticated any/first composition (original CanCustomer accept
+shape). Incoming interval `e9bc3d420968fd6f2666b51b02abb3fa418d1d80..a3bbbbc2ce6b4ddf6884b7e8f4210a7d9d36ccee` accounts for 4 current
+code/test/fixture paths in `can18_merge_66_20261017` of the existing
+registry plus 4 record paths, 8 in all. Compiler source-shapes 7/7
+(new authenticated admission), installed authenticated consumer 1/1
+(commit/replay/denial/revocation with per-case unchanged D rows);
+retained-IR 3/3, State 11/11 and members installed 2/2 reused
+unchanged with accepted scope. Existing defining owners and target
+allocations remain; focused new tests stay with Compiler
+(integration) and the owning package suite; no source moves, package
+redesign or new product scope. Reuse prior accumulated coverage;
+complete checkpoint remains unchanged. Reference-array helper recover
+remains ready work. Unfinished work stays in the running Muse
+checkout.
+
 ### Specification and installer documentation merge — 2026-10-15
 
 Merge installer commit `02470b74` into canonical `main` at `a70921e3`.
