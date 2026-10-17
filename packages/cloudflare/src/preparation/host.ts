@@ -254,7 +254,7 @@ export async function runPreparedBuild(artifactPath: string, lifetime?: LocalCom
     missingEmission("build", "package");
   }
   lifetime?.checkpoint("build release inputs");
-  const repoRoot = resolve(process.env.CAN_INSTALL_ROOT ?? dirname(distRootDir()));
+  const repoRoot = resolve(process.env.CAN_INSTALL_ROOT ?? process.env.CAN_TOOL_ROOT ?? dirname(distRootDir()));
   try {
     const tree = readLockstepInputs(repoRoot);
     assertLockstep({

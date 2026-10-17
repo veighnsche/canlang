@@ -8,7 +8,8 @@
   "types": "./dist/index.d.ts",
   "bin": {
     "can-platform": "./dist/cli/platform.js",
-    "can-dev": "./dist/dev/control-cli.js"
+    "can-dev": "./dist/dev/control-cli.js",
+    "can-soda": "./dist/cli/soda.js"
   },
   "files": [
     "dist"
@@ -101,12 +102,24 @@
     "./dev/browser-tools": {
       "types": "./dist/dev/browser-tools.d.ts",
       "default": "./dist/dev/browser-tools.js"
+    },
+    "./deploy/soda": {
+      "types": "./dist/deploy/soda.d.ts",
+      "default": "./dist/deploy/soda.js"
+    },
+    "./deploy/soda-run": {
+      "types": "./dist/deploy/soda-run.d.ts",
+      "default": "./dist/deploy/soda-run.js"
+    },
+    "./deploy/soda-lifetime": {
+      "types": "./dist/deploy/soda-lifetime.d.ts",
+      "default": "./dist/deploy/soda-lifetime.js"
     }
   },
   "scripts": {
     "build": "node ../../scripts/build-package.mjs",
     "typecheck": "node ../../scripts/run-tasks.mjs typecheck:check --filter=@canlang/cloudflare",
-    "build:emit": "tsc -p tsconfig.json && node scripts/emit-native-catalog.mjs && chmod +x dist/cli/platform.js dist/dev/control-cli.js",
+    "build:emit": "tsc -p tsconfig.json && node scripts/emit-native-catalog.mjs && chmod +x dist/cli/soda.js dist/cli/platform.js dist/dev/control-cli.js",
     "typecheck:check": "tsc --noEmit -p tsconfig.json",
     "test:runtime": "cd ../.. && node --test \"packages/cloudflare/dist/**/*.test.js\"",
     "build:prepare": "node ../../scripts/build-package.mjs --prepare"

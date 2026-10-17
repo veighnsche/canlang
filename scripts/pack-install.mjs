@@ -206,7 +206,7 @@ export CAN_CATALOG CAN_PLATFORM_BIN CAN_DEV_BIN CAN_COMPILER_BIN CAN_DEV_COMPILE
 exec "$CAN_INSTALL_ROOT/libexec/can" "$@"
 `;
 write(join(stage, 'bin/can'), launch, 'launchers', 0o755);
-for (const [name, entry] of [['can-platform', 'node_modules/@canlang/cloudflare/dist/cli/platform.js'], ['can-dev', 'node_modules/@canlang/cloudflare/dist/dev/control-cli.js'], ['wrangler', 'node_modules/wrangler/bin/wrangler.js']]) {
+for (const [name, entry] of [['can-platform', 'node_modules/@canlang/cloudflare/dist/cli/platform.js'], ['can-dev', 'node_modules/@canlang/cloudflare/dist/dev/control-cli.js'], ['can-soda', 'node_modules/@canlang/cloudflare/dist/cli/soda.js'], ['wrangler', 'node_modules/wrangler/bin/wrangler.js']]) {
   write(join(stage, 'libexec', name), `#!/bin/sh\nset -eu\nroot=$(CDPATH= cd -P -- "$(dirname -- "$0")/.." && pwd)\nexec "$root/libexec/node" "$root/${entry}" "$@"\n`, 'launchers', 0o755);
 }
 const components = {};

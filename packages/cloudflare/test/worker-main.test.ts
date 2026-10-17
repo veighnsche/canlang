@@ -539,6 +539,20 @@ describe("deploy worker main", () => {
     expect(grantCalls).toBe(0);
   });
 
+  it("inactive deployments cannot initialize Identity or issue MCP grants", async () => {
+    const staged = { ...stagedDeployment(), verdict: { active: false, reasons: [
+      { code: "blocked-work", detail: "required recovery is incomplete" },
+    ] } as ActivationVerdict };
+    const fetch = createMainFetch(testLoaders({
+      loadStagedDeployment: async () => staged,
+      loadProductionDeps: async () => { throw new Error("Identity must not initialize"); },
+      loadGrantHandler: async () => { throw new Error("Grant issuer must not load"); },
+    }));
+    const response = await fetch(new Request("http://localhost/mcp/grants", { method: "POST" }), fullEnv());
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({ code: "activation-refused" });
+  });
+
   it("GET /mcp/grants falls through to assembly (not_found)", async () => {
     const fetch = createMainFetch(testLoaders());
     const res = await fetch(new Request("http://localhost/mcp/grants"), fullEnv());

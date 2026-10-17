@@ -12,6 +12,7 @@ const require = createRequire(import.meta.url);
 const OWNED_EXPORTS = [
   "@canlang/cloudflare/worker/main", "@canlang/contracts/distribution",
   "@canlang/interfaces/distribution", "@canlang/identity/distribution",
+  "@canlang/files/distribution",
   "@canlang/state/distribution", "@canlang/ui/distribution",
   "@canlang/stdlib/distribution", "@canlang/values/distribution",
   "@canlang/work/distribution", "@canlang/services/distribution",
@@ -36,6 +37,20 @@ export function installedRoot(): string | null {
   const manifest = JSON.parse(readFileSync(join(root, "manifest.json"), "utf8")) as { kind?: unknown };
   if (manifest.kind !== "can-install") throw new Error("preview inputs: invalid Can installation manifest");
   return root;
+}
+
+/** Soda tool archives carry references and compiler sources beside tools.json. */
+function installedToolRoot(): string | null {
+  if (!process.env.CAN_TOOL_ROOT) return null;
+  const root = realpathSync(process.env.CAN_TOOL_ROOT);
+  const manifest = JSON.parse(readFileSync(join(root, "tools.json"), "utf8")) as { schema?: unknown };
+  if (manifest.schema !== "canlang.tools.v1") throw new Error("preview inputs: invalid installed tool release");
+  return root;
+}
+
+/** Authoring references belong to the tool release; app identity stays in its root. */
+export function installedReferenceRoot(checkoutRoot: string): string {
+  return installedRoot() ?? installedToolRoot() ?? realpathSync(checkoutRoot);
 }
 
 export interface PrepareLocalPreviewCaptureOptions {
@@ -95,7 +110,8 @@ function walkFiles(root: string, base: string, append: (path: string) => void, a
 /** Recompute this exact installed output closure before a bundle is accepted. */
 export function installedPortableBundleInputs(applicationRoot = process.cwd()): readonly NamedInputPath[] {
   const selected = new Map<string, string>();
-  const installation = installedRoot();
+  const installation = installedRoot() ?? installedToolRoot();
+  const platformRoot = packageRoot(require.resolve("@canlang/cloudflare/worker/main")).root;
   const seenPackages = new Set<string>();
   const externalQueue: Array<{ specifier: string; from: string }> = [];
   const addPackage = (file: string, owned: boolean): void => {
@@ -105,7 +121,7 @@ export function installedPortableBundleInputs(applicationRoot = process.cwd()): 
     const outputRoot = owned ? join(pkg.root, "dist") : pkg.root;
     if (!statSync(outputRoot).isDirectory()) throw new Error(`preview inputs: ${pkg.name} has no installed outputs`);
     const add = (path: string): void => {
-      const context = installation !== null && !owned ? `${relative(installation, pkg.root).split(sep).join("/")}/` : "";
+      const context = !owned ? `instance:${relative(installation ?? platformRoot, pkg.root).split(sep).join("/")}/` : "";
       const name = `${pkg.name}@${pkg.version}/${context}${relative(pkg.root, path).split(sep).join("/")}`;
       const existing = selected.get(name);
       if (existing !== undefined && existing !== path) throw new Error(`preview inputs: duplicate installed file ${name}`);
@@ -255,7 +271,7 @@ function browserDriverInputs(kitRoot: string): {
 } | null {
   let entryPath: string;
   const development = browserToolsRoot();
-  if (installedRoot() !== null && development === null) return null;
+  if ((installedRoot() ?? installedToolRoot()) !== null && development === null) return null;
   try { entryPath = realpathSync(createRequire(join(development ?? kitRoot, "package.json")).resolve("@playwright/test")); }
   catch (error) {
     if (error instanceof Error && (error as NodeJS.ErrnoException).code === "MODULE_NOT_FOUND" &&
@@ -389,11 +405,16 @@ export function bundlerExecutableInputs(): readonly NamedInputPath[] {
 }
 
 export function compilerSourceInputs(checkoutRoot: string, compilerPath: string): readonly NamedInputPath[] {
-  const root = realpathSync(checkoutRoot);
-  const executable = realpathSync(resolve(root, compilerPath));
+  const root = installedReferenceRoot(checkoutRoot);
+  const executable = realpathSync(resolve(checkoutRoot, compilerPath));
   const installation = installedRoot();
   if (installation !== null && executable === realpathSync(join(installation, "libexec", "can"))) return [];
-  const target = join(root, "compiler", "target");
+  let target: string;
+  try { target = realpathSync(join(root, "compiler", "target")); }
+  catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    throw new Error("preview inputs: first profile requires the checkout compiler target");
+  }
   const rel = relative(target, executable);
   if (!rel || rel === ".." || rel.startsWith(`..${sep}`)) {
     throw new Error("preview inputs: first profile requires the checkout compiler target");
@@ -423,7 +444,7 @@ export function compilerSourceInputs(checkoutRoot: string, compilerPath: string)
 
 /** Optional owning qualification recipes; absence never blocks ordinary preview. */
 export function firstProfileQualificationInputs(checkoutRoot: string): readonly NamedInputPath[] {
-  const root = realpathSync(checkoutRoot);
+  const root = installedReferenceRoot(checkoutRoot);
   return [
     { name: "construct-profile:compiler-test", path: join(root,"compiler/tests/construct_help.rs") },
     { name: "construct-profile:fixture", path: join(root,"compiler/tests/fixtures/construct-help-first-profile.can") },
@@ -437,8 +458,12 @@ export function assertInstalledCatalog(checkoutRoot: string, selectedPath: strin
   const values = packageRoot(require.resolve("@canlang/values/distribution"));
   const expected = join(values.root, "dist", "catalog.json");
   const selected = realpathSync(resolve(checkoutRoot, selectedPath));
-  if (selected !== realpathSync(expected)) {
-    throw new Error("preview inputs: first profile requires the installed Values catalog");
+  const native = join(packageRoot(require.resolve("@canlang/cloudflare/worker/main")).root, "dist", "native-catalog.json");
+  let nativeSelected = false;
+  try { nativeSelected = selected === realpathSync(native); }
+  catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
+  if (selected !== realpathSync(expected) && !nativeSelected) {
+    throw new Error("preview inputs: first profile requires an installed Canlang producer catalog");
   }
   // Extraction/copy order is not source freshness in a prebuilt installation.
   try { statSync(join(values.root, "src", "catalog.ts")); }
@@ -460,7 +485,8 @@ export function installedLocalPreviewInputInventory(checkoutRoot: string, compil
   extraInputPaths: readonly NamedInputPath[];
 } {
   const installation = installedRoot();
-  const grammar = join(installation ?? realpathSync(checkoutRoot), "docs", "specification", "GRAMMAR.md");
+  const toolRoot = installedToolRoot();
+  const grammar = join(installedReferenceRoot(checkoutRoot), "docs", "specification", "GRAMMAR.md");
   if (!statSync(grammar).isFile()) throw new Error("preview inputs: installed grammar reference is unavailable");
   return {
     packageInputPaths: installedPortableBundleInputs(checkoutRoot),
@@ -468,6 +494,7 @@ export function installedLocalPreviewInputInventory(checkoutRoot: string, compil
       ...bundlerExecutableInputs(),
       { name: "grammar", path: grammar },
       ...(installation === null ? [] : [{ name: "installation-manifest", path: join(installation, "manifest.json") }]),
+      ...(toolRoot === null ? [] : [{ name: "tool-release-manifest", path: join(toolRoot, "tools.json") }]),
       ...installedOwnedSourceInputs(checkoutRoot),
       ...compilerSourceInputs(checkoutRoot, compilerPath),
       ...firstProfileQualificationInputs(checkoutRoot),

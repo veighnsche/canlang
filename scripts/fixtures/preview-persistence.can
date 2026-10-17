@@ -1,0 +1,16 @@
+## Team-owned installed preview persistence and isolated examples witness.
+app PreviewPersistence
+Given
+ Supply { name:text, quantity:int }
+ policy Supply read=members
+ fixture editable=Supply {name="Example fixture",quantity=4}
+When
+ crud Supply by=members fields=name,quantity
+  examples update record=editable
+   as,changes.name,changes.quantity -> record.name,record.quantity
+   other,"Example-only mutation",8 -> "Example-only mutation",8
+   outsider,"Private mutation",9 -> error(forbidden)
+Then
+ page / title="Persistent preview"
+  list Supply empty="No saved supplies"
+   text row.name,row.quantity

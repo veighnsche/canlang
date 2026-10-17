@@ -1352,7 +1352,7 @@ function interimFilesResponse(
 }
 
 /** The CompileArtifact first program entry owns app identity, never a filename. */
-async function loadAppInfo(artifact: CompileArtifact, asm: AssembledModules): Promise<AppInfo> {
+export async function loadAppInfo(artifact: CompileArtifact, asm: AssembledModules): Promise<AppInfo> {
   const first = artifact.modules[0];
   const url = first === undefined ? undefined : asm.moduleUrls[first.path];
   if (url === undefined) throw new Error("assembly: selected app entry module is missing");

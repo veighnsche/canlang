@@ -149,6 +149,9 @@ export interface ProductionDeps {
   readonly exportDownloads?: ExportDownloadStore;
   readonly stateTeam?: StateTeamBinding;
   readonly stateTeams?: StateTeamBindings;
+  /** Target-owned Files kernel and team boundary share the actual receiving issuer. */
+  readonly files?: AssemblyDeps["files"];
+  readonly ownerStorage?: TeamOwnerStorageBoundary;
 }
 
 /**
@@ -819,7 +822,7 @@ export function createMainHandlers(loaders: MainLoaders = {}): MainHandlers {
     if (staged.verdict.active && cohortRequirement !== undefined && deps.stateTeam === undefined) {
       throw new Error('deploy main: installed cohort tick requires explicit CAN_STATE_OWNER and separate STATE_DB');
     }
-    let ownerStorage: TeamOwnerStorageBoundary | undefined;
+    let ownerStorage: TeamOwnerStorageBoundary | undefined = deps.ownerStorage;
     let pageReads: AssemblyDeps['pageReads'];
     let scope: WorkScope | undefined;
     const rootHost = staged.artifact.runtimeBindings?.some(binding => binding.kind === 'durable-object') ?? false;
@@ -868,17 +871,17 @@ export function createMainHandlers(loaders: MainLoaders = {}): MainHandlers {
         return route === undefined ? null : { app, owner: route.owner, db: route.db,
           ...(route.initializeFresh === true ? { initializeFresh: true } : {}) };
       } });
-      ownerStorage = await (await getOwnerStorageFactory())({ artifact: staged.artifact, asm: staged.modules,
+      ownerStorage ??= await (await getOwnerStorageFactory())({ artifact: staged.artifact, asm: staged.modules,
         app, identities: deps.identityStore as IdentityStore, router });
       if ((staged.artifact.runtimeBindings?.length ?? 0) !== 0) {
         const [{ d1FileAuthority, runtimeFileReferenceProducers }, { installNativeFileInventory }] = await Promise.all([
           import('../runtime/d1-file-inventory.js'), import('../runtime/file-inventory.js'),
         ]);
         const hasFiles = staged.artifact.runtimeBindings?.some(binding => binding.kind === 'r2' && binding.owner === app);
-        const fileStoreId = hasFiles ? await (await import('../runtime/r2-files.js')).resolveR2FileStoreIdentity({
+        const fileStoreId = deps.files?.fileStoreId ?? (hasFiles ? await (await import('../runtime/r2-files.js')).resolveR2FileStoreIdentity({
           db: env['DB'] as import('@cloudflare/workers-types').D1Database,
           bucket: env['FILES'] as import('@cloudflare/workers-types').R2Bucket, namespace: `${app}/FILES`,
-        }) : `no-files:${app}`;
+        }) : `no-files:${app}`);
         const authorities = new Map<string, import('@canlang/contracts').FileRetirementAuthority>();
         for (const route of routes) {
           // Pin/verify the configured physical team before installing any declaration metadata.
@@ -955,7 +958,7 @@ export function createMainHandlers(loaders: MainLoaders = {}): MainHandlers {
       });
       hostStore = physical;
     }
-    const files = env['CAN_LOCAL_FILES'] === true
+    const files = deps.files ?? (env['CAN_LOCAL_FILES'] === true
       ? await (await import('../runtime/worker-files.js')).createWorkerFiles({
           artifact: staged.artifact, asm: staged.modules, env,
           store: hostStore, identities: deps.identityStore as IdentityStore,
@@ -964,7 +967,7 @@ export function createMainHandlers(loaders: MainLoaders = {}): MainHandlers {
           intentTtlMs: 60 * 60 * 1000,
           retention: { unattachedHorizonMs: 24 * 60 * 60 * 1000, retentionMs: 24 * 60 * 60 * 1000, retainAttached: true },
           localLoopback: true,
-        }) : undefined;
+        }) : undefined);
     const queueHandlers = new Set((staged.artifact.runtimeBindings ?? []).flatMap(binding => binding.kind === 'queue' ? binding.handlers : []));
     const needsTick = cohortRequirement !== undefined || staged.artifact.callables.some(callable => callable.kind === 'handler' && !queueHandlers.has(callable.id));
     const cohorts = staged.verdict.active && needsTick && ownerStorage !== undefined && scope !== undefined
@@ -1052,6 +1055,11 @@ export function createMainHandlers(loaders: MainLoaders = {}): MainHandlers {
   }
 
   async function grantsResponse(req: Request, env: Record<string, unknown>): Promise<Response> {
+    const staged = await getStaged();
+    validateStagedDeployment(staged);
+    if (!staged.verdict.active) {
+      return jsonResponse({ code: "activation-refused", reasons: staged.verdict.reasons }, 503);
+    }
     let deps: ProductionDeps;
     try {
       deps = await prodDepsFor(env);

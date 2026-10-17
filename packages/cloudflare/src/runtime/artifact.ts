@@ -16,6 +16,17 @@ export interface LoadedArtifact {
   sourcePath: string;
 }
 
+/** File fields are owning requirements even on artifacts whose capability
+ * census does not yet name Files separately. Never admit an unbound receiver. */
+export function artifactNeedsFiles(artifact: CompileArtifact): boolean {
+  const fields = [
+    ...(artifact.models ?? []).flatMap(model => model?.fields ?? []),
+    ...(artifact.operations ?? []).flatMap(operation => operation.inputs?.fields ?? []),
+  ];
+  return fields.some(field => field?.field?.kind === 'file') ||
+    (artifact.valueTypes?.contracts ?? []).some(contract => contract.fields.some(field => /^file(?:\?|\[\]|!)*$/.test(field.type)));
+}
+
 /**
  * Compiled-identity expectation: the toolchain + source facts a genuine
  * `can compile` artifact must bind (the T21 pinned identity rule).

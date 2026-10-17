@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
-import { appendFileSync, mkdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { appendFileSync, constants, mkdirSync, readFileSync } from "node:fs";
+import { access, lstat, open, unlink } from "node:fs/promises";
+import { isAbsolute, join } from "node:path";
 import { Miniflare, type DispatchFetch, type WorkerOptions } from "miniflare";
 import type { D1Database } from "@cloudflare/workers-types";
 import { COMPILED_WASM_MODULE_TYPE } from "@canlang/contracts";
@@ -66,6 +67,10 @@ export interface LocalAnalyticsDataPoint {
 }
 
 export interface LocalWorkerOptions {
+  /** Preserve the application's selected workerd compatibility flags. */
+  compatibilityFlags?: readonly string[];
+  /** Offline targets refuse outbound requests at the runtime. */
+  denyOutbound?: boolean;
   workerName: string;
   compatibilityDate: string;
   /** Main module name, e.g. "worker.mjs". Must exist in `modules`. */
@@ -107,6 +112,8 @@ export interface LocalDevOptions extends LocalWorkerOptions {
   companionWorkers?: readonly LocalWorkerOptions[];
   /** Caller-owned private storage; omitted stores are isolated temporary state. */
   d1Persist?: string;
+  /** Refuse unavailable retained storage before starting workerd. */
+  d1PersistenceRequired?: boolean;
   r2Persist?: string;
   kvPersist?: string;
   durableObjectsPersist?: string;
@@ -179,6 +186,8 @@ function workerOptions(options: LocalWorkerOptions): WorkerOptions {
   const durableObjects = Object.fromEntries((options.durableObjects ?? []).map(({ binding, ...definition }) => [binding, definition]));
   return {
     name: options.workerName, compatibilityDate: options.compatibilityDate,
+    compatibilityFlags: [...(options.compatibilityFlags ?? [])],
+    ...(options.denyOutbound ? { outboundService: { network: { allow: [] } } } : {}),
     modules, bindings: { ...(options.vars ?? {}) }, d1Databases, r2Buckets, kvNamespaces, durableObjects,
     ...(options.queueProducers === undefined ? {} : { queueProducers: { ...options.queueProducers } }),
     ...(options.queueConsumers === undefined ? {} : { queueConsumers: { ...options.queueConsumers } }),
@@ -223,6 +232,12 @@ export default env => ({ writeDataPoint(point = {}) {
  * flat options API. A joint v5 migration happens only when v5 stabilizes.
  */
 export async function startLocalDev(options: LocalDevOptions): Promise<LocalDev> {
+  if (options.d1PersistenceRequired) {
+    await requireD1Persistence(options.d1Persist);
+    if ((options.durableObjects?.length ?? 0) > 0 || options.companionWorkers?.some(worker => (worker.durableObjects?.length ?? 0) > 0)) {
+      await requireD1Persistence(options.durableObjectsPersist);
+    }
+  }
   const localWorkers = [options, ...(options.companionWorkers ?? [])];
   const names = new Set<string>();
   for (const worker of localWorkers) {
@@ -257,6 +272,8 @@ export async function startLocalDev(options: LocalDevOptions): Promise<LocalDev>
   });
   const secret = randomBytes(32).toString("base64url");
   const miniflare = new Miniflare({
+    // Local targets need no remote request-location metadata or .wrangler cache.
+    cf: false,
     host: "127.0.0.1",
     port: 0,
     ...(options.d1Persist === undefined ? {} : { d1Persist: options.d1Persist }),
@@ -343,4 +360,22 @@ export async function startLocalDev(options: LocalDevOptions): Promise<LocalDev>
       if (analyticsFailure !== undefined) throw analyticsFailure;
     },
   };
+}
+
+/** Check the caller's existing mount; never create an ephemeral replacement. */
+async function requireD1Persistence(path: string | undefined): Promise<void> {
+  if (path === undefined || !isAbsolute(path)) {
+    throw new Error("required D1 storage must be an existing absolute directory");
+  }
+  try {
+    const stat = await lstat(path);
+    if (!stat.isDirectory() || stat.isSymbolicLink()) throw new Error("not a directory");
+    await access(path, constants.R_OK | constants.W_OK | constants.X_OK);
+    const probe = join(path, `.can-storage-probe-${randomBytes(16).toString("hex")}`);
+    const file = await open(probe, "wx", 0o600);
+    try { await file.writeFile("storage preflight\n"); await file.sync(); }
+    finally { await file.close(); await unlink(probe); }
+  } catch {
+    throw new Error("required D1 storage is unavailable or unwritable");
+  }
 }

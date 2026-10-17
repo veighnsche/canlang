@@ -51,7 +51,7 @@ async function prepare() {
   root = await realpath(await mkdtemp(join(tmpdir(), 'can-preview-inputs-')));
   fixture.root = root;
   await writeFile(join(root, 'package.json'), '{}');
-  const names = ['cloudflare', 'contracts', 'interfaces', 'identity', 'state', 'ui', 'stdlib', 'values', 'work', 'services']
+  const names = ['cloudflare', 'contracts', 'interfaces', 'identity', 'files', 'state', 'ui', 'stdlib', 'values', 'work', 'services']
     .map(name => `@canlang/${name}`).concat(['@modelcontextprotocol/sdk', 'cookie', '@scure/base', 'csv-parse', '@noble/hashes/sha2.js', '@jridgewell/sourcemap-codec']);
   for (const name of names) {
     const path = join(root, 'required', encodeURIComponent(name));
@@ -132,6 +132,26 @@ it('admits only the manifest-owned packaged compiler without checkout source', a
     if (previous === undefined) delete process.env.CAN_INSTALL_ROOT;
     else process.env.CAN_INSTALL_ROOT = previous;
   }
+});
+
+it('captures legacy tool references and compiler sources through a shared target directory', async () => {
+  await prepare();
+  await writeFile(join(root, 'tools.json'), JSON.stringify({ schema: 'canlang.tools.v1' }));
+  await mkdir(join(root, 'docs/specification'), { recursive: true });
+  await writeFile(join(root, 'docs/specification/GRAMMAR.md'), 'tool grammar');
+  await mkdir(join(root, 'compiler/src'), { recursive: true });
+  await writeFile(join(root, 'compiler/src/main.rs'), 'fn main() {}');
+  await mkdir(join(root, 'shared-target/release'), { recursive: true });
+  await writeFile(join(root, 'shared-target/release/can'), 'built compiler');
+  await symlink(join(root, 'shared-target'), join(root, 'compiler/target'));
+  await mkdir(join(root, 'application'));
+  vi.stubEnv('CAN_TOOL_ROOT', root);
+  const inventory = installedLocalPreviewInputInventory(join(root, 'application'), join(root, 'compiler/target/release/can'));
+  expect(inventory.extraInputPaths).toContainEqual({ name: 'grammar', path: join(root, 'docs/specification/GRAMMAR.md') });
+  expect(inventory.extraInputPaths).toContainEqual({ name: 'tool-release-manifest', path: join(root, 'tools.json') });
+  expect(inventory.extraInputPaths).toContainEqual({ name: 'compiler-source:src/main.rs', path: join(root, 'compiler/src/main.rs') });
+  await writeFile(join(root, 'tools.json'), JSON.stringify({ schema: 'foreign-tool' }));
+  expect(() => compilerSourceInputs(root, 'compiler/target/release/can')).toThrow(/invalid installed tool release/);
 });
 
 it('captures the Node host and native esbuild without PATH tools and honors a selected binary', async () => {
