@@ -370,7 +370,24 @@ dispatch 4/4 + first-query 8/8. Original dispatch-guard family unchanged
 27 → 27; the remaining delivery.id remainder (cancel/retry_release
 shapes) stays ready work, not closed by this one-shape consumer.
 
-### Current original24 (frozen ifbranch cohort) — 276 E6008 — 2026-10-17
+### Current original24 (frozen contract-census cohort) — 276 E6008 — 2026-10-17
+
+Frozen repaired producer `d3156edb5abd6422` (contract stored-schema census
+seeding + deployment-import source verification) + catalog `ca50`, exact
+saved original24 argv on original paths, exit 10, complete=true, omitted=0,
+26 sources, all authored hashes match (CanMaintain `0de1f5b25038`). EXACT
+multiset identical to the pre-actor control 276 (0 removed / 0 added); zero
+created-model diagnostics. The actor-batch CanMaintain `report` +1
+(`19460..19466` created model result) is resolved: the analysis actor arm had
+flipped disclosure to complete returns while the receipt stayed unbuildable
+at the pre-existing `nominal_identity` gap for contract-valued fields
+(`affected:AffectedBookings?`, imported `from=deployment.rooms`). Both halves
+are repaired at their defining owners with exact source/type/span/qualifier
+seals retained. The CanCustomer `accept`/`recover` conjunction spans and all
+other recorded groups remain open at their owners. Output:
+`/tmp/can18-final-orig24.json` (frozen binary `/tmp/can18-final-contract-can`).
+
+### Prior original24 (frozen ifbranch cohort) — 276 E6008 — 2026-10-17
 
 Frozen producer `7957d542` (main `e32b8df23`: finite if-branch creates +
 0526 nested-set correspondence) + native catalog `ca50`, saved argv, exit

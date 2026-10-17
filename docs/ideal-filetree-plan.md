@@ -248,6 +248,10 @@ Actor-facts guard admission (1126/1151/1216 record). Incoming interval `aa2f90fc
 
 Navigation hardening: base occurrence pin and parent-authority consumer (1036 record). Incoming interval `82e2f7542..7c3ff99e6` accounts for 5 changed paths in `can18_merge_59_20261017` of the existing registry. Tests: predicate 17/17, conjunction 18/18, installed navigation 2/2 + member 2/2, state parent suites 20/20 on rebuilt target/debug/can; CLI probes exit 0 with refusals intact. Existing defining owners and target allocations remain; focused new tests stay with Compiler. Reuse prior accumulated coverage; complete checkpoint remains unchanged. Original24 and required executable consumers remain open. Unfinished work stays in the running Muse checkout.
 
+### CAN18 incremental integration — can18_merge_62_20261017
+
+Created-model contract census seeding plus deployment-import source verification with honest admission/tamper tests and installed null-contract-field consumer. Incoming interval `d0c6c9fb2..44feb5c3f` accounts for 8 changed paths in `can18_merge_62_20261017` of the existing registry. Compiler 3/3 + lib 2/2 + installed 2/2; original24 276 exact-identity with control on original paths. Existing defining owners and target allocations remain; focused new tests stay with Compiler. Reuse prior accumulated coverage; complete checkpoint remains unchanged. Original24 and required executable consumers remain open. Unfinished work stays in the running Muse checkout.
+
 ### Specification and installer documentation merge — 2026-10-15
 
 Merge installer commit `02470b74` into canonical `main` at `a70921e3`.
