@@ -113,6 +113,12 @@ so directories require mode 0700 and metadata requires mode 0600. Credentials
 remain available only through the existing owner-only `preview.open` protocol.
 The protected bridge and application login remain required after restart.
 
+Typed File fields remain supported by the current local Files receiver and the
+compiler-selected implicit `FILES` R2 binding. Source-declared local R2, KV,
+Durable Objects and analytics storage use paths under the same preview state
+root; retaining D1 does not remove those current runtime bindings. The Soda
+target separately enforces its HTTPS Files grant requirements.
+
 Ordinary page and operation edits reuse the same data. A change to the compiled
 model descriptors or global/team ownership refuses the retained preview until
 migration support exists; use a separate `CAN_DEV_STATE_ROOT` to try a changed

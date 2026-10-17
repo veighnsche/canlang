@@ -246,9 +246,10 @@ This inventory does not approve a permanent limit on eventual Cloudflare service
 coverage. Keep development, disposable test and serving environments in separate
 data roots, resource IDs and credential files. Retained `can-dev` data and its
 seeded development users are not production bootstrap input. Examples use their
-existing disposable fixture databases; File-requiring applications currently
-refuse `can-dev`'s D1/Identity preview profile and require the Soda target with
-separate development data and HTTPS.
+existing disposable fixture databases. Current `can-dev` keeps its declared
+local Files/R2 and Durable Object providers. Use the Soda target with separate
+development data and HTTPS for its production-shaped Files and scheduled-work
+checks; scheduled handlers and migrations still require their owning runtime.
 
 ## Reproduce the finite local checks
 
