@@ -18388,3 +18388,12 @@ preview/local-runtime 48/48, retained-state 2/2, and installer 14 passed
 test dependency on State outputs; producers were compiled in dependency order
 after that bootstrap. Existing Interfaces dependency declarations and the
 worker default missing-DB diagnostic failure remain outside this change.
+
+
+## 2026-10-17 — conjunction first-query admission + multi-dependency correspondence
+
+Accepted: a first-query where clause admits one `==` or an order-preserving `and` chain of `==` conjuncts over actor/param/event operands. Each conjunct admits exactly like the former single predicate (stored-row field against an actor/param/event operand with matching type); dependencies and transported inputs accumulate per conjunct, the first operand stays in the single-predicate reader position, and the emitted plan carries every ordered dependency with nonempty unique IDs and full equality. A repeated conjunct restates the same constraint and admits. `or` shapes, non-`==` comparisons, and unknown fields stay refused. Rationale: conjunction is already the source-level `and` semantics; emitting only the admitted conjunct set preserves short-circuit order, failure/denial behavior, and revocation. Uncertainty: void/actor-mixed original compositions and hook event-firing paths remain next scope, not this batch.
+
+## 2026-10-17 — can18_merge_52_20261017
+
+Accepted: Conjunction first-query admission with ordered multi-dependency plans: an and chain of == conjuncts over actor/param operands admits with one Control dependency per conjunct and per-conjunct source correspondence; the predicate, query-plan and source-plan owners verify and emit every ordered dependency with unique IDs, and the State first-query receiver accepts one-or-more control deps with scalar types and unique IDs. or shapes, comparisons and unknown fields stay refused. Merge reviewed tested work incrementally into canonical `main`, preserving installer/specification changes and the active implementation branch. conjunction 6/6, ifbranch 7/7, side_effect 10/10, hook_first 11/11, native_first 17/17, sources 7/7, installed conjunction and ifbranch consumers 1/1 each on frozen 5921567e/ca50; three lib/module failures reproduce identically on clean HEAD (pre-existing, unrelated). Reconcile the living file-tree plan/registry over `2f3adfea7..e0f58507f` with existing owners; retain the complete checkpoint and all outstanding acceptance gates. A merged component is not a claim that original24 or the remaining runtime workflows are complete.
