@@ -18,11 +18,13 @@
 //! What stays refused with exact codes: the frozen original24 capture's
 //! remaining filter occurrences stay refused — every table/list/board/
 //! calendar filter refusal bottoms out on a genuinely unsupported selector
-//! (int `year`, date `paid`/`business_date`/`due`, datetime
-//! `qualified_at`, dotted paths; nullable `text?` model fields,
-//! validated string-likes, and computed text defaults are likewise not
-//! admitted from the text rule below), `archived=include` with no consumed
-//! factory profile, or an expression `order=` with no §13 lowering. Each keeps its exact named
+//! (int `year`, datetime `qualified_at`, dotted paths; nullable `date?`
+//! model fields, computed date defaults and datetime selectors are
+//! likewise not admitted from the civil-date rule below; nullable
+//! `text?` model fields, validated string-likes, and computed text
+//! defaults are likewise not admitted from the text rule),
+//! `archived=include` with no consumed factory profile, or an expression
+//! `order=` with no §13 lowering. Each keeps its exact named
 //! E6008 refusal below (base control: B6 Lambda-where/defaults-key/
 //! co-fields/dotted-path disposition; outcome-5/12 for archived/order);
 //! `not` over an enum keeps E3007 (no implicit truthiness); cross-kind
@@ -41,14 +43,22 @@
 //! exact equality control beside enum/bool/reference siblings: the saved
 //! `text?` read (or a text literal, or null) lowers verbatim with no
 //! case inventory, and the host preparer compares the ordinary string
-//! equality. The C3 date/datetime followers (`business_date`, `paid`,
-//! `due`, `qualified_at`, `from`/`until`) stay refused below with their
-//! exact codes: they need generated range/between controls that no
-//! collection surface owns yet (CORRECTION per 2321: DESIGN 1015-1025
-//! already accepts date/datetime eq/ne/lt/lte/gt/gte/between — dates are
-//! civil, datetimes canonical instants under existing zone rules, so this
-//! is local implementation work, not language exclusion). The C4 agenda
-//! bindings lower:
+//! equality.
+//!
+//! C3 civil-date equality rule (CAN18-v1, DESIGN 1015-1025 operator
+//! table — CORRECTION per 2321: date/datetime already accept
+//! eq/ne/lt/lte/gt/gte/between; dates are civil, datetimes canonical
+//! instants under existing zone rules, so the missing generated
+//! controls are local implementation work, not language exclusion):
+//! a plain owned `date` field (`business_date`, `paid`, `due`,
+//! `from`/`until`) lowers as an exact equality control beside
+//! enum/bool/reference/text siblings: the saved `date?` read (or a
+//! date literal, or null) lowers verbatim with no case inventory, and
+//! the host preparer admits only real civil dates while the state
+//! string equality evaluates them. Only `eq` is offered (one rule:
+//! ranges need no generalization here). The datetime follower
+//! (`qualified_at`) stays refused below with its exact code. The C4
+//! agenda bindings lower:
 //! a parent-bound (nested) agenda threads the enclosing row through the
 //! shared collection pipeline like a bound timeline, and agenda
 //! `columns=` names owned row fields the calendarAgenda factory renders
@@ -295,8 +305,8 @@ fn enum_literal_default_lowers_verbatim() {
 /// reference lowers beside a bool toggle through typed opaque identity
 /// (DESIGN 977) with a matching model-typed preference default (DESIGN
 /// 975 subset). The retired CanBook/CanRent dominance refusal is recorded
-/// here as the admission it became; text/date followers stay refused
-/// below on their own selectors.
+/// here as the admission it became; text/date followers lower below on
+/// their own selectors under the C2/C3 rules.
 #[test]
 fn model_reference_selector_lowers() {
     assert_lowers(
@@ -392,19 +402,80 @@ fn int_selector_refuses() {
     );
 }
 
-/// Recorded CanExpense shape: a date field is not a finite-choice
-/// selector.
+/// C3 civil-date equality rule (CAN18-v1, DESIGN 1015-1025 operator
+/// table): the recorded CanExpense shape lowers. A plain owned `date`
+/// field is an exact equality control with a matching `date?`
+/// preference default: the saved read lowers verbatim with no case
+/// inventory, and null stays no initial restriction (DESIGN 1023).
 #[test]
-fn date_selector_refuses() {
+fn date_selector_lowers() {
+    assert_lowers(
+        "app Probe\nGiven\n Reimbursement { paid:date }\n policy Reimbursement read=public\nWhen\nThen\n preferences { paid:date? }\n page /reimbursements title=\"Reimbursements\"\n  list Reimbursement columns=paid filter=paid defaults={paid=preferences.paid}\n",
+    );
+}
+
+/// A bare string is not a date literal default: the date control takes
+/// only the `date("...")` constructor (real catalog) or a direct saved
+/// date read — never an untyped string. The constructor spelling is
+/// covered end to end through the real binary + catalog consumer
+/// (`packages/interfaces/test/date-page-source.test.ts`); the
+/// catalog-free harness pins the refusal here.
+#[test]
+fn bare_string_date_default_refuses() {
     assert_refuses(
+        "app Probe\nGiven\n Reimbursement { paid:date }\n policy Reimbursement read=public\nWhen\nThen\n preferences { paid:date? }\n page /reimbursements title=\"Reimbursements\"\n  list Reimbursement columns=paid filter=paid defaults={paid=\"2026-10-01\"}\n",
+        "E6008",
+        "need distinct checked owned enum fields",
+    );
+}
+
+/// C3 civil-date equality rule: no default is no initial restriction
+/// (DESIGN 1023: null means no initial restriction), so the bare date
+/// control lowers.
+#[test]
+fn date_selector_without_default_lowers() {
+    assert_lowers(
         "app Probe\nGiven\n Reimbursement { paid:date }\n policy Reimbursement read=public\nWhen\nThen\n page /reimbursements title=\"Reimbursements\"\n  list Reimbursement columns=paid filter=paid\n",
+    );
+}
+
+/// C3 civil-date equality rule on tables: the same shared gate covers
+/// the recorded CanInvoice `due` shape and its table sibling alike.
+#[test]
+fn table_date_selector_lowers() {
+    assert_lowers(
+        "app Probe\nGiven\n Invoice { number:text, due:date }\n policy Invoice read=public\nWhen\nThen\n preferences { due:date? }\n page /invoices title=\"Invoices\"\n  table Invoice columns=number,due order=number filter=due defaults={due=preferences.due}\n",
+    );
+}
+
+/// A nullable owned `date?` model field is not admitted from the
+/// admitted plain `date` selector: the selector gate takes the exact
+/// non-nullable date type, mirroring the text/enum precedent.
+#[test]
+fn nullable_date_model_field_refuses() {
+    assert_refuses(
+        "app Probe\nGiven\n Reimbursement { paid:date? }\n policy Reimbursement read=public\nWhen\nThen\n preferences { paid:date? }\n page /reimbursements title=\"Reimbursements\"\n  list Reimbursement columns=paid filter=paid defaults={paid=preferences.paid}\n",
+        "E6008",
+        "need distinct checked owned enum fields",
+    );
+}
+
+/// No computed date default is admitted: a `??` fallback across two
+/// saved date reads keeps its exact E6008 refusal. Only a date
+/// literal, a direct saved date read, or null lower.
+#[test]
+fn computed_date_default_refuses() {
+    assert_refuses(
+        "app Probe\nGiven\n Reimbursement { paid:date }\n policy Reimbursement read=public\nWhen\nThen\n preferences { paid:date?, backup:date? }\n page /reimbursements title=\"Reimbursements\"\n  list Reimbursement columns=paid filter=paid defaults={paid=preferences.paid ?? preferences.backup}\n",
         "E6008",
         "need distinct checked owned enum fields",
     );
 }
 
 /// Recorded CanAffiliate shape: a datetime field is not a
-/// finite-choice selector even beside an admitted bool toggle.
+/// finite-choice selector even beside an admitted bool toggle, and is
+/// not admitted from the admitted plain `date` selector (civil dates
+/// are not instants). No symmetry generalization.
 #[test]
 fn datetime_selector_refuses() {
     assert_refuses(
@@ -591,17 +662,47 @@ fn text_filter_descriptor_carries_no_spellings() {
     );
 }
 
-/// C3 date follower (recorded CanLeave `from`/`until` shape): a date
-/// field is not a reference selector even beside an admitted reference,
-/// so the agenda keeps its exact E6008 refusal (a refused calendar
-/// filter keeps the checker refusal alone).
+/// C3 civil-date equality rule on agendas (CAN18-v1, DESIGN 1015-1025
+/// operator table): the recorded CanLeave `from`/`until` shape lowers.
+/// Each plain owned `date` selector is an exact equality control
+/// beside the admitted reference through the same E5 conjunction —
+/// the same eq mechanism covers both endpoints with no range
+/// generalization, and the location default stays a direct saved read.
 #[test]
-fn calendar_date_selector_refuses() {
-    assert_refuses(
+fn calendar_date_selector_lowers() {
+    assert_lowers(
         "app Probe\nGiven\n Location { name:text }\n Request { location:Location, from:date, until:date, state:enum(open,closed)=open }\n policy Location read=public\n policy Request read=public\nWhen\nThen\n preferences { location:Location?, state:Request.state? }\n page /leave title=\"Leave\"\n  calendar Request start=from end=until filter=location,from,until defaults={location=preferences.location}\n   badge row.state\n",
-        "E6008",
-        "calendar filters need distinct checked owned enum fields",
     );
+}
+
+/// C3 civil-date equality emission: the date descriptor carries the
+/// `date` type with no value labels, and the saved read stays verbatim
+/// with no bool spelling-decoding wrapper.
+#[test]
+fn date_filter_descriptor_carries_no_spellings() {
+    let js = emit_js(
+        "app Probe\nGiven\n Reimbursement { paid:date }\n policy Reimbursement read=public\nWhen\nThen\n preferences { paid:date? }\n page /reimbursements title=\"Reimbursements\"\n  list Reimbursement columns=paid filter=paid defaults={paid=preferences.paid}\n",
+    );
+    assert!(
+        js.contains("type:\"date\""),
+        "date descriptor names its kind, got: {js}"
+    );
+    assert!(
+        js.contains("valueLabels:{}"),
+        "date descriptors carry no spellings, got: {js}"
+    );
+    assert!(
+        js.contains("paid:(preferences.paid ?? null)"),
+        "the saved date read stays verbatim, got: {js}"
+    );
+    assert!(
+        !js.contains("value=>{if(value==null)"),
+        "no bool spelling-decoding wrapper on date reads, got: {js}"
+    );
+    // The `date:true` preference-leaf marker rides the page-level
+    // `preferenceFields` descriptor (outside this per-node emission);
+    // the installed consumer asserts it on the real artifact
+    // (`packages/cloudflare/src/runtime/date-page-source-installed.test.ts`).
 }
 
 /// No literal spellings for references: an opaque identity is never an

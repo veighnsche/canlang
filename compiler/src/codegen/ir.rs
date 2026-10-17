@@ -4353,6 +4353,11 @@ pub struct IrPreferenceField {
     /// no case options, no literal default; the saved identity stays
     /// opaque end to end and is validated as an opaque string downstream.
     pub reference: bool,
+    /// A civil-date preference leaf behind a filter default (C3,
+    /// DESIGN 1015-1025): no case options; the default and saved values
+    /// are civil `YYYY-MM-DD` strings validated downstream, never a
+    /// spelling inventory. Like `reference`, it carries no save control.
+    pub date: bool,
 }
 
 // --- Test artifacts (PR5 contract, lowered by `bdd`) -----------------------
@@ -11423,6 +11428,29 @@ fn is_literal_default(expr: &TypedExpr) -> bool {
     }
 }
 
+/// C3 civil-date equality rule: the wire string of a date literal default.
+/// A `date("YYYY-MM-DD")` call lowers to `IrExpr::Call` (not a folded
+/// `IrExpr::Date`), so both spellings are admitted; anything else —
+/// including computed date forms — is not a date literal.
+fn date_literal_wire(expr: &TypedExpr) -> Option<String> {
+    match &expr.expr {
+        IrExpr::Date(value) => Some(value.clone()),
+        IrExpr::Call { target, args }
+            if matches!(&target, IrCallTarget::Builtin { id, .. } if id == "date")
+                && matches!(args.as_slice(), [single] if matches!(single.expr, IrExpr::Text(_))) =>
+        {
+            let [single] = args.as_slice() else {
+                return None;
+            };
+            match &single.expr {
+                IrExpr::Text(value) => Some(value.clone()),
+                _ => None,
+            }
+        }
+        _ => None,
+    }
+}
+
 impl<'a> Cx<'a> {
     /// Rejoin immutable type facts to their original declaration and every handler.
     fn callback_source_matches(&self, source: &CheckedGenerationCallbackSource) -> bool {
@@ -13589,6 +13617,7 @@ impl<'a> Cx<'a> {
                     .map(|label| label.values.clone())
                     .unwrap_or_default(),
                 reference: false,
+                date: false,
             });
         }
         let text = |value: String| {
@@ -17721,6 +17750,7 @@ impl<'a> Cx<'a> {
                 caption: label.as_ref().and_then(|label| label.text.clone()),
                 option_labels: label.map(|label| label.values).unwrap_or_default(),
                 reference: false,
+                date: false,
             });
         }
         Some(())
@@ -17916,6 +17946,7 @@ impl<'a> Cx<'a> {
                 caption: label.as_ref().and_then(|label| label.text.clone()),
                 option_labels: label.map(|label| label.values).unwrap_or_default(),
                 reference: false,
+                date: false,
             });
         }
         Some(())
@@ -17983,6 +18014,7 @@ impl<'a> Cx<'a> {
                 caption: label.as_ref().and_then(|label| label.text.clone()),
                 option_labels: label.map(|label| label.values).unwrap_or_default(),
                 reference: true,
+                date: false,
             });
         }
         Some(())
@@ -18088,10 +18120,20 @@ impl<'a> Cx<'a> {
                 // reference it carries no case inventory; the host
                 // preparer compares the ordinary string equality, never a
                 // spelling inventory. Validated string-likes
-                // (email/url/locale/timezone/currency), int/date/datetime
+                // (email/url/locale/timezone/currency), int/datetime
                 // and every other shape keep the exact E6008 below: no
                 // symmetry generalization.
                 ResolvedType::Scalar(Scalar::Text) => ("text".to_string(), Vec::new()),
+                // C3 civil-date equality rule (CAN18-v1, DESIGN 1015-1025
+                // operator table: `date` admits `eq` with exact typed
+                // equality; dates are civil, never shifted instants): a
+                // plain owned `date` field is an exact equality control.
+                // Like text it carries no case inventory; the host
+                // preparer admits only real civil `YYYY-MM-DD` values and
+                // the state string equality evaluates them. Datetime
+                // keeps the exact E6008 below: no symmetry
+                // generalization from civil dates to instants.
+                ResolvedType::Scalar(Scalar::Date) => ("date".to_string(), Vec::new()),
                 _ => {
                     fail(self, path.span);
                     return None;
@@ -18207,6 +18249,10 @@ impl<'a> Cx<'a> {
                     // C2 text-equality rule: no case inventory (None, like
                     // references); any other shape keeps the refusal.
                     ResolvedType::Scalar(Scalar::Text) => None,
+                    // C3 civil-date equality rule: no case inventory
+                    // (None, like text/references); any other shape keeps
+                    // the refusal.
+                    ResolvedType::Scalar(Scalar::Date) => None,
                     _ => return None,
                 };
                 // C2 text-equality rule (DESIGN 975 scalar): a text-typed
@@ -18214,6 +18260,11 @@ impl<'a> Cx<'a> {
                 // text form is admitted (no B14 analog): only this
                 // literal, a direct saved text read, or null below.
                 let text_filter = matches!(expected, ResolvedType::Scalar(Scalar::Text));
+                // C3 civil-date equality rule (DESIGN 1015-1025 operator
+                // table): a date literal matches the date control
+                // exactly. No computed date form is admitted: only this
+                // literal, a direct saved date read, or null below.
+                let date_filter = matches!(expected, ResolvedType::Scalar(Scalar::Date));
                 let literal = enum_cases.is_some_and(|cases| {
                     matches!(&decoded.expr, IrExpr::Text(case) if cases.contains(case) && (decoded.ty == *expected || matches!(decoded.ty, ResolvedType::Scalar(Scalar::Text))))
                 }) || (bool_filter
@@ -18221,6 +18272,9 @@ impl<'a> Cx<'a> {
                     && decoded.ty == *expected)
                     || (text_filter
                         && matches!(&decoded.expr, IrExpr::Text(_))
+                        && decoded.ty == *expected)
+                    || (date_filter
+                        && date_literal_wire(&decoded).is_some()
                         && decoded.ty == *expected)
                     || matches!(
                         (&decoded.expr, &decoded.ty),
@@ -18345,6 +18399,31 @@ impl<'a> Cx<'a> {
                                 // matches the text control; there is no
                                 // case inventory to check against.
                                 IrExpr::Text(case) if text_filter => Some(case),
+                                // C3 civil-date equality rule (DESIGN
+                                // 1015-1025): a declared date literal
+                                // matches the date control; there is no
+                                // case inventory to check against. A
+                                // `date("...")` call spells the same
+                                // literal (calls never fold), so both
+                                // forms lower to the wire string.
+                                IrExpr::Date(case) if date_filter => Some(case.clone()),
+                                IrExpr::Call { target, args }
+                                    if date_filter
+                                        && matches!(&target, IrCallTarget::Builtin { id, .. } if id == "date")
+                                        && matches!(args.as_slice(), [single] if matches!(single.expr, IrExpr::Text(_))) =>
+                                {
+                                    let [single] = args.as_slice() else {
+                                        fail(self, value.span);
+                                        return None;
+                                    };
+                                    match &single.expr {
+                                        IrExpr::Text(wire) => Some(wire.clone()),
+                                        _ => {
+                                            fail(self, value.span);
+                                            return None;
+                                        }
+                                    }
+                                }
                                 IrExpr::Null if nullable => None,
                                 _ => {
                                     fail(self, value.span);
@@ -18375,6 +18454,9 @@ impl<'a> Cx<'a> {
                                 caption: label.as_ref().and_then(|label| label.text.clone()),
                                 option_labels: label.map(|label| label.values).unwrap_or_default(),
                 reference: false,
+                // C3 civil-date equality rule: the date leaf carries
+                // no inventory; downstream validates civil dates.
+                date: date_filter,
             });
                         }
                     }
@@ -18604,6 +18686,7 @@ impl<'a> Cx<'a> {
                 caption: pref_label.as_ref().and_then(|label| label.text.clone()),
                 option_labels: pref_label.map(|label| label.values).unwrap_or_default(),
                 reference: false,
+                date: false,
             });
         }
         // B16: the control edits the owning saved preference through the

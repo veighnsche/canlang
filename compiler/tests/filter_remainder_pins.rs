@@ -16,17 +16,17 @@
 //! | recorded occurrence | filter list | failing selector (type) | disposition |
 //! | CanAffiliate table x2 | reversed,qualified_at,amount.currency | qualified_at (datetime, C3) + amount.currency (dotted money leaf) | already pinned (`datetime_selector_refuses`, `dotted_path_selector_refuses`) |
 //! | CanInvoice list | location,currency | currency (`currency` scalar) | NEW pin below |
-//! | CanInvoice table | location,state,currency,due | currency (new) + due (date, C3) | NEW pin + `date_selector_refuses` |
-//! | CanExpense list | status,location,category,business_date | category (text, C2) + business_date (date, C3); status enum + location ref are admitted leftovers | already pinned (`text_selector_refuses`, `date_selector_refuses`) |
-//! | CanExpense board | status,location,category,business_date | same as list | already pinned (`board_text_selector_refuses` for the text half, `date_selector_refuses` for the date half) |
-//! | CanExpense table (approved) | parent,location,category,business_date | parent (containing-parent linkage) | NEW pin below (category/business_date already pinned) |
-//! | CanExpense table (Reimbursement) | paid | paid (date, C3) | already pinned (`date_selector_refuses`) |
+//! | CanInvoice table | location,state,currency,due | currency (new) + due (date, C3 admitted); currency still blocks the recorded shape | NEW pin + `date_selector_lowers` |
+//! | CanExpense list | status,location,category,business_date | category (text, C2 admitted) + business_date (date, C3 admitted); status enum + location ref are admitted leftovers | ADMITTED by C2+C3; component pins (`text_selector_lowers`, `date_selector_lowers`) |
+//! | CanExpense board | status,location,category,business_date | same as list | ADMITTED by C2+C3; component pins (`board_text_selector_lowers`, `date_selector_lowers`) |
+//! | CanExpense table (approved) | parent,location,category,business_date | parent (containing-parent linkage) | NEW pin below (category/business_date admitted by C2+C3) |
+//! | CanExpense table (Reimbursement) | paid | paid (date, C3) | ADMITTED by the C3 civil-date rule; pin moved to `date_selector_lowers` |
 //! | CanDesk list (Ticket, 8 selectors) | location,state,priority,assignee,unassigned,overdue,category,queue | assignee (`user?` nullable, first failure) + unassigned/overdue (derived bools) + category/queue (text, C2); location ref + state/priority enums are admitted leftovers | NEW pins below (nullable user, derived bool); text already pinned |
 //! | CanLeave table (row.Request) | bucket,state | bucket (text, C2); state enum is an admitted leftover | already pinned (`text_selector_refuses`) |
 //! | CanLeave table (Allowance, mine) | year,bucket | year (int) + bucket (text, C2) | already pinned (`int_selector_refuses`, `text_selector_refuses`) |
 //! | CanLeave table (Request, review) | bucket,state | bucket (text, C2) | already pinned |
 //! | CanLeave table (Allowance, config) | year,bucket | year (int) + bucket (text, C2) | already pinned |
-//! | CanLeave calendar | location,from,until | from/until (date, C3); location ref is an admitted leftover | already pinned (`calendar_date_selector_refuses`) |
+//! | CanLeave calendar | location,from,until | from/until (date, C3 admitted); location ref is an admitted leftover | ADMITTED by the C3 civil-date rule; pin moved to `calendar_date_selector_lowers` |
 //! | CanMaintain list (Asset) | location,category,retired | category (text, C2); location ref + retired bool are admitted leftovers | already pinned (`text_selector_refuses`) |
 //! | CanField board (Job) | location,state,skill | skill (text, C2) | already pinned (`board_text_selector_refuses`) |
 //! | CanField calendar (Job) | location,state,skill | skill (text, C2) | ADMITTED by the C2 text-equality rule (DESIGN 975 scalar + operator table); pin below now asserts lowering |
@@ -38,18 +38,28 @@
 //! C2 text-equality admission (CAN18-v1, DESIGN 975 scalar + operator
 //! table): the CanField calendar `skill:text` selector lowers as an
 //! exact equality control beside its admitted location/enum siblings,
-//! so its pin below asserts lowering. Every other remainder shape
-//! bottoms out on a C3/dotted/int follower (already pinned) or on a
+//! so its pin below asserts lowering.
+//!
+//! C3 civil-date equality admission (CAN18-v1, DESIGN 1015-1025
+//! operator table — CORRECTION per 2321: dates are civil, so the
+//! missing generated controls are local implementation work): every
+//! plain `date` selector (`business_date`, `paid`, `due`,
+//! `from`/`until`) lowers as an exact equality control beside its
+//! admitted siblings, so the component pins in `enum_filter_group.rs`
+//! (`date_selector_lowers`, `calendar_date_selector_lowers`) assert
+//! lowering. Every other remainder shape bottoms out on a
+//! datetime/dotted/int follower (already pinned) or on a
 //! genuinely-new selector (currency scalar, nullable user, derived
 //! bool, containing parent, inline preferences presentation, board
 //! pagination) for which this batch makes exactly one named choice
 //! each — stay loudly refused with the exact E6008 below. No new
-//! primitive beyond the text rule, no symmetry generalization
+//! primitive beyond the civil-date rule, no symmetry generalization
 //! (nullable user is not admitted from admitted user; derived bool is
 //! not admitted from admitted stored bool; board `page` is not
 //! admitted from list/table `page`; validated string-likes, nullable
-//! text model fields, computed text defaults and date selectors are
-//! not admitted from admitted plain text), no weakened permissions or
+//! text model fields and computed text defaults are not admitted from
+//! admitted plain text; datetime/nullable-date/computed-date are not
+//! admitted from admitted plain date), no weakened permissions or
 //! refusals, no original rewrites. The recorded `where` clauses
 //! accompanying refused filters (parent/actor restrictions) are
 //! outside this filter batch.
