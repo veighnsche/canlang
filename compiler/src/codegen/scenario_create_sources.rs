@@ -4030,28 +4030,28 @@ impl SourceExpressions<'_> {
                     && matches!(&actual.ty, ResolvedType::Enum {cases, ..} if cases.contains(value))
             }
             (IrExpr::Text(value), SyntaxKind::Member) => {
-                // Qualified closed-case spelling (`C.role.administrator`):
-                // the lowered case is the final case token (mirrors
-                // `decode_member`, which reads the third significant
-                // child). Closed-case identity comes from the retained
-                // checked set, not token spelling: a genuine enum-valued
-                // record read (`i.child.administrator`) is absent there,
-                // so replacing it by a constant keeps the refusal below.
-                // The qualifier root must additionally name a checked
-                // model (`C`, not a row binding `i`), the enum type must
-                // own the case, and the checked subtree type seal must
-                // record this node.
+                // Qualified closed-case spelling (`C.role.administrator`,
+                // `Kinds.role.administrator`): the lowered case is the
+                // final case token (mirrors `decode_member`, which reads
+                // the third significant child). Closed-case identity comes
+                // from the retained checked set alone: the type owner
+                // admits a qualified case only when the receiver root is
+                // a Model or Contract symbol with a declared enum field
+                // owning the case, so a genuine enum-valued record read
+                // (`i.child.administrator`, row-binding root) is absent
+                // there and replacing it by a constant keeps the refusal
+                // below. No model-name heuristic is layered on top: the
+                // enum type must own the case, and the checked subtree
+                // type seal must record this node.
                 let mut parts = node
                     .children
                     .iter()
                     .filter(|part| !matches!(part.kind, SyntaxKind::Trivia | SyntaxKind::Comment));
-                let qualifier = parts.next()?;
+                let _qualifier = parts.next()?;
                 let case = parts.nth(1)?;
-                qualifier_is_model(self.ir, self.text, qualifier)
-                    && self
-                        .ir
-                        .resolved_cases
-                        .contains(&crate::analysis::NodeKey::of(node))
+                self.ir
+                    .resolved_cases
+                    .contains(&crate::analysis::NodeKey::of(node))
                     && case.kind == SyntaxKind::Name
                     && case.token()?.text(self.text) == value
                     && matches!(&actual.ty, ResolvedType::Enum {cases, ..} if cases.contains(value))
@@ -4698,44 +4698,6 @@ fn source_path(node: &SyntaxNode, text: &str) -> Option<String> {
             ))
         }
         _ => None,
-    }
-}
-
-/// Qualifier root of a qualified enum-case member (`C` in
-/// `C.role.administrator`): descend leftmost nested members to the base
-/// name, which must name a checked model. A row binding or field base
-/// (`i` in `i.child.administrator`) is not a closed-case qualifier.
-fn qualifier_is_model(ir: &IrProgram, text: &str, qualifier: &SyntaxNode) -> bool {
-    let mut cursor = qualifier;
-    loop {
-        let mut significant = cursor
-            .children
-            .iter()
-            .filter(|part| !matches!(part.kind, SyntaxKind::Trivia | SyntaxKind::Comment));
-        let Some(first) = significant.next() else {
-            return false;
-        };
-        if first.kind == SyntaxKind::Member {
-            cursor = first;
-            continue;
-        }
-        let name = if first.kind == SyntaxKind::Name {
-            first.token().map(|token| token.text(text))
-        } else if first.kind == SyntaxKind::NameRef {
-            first
-                .children
-                .iter()
-                .find(|child| child.kind == SyntaxKind::Name)
-                .and_then(|child| child.token())
-                .map(|token| token.text(text))
-        } else {
-            None
-        };
-        return name.is_some_and(|name| {
-            ir.items.iter().any(|item| {
-                item.name == name && matches!(item.kind, super::ir::IrItemKind::Model { .. })
-            })
-        });
     }
 }
 
