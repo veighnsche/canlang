@@ -4,9 +4,9 @@
   "timezone": "Europe/Brussels",
   "base_commit": "7fd8c6bf4717feeffc70b46819377b74b353e117",
   "source_verification_pin": "fdb059c634c32c83760f35dd9175f49d9821762d",
-  "scope": "Historical consolidated three-plan ledger with finite reviewed Codex step6 status/evidence updates; original source assessment pins and all task IDs/prerequisites retained. This list does not authorize dispatch.",
-  "operational_state": "Historical Muse generation remains stopped. Reviewed finite Codex step 6 slices are committed; no live writers or commands remain. The 15-minute supervisor is paused between finite releases. Preparation/native-release HOLD and all wider original gates remain.",
-  "counting_policy": "323 existing canonical DAG records plus ten original checklist gate/handoff identities. Parents and acceptance gates are retained, not advertised as independent coding jobs. Repeated manifests and historical packets are aliases, not extra tasks.",
+  "scope": "Consolidated original three-plan ledger with finite step6 updates and October 18 Rust source reconciliation; original IDs, acceptance and dependencies retained. Current Rust priorities are in RUST-PORT-START-HERE.md; this ledger does not authorize dispatch.",
+  "operational_state": "Implementation remains stopped. October 18 authorization covers Rust-plan documentation only. Existing preparation/native-release, selected codec/source-adoption, default, retirement, activation and publication holds remain; no workers or automation are started.",
+  "counting_policy": "323 existing canonical DAG records plus ten original checklist gate/handoff identities. Parents and acceptance gates are retained, not advertised as independent coding jobs. Repeated manifests and historical packets are aliases, not extra tasks. October 18 changes eight started Work records from not_started to partial, closes no full port gate and does not convert selected package acceptance into canonical parent completion.",
   "counts": {
     "all_source_identities": 333,
     "canonical_DAG_records": 323,
@@ -15,8 +15,8 @@
       "complete": 85,
       "needs_verification": 22,
       "held": 22,
-      "not_started": 97,
-      "partial": 102,
+      "not_started": 89,
+      "partial": 110,
       "deferred": 5
     },
     "required_total": 319,
@@ -47,8 +47,8 @@
           "complete": 56,
           "needs_verification": 13,
           "held": 22,
-          "not_started": 84,
-          "partial": 51,
+          "not_started": 76,
+          "partial": 59,
           "deferred": 4
         }
       },
@@ -130,7 +130,7 @@
       "challenge:R01",
       "challenge:C01"
     ],
-    "meaning": "Static declared dependencies only, not dispatch authority. Validate exact live owner/resources and current inputs before a future authorized start. Broad parent completion is not a blanket barrier when a compatible narrow interface has actually been released. Human-held tasks are excluded."
+    "meaning": "Static declared dependencies only, not dispatch authority. Validate exact live owner/resources and current inputs before a future authorized start. Broad parent completion is not a blanket barrier when a compatible narrow interface has actually been released. Human-held tasks are excluded. October 18: these candidate IDs retain their historical readiness snapshot; use current_execution_reference for the single current priority view. They authorize no dispatch."
   },
   "evidence_policy": "Credit existing narrow execution and accepted review. Source observation, fixture/native/unit proof, installed/producer-consumer qualification and complete product acceptance remain separate. No fresh product build or tests ran for this inventory.",
   "tasks": [
@@ -9018,7 +9018,7 @@
       "disposition": "REQUIRED",
       "phase": "work",
       "remaining_actions": [
-        "Join full exact operation registry and lossless error/carrier transport; run complete vectors through native and actual Node/Bun/workerd delivered binding with version/asset failures."
+        "Complete the matching TS comparison registry and admitted carrier/error/profile parity against existing Rust dispatch, then qualify original full claimed vectors through actual delivered adapters. Keep the selected int/ASCII source/adoption HOLD and explicit UTF-16/truncation, signed-zero and observable-object exclusions."
       ],
       "original_actions": [],
       "original_acceptance": [
@@ -9104,9 +9104,24 @@
           "path": "docs/research/package-subsystem-ports-20261006/implementation-plans/exact-values.md",
           "revision": "fdb059c634c32c83760f35dd9175f49d9821762d",
           "scope": "Historical accepted/narrow evidence and current source as qualified in reason; no new execution."
+        },
+        {
+          "path": "packages/values/semantics/src/transport/exact.rs",
+          "revision": "ede59d051",
+          "scope": "Read-only current-source observation and retained selected acceptance; no new full product qualification."
+        },
+        {
+          "path": "packages/values/bindings/backend.ts",
+          "revision": "ede59d051",
+          "scope": "Read-only current-source observation and retained selected acceptance; no new full product qualification."
+        },
+        {
+          "path": "docs/implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/acceptance.json",
+          "revision": "ede59d051",
+          "scope": "Read-only current-source observation and retained selected acceptance; no new full product qualification."
         }
       ],
-      "reason": "Native full scalar runner and real binding entry exist, but host TS operation registry is explicitly limited smoke scaffolding; no full actual-adapter/Wasm differential/delivery proof.",
+      "reason": "Rust already has broad semantic operation dispatch and generated Wasm. Step9 qualified the six-operation matching TS comparison profile; public helpers still use TS. Full boundary/profile parity and actual-adapter coverage remain open.",
       "assessment_details": {
         "plan": "exact-values",
         "parent": "ports/exact-values/A07",
@@ -9165,7 +9180,7 @@
       "old_manifest_status": null,
       "auxiliary": false,
       "execution_authorized_by_this_list": false,
-      "source_state_annotation": null
+      "source_state_annotation": "2026-10-18 source reconciliation at ede59d051; see RUST-PORT-START-HERE.md#current-execution-view--2026-10-18. Partial records credit selected components only; no original full gate or hold is released."
     },
     {
       "id": "ports:A07",
@@ -11760,8 +11775,7 @@
       "disposition": "REQUIRED",
       "phase": "work",
       "remaining_actions": [
-        "Complete audited PH2/PH4 private owner/request/protected-graph admission; genuine factory lineage alone grants no plan/default/backend authority.",
-        "Retain PH3 canonical DefaultRef/Decimal/lifetime prerequisites at their original tasks."
+        "Consume accepted TS factory/default/source registration components; finish only unmet protected request/plan-to-Rust admission and lifetime joins, preserving legacy evaluation order and no semantic retry. The selected TECH-V03 serving checkpoint remains partial; TECH-V04 source/adoption stays held."
       ],
       "original_actions": [],
       "original_acceptance": [
@@ -11841,9 +11855,24 @@
           "path": "docs/implementation/rust-port-orchestration/runs/codex-step6-20261006T235151Z/R2-accepted.json",
           "revision": "c16ab48",
           "scope": "Human step6 finite actualsource/consumer checks and independent review;not wholeparent/default/installed acceptance"
+        },
+        {
+          "path": "packages/values/src/prepared/plan.ts",
+          "revision": "ede59d051",
+          "scope": "Read-only current-source observation and retained selected acceptance; no new full product qualification."
+        },
+        {
+          "path": "packages/interfaces/src/http/prepared-validation.ts",
+          "revision": "ede59d051",
+          "scope": "Read-only current-source observation and retained selected acceptance; no new full product qualification."
+        },
+        {
+          "path": "packages/cloudflare/src/runtime/prepared-validation.ts",
+          "revision": "ede59d051",
+          "scope": "Read-only current-source observation and retained selected acceptance; no new full product qualification."
         }
       ],
-      "reason": "Nonrecursive private TS cores, unchanged public facades, direct prepared delegates and success-only nonadopting factory lineage accepted at c16ab48. 199 focused tests and 35 original trace pairs, plus the combined 214-test Node build pass. Complete PH2/PH4 request admission and authority remain unaccepted.",
+      "reason": "Ordinary TS private cores, factory lineage, copied Date/Decimal defaults and trusted source/revision serving-plan registration exist. Current serving remains ordinary-ts-serving; protected parser/plan-to-Rust execution and complete native lifetime/profile qualification remain open.",
       "assessment_details": {
         "plan": "input-validation",
         "parent": "ports/input-validation/V02",
@@ -11888,7 +11917,7 @@
       "old_manifest_status": null,
       "auxiliary": false,
       "execution_authorized_by_this_list": false,
-      "source_state_annotation": null,
+      "source_state_annotation": "2026-10-18 source reconciliation at ede59d051; see RUST-PORT-START-HERE.md#current-execution-view--2026-10-18. Partial records credit selected components only; no original full gate or hold is released.",
       "step6_scoped_update_at_utc": "2026-10-07T00:13:09.866074+00:00"
     },
     {
@@ -12152,8 +12181,7 @@
       "disposition": "REQUIRED",
       "phase": "work",
       "remaining_actions": [
-        "Keep parser graph inaccessible until owned conversion, expose detached public copies and invalidate/loss-of-lineage after exposure/mutation as required.",
-        "Prove actual unchanged capped HTTP reader/error/BOM/cancel/body-stage lineage against owning consumer; no arbitrary object adoption."
+        "Finish the actual capped HTTP parser-token-to-Rust boundary at the existing validation stage; preserve byte-cap/BOM/syntax/cancellation behavior and reject forged/lost/stale provenance. Reuse accepted frozen-graph and TS serving controls; do not reopen them or infer native authority from freezing."
       ],
       "original_actions": [],
       "original_acceptance": [
@@ -12230,9 +12258,19 @@
           "path": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.md",
           "revision": "fdb059c634c32c83760f35dd9175f49d9821762d",
           "scope": "Historical accepted/narrow evidence and current source as qualified in reason; no new execution."
+        },
+        {
+          "path": "packages/values/bindings/owned-input.ts",
+          "revision": "ede59d051",
+          "scope": "Read-only current-source observation and retained selected acceptance; no new full product qualification."
+        },
+        {
+          "path": "packages/interfaces/src/http/operations.ts",
+          "revision": "ede59d051",
+          "scope": "Read-only current-source observation and retained selected acceptance; no new full product qualification."
         }
       ],
-      "reason": "Private parser-issued token and host-style decode/parse scaffold exist. Source returns the same mutable parser graph under a still-valid token; no complete protected-host confinement/detached-copy mutation acceptance proof exists. No production exposure is asserted.",
+      "reason": "Parser-created containers are now frozen and parser token lineage exists; the former same-mutable-graph observation is superseded. Actual HTTP currently extracts the parser value and uses ordinary TS serving validation. A protected token-to-native consumer boundary is not yet established.",
       "assessment_details": {
         "plan": "input-validation",
         "parent": "ports/input-validation/V03",
@@ -12277,7 +12315,7 @@
       "old_manifest_status": null,
       "auxiliary": false,
       "execution_authorized_by_this_list": false,
-      "source_state_annotation": null
+      "source_state_annotation": "2026-10-18 source reconciliation at ede59d051; see RUST-PORT-START-HERE.md#current-execution-view--2026-10-18. Partial records credit selected components only; no original full gate or hold is released."
     },
     {
       "id": "ports:V03.4",
@@ -15366,8 +15404,7 @@
       "disposition": "REQUIRED",
       "phase": "work",
       "remaining_actions": [
-        "Implement and prove: A2/B4 order/status/body, body-cap/malformed JSON, top-level/action_handle, missing/unknown/bounds and HTML redisplay match.",
-        "Implement and prove: No Rust work before current validation point; one selected backend per request and no semantic-error retry."
+        "After the relevant interpreter/profile and protected-input release, join the actual HTTP handler at its existing validation point and satisfy the unchanged native order/status/body/error and no-retry acceptance. Reuse the accepted ordinary TS serving components."
       ],
       "original_actions": [],
       "original_acceptance": [
@@ -15428,9 +15465,19 @@
           "path": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.md",
           "revision": "fdb059c634c32c83760f35dd9175f49d9821762d",
           "scope": "Historical accepted/narrow evidence and current source as qualified in reason; no new execution."
+        },
+        {
+          "path": "packages/interfaces/src/http/prepared-validation.ts",
+          "revision": "ede59d051",
+          "scope": "Read-only current-source observation and retained selected acceptance; no new full product qualification."
+        },
+        {
+          "path": "packages/values/semantics/src/profiles.rs",
+          "revision": "ede59d051",
+          "scope": "Read-only current-source observation and retained selected acceptance; no new full product qualification."
         }
       ],
-      "reason": "No task-specific implementation/completion evidence fulfilling this exact acceptance was found. Existing legacy functionality and local tests do not certify the proposed port.",
+      "reason": "Actual ordinary TS HTTP serving has trusted plan catalog/source fences and existing compiled installed HTTP+State-memory evidence. No Rust validation operation exists, so the native handler integration remains unstarted; ordinary TS progress is not native adoption.",
       "assessment_details": {
         "plan": "input-validation",
         "parent": "ports/input-validation/V08",
@@ -15472,7 +15519,7 @@
       "old_manifest_status": null,
       "auxiliary": false,
       "execution_authorized_by_this_list": false,
-      "source_state_annotation": null
+      "source_state_annotation": "2026-10-18 source reconciliation at ede59d051; see RUST-PORT-START-HERE.md#current-execution-view--2026-10-18. Partial records credit selected components only; no original full gate or hold is released."
     },
     {
       "id": "ports:V08.2",
@@ -18301,8 +18348,7 @@
       "disposition": "REQUIRED",
       "phase": "gate",
       "remaining_actions": [
-        "Review all exact prerequisite tasks and the preserved parent gate contract in input-validation.md; retain explicit supported/retained/deferred scope.",
-        "B4 actual handler/canonical invocation/Wasm/workerd proved; accepted join requires V08.4/V08.5 or default 501 remains explicitly blocked."
+        "Consume current ordinary TS serving prerequisites, then close only the original native HTTP consumer/installed/workerd and exact prerequisite outcomes. Keep the selected source/adoption hold; do not count the TS route or structural transport scaffold as Rust validation."
       ],
       "original_actions": [],
       "original_acceptance": [
@@ -18341,9 +18387,24 @@
           "path": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.md",
           "revision": "fdb059c634c32c83760f35dd9175f49d9821762d",
           "scope": "Historical accepted/narrow evidence and current source as qualified in reason; no new execution."
+        },
+        {
+          "path": "packages/cloudflare/src/worker/assembly.ts",
+          "revision": "ede59d051",
+          "scope": "Read-only current-source observation and retained selected acceptance; no new full product qualification."
+        },
+        {
+          "path": "packages/interfaces/src/http/prepared-validation.ts",
+          "revision": "ede59d051",
+          "scope": "Read-only current-source observation and retained selected acceptance; no new full product qualification."
+        },
+        {
+          "path": "packages/values/semantics/src/profiles.rs",
+          "revision": "ede59d051",
+          "scope": "Read-only current-source observation and retained selected acceptance; no new full product qualification."
         }
       ],
-      "reason": "No task-specific implementation/completion evidence fulfilling this exact acceptance was found. Existing legacy functionality and local tests do not certify the proposed port.",
+      "reason": "The owning HTTP route now has ordinary TS serving/catalog implementation; blanket current-501 absence claims are historical. The original actual Rust handler/Wasm/workerd adoption gate remains unmet.",
       "assessment_details": {
         "plan": "input-validation",
         "parent": null,
@@ -18371,7 +18432,7 @@
       "old_manifest_status": null,
       "auxiliary": false,
       "execution_authorized_by_this_list": false,
-      "source_state_annotation": null
+      "source_state_annotation": "2026-10-18 source reconciliation at ede59d051; see RUST-PORT-START-HERE.md#current-execution-view--2026-10-18. Partial records credit selected components only; no original full gate or hold is released."
     },
     {
       "id": "ports:V09",
@@ -19924,7 +19985,7 @@
       "disposition": "REQUIRED",
       "phase": "work",
       "remaining_actions": [
-        "Complete exact state/Cloudflare/stdlib/testkit dependency/build/lock graph requested by actual consumer adapters; prove installed resolution and absence of state-to-full-work cycle."
+        "Fulfil only exact remaining dependency/export/build requests from actual consuming adapters; reuse existing Cloudflare dependency and build machinery, prove the claimed installed graph and retain no state-to-full-work cycle."
       ],
       "original_actions": [
         "Use the minimal emitted work-kernel contract to install acyclic runtime dependencies, explicit build order, exports and release commands. Apply other agreed common build hooks; package-local values/work/native manifests retain their designated owners."
@@ -20010,9 +20071,19 @@
           "path": "docs/research/package-subsystem-ports-20261006/implementation-plans/README.md",
           "revision": "fdb059c634c32c83760f35dd9175f49d9821762d",
           "scope": "Historical accepted/narrow evidence and current source as qualified in reason; no new execution."
+        },
+        {
+          "path": "packages/cloudflare/package.json",
+          "revision": "ede59d051",
+          "scope": "Read-only current-source observation and retained selected acceptance; no new full product qualification."
+        },
+        {
+          "path": "packages/work-kernel/package.json",
+          "revision": "ede59d051",
+          "scope": "Read-only current-source observation and retained selected acceptance; no new full product qualification."
         }
       ],
-      "reason": "Root workspace/lockfile/build order register work-kernel and full combined build passes, but consumer manifests do not yet declare a work-kernel dependency; semantic imports are unjoined.",
+      "reason": "Root build/export machinery exists and Cloudflare now declares @canlang/work-kernel. State/stdlib/testkit do not declare that dependency; add it only if an actual released consumer needs it. Full required installed consumer/asset closure remains separate.",
       "assessment_details": {
         "plan": "shared",
         "parent": "ports/shared/C04",
@@ -20066,7 +20137,7 @@
       "old_manifest_status": null,
       "auxiliary": false,
       "execution_authorized_by_this_list": false,
-      "source_state_annotation": null
+      "source_state_annotation": "2026-10-18 source reconciliation at ede59d051; see RUST-PORT-START-HERE.md#current-execution-view--2026-10-18. Partial records credit selected components only; no original full gate or hold is released."
     },
     {
       "id": "ports:C04.values-assets",
@@ -20217,7 +20288,7 @@
       "disposition": "REQUIRED",
       "phase": "work",
       "remaining_actions": [
-        "Fulfil W05.2 exact package-specific generated binary/glue/vendor/import and release inventory after actual W05.1 assembly."
+        "Consume the existing recovery producer and exact W05.2 request, fulfil only missing required package/deploy/testkit/release inventory and installed resolution; preserve the original W05.4/W05.3 consumer handoffs."
       ],
       "original_actions": [
         "Apply W05.2 exact vendor/bare-import/binary/integrity/dist-root request, using real W05.1 outputs and the owning release stamp. Return reviewed source/asset hashes and completed integration evidence to work verification."
@@ -20308,9 +20379,29 @@
           "path": "docs/research/package-subsystem-ports-20261006/implementation-plans/README.md",
           "revision": "fdb059c634c32c83760f35dd9175f49d9821762d",
           "scope": "Historical accepted/narrow evidence and current source as qualified in reason; no new execution."
+        },
+        {
+          "path": "packages/work-kernel/package.json",
+          "revision": "ede59d051",
+          "scope": "Read-only current-source observation and retained selected acceptance; no new full product qualification."
+        },
+        {
+          "path": "packages/work-kernel/scripts/stage-recovery-wasm.mjs",
+          "revision": "ede59d051",
+          "scope": "Read-only current-source observation and retained selected acceptance; no new full product qualification."
+        },
+        {
+          "path": "packages/work-kernel/src/distribution.ts",
+          "revision": "ede59d051",
+          "scope": "Read-only current-source observation and retained selected acceptance; no new full product qualification."
+        },
+        {
+          "path": "packages/cloudflare/src/deploy/package-assets.ts",
+          "revision": "ede59d051",
+          "scope": "Read-only current-source observation and retained selected acceptance; no new full product qualification."
         }
       ],
-      "reason": "Work-kernel Cargo currently builds a VERSION-only skeleton and no generated work binding/loader/assets exist.",
+      "reason": "Work now has registered Rust decisions, an explicit build:wasm recovery producer, staged dist/native/recovery.wasm and a distribution URL. Ordinary build:emit does not produce that binary; final requested deployment/testkit/release inventory coverage is not established by the producer or accepted injected recovery pilot.",
       "assessment_details": {
         "plan": "shared",
         "parent": "ports/shared/C04",
@@ -20363,7 +20454,7 @@
       "old_manifest_status": null,
       "auxiliary": false,
       "execution_authorized_by_this_list": false,
-      "source_state_annotation": null
+      "source_state_annotation": "2026-10-18 source reconciliation at ede59d051; see RUST-PORT-START-HERE.md#current-execution-view--2026-10-18. Partial records credit selected components only; no original full gate or hold is released."
     },
     {
       "id": "ports:C04.preparation-join",
@@ -22603,11 +22694,11 @@
       "title": "Compose package TS façade and legacy row wrappers",
       "source_path": "docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.tasks.json",
       "source_manifest": "docs/ideal-filetree-plan/finished-product/tasks.json",
-      "status": "not_started",
+      "status": "partial",
       "disposition": "REQUIRED",
       "phase": "work",
       "remaining_actions": [
-        "Assemble TS facade/profiles/backend entry and exact work/state wrappers, preserving classes/messages/cloning/pending/synchronous shapes; prove installed exports and leaf/consumer conformance."
+        "Reuse the existing selected recovery facade and accepted consumer. Assemble only remaining family profiles/work-state wrappers under original class/message/cloning/pending/synchronous contracts; qualify the required installed exports without importing full work/state/test-loader/Node-crypto authority."
       ],
       "original_actions": [],
       "original_acceptance": [
@@ -22699,9 +22790,24 @@
           "path": "docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.md",
           "revision": "fdb059c634c32c83760f35dd9175f49d9821762d",
           "scope": "Historical accepted/narrow evidence and current source as qualified in reason; no new execution."
+        },
+        {
+          "path": "packages/work-kernel/src/index.ts",
+          "revision": "ede59d051",
+          "scope": "Read-only current-source observation and retained selected acceptance; no new full product qualification."
+        },
+        {
+          "path": "packages/work-kernel/bindings/recovery-planner.ts",
+          "revision": "ede59d051",
+          "scope": "Read-only current-source observation and retained selected acceptance; no new full product qualification."
+        },
+        {
+          "path": "docs/research/package-library-audit-20261006/repair-queue/queue.json",
+          "revision": "ede59d051",
+          "scope": "Read-only current-source observation and retained selected acceptance; no new full product qualification."
         }
       ],
-      "reason": "Public package entry exports VERSION/facts only; prepared/profile/backend façade and work/state legacy row wrappers are not joined to decision leaf.",
+      "reason": "Public entry now exports createRecoveryPlanner with explicit TS/Wasm startup selection and selected recovery types, alongside facts. Accepted TECH-W03 proves the selected durable consumer. Other family facades and exact work/state row wrappers remain unjoined at this original gate.",
       "assessment_details": {
         "plan": "work-transitions",
         "parent": "ports/work-transitions/W02",
@@ -22773,7 +22879,7 @@
       "old_manifest_status": null,
       "auxiliary": false,
       "execution_authorized_by_this_list": false,
-      "source_state_annotation": null
+      "source_state_annotation": "2026-10-18 source reconciliation at ede59d051; see RUST-PORT-START-HERE.md#current-execution-view--2026-10-18. Selected recovery credited only; original full gate and all holds remain."
     },
     {
       "id": "ports:W03.1",
@@ -23007,11 +23113,11 @@
       "title": "Extract demand-ordered legacy host shells and trace tests",
       "source_path": "docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.tasks.json",
       "source_manifest": "docs/ideal-filetree-plan/finished-product/tasks.json",
-      "status": "not_started",
+      "status": "partial",
       "disposition": "REQUIRED",
       "phase": "work",
       "remaining_actions": [
-        "Extract and prove exact demand-ordered host shells through the prepared kernel; certify actual D1/DO controlled facts, errors/identity/cloning/stop-on-error and retained arbitrary callback/getter paths."
+        "Reuse the accepted selected planRecoveryScan demand/consumer outcome. Complete only unmet other-family host-shell extraction and original getter/iterator/authority/error/evaluation traces; keep fresh host evidence and commits outside the Rust decisions."
       ],
       "original_actions": [],
       "original_acceptance": [
@@ -23131,9 +23237,19 @@
           "path": "docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.md",
           "revision": "fdb059c634c32c83760f35dd9175f49d9821762d",
           "scope": "Historical accepted/narrow evidence and current source as qualified in reason; no new execution."
+        },
+        {
+          "path": "packages/work-kernel/bindings/recovery-planner.ts",
+          "revision": "ede59d051",
+          "scope": "Read-only current-source observation and retained selected acceptance; no new full product qualification."
+        },
+        {
+          "path": "docs/research/package-library-audit-20261006/repair-queue/queue.json",
+          "revision": "ede59d051",
+          "scope": "Read-only current-source observation and retained selected acceptance; no new full product qualification."
         }
       ],
-      "reason": "Original host shells and unrelated accepted TS workflows remain, but prepared kernel demand extraction/closed producer provenance and full legacy-vs-prepared trace proof are absent.",
+      "reason": "The selected recovery facade implements demand-ordered host interaction, and accepted TECH-W03 exercises actual dispatcher.recover/runRecoverySweep using TS and Wasm. Other family extraction and full original trace domains remain unfinished.",
       "assessment_details": {
         "plan": "work-transitions",
         "parent": "ports/work-transitions/W03",
@@ -23213,7 +23329,7 @@
       "old_manifest_status": null,
       "auxiliary": false,
       "execution_authorized_by_this_list": false,
-      "source_state_annotation": null
+      "source_state_annotation": "2026-10-18 source reconciliation at ede59d051; see RUST-PORT-START-HERE.md#current-execution-view--2026-10-18. Partial records credit selected components only; no original full gate or hold is released."
     },
     {
       "id": "ports:W03.4",
@@ -23223,11 +23339,11 @@
       "title": "Verify closed-fact provenance and prepared-vs-legacy traces",
       "source_path": "docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.tasks.json",
       "source_manifest": "docs/ideal-filetree-plan/finished-product/tasks.json",
-      "status": "not_started",
+      "status": "partial",
       "disposition": "REQUIRED",
       "phase": "work",
       "remaining_actions": [
-        "Extract and prove exact demand-ordered host shells through the prepared kernel; certify actual D1/DO controlled facts, errors/identity/cloning/stop-on-error and retained arbitrary callback/getter paths."
+        "Credit accepted selected recovery once; finish only missing family-specific controlled producer provenance and prepared/legacy identity/clone/failure/demand traces under the original contract. No arbitrary object or annotation becomes inert by inspection."
       ],
       "original_actions": [],
       "original_acceptance": [
@@ -23292,9 +23408,24 @@
           "path": "docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.md",
           "revision": "fdb059c634c32c83760f35dd9175f49d9821762d",
           "scope": "Historical accepted/narrow evidence and current source as qualified in reason; no new execution."
+        },
+        {
+          "path": "packages/work-kernel/bindings/recovery-planner.ts",
+          "revision": "ede59d051",
+          "scope": "Read-only current-source observation and retained selected acceptance; no new full product qualification."
+        },
+        {
+          "path": "packages/cloudflare/src/runtime/bound-images-durable.test.ts",
+          "revision": "ede59d051",
+          "scope": "Read-only current-source observation and retained selected acceptance; no new full product qualification."
+        },
+        {
+          "path": "docs/research/package-library-audit-20261006/repair-queue/queue.json",
+          "revision": "ede59d051",
+          "scope": "Read-only current-source observation and retained selected acceptance; no new full product qualification."
         }
       ],
-      "reason": "Original host shells and unrelated accepted TS workflows remain, but prepared kernel demand extraction/closed producer provenance and full legacy-vs-prepared trace proof are absent.",
+      "reason": "Selected recovery actual durable producer/consumer behavior is accepted under TECH-W03; the generic claim that all prepared provenance and demand extraction is absent is superseded at that scope. Remaining families and full original closed-fact domains are not qualified by that acceptance.",
       "assessment_details": {
         "plan": "work-transitions",
         "parent": "ports/work-transitions/W03",
@@ -23333,7 +23464,7 @@
       "old_manifest_status": null,
       "auxiliary": false,
       "execution_authorized_by_this_list": false,
-      "source_state_annotation": null
+      "source_state_annotation": "2026-10-18 source reconciliation at ede59d051; see RUST-PORT-START-HERE.md#current-execution-view--2026-10-18. Partial records credit selected components only; no original full gate or hold is released."
     },
     {
       "id": "ports:W04.1",
@@ -23927,12 +24058,11 @@
       "title": "Build pinned package-specific Wasm adapter and bootstrap",
       "source_path": "docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.tasks.json",
       "source_manifest": "docs/ideal-filetree-plan/finished-product/tasks.json",
-      "status": "not_started",
+      "status": "partial",
       "disposition": "REQUIRED",
       "phase": "work",
       "remaining_actions": [
-        "Implement and prove: Implement pinned build:wasm/glue toolchain against Cargo binding version; compile wasm32 target and use one synchronously callable initialized instance.",
-        "Implement and prove: Select TS/Rust before evaluating operations; selected Rust missing/corrupt/ABI/init errors fail visibly, no lazy call bootstrap or fallback rerun."
+        "Reuse the existing recovery Wasm producer and startup facade; complete only unmet original pinning/profile/startup/failure obligations for claimed remaining consumers. Keep missing/corrupt/wrong-ABI refusal and no lazy bootstrap or semantic fallback."
       ],
       "original_actions": [],
       "original_acceptance": [
@@ -24004,9 +24134,24 @@
           "path": "docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.md",
           "revision": "fdb059c634c32c83760f35dd9175f49d9821762d",
           "scope": "Historical accepted/narrow evidence and current source as qualified in reason; no new execution."
+        },
+        {
+          "path": "packages/work-kernel/package.json",
+          "revision": "ede59d051",
+          "scope": "Read-only current-source observation and retained selected acceptance; no new full product qualification."
+        },
+        {
+          "path": "packages/work-kernel/bindings/recovery-planner.ts",
+          "revision": "ede59d051",
+          "scope": "Read-only current-source observation and retained selected acceptance; no new full product qualification."
+        },
+        {
+          "path": "packages/work-kernel/rust/recovery_scan_abi.rs",
+          "revision": "ede59d051",
+          "scope": "Read-only current-source observation and retained selected acceptance; no new full product qualification."
         }
       ],
-      "reason": "No task-specific implementation/completion evidence fulfilling this exact acceptance was found. Existing legacy functionality and local tests do not certify the proposed port.",
+      "reason": "Explicit wasm32 recovery producer, synchronous startup-selected TS/Wasm facade, ABI checks and disposal exist. Accepted selected durable recovery proves actual use. Full original supported-family/toolchain/loader coverage is not closed.",
       "assessment_details": {
         "plan": "work-transitions",
         "parent": "ports/work-transitions/W05",
@@ -24071,7 +24216,7 @@
       "old_manifest_status": null,
       "auxiliary": false,
       "execution_authorized_by_this_list": false,
-      "source_state_annotation": null
+      "source_state_annotation": "2026-10-18 source reconciliation at ede59d051; see RUST-PORT-START-HERE.md#current-execution-view--2026-10-18. Partial records credit selected components only; no original full gate or hold is released."
     },
     {
       "id": "ports:W05.2",
@@ -24169,12 +24314,11 @@
       "title": "Verify actual staged workerd binary and loader failures",
       "source_path": "docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.tasks.json",
       "source_manifest": "docs/ideal-filetree-plan/finished-product/tasks.json",
-      "status": "not_started",
+      "status": "partial",
       "disposition": "REQUIRED",
       "phase": "work",
       "remaining_actions": [
-        "Implement and prove: Run package build:wasm and cargo --features wasm-bindings plus owning C04 actual module-map workerd checks; use non-UTF8 bytes, compare written hashes, missing/corrupt/wrong ABI and cold/warm bootstrap.",
-        "Implement and prove: Prove one instance across bundled/vendor consumer paths and text-only legacy byte parity; installed package acceptance does not rely on source checkout imports."
+        "Reuse accepted actual selected recovery workerd execution; verify only remaining final package/module-map asset identity, installed resolution, one-instance and missing/corrupt/wrong-ABI/cold-warm obligations at the original claimed scopes."
       ],
       "original_actions": [],
       "original_acceptance": [
@@ -24217,9 +24361,19 @@
           "path": "docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.md",
           "revision": "fdb059c634c32c83760f35dd9175f49d9821762d",
           "scope": "Historical accepted/narrow evidence and current source as qualified in reason; no new execution."
+        },
+        {
+          "path": "packages/cloudflare/src/runtime/bound-images-durable.test.ts",
+          "revision": "ede59d051",
+          "scope": "Read-only current-source observation and retained selected acceptance; no new full product qualification."
+        },
+        {
+          "path": "docs/research/package-library-audit-20261006/repair-queue/queue.json",
+          "revision": "ede59d051",
+          "scope": "Read-only current-source observation and retained selected acceptance; no new full product qualification."
         }
       ],
-      "reason": "No task-specific implementation/completion evidence fulfilling this exact acceptance was found. Existing legacy functionality and local tests do not certify the proposed port.",
+      "reason": "Accepted TECH-W03 includes actual durable Wasm recovery execution through the real runtime seam. That selected pilot does not establish all final owning deployment module-map/hash, outside-checkout, cold/warm and loader failure obligations of this gate.",
       "assessment_details": {
         "plan": "work-transitions",
         "parent": "ports/work-transitions/W05",
@@ -24257,7 +24411,7 @@
       "old_manifest_status": null,
       "auxiliary": false,
       "execution_authorized_by_this_list": false,
-      "source_state_annotation": null
+      "source_state_annotation": "2026-10-18 source reconciliation at ede59d051; see RUST-PORT-START-HERE.md#current-execution-view--2026-10-18. Partial records credit selected components only; no original full gate or hold is released."
     },
     {
       "id": "ports:W06.1",
@@ -24402,12 +24556,11 @@
       "title": "Join canonical Cloudflare runtime through existing producer seams",
       "source_path": "docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.tasks.json",
       "source_manifest": "docs/ideal-filetree-plan/finished-product/tasks.json",
-      "status": "not_started",
+      "status": "partial",
       "disposition": "REQUIRED",
       "phase": "work",
       "remaining_actions": [
-        "Implement and prove: Single integrator replaces only matching decode/outcome/staleness/decision mechanisms in real F7/recovery consumer; fresh guard/authority/evidence/reloads/claim and child-unit commits remain TS.",
-        "Implement and prove: Exercise actual bound binary with canonical source+intent/claim/record/progress/recovery/replay flow; membership cutoff does not grant authority and no terminal child is reinvoked."
+        "Reuse the accepted selected planRecoveryScan runtime integration and durable outcome. Complete only remaining original family/runtime mechanisms and preserve fresh authority/evidence, reloads, membership, claim/child units and host commit order; keep W06.runtimehandoff for affected future edits."
       ],
       "original_actions": [],
       "original_acceptance": [
@@ -24472,9 +24625,24 @@
           "path": "docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.md",
           "revision": "fdb059c634c32c83760f35dd9175f49d9821762d",
           "scope": "Historical accepted/narrow evidence and current source as qualified in reason; no new execution."
+        },
+        {
+          "path": "packages/cloudflare/src/runtime/invoke.ts",
+          "revision": "ede59d051",
+          "scope": "Read-only current-source observation and retained selected acceptance; no new full product qualification."
+        },
+        {
+          "path": "packages/cloudflare/src/runtime/bound-images-durable.test.ts",
+          "revision": "ede59d051",
+          "scope": "Read-only current-source observation and retained selected acceptance; no new full product qualification."
+        },
+        {
+          "path": "docs/research/package-library-audit-20261006/repair-queue/queue.json",
+          "revision": "ede59d051",
+          "scope": "Read-only current-source observation and retained selected acceptance; no new full product qualification."
         }
       ],
-      "reason": "No task-specific implementation/completion evidence fulfilling this exact acceptance was found. Existing legacy functionality and local tests do not certify the proposed port.",
+      "reason": "The real canonical recovery path invokes an injected planner before fenced registry actions. TECH-W03 at 6fe652c4b932e8c095ab8c5c8fdedee9de6bd537 accepts selected TS/Wasm durable recovery with 26 planner calls each. Other matching runtime families remain separate.",
       "assessment_details": {
         "plan": "work-transitions",
         "parent": "ports/work-transitions/W06",
@@ -24511,7 +24679,7 @@
       "old_manifest_status": null,
       "auxiliary": false,
       "execution_authorized_by_this_list": false,
-      "source_state_annotation": null
+      "source_state_annotation": "2026-10-18 source reconciliation at ede59d051; see RUST-PORT-START-HERE.md#current-execution-view--2026-10-18. Partial records credit selected components only; no original full gate or hold is released."
     },
     {
       "id": "ports:W06.runtimehandoff",
@@ -25968,13 +26136,11 @@
       "title": "Deliver and initialize the actual Wasm consumer — completion gate",
       "source_path": "docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.tasks.json",
       "source_manifest": "docs/ideal-filetree-plan/finished-product/tasks.json",
-      "status": "not_started",
+      "status": "partial",
       "disposition": "REQUIRED",
       "phase": "gate",
       "remaining_actions": [
-        "Review all exact prerequisite tasks and the preserved parent gate contract in work-transitions.md; retain explicit supported/retained/deferred scope.",
-        "All child tasks completed with their exact source, commands/results and pass/retain-TS evidence.",
-        "Parent gate retains the detailed deliverable/acceptance contract below; no incomplete supported-domain migration or test-only consumer claim."
+        "Consume accepted recovery producer/use and complete only missing W05 child delivery/installed/loader outcomes at their unchanged scope. Do not recreate the producer or rerun accepted recovery merely to count this parent."
       ],
       "original_actions": [],
       "original_acceptance": [
@@ -26015,9 +26181,19 @@
           "path": "docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.md",
           "revision": "fdb059c634c32c83760f35dd9175f49d9821762d",
           "scope": "Historical accepted/narrow evidence and current source as qualified in reason; no new execution."
+        },
+        {
+          "path": "packages/work-kernel/package.json",
+          "revision": "ede59d051",
+          "scope": "Read-only current-source observation and retained selected acceptance; no new full product qualification."
+        },
+        {
+          "path": "docs/research/package-library-audit-20261006/repair-queue/queue.json",
+          "revision": "ede59d051",
+          "scope": "Read-only current-source observation and retained selected acceptance; no new full product qualification."
         }
       ],
-      "reason": "No task-specific implementation/completion evidence fulfilling this exact acceptance was found. Existing legacy functionality and local tests do not certify the proposed port.",
+      "reason": "Selected recovery now has a real producer/facade and accepted durable Wasm use. Broad W05 delivery/installed/loader obligations remain open; the full port gate is not completed by the selected acceptance.",
       "assessment_details": {
         "plan": "work-transitions",
         "parent": null,
@@ -26050,7 +26226,7 @@
       "old_manifest_status": null,
       "auxiliary": false,
       "execution_authorized_by_this_list": false,
-      "source_state_annotation": null
+      "source_state_annotation": "2026-10-18 source reconciliation at ede59d051; see RUST-PORT-START-HERE.md#current-execution-view--2026-10-18. Partial records credit selected components only; no original full gate or hold is released."
     },
     {
       "id": "ports:W06",
@@ -26060,13 +26236,11 @@
       "title": "Pilot state staging through actual Cloudflare durable paths — completion gate",
       "source_path": "docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.tasks.json",
       "source_manifest": "docs/ideal-filetree-plan/finished-product/tasks.json",
-      "status": "not_started",
+      "status": "partial",
       "disposition": "REQUIRED",
       "phase": "gate",
       "remaining_actions": [
-        "Review all exact prerequisite tasks and the preserved parent gate contract in work-transitions.md; retain explicit supported/retained/deferred scope.",
-        "All child tasks completed with their exact source, commands/results and pass/retain-TS evidence.",
-        "Parent gate retains the detailed deliverable/acceptance contract below; no incomplete supported-domain migration or test-only consumer claim."
+        "Credit selected recovery acceptance; finish only original unmet W06 child outcomes and source handoffs. Preserve live authority, replay/admission order and fenced atomic host commits. No broader scheduler or whole Work acceptance."
       ],
       "original_actions": [],
       "original_acceptance": [
@@ -26107,9 +26281,19 @@
           "path": "docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.md",
           "revision": "fdb059c634c32c83760f35dd9175f49d9821762d",
           "scope": "Historical accepted/narrow evidence and current source as qualified in reason; no new execution."
+        },
+        {
+          "path": "packages/cloudflare/src/runtime/invoke.ts",
+          "revision": "ede59d051",
+          "scope": "Read-only current-source observation and retained selected acceptance; no new full product qualification."
+        },
+        {
+          "path": "docs/research/package-library-audit-20261006/repair-queue/queue.json",
+          "revision": "ede59d051",
+          "scope": "Read-only current-source observation and retained selected acceptance; no new full product qualification."
         }
       ],
-      "reason": "No task-specific implementation/completion evidence fulfilling this exact acceptance was found. Existing legacy functionality and local tests do not certify the proposed port.",
+      "reason": "Selected recovery integration and actual durable TS/Wasm outcome are accepted. Full state staging, other family/runtime and final post-validation source-stable D1/DO race/crash/restart obligations remain open.",
       "assessment_details": {
         "plan": "work-transitions",
         "parent": null,
@@ -26143,7 +26327,7 @@
       "old_manifest_status": null,
       "auxiliary": false,
       "execution_authorized_by_this_list": false,
-      "source_state_annotation": null
+      "source_state_annotation": "2026-10-18 source reconciliation at ede59d051; see RUST-PORT-START-HERE.md#current-execution-view--2026-10-18. Partial records credit selected components only; no original full gate or hold is released."
     },
     {
       "id": "ports:W07",
@@ -34807,6 +34991,44 @@
       "global_source_verification_pin_unchanged": true,
       "other_statuses_and_all_dependencies_preserved": true,
       "shared_filetree_and_DECISIONS_handoff_pending": true
+    },
+    {
+      "run": "docs/implementation/RUST-PORT-START-HERE.md#current-execution-view--2026-10-18",
+      "date": "2026-10-18",
+      "source_observation_commit": "ede59d051",
+      "changed_status_ids": [
+        "ports:W03.3",
+        "ports:W03.4",
+        "ports:W05.1",
+        "ports:W05.3",
+        "ports:W06.2",
+        "ports:W05",
+        "ports:W06",
+        "ports:W02.5"
+      ],
+      "updated_observation_ids": [
+        "ports:A07.3",
+        "ports:V02.6",
+        "ports:V03.3",
+        "ports:V08.1",
+        "ports:V08",
+        "ports:C04.graph",
+        "ports:C04.work-assets",
+        "ports:W03.3",
+        "ports:W03.4",
+        "ports:W05.1",
+        "ports:W05.3",
+        "ports:W06.2",
+        "ports:W05",
+        "ports:W06",
+        "ports:W02.5"
+      ],
+      "global_source_verification_pin_unchanged": true,
+      "other_statuses_and_all_dependencies_preserved": true,
+      "full_port_gates_closed": false,
+      "holds_released": false
     }
-  ]
+  ],
+  "reconciled_at": "2026-10-18",
+  "current_execution_reference": "docs/implementation/RUST-PORT-START-HERE.md#current-execution-view--2026-10-18"
 }

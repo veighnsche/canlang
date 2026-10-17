@@ -1,6 +1,6 @@
 # Rust ports and shared delivery gates
 
-Reconciled against main `7fd8c6b` on 2026-10-06. [Index](../REMAINING-WORK.md) · [Exact ledger](tasks.json).
+Baseline: main `7fd8c6b` on 2026-10-06; scoped Rust source reconciliation at `ede59d051` on 2026-10-18. Use the [single current execution view](../RUST-PORT-START-HERE.md#current-execution-view--2026-10-18) for implementation credit, priorities and holds. Baseline counts are not a current completion percentage. [Index](../REMAINING-WORK.md) · [Exact ledger](tasks.json).
 
 Only unresolved tasks are listed below. Completed narrow tasks are retained in the exact ledger and are not assigned again. All workers remain stopped; D’s port remains human-held. Conditional/deferred rows are separate from selected required work.
 
@@ -577,13 +577,13 @@ Only unresolved tasks are listed below. Completed narrow tasks are retained in t
 
 ### A07.3 — Join full semantic entries and actual-adapter differential
 
-- [ ] **Partly implemented / incomplete acceptance** · `ports:A07.3` · REQUIRED
-- Join full exact operation registry and lossless error/carrier transport; run complete vectors through native and actual Node/Bun/workerd delivered binding with version/asset failures.
+- [ ] **Partially implemented** · `ports:A07.3` · REQUIRED
+- Complete the matching TS comparison registry and admitted carrier/error/profile parity against existing Rust dispatch, then qualify original full claimed vectors through actual delivered adapters. Keep the selected int/ASCII source/adoption HOLD and explicit UTF-16/truncation, signed-zero and observable-object exclusions.
 - Declared dependencies: `ports:A03`, `ports:A04`, `ports:A05`, `ports:A06`, `ports:A07.foundation`, `ports:V03.5`. Narrow released interfaces may permit a scoped slice before a broad parent closes.
 - Close when: Full semantic vectors and asset/version/error checks pass through real binding and actual host delivery.
 - Defining-owner paths from the old plan: `packages/values/semantics/src/lib.rs`, `packages/values/bindings/src/lib.rs`, `packages/values/bindings/src/exact.rs`, `packages/values/bindings/generated/`, `packages/values/semantics/examples/conformance.rs`, `docs/research/package-subsystem-ports-20261006/evidence/implementation/exact-values/core/binding-parity.json`. Reconcile current owners before assigning; proposed filenames/layout are not mandatory.
 - Source: [docs/research/package-subsystem-ports-20261006/implementation-plans/exact-values.tasks.json](../../research/package-subsystem-ports-20261006/implementation-plans/exact-values.tasks.json)
-- Current basis: Native full scalar runner and real binding entry exist, but host TS operation registry is explicitly limited smoke scaffolding; no full actual-adapter/Wasm differential/delivery proof.
+- Current basis: Rust already has broad semantic operation dispatch and generated Wasm. Step9 qualified the six-operation matching TS comparison profile; public helpers still use TS. Full boundary/profile parity and actual-adapter coverage remain open.
 - Scoped evidence: [packages/values/semantics/src/lib.rs](../../../packages/values/semantics/src/lib.rs), [packages/values/bindings/src/lib.rs](../../../packages/values/bindings/src/lib.rs), [packages/values/bindings/src/exact.rs](../../../packages/values/bindings/src/exact.rs), [packages/values/bindings/generated/](../../../packages/values/bindings/generated), [packages/values/semantics/examples/conformance.rs](../../../packages/values/semantics/examples/conformance.rs), [packages/values/bindings/backend.ts](../../../packages/values/bindings/backend.ts), [docs/research/package-subsystem-ports-20261006/implementation-plans/exact-values.tasks.json](../../research/package-subsystem-ports-20261006/implementation-plans/exact-values.tasks.json), [docs/research/package-subsystem-ports-20261006/implementation-plans/exact-values.md](../../research/package-subsystem-ports-20261006/implementation-plans/exact-values.md). Exact revisions, claims and limits are retained in `tasks.json`; these links do not claim fresh execution.
 
 ### A07 — Actual binding and full native/Wasm parity complete
@@ -803,13 +803,13 @@ Only unresolved tasks are listed below. Completed narrow tasks are retained in t
 
 ### V02.6 — Wire private prepared hooks without public API drift
 
-- [ ] **Not implemented / no execution evidence** · `ports:V02.6` · REQUIRED
-- Install private genuine factory provenance and prepared validation/codec hooks without public export/signature/legacy evaluation drift; prove legacy unknown remains TS and no semantic retry.
+- [ ] **Partially implemented** · `ports:V02.6` · REQUIRED
+- Consume accepted TS factory/default/source registration components; finish only unmet protected request/plan-to-Rust admission and lifetime joins, preserving legacy evaluation order and no semantic retry. The selected TECH-V03 serving checkpoint remains partial; TECH-V04 source/adoption stays held.
 - Declared dependencies: `ports:V02.1`, `ports:V02.2`. Narrow released interfaces may permit a scoped slice before a broad parent closes.
 - Close when: A1/B2 current/facade legacy traces match; unknown/default/schema accessors observe the old evaluation order. Private prepared calls reach extracted modules while unknown callers remain TS; no semantic exception retry.
 - Defining-owner paths from the old plan: `packages/values/src/schema.ts`, `packages/values/src/wire.ts`, `packages/values/src/index.ts`, `docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-hook-review.md`. Reconcile current owners before assigning; proposed filenames/layout are not mandatory.
 - Source: [docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json](../../research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json)
-- Current basis: normalizeSchema/wire/index have no private prepared provenance/hook join; handoff explicitly provides unapplied specification and tests mark provenance directly.
+- Current basis: Ordinary TS private cores, factory lineage, copied Date/Decimal defaults and trusted source/revision serving-plan registration exist. Current serving remains ordinary-ts-serving; protected parser/plan-to-Rust execution and complete native lifetime/profile qualification remain open.
 - Scoped evidence: [packages/values/src/schema.ts](../../../packages/values/src/schema.ts), [packages/values/src/wire.ts](../../../packages/values/src/wire.ts), [packages/values/src/index.ts](../../../packages/values/src/index.ts), [docs/research/package-subsystem-ports-20261006/evidence/input-validation/prepared-plan-handoff.md](../../research/package-subsystem-ports-20261006/evidence/input-validation/prepared-plan-handoff.md), [docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json](../../research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json), [docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.md](../../research/package-subsystem-ports-20261006/implementation-plans/input-validation.md). Exact revisions, claims and limits are retained in `tasks.json`; these links do not claim fresh execution.
 
 ### V03.1 — Define validation ABI extension and decision vectors
@@ -825,14 +825,13 @@ Only unresolved tasks are listed below. Completed narrow tasks are retained in t
 
 ### V03.3 — Create private parser token and controlled lineage
 
-- [ ] **Partly implemented / incomplete acceptance** · `ports:V03.3` · REQUIRED
-- Keep parser graph inaccessible until owned conversion, expose detached public copies and invalidate/loss-of-lineage after exposure/mutation as required.
-- Prove actual unchanged capped HTTP reader/error/BOM/cancel/body-stage lineage against owning consumer; no arbitrary object adoption.
+- [ ] **Partially implemented** · `ports:V03.3` · REQUIRED
+- Finish the actual capped HTTP parser-token-to-Rust boundary at the existing validation stage; preserve byte-cap/BOM/syntax/cancellation behavior and reject forged/lost/stale provenance. Reuse accepted frozen-graph and TS serving controls; do not reopen them or infer native authority from freezing.
 - Declared dependencies: `ports:V01`, `ports:C03.ready`, `ports:A03.foundation`. Narrow released interfaces may permit a scoped slice before a broad parent closes.
 - Close when: Forged tokens, frozen proxies, schema tags and mutated/exposed public copies cannot enter owned execution; no adopt(unknown). Malformed/empty/scalar-root JSON, byte caps/chunk cancellation, BOM and syntax errors match current host stage; forms retain their path.
 - Defining-owner paths from the old plan: `packages/values/bindings/owned-input.ts`, `packages/interfaces/src/http/limits.ts`, `packages/values/test/owned-input.test.ts`. Reconcile current owners before assigning; proposed filenames/layout are not mandatory.
 - Source: [docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json](../../research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json)
-- Current basis: Private parser-issued token and host-style decode/parse scaffold exist. Source returns the same mutable parser graph under a still-valid token; no complete protected-host confinement/detached-copy mutation acceptance proof exists. No production exposure is asserted.
+- Current basis: Parser-created containers are now frozen and parser token lineage exists; the former same-mutable-graph observation is superseded. Actual HTTP currently extracts the parser value and uses ordinary TS serving validation. A protected token-to-native consumer boundary is not yet established.
 - Scoped evidence: [packages/values/bindings/owned-input.ts](../../../packages/values/bindings/owned-input.ts), [packages/interfaces/src/http/limits.ts](../../../packages/interfaces/src/http/limits.ts), [packages/values/test/owned-input.test.ts](../../../packages/values/test/owned-input.test.ts), [packages/values/bindings/owned-input.ts:94](../../../packages/values/bindings/owned-input.ts), [packages/values/bindings/owned-input.ts:105](../../../packages/values/bindings/owned-input.ts), [docs/research/package-subsystem-ports-20261006/evidence/input-validation/v033-owned-input-20261006.json](../../research/package-subsystem-ports-20261006/evidence/input-validation/v033-owned-input-20261006.json), [docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json](../../research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json), [docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.md](../../research/package-subsystem-ports-20261006/implementation-plans/input-validation.md). Exact revisions, claims and limits are retained in `tasks.json`; these links do not claim fresh execution.
 
 ### V03.4 — Implement owner registration and generation handles
@@ -1120,14 +1119,13 @@ Only unresolved tasks are listed below. Completed narrow tasks are retained in t
 
 ### V08.1 — Install whole HTTP action at existing validation point
 
-- [ ] **Not implemented / no execution evidence** · `ports:V08.1` · REQUIRED
-- Implement and prove: A2/B4 order/status/body, body-cap/malformed JSON, top-level/action_handle, missing/unknown/bounds and HTML redisplay match.
-- Implement and prove: No Rust work before current validation point; one selected backend per request and no semantic-error retry.
+- [ ] **Not started** · `ports:V08.1` · REQUIRED
+- After the relevant interpreter/profile and protected-input release, join the actual HTTP handler at its existing validation point and satisfy the unchanged native order/status/body/error and no-retry acceptance. Reuse the accepted ordinary TS serving components.
 - Declared dependencies: `ports:V06.4`, `ports:V07.2`, `ports:V03.3`, `ports:V09.1`, `ports:C04.ready`, `ports:A07`. Narrow released interfaces may permit a scoped slice before a broad parent closes.
 - Close when: A2/B4 order/status/body, body-cap/malformed JSON, top-level/action_handle, missing/unknown/bounds and HTML redisplay match. No Rust work before current validation point; one selected backend per request and no semantic-error retry.
 - Defining-owner paths from the old plan: `packages/interfaces/src/http/operations.ts`, `packages/interfaces/test/owned-http.test.ts`. Reconcile current owners before assigning; proposed filenames/layout are not mandatory.
 - Source: [docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json](../../research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json)
-- Current basis: No task-specific implementation/completion evidence fulfilling this exact acceptance was found. Existing legacy functionality and local tests do not certify the proposed port.
+- Current basis: Actual ordinary TS HTTP serving has trusted plan catalog/source fences and existing compiled installed HTTP+State-memory evidence. No Rust validation operation exists, so the native handler integration remains unstarted; ordinary TS progress is not native adoption.
 - Scoped evidence: [packages/interfaces/src/http/operations.ts](../../../packages/interfaces/src/http/operations.ts), [packages/interfaces/test/owned-http.test.ts](../../../packages/interfaces/test/owned-http.test.ts), [docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json](../../research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json), [docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.md](../../research/package-subsystem-ports-20261006/implementation-plans/input-validation.md). Exact revisions, claims and limits are retained in `tasks.json`; these links do not claim fresh execution.
 
 ### V08.2 — Prove actual handler package consumer in workerd
@@ -1387,13 +1385,12 @@ Only unresolved tasks are listed below. Completed narrow tasks are retained in t
 
 ### V08 — Actual HTTP package consumer and adoption ledger reviewed
 
-- [ ] **Not implemented / no execution evidence** · `ports:V08` · REQUIRED
-- Review all exact prerequisite tasks and the preserved parent gate contract in input-validation.md; retain explicit supported/retained/deferred scope.
-- B4 actual handler/canonical invocation/Wasm/workerd proved; accepted join requires V08.4/V08.5 or default 501 remains explicitly blocked.
+- [ ] **Not started** · `ports:V08` · REQUIRED
+- Consume current ordinary TS serving prerequisites, then close only the original native HTTP consumer/installed/workerd and exact prerequisite outcomes. Keep the selected source/adoption hold; do not count the TS route or structural transport scaffold as Rust validation.
 - Declared dependencies: `ports:V08.1`, `ports:V08.2`, `ports:V08.3`, `ports:V08.6`. Narrow released interfaces may permit a scoped slice before a broad parent closes.
 - Close when: B4 actual handler/canonical invocation/Wasm/workerd proved; accepted join requires V08.4/V08.5 or default 501 remains explicitly blocked.
 - Source: [docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json](../../research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json)
-- Current basis: No task-specific implementation/completion evidence fulfilling this exact acceptance was found. Existing legacy functionality and local tests do not certify the proposed port.
+- Current basis: The owning HTTP route now has ordinary TS serving/catalog implementation; blanket current-501 absence claims are historical. The original actual Rust handler/Wasm/workerd adoption gate remains unmet.
 - Scoped evidence: [docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json](../../research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json), [docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.md](../../research/package-subsystem-ports-20261006/implementation-plans/input-validation.md). Exact revisions, claims and limits are retained in `tasks.json`; these links do not claim fresh execution.
 
 ### V09 — Canonical owned-state sequencing and durable proof reviewed
@@ -1517,13 +1514,13 @@ Only unresolved tasks are listed below. Completed narrow tasks are retained in t
 
 ### C04.graph — Land root and consumer dependency/build graph
 
-- [ ] **Partly implemented / incomplete acceptance** · `ports:C04.graph` · REQUIRED
-- Complete exact state/Cloudflare/stdlib/testkit dependency/build/lock graph requested by actual consumer adapters; prove installed resolution and absence of state-to-full-work cycle.
+- [ ] **Partially implemented** · `ports:C04.graph` · REQUIRED
+- Fulfil only exact remaining dependency/export/build requests from actual consuming adapters; reuse existing Cloudflare dependency and build machinery, prove the claimed installed graph and retain no state-to-full-work cycle.
 - Declared dependencies: `ports:W02.foundation`, `ports:C04.asset`. Narrow released interfaces may permit a scoped slice before a broad parent closes.
 - Close when: Root/consumer build and lockfile graph is executable, no state→full-work cycle, and no compiler Cargo workspace is introduced. This gate does not certify final work assets.
 - Defining-owner paths from the old plan: `package.json`, `bun.lock`, `packages/cloudflare/package.json`, `packages/state/package.json`, `packages/stdlib/package.json`, `packages/testkit/package.json`. Reconcile current owners before assigning; proposed filenames/layout are not mandatory.
 - Source: [docs/research/package-subsystem-ports-20261006/implementation-plans/shared.tasks.json](../../research/package-subsystem-ports-20261006/implementation-plans/shared.tasks.json)
-- Current basis: Root workspace/lockfile/build order register work-kernel and full combined build passes, but consumer manifests do not yet declare a work-kernel dependency; semantic imports are unjoined.
+- Current basis: Root build/export machinery exists and Cloudflare now declares @canlang/work-kernel. State/stdlib/testkit do not declare that dependency; add it only if an actual released consumer needs it. Full required installed consumer/asset closure remains separate.
 - Scoped evidence: [package.json](../../../package.json), [bun.lock](../../../bun.lock), [packages/cloudflare/package.json](../../../packages/cloudflare/package.json), [packages/state/package.json](../../../packages/state/package.json), [packages/stdlib/package.json](../../../packages/stdlib/package.json), [packages/testkit/package.json](../../../packages/testkit/package.json), [docs/ideal-filetree-plan/finished-product/consolidation-review.json](../../ideal-filetree-plan/finished-product/consolidation-review.json), [docs/research/package-subsystem-ports-20261006/implementation-plans/shared.tasks.json](../../research/package-subsystem-ports-20261006/implementation-plans/shared.tasks.json), [docs/research/package-subsystem-ports-20261006/implementation-plans/README.md](../../research/package-subsystem-ports-20261006/implementation-plans/README.md). Exact revisions, claims and limits are retained in `tasks.json`; these links do not claim fresh execution.
 
 ### C04.values-assets — Fulfil actual values binding and vendor inventory
@@ -1540,13 +1537,13 @@ Only unresolved tasks are listed below. Completed narrow tasks are retained in t
 
 ### C04.work-assets — Fulfil work generated asset and package request
 
-- [ ] **Not implemented / no execution evidence** · `ports:C04.work-assets` · REQUIRED
-- Fulfil W05.2 exact package-specific generated binary/glue/vendor/import and release inventory after actual W05.1 assembly.
+- [ ] **Not started** · `ports:C04.work-assets` · REQUIRED
+- Consume the existing recovery producer and exact W05.2 request, fulfil only missing required package/deploy/testkit/release inventory and installed resolution; preserve the original W05.4/W05.3 consumer handoffs.
 - Declared dependencies: `ports:W05.2`, `ports:C04.graph`, `ports:C04.ready`. Narrow released interfaces may permit a scoped slice before a broad parent closes.
 - Close when: Actual work binary and package are in built runtime/deploy/testkit inventory; W05.4/W05.3 certify installed package and workerd afterward.
 - Defining-owner paths from the old plan: `packages/cloudflare/src/deploy/bundle.ts`, `packages/cloudflare/src/dev/local-run.ts`, `packages/testkit/src/scopes/local.ts`, `packages/cloudflare/src/release/stamp.ts`, `packages/cloudflare/src/release/manifest.ts`. Reconcile current owners before assigning; proposed filenames/layout are not mandatory.
 - Source: [docs/research/package-subsystem-ports-20261006/implementation-plans/shared.tasks.json](../../research/package-subsystem-ports-20261006/implementation-plans/shared.tasks.json)
-- Current basis: Work-kernel Cargo currently builds a VERSION-only skeleton and no generated work binding/loader/assets exist.
+- Current basis: Work now has registered Rust decisions, an explicit build:wasm recovery producer, staged dist/native/recovery.wasm and a distribution URL. Ordinary build:emit does not produce that binary; final requested deployment/testkit/release inventory coverage is not established by the producer or accepted injected recovery pilot.
 - Scoped evidence: [packages/cloudflare/src/deploy/bundle.ts](../../../packages/cloudflare/src/deploy/bundle.ts), [packages/cloudflare/src/dev/local-run.ts](../../../packages/cloudflare/src/dev/local-run.ts), [packages/testkit/src/scopes/local.ts](../../../packages/testkit/src/scopes/local.ts), [packages/cloudflare/src/release/stamp.ts](../../../packages/cloudflare/src/release/stamp.ts), [packages/cloudflare/src/release/manifest.ts](../../../packages/cloudflare/src/release/manifest.ts), [packages/work-kernel/Cargo.toml](../../../packages/work-kernel/Cargo.toml), [packages/work-kernel/rust/lib.rs](../../../packages/work-kernel/rust/lib.rs), [packages/work-kernel/src/index.ts](../../../packages/work-kernel/src/index.ts), [docs/research/package-subsystem-ports-20261006/implementation-plans/shared.tasks.json](../../research/package-subsystem-ports-20261006/implementation-plans/shared.tasks.json), [docs/research/package-subsystem-ports-20261006/implementation-plans/README.md](../../research/package-subsystem-ports-20261006/implementation-plans/README.md). Exact revisions, claims and limits are retained in `tasks.json`; these links do not claim fresh execution.
 
 ### C04.native-release — Land native command, stamp and dist inventory
@@ -1659,13 +1656,13 @@ Only unresolved tasks are listed below. Completed narrow tasks are retained in t
 
 ### W02.5 — Compose package TS façade and legacy row wrappers
 
-- [ ] **Not implemented / no execution evidence** · `ports:W02.5` · REQUIRED
-- Assemble TS facade/profiles/backend entry and exact work/state wrappers, preserving classes/messages/cloning/pending/synchronous shapes; prove installed exports and leaf/consumer conformance.
+- [ ] **Partially implemented** · `ports:W02.5` · REQUIRED
+- Reuse the existing selected recovery facade and accepted consumer. Assemble only remaining family profiles/work-state wrappers under original class/message/cloning/pending/synchronous contracts; qualify the required installed exports without importing full work/state/test-loader/Node-crypto authority.
 - Declared dependencies: `ports:W02.2`, `ports:W02.3`, `ports:W02.4`, `ports:C04.graph`. Narrow released interfaces may permit a scoped slice before a broad parent closes.
 - Close when: Single integrator assembles entries and profiles; preserve work/state/runtime classes/messages, pending pin policy, row clone/metadata and same exported synchronous shapes. Build/typecheck leaf and consumers; installed exports resolve without full work/state/test-loader/Node-crypto runtime imports. Run proposed conformance glob and baseline suites.
 - Defining-owner paths from the old plan: `packages/work-kernel/src/index.ts`, `packages/work-kernel/src/prepared.ts`, `packages/work-kernel/src/profiles.ts`, `packages/work-kernel/src/backend.ts`, `packages/work-kernel/conformance/transitions.test.ts`, `packages/work/src/kernel/tables.ts`, `packages/state/src/fanout/tables.ts`, `packages/state/src/fanout/outcome.ts`, `packages/state/src/receipt/tables.ts`. Reconcile current owners before assigning; proposed filenames/layout are not mandatory.
 - Source: [docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.tasks.json](../../research/package-subsystem-ports-20261006/implementation-plans/work-transitions.tasks.json)
-- Current basis: Public package entry exports VERSION/facts only; prepared/profile/backend façade and work/state legacy row wrappers are not joined to decision leaf.
+- Current basis: Public entry now exports createRecoveryPlanner with explicit TS/Wasm startup selection and selected recovery types, alongside facts. Accepted TECH-W03 proves the selected durable consumer. Other family facades and exact work/state row wrappers remain unjoined at this original gate.
 - Scoped evidence: [packages/work-kernel/src/index.ts](../../../packages/work-kernel/src/index.ts), [packages/work/src/kernel/tables.ts](../../../packages/work/src/kernel/tables.ts), [packages/state/src/fanout/tables.ts](../../../packages/state/src/fanout/tables.ts), [packages/state/src/fanout/outcome.ts](../../../packages/state/src/fanout/outcome.ts), [packages/state/src/receipt/tables.ts](../../../packages/state/src/receipt/tables.ts), [docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.tasks.json](../../research/package-subsystem-ports-20261006/implementation-plans/work-transitions.tasks.json), [docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.md](../../research/package-subsystem-ports-20261006/implementation-plans/work-transitions.md). Exact revisions, claims and limits are retained in `tasks.json`; these links do not claim fresh execution.
 
 ### W03.1 — Freeze ordered facts and policy-specific ABI types
@@ -1696,24 +1693,24 @@ Only unresolved tasks are listed below. Completed narrow tasks are retained in t
 
 ### W03.3 — Extract demand-ordered legacy host shells and trace tests
 
-- [ ] **Not implemented / no execution evidence** · `ports:W03.3` · REQUIRED
-- Extract and prove exact demand-ordered host shells through the prepared kernel; certify actual D1/DO controlled facts, errors/identity/cloning/stop-on-error and retained arbitrary callback/getter paths.
+- [ ] **Partially implemented** · `ports:W03.3` · REQUIRED
+- Reuse the accepted selected planRecoveryScan demand/consumer outcome. Complete only unmet other-family host-shell extraction and original getter/iterator/authority/error/evaluation traces; keep fresh host evidence and commits outside the Rust decisions.
 - Declared dependencies: `ports:W02.5`, `ports:W03.1`, `ports:W03.2`. Narrow released interfaces may permit a scoped slice before a broad parent closes.
 - Close when: Keep commit/inherited/supersession/pending/guard/authority/mint/clock orders distinct by shell; exhaustion/validation demand zero RNG samples, eligible backoff exactly one. Recovery validates/processes rows in order and demands uncertain-only evidence before later rows, stopping at original exception; retain TS callback paths where extraction is uneconomical. Full/selected grant/content/fence traces differ; preserve getter/proxy reads, sparse arrays, aliases/cycles and original thrown values, including throwing never-throws predicates.
 - Defining-owner paths from the old plan: `packages/work/src/dispatch/index.ts`, `packages/work/src/receipt/index.ts`, `packages/work/src/recovery/index.ts`, `packages/work/src/observation/association.ts`, `packages/work/src/observation/observation.ts`, `packages/work/src/observation/ports.ts`, `packages/work/src/schedule/every.ts`, `packages/work/src/kernel/commands.ts`, `packages/work-kernel/conformance/traces.test.ts`, `packages/work-kernel/conformance/fixtures/traces/`. Reconcile current owners before assigning; proposed filenames/layout are not mandatory.
 - Source: [docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.tasks.json](../../research/package-subsystem-ports-20261006/implementation-plans/work-transitions.tasks.json)
-- Current basis: Original host shells and unrelated accepted TS workflows remain, but prepared kernel demand extraction/closed producer provenance and full legacy-vs-prepared trace proof are absent.
+- Current basis: The selected recovery facade implements demand-ordered host interaction, and accepted TECH-W03 exercises actual dispatcher.recover/runRecoverySweep using TS and Wasm. Other family extraction and full original trace domains remain unfinished.
 - Scoped evidence: [packages/work/src/dispatch/index.ts](../../../packages/work/src/dispatch/index.ts), [packages/work/src/receipt/index.ts](../../../packages/work/src/receipt/index.ts), [packages/work/src/recovery/index.ts](../../../packages/work/src/recovery/index.ts), [packages/work/src/observation/association.ts](../../../packages/work/src/observation/association.ts), [packages/work/src/observation/observation.ts](../../../packages/work/src/observation/observation.ts), [packages/work/src/observation/ports.ts](../../../packages/work/src/observation/ports.ts), [packages/work/src/schedule/every.ts](../../../packages/work/src/schedule/every.ts), [packages/work/src/kernel/commands.ts](../../../packages/work/src/kernel/commands.ts), [packages/work-kernel/conformance/fixtures/traces/](../../../packages/work-kernel/conformance/fixtures/traces), [packages/cloudflare/src/runtime/invoke.ts](../../../packages/cloudflare/src/runtime/invoke.ts), [docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.tasks.json](../../research/package-subsystem-ports-20261006/implementation-plans/work-transitions.tasks.json), [docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.md](../../research/package-subsystem-ports-20261006/implementation-plans/work-transitions.md). Exact revisions, claims and limits are retained in `tasks.json`; these links do not claim fresh execution.
 
 ### W03.4 — Verify closed-fact provenance and prepared-vs-legacy traces
 
-- [ ] **Not implemented / no execution evidence** · `ports:W03.4` · REQUIRED
-- Extract and prove exact demand-ordered host shells through the prepared kernel; certify actual D1/DO controlled facts, errors/identity/cloning/stop-on-error and retained arbitrary callback/getter paths.
+- [ ] **Partially implemented** · `ports:W03.4` · REQUIRED
+- Credit accepted selected recovery once; finish only missing family-specific controlled producer provenance and prepared/legacy identity/clone/failure/demand traces under the original contract. No arbitrary object or annotation becomes inert by inspection.
 - Declared dependencies: `ports:W03.3`, `ports:W03.2`, `ports:W02.5`. Narrow released interfaces may permit a scoped slice before a broad parent closes.
 - Close when: Use actual D1/DO parser/controlled producer ownership; annotation, freezing, arbitrary StoragePort output or inspection never certify inertness. Prepared/unprepared outputs/errors/identity/clone and stop-on-error traces match across invalid fields/lifecycle/presence/proxies/sparse/aliased data; no load/query/invoke/commit capability enters facts.
 - Defining-owner paths from the old plan: `docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/baselines/prepared-ts.json`, `docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/baselines/trace-parity.json`. Reconcile current owners before assigning; proposed filenames/layout are not mandatory.
 - Source: [docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.tasks.json](../../research/package-subsystem-ports-20261006/implementation-plans/work-transitions.tasks.json)
-- Current basis: Original host shells and unrelated accepted TS workflows remain, but prepared kernel demand extraction/closed producer provenance and full legacy-vs-prepared trace proof are absent.
+- Current basis: Selected recovery actual durable producer/consumer behavior is accepted under TECH-W03; the generic claim that all prepared provenance and demand extraction is absent is superseded at that scope. Remaining families and full original closed-fact domains are not qualified by that acceptance.
 - Scoped evidence: [packages/work/src/dispatch/index.ts](../../../packages/work/src/dispatch/index.ts), [packages/work/src/recovery/index.ts](../../../packages/work/src/recovery/index.ts), [packages/work/src/receipt/index.ts](../../../packages/work/src/receipt/index.ts), [packages/cloudflare/src/runtime/invoke.ts](../../../packages/cloudflare/src/runtime/invoke.ts), [docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.tasks.json](../../research/package-subsystem-ports-20261006/implementation-plans/work-transitions.tasks.json), [docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.md](../../research/package-subsystem-ports-20261006/implementation-plans/work-transitions.md). Exact revisions, claims and limits are retained in `tasks.json`; these links do not claim fresh execution.
 
 ### W04.1 — Port native ordered rows and identity sets
@@ -1762,14 +1759,13 @@ Only unresolved tasks are listed below. Completed narrow tasks are retained in t
 
 ### W05.1 — Build pinned package-specific Wasm adapter and bootstrap
 
-- [ ] **Not implemented / no execution evidence** · `ports:W05.1` · REQUIRED
-- Implement and prove: Implement pinned build:wasm/glue toolchain against Cargo binding version; compile wasm32 target and use one synchronously callable initialized instance.
-- Implement and prove: Select TS/Rust before evaluating operations; selected Rust missing/corrupt/ABI/init errors fail visibly, no lazy call bootstrap or fallback rerun.
+- [ ] **Partially implemented** · `ports:W05.1` · REQUIRED
+- Reuse the existing recovery Wasm producer and startup facade; complete only unmet original pinning/profile/startup/failure obligations for claimed remaining consumers. Keep missing/corrupt/wrong-ABI refusal and no lazy bootstrap or semantic fallback.
 - Declared dependencies: `ports:W04.4`, `ports:W03.2`, `ports:C04.ready`, `ports:C04.graph`. Narrow released interfaces may permit a scoped slice before a broad parent closes.
 - Close when: Implement pinned build:wasm/glue toolchain against Cargo binding version; compile wasm32 target and use one synchronously callable initialized instance. Select TS/Rust before evaluating operations; selected Rust missing/corrupt/ABI/init errors fail visibly, no lazy call bootstrap or fallback rerun.
 - Defining-owner paths from the old plan: `packages/work-kernel/bindings/wasm.rs`, `packages/work-kernel/bindings/loader.ts`, `packages/work-kernel/src/backend.ts`, `docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/handoffs/assets.json`, `packages/work-kernel/package.json`, `packages/work-kernel/Cargo.toml`, `packages/work-kernel/Cargo.lock`. Reconcile current owners before assigning; proposed filenames/layout are not mandatory.
 - Source: [docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.tasks.json](../../research/package-subsystem-ports-20261006/implementation-plans/work-transitions.tasks.json)
-- Current basis: No task-specific implementation/completion evidence fulfilling this exact acceptance was found. Existing legacy functionality and local tests do not certify the proposed port.
+- Current basis: Explicit wasm32 recovery producer, synchronous startup-selected TS/Wasm facade, ABI checks and disposal exist. Accepted selected durable recovery proves actual use. Full original supported-family/toolchain/loader coverage is not closed.
 - Scoped evidence: [packages/work-kernel/package.json](../../../packages/work-kernel/package.json), [packages/work-kernel/Cargo.toml](../../../packages/work-kernel/Cargo.toml), [packages/work-kernel/Cargo.lock](../../../packages/work-kernel/Cargo.lock), [docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.tasks.json](../../research/package-subsystem-ports-20261006/implementation-plans/work-transitions.tasks.json), [docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.md](../../research/package-subsystem-ports-20261006/implementation-plans/work-transitions.md). Exact revisions, claims and limits are retained in `tasks.json`; these links do not claim fresh execution.
 
 ### W05.2 — Submit package-specific vendor/build/release integration request
@@ -1786,14 +1782,13 @@ Only unresolved tasks are listed below. Completed narrow tasks are retained in t
 
 ### W05.3 — Verify actual staged workerd binary and loader failures
 
-- [ ] **Not implemented / no execution evidence** · `ports:W05.3` · REQUIRED
-- Implement and prove: Run package build:wasm and cargo --features wasm-bindings plus owning C04 actual module-map workerd checks; use non-UTF8 bytes, compare written hashes, missing/corrupt/wrong ABI and cold/warm bootstrap.
-- Implement and prove: Prove one instance across bundled/vendor consumer paths and text-only legacy byte parity; installed package acceptance does not rely on source checkout imports.
+- [ ] **Partially implemented** · `ports:W05.3` · REQUIRED
+- Reuse accepted actual selected recovery workerd execution; verify only remaining final package/module-map asset identity, installed resolution, one-instance and missing/corrupt/wrong-ABI/cold-warm obligations at the original claimed scopes.
 - Declared dependencies: `ports:W05.4`, `ports:C04.ready`. Narrow released interfaces may permit a scoped slice before a broad parent closes.
 - Close when: Run package build:wasm and cargo --features wasm-bindings plus owning C04 actual module-map workerd checks; use non-UTF8 bytes, compare written hashes, missing/corrupt/wrong ABI and cold/warm bootstrap. Prove one instance across bundled/vendor consumer paths and text-only legacy byte parity; installed package acceptance does not rely on source checkout imports.
 - Defining-owner paths from the old plan: `docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/release/delivery.json`, `docs/research/package-subsystem-ports-20261006/evidence/implementation/work-transitions/release/loader-errors.json`. Reconcile current owners before assigning; proposed filenames/layout are not mandatory.
 - Source: [docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.tasks.json](../../research/package-subsystem-ports-20261006/implementation-plans/work-transitions.tasks.json)
-- Current basis: No task-specific implementation/completion evidence fulfilling this exact acceptance was found. Existing legacy functionality and local tests do not certify the proposed port.
+- Current basis: Accepted TECH-W03 includes actual durable Wasm recovery execution through the real runtime seam. That selected pilot does not establish all final owning deployment module-map/hash, outside-checkout, cold/warm and loader failure obligations of this gate.
 - Scoped evidence: [docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.tasks.json](../../research/package-subsystem-ports-20261006/implementation-plans/work-transitions.tasks.json), [docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.md](../../research/package-subsystem-ports-20261006/implementation-plans/work-transitions.md). Exact revisions, claims and limits are retained in `tasks.json`; these links do not claim fresh execution.
 
 ### W06.1 — Join state staging and assertions to the selected pure kernel
@@ -1810,14 +1805,13 @@ Only unresolved tasks are listed below. Completed narrow tasks are retained in t
 
 ### W06.2 — Join canonical Cloudflare runtime through existing producer seams
 
-- [ ] **Not implemented / no execution evidence** · `ports:W06.2` · REQUIRED
-- Implement and prove: Single integrator replaces only matching decode/outcome/staleness/decision mechanisms in real F7/recovery consumer; fresh guard/authority/evidence/reloads/claim and child-unit commits remain TS.
-- Implement and prove: Exercise actual bound binary with canonical source+intent/claim/record/progress/recovery/replay flow; membership cutoff does not grant authority and no terminal child is reinvoked.
+- [ ] **Partially implemented** · `ports:W06.2` · REQUIRED
+- Reuse the accepted selected planRecoveryScan runtime integration and durable outcome. Complete only remaining original family/runtime mechanisms and preserve fresh authority/evidence, reloads, membership, claim/child units and host commit order; keep W06.runtimehandoff for affected future edits.
 - Declared dependencies: `ports:W06.1`. Narrow released interfaces may permit a scoped slice before a broad parent closes.
 - Close when: Single integrator replaces only matching decode/outcome/staleness/decision mechanisms in real F7/recovery consumer; fresh guard/authority/evidence/reloads/claim and child-unit commits remain TS. Exercise actual bound binary with canonical source+intent/claim/record/progress/recovery/replay flow; membership cutoff does not grant authority and no terminal child is reinvoked.
 - Defining-owner paths from the old plan: `packages/cloudflare/src/runtime/invoke.ts`, `packages/cloudflare/src/runtime/work-kernel-pilot.test.ts`. Reconcile current owners before assigning; proposed filenames/layout are not mandatory.
 - Source: [docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.tasks.json](../../research/package-subsystem-ports-20261006/implementation-plans/work-transitions.tasks.json)
-- Current basis: No task-specific implementation/completion evidence fulfilling this exact acceptance was found. Existing legacy functionality and local tests do not certify the proposed port.
+- Current basis: The real canonical recovery path invokes an injected planner before fenced registry actions. TECH-W03 at 6fe652c4b932e8c095ab8c5c8fdedee9de6bd537 accepts selected TS/Wasm durable recovery with 26 planner calls each. Other matching runtime families remain separate.
 - Scoped evidence: [packages/cloudflare/src/runtime/invoke.ts](../../../packages/cloudflare/src/runtime/invoke.ts), [docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.tasks.json](../../research/package-subsystem-ports-20261006/implementation-plans/work-transitions.tasks.json), [docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.md](../../research/package-subsystem-ports-20261006/implementation-plans/work-transitions.md). Exact revisions, claims and limits are retained in `tasks.json`; these links do not claim fresh execution.
 
 ### W06.runtimehandoff — Release canonical runtime file to validation owner
@@ -1967,26 +1961,22 @@ Only unresolved tasks are listed below. Completed narrow tasks are retained in t
 
 ### W05 — Deliver and initialize the actual Wasm consumer — completion gate
 
-- [ ] **Not implemented / no execution evidence** · `ports:W05` · REQUIRED
-- Review all exact prerequisite tasks and the preserved parent gate contract in work-transitions.md; retain explicit supported/retained/deferred scope.
-- All child tasks completed with their exact source, commands/results and pass/retain-TS evidence.
-- Parent gate retains the detailed deliverable/acceptance contract below; no incomplete supported-domain migration or test-only consumer claim.
+- [ ] **Partially implemented** · `ports:W05` · REQUIRED
+- Consume accepted recovery producer/use and complete only missing W05 child delivery/installed/loader outcomes at their unchanged scope. Do not recreate the producer or rerun accepted recovery merely to count this parent.
 - Declared dependencies: `ports:W05.1`, `ports:W05.2`, `ports:W05.3`, `ports:W05.4`. Narrow released interfaces may permit a scoped slice before a broad parent closes.
 - Close when: All child tasks completed with their exact source, commands/results and pass/retain-TS evidence. Parent gate retains the detailed deliverable/acceptance contract below; no incomplete supported-domain migration or test-only consumer claim.
 - Source: [docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.tasks.json](../../research/package-subsystem-ports-20261006/implementation-plans/work-transitions.tasks.json)
-- Current basis: No task-specific implementation/completion evidence fulfilling this exact acceptance was found. Existing legacy functionality and local tests do not certify the proposed port.
+- Current basis: Selected recovery now has a real producer/facade and accepted durable Wasm use. Broad W05 delivery/installed/loader obligations remain open; the full port gate is not completed by the selected acceptance.
 - Scoped evidence: [docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.tasks.json](../../research/package-subsystem-ports-20261006/implementation-plans/work-transitions.tasks.json), [docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.md](../../research/package-subsystem-ports-20261006/implementation-plans/work-transitions.md). Exact revisions, claims and limits are retained in `tasks.json`; these links do not claim fresh execution.
 
 ### W06 — Pilot state staging through actual Cloudflare durable paths — completion gate
 
-- [ ] **Not implemented / no execution evidence** · `ports:W06` · REQUIRED
-- Review all exact prerequisite tasks and the preserved parent gate contract in work-transitions.md; retain explicit supported/retained/deferred scope.
-- All child tasks completed with their exact source, commands/results and pass/retain-TS evidence.
-- Parent gate retains the detailed deliverable/acceptance contract below; no incomplete supported-domain migration or test-only consumer claim.
+- [ ] **Partially implemented** · `ports:W06` · REQUIRED
+- Credit selected recovery acceptance; finish only original unmet W06 child outcomes and source handoffs. Preserve live authority, replay/admission order and fenced atomic host commits. No broader scheduler or whole Work acceptance.
 - Declared dependencies: `ports:W06.1`, `ports:W06.2`, `ports:W06.runtimehandoff`, `ports:W06.3`. Narrow released interfaces may permit a scoped slice before a broad parent closes.
 - Close when: All child tasks completed with their exact source, commands/results and pass/retain-TS evidence. Parent gate retains the detailed deliverable/acceptance contract below; no incomplete supported-domain migration or test-only consumer claim.
 - Source: [docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.tasks.json](../../research/package-subsystem-ports-20261006/implementation-plans/work-transitions.tasks.json)
-- Current basis: No task-specific implementation/completion evidence fulfilling this exact acceptance was found. Existing legacy functionality and local tests do not certify the proposed port.
+- Current basis: Selected recovery integration and actual durable TS/Wasm outcome are accepted. Full state staging, other family/runtime and final post-validation source-stable D1/DO race/crash/restart obligations remain open.
 - Scoped evidence: [docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.tasks.json](../../research/package-subsystem-ports-20261006/implementation-plans/work-transitions.tasks.json), [docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.md](../../research/package-subsystem-ports-20261006/implementation-plans/work-transitions.md). Exact revisions, claims and limits are retained in `tasks.json`; these links do not claim fresh execution.
 
 ### W07 — Differential, persisted-byte and resource gates — completion gate

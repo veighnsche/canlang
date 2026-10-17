@@ -1,5 +1,7 @@
 # Four package port implementation plans
 
+**Source reconciliation, 2026-10-18:** the [single current Rust execution view](../../../implementation/RUST-PORT-START-HERE.md#current-execution-view--2026-10-18) records implemented components, prioritized remainder and unchanged holds. The checklists/counts below retain their original baseline and acceptance contracts; unchecked original boxes are not claims that all listed source is absent. In particular, selected Work recovery now has accepted durable Wasm use, and ordinary HTTP serving exists in TS; native validation adoption remains unfinished.
+
 These four plans turn the package migration evaluation into tasks an implementer can execute and verify. They use source checkpoint `3d1f8f062f9650c061f6cb87c8af9afb2c01b0e5`, inspected on October 6, 2026. Scope remains existing functionality under `packages/`; the compiler stays unchanged and folders describe responsibilities. This planning round creates documentation and evidence, not production Rust code.
 
 | Plan | Migrated responsibility | Main boundary and completion limit |

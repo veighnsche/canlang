@@ -29,7 +29,6 @@ file moves as renames; consolidation commits exclude unrelated working changes.
 Whitespace checks pass in both repositories. No
 product build, release or deployment ran for this path-only reorganization.
 
-
 ## 2026-10-13 — Node production-join repairs (retry sets, staged partition, MCP bridge, closure fingerprints)
 
 - **Status:** Accepted
@@ -18551,3 +18550,12 @@ Accepted: Direct any/first composition under `by=authenticated` (original CanCus
 Accepted planning maintenance: use `docs/implementation/compiler-completion/README.md` as the single current Can18 plan; preserve the former journal at `history-before-reorganization-20261017.md` as evidence only. Keep existing outcomes1–18/C01–C24 and nine reference consumers, count shared outputs once, distinguish accepted prerequisites from original workflow acceptance, and retire duplicate checkpoint/dispatch queues. The latest post-auth original24 remains276E6008 with identical source/diagnostic multiset; no completion percentage follows from review coverage or goal progress.
 
 Proposed, awaiting human agreement: the dependency order and finite implementation batches in that plan. Muse's existing goal stays paused and supervision disabled; the matching automation has been removed and was not recreated. This edit releases no implementation, tests, workers, integrations or external actions. Defining code owners and target allocations are unchanged. In particular, the demonstrated positive stored-ANY discriminator does not establish the original recover reference-array/helper closure; accepted authenticated negated-ANY/first remains a prerequisite rather than full accept closure. Preserve the unfinished debug source and existing evidence. No complete source-review checkpoint is advanced by planning maintenance.
+
+
+## 2026-10-18 — reconcile Rust migration progress without releasing holds
+
+- **Status:** Accepted planning reconciliation; future implementation order remains proposed until finite release.
+- **Choice:** Use `docs/implementation/RUST-PORT-START-HERE.md` as the single current Rust execution view. Retain original canonical task IDs, prerequisites, acceptance contracts and ownership. Mark eight started Work records partial, credit accepted selected `planRecoveryScan` once, and distinguish broad Values Rust dispatch, structural validation scaffolding, ordinary TS serving and incomplete native preparation.
+- **Rationale:** October 6–7 absence claims/counts predate the recovery Wasm producer/durable consumer and newer frozen parser/source-owned TS serving. Source presence or selected acceptance does not close whole migration gates. Prioritize finishing the existing TS serving prerequisite, Values boundary parity, independent remaining Work joins, Rust validation, native consumers, then original measurement/release decisions; link shared delivery once.
+- **Holds:** Preserve selected int/ASCII codec/source-adoption (`TECH-V04`), native preparation/native release (`DEL-D05`, `C04.native-release`), defaults/TS retirement, activation and publication. Keep `W09` deferred and MCP/forms/mixed assets conditional. No implementation, automation, default switch or hold release is authorized by this update.
+- **Evidence and uncertainty:** Read-only source observation at `ede59d051`, existing step9 acceptance and later selected package acceptance. Reuse the audit's current committed binding hash/ABI/arithmetic/refusal smoke only at that scope; no renewed full suite/host acceptance. Full native validator, other Work families/final asset closure, preparation job/CLI/integrity and complete resource/rollback gates remain unfinished. No completion percentage is inferred; complete filetree checkpoint unchanged.

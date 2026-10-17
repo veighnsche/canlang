@@ -5304,5 +5304,7 @@
       "human_hold": false,
       "execution_authorized": false
     }
-  ]
+  ],
+  "current_execution_reference": "docs/implementation/RUST-PORT-START-HERE.md#current-execution-view--2026-10-18",
+  "snapshot_note": "Allocation/status/count fields below retain the October 6 baseline and are not current progress or dispatch queues. Current source observations are reconciled in remaining-work/tasks.json; priorities and accepted selected scopes have one current view at current_execution_reference. All holds remain."
 }
