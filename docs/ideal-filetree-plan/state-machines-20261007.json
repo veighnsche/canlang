@@ -75043,5 +75043,48 @@
     "target_disposition": "existing defining owners retained; adequacy tests only, no source moves, package redesign or new product scope",
     "checkpoint_advanced": false,
     "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
+  },
+  "can18_merge_54_20261017": {
+    "incremental_base": "212b4c54da511814a7b7b23aa0b75c59d7813211",
+    "incoming_end": "f8e55291e33fe4bee64a5c314e74f254db7d801a",
+    "retained_coverage": "reuse spec_installer_merge_reconciliation_20261015 and preceding CAN18 incremental merge entries; inherited complete checkpoint unchanged",
+    "changed_path_count": 6,
+    "rows": [
+      [
+        "compiler/src/analysis/scenario_disclosure.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/src/codegen/scenario_receipts.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/first_query_conjunction.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/fixtures/first-query-conjunction-enum.can",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "packages/cloudflare/test/native-first-conjunction.test.ts",
+        "cloudflare",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/state/src/invocation/scenario-receipt.ts",
+        "state",
+        "existing package source/test owner"
+      ]
+    ],
+    "choice": "Enum-typed first-query operands: nonempty enum field admission with param and closed-case-literal operand classes, predicate enum gate with declared-case membership, enum(cases) dependency spelling matching the State query owner, and artifact-declared enum acceptance in the State first receiver.",
+    "validation": "conjunction 9/9, predicate tamper 3/3, neighbors 7+11+17+7, installed consumers 2/2 on rebuilt target/debug/can with ca50 catalog; no original24 capture (producer behavior extends admission only, cohort re-qualification follows the next prerequisite batch).",
+    "target_disposition": "existing defining owners retained; enum admission tests stay with compiler/tests and the installed consumer owner; no source moves, package redesign or new product scope",
+    "checkpoint_advanced": false,
+    "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
   }
 }

@@ -216,6 +216,10 @@ Conjunction first-query admission with ordered multi-dependency plans: an and ch
 
 Conjunction acceptance hardening: second-conjunct source/IR tamper controls at the predicate join plus third-conjunct filtering, emitted short-circuit order, and matched-arm rollback in the installed consumer. Incoming interval `5907a552e..becc051a5` accounts for 2 changed paths in `can18_merge_53_20261017` of the existing registry. new predicate tamper units 2/2, conjunction 6/6, installed consumer 1/1 on rebuilt target/debug/can; no production change, no new capture (producer behavior unchanged). Existing defining owners and target allocations remain; focused new tests stay with Compiler. Reuse prior accumulated coverage; complete checkpoint remains unchanged. Original24 and required executable consumers remain open. Unfinished work stays in the running Muse checkout.
 
+### CAN18 incremental integration — can18_merge_54_20261017
+
+Enum-typed first-query operands: nonempty enum field admission with param and closed-case-literal operand classes, predicate enum gate with declared-case membership, enum(cases) dependency spelling matching the State query owner, and artifact-declared enum acceptance in the State first receiver. Incoming interval `212b4c54d..f8e55291e` accounts for 6 changed paths in `can18_merge_54_20261017` of the existing registry. conjunction 9/9, predicate tamper 3/3, neighbors 7+11+17+7, installed consumers 2/2 on rebuilt target/debug/can with ca50 catalog; no original24 capture (producer behavior extends admission only, cohort re-qualification follows the next prerequisite batch). Existing defining owners and target allocations remain; focused new tests stay with Compiler. Reuse prior accumulated coverage; complete checkpoint remains unchanged. Original24 and required executable consumers remain open. Unfinished work stays in the running Muse checkout.
+
 ### Specification and installer documentation merge — 2026-10-15
 
 Merge installer commit `02470b74` into canonical `main` at `a70921e3`.
