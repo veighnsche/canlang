@@ -18401,3 +18401,8 @@ Accepted: Conjunction first-query admission with ordered multi-dependency plans:
 ## 2026-10-17 — conjunction producer original24 qualification
 
 Qualified: frozen conjunction producer `e0f58507f` (binary `5921567e`, catalog `ca50`) reproduces the frozen ifbranch cohort exactly on the unchanged original24 tuple: 276 E6008, complete/omitted0, 26 sources, 24/24 authored hashes match, full diagnostic multiset identical (0 removed, 0 added vs `evidence/original24-main-20261016.json`). Capture output `/tmp/can18-main-conj/capture.json` (498s, exit 10). The CanCustomer two-predicate conjunction spans stay refused on their recorded void/context/enum prerequisites; no regression from the new admission. Evidence file unchanged (cohort definition carries no producer field).
+
+
+## 2026-10-17 — can18_merge_53_20261017
+
+Accepted: Conjunction acceptance hardening: second-conjunct source/IR tamper controls at the predicate join plus third-conjunct filtering, emitted short-circuit order, and matched-arm rollback in the installed consumer. Merge reviewed tested work incrementally into canonical `main`, preserving installer/specification changes and the active implementation branch. new predicate tamper units 2/2, conjunction 6/6, installed consumer 1/1 on rebuilt target/debug/can; no production change, no new capture (producer behavior unchanged). Reconcile the living file-tree plan/registry over `5907a552e..becc051a5` with existing owners; retain the complete checkpoint and all outstanding acceptance gates. A merged component is not a claim that original24 or the remaining runtime workflows are complete.
