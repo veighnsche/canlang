@@ -164,6 +164,10 @@ Slice-D runtime half: whole-row first-selected replay bound as existing model re
 
 C2 installed-consumer closure: real assembled-worker text consumer (defaults/request/clear/unknown/malformed/denied/revocation); no production change. Incoming interval `c7f2f42d..HEAD` accounts for 1 changed paths in `can18_merge_40_20261017` of the existing registry. installed 1/1 x3 after one initial 0/1 (recorded flake pattern, under watch). Existing defining owners and target allocations remain; focused new tests stay with Compiler. Reuse prior accumulated coverage; complete checkpoint remains unchanged. Original24 and required executable consumers remain open. Unfinished work stays in the running Muse checkout.
 
+### CAN18 incremental integration — can18_merge_41_20261017
+
+C3 civil-date selector intake (2321): compiler admits plain owned date equality controls per DESIGN 1015-1025; host preparer normalizes DateValue literal defaults and refuses malformed before query; installed date consumer + interfaces date tests green. Incoming interval `fa607aff8..9ea028396` accounts for 11 changed paths in `can18_merge_41_20261017` of the existing registry. compiler enum 54/54 + bool 27/27 + pins 8/8; main installed date consumer 1/1 + interfaces date 3/3 on frozen 7ef0b2e6/ca50; C2 text regression 2/2. Existing defining owners and target allocations remain; focused new tests stay with Compiler. Reuse prior accumulated coverage; complete checkpoint remains unchanged. Original24 and required executable consumers remain open. Unfinished work stays in the running Muse checkout.
+
 ### Specification and installer documentation merge — 2026-10-15
 
 Merge installer commit `02470b74` into canonical `main` at `a70921e3`.
