@@ -74727,5 +74727,48 @@
     "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
     "checkpoint_advanced": false,
     "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
+  },
+  "can18_merge_47_20261017": {
+    "incremental_base": "96a71932ea9b46dbccb7a0be4132c158fb968286",
+    "incoming_end": "411016588cb36efd67d3b8cae65ada30d462d35e",
+    "retained_coverage": "reuse spec_installer_merge_reconciliation_20261015 and preceding CAN18 incremental merge entries; inherited complete checkpoint unchanged",
+    "changed_path_count": 6,
+    "rows": [
+      [
+        "docs/specification/DECISIONS.md",
+        "Specification",
+        "existing accepted design/decision owner"
+      ],
+      [
+        "evidence/original24-main-20261016.json",
+        "existing owner",
+        "retain current allocation"
+      ],
+      [
+        "implementation/compiler-completion/README.md",
+        "Compiler completion",
+        "existing finite execution record"
+      ],
+      [
+        "packages/cloudflare/test/dispatch-fence-persistence.test.ts",
+        "cloudflare",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/cloudflare/test/native-first-side-effect.test.ts",
+        "cloudflare",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/state/test/invocation/scenario-query-side-effect-scalar.test.ts",
+        "state",
+        "existing package source/test owner"
+      ]
+    ],
+    "choice": "Consumer hardening plus 276 capture promotion with 0101 correction.",
+    "validation": "dispatch runtime 1/1, state 2/2, cloudflare 1/1, rust dispatch 4/4 + first-query 8/8, frozen 276 capture exact tuple.",
+    "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
+    "checkpoint_advanced": false,
+    "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
   }
 }

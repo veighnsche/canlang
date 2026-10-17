@@ -62,7 +62,18 @@ foreign/not-found, committed write/fence replay confidentiality), runtime
 native-first-side-effect 1/1 (same-op replay D-stable + result-preserving,
 revoked replay withheld, genuine revision-only fence-conflict rollback
 empty, foreign refused), native-lookup/expired-budget neighbors green. Saved
-queries revalidate the gating snapshot; next: original24 capture. Slice D model-return scope unchanged (its contained
+queries revalidate the gating snapshot; next: original24 capture.
+Validation correction (merge47): the committed consumers were re-proven
+through their matching runners after two harness defects were found and
+fixed — (a) the Cloudflare test imports `vitest` and is only meaningful
+under vitest (a `node --test` run executed a stale dist artifact), (b) the
+`../../../..` checkout-root computation overshoots from `dist/` layout,
+now a walk-up to the dir containing `compiler/` + `packages/`, and (c) the
+`compilerSourceInputs` inventory gate requires the producer inside
+`compiler/target`, satisfied by the immutable
+`compiler/target/can18-frozen/<sha>/can` copy (never the mutable shared
+binary). Genuine results on frozen in-target `7ec8a4cc` + `ca50`: state
+2/2 via `node --test` on freshly built dist, cloudflare 1/1 via vitest. Slice D model-return scope unchanged (its contained
 refusal case still refuses).
 
 ### Accepted helper-reuse repair (merge36) — 2026-10-17
@@ -112,7 +123,14 @@ Slice attribution stays open: the removed filter occurrences are not
 claimed as dispatch-slice fixes (different owner from the disclosure
 branch; base drift vs `982e9eda` not excluded), and the added board
 page-option occurrence is recorded as an open follow-on, not harmless.
-Occurrence counts are not cause counts.
+Occurrence counts are not cause counts. Correction (0101): the
+budget-interference fixture is source24 (26 is the virtual can.generated
+contributions source), and source24 carries TWO diagnostics — send-guard
+and first-query-correspondence E6008 — so the file26/zero-diag
+no-interference conclusion is withdrawn. `mod.rs:252` intentionally
+refuses send-guard preparation when `context.has_ir_errors()`; that seal
+is retained and guard diagnostics on partial IR stay treated as dependent
+while the real local gaps are implemented.
 
 ### Toggle form-control repair (REVIEW-NOW-2 E) — 2026-10-17
 
@@ -149,22 +167,37 @@ guard, H dispatch stale-version test, I alert-notify spelling exception.
 E (above) done first. No finding is accepted until its actual compiled
 consumer passes; probe-only evidence stays labeled as such.
 
-### Current original24 (frozen main c2 cohort) — 282 E6008 — 2026-10-17
+### Accepted delivery.id runtime consumer (merge47) — 2026-10-17
+
+Main already carried the full dispatch `delivery.id` slice (`69579880f`:
+post-send sets persist the sealed id alongside other fields, enum-typed
+assignment inventory, rust 4/4, and the Cloudflare executable consumer —
+guard-true stages one send and persists its id, guard-false distinct skip
+marker, foreign denial). This intake hardens that consumer
+(layout-agnostic root + temp-dir cleanup; the worktree `dc373c47c`
+tuple annotations stay excluded, already in main as `2b18dc2f1`) and
+re-proves it on frozen in-target `7ec8a4cc` + `ca50`: runtime 1/1; rust
+dispatch 4/4 + first-query 8/8. Original dispatch-guard family unchanged
+27 → 27; the remaining delivery.id remainder (cancel/retry_release
+shapes) stays ready work, not closed by this one-shape consumer.
+
+### Current original24 (frozen main fq cohort) — 276 E6008 — 2026-10-17
 
 [evidence/original24-main-20261016.json](../../evidence/original24-main-20261016.json):
-frozen main producer `982e9eda` + native catalog `ca50`, saved argv, exit 10,
-430.70s, complete=true, omitted=0, 26 sources, all authored hashes match.
-−6 net vs 288 by exact diagnostic multiset: 11 removed / 5 added.
-Two entries MOVED to the next selector (CanExpense list 41307..41315 →
-41316..41329 and board 44135..44143 → 44144..44157: text category cleared,
-date follower remains); 9 occurrences really cleared (C2 text rule: table 4,
-list 2, board 2, calendar 1). Three new CanField UI diagnostics (collapse
-22257..22374, skeleton 22358..22374, board page 24783..24799); the collapse's
-gated suite contains only skeleton, so skeleton-unsupported is the likely
-cause of the empty-collapse follow-on (dependency, not two root causes).
-Occurrence counts are not cause counts. 288 retained in git history. Next ready groups: first-query 90,
-hook query 39, dispatch guard 23, hook `now` 22, collection domain 10, hook
-derive 10, table filters 14, archived 6, parent content 5, list filters 6,
+frozen main producer `7ec8a4cc93fe` (main `96a71932e`: dispatch envelope +
+toggle + first-query compiler + State halves) + native catalog `ca50`, saved
+argv, exit 10, 431.33s, complete=true, omitted=0, 26 sources, all authored
+hashes match. −6 net vs 282 by exact diagnostic multiset: 7 removed / 1
+added (same tuple as the merge42 `76fb0302` 276: 6 enum-filter + 1 calendar
+enum removed, 1 board UI option-`page` 44263..44278 follow-on added).
+First-query family unchanged 90 → 90: no original occurrence yet uses the
+newly admitted require-present terminal shape (absent-require, if-branch
+creates, require-or, where-less contained still refuse) — the synthetic
+consumer proves the shape, original attribution stays open. Dispatch guards
+unchanged 27 → 27. Occurrence counts are not cause counts. 282/288 retained
+in git history. Next ready groups: first-query 90, hook query 39, dispatch
+guard 23 (incl. delivery.id remainder), hook `now` 22, collection domain 10,
+hook derive 10, table filters 14, archived 6, parent content 5, list filters 6,
 C3 dates, staged remainder, collapse/page follow-ons.
 
 ### Accepted C2 installed closure (merge40) — 2026-10-17
