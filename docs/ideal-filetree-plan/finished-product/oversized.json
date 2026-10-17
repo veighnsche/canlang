@@ -6741,7 +6741,7 @@
       "members": []
     },
     {
-      "path": "design/evaluation/baseline-20261004T041647Z/snapshot/draft/CanRent.mjs",
+      "path": "docs/design/evaluation/baseline-20261004T041647Z/snapshot/draft/CanRent.mjs",
       "lines": 8885,
       "bytes": 332359,
       "symbols": [
@@ -63975,7 +63975,7 @@
       "members": []
     },
     {
-      "path": "design/evaluation/evidence/adoption/measurements/repetition.json",
+      "path": "docs/design/evaluation/evidence/adoption/measurements/repetition.json",
       "lines": 4656,
       "bytes": 97189,
       "symbols": [],
@@ -87189,7 +87189,7 @@
       ]
     },
     {
-      "path": "design/evaluation/evidence/adoption/measurements/corpus.json",
+      "path": "docs/design/evaluation/evidence/adoption/measurements/corpus.json",
       "lines": 2343,
       "bytes": 58310,
       "symbols": [],
@@ -89159,7 +89159,7 @@
       ]
     },
     {
-      "path": "design/evaluation/baseline-20261004T041647Z/snapshot/draft/CanShift.mjs",
+      "path": "docs/design/evaluation/baseline-20261004T041647Z/snapshot/draft/CanShift.mjs",
       "lines": 2277,
       "bytes": 78774,
       "symbols": [
@@ -95003,7 +95003,7 @@
       ]
     },
     {
-      "path": "design/evaluation/baseline-20261004T041647Z/snapshot/draft/CanPurchase.mjs",
+      "path": "docs/design/evaluation/baseline-20261004T041647Z/snapshot/draft/CanPurchase.mjs",
       "lines": 2188,
       "bytes": 76822,
       "symbols": [
@@ -99885,7 +99885,7 @@
       ]
     },
     {
-      "path": "design/evaluation/baseline-20261004T041647Z/snapshot/draft/CanMail.mjs",
+      "path": "docs/design/evaluation/baseline-20261004T041647Z/snapshot/draft/CanMail.mjs",
       "lines": 2054,
       "bytes": 72744,
       "symbols": [
@@ -104592,14 +104592,14 @@
       ]
     },
     {
-      "path": "implementation/challenge-audit-run/evidence/read-decision.md",
+      "path": "docs/implementation/challenge-audit-run/evidence/read-decision.md",
       "lines": 1985,
       "bytes": 113316,
       "symbols": [],
       "members": []
     },
     {
-      "path": "design/evaluation/baseline-20261004T041647Z/snapshot/draft/CanMaintain.mjs",
+      "path": "docs/design/evaluation/baseline-20261004T041647Z/snapshot/draft/CanMaintain.mjs",
       "lines": 1969,
       "bytes": 71745,
       "symbols": [
@@ -111643,7 +111643,7 @@
       ]
     },
     {
-      "path": "design/evaluation/baseline-20261004T041647Z/snapshot/draft/CanLoyalty.mjs",
+      "path": "docs/design/evaluation/baseline-20261004T041647Z/snapshot/draft/CanLoyalty.mjs",
       "lines": 1864,
       "bytes": 64413,
       "symbols": [
@@ -119589,7 +119589,7 @@
       ]
     },
     {
-      "path": "implementation/challenge-audit-run/evidence/fanout-decision.md",
+      "path": "docs/implementation/challenge-audit-run/evidence/fanout-decision.md",
       "lines": 1832,
       "bytes": 107981,
       "symbols": [],
@@ -119610,7 +119610,7 @@
       "members": []
     },
     {
-      "path": "design/evaluation/evidence/interfaces/message-scan.json",
+      "path": "docs/design/evaluation/evidence/interfaces/message-scan.json",
       "lines": 1774,
       "bytes": 39880,
       "symbols": [],
@@ -121283,7 +121283,7 @@
       ]
     },
     {
-      "path": "design/evaluation/baseline-20261004T041647Z/snapshot/draft/CanHire.mjs",
+      "path": "docs/design/evaluation/baseline-20261004T041647Z/snapshot/draft/CanHire.mjs",
       "lines": 1670,
       "bytes": 62484,
       "symbols": [
@@ -126878,7 +126878,7 @@
       ]
     },
     {
-      "path": "design/evaluation/baseline-20261004T041647Z/snapshot/draft/CanTime.mjs",
+      "path": "docs/design/evaluation/baseline-20261004T041647Z/snapshot/draft/CanTime.mjs",
       "lines": 1583,
       "bytes": 55539,
       "symbols": [
@@ -130800,7 +130800,7 @@
       "members": []
     },
     {
-      "path": "design/evaluation/baseline-20261004T041647Z/snapshot/draft/CanRefer.mjs",
+      "path": "docs/design/evaluation/baseline-20261004T041647Z/snapshot/draft/CanRefer.mjs",
       "lines": 1514,
       "bytes": 53704,
       "symbols": [
@@ -134716,7 +134716,7 @@
       ]
     },
     {
-      "path": "design/evaluation/baseline-20261004T041647Z/snapshot/draft/CanLeave.mjs",
+      "path": "docs/design/evaluation/baseline-20261004T041647Z/snapshot/draft/CanLeave.mjs",
       "lines": 1495,
       "bytes": 51866,
       "symbols": [
@@ -137455,7 +137455,7 @@
       ]
     },
     {
-      "path": "design/evaluation/baseline-20261004T041647Z/snapshot/draft/CanGrant.mjs",
+      "path": "docs/design/evaluation/baseline-20261004T041647Z/snapshot/draft/CanGrant.mjs",
       "lines": 1483,
       "bytes": 50404,
       "symbols": [
@@ -140522,7 +140522,7 @@
       ]
     },
     {
-      "path": "design/evaluation/baseline-20261004T041647Z/snapshot/draft/CanVolunteer.mjs",
+      "path": "docs/design/evaluation/baseline-20261004T041647Z/snapshot/draft/CanVolunteer.mjs",
       "lines": 1463,
       "bytes": 51799,
       "symbols": [
@@ -143101,7 +143101,7 @@
       ]
     },
     {
-      "path": "design/evaluation/baseline-20261004T041647Z/snapshot/draft/CanCRM.mjs",
+      "path": "docs/design/evaluation/baseline-20261004T041647Z/snapshot/draft/CanCRM.mjs",
       "lines": 1461,
       "bytes": 51678,
       "symbols": [
@@ -147292,7 +147292,7 @@
       "members": []
     },
     {
-      "path": "design/evaluation/evidence/adoption/measurements/experiments.json",
+      "path": "docs/design/evaluation/evidence/adoption/measurements/experiments.json",
       "lines": 1442,
       "bytes": 47792,
       "symbols": [],
@@ -150711,7 +150711,7 @@
       ]
     },
     {
-      "path": "design/evaluation/baseline-20261004T041647Z/snapshot/draft/CanRent.can",
+      "path": "docs/design/evaluation/baseline-20261004T041647Z/snapshot/draft/CanRent.can",
       "lines": 1351,
       "bytes": 155261,
       "symbols": [],
@@ -154715,7 +154715,7 @@
       ]
     },
     {
-      "path": "implementation/challenge-audit-run/evidence/hook-decision.md",
+      "path": "docs/implementation/challenge-audit-run/evidence/hook-decision.md",
       "lines": 1334,
       "bytes": 73352,
       "symbols": [],
@@ -159975,7 +159975,7 @@
       ]
     },
     {
-      "path": "design/evaluation/baseline-20261004T041647Z/snapshot/draft/CanBoard.mjs",
+      "path": "docs/design/evaluation/baseline-20261004T041647Z/snapshot/draft/CanBoard.mjs",
       "lines": 1249,
       "bytes": 43319,
       "symbols": [
@@ -164646,7 +164646,7 @@
       ]
     },
     {
-      "path": "design/evaluation/baseline-20261004T041647Z/snapshot/draft/CanTable.mjs",
+      "path": "docs/design/evaluation/baseline-20261004T041647Z/snapshot/draft/CanTable.mjs",
       "lines": 1200,
       "bytes": 42937,
       "symbols": [
@@ -171873,7 +171873,7 @@
       ]
     },
     {
-      "path": "design/evaluation/baseline-20261004T041647Z/snapshot/draft/CanStock.mjs",
+      "path": "docs/design/evaluation/baseline-20261004T041647Z/snapshot/draft/CanStock.mjs",
       "lines": 1149,
       "bytes": 40172,
       "symbols": [
@@ -175661,7 +175661,7 @@
       "members": []
     },
     {
-      "path": "implementation/challenge-audit-run/evidence/containment-decision.md",
+      "path": "docs/implementation/challenge-audit-run/evidence/containment-decision.md",
       "lines": 1117,
       "bytes": 64533,
       "symbols": [],
@@ -180687,7 +180687,7 @@
       ]
     },
     {
-      "path": "design/evaluation/baseline-20261004T041647Z/snapshot/draft/CanFeedback.mjs",
+      "path": "docs/design/evaluation/baseline-20261004T041647Z/snapshot/draft/CanFeedback.mjs",
       "lines": 1087,
       "bytes": 37358,
       "symbols": [
@@ -190585,7 +190585,7 @@
       ]
     },
     {
-      "path": "design/evaluation/baseline-20261004T041647Z/snapshot/draft/CanExpense.mjs",
+      "path": "docs/design/evaluation/baseline-20261004T041647Z/snapshot/draft/CanExpense.mjs",
       "lines": 1030,
       "bytes": 33985,
       "symbols": [
@@ -194320,7 +194320,7 @@
       ]
     },
     {
-      "path": "design/evaluation/baseline-20261004T041647Z/snapshot/draft/CanApprove.mjs",
+      "path": "docs/design/evaluation/baseline-20261004T041647Z/snapshot/draft/CanApprove.mjs",
       "lines": 994,
       "bytes": 34475,
       "symbols": [
@@ -205074,7 +205074,7 @@
       ]
     },
     {
-      "path": "design/evaluation/baseline-20261004T041647Z/snapshot/draft/CanCheck.mjs",
+      "path": "docs/design/evaluation/baseline-20261004T041647Z/snapshot/draft/CanCheck.mjs",
       "lines": 932,
       "bytes": 32267,
       "symbols": [
@@ -210121,7 +210121,7 @@
       ]
     },
     {
-      "path": "design/evaluation/evidence/adoption/experiments/C/context.md",
+      "path": "docs/design/evaluation/evidence/adoption/experiments/C/context.md",
       "lines": 909,
       "bytes": 127484,
       "symbols": [],
@@ -212946,7 +212946,7 @@
       ]
     },
     {
-      "path": "design/evaluation/baseline-20261004T041647Z/snapshot/draft/CanOnboard.mjs",
+      "path": "docs/design/evaluation/baseline-20261004T041647Z/snapshot/draft/CanOnboard.mjs",
       "lines": 891,
       "bytes": 30413,
       "symbols": [
@@ -219201,7 +219201,7 @@
       ]
     },
     {
-      "path": "design/evaluation/baseline-20261004T041647Z/snapshot/DESIGN.md",
+      "path": "docs/design/evaluation/baseline-20261004T041647Z/snapshot/DESIGN.md",
       "lines": 861,
       "bytes": 192381,
       "symbols": [],
@@ -220103,7 +220103,7 @@
       ]
     },
     {
-      "path": "design/evaluation/evidence/interfaces/corpus-scan.json",
+      "path": "docs/design/evaluation/evidence/interfaces/corpus-scan.json",
       "lines": 852,
       "bytes": 19469,
       "symbols": [],
@@ -221639,7 +221639,7 @@
       ]
     },
     {
-      "path": "design/optional-dependency-closure-20261004/closure.json",
+      "path": "docs/design/optional-dependency-closure-20261004/closure.json",
       "lines": 837,
       "bytes": 19599,
       "symbols": [],
@@ -224121,7 +224121,7 @@
       ]
     },
     {
-      "path": "design/jev/README.md",
+      "path": "docs/design/jev/README.md",
       "lines": 811,
       "bytes": 131601,
       "symbols": [],
@@ -228036,7 +228036,7 @@
       ]
     },
     {
-      "path": "design/muse-migration-20261004/extraction-design.md",
+      "path": "docs/design/muse-migration-20261004/extraction-design.md",
       "lines": 796,
       "bytes": 49119,
       "symbols": [],
@@ -229082,21 +229082,21 @@
       "members": []
     },
     {
-      "path": "design/evaluation/evidence/adoption/experiments/layout/packages/context.md",
+      "path": "docs/design/evaluation/evidence/adoption/experiments/layout/packages/context.md",
       "lines": 783,
       "bytes": 213507,
       "symbols": [],
       "members": []
     },
     {
-      "path": "design/rent-history-growth-20261004/current-mechanism.mjs.txt",
+      "path": "docs/design/rent-history-growth-20261004/current-mechanism.mjs.txt",
       "lines": 781,
       "bytes": 29047,
       "symbols": [],
       "members": []
     },
     {
-      "path": "implementation/status/frontend-catalog-migration.md",
+      "path": "docs/implementation/status/frontend-catalog-migration.md",
       "lines": 778,
       "bytes": 60039,
       "symbols": [],
@@ -240219,7 +240219,7 @@
       "members": []
     },
     {
-      "path": "design/evaluation/baseline-20261004T041647Z/snapshot/DECISIONS.md",
+      "path": "docs/design/evaluation/baseline-20261004T041647Z/snapshot/DECISIONS.md",
       "lines": 717,
       "bytes": 74151,
       "symbols": [],
@@ -241722,7 +241722,7 @@
       ]
     },
     {
-      "path": "design/evaluation/evidence/adoption/experiments/layout/single/context.md",
+      "path": "docs/design/evaluation/evidence/adoption/experiments/layout/single/context.md",
       "lines": 710,
       "bytes": 168098,
       "symbols": [],
@@ -242616,7 +242616,7 @@
       ]
     },
     {
-      "path": "design/evaluation/baseline-20261004T041647Z/snapshot/draft/CanInvoice.can",
+      "path": "docs/design/evaluation/baseline-20261004T041647Z/snapshot/draft/CanInvoice.can",
       "lines": 703,
       "bytes": 67797,
       "symbols": [],
@@ -244041,7 +244041,7 @@
       ]
     },
     {
-      "path": "design/evaluation/baseline-20261004T041647Z/snapshot/draft/CanMember.can",
+      "path": "docs/design/evaluation/baseline-20261004T041647Z/snapshot/draft/CanMember.can",
       "lines": 689,
       "bytes": 64886,
       "symbols": [],
@@ -249388,14 +249388,14 @@
       ]
     },
     {
-      "path": "implementation/challenge-audit-run/evidence/app-intent.md",
+      "path": "docs/implementation/challenge-audit-run/evidence/app-intent.md",
       "lines": 645,
       "bytes": 48365,
       "symbols": [],
       "members": []
     },
     {
-      "path": "implementation/CHALLENGE-AUDIT-PLAN.md",
+      "path": "docs/implementation/CHALLENGE-AUDIT-PLAN.md",
       "lines": 641,
       "bytes": 67031,
       "symbols": [],
@@ -251677,7 +251677,7 @@
       ]
     },
     {
-      "path": "implementation/challenge-audit-run/evidence/root-causes.md",
+      "path": "docs/implementation/challenge-audit-run/evidence/root-causes.md",
       "lines": 638,
       "bytes": 41422,
       "symbols": [],
@@ -254539,7 +254539,7 @@
       ]
     },
     {
-      "path": "implementation/challenge-audit-run/tasks.md",
+      "path": "docs/implementation/challenge-audit-run/tasks.md",
       "lines": 615,
       "bytes": 183514,
       "symbols": [],

@@ -12,19 +12,19 @@
     "draft_top_level_can_count": 49,
     "draft_bundle_sha256": "cf177f5da0b0b79bd9338919255544c16680d1d005cf81968c6ed43a6c2a2cc0",
     "parent_dirty_modified": [
-      "implementation/challenge-audit-run/remaining-tasks.md"
+      "docs/implementation/challenge-audit-run/remaining-tasks.md"
     ],
     "parent_untracked_groups": [
       "docs/ideal-filetree-plan/integration-20261006-*.json",
       "docs/research/package-subsystem-ports-20261006/evidence/implementation/",
       "docs/research/package-subsystem-ports-20261006/evidence/input-validation/",
-      "implementation/challenge-audit-run/evidence/jev-b4-fence-20261006/"
+      "docs/implementation/challenge-audit-run/evidence/jev-b4-fence-20261006/"
     ],
     "port_plan_checkpoint": "3d1f8f062f9650c061f6cb87c8af9afb2c01b0e5",
     "plan_hashes": {
-      "implementation/CHALLENGE-AUDIT-PLAN.md": "c71f9a33cea8dcd4024e1bdda72294029d7a10995d588736d51aca5c1fdf2202",
-      "implementation/DESCRIPTION-REFERENCE-PLAN.md": "88633a4c29c3a8749adf59b56d5fb8c39e69f17de66e983abf9c5b57a48a5429",
-      "implementation/REMAINING-IMPLEMENTATION-LANES.md": "ffa464ed1ef7181de0cbcfebf755d86f851a44700dc8ba03007500677416efcf",
+      "docs/implementation/CHALLENGE-AUDIT-PLAN.md": "c71f9a33cea8dcd4024e1bdda72294029d7a10995d588736d51aca5c1fdf2202",
+      "docs/implementation/DESCRIPTION-REFERENCE-PLAN.md": "88633a4c29c3a8749adf59b56d5fb8c39e69f17de66e983abf9c5b57a48a5429",
+      "docs/implementation/REMAINING-IMPLEMENTATION-LANES.md": "ffa464ed1ef7181de0cbcfebf755d86f851a44700dc8ba03007500677416efcf",
       "docs/research/package-subsystem-ports-20261006/implementation-plans/exact-values.md": "05d0ede96076efd3a2bdb60552d4b537e88e43a7500a5f9c5987a0fabdbf0c29",
       "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.md": "5ec351c6dd69dbb06fb8a933789ceb1309957b8f5b9d38dbda8c87f87f650363"
     }
@@ -626,7 +626,7 @@
         "compiler/src/diagnostic.rs",
         "compiler/src/explain.rs",
         "compiler/src/analysis/check.rs",
-        "implementation/DIAGNOSTICS.md"
+        "docs/implementation/DIAGNOSTICS.md"
       ],
       "evidence": [
         "Pipeline E1xxx..E6xxx source; old 4524 diagnostics are historical only"
@@ -651,7 +651,7 @@
         "compiler/src/diagnostic.rs",
         "compiler/src/explain.rs",
         "compiler/src/analysis/check.rs",
-        "implementation/DIAGNOSTICS.md"
+        "docs/implementation/DIAGNOSTICS.md"
       ],
       "availability": "source inspection only; no executed validation in this review"
     },
@@ -1402,7 +1402,7 @@
       "disposition": "REQUIRED",
       "source_paths": [
         "DESIGN.md",
-        "design/complex-apps/knowledge.md",
+        "docs/design/complex-apps/knowledge.md",
         "draft/CanKnowledge.can",
         "packages/contracts/src/services.ts",
         "compiler/src/analysis/resolve.rs",
@@ -4015,7 +4015,7 @@
         "subject": "Accepted corpus versus T12 scoped producer inventory",
         "source_facts": [
           "DESIGN.md:696-698 complete corpus contract normative",
-          "design/complex-apps/knowledge.md:3,37,45,49-53 genuine origin, opaque all-model-used context current grants, historical/as-of, failure distinct from false",
+          "docs/design/complex-apps/knowledge.md:3,37,45,49-53 genuine origin, opaque all-model-used context current grants, historical/as-of, failure distinct from false",
           "draft/CanKnowledge.can:25,147-190 model-bound declaration ask and read/revocation; :209-234 stop/reconcile",
           "packages/contracts/src/services.ts:703-715 B8 excludes executable derived interface from T12, not product grammar"
         ],

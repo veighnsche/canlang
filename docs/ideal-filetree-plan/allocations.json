@@ -1317,10 +1317,10 @@
     "packet": "R04"
   },
   {
-    "source": "implementation/REMAINING-IMPLEMENTATION-LANES.md",
+    "source": "docs/implementation/REMAINING-IMPLEMENTATION-LANES.md",
     "decision": "retain",
     "destinations": [
-      "implementation/REMAINING-IMPLEMENTATION-LANES.md"
+      "docs/implementation/REMAINING-IMPLEMENTATION-LANES.md"
     ],
     "responsibility_record": "Retain implementation-evidence within its existing defining owner; no duplicate runtime authority",
     "gate": "Retain authored context and dated evidence; no source move or runtime acceptance inferred",
@@ -1328,10 +1328,10 @@
     "packet": "R07"
   },
   {
-    "source": "implementation/challenge-audit-run/recovery-checkpoint.md",
+    "source": "docs/implementation/challenge-audit-run/recovery-checkpoint.md",
     "decision": "retain",
     "destinations": [
-      "implementation/challenge-audit-run/recovery-checkpoint.md"
+      "docs/implementation/challenge-audit-run/recovery-checkpoint.md"
     ],
     "responsibility_record": "Retain implementation-evidence within its existing defining owner; no duplicate runtime authority",
     "gate": "Retain authored context and dated evidence; no source move or runtime acceptance inferred",

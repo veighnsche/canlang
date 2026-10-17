@@ -51,16 +51,16 @@
   ],
   "registrations": [
     {
-      "source": "implementation/REMAINING-IMPLEMENTATION-LANES.md",
-      "destination": "implementation/REMAINING-IMPLEMENTATION-LANES.md",
+      "source": "docs/implementation/REMAINING-IMPLEMENTATION-LANES.md",
+      "destination": "docs/implementation/REMAINING-IMPLEMENTATION-LANES.md",
       "disposition": "retain",
       "owner": "coordinator",
       "packet": "R07",
       "gate": "Retain authored context and dated evidence; no source move or runtime acceptance inferred"
     },
     {
-      "source": "implementation/challenge-audit-run/recovery-checkpoint.md",
-      "destination": "implementation/challenge-audit-run/recovery-checkpoint.md",
+      "source": "docs/implementation/challenge-audit-run/recovery-checkpoint.md",
+      "destination": "docs/implementation/challenge-audit-run/recovery-checkpoint.md",
       "disposition": "retain",
       "owner": "coordinator",
       "packet": "R07",
@@ -1365,7 +1365,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "design/jev/description-reference-20261005/README.md",
+      "path": "docs/design/jev/description-reference-20261005/README.md",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -1380,7 +1380,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "design/jev/description-reference-20261005/request-1.json",
+      "path": "docs/design/jev/description-reference-20261005/request-1.json",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -1395,7 +1395,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "design/jev/description-reference-20261005/request-2.json",
+      "path": "docs/design/jev/description-reference-20261005/request-2.json",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -1410,7 +1410,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "design/jev/description-reference-20261005/request-3.json",
+      "path": "docs/design/jev/description-reference-20261005/request-3.json",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -1425,7 +1425,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "design/jev/description-reference-20261005/result-1.json",
+      "path": "docs/design/jev/description-reference-20261005/result-1.json",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -1440,7 +1440,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "design/jev/description-reference-20261005/result-2.json",
+      "path": "docs/design/jev/description-reference-20261005/result-2.json",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -1455,7 +1455,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "design/jev/description-reference-20261005/result-3.json",
+      "path": "docs/design/jev/description-reference-20261005/result-3.json",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -1470,7 +1470,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "design/jev/t33-context-correction-20261006/README.md",
+      "path": "docs/design/jev/t33-context-correction-20261006/README.md",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -1485,7 +1485,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "design/jev/t33-context-correction-20261006/request-1.json",
+      "path": "docs/design/jev/t33-context-correction-20261006/request-1.json",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -1500,7 +1500,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "design/jev/t33-context-correction-20261006/request-2.json",
+      "path": "docs/design/jev/t33-context-correction-20261006/request-2.json",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -1515,7 +1515,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "design/jev/t33-context-correction-20261006/request-3.json",
+      "path": "docs/design/jev/t33-context-correction-20261006/request-3.json",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -1530,7 +1530,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "design/jev/t33-context-correction-20261006/result-1.json",
+      "path": "docs/design/jev/t33-context-correction-20261006/result-1.json",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -1545,7 +1545,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "design/jev/t33-context-correction-20261006/result-2.json",
+      "path": "docs/design/jev/t33-context-correction-20261006/result-2.json",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -1560,7 +1560,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "design/jev/t33-context-correction-20261006/result-3.json",
+      "path": "docs/design/jev/t33-context-correction-20261006/result-3.json",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -2670,7 +2670,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/CHALLENGE-AUDIT-PLAN.md",
+      "path": "docs/implementation/CHALLENGE-AUDIT-PLAN.md",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -2685,7 +2685,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/DESCRIPTION-REFERENCE-PLAN.md",
+      "path": "docs/implementation/DESCRIPTION-REFERENCE-PLAN.md",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -2700,7 +2700,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/PLAN.md",
+      "path": "docs/implementation/PLAN.md",
       "change": "M",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -2715,7 +2715,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/REMAINING-IMPLEMENTATION-LANES.md",
+      "path": "docs/implementation/REMAINING-IMPLEMENTATION-LANES.md",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -2730,7 +2730,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/challenge-audit-run/evidence/app-intent.md",
+      "path": "docs/implementation/challenge-audit-run/evidence/app-intent.md",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -2745,7 +2745,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/challenge-audit-run/evidence/containment-decision.md",
+      "path": "docs/implementation/challenge-audit-run/evidence/containment-decision.md",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -2760,7 +2760,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/challenge-audit-run/evidence/continuation-contract.md",
+      "path": "docs/implementation/challenge-audit-run/evidence/continuation-contract.md",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -2775,7 +2775,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/challenge-audit-run/evidence/execution-contract.md",
+      "path": "docs/implementation/challenge-audit-run/evidence/execution-contract.md",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -2790,7 +2790,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/challenge-audit-run/evidence/fanout-decision.md",
+      "path": "docs/implementation/challenge-audit-run/evidence/fanout-decision.md",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -2805,7 +2805,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/challenge-audit-run/evidence/hook-decision.md",
+      "path": "docs/implementation/challenge-audit-run/evidence/hook-decision.md",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -2820,7 +2820,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/challenge-audit-run/evidence/interface-inventory.md",
+      "path": "docs/implementation/challenge-audit-run/evidence/interface-inventory.md",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -2835,7 +2835,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/challenge-audit-run/evidence/jev-t28-20261005/README.md",
+      "path": "docs/implementation/challenge-audit-run/evidence/jev-t28-20261005/README.md",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -2850,7 +2850,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/challenge-audit-run/evidence/jev-t28-20261005/request-1.json",
+      "path": "docs/implementation/challenge-audit-run/evidence/jev-t28-20261005/request-1.json",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -2865,7 +2865,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/challenge-audit-run/evidence/jev-t28-20261005/request-2.json",
+      "path": "docs/implementation/challenge-audit-run/evidence/jev-t28-20261005/request-2.json",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -2880,7 +2880,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/challenge-audit-run/evidence/jev-t28-20261005/request-3.json",
+      "path": "docs/implementation/challenge-audit-run/evidence/jev-t28-20261005/request-3.json",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -2895,7 +2895,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/challenge-audit-run/evidence/jev-t28-20261005/result-1.json",
+      "path": "docs/implementation/challenge-audit-run/evidence/jev-t28-20261005/result-1.json",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -2910,7 +2910,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/challenge-audit-run/evidence/jev-t28-20261005/result-2.json",
+      "path": "docs/implementation/challenge-audit-run/evidence/jev-t28-20261005/result-2.json",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -2925,7 +2925,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/challenge-audit-run/evidence/jev-t28-20261005/result-3.json",
+      "path": "docs/implementation/challenge-audit-run/evidence/jev-t28-20261005/result-3.json",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -2940,7 +2940,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/challenge-audit-run/evidence/jev-t31a-20261005/README.md",
+      "path": "docs/implementation/challenge-audit-run/evidence/jev-t31a-20261005/README.md",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -2955,7 +2955,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/challenge-audit-run/evidence/jev-t31a-20261005/request-1.json",
+      "path": "docs/implementation/challenge-audit-run/evidence/jev-t31a-20261005/request-1.json",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -2970,7 +2970,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/challenge-audit-run/evidence/jev-t31a-20261005/request-2.json",
+      "path": "docs/implementation/challenge-audit-run/evidence/jev-t31a-20261005/request-2.json",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -2985,7 +2985,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/challenge-audit-run/evidence/jev-t31a-20261005/request-3.json",
+      "path": "docs/implementation/challenge-audit-run/evidence/jev-t31a-20261005/request-3.json",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -3000,7 +3000,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/challenge-audit-run/evidence/jev-t31a-20261005/result-1.json",
+      "path": "docs/implementation/challenge-audit-run/evidence/jev-t31a-20261005/result-1.json",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -3015,7 +3015,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/challenge-audit-run/evidence/jev-t31a-20261005/result-2.json",
+      "path": "docs/implementation/challenge-audit-run/evidence/jev-t31a-20261005/result-2.json",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -3030,7 +3030,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/challenge-audit-run/evidence/jev-t31a-20261005/result-3.json",
+      "path": "docs/implementation/challenge-audit-run/evidence/jev-t31a-20261005/result-3.json",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -3045,7 +3045,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/challenge-audit-run/evidence/jev-t32a-20261005/README.md",
+      "path": "docs/implementation/challenge-audit-run/evidence/jev-t32a-20261005/README.md",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -3060,7 +3060,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/challenge-audit-run/evidence/jev-t32a-20261005/request-1.json",
+      "path": "docs/implementation/challenge-audit-run/evidence/jev-t32a-20261005/request-1.json",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -3075,7 +3075,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/challenge-audit-run/evidence/jev-t32a-20261005/request-2.json",
+      "path": "docs/implementation/challenge-audit-run/evidence/jev-t32a-20261005/request-2.json",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -3090,7 +3090,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/challenge-audit-run/evidence/jev-t32a-20261005/request-3.json",
+      "path": "docs/implementation/challenge-audit-run/evidence/jev-t32a-20261005/request-3.json",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -3105,7 +3105,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/challenge-audit-run/evidence/jev-t32a-20261005/result-1.json",
+      "path": "docs/implementation/challenge-audit-run/evidence/jev-t32a-20261005/result-1.json",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -3120,7 +3120,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/challenge-audit-run/evidence/jev-t32a-20261005/result-2.json",
+      "path": "docs/implementation/challenge-audit-run/evidence/jev-t32a-20261005/result-2.json",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -3135,7 +3135,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/challenge-audit-run/evidence/jev-t32a-20261005/result-3.json",
+      "path": "docs/implementation/challenge-audit-run/evidence/jev-t32a-20261005/result-3.json",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -3150,7 +3150,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/challenge-audit-run/evidence/jev-t33-20261006/README.md",
+      "path": "docs/implementation/challenge-audit-run/evidence/jev-t33-20261006/README.md",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -3165,7 +3165,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/challenge-audit-run/evidence/jev-t33-20261006/request-1.json",
+      "path": "docs/implementation/challenge-audit-run/evidence/jev-t33-20261006/request-1.json",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -3180,7 +3180,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/challenge-audit-run/evidence/jev-t33-20261006/request-2.json",
+      "path": "docs/implementation/challenge-audit-run/evidence/jev-t33-20261006/request-2.json",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -3195,7 +3195,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/challenge-audit-run/evidence/jev-t33-20261006/request-3.json",
+      "path": "docs/implementation/challenge-audit-run/evidence/jev-t33-20261006/request-3.json",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -3210,7 +3210,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/challenge-audit-run/evidence/jev-t33-20261006/result-1.json",
+      "path": "docs/implementation/challenge-audit-run/evidence/jev-t33-20261006/result-1.json",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -3225,7 +3225,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/challenge-audit-run/evidence/jev-t33-20261006/result-2.json",
+      "path": "docs/implementation/challenge-audit-run/evidence/jev-t33-20261006/result-2.json",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -3240,7 +3240,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/challenge-audit-run/evidence/jev-t33-20261006/result-3.json",
+      "path": "docs/implementation/challenge-audit-run/evidence/jev-t33-20261006/result-3.json",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -3255,7 +3255,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/challenge-audit-run/evidence/read-decision.md",
+      "path": "docs/implementation/challenge-audit-run/evidence/read-decision.md",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -3270,7 +3270,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/challenge-audit-run/evidence/root-causes.md",
+      "path": "docs/implementation/challenge-audit-run/evidence/root-causes.md",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -3285,7 +3285,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/challenge-audit-run/evidence/t34-plan.md",
+      "path": "docs/implementation/challenge-audit-run/evidence/t34-plan.md",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -3300,7 +3300,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/challenge-audit-run/monitor.md",
+      "path": "docs/implementation/challenge-audit-run/monitor.md",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -3315,7 +3315,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/challenge-audit-run/recovery-checkpoint.md",
+      "path": "docs/implementation/challenge-audit-run/recovery-checkpoint.md",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -3330,7 +3330,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/challenge-audit-run/t33-resolution.md",
+      "path": "docs/implementation/challenge-audit-run/t33-resolution.md",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -3345,7 +3345,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/challenge-audit-run/tasks.md",
+      "path": "docs/implementation/challenge-audit-run/tasks.md",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -3360,7 +3360,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/description-reference-run/evidence/independent-acceptance-20261005.json",
+      "path": "docs/implementation/description-reference-run/evidence/independent-acceptance-20261005.json",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -3375,7 +3375,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/description-reference-run/evidence/independent-locale-recheck-20261005.json",
+      "path": "docs/implementation/description-reference-run/evidence/independent-locale-recheck-20261005.json",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -3390,7 +3390,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/description-reference-run/evidence/integration.md",
+      "path": "docs/implementation/description-reference-run/evidence/integration.md",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -3405,7 +3405,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/description-reference-run/review.md",
+      "path": "docs/implementation/description-reference-run/review.md",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -3420,7 +3420,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/description-reference-run/tasks.md",
+      "path": "docs/implementation/description-reference-run/tasks.md",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -3435,7 +3435,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/evidence/b2-follow-through.md",
+      "path": "docs/implementation/evidence/b2-follow-through.md",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -3450,7 +3450,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/evidence/b3-i1.md",
+      "path": "docs/implementation/evidence/b3-i1.md",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -3465,7 +3465,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/evidence/b3-i2.md",
+      "path": "docs/implementation/evidence/b3-i2.md",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -3480,7 +3480,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/evidence/b3-i3.md",
+      "path": "docs/implementation/evidence/b3-i3.md",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -3495,7 +3495,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/evidence/b3-i4.md",
+      "path": "docs/implementation/evidence/b3-i4.md",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -3510,7 +3510,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/evidence/b3-i5.md",
+      "path": "docs/implementation/evidence/b3-i5.md",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -3525,7 +3525,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/evidence/b3-i6.md",
+      "path": "docs/implementation/evidence/b3-i6.md",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -3540,7 +3540,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/evidence/b4-draft-defects.md",
+      "path": "docs/implementation/evidence/b4-draft-defects.md",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -3555,7 +3555,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/evidence/b4-f1.md",
+      "path": "docs/implementation/evidence/b4-f1.md",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -3570,7 +3570,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/evidence/b4-f2.md",
+      "path": "docs/implementation/evidence/b4-f2.md",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -3585,7 +3585,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/evidence/b4-f3.md",
+      "path": "docs/implementation/evidence/b4-f3.md",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -3600,7 +3600,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/evidence/b4-f4.md",
+      "path": "docs/implementation/evidence/b4-f4.md",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -3615,7 +3615,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/evidence/b4-proposals.md",
+      "path": "docs/implementation/evidence/b4-proposals.md",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -3630,7 +3630,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/evidence/b5-j1.md",
+      "path": "docs/implementation/evidence/b5-j1.md",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -3645,7 +3645,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/evidence/b5-j2.md",
+      "path": "docs/implementation/evidence/b5-j2.md",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -3660,7 +3660,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/evidence/b5-j3.md",
+      "path": "docs/implementation/evidence/b5-j3.md",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -3675,7 +3675,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/evidence/mcp-p1.md",
+      "path": "docs/implementation/evidence/mcp-p1.md",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -3690,7 +3690,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/evidence/mcp-p2.md",
+      "path": "docs/implementation/evidence/mcp-p2.md",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -3705,7 +3705,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/evidence/mcp-p3.md",
+      "path": "docs/implementation/evidence/mcp-p3.md",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -3720,7 +3720,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/evidence/mcp-p4.md",
+      "path": "docs/implementation/evidence/mcp-p4.md",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -3735,7 +3735,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/evidence/mcpd-a.md",
+      "path": "docs/implementation/evidence/mcpd-a.md",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -3750,7 +3750,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/evidence/mcpd-b.md",
+      "path": "docs/implementation/evidence/mcpd-b.md",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -3765,7 +3765,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/evidence/mcpd-c.md",
+      "path": "docs/implementation/evidence/mcpd-c.md",
       "change": "A",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",
@@ -3780,7 +3780,7 @@
       "semantic_acceptance": "not-inferred-from-merge"
     },
     {
-      "path": "implementation/status/lane-01.md",
+      "path": "docs/implementation/status/lane-01.md",
       "change": "M",
       "slice": "S10",
       "implementation_lane_owner": "coordinator",

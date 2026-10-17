@@ -1099,7 +1099,7 @@
       "working_sha256": "52d7dd395cee7ef8dd8bb095340c0e6e31df06268e37a1479dc373a10ef1c1cd"
     },
     {
-      "path": "implementation/CONTRACTS.md",
+      "path": "docs/implementation/CONTRACTS.md",
       "working_sha256": "7750365ff46288777a53f3bc7e387187d1a1f9d9b4ca8d9e70d915e17614d27c"
     },
     {
@@ -2030,7 +2030,7 @@
       "Move three new colocated tests into canonical runner discovery"
     ],
     "overlay_caveat": {
-      "path": "implementation/challenge-audit-run/t33-resolution.md",
+      "path": "docs/implementation/challenge-audit-run/t33-resolution.md",
       "working_sha256": "b4a310ce2e3d9eccbc2d6a8c98381d531897ff0ce76feaed84a3d84490d59d05",
       "tracked_status": "untracked at root bounded overlay capture",
       "inspection": "full_requested_resolution_body",

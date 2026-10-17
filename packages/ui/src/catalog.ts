@@ -6,7 +6,7 @@
  * the L1/L2 catalog shape; unification with the shared envelope is a later
  * L1/L7 join.
  *
- * C2a: covers all 68 approved Can words from design/UI-COMPONENTS.md plus the
+ * C2a: covers all 68 approved Can words from docs/design/UI-COMPONENTS.md plus the
  * non-word infrastructure entries (page-shell, navigation, core constructs,
  * settings/history/copy/board/review/csv-import/file). Every entry carries a
  * binding profile, a header-expression payload, the closed structural

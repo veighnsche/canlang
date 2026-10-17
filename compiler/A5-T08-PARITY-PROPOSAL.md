@@ -2,17 +2,17 @@
 
 Status: PROPOSAL (docs-only phase 1). No checker/emitter edits until the
 coordinator approves these rulings. Lane F reviews next. R01 preserves final
-acceptance (see `implementation/challenge-audit-run/monitor.md:79`).
+acceptance (see `docs/implementation/challenge-audit-run/monitor.md:79`).
 
 Base: main `46a5ece` merged into `codex/remaining-lane-a-compiler`.
 
 ## 1. Normative base (read)
 
-- T08 task (`implementation/challenge-audit-run/tasks.md:107-112`, COMPLETE):
+- T08 task (`docs/implementation/challenge-audit-run/tasks.md:107-112`, COMPLETE):
   canonical parent/safe-metadata/money selectors agree across policy/UI;
   unknown leaf, invalid descent, disclosure, metadata-write controls retained;
   selector checking provides no flow or permission fact.
-- R07/R08 (`implementation/challenge-audit-run/evidence/root-causes.md:151-180`):
+- R07/R08 (`docs/implementation/challenge-audit-run/evidence/root-causes.md:151-180`):
   R07 intent is authorized history/relationship disclosure (`parent`, safe
   record metadata); opposing warns readable metadata must not become
   writable/grantable and permissive selectors must not expose protected
@@ -28,7 +28,7 @@ Base: main `46a5ece` merged into `codex/remaining-lane-a-compiler`.
   observable ops); mutable-observation dependencies in queries enroll the
   receipt revision in the read fence; type checking/observation support for
   progress remains unimplemented.
-- Delivery leaf-grants contract (`design/delivery-leaf-grants-20261004.md:35-45`):
+- Delivery leaf-grants contract (`docs/design/delivery-leaf-grants-20261004.md:35-45`):
   explicit leaf paths, nullable-prefix presence only, no parent expansion,
   projection-not-handle.
 - Disputed-site seed: monitor note (`monitor.md:79`) — compiler accepts

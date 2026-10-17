@@ -32,13 +32,13 @@
       "kind": "git-frozen-source"
     },
     {
-      "path": "implementation/challenge-audit-run/t33-resolution.md",
+      "path": "docs/implementation/challenge-audit-run/t33-resolution.md",
       "sha256": "b4a310ce2e3d9eccbc2d6a8c98381d531897ff0ce76feaed84a3d84490d59d05",
       "lines": 48,
       "kind": "git-frozen-source"
     },
     {
-      "path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/DECISIONS-PENDING-HANDOFF.md",
+      "path": "docs/implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/DECISIONS-PENDING-HANDOFF.md",
       "sha256": "2d7e72aa84ac62e2ec1448fbbb869539dee977dfe9662005e52f31794bafb9cb",
       "lines": 18,
       "kind": "git-frozen-source"

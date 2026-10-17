@@ -2289,19 +2289,19 @@
         "sha256": "96bd9ebe2068bb4619e9854bfdb8d35261d4d424d3079ea43ba0c01e3bedb0be"
       },
       {
-        "path": "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/acceptance.json",
+        "path": "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/acceptance.json",
         "sha256": "d61e2fc7e89cf46295ca2122308027db6bdb4e3fd54a198477d230479cf02091"
       },
       {
-        "path": "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/fresh-joined-gates.json",
+        "path": "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/fresh-joined-gates.json",
         "sha256": "e86338c2ad28f28bc2d6f117f046042728525412effeae5424eeba5cf21f0b02"
       },
       {
-        "path": "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/final-source-equivalence.json",
+        "path": "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/final-source-equivalence.json",
         "sha256": "9f90272eab38c1a0f9cebd99c981fe4804610967fe975249b9792e34282ad514"
       },
       {
-        "path": "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/residual-task-index.json",
+        "path": "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/residual-task-index.json",
         "sha256": "21501e24392b2974b18b282fb53a192f686f8deb750d44f8b059ed9a74895b34"
       }
     ],

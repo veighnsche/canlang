@@ -13,7 +13,7 @@
 //! | 5 | CanCreative/CanGallery | `gallery Query image=field` | PARTIAL: `image=` requiredness enforced (pinned); target unvalidated, pinned by `gallery_image_target_unvalidated_gap`. GRAMMAR:109 + DESIGN:1104 semantic checks unimplemented — archived. |
 //! | 6 | CanCreative triplet | JSON finalized-file recipe sample | TESTED elsewhere (`@canlang/files` finalize suite); the sample itself is a doc mapping, present in the triplet. |
 //! | 7 | CanSync | `choose(bool,T,T)` | TESTED elsewhere (`@canlang/values` stdlib-pure suite). |
-//! | 8 | CanDecide | `options=runtime` | PARTIAL: map nonempty/unique enforced (pinned); 2–26 combined-count rule unvalidated, pinned by `runtime_choice_count_unenforced_gap`. GRAMMAR:293 + `design/complex-apps/decide.md#runtime-choice-contract` count rule unimplemented — archived. |
+//! | 8 | CanDecide | `options=runtime` | PARTIAL: map nonempty/unique enforced (pinned); 2–26 combined-count rule unvalidated, pinned by `runtime_choice_count_unenforced_gap`. GRAMMAR:293 + `docs/design/complex-apps/decide.md#runtime-choice-contract` count rule unimplemented — archived. |
 //!
 //! Gap-pin rule: each `*_gap` test pins CURRENT behavior with equivalence
 //! (witness construct ≡ nearby nonsense), so it fails exactly when real
@@ -214,7 +214,7 @@ fn gallery_image_target_unvalidated_gap() {
 /// One fixed choice with `options=runtime` checks clean: the GRAMMAR:293
 /// combined 2–26 rule is unenforced (the runtime half is unknowable
 /// statically, and the fixed floor is unchecked). Flip when the count
-/// rule lands per `design/complex-apps/decide.md#runtime-choice-contract`.
+/// rule lands per `docs/design/complex-apps/decide.md#runtime-choice-contract`.
 #[test]
 fn runtime_choice_count_unenforced_gap() {
     let diags = check(

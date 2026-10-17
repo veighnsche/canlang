@@ -4,7 +4,7 @@
   "phase": "planning",
   "execution_authorized": false,
   "source_base": "309644a6881909d8dba32560bc6711f67e00a7ab",
-  "source_ledger": "implementation/remaining-work/tasks.json",
+  "source_ledger": "docs/implementation/remaining-work/tasks.json",
   "source_ledger_sha256": "cd01ebb2276e9bbd362085070b985811543f4bcb1d7ad0d0ac0530d3092bc3f4",
   "inventory_reference": "source-inventory.json",
   "unit_count": 27,
@@ -1193,7 +1193,7 @@
     "early_frequent_local_commits": true,
     "shared_checkout_git_mutator": "Codex only",
     "execution_authorized": false,
-    "reference": "../../../implementation/RUST-PORT-EXECUTION-PLAN.md"
+    "reference": "../../implementation/RUST-PORT-EXECUTION-PLAN.md"
   },
   "topology_change_is_planning_only": true,
   "released_execution_slices": [
@@ -1206,7 +1206,7 @@
       "D02": "Independently accepted repaired source-ready pure leaf; full unit partial until D04 caller adoption",
       "D03": "Independently accepted preserving per-segment decoder and existing lookup under raw contract",
       "R3": "Pinned dependency/lock and153-module written Worker codec closure accepted",
-      "completion_record": "../../../implementation/rust-port-orchestration/runs/codex-step7-20261007T002305Z/completion.json",
+      "completion_record": "../../implementation/rust-port-orchestration/runs/codex-step7-20261007T002305Z/completion.json",
       "original_task_statuses_and_dependencies_unchanged": true,
       "future_execution_authorized": false,
       "native_preparation_and_native_release_held": true
@@ -1218,7 +1218,7 @@
       "D04": "Independently accepted selected composition/caller/diagnostic sidecar and genuine outside-checkout Node/workerd profile",
       "D02": "Previously accepted leaf now used in actual modules/deploy/link callers",
       "D03": "Existing preserving raw decoder retained; original source/name identities and odd-map Can fallback semantics preserved",
-      "completion_record": "../../../implementation/rust-port-orchestration/runs/codex-step8-20261007T005702Z/completion.json",
+      "completion_record": "../../implementation/rust-port-orchestration/runs/codex-step8-20261007T005702Z/completion.json",
       "original_task_statuses_and_dependencies_unchanged": true,
       "future_execution_authorized": false,
       "native_preparation_and_native_release_held": true

@@ -13,7 +13,7 @@
     "server.rs": "compiler/src/lsp/server.rs",
     "queries.rs": "compiler/src/ide/queries.rs",
     "ide.rs": "compiler/tests/ide.rs",
-    "DIAGNOSTICS.md": "implementation/DIAGNOSTICS.md"
+    "DIAGNOSTICS.md": "docs/implementation/DIAGNOSTICS.md"
   },
   "pins": [
     {
@@ -61,7 +61,7 @@
       "sha256": "b1279200fae3b6fa750561b4dcc9eb391b0010c3fc5b89555d92d319f2a9b932"
     },
     {
-      "path": "implementation/DIAGNOSTICS.md",
+      "path": "docs/implementation/DIAGNOSTICS.md",
       "sha256": "90f6233569bc999149dc09b4a7dc239d8f99860de14c2da2c7cea1c331231061"
     }
   ],

@@ -134,115 +134,115 @@
       "bytes": 3301
     },
     {
-      "path": "implementation/CHALLENGE-AUDIT-PLAN.md",
+      "path": "docs/implementation/CHALLENGE-AUDIT-PLAN.md",
       "blob": "bf752f2836c13ce982b47cefa9f773f260075165",
       "sha256": "2c36b1f8afce9793088f4adabdce001afdb0d54ef4d966b7295bc8a7ee2dabcb",
       "bytes": 75383
     },
     {
-      "path": "implementation/DESCRIPTION-REFERENCE-PLAN.md",
+      "path": "docs/implementation/DESCRIPTION-REFERENCE-PLAN.md",
       "blob": "c754e74da0195ef60a9625c908c275d8a300581e",
       "sha256": "98f0cecc7b41874a453ffc2eb5011d2175fd33db85c49b8a7d76fb2950cde078",
       "bytes": 24500
     },
     {
-      "path": "implementation/challenge-audit-run/evidence/jev-t32a-20261005/README.md",
+      "path": "docs/implementation/challenge-audit-run/evidence/jev-t32a-20261005/README.md",
       "blob": "5a29cc9176501954041e45b90f42ee12ea46b52b",
       "sha256": "18b95f96409866323e99e1dba03c1119046e418980720ced17e041aafa475e07",
       "bytes": 5211
     },
     {
-      "path": "implementation/challenge-audit-run/t33-resolution.md",
+      "path": "docs/implementation/challenge-audit-run/t33-resolution.md",
       "blob": "78eb135a457e670e496d9e42396cc04abc07b4b7",
       "sha256": "b4a310ce2e3d9eccbc2d6a8c98381d531897ff0ce76feaed84a3d84490d59d05",
       "bytes": 10751
     },
     {
-      "path": "implementation/rust-port-orchestration/contracts-20261007/decision-record.md",
+      "path": "docs/implementation/rust-port-orchestration/contracts-20261007/decision-record.md",
       "blob": "afe2bb8ba6b79189392a4f8af9e5fb774cc1ed3e",
       "sha256": "74475befb528cde40e61a6f480db5bdb4ab69f56e398b204c94e7ee41e3405f5",
       "bytes": 4052
     },
     {
-      "path": "implementation/rust-port-orchestration/contracts-20261007/imports.md",
+      "path": "docs/implementation/rust-port-orchestration/contracts-20261007/imports.md",
       "blob": "2889af538990089d00044676d78c64925536582d",
       "sha256": "0efa1447405e9a30b407c663a84adf0ead57b69742077cce415ee5a64cc0de51",
       "bytes": 18170
     },
     {
-      "path": "implementation/rust-port-orchestration/contracts-20261007/numeric-values.md",
+      "path": "docs/implementation/rust-port-orchestration/contracts-20261007/numeric-values.md",
       "blob": "310f2e1ebf1c639a7fb868b2851918a648353b7f",
       "sha256": "cd0f1a9eadf78e3ba147294bd7b3ab51c38883afa4d51d6b4f1aa71e384e775b",
       "bytes": 6209
     },
     {
-      "path": "implementation/rust-port-orchestration/contracts-20261007/sourcemaps-raw.md",
+      "path": "docs/implementation/rust-port-orchestration/contracts-20261007/sourcemaps-raw.md",
       "blob": "7bdc193ed0fd1bbdb3233ec97a02ec92ceb76374",
       "sha256": "5665fd668c57d6968811a0314360660e9df1c5b7c23fa241f3af75b8caac1aad",
       "bytes": 18311
     },
     {
-      "path": "implementation/rust-port-orchestration/contracts-20261007/strings-rust.md",
+      "path": "docs/implementation/rust-port-orchestration/contracts-20261007/strings-rust.md",
       "blob": "31739e044d3fc1211513edc25d32fc5875915a21",
       "sha256": "3c5d6f3bcedfdb4477cae48c15f1bcac62e8b579ae18f88414fe0840a0dadf8a",
       "bytes": 5292
     },
     {
-      "path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/DECISIONS-PENDING-HANDOFF.md",
+      "path": "docs/implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/DECISIONS-PENDING-HANDOFF.md",
       "blob": "6499b8e6ff857926e30b63e24d8867498ce62145",
       "sha256": "2d7e72aa84ac62e2ec1448fbbb869539dee977dfe9662005e52f31794bafb9cb",
       "bytes": 3270
     },
     {
-      "path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/contracts/csv-contract.md",
+      "path": "docs/implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/contracts/csv-contract.md",
       "blob": "678ec44117a265b10263e1e1d8f2f432a17788d0",
       "sha256": "b9256b56f9eb21005f504edda9a4b57a12100c1c7f4614bdff3412658bc13abc",
       "bytes": 3789
     },
     {
-      "path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/contracts/identity-cookie-contract.md",
+      "path": "docs/implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/contracts/identity-cookie-contract.md",
       "blob": "97051eb47b9c53ea82102ee954db331b7a6f44f1",
       "sha256": "b327e039be72441c2217fa5707ee929f177144e526a844069e2806ffec528766",
       "bytes": 6310
     },
     {
-      "path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/contracts/identity-encoding-contract.md",
+      "path": "docs/implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/contracts/identity-encoding-contract.md",
       "blob": "ad655085028eb27bbf7da22e6efcc17fa9cdaf0e",
       "sha256": "24f19fb4334a066b94faeb0e288fe68ff88e7d2c7dcce1a7da72c5afbc2ecbf5",
       "bytes": 6221
     },
     {
-      "path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/contracts/identity-host-contract.md",
+      "path": "docs/implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/contracts/identity-host-contract.md",
       "blob": "93488b0981ef9ce9040b701bc07a8e39e3ecc356",
       "sha256": "6a8c7a126f50ede7bc77ddcb748d35b373bece41f36adb91e332012725552057",
       "bytes": 9776
     },
     {
-      "path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/reviews/C-H-independent-review.md",
+      "path": "docs/implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/reviews/C-H-independent-review.md",
       "blob": "d1578b95bf2a4f3e074cc6ccec3751fbb437fc35",
       "sha256": "a231334fc1c2b161a5106e327bba6ac62e0b41397990a88cccae0b50f6b28d78",
       "bytes": 6528
     },
     {
-      "path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/reviews/ROOT-FINAL-ACCEPTANCE.md",
+      "path": "docs/implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/reviews/ROOT-FINAL-ACCEPTANCE.md",
       "blob": "c5d3d4c20afc12c7229e3ce12a8c5ffe066cceda",
       "sha256": "262a6b32368b951f89bd39af258c8eb3c8e3c34f6ccf9975550a96401767346a",
       "bytes": 3072
     },
     {
-      "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-independent-installed.json",
+      "path": "docs/implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-independent-installed.json",
       "blob": "22db42d90b0d90e0523e2372504f88dd8aa07a30",
       "sha256": "c71a908b6702d09bb22ee9987c11d0cfc6f3c7cf47c7e85e560819e365312217",
       "bytes": 2932
     },
     {
-      "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-independent-source-review.json",
+      "path": "docs/implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-independent-source-review.json",
       "blob": "9269ae64aa0d05105591e813c2c6f491095a6ba2",
       "sha256": "3a4ed358bea2549f1f1e27cc4a69f67e04d86d61546c1aa2dbce2aba9a871cc8",
       "bytes": 6293
     },
     {
-      "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-qualification-receipt.json",
+      "path": "docs/implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-qualification-receipt.json",
       "blob": "d678bfc2c5e42eb9ece4b92cdc8cf21d81b3d2f7",
       "sha256": "93a5748b3551772efef7ff3fde7f1e63d16106d2effa68a689a6479041a40d75",
       "bytes": 38309

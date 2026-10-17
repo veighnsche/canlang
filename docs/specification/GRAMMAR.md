@@ -126,7 +126,7 @@ Header attributes have the following closed sets. Fixed syntax before the attrib
 | calendar agenda | `calendar expr` | `start=selectors` **required**, `end=selectors` **required**, `columns=selectors`, `order=ui_order`, `search=selectors`, `filter=selectors`, `empty=expr`, `defaults=values`; each endpoint must resolve to one field |
 | form | `form expr` | `arguments=values`, `fields=selectors`, `submit=expr`, `display=NAME`, `import=NAME`, `review=path`; inline is the supported display value, csv the sole import mode; review requires import=csv |
 | edit | `edit` | `fields=selectors`; optional presentation suite uses the same owning update schema |
-| catalog components | contextual words and header profiles in [UI-COMPONENTS](../../design/UI-COMPONENTS.md#grammar-and-option-boundaries) | Only the entry's closed binding/structural options and checked appearance subset; not arbitrary NAME/value props |
+| catalog components | contextual words and header profiles in [UI-COMPONENTS](../design/UI-COMPONENTS.md#grammar-and-option-boundaries) | Only the entry's closed binding/structural options and checked appearance subset; not arbitrary NAME/value props |
 | component slot | `slot NAME` | none; required/optional/repeated names and parent contexts come from the catalog |
 | inline preferences panel | `preferences` | none; nonempty UI suite for an existing owning preference extension |
 | migration | `migration NAME` | `from=STRING` **required** |
@@ -453,7 +453,7 @@ A scenario-attached sequence starts with a sole `do` child instead of a table he
 
 ## Presentation and routes
 
-The [approved full daisyUI catalog](../../design/UI-COMPONENTS.md#grammar-and-option-boundaries) extends these core productions with all 68 contextual component words and their finite header/body profiles. Its field-placement, exclusive button bindings, named slots, repetition and shared-state/navigation rules are normative design contracts. The old short UI production list is not an exhaustive allowlist. Parser/checker/renderer delivery is separate; lane 1 and lane 5 must agree on the same producer-owned catalog and finish its checked per-component appearance matrix. Unknown words, unsupported options and invalid parent/child/binding shapes remain errors. No context `shell` setting is added: all apps retain the shared left-sidebar shell, bottom-left user menu, user configuration dialog and login screen.
+The [approved full daisyUI catalog](../design/UI-COMPONENTS.md#grammar-and-option-boundaries) extends these core productions with all 68 contextual component words and their finite header/body profiles. Its field-placement, exclusive button bindings, named slots, repetition and shared-state/navigation rules are normative design contracts. The old short UI production list is not an exhaustive allowlist. Parser/checker/renderer delivery is separate; lane 1 and lane 5 must agree on the same producer-owned catalog and finish its checked per-component appearance matrix. Unknown words, unsupported options and invalid parent/child/binding shapes remain errors. No context `shell` setting is added: all apps retain the shared left-sidebar shell, bottom-left user menu, user configuration dialog and login screen.
 
 ```ebnf
 then_item      = page | view | line(style_definition) | line(preferences) | line(invariant) ;

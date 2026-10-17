@@ -113,9 +113,9 @@ def capture():
     for record in git('diff','--name-status',CHECKPOINT,pin).decode().splitlines():
         bits=record.split('\t');delta.append({'change':bits[0],'paths':bits[1:]})
     contracts=['AGENTS.md','docs/specification/REQUIREMENTS.md','docs/specification/DESIGN.md','docs/specification/GRAMMAR.md','docs/specification/DECISIONS.md',
-               'implementation/CONTRACTS.md','implementation/CHALLENGE-AUDIT-PLAN.md',
-               'implementation/DESCRIPTION-REFERENCE-PLAN.md','implementation/REMAINING-IMPLEMENTATION-LANES.md',
-               'implementation/challenge-audit-run/t33-resolution.md','implementation/challenge-audit-run/evidence/t34-plan.md']
+               'docs/implementation/CONTRACTS.md','docs/implementation/CHALLENGE-AUDIT-PLAN.md',
+               'docs/implementation/DESCRIPTION-REFERENCE-PLAN.md','docs/implementation/REMAINING-IMPLEMENTATION-LANES.md',
+               'docs/implementation/challenge-audit-run/t33-resolution.md','docs/implementation/challenge-audit-run/evidence/t34-plan.md']
     contracts += [str(p.relative_to(ROOT)) for p in sorted((ROOT/'docs/research/package-subsystem-ports-20261006/implementation-plans').glob('*')) if p.is_file()]
     dirty=git('status','--porcelain=v1','--untracked-files=all').decode().splitlines()
     audit={'schema_version':1,'checkout':str(ROOT),'source_pin':pin,'branch':git('branch','--show-current').decode().strip(),
@@ -130,7 +130,7 @@ def capture():
            'draft':{'pin':draft_pin,'gitlink_at_source_pin':next(r['blob'] for r in rows if r['path']=='draft'),'dirty':git('status','--short',cwd=ROOT/'draft').decode().splitlines(),'rows':draft},
            'writer_boundary':{'audit_owner':'Codex root; three disjoint review writers','owned_prefix':'docs/ideal-filetree-plan/finished-product/',
               'shared_entry':'docs/ideal-filetree-plan.md only after convergence; current merge-maintenance records preserved',
-              'not_owned':['implementation/challenge-audit-run/remaining-tasks.md','docs/research/package-subsystem-ports-20261006/evidence/implementation/','current Muse source reservations'],
+              'not_owned':['docs/implementation/challenge-audit-run/remaining-tasks.md','docs/research/package-subsystem-ports-20261006/evidence/implementation/','current Muse source reservations'],
               'ownership_evidence':'docs/research/package-subsystem-ports-20261006/evidence/implementation/shared/ownership.json; REMAINING-IMPLEMENTATION-LANES.md states coordinator does not own unrelated living-filetree edits'},
            'missing_skill_support':['references/procedure.md','references/records.md','references/scheduling.md','scripts/check_artifacts.py']}
     dump('inventory.json',audit)

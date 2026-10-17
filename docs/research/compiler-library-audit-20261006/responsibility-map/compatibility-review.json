@@ -200,7 +200,7 @@
           "correction": "Keep diagnostic array sorting/facts required_semantic. Attribute member order to released DTO declaration and accepted C05D; include public compact/single-line promise separately. Exact old wording is not established as a permanent language guarantee.",
           "exact_refs": [
             {
-              "path": "implementation/DIAGNOSTICS.md",
+              "path": "docs/implementation/DIAGNOSTICS.md",
               "line": 21,
               "symbol": "machine result"
             },
@@ -886,7 +886,7 @@
             "FMT-01"
           ],
           "kind": "authority anchor",
-          "correction": "implementation/DIAGNOSTICS.md31 is the fixes/formatting contract;33 is measurements. Preserve its idempotence/content/indentation requirements and current formatter byte release guards separately."
+          "correction": "docs/implementation/DIAGNOSTICS.md31 is the fixes/formatting contract;33 is measurements. Preserve its idempotence/content/indentation requirements and current formatter byte release guards separately."
         },
         {
           "ids": [

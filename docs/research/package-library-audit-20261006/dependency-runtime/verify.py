@@ -92,7 +92,7 @@ for r in packets['values-work']['execution_matrix']:
     for group in r.get('anchors','').split(';'):
         m=re.match(r'\s*([^:]+):([0-9,\-]+)',group)
         if not m: continue
-        p=m[1] if m[1].startswith(('packages/','scripts/','implementation/','docs/')) else 'packages/'+m[1]
+        p=m[1] if m[1].startswith(('packages/','scripts/','docs/implementation/','docs/')) else 'packages/'+m[1]
         for n in m[2].split(','):
             q=n.split('-'); bounds(p,int(q[0]),int(q[-1]),{p:p})
 check('source/primary-library anchor bounds', not anchor_errors, {'positions':anchor_count,'errors':anchor_errors})

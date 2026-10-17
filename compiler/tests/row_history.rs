@@ -28,7 +28,7 @@ fn bare_history_uses_original_rows_and_preserves_source_failure_order() {
     let artifact_path = scratch.path().join("artifact.json");
     std::fs::write(&artifact_path, output.stdout).unwrap();
     let consumer = Command::new("node")
-        .arg(root.join("implementation/compiler-completion/view-reuse/history-consumer.mjs"))
+        .arg(root.join("docs/implementation/compiler-completion/view-reuse/history-consumer.mjs"))
         .arg(root)
         .arg(&artifact_path)
         .arg(scratch.path().join("staged"))

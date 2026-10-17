@@ -17,7 +17,7 @@
       "sha256": "481ce7ea109ca7ae6852ec6430ae03fb5c973f7ba469b3ed28824fcf5b2df0c9"
     },
     {
-      "path": "design/UI-COMPONENTS.md",
+      "path": "docs/design/UI-COMPONENTS.md",
       "sha256": "493e4dc9f705953f24778a902303faf79f33ac2e2c8be99b1b9fd70bcf93bce3"
     },
     {
@@ -8362,7 +8362,7 @@
       "word": "accordion",
       "contract": "Disclosure group with one open child; retain enclosing scopes",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 41,
         "end_line": 41
       },
@@ -8377,7 +8377,7 @@
       "word": "alert",
       "contract": "Readable notice or canonical operation feedback",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 42,
         "end_line": 42
       },
@@ -8392,7 +8392,7 @@
       "word": "aura",
       "contract": "Decoration around existing content",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 43,
         "end_line": 43
       },
@@ -8407,7 +8407,7 @@
       "word": "avatar",
       "contract": "Authorized image or explicit safe fallback; no inferred user directory",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 44,
         "end_line": 44
       },
@@ -8422,7 +8422,7 @@
       "word": "badge",
       "contract": "Readable typed value and its owning caption",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 45,
         "end_line": 45
       },
@@ -8437,7 +8437,7 @@
       "word": "breadcrumbs",
       "contract": "Current declared route ancestry and authorized destinations",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 46,
         "end_line": 46
       },
@@ -8452,7 +8452,7 @@
       "word": "button",
       "contract": "Existing action, form submit, disclosure or destination; distinguish these bindings explicitly",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 47,
         "end_line": 47
       },
@@ -8467,7 +8467,7 @@
       "word": "calendar",
       "contract": "Form-bound date control; distinguish the existing agenda collection by enclosing grammar",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 48,
         "end_line": 48
       },
@@ -8482,7 +8482,7 @@
       "word": "card",
       "contract": "Existing scope-transparent content group",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 49,
         "end_line": 49
       },
@@ -8497,7 +8497,7 @@
       "word": "carousel",
       "contract": "Ordered readable content with explicit item slots",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 50,
         "end_line": 50
       },
@@ -8512,7 +8512,7 @@
       "word": "chat_bubble",
       "contract": "Explicit readable message, author and time; no messaging behavior inferred",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 51,
         "end_line": 51
       },
@@ -8527,7 +8527,7 @@
       "word": "checkbox",
       "contract": "Existing boolean input",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 52,
         "end_line": 52
       },
@@ -8542,7 +8542,7 @@
       "word": "collapse",
       "contract": "Same disclosure behavior currently supplied by `details`",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 53,
         "end_line": 53
       },
@@ -8557,7 +8557,7 @@
       "word": "countdown",
       "contract": "Readable numeric/time presentation; no schedule or state transition",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 54,
         "end_line": 54
       },
@@ -8572,7 +8572,7 @@
       "word": "diff",
       "contract": "Two authorized presentation slots; no automatic business comparison",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 55,
         "end_line": 55
       },
@@ -8587,7 +8587,7 @@
       "word": "divider",
       "contract": "Separation with an optional authored caption",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 56,
         "end_line": 56
       },
@@ -8602,7 +8602,7 @@
       "word": "dock",
       "contract": "Presentation of canonical authorized destinations",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 57,
         "end_line": 57
       },
@@ -8617,7 +8617,7 @@
       "word": "drawer",
       "contract": "Existing shared shell or explicitly activated scoped content",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 58,
         "end_line": 58
       },
@@ -8632,7 +8632,7 @@
       "word": "dropdown",
       "contract": "Explicit trigger and content slots with shared focus behavior",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 59,
         "end_line": 59
       },
@@ -8647,7 +8647,7 @@
       "word": "fab",
       "contract": "Presentation of existing canonical actions",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 60,
         "end_line": 60
       },
@@ -8662,7 +8662,7 @@
       "word": "fieldset",
       "contract": "Group existing form fields without duplicating their schemas",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 61,
         "end_line": 61
       },
@@ -8677,7 +8677,7 @@
       "word": "file_input",
       "contract": "Existing writable file input and authorized upload/finalization path",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 62,
         "end_line": 62
       },
@@ -8692,7 +8692,7 @@
       "word": "filter",
       "contract": "Existing typed view/query selection, not a new mutation mechanism",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 63,
         "end_line": 63
       },
@@ -8707,7 +8707,7 @@
       "word": "footer",
       "contract": "Page content or shared-shell presentation",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 64,
         "end_line": 64
       },
@@ -8722,7 +8722,7 @@
       "word": "hero",
       "contract": "Prominent scoped content group",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 65,
         "end_line": 65
       },
@@ -8737,7 +8737,7 @@
       "word": "hover_3d",
       "contract": "Decorative wrapper with upstream restrictions on interactive children",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 66,
         "end_line": 66
       },
@@ -8752,7 +8752,7 @@
       "word": "hover_gallery",
       "contract": "Authorized images with touch/keyboard alternatives",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 67,
         "end_line": 67
       },
@@ -8767,7 +8767,7 @@
       "word": "indicator",
       "contract": "Explicit indicator/content slots",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 68,
         "end_line": 68
       },
@@ -8782,7 +8782,7 @@
       "word": "input",
       "contract": "Existing writable text or appropriate scalar input",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 69,
         "end_line": 69
       },
@@ -8797,7 +8797,7 @@
       "word": "join",
       "contract": "Visual grouping of existing controls",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 70,
         "end_line": 70
       },
@@ -8812,7 +8812,7 @@
       "word": "kbd",
       "contract": "Shortcut notation; does not register a keyboard handler",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 71,
         "end_line": 71
       },
@@ -8827,7 +8827,7 @@
       "word": "label",
       "contract": "Caption from the existing owning input; no separate schema",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 72,
         "end_line": 72
       },
@@ -8842,7 +8842,7 @@
       "word": "link",
       "contract": "Checked destination or authorized file URL; no invented route or access",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 73,
         "end_line": 73
       },
@@ -8857,7 +8857,7 @@
       "word": "list",
       "contract": "Existing authorized collection and row binding",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 74,
         "end_line": 74
       },
@@ -8872,7 +8872,7 @@
       "word": "loading",
       "contract": "Actual runtime loading feedback or explicitly readable application state",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 75,
         "end_line": 75
       },
@@ -8887,7 +8887,7 @@
       "word": "mask",
       "contract": "Visual shape around existing content",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 76,
         "end_line": 76
       },
@@ -8902,7 +8902,7 @@
       "word": "megamenu",
       "contract": "Authorized page descriptors with shared responsive behavior",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 77,
         "end_line": 77
       },
@@ -8917,7 +8917,7 @@
       "word": "menu",
       "contract": "Declared destinations or canonical action controls",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 78,
         "end_line": 78
       },
@@ -8932,7 +8932,7 @@
       "word": "mockup_browser",
       "contract": "Presentation wrapper; no browsing engine",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 79,
         "end_line": 79
       },
@@ -8947,7 +8947,7 @@
       "word": "mockup_code",
       "contract": "Escaped text; no code execution",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 80,
         "end_line": 80
       },
@@ -8962,7 +8962,7 @@
       "word": "mockup_phone",
       "contract": "Presentation wrapper",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 81,
         "end_line": 81
       },
@@ -8977,7 +8977,7 @@
       "word": "mockup_window",
       "contract": "Presentation wrapper",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 82,
         "end_line": 82
       },
@@ -8992,7 +8992,7 @@
       "word": "modal",
       "contract": "Activated scoped content with shared dialog behavior",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 83,
         "end_line": 83
       },
@@ -9007,7 +9007,7 @@
       "word": "navbar",
       "contract": "Shared navigation presentation and explicit content slots",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 84,
         "end_line": 84
       },
@@ -9022,7 +9022,7 @@
       "word": "otp",
       "contract": "Existing constrained text input; preserve leading zeros",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 85,
         "end_line": 85
       },
@@ -9037,7 +9037,7 @@
       "word": "pagination",
       "contract": "Existing collection cursor, filters and ordering",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 86,
         "end_line": 86
       },
@@ -9052,7 +9052,7 @@
       "word": "progress",
       "contract": "Readable numeric progress with checked bounds",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 87,
         "end_line": 87
       },
@@ -9067,7 +9067,7 @@
       "word": "radial_progress",
       "contract": "Same progress data in a circular presentation",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 88,
         "end_line": 88
       },
@@ -9082,7 +9082,7 @@
       "word": "radio",
       "contract": "Existing finite-choice input",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 89,
         "end_line": 89
       },
@@ -9097,7 +9097,7 @@
       "word": "range",
       "contract": "Existing numeric input with suitable owning bounds",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 90,
         "end_line": 90
       },
@@ -9112,7 +9112,7 @@
       "word": "rating",
       "contract": "Existing bounded numeric or finite-choice input",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 91,
         "end_line": 91
       },
@@ -9127,7 +9127,7 @@
       "word": "select",
       "contract": "Existing enum/reference selection with its current read grants",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 92,
         "end_line": 92
       },
@@ -9142,7 +9142,7 @@
       "word": "skeleton",
       "contract": "Existing loading state or an explicitly authored placeholder",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 93,
         "end_line": 93
       },
@@ -9157,7 +9157,7 @@
       "word": "stack",
       "contract": "Visual stacking of scoped content",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 94,
         "end_line": 94
       },
@@ -9172,7 +9172,7 @@
       "word": "stat",
       "contract": "Typed metric presentation, sharing existing metric semantics",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 95,
         "end_line": 95
       },
@@ -9187,7 +9187,7 @@
       "word": "status",
       "contract": "Explicit readable state with a text alternative",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 96,
         "end_line": 96
       },
@@ -9202,7 +9202,7 @@
       "word": "steps",
       "contract": "Readable process stages; does not define or execute a workflow",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 97,
         "end_line": 97
       },
@@ -9217,7 +9217,7 @@
       "word": "swap",
       "contract": "Two presentation slots selected by explicit view state",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 98,
         "end_line": 98
       },
@@ -9232,7 +9232,7 @@
       "word": "tabs",
       "contract": "Existing transient panels or owned enum preference selection",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 99,
         "end_line": 99
       },
@@ -9247,7 +9247,7 @@
       "word": "table",
       "contract": "Existing authorized collection, selectors and row context",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 100,
         "end_line": 100
       },
@@ -9262,7 +9262,7 @@
       "word": "text_rotate",
       "contract": "Readable text sequence with reduced-motion behavior",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 101,
         "end_line": 101
       },
@@ -9277,7 +9277,7 @@
       "word": "textarea",
       "contract": "Existing writable text input",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 102,
         "end_line": 102
       },
@@ -9292,7 +9292,7 @@
       "word": "theme_controller",
       "contract": "Existing shared Appearance path, finite theme choices and persistence",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 103,
         "end_line": 103
       },
@@ -9307,7 +9307,7 @@
       "word": "timeline",
       "contract": "Ordered authorized events or explicit readable entries",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 104,
         "end_line": 104
       },
@@ -9322,7 +9322,7 @@
       "word": "toast",
       "contract": "Notice placement; retain real feedback and accessible announcements",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 105,
         "end_line": 105
       },
@@ -9337,7 +9337,7 @@
       "word": "toggle",
       "contract": "Existing boolean input, including permitted view settings",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 106,
         "end_line": 106
       },
@@ -9352,7 +9352,7 @@
       "word": "tooltip",
       "contract": "Annotation of existing content/control with accessible alternatives",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 107,
         "end_line": 107
       },
@@ -9367,7 +9367,7 @@
       "word": "validator",
       "contract": "Existing input constraints and feedback, without a second rule language",
       "declared_anchor": {
-        "path": "design/UI-COMPONENTS.md",
+        "path": "docs/design/UI-COMPONENTS.md",
         "start_line": 108,
         "end_line": 108
       },

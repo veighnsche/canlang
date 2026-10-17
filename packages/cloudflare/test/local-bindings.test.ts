@@ -108,7 +108,7 @@ it("requires real services and selects the installed root class only for the fin
     { owner: "App", name: "roots", binding: "App.roots", kind: "durable-object", key: "App.Root.id" },
   ];
   const plan = planLocalBindings(artifact(source));
-  expect(() => configureLocalBindings(plan, "/private/local")).toThrow(/requires the real implementation/);
+  expect(() => configureLocalBindings(plan, "/private/local")).toThrow(/requires the real docs/implementation/);
   const implementation = { workerName: "mailer", compatibilityDate: "2026-07-15", mainModule: "service.js", modules: { "service.js": 'export default {fetch(){return new Response("real");}};' } };
   const providers = { services: { "mail-service": implementation } };
   const configured = configureLocalBindings(plan, "/private/local", providers);

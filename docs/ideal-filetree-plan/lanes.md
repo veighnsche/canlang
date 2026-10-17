@@ -38,5 +38,5 @@ cutover. Existing retirement decisions remain unchanged.
 
 The old implementation run is user-stopped, its heartbeat paused, and only the main
 checkout remains. No Muse instances, timers, worktrees or implementation are launched
-by this merge. The separate [remaining implementation plan](../../implementation/REMAINING-IMPLEMENTATION-LANES.md)
+by this merge. The separate [remaining implementation plan](../implementation/REMAINING-IMPLEMENTATION-LANES.md)
 defines that finite authorized backlog; this file-tree plan does not expand it.

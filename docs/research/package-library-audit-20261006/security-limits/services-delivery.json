@@ -1222,7 +1222,7 @@
       "sha256": "68dcaf6d9720685bb77e166add8a4018e576e67058f72d4ea7869d3a8a144793"
     },
     "S03": {
-      "path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/DECISIONS-PENDING-HANDOFF.md",
+      "path": "docs/implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/DECISIONS-PENDING-HANDOFF.md",
       "sha256": "2d7e72aa84ac62e2ec1448fbbb869539dee977dfe9662005e52f31794bafb9cb"
     },
     "S04": {

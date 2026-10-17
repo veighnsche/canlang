@@ -26,17 +26,17 @@
     "docs/research/package-library-audit-20261006/model-allocation-20261007.json": "b4a6f780f3f70f136c1fce3984e04bad0637cee50a44b1bd3d813e3adcb2e05b",
     "docs/research/package-library-audit-20261006/reviews/model-task-fit-review.md": "089300b270494fb20b465b864b04516045b2cbf8e0b77bd058eb0c9e4164ca4b",
     "docs/research/package-library-audit-20261006/README.md": "6af60ed801c1c5d7aadcd696e6d08ee567d98d4de5835085c53c6bff4f4cee07",
-    "implementation/RUST-PORT-START-HERE.md": "58dbca4be168164fec5890f0978e836899f7464bd7b78ad6c08e2112e9a9424d",
-    "implementation/RUST-PORT-EXECUTION-PLAN.md": "3c5a90d7ea36a1647d2dc04fd46087f2e5076e7fda0df0e8710d67582a1dfacd",
-    "implementation/rust-port-orchestration/plan.json": "7bba711ebb0557fa33d8293eda5f76db799909dcfc0af3a9c0c9314a3f3c396c"
+    "docs/implementation/RUST-PORT-START-HERE.md": "58dbca4be168164fec5890f0978e836899f7464bd7b78ad6c08e2112e9a9424d",
+    "docs/implementation/RUST-PORT-EXECUTION-PLAN.md": "3c5a90d7ea36a1647d2dc04fd46087f2e5076e7fda0df0e8710d67582a1dfacd",
+    "docs/implementation/rust-port-orchestration/plan.json": "7bba711ebb0557fa33d8293eda5f76db799909dcfc0af3a9c0c9314a3f3c396c"
   },
   "foreign_dirty_paths_excluded": [
     "docs/ideal-filetree-plan.md",
     "docs/ideal-filetree-plan/finished-product/tasks.md",
     "docs/specification/DECISIONS.md",
-    "implementation/CHALLENGE-AUDIT-PLAN.md",
-    "implementation/REMAINING-WORK.md",
-    "implementation/RUST-PORT-LANES.md"
+    "docs/implementation/CHALLENGE-AUDIT-PLAN.md",
+    "docs/implementation/REMAINING-WORK.md",
+    "docs/implementation/RUST-PORT-LANES.md"
   ],
   "checkpoint_advanced": false
 }

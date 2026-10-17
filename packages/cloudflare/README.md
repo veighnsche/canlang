@@ -46,7 +46,7 @@ and WASM belong to the Worker inventory; browser scripts/CSS are separate
 or change the backend. The writer verifies both inventories before writing and
 requires canonical output parents, rejecting existing symlinks. Browser routing
 is still the serving host's responsibility. See the
-[installed regression evidence](../../implementation/installed-worker-assets/README.md).
+[installed regression evidence](../../docs/implementation/installed-worker-assets/README.md).
 
 ## Explicit native builtin catalog
 

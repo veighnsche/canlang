@@ -8,7 +8,7 @@
   "source_evidence": [
     {
       "id": "product",
-      "path": "implementation/CHALLENGE-AUDIT-PLAN.md",
+      "path": "docs/implementation/CHALLENGE-AUDIT-PLAN.md",
       "sha256": "c71f9a33cea8dcd4024e1bdda72294029d7a10995d588736d51aca5c1fdf2202",
       "sites": [
         "authority and scope",
@@ -18,7 +18,7 @@
     },
     {
       "id": "reference",
-      "path": "implementation/DESCRIPTION-REFERENCE-PLAN.md",
+      "path": "docs/implementation/DESCRIPTION-REFERENCE-PLAN.md",
       "sha256": "88633a4c29c3a8749adf59b56d5fb8c39e69f17de66e983abf9c5b57a48a5429",
       "sites": [
         "first-delivery scope",
@@ -28,7 +28,7 @@
     },
     {
       "id": "remaining",
-      "path": "implementation/REMAINING-IMPLEMENTATION-LANES.md",
+      "path": "docs/implementation/REMAINING-IMPLEMENTATION-LANES.md",
       "sha256": "ffa464ed1ef7181de0cbcfebf755d86f851a44700dc8ba03007500677416efcf",
       "sites": [
         "I00/I01 compatibility and gates",

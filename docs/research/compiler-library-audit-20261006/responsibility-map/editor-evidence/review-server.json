@@ -37,7 +37,7 @@
       "sha256": "916ccb65410f7f55e1b4ffe5a3e9a1e0294d6fba11abb3ffd802515103da86b6"
     },
     {
-      "path": "implementation/DIAGNOSTICS.md",
+      "path": "docs/implementation/DIAGNOSTICS.md",
       "sha256": "90f6233569bc999149dc09b4a7dc239d8f99860de14c2da2c7cea1c331231061"
     }
   ],

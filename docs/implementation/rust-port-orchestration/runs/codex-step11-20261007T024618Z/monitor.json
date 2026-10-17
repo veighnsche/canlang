@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "run_id": "codex-step11-20261007T024618Z",
+  "run_dir": "/Users/vince/Projects/canlang/docs/implementation/rust-port-orchestration/runs/codex-step11-20261007T024618Z",
+  "private_root": "/private/tmp/canlang-rust-port-codex-step11-20261007T024618Z",
+  "base": "2552e7ba7636fb9d0c0c97c17922b195b868ebad",
+  "previous_run": "codex-step10-20261007T015711Z",
+  "phase": "step11_finite_retirement_check_completed",
+  "human_release": "Step11 E01/R02 bounded removal after actual accepted caller switch; uncertain libraries retain-now unless concrete benefit/blocker",
+  "execution_authorized": false,
+  "future_dispatch_authorized": false,
+  "preparation_hold": true,
+  "native_timers": [],
+  "heavy_grants": [],
+  "active_command_handles": [],
+  "roles": [],
+  "foreign_writer": "compiler and dirty shared docs/index remain owned by other agent; preserve",
+  "supervisor_status": "PAUSED verified",
+  "scope_limits": [
+    "No TS backend retirement; original parity/measurement/rollback gates remain",
+    "No held preparation, push/deployment, new sessions/worktrees or product expansion",
+    "Historical acceptance used only at exact unchanged source/consumer scope; no test expectations/source oracles deleted"
+  ],
+  "updated_at_utc": "2026-10-07T02:56:49.245558+00:00",
+  "accepted_cleanup_commit": "eb9f91b2dc2778662938b014135a13b0253bdc85",
+  "acceptance": "cleanup-acceptance.json",
+  "retirement_inventory": "mechanical-inventory.json",
+  "uncertain_libraries": "E01-dispositions.json",
+  "original_statuses_and_dependencies_changed": false,
+  "TS_backend_retired": false,
+  "held_preparation_still_held": true
+}

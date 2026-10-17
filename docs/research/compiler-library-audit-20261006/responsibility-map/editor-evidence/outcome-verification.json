@@ -438,7 +438,7 @@
       "verified": true
     },
     {
-      "check": "unchanged baseline implementation/DIAGNOSTICS.md",
+      "check": "unchanged baseline docs/implementation/DIAGNOSTICS.md",
       "verified": true
     },
     {

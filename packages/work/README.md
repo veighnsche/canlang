@@ -7,7 +7,7 @@ recovery scans. Pure kernel logic plus port interfaces; durable fencing
 and storage belong to the lane-3 owner, and the public surface assembles
 in `@canlang/stdlib`.
 
-Ownership per `implementation/PLAN.md`: lane 04
+Ownership per `docs/implementation/PLAN.md`: lane 04
 (`work/`, `services/`, `files/`) owns this package. Internal only:
 `private: true`, no app-facing API.
 

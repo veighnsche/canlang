@@ -116,7 +116,7 @@ const onig = require(base + 'vscode-oniguruma');
  assert(!tokenLines(['When',' card caption'])[1].some(t=>t.scopes.includes('entity.name.tag.component.can')));
 
  // The approved component inventory is the regression source: no smaller UI allowlist.
- const componentInventory=fs.readFileSync('design/UI-COMPONENTS.md','utf8').split('## Complete inventory\n')[1].split('## Binding contracts')[0];
+ const componentInventory=fs.readFileSync('docs/design/UI-COMPONENTS.md','utf8').split('## Complete inventory\n')[1].split('## Binding contracts')[0];
  const componentWords=[...componentInventory.matchAll(/^\| [^|]+ \| `([a-z_][a-z_0-9]*)` \|/gm)].map(match=>match[1]);
  assert.equal(componentWords.length,68);assert.equal(new Set(componentWords).size,68);
  const componentScope='entity.name.tag.component.can';

@@ -491,7 +491,7 @@
       "sha256": "ace09efbe7df6326fb3fa35090b76befeb8d554dab3e3a3123b7ddf285590c36"
     },
     {
-      "path": "implementation/DIAGNOSTICS.md",
+      "path": "docs/implementation/DIAGNOSTICS.md",
       "bytes": 5919,
       "sha256": "90f6233569bc999149dc09b4a7dc239d8f99860de14c2da2c7cea1c331231061"
     },

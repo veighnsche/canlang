@@ -116,7 +116,7 @@ check(binary["runtime_execution"] is False, "binary execution flag")
 exports = {item["name"] for item in binary["binary"]["exports"]}
 check({"abi_version", "exact_call", "structural_abi_version", "validation_call", "memory"} <= exports, "export metadata")
 
-receipt_path = "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-qualification-receipt.json"
+receipt_path = "docs/implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-qualification-receipt.json"
 receipt = json.loads(cache[receipt_path])
 matches, missing = [], []
 for path, digest in receipt["exact_used_non_generated_source_copy"].items():

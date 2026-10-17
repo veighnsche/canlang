@@ -132,7 +132,7 @@ try {
   versions.workerd = defaults.get('workerd').manifest.version;
   assert.equal(versions.miniflare, '4.20260730.0');
   assert.equal(versions.workerd, '1.20260730.1');
-  for (const entry of ['package.json', 'compiler/src', 'compiler/Cargo.toml', 'compiler/Cargo.lock', 'docs/specification', 'design/UI-COMPONENTS.md']) {
+  for (const entry of ['package.json', 'compiler/src', 'compiler/Cargo.toml', 'compiler/Cargo.lock', 'docs/specification', 'docs/design/UI-COMPONENTS.md']) {
     mkdirSync(dirname(join(destination, entry)), { recursive: true });
     cpSync(join(root, entry), join(destination, entry), { recursive: true, dereference: true });
   }

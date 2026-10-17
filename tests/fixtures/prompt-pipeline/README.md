@@ -24,7 +24,7 @@ multiple entries, keyboard dismissal and focus, cancellation, validation,
 mutation/readback, desktop/mobile layout, title width and content/action cohesion.
 The `/actions` page also exercises list/table row placement, modal/drawer/detail
 heading menus and footers, and an explicit inline form submit. The allowed owner
-matrix lives in [UI components](../../../design/UI-COMPONENTS.md).
+matrix lives in [UI components](../../../docs/design/UI-COMPONENTS.md).
 The current owner gate (`.can/gen/checks/run-source-action-owners-20261014-mount/report.json`, local run output)
 passed compilation, build, seven examples and the complete Playwright journey on
 14 October 2026 (67.0 seconds, no skipped/flaky tests). Native Can accepted the
@@ -115,7 +115,7 @@ can gen PromptStudio.can --retry
 The implementation's separate fault-injection integration lives in
 `verify-acceptance.mjs`; it is an internal test of rejection and recovery, not the
 app-generation entry point. Its retained results are linked from the
-[current execution view](../../../design/proposals/build-generation/implementation-plan.md#current-codex-integration-execution-view--2026-10-13).
+[current execution view](../../../docs/design/proposals/build-generation/implementation-plan.md#current-codex-integration-execution-view--2026-10-13).
 
 Saved JavaScript and CSS remain directly editable through the generation edit-lease controls. For a compatible CSS edit, send these version-1 requests to `compiler/target/debug/can gen` on stdin, using the low-level automation interface:
 
@@ -148,7 +148,7 @@ requested Codex `gpt-6.1-sol` / medium recipe, then completed a full retry with 
 same unit identities. Saved prepare reused and validated all eight units with
 `CAN_CODEX_BIN=/nonexistent/codex`. A lease-coordinated CSS edit also validated
 without AI. The bounded native and generation reports are linked from the
-[current execution record](../../../design/proposals/build-generation/implementation-plan.md#current-codex-integration-execution-view--2026-10-13).
+[current execution record](../../../docs/design/proposals/build-generation/implementation-plan.md#current-codex-integration-execution-view--2026-10-13).
 
 Historical real dev-server Playwright acceptance passed (1 test, 54.7 seconds) with
 `CAN_CODEX_BIN=/nonexistent/codex`. That run verified authenticated create/update/archive,

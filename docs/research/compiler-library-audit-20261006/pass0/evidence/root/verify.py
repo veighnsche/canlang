@@ -43,7 +43,7 @@ profile["execution_inputs"] = [{"path":str(path.relative_to(ROOT)),"sha256":hash
 save(OUT / "profile.json", profile)
 
 tracked = run(["git", "ls-files", "compiler", "packages/values", "packages/contracts"])["stdout"].splitlines()
-extras = ["package.json", "bun.lock", "scripts/run-tasks.mjs", ".github/workflows/lane-01.yml", ".github/workflows/release.yml", "docs/specification/DESIGN.md", "docs/specification/GRAMMAR.md", "implementation/DIAGNOSTICS.md", "packages/cloudflare/src/runtime/sourcemap.ts", "packages/cloudflare/src/runtime/invoke.ts", "packages/cloudflare/test/sourcemap.test.ts", "packages/cloudflare/dist/runtime/sourcemap.js"]
+extras = ["package.json", "bun.lock", "scripts/run-tasks.mjs", ".github/workflows/lane-01.yml", ".github/workflows/release.yml", "docs/specification/DESIGN.md", "docs/specification/GRAMMAR.md", "docs/implementation/DIAGNOSTICS.md", "packages/cloudflare/src/runtime/sourcemap.ts", "packages/cloudflare/src/runtime/invoke.ts", "packages/cloudflare/test/sourcemap.test.ts", "packages/cloudflare/dist/runtime/sourcemap.js"]
 inputs = {ROOT / path for path in tracked + extras}
 inputs.update(execution_inputs)
 for owner in ["values", "contracts"]:

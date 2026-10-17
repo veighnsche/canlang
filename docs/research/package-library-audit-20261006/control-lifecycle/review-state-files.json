@@ -372,7 +372,7 @@
       "sha256": "489bf7f70fbb692227c9eb0482df42475b87ae2951d60abbc72d782fe2d51628"
     },
     "resolution": {
-      "path": "implementation/challenge-audit-run/t33-resolution.md",
+      "path": "docs/implementation/challenge-audit-run/t33-resolution.md",
       "sha256": "b4a310ce2e3d9eccbc2d6a8c98381d531897ff0ce76feaed84a3d84490d59d05"
     },
     "upload": {

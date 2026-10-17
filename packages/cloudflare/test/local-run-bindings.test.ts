@@ -79,7 +79,7 @@ it("calls supplied local service workers and refuses missing implementations", a
   const dev = await startLocalDev(primary);
   try { expect(await (await dev.dispatch("/hello")).json()).toEqual({ greeting: "local service", path: "/hello" }); }
   finally { await dev.dispose(); }
-  await expect(startLocalDev({ ...primary, companionWorkers: [] })).rejects.toThrow(/no supplied implementation/);
+  await expect(startLocalDev({ ...primary, companionWorkers: [] })).rejects.toThrow(/no supplied docs/implementation/);
   await expect(startLocalDev({ ...primary, companionWorkers: [primary] })).rejects.toThrow(/duplicated/);
 }, 30_000);
 

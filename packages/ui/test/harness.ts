@@ -3,7 +3,7 @@
  *
  * happy-dom supplies document/focus/keyboard semantics under node --test;
  * linkedom was disqualified because focus() leaves activeElement undefined
- * (see implementation/evidence/jev/lane-05-s5-20261004/review.md).
+ * (see docs/implementation/evidence/jev/lane-05-s5-20261004/review.md).
  * Test-only helper: never imported by src/.
  */
 import { Window } from "happy-dom";

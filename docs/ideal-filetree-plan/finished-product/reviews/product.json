@@ -192,8 +192,8 @@
       "requirement": "Original source compilation, actual fixture/calls, independent expectations and browser/MCP/persistence/recovery journeys",
       "disposition": "REQUIRED",
       "source_paths": [
-        "implementation/CHALLENGE-AUDIT-PLAN.md",
-        "implementation/REMAINING-IMPLEMENTATION-LANES.md"
+        "docs/implementation/CHALLENGE-AUDIT-PLAN.md",
+        "docs/implementation/REMAINING-IMPLEMENTATION-LANES.md"
       ],
       "target_paths": [
         "packages/testkit/test/original-workflow-qualification.test.ts",

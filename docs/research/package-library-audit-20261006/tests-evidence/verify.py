@@ -79,7 +79,7 @@ check('10 gated cleanup groups reference valid claims', len(cleanup['items']) ==
 expected = load('inventory-summary.json')
 actual = inventory(sources['freeze'])
 check('frozen mechanical inventory reproducible including ordered record digest', all(actual[k] == expected[k] for k in ('pin','summary','top20_files','exact_duplicate_groups','repeated_json_arrays','large_array_sections','records_canonical_json_sha256')))
-check('metadata selection is packages/orchestration only', all(r['path'].startswith(('packages/','implementation/rust-port-orchestration/runs/')) and not any('/'+x+'/' in r['path'] for x in ('dist','target','node_modules','.turbo')) for r in actual['records']))
+check('metadata selection is packages/orchestration only', all(r['path'].startswith(('packages/','docs/implementation/rust-port-orchestration/runs/')) and not any('/'+x+'/' in r['path'] for x in ('dist','target','node_modules','.turbo')) for r in actual['records']))
 check('770 exact duplicate bytes and6 repeated top-level JSON arrays remain distinct', actual['summary']['exact_redundant_bytes']==770 and actual['summary']['substantive_repeated_json_arrays']==6)
 v = json.loads((ROOT/'packages/values/conformance/numeric-text.json').read_text())
 w = json.loads((ROOT/'packages/work-kernel/conformance/fixtures/numeric-text.json').read_text())

@@ -101,7 +101,7 @@
       ],
       "saved_receipt_evidence": [
         {
-          "path": "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/acceptance.json",
+          "path": "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/acceptance.json",
           "start": 3,
           "end": 5,
           "role": "saved_acceptance_receipt",
@@ -109,7 +109,7 @@
           "pin": "7870143465cf3d73e68339a6aa8d82109bd58397"
         },
         {
-          "path": "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/acceptance.json",
+          "path": "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/acceptance.json",
           "start": 17,
           "end": 29,
           "role": "saved_acceptance_limits",
@@ -117,7 +117,7 @@
           "pin": "7870143465cf3d73e68339a6aa8d82109bd58397"
         },
         {
-          "path": "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/raw/sol/qualified-record-checks.json",
+          "path": "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/raw/sol/qualified-record-checks.json",
           "start": 72,
           "end": 87,
           "role": "saved_source_hash_receipt",
@@ -125,7 +125,7 @@
           "pin": "7870143465cf3d73e68339a6aa8d82109bd58397"
         },
         {
-          "path": "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/raw/workerd-result.json",
+          "path": "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/raw/workerd-result.json",
           "start": 1,
           "end": 9,
           "role": "saved_execution_receipt",
@@ -1620,11 +1620,11 @@
       ]
     },
     "historical_acceptance_evidence": {
-      "acceptance_path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/acceptance.json",
+      "acceptance_path": "docs/implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/acceptance.json",
       "acceptance_sha256": "3efc8539b90885c9dd00daaa0da7c337657d3a604f5439e44c124995b912dadc",
-      "workerd_receipt_path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/installed-workerd-receipt.json",
+      "workerd_receipt_path": "docs/implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/installed-workerd-receipt.json",
       "workerd_receipt_sha256": "27d77885311202f1cfafa3d1d5425e8034a92a98a21e6303190f0fc3733c5743",
-      "source_pins_path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/accepted-source-pins.json",
+      "source_pins_path": "docs/implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/accepted-source-pins.json",
       "source_pins_sha256": "6e99ad9f9dbc868e992593d1f6f2ef422742678339cb62bccdf045ca215f3467",
       "scoped_current_source_hash_match": {
         "packages/identity/src/sessions/cookies.ts": {

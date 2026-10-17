@@ -15,7 +15,7 @@ PIN = '449563a30e33c312fcc0e47750bba4a24cb84f4c'
 def inventory(pin=PIN):
     raw = subprocess.check_output(
         ['git', 'ls-tree', '-r', '-l', '-z', pin, '--', 'packages',
-         'implementation/rust-port-orchestration/runs'], cwd=ROOT)
+         'docs/implementation/rust-port-orchestration/runs'], cwd=ROOT)
     rows = []
     for record in raw.split(b'\0'):
         if not record:
@@ -26,7 +26,7 @@ def inventory(pin=PIN):
         if kind != 'blob' or any('/' + x + '/' in name for x in
                                  ('dist', 'target', 'node_modules', '.turbo')):
             continue
-        if name.startswith('implementation/rust-port-orchestration/runs/'):
+        if name.startswith('docs/implementation/rust-port-orchestration/runs/'):
             tags = ['orchestration-record']
         else:
             parts = pathlib.PurePosixPath(name).parts

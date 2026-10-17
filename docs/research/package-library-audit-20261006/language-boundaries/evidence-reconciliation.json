@@ -2,7 +2,7 @@
   "schema": 1,
   "pin": "b40b59e32381465faacb387df4a2ae73b0654b74",
   "supersedes": "Earlier blanket unproven current-asset host qualification / no matching receipt claim in values report G12–G14",
-  "reason": "Initial bounded receipt search missed matching-current-digest implementation/rust-port-orchestration STEP9 saved acceptance/host/source/reproducibility evidence.",
+  "reason": "Initial bounded receipt search missed matching-current-digest docs/implementation/rust-port-orchestration STEP9 saved acceptance/host/source/reproducibility evidence.",
   "previous_report_sha256": "b36ca8550436167bc1da943a40f507a235c21970cdeb350cc609410f4d42e79e",
   "retained_scope": {
     "stage": "retained accepted finite qualification; reviewed saved receipts and compared source/digest pins, no fresh execution",
@@ -53,7 +53,7 @@
     ],
     "independent_installed": {
       "anchor": {
-        "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-independent-installed.json",
+        "path": "docs/implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-independent-installed.json",
         "line": 2,
         "sha256": "c71a908b6702d09bb22ee9987c11d0cfc6f3c7cf47c7e85e560819e365312217"
       },
@@ -106,7 +106,7 @@
     },
     "workerd": {
       "anchor": {
-        "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-workerd-receipt.json",
+        "path": "docs/implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-workerd-receipt.json",
         "line": 2,
         "sha256": "9630fd15fff76d5d3a050561ea2ec7017a9af7b22ca9a5fb5ee61c6b173a3bfc"
       },
@@ -190,23 +190,23 @@
       ]
     },
     "acceptance": {
-      "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/acceptance.json",
+      "path": "docs/implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/acceptance.json",
       "line": 10,
       "sha256": "bb93c8cf44154eefcf90e92c477a27af9134c5526a2a493436755b32d5e49afd"
     },
     "qualification": {
-      "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-qualification-receipt.json",
+      "path": "docs/implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-qualification-receipt.json",
       "line": 241,
       "sha256": "93a5748b3551772efef7ff3fde7f1e63d16106d2effa68a689a6479041a40d75"
     },
     "root_asset_refresh": {
-      "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/root-asset-refresh.json",
+      "path": "docs/implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/root-asset-refresh.json",
       "line": 34,
       "sha256": "1250869887c7aa8641973ccbd612c9ef7566de60025e7b4111a23aa74aa35555"
     },
     "reproducibility": {
       "anchor": {
-        "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-reproducibility.json",
+        "path": "docs/implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-reproducibility.json",
         "line": 20,
         "sha256": "b763c4b95fd4aa8deb7acbfd4b21ea6e66dad5b4e437f6a78941679033d0efa7"
       },
@@ -276,26 +276,26 @@
   },
   "step12_reconciliation": {
     "acceptance": {
-      "path": "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/acceptance.json",
+      "path": "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/acceptance.json",
       "line": 4,
       "sha256": "d61e2fc7e89cf46295ca2122308027db6bdb4e3fd54a198477d230479cf02091"
     },
     "scope": "Only actual released finite step4-11 package numeric/scaffold/import-map/identity/CSV/services/work-carrier profiles",
     "source_equivalence": {
-      "path": "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/final-source-equivalence.json",
+      "path": "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/final-source-equivalence.json",
       "line": 4,
       "sha256": "9f90272eab38c1a0f9cebd99c981fe4804610967fe975249b9792e34282ad514"
     },
     "checked_sources": 37,
     "all_equal": true,
     "critical_review": {
-      "path": "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/reviews/ASTRA-CRITICAL.md",
+      "path": "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/reviews/ASTRA-CRITICAL.md",
       "line": 11,
       "sha256": "f301710a547bf3fdd209546cf9ea7c942c5d9614f17cfbe7499e45a8f661c4d0"
     },
     "sol_stale_asset_expectations": {
       "anchor": {
-        "path": "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/raw/sol/source-bridge.json",
+        "path": "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/raw/sol/source-bridge.json",
         "line": 565,
         "sha256": "f7822f7beb1166990d202235cbae83ecba95e6591173b91308c246eb1e4ba42a"
       },

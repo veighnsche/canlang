@@ -103,7 +103,7 @@ steps; use the public commands above to prepare dependencies.
 
 ## Ownership
 
-Per `implementation/PLAN.md`: lane 03 owns this package (L3 thin
+Per `docs/implementation/PLAN.md`: lane 03 owns this package (L3 thin
 `@canlang/stdlib` export assembly, `src/index.ts` + `package.json`).
 Each lane owns its package manifests. No dependency may import back
 through the public façade.

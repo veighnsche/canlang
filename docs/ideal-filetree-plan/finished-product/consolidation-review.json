@@ -681,510 +681,510 @@
     {
       "change": "M",
       "paths": [
-        "design/AI-AND-SERVICE-DRAFTS.md"
+        "docs/design/AI-AND-SERVICE-DRAFTS.md"
       ]
     },
     {
       "change": "M",
       "paths": [
-        "design/UI-COMPONENTS.md"
+        "docs/design/UI-COMPONENTS.md"
       ]
     },
     {
       "change": "M",
       "paths": [
-        "design/complex-apps/inbox.md"
+        "docs/design/complex-apps/inbox.md"
       ]
     },
     {
       "change": "M",
       "paths": [
-        "design/delivery-recipe-overrides-20261004.md"
+        "docs/design/delivery-recipe-overrides-20261004.md"
       ]
     },
     {
       "change": "R096",
       "paths": [
         "EVALUATION.md",
-        "design/evaluation/PLAN.md"
+        "docs/design/evaluation/PLAN.md"
       ]
     },
     {
       "change": "M",
       "paths": [
-        "design/evaluation/briefs/ADOPTION.md"
+        "docs/design/evaluation/briefs/ADOPTION.md"
       ]
     },
     {
       "change": "M",
       "paths": [
-        "design/evaluation/briefs/INTERFACES.md"
+        "docs/design/evaluation/briefs/INTERFACES.md"
       ]
     },
     {
       "change": "M",
       "paths": [
-        "design/evaluation/briefs/LANGUAGE.md"
+        "docs/design/evaluation/briefs/LANGUAGE.md"
       ]
     },
     {
       "change": "M",
       "paths": [
-        "design/jev/README.md"
+        "docs/design/jev/README.md"
       ]
     },
     {
       "change": "R075",
       "paths": [
-        "design/jev/cafe-completion-20261004/analysis.md",
-        "design/jev/cafe-completion-20261004/README.md"
+        "docs/design/jev/cafe-completion-20261004/analysis.md",
+        "docs/design/jev/cafe-completion-20261004/README.md"
       ]
     },
     {
       "change": "D",
       "paths": [
-        "design/jev/cafe-completion-20261004/equivalence.md"
+        "docs/design/jev/cafe-completion-20261004/equivalence.md"
       ]
     },
     {
       "change": "R069",
       "paths": [
-        "design/jev/catch-intake-20261004/assessment.md",
-        "design/jev/catch-intake-20261004/README.md"
+        "docs/design/jev/catch-intake-20261004/assessment.md",
+        "docs/design/jev/catch-intake-20261004/README.md"
       ]
     },
     {
       "change": "D",
       "paths": [
-        "design/jev/catch-intake-20261004/wording-check.md"
+        "docs/design/jev/catch-intake-20261004/wording-check.md"
       ]
     },
     {
       "change": "R056",
       "paths": [
-        "design/jev/check-completion-20261004/decision.md",
-        "design/jev/check-completion-20261004/README.md"
+        "docs/design/jev/check-completion-20261004/decision.md",
+        "docs/design/jev/check-completion-20261004/README.md"
       ]
     },
     {
       "change": "D",
       "paths": [
-        "design/jev/check-completion-20261004/wording-check.md"
+        "docs/design/jev/check-completion-20261004/wording-check.md"
       ]
     },
     {
       "change": "R054",
       "paths": [
-        "design/jev/complex-enrich-20261004/assessment.md",
-        "design/jev/complex-enrich-20261004/README.md"
+        "docs/design/jev/complex-enrich-20261004/assessment.md",
+        "docs/design/jev/complex-enrich-20261004/README.md"
       ]
     },
     {
       "change": "D",
       "paths": [
-        "design/jev/complex-enrich-20261004/wording.md"
+        "docs/design/jev/complex-enrich-20261004/wording.md"
       ]
     },
     {
       "change": "R059",
       "paths": [
-        "design/jev/complex-inbox-20261004/verification.md",
-        "design/jev/complex-inbox-20261004/README.md"
+        "docs/design/jev/complex-inbox-20261004/verification.md",
+        "docs/design/jev/complex-inbox-20261004/README.md"
       ]
     },
     {
       "change": "D",
       "paths": [
-        "design/jev/complex-inbox-20261004/authoring-comparison.md"
+        "docs/design/jev/complex-inbox-20261004/authoring-comparison.md"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "design/jev/complex-sync-20261004/README.md"
+        "docs/design/jev/complex-sync-20261004/README.md"
       ]
     },
     {
       "change": "D",
       "paths": [
-        "design/jev/complex-sync-20261004/assessment.md"
+        "docs/design/jev/complex-sync-20261004/assessment.md"
       ]
     },
     {
       "change": "D",
       "paths": [
-        "design/jev/complex-sync-20261004/wording.md"
+        "docs/design/jev/complex-sync-20261004/wording.md"
       ]
     },
     {
       "change": "M",
       "paths": [
-        "design/jev/crm-connections-reschedule-20261004/README.md"
+        "docs/design/jev/crm-connections-reschedule-20261004/README.md"
       ]
     },
     {
       "change": "D",
       "paths": [
-        "design/jev/crm-connections-reschedule-20261004/verification.md"
+        "docs/design/jev/crm-connections-reschedule-20261004/verification.md"
       ]
     },
     {
       "change": "R062",
       "paths": [
-        "design/jev/daisyui-catalog-20261004/assessment.md",
-        "design/jev/daisyui-catalog-20261004/README.md"
+        "docs/design/jev/daisyui-catalog-20261004/assessment.md",
+        "docs/design/jev/daisyui-catalog-20261004/README.md"
       ]
     },
     {
       "change": "D",
       "paths": [
-        "design/jev/daisyui-catalog-20261004/wording-check.md"
+        "docs/design/jev/daisyui-catalog-20261004/wording-check.md"
       ]
     },
     {
       "change": "R075",
       "paths": [
-        "design/jev/delivery-recipe-overrides-20261004/verification.md",
-        "design/jev/delivery-recipe-overrides-20261004/README.md"
+        "docs/design/jev/delivery-recipe-overrides-20261004/verification.md",
+        "docs/design/jev/delivery-recipe-overrides-20261004/README.md"
       ]
     },
     {
       "change": "D",
       "paths": [
-        "design/jev/delivery-recipe-overrides-20261004/wording-check.md"
+        "docs/design/jev/delivery-recipe-overrides-20261004/wording-check.md"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "design/jev/description-reference-20261005/README.md"
+        "docs/design/jev/description-reference-20261005/README.md"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "design/jev/description-reference-20261005/request-1.json"
+        "docs/design/jev/description-reference-20261005/request-1.json"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "design/jev/description-reference-20261005/request-2.json"
+        "docs/design/jev/description-reference-20261005/request-2.json"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "design/jev/description-reference-20261005/request-3.json"
+        "docs/design/jev/description-reference-20261005/request-3.json"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "design/jev/description-reference-20261005/result-1.json"
+        "docs/design/jev/description-reference-20261005/result-1.json"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "design/jev/description-reference-20261005/result-2.json"
+        "docs/design/jev/description-reference-20261005/result-2.json"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "design/jev/description-reference-20261005/result-3.json"
+        "docs/design/jev/description-reference-20261005/result-3.json"
       ]
     },
     {
       "change": "R067",
       "paths": [
-        "design/jev/desk-handoff-20261004/review.md",
-        "design/jev/desk-handoff-20261004/README.md"
+        "docs/design/jev/desk-handoff-20261004/review.md",
+        "docs/design/jev/desk-handoff-20261004/README.md"
       ]
     },
     {
       "change": "D",
       "paths": [
-        "design/jev/desk-handoff-20261004/wording-check.md"
+        "docs/design/jev/desk-handoff-20261004/wording-check.md"
       ]
     },
     {
       "change": "R055",
       "paths": [
-        "design/jev/feedback-completion-20261004/analysis.md",
-        "design/jev/feedback-completion-20261004/README.md"
+        "docs/design/jev/feedback-completion-20261004/analysis.md",
+        "docs/design/jev/feedback-completion-20261004/README.md"
       ]
     },
     {
       "change": "D",
       "paths": [
-        "design/jev/feedback-completion-20261004/equivalence.md"
+        "docs/design/jev/feedback-completion-20261004/equivalence.md"
       ]
     },
     {
       "change": "R055",
       "paths": [
-        "design/jev/hire-onboard-20261004/assessment.md",
-        "design/jev/hire-onboard-20261004/README.md"
+        "docs/design/jev/hire-onboard-20261004/assessment.md",
+        "docs/design/jev/hire-onboard-20261004/README.md"
       ]
     },
     {
       "change": "D",
       "paths": [
-        "design/jev/hire-onboard-20261004/wording-check.md"
+        "docs/design/jev/hire-onboard-20261004/wording-check.md"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "design/jev/hire-retention-20261004/README.md"
+        "docs/design/jev/hire-retention-20261004/README.md"
       ]
     },
     {
       "change": "D",
       "paths": [
-        "design/jev/hire-retention-20261004/assessment.md"
+        "docs/design/jev/hire-retention-20261004/assessment.md"
       ]
     },
     {
       "change": "D",
       "paths": [
-        "design/jev/hire-retention-20261004/corrected-wording-check.md"
+        "docs/design/jev/hire-retention-20261004/corrected-wording-check.md"
       ]
     },
     {
       "change": "D",
       "paths": [
-        "design/jev/hire-retention-20261004/correction.md"
+        "docs/design/jev/hire-retention-20261004/correction.md"
       ]
     },
     {
       "change": "D",
       "paths": [
-        "design/jev/hire-retention-20261004/wording-check.md"
+        "docs/design/jev/hire-retention-20261004/wording-check.md"
       ]
     },
     {
       "change": "R083",
       "paths": [
-        "design/jev/loyalty-eligibility-20261004/assessment.md",
-        "design/jev/loyalty-eligibility-20261004/README.md"
+        "docs/design/jev/loyalty-eligibility-20261004/assessment.md",
+        "docs/design/jev/loyalty-eligibility-20261004/README.md"
       ]
     },
     {
       "change": "D",
       "paths": [
-        "design/jev/loyalty-eligibility-20261004/wording-check.md"
+        "docs/design/jev/loyalty-eligibility-20261004/wording-check.md"
       ]
     },
     {
       "change": "R064",
       "paths": [
-        "design/jev/maintain-inspection-progress/verification.md",
-        "design/jev/maintain-inspection-progress/README.md"
+        "docs/design/jev/maintain-inspection-progress/verification.md",
+        "docs/design/jev/maintain-inspection-progress/README.md"
       ]
     },
     {
       "change": "D",
       "paths": [
-        "design/jev/maintain-inspection-progress/decision.md"
+        "docs/design/jev/maintain-inspection-progress/decision.md"
       ]
     },
     {
       "change": "R052",
       "paths": [
-        "design/jev/maintain-recovery-20261004/review.md",
-        "design/jev/maintain-recovery-20261004/README.md"
+        "docs/design/jev/maintain-recovery-20261004/review.md",
+        "docs/design/jev/maintain-recovery-20261004/README.md"
       ]
     },
     {
       "change": "D",
       "paths": [
-        "design/jev/maintain-recovery-20261004/wording-check.md"
+        "docs/design/jev/maintain-recovery-20261004/wording-check.md"
       ]
     },
     {
       "change": "R057",
       "paths": [
-        "design/jev/mcp-file-handoff-20261004/assessment.md",
-        "design/jev/mcp-file-handoff-20261004/README.md"
+        "docs/design/jev/mcp-file-handoff-20261004/assessment.md",
+        "docs/design/jev/mcp-file-handoff-20261004/README.md"
       ]
     },
     {
       "change": "D",
       "paths": [
-        "design/jev/mcp-file-handoff-20261004/wording-check.md"
+        "docs/design/jev/mcp-file-handoff-20261004/wording-check.md"
       ]
     },
     {
       "change": "R053",
       "paths": [
-        "design/jev/member-consumed-stage-20261004/assessment.md",
-        "design/jev/member-consumed-stage-20261004/README.md"
+        "docs/design/jev/member-consumed-stage-20261004/assessment.md",
+        "docs/design/jev/member-consumed-stage-20261004/README.md"
       ]
     },
     {
       "change": "D",
       "paths": [
-        "design/jev/member-consumed-stage-20261004/wording-check.md"
+        "docs/design/jev/member-consumed-stage-20261004/wording-check.md"
       ]
     },
     {
       "change": "R066",
       "paths": [
-        "design/jev/member-owner-20261004/assessment.md",
-        "design/jev/member-owner-20261004/README.md"
+        "docs/design/jev/member-owner-20261004/assessment.md",
+        "docs/design/jev/member-owner-20261004/README.md"
       ]
     },
     {
       "change": "D",
       "paths": [
-        "design/jev/member-owner-20261004/wording-check.md"
+        "docs/design/jev/member-owner-20261004/wording-check.md"
       ]
     },
     {
       "change": "R069",
       "paths": [
-        "design/jev/muse-feedback-20261004/assessment.md",
-        "design/jev/muse-feedback-20261004/README.md"
+        "docs/design/jev/muse-feedback-20261004/assessment.md",
+        "docs/design/jev/muse-feedback-20261004/README.md"
       ]
     },
     {
       "change": "D",
       "paths": [
-        "design/jev/muse-feedback-20261004/bounded-review.md"
+        "docs/design/jev/muse-feedback-20261004/bounded-review.md"
       ]
     },
     {
       "change": "R069",
       "paths": [
-        "design/jev/record-input-admission-20261004/assessment.md",
-        "design/jev/record-input-admission-20261004/README.md"
+        "docs/design/jev/record-input-admission-20261004/assessment.md",
+        "docs/design/jev/record-input-admission-20261004/README.md"
       ]
     },
     {
       "change": "D",
       "paths": [
-        "design/jev/record-input-admission-20261004/wording-check.md"
+        "docs/design/jev/record-input-admission-20261004/wording-check.md"
       ]
     },
     {
       "change": "R064",
       "paths": [
-        "design/jev/rent-sales-producer-20261004/assessment.md",
-        "design/jev/rent-sales-producer-20261004/README.md"
+        "docs/design/jev/rent-sales-producer-20261004/assessment.md",
+        "docs/design/jev/rent-sales-producer-20261004/README.md"
       ]
     },
     {
       "change": "D",
       "paths": [
-        "design/jev/rent-sales-producer-20261004/wording-check.md"
+        "docs/design/jev/rent-sales-producer-20261004/wording-check.md"
       ]
     },
     {
       "change": "R062",
       "paths": [
-        "design/jev/rent-sales-version-boundary-20261004/assessment.md",
-        "design/jev/rent-sales-version-boundary-20261004/README.md"
+        "docs/design/jev/rent-sales-version-boundary-20261004/assessment.md",
+        "docs/design/jev/rent-sales-version-boundary-20261004/README.md"
       ]
     },
     {
       "change": "D",
       "paths": [
-        "design/jev/rent-sales-version-boundary-20261004/wording-check.md"
+        "docs/design/jev/rent-sales-version-boundary-20261004/wording-check.md"
       ]
     },
     {
       "change": "R083",
       "paths": [
-        "design/jev/stats-breakdown-20261004/assessment.md",
-        "design/jev/stats-breakdown-20261004/README.md"
+        "docs/design/jev/stats-breakdown-20261004/assessment.md",
+        "docs/design/jev/stats-breakdown-20261004/README.md"
       ]
     },
     {
       "change": "D",
       "paths": [
-        "design/jev/stats-breakdown-20261004/wording-check.md"
+        "docs/design/jev/stats-breakdown-20261004/wording-check.md"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "design/jev/t33-context-correction-20261006/README.md"
+        "docs/design/jev/t33-context-correction-20261006/README.md"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "design/jev/t33-context-correction-20261006/request-1.json"
+        "docs/design/jev/t33-context-correction-20261006/request-1.json"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "design/jev/t33-context-correction-20261006/request-2.json"
+        "docs/design/jev/t33-context-correction-20261006/request-2.json"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "design/jev/t33-context-correction-20261006/request-3.json"
+        "docs/design/jev/t33-context-correction-20261006/request-3.json"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "design/jev/t33-context-correction-20261006/result-1.json"
+        "docs/design/jev/t33-context-correction-20261006/result-1.json"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "design/jev/t33-context-correction-20261006/result-2.json"
+        "docs/design/jev/t33-context-correction-20261006/result-2.json"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "design/jev/t33-context-correction-20261006/result-3.json"
+        "docs/design/jev/t33-context-correction-20261006/result-3.json"
       ]
     },
     {
       "change": "R082",
       "paths": [
-        "design/jev/time-completion-20261004/analysis.md",
-        "design/jev/time-completion-20261004/README.md"
+        "docs/design/jev/time-completion-20261004/analysis.md",
+        "docs/design/jev/time-completion-20261004/README.md"
       ]
     },
     {
       "change": "D",
       "paths": [
-        "design/jev/time-completion-20261004/wording-check.md"
+        "docs/design/jev/time-completion-20261004/wording-check.md"
       ]
     },
     {
       "change": "M",
       "paths": [
-        "design/muse-migration-20261004/feedback-design.md"
+        "docs/design/muse-migration-20261004/feedback-design.md"
       ]
     },
     {
       "change": "M",
       "paths": [
-        "design/muse-migration-20261004/progress-design.md"
+        "docs/design/muse-migration-20261004/progress-design.md"
       ]
     },
     {
       "change": "M",
       "paths": [
-        "design/owner-fanout-20261004.md"
+        "docs/design/owner-fanout-20261004.md"
       ]
     },
     {
       "change": "M",
       "paths": [
-        "design/research-ai-capabilities-20261004.md"
+        "docs/design/research-ai-capabilities-20261004.md"
       ]
     },
     {
@@ -4368,559 +4368,559 @@
     {
       "change": "A",
       "paths": [
-        "implementation/CHALLENGE-AUDIT-PLAN.md"
+        "docs/implementation/CHALLENGE-AUDIT-PLAN.md"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/D3B-OBSERVER-SEAM-CONTRACT.md"
+        "docs/implementation/D3B-OBSERVER-SEAM-CONTRACT.md"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/D3B-PRODUCTION-QUAL-PLAN.md"
+        "docs/implementation/D3B-PRODUCTION-QUAL-PLAN.md"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/DESCRIPTION-REFERENCE-PLAN.md"
+        "docs/implementation/DESCRIPTION-REFERENCE-PLAN.md"
       ]
     },
     {
       "change": "M",
       "paths": [
-        "implementation/PLAN.md"
+        "docs/implementation/PLAN.md"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/REMAINING-IMPLEMENTATION-LANES.md"
+        "docs/implementation/REMAINING-IMPLEMENTATION-LANES.md"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/challenge-audit-run/evidence/app-intent.md"
+        "docs/implementation/challenge-audit-run/evidence/app-intent.md"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/challenge-audit-run/evidence/containment-decision.md"
+        "docs/implementation/challenge-audit-run/evidence/containment-decision.md"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/challenge-audit-run/evidence/continuation-contract.md"
+        "docs/implementation/challenge-audit-run/evidence/continuation-contract.md"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/challenge-audit-run/evidence/execution-contract.md"
+        "docs/implementation/challenge-audit-run/evidence/execution-contract.md"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/challenge-audit-run/evidence/fanout-decision.md"
+        "docs/implementation/challenge-audit-run/evidence/fanout-decision.md"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/challenge-audit-run/evidence/hook-decision.md"
+        "docs/implementation/challenge-audit-run/evidence/hook-decision.md"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/challenge-audit-run/evidence/interface-inventory.md"
+        "docs/implementation/challenge-audit-run/evidence/interface-inventory.md"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/challenge-audit-run/evidence/jev-b4-fence-20261006/request-1.json"
+        "docs/implementation/challenge-audit-run/evidence/jev-b4-fence-20261006/request-1.json"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/challenge-audit-run/evidence/jev-b4-fence-20261006/request-2.json"
+        "docs/implementation/challenge-audit-run/evidence/jev-b4-fence-20261006/request-2.json"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/challenge-audit-run/evidence/jev-b4-fence-20261006/request-3.json"
+        "docs/implementation/challenge-audit-run/evidence/jev-b4-fence-20261006/request-3.json"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/challenge-audit-run/evidence/jev-b4-fence-20261006/result-1.json"
+        "docs/implementation/challenge-audit-run/evidence/jev-b4-fence-20261006/result-1.json"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/challenge-audit-run/evidence/jev-b4-fence-20261006/result-2.json"
+        "docs/implementation/challenge-audit-run/evidence/jev-b4-fence-20261006/result-2.json"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/challenge-audit-run/evidence/jev-b4-fence-20261006/result-3.json"
+        "docs/implementation/challenge-audit-run/evidence/jev-b4-fence-20261006/result-3.json"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/challenge-audit-run/evidence/jev-b4-fence-20261006/review.md"
+        "docs/implementation/challenge-audit-run/evidence/jev-b4-fence-20261006/review.md"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/challenge-audit-run/evidence/jev-t28-20261005/README.md"
+        "docs/implementation/challenge-audit-run/evidence/jev-t28-20261005/README.md"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/challenge-audit-run/evidence/jev-t28-20261005/request-1.json"
+        "docs/implementation/challenge-audit-run/evidence/jev-t28-20261005/request-1.json"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/challenge-audit-run/evidence/jev-t28-20261005/request-2.json"
+        "docs/implementation/challenge-audit-run/evidence/jev-t28-20261005/request-2.json"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/challenge-audit-run/evidence/jev-t28-20261005/request-3.json"
+        "docs/implementation/challenge-audit-run/evidence/jev-t28-20261005/request-3.json"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/challenge-audit-run/evidence/jev-t28-20261005/result-1.json"
+        "docs/implementation/challenge-audit-run/evidence/jev-t28-20261005/result-1.json"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/challenge-audit-run/evidence/jev-t28-20261005/result-2.json"
+        "docs/implementation/challenge-audit-run/evidence/jev-t28-20261005/result-2.json"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/challenge-audit-run/evidence/jev-t28-20261005/result-3.json"
+        "docs/implementation/challenge-audit-run/evidence/jev-t28-20261005/result-3.json"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/challenge-audit-run/evidence/jev-t31a-20261005/README.md"
+        "docs/implementation/challenge-audit-run/evidence/jev-t31a-20261005/README.md"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/challenge-audit-run/evidence/jev-t31a-20261005/request-1.json"
+        "docs/implementation/challenge-audit-run/evidence/jev-t31a-20261005/request-1.json"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/challenge-audit-run/evidence/jev-t31a-20261005/request-2.json"
+        "docs/implementation/challenge-audit-run/evidence/jev-t31a-20261005/request-2.json"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/challenge-audit-run/evidence/jev-t31a-20261005/request-3.json"
+        "docs/implementation/challenge-audit-run/evidence/jev-t31a-20261005/request-3.json"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/challenge-audit-run/evidence/jev-t31a-20261005/result-1.json"
+        "docs/implementation/challenge-audit-run/evidence/jev-t31a-20261005/result-1.json"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/challenge-audit-run/evidence/jev-t31a-20261005/result-2.json"
+        "docs/implementation/challenge-audit-run/evidence/jev-t31a-20261005/result-2.json"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/challenge-audit-run/evidence/jev-t31a-20261005/result-3.json"
+        "docs/implementation/challenge-audit-run/evidence/jev-t31a-20261005/result-3.json"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/challenge-audit-run/evidence/jev-t32a-20261005/README.md"
+        "docs/implementation/challenge-audit-run/evidence/jev-t32a-20261005/README.md"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/challenge-audit-run/evidence/jev-t32a-20261005/request-1.json"
+        "docs/implementation/challenge-audit-run/evidence/jev-t32a-20261005/request-1.json"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/challenge-audit-run/evidence/jev-t32a-20261005/request-2.json"
+        "docs/implementation/challenge-audit-run/evidence/jev-t32a-20261005/request-2.json"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/challenge-audit-run/evidence/jev-t32a-20261005/request-3.json"
+        "docs/implementation/challenge-audit-run/evidence/jev-t32a-20261005/request-3.json"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/challenge-audit-run/evidence/jev-t32a-20261005/result-1.json"
+        "docs/implementation/challenge-audit-run/evidence/jev-t32a-20261005/result-1.json"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/challenge-audit-run/evidence/jev-t32a-20261005/result-2.json"
+        "docs/implementation/challenge-audit-run/evidence/jev-t32a-20261005/result-2.json"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/challenge-audit-run/evidence/jev-t32a-20261005/result-3.json"
+        "docs/implementation/challenge-audit-run/evidence/jev-t32a-20261005/result-3.json"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/challenge-audit-run/evidence/jev-t33-20261006/README.md"
+        "docs/implementation/challenge-audit-run/evidence/jev-t33-20261006/README.md"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/challenge-audit-run/evidence/jev-t33-20261006/request-1.json"
+        "docs/implementation/challenge-audit-run/evidence/jev-t33-20261006/request-1.json"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/challenge-audit-run/evidence/jev-t33-20261006/request-2.json"
+        "docs/implementation/challenge-audit-run/evidence/jev-t33-20261006/request-2.json"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/challenge-audit-run/evidence/jev-t33-20261006/request-3.json"
+        "docs/implementation/challenge-audit-run/evidence/jev-t33-20261006/request-3.json"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/challenge-audit-run/evidence/jev-t33-20261006/result-1.json"
+        "docs/implementation/challenge-audit-run/evidence/jev-t33-20261006/result-1.json"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/challenge-audit-run/evidence/jev-t33-20261006/result-2.json"
+        "docs/implementation/challenge-audit-run/evidence/jev-t33-20261006/result-2.json"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/challenge-audit-run/evidence/jev-t33-20261006/result-3.json"
+        "docs/implementation/challenge-audit-run/evidence/jev-t33-20261006/result-3.json"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/challenge-audit-run/evidence/read-decision.md"
+        "docs/implementation/challenge-audit-run/evidence/read-decision.md"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/challenge-audit-run/evidence/root-causes.md"
+        "docs/implementation/challenge-audit-run/evidence/root-causes.md"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/challenge-audit-run/evidence/t34-plan.md"
+        "docs/implementation/challenge-audit-run/evidence/t34-plan.md"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/challenge-audit-run/monitor.md"
+        "docs/implementation/challenge-audit-run/monitor.md"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/challenge-audit-run/recovery-checkpoint.md"
+        "docs/implementation/challenge-audit-run/recovery-checkpoint.md"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/challenge-audit-run/remaining-tasks.md"
+        "docs/implementation/challenge-audit-run/remaining-tasks.md"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/challenge-audit-run/start-assign/lane-A.md"
+        "docs/implementation/challenge-audit-run/start-assign/lane-A.md"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/challenge-audit-run/start-assign/lane-B.md"
+        "docs/implementation/challenge-audit-run/start-assign/lane-B.md"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/challenge-audit-run/start-assign/lane-C.md"
+        "docs/implementation/challenge-audit-run/start-assign/lane-C.md"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/challenge-audit-run/start-assign/lane-D.md"
+        "docs/implementation/challenge-audit-run/start-assign/lane-D.md"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/challenge-audit-run/start-assign/lane-E.md"
+        "docs/implementation/challenge-audit-run/start-assign/lane-E.md"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/challenge-audit-run/start-assign/lane-F.md"
+        "docs/implementation/challenge-audit-run/start-assign/lane-F.md"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/challenge-audit-run/start-assign/lane-G.md"
+        "docs/implementation/challenge-audit-run/start-assign/lane-G.md"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/challenge-audit-run/t33-resolution.md"
+        "docs/implementation/challenge-audit-run/t33-resolution.md"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/challenge-audit-run/tasks.md"
+        "docs/implementation/challenge-audit-run/tasks.md"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/description-reference-run/evidence/independent-acceptance-20261005.json"
+        "docs/implementation/description-reference-run/evidence/independent-acceptance-20261005.json"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/description-reference-run/evidence/independent-locale-recheck-20261005.json"
+        "docs/implementation/description-reference-run/evidence/independent-locale-recheck-20261005.json"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/description-reference-run/evidence/integration.md"
+        "docs/implementation/description-reference-run/evidence/integration.md"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/description-reference-run/review.md"
+        "docs/implementation/description-reference-run/review.md"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/description-reference-run/tasks.md"
+        "docs/implementation/description-reference-run/tasks.md"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/evidence/b2-follow-through.md"
+        "docs/implementation/evidence/b2-follow-through.md"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/evidence/b3-i1.md"
+        "docs/implementation/evidence/b3-i1.md"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/evidence/b3-i2.md"
+        "docs/implementation/evidence/b3-i2.md"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/evidence/b3-i3.md"
+        "docs/implementation/evidence/b3-i3.md"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/evidence/b3-i4.md"
+        "docs/implementation/evidence/b3-i4.md"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/evidence/b3-i5.md"
+        "docs/implementation/evidence/b3-i5.md"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/evidence/b3-i6.md"
+        "docs/implementation/evidence/b3-i6.md"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/evidence/b4-draft-defects.md"
+        "docs/implementation/evidence/b4-draft-defects.md"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/evidence/b4-f1.md"
+        "docs/implementation/evidence/b4-f1.md"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/evidence/b4-f2.md"
+        "docs/implementation/evidence/b4-f2.md"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/evidence/b4-f3.md"
+        "docs/implementation/evidence/b4-f3.md"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/evidence/b4-f4.md"
+        "docs/implementation/evidence/b4-f4.md"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/evidence/b4-proposals.md"
+        "docs/implementation/evidence/b4-proposals.md"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/evidence/b5-j1.md"
+        "docs/implementation/evidence/b5-j1.md"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/evidence/b5-j2.md"
+        "docs/implementation/evidence/b5-j2.md"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/evidence/b5-j3.md"
+        "docs/implementation/evidence/b5-j3.md"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/evidence/mcp-p1.md"
+        "docs/implementation/evidence/mcp-p1.md"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/evidence/mcp-p2.md"
+        "docs/implementation/evidence/mcp-p2.md"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/evidence/mcp-p3.md"
+        "docs/implementation/evidence/mcp-p3.md"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/evidence/mcp-p4.md"
+        "docs/implementation/evidence/mcp-p4.md"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/evidence/mcpd-a.md"
+        "docs/implementation/evidence/mcpd-a.md"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/evidence/mcpd-b.md"
+        "docs/implementation/evidence/mcpd-b.md"
       ]
     },
     {
       "change": "A",
       "paths": [
-        "implementation/evidence/mcpd-c.md"
+        "docs/implementation/evidence/mcpd-c.md"
       ]
     },
     {
       "change": "M",
       "paths": [
-        "implementation/status/frontend-catalog-migration.md"
+        "docs/implementation/status/frontend-catalog-migration.md"
       ]
     },
     {
       "change": "M",
       "paths": [
-        "implementation/status/lane-01.md"
+        "docs/implementation/status/lane-01.md"
       ]
     },
     {

@@ -1,5 +1,5 @@
 {
-  "source": "implementation/challenge-audit-run/tasks.md",
+  "source": "docs/implementation/challenge-audit-run/tasks.md",
   "pin": "350163ad661e61b667809a5f78b608c23812a5f0",
   "tasks": [
     {
@@ -7,7 +7,7 @@
       "title": "T01 \u2014 Create the root cause ledger",
       "reported_state": "complete",
       "prerequisites": "M00.",
-      "recorded_owner_files": "L1; implementation/challenge-audit-run/evidence/root-causes.md. Serialize overlapping producer-owned writes.",
+      "recorded_owner_files": "L1; docs/implementation/challenge-audit-run/evidence/root-causes.md. Serialize overlapping producer-owned writes.",
       "slices": [
         "S10"
       ],
@@ -19,7 +19,7 @@
       "title": "T02 \u2014 Record per file intent and capability status",
       "reported_state": "complete",
       "prerequisites": "T01; inventory preparation can start at M00.",
-      "recorded_owner_files": "L7; implementation/challenge-audit-run/evidence/app-intent.md. Serialize overlapping producer-owned writes.",
+      "recorded_owner_files": "L7; docs/implementation/challenge-audit-run/evidence/app-intent.md. Serialize overlapping producer-owned writes.",
       "slices": [
         "S10"
       ],
@@ -31,7 +31,7 @@
       "title": "T03 \u2014 Specify ordinary continuation facts",
       "reported_state": "complete",
       "prerequisites": "M00.",
-      "recorded_owner_files": "L1; implementation/challenge-audit-run/evidence/continuation-contract.md; DESIGN.md, GRAMMAR.md, DECISIONS.md only after exact reservation. Serialize overlapping producer-owned writes.",
+      "recorded_owner_files": "L1; docs/implementation/challenge-audit-run/evidence/continuation-contract.md; DESIGN.md, GRAMMAR.md, DECISIONS.md only after exact reservation. Serialize overlapping producer-owned writes.",
       "slices": [
         "S10"
       ],
@@ -43,7 +43,7 @@
       "title": "T04 \u2014 Agree the generated execution contract",
       "reported_state": "complete",
       "prerequisites": "M00; T04a frozen before matching producers.",
-      "recorded_owner_files": "L3; packages/contracts/src/state.ts, packages/contracts/src/artifact.ts (L1 writes), packages/contracts/src/examples.ts (L7 writes), implementation/challenge-audit-run/evidence/execution-contract.md. Serialize overlapping producer-owned writes.",
+      "recorded_owner_files": "L3; packages/contracts/src/state.ts, packages/contracts/src/artifact.ts (L1 writes), packages/contracts/src/examples.ts (L7 writes), docs/implementation/challenge-audit-run/evidence/execution-contract.md. Serialize overlapping producer-owned writes.",
       "slices": [
         "S03",
         "S10"
@@ -146,7 +146,7 @@
       "title": "T12 \u2014 Inventory standard and bound declarations",
       "reported_state": "complete",
       "prerequisites": "M00.",
-      "recorded_owner_files": "L4; implementation/challenge-audit-run/evidence/interface-inventory.md, packages/services/src/catalog.ts, packages/work/src/catalog.ts, packages/files/src/catalog.ts, packages/stdlib/src/index.ts. Serialize overlapping producer-owned writes.",
+      "recorded_owner_files": "L4; docs/implementation/challenge-audit-run/evidence/interface-inventory.md, packages/services/src/catalog.ts, packages/work/src/catalog.ts, packages/files/src/catalog.ts, packages/stdlib/src/index.ts. Serialize overlapping producer-owned writes.",
       "slices": [
         "S04",
         "S06",
@@ -359,7 +359,7 @@
       "title": "T28 \u2014 Settle imported containment semantics",
       "reported_state": "complete",
       "prerequisites": "Prepare at M00; decision requires JEV protocol and full scope evidence.",
-      "recorded_owner_files": "L3 design, L1/L4/L7 contributors; implementation/challenge-audit-run/evidence/containment-decision.md, DESIGN.md, GRAMMAR.md, DECISIONS.md under one reservation. Serialize overlapping producer-owned writes.",
+      "recorded_owner_files": "L3 design, L1/L4/L7 contributors; docs/implementation/challenge-audit-run/evidence/containment-decision.md, DESIGN.md, GRAMMAR.md, DECISIONS.md under one reservation. Serialize overlapping producer-owned writes.",
       "slices": [
         "S10"
       ],
@@ -397,7 +397,7 @@
       "title": "T31 \u2014 Implement permitted secondary hook writes",
       "reported_state": "complete",
       "prerequisites": "T31a accepted secondary-hook decision via JEV; then T30 and canonical runtime; T28 alone insufficient.",
-      "recorded_owner_files": "L3 with L1/L4; packages/state/src/mutation/pipeline.ts, packages/state/src/mutation/crud.ts, packages/state/src/mutation/models.ts, packages/contracts/src/state.ts; compiler/src/analysis/effects.rs, compiler/src/codegen/ir.rs, compiler/src/codegen/js.rs, compiler/src/codegen/artifact.rs, packages/contracts/src/artifact.ts, compiler/tests/codegen.rs (L1 writes); implementation/challenge-audit-run/evidence/hook-decision.md. Serialize overlapping producer-owned writes.",
+      "recorded_owner_files": "L3 with L1/L4; packages/state/src/mutation/pipeline.ts, packages/state/src/mutation/crud.ts, packages/state/src/mutation/models.ts, packages/contracts/src/state.ts; compiler/src/analysis/effects.rs, compiler/src/codegen/ir.rs, compiler/src/codegen/js.rs, compiler/src/codegen/artifact.rs, packages/contracts/src/artifact.ts, compiler/tests/codegen.rs (L1 writes); docs/implementation/challenge-audit-run/evidence/hook-decision.md. Serialize overlapping producer-owned writes.",
       "slices": [
         "S01",
         "S03",
@@ -412,7 +412,7 @@
       "title": "T32 \u2014 Define and implement authoritative predicate reads",
       "reported_state": "complete",
       "prerequisites": "T32a decision at M00 with JEV; T32b T16/T17; spent effects also T24.",
-      "recorded_owner_files": "L3 with L4/L6/L7; packages/state/src/ports/read.ts, packages/state/src/query/engine.ts, packages/state/src/invocation/admission.ts; packages/identity/src/authentication/revocation.ts (L6); packages/work/src/dispatch/index.ts (L4); implementation/challenge-audit-run/evidence/read-decision.md. Serialize overlapping producer-owned writes.",
+      "recorded_owner_files": "L3 with L4/L6/L7; packages/state/src/ports/read.ts, packages/state/src/query/engine.ts, packages/state/src/invocation/admission.ts; packages/identity/src/authentication/revocation.ts (L6); packages/work/src/dispatch/index.ts (L4); docs/implementation/challenge-audit-run/evidence/read-decision.md. Serialize overlapping producer-owned writes.",
       "slices": [
         "S05",
         "S06",
@@ -427,7 +427,7 @@
       "title": "T33 \u2014 Decide scoped durable fanout",
       "reported_state": "complete",
       "prerequisites": "Prepare alternatives early; final decision matching T28/T24 evidence and JEV.",
-      "recorded_owner_files": "L4 with L1/L3/L7; implementation/challenge-audit-run/evidence/fanout-decision.md, packages/contracts/src/work.ts; shared normative docs reserved. Serialize overlapping producer-owned writes.",
+      "recorded_owner_files": "L4 with L1/L3/L7; docs/implementation/challenge-audit-run/evidence/fanout-decision.md, packages/contracts/src/work.ts; shared normative docs reserved. Serialize overlapping producer-owned writes.",
       "slices": [
         "S03",
         "S10"
@@ -476,7 +476,7 @@
       "title": "T37 \u2014 Qualify a small original CRUD or work app",
       "reported_state": "open",
       "prerequisites": "Actual original pilot T02 blockers, T05/T06/T08/T18/T19a/T20a/T21/T22a/T23a; bound/file gates if used.",
-      "recorded_owner_files": "L7 with relevant lanes; tests/e2e/apps/challenge-pilot.spec.ts (new), tests/e2e/fixtures/artifact-loader.ts, implementation/challenge-audit-run/evidence/pilot.md. Serialize overlapping producer-owned writes.",
+      "recorded_owner_files": "L7 with relevant lanes; tests/e2e/apps/challenge-pilot.spec.ts (new), tests/e2e/fixtures/artifact-loader.ts, docs/implementation/challenge-audit-run/evidence/pilot.md. Serialize overlapping producer-owned writes.",
       "slices": [
         "S11"
       ],
@@ -488,7 +488,7 @@
       "title": "T38 \u2014 Qualify Expense and Leave or Onboard",
       "reported_state": "open",
       "prerequisites": "T37; each app T02 blockers and matching T29/T31/attachments/T24/T25.",
-      "recorded_owner_files": "L7 with L3/L4/L6; tests/e2e/apps/challenge-expense.spec.ts, tests/e2e/apps/challenge-leave-onboard.spec.ts (new), implementation/challenge-audit-run/evidence/expense-leave.md. Serialize overlapping producer-owned writes.",
+      "recorded_owner_files": "L7 with L3/L4/L6; tests/e2e/apps/challenge-expense.spec.ts, tests/e2e/apps/challenge-leave-onboard.spec.ts (new), docs/implementation/challenge-audit-run/evidence/expense-leave.md. Serialize overlapping producer-owned writes.",
       "slices": [],
       "followup_packet": "C06",
       "evidence_limit": "operational ledger state at inspected baseline; no newly executed qualification"
@@ -498,7 +498,7 @@
       "title": "T39 \u2014 Qualify receipt and external recovery workflows",
       "reported_state": "open",
       "prerequisites": "T37; each app matching T23/T25 and T02 blockers.",
-      "recorded_owner_files": "L7 with L3/L4; tests/e2e/apps/challenge-receipts-recovery.spec.ts (new), implementation/challenge-audit-run/evidence/receipts-recovery.md. Serialize overlapping producer-owned writes.",
+      "recorded_owner_files": "L7 with L3/L4; tests/e2e/apps/challenge-receipts-recovery.spec.ts (new), docs/implementation/challenge-audit-run/evidence/receipts-recovery.md. Serialize overlapping producer-owned writes.",
       "slices": [],
       "followup_packet": "C06",
       "evidence_limit": "operational ledger state at inspected baseline; no newly executed qualification"
@@ -508,7 +508,7 @@
       "title": "T40 \u2014 Qualify complex bounded workflows",
       "reported_state": "open",
       "prerequisites": "T37; Chat matching T26/T32; Creative/Gallery T27; Shift/Volunteer adopted T34; per-app T02 blockers.",
-      "recorded_owner_files": "L7 with relevant producers; tests/e2e/apps/challenge-complex.spec.ts (new), implementation/challenge-audit-run/evidence/complex-workflows.md. Serialize overlapping producer-owned writes.",
+      "recorded_owner_files": "L7 with relevant producers; tests/e2e/apps/challenge-complex.spec.ts (new), docs/implementation/challenge-audit-run/evidence/complex-workflows.md. Serialize overlapping producer-owned writes.",
       "slices": [],
       "followup_packet": "C06",
       "evidence_limit": "operational ledger state at inspected baseline; no newly executed qualification"
@@ -518,7 +518,7 @@
       "title": "T41 \u2014 Reconcile corpus and release evidence",
       "reported_state": "open",
       "prerequisites": "T02 and repairs plus qualifications required by actual advertised scope.",
-      "recorded_owner_files": "L7 all-lane consolidation; implementation/challenge-audit-run/evidence/corpus-release.md, implementation/DIAGNOSTICS.md, implementation/status/lane-07.md, docs/ideal-filetree-plan.md after merges; package/version/CI paths under L7 reservation. Serialize overlapping producer-owned writes.",
+      "recorded_owner_files": "L7 all-lane consolidation; docs/implementation/challenge-audit-run/evidence/corpus-release.md, docs/implementation/DIAGNOSTICS.md, docs/implementation/status/lane-07.md, docs/ideal-filetree-plan.md after merges; package/version/CI paths under L7 reservation. Serialize overlapping producer-owned writes.",
       "slices": [
         "S10"
       ],

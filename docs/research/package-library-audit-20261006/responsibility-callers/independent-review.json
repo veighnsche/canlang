@@ -395,7 +395,7 @@
           "finding": "Existing step9 receipt source pins and committed glue/Wasm match current inspected bytes. Independent broader comparison found 74 selected non-generated values .ts/.rs source pins all matching, and generated digests equal reported values. Existing qualification is six-operation exact installed scaffold, not structural validation/full-handler/default backend adoption.",
           "evidence": [
             {
-              "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-qualification-receipt.json",
+              "path": "docs/implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-qualification-receipt.json",
               "line": 1,
               "note": "Receipt explicitly retains A07.3/A08/V02.6/V06-V08 and production/default adoption gaps; six-op whole-call measurement scope."
             },
@@ -410,7 +410,7 @@
               "note": "Current SHA256 f5870905f915ae63e267ad917a44940bdb851e9434168974e8787a6cebca5c81 matches reported receipt."
             },
             {
-              "path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/installed-workerd-receipt.json",
+              "path": "docs/implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/installed-workerd-receipt.json",
               "line": 1,
               "note": "Controlled identity/CSV memory/scripted handler and empty-artifact MCP401 production boot explicitly bounded."
             }

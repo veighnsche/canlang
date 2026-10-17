@@ -1,0 +1,271 @@
+{
+  "procedure": "P01 read-only scope inventory; existence is not acceptance; no status upgraded",
+  "head": "d855e0a6a222d89d6a3deab03141a29654a585f9",
+  "git_status_names": [
+    "compiler/src/codegen/ir.rs",
+    "compiler/tests/codegen.rs",
+    "docs/ideal-filetree-plan.md",
+    "docs/ideal-filetree-plan/finished-product/tasks.md",
+    "docs/specification/DECISIONS.md",
+    "docs/implementation/CHALLENGE-AUDIT-PLAN.md",
+    "docs/implementation/REMAINING-WORK.md",
+    "docs/implementation/RUST-PORT-LANES.md"
+  ],
+  "ledger": {
+    "path": "docs/implementation/remaining-work/tasks.json",
+    "sha256": "cd01ebb2276e9bbd362085070b985811543f4bcb1d7ad0d0ac0530d3092bc3f4",
+    "identity_count": 333,
+    "status_counts": {
+      "complete": 83,
+      "needs_verification": 23,
+      "held": 22,
+      "not_started": 99,
+      "partial": 101,
+      "deferred": 5
+    },
+    "disposition_counts": {
+      "REQUIRED": 319,
+      "ACCEPTED-CONDITIONAL": 9,
+      "DEFERRED": 5
+    },
+    "namespace_counts": {
+      "ports": 230,
+      "challenge": 51,
+      "description": 8,
+      "finished-product": 37,
+      "documentation": 7
+    },
+    "canonical_records_reference": "scope-queue.json preserves every original ID/status/disposition/prerequisite; canonical ledger is pinned above."
+  },
+  "ports": {
+    "manifest_path": "docs/implementation/rust-port-lanes.json",
+    "manifest_sha256": "4936af9c418fbf8accb9932e24abb622d11563d776fb271c6dac111615439033",
+    "id_count": 230,
+    "unknown_or_missing_source_dependency_ids": [],
+    "ids_reference": "scope-queue.json selected_port records preserve all 230 identities; original manifest remains pinned above."
+  },
+  "dependency_refs": {
+    "unknown_ids": [],
+    "noncomplete_diagnostic_entries": 222,
+    "details_reference": "scope-queue.json missing_inputs; diagnostic does not revoke narrow complete credits."
+  },
+  "evidence_paths": {
+    "unique_locator_count": 323,
+    "missing_paths": [],
+    "invalid_line_locators": [],
+    "normalized_locator_digest": "89494b44f48a4fb24331767d5db3c9dc9e4ad3dc5aa2e2827b24aa00b78fa67b",
+    "reconstruction_reference": "Pinned canonical ledger evidence paths, normalized for path:line/range; all resolve."
+  },
+  "package_inventory": {
+    "path": "docs/research/package-library-audit-20261006/source-inventory.json",
+    "declared_file_count": 684,
+    "recomputed": true,
+    "changed": [],
+    "missing": [],
+    "per_file_reference": "docs/research/package-library-audit-20261006/source-inventory.json; all 684 original file hashes match current bytes."
+  },
+  "top_level_source_hash_checks": [
+    {
+      "path": "docs/implementation/CHALLENGE-AUDIT-PLAN.md",
+      "expected_sha256": "4aa413a337ba90de4c7fdf89f57b6fdae69211af49e3f1c7241281b78450fba8",
+      "actual_sha256": "2c36b1f8afce9793088f4adabdce001afdb0d54ef4d966b7295bc8a7ee2dabcb",
+      "match": false
+    },
+    {
+      "path": "docs/implementation/challenge-audit-run/tasks.md",
+      "expected_sha256": "3afa04aac997b3e9037ff5776b3aaefa7201e66da0d940964a89cda4dc385737",
+      "actual_sha256": "3afa04aac997b3e9037ff5776b3aaefa7201e66da0d940964a89cda4dc385737",
+      "match": true
+    },
+    {
+      "path": "docs/implementation/challenge-audit-run/remaining-tasks.md",
+      "expected_sha256": "a3d754ce5cbfb2e5bfb314412a204f60de6cec7b01b0d872bf4db16673e6b58a",
+      "actual_sha256": "a3d754ce5cbfb2e5bfb314412a204f60de6cec7b01b0d872bf4db16673e6b58a",
+      "match": true
+    },
+    {
+      "path": "docs/implementation/REMAINING-IMPLEMENTATION-LANES.md",
+      "expected_sha256": "ffa464ed1ef7181de0cbcfebf755d86f851a44700dc8ba03007500677416efcf",
+      "actual_sha256": "ffa464ed1ef7181de0cbcfebf755d86f851a44700dc8ba03007500677416efcf",
+      "match": true
+    },
+    {
+      "path": "docs/implementation/DESCRIPTION-REFERENCE-PLAN.md",
+      "expected_sha256": "98f0cecc7b41874a453ffc2eb5011d2175fd33db85c49b8a7d76fb2950cde078",
+      "actual_sha256": "98f0cecc7b41874a453ffc2eb5011d2175fd33db85c49b8a7d76fb2950cde078",
+      "match": true
+    },
+    {
+      "path": "docs/implementation/description-reference-run/tasks.md",
+      "expected_sha256": "e05125bbc84c2b61a64ae55aa2716988f6fed4345d5f9a2a31c7b8e2f474f366",
+      "actual_sha256": "e05125bbc84c2b61a64ae55aa2716988f6fed4345d5f9a2a31c7b8e2f474f366",
+      "match": true
+    },
+    {
+      "path": "docs/implementation/D3B-PRODUCTION-QUAL-PLAN.md",
+      "expected_sha256": "fc43f3cf2b8e699a1b4542cab550d545be7c76d4b3253053949a18bc17605764",
+      "actual_sha256": "fc43f3cf2b8e699a1b4542cab550d545be7c76d4b3253053949a18bc17605764",
+      "match": true
+    },
+    {
+      "path": "docs/specification/DECISIONS.md",
+      "expected_sha256": "11e4f5e58f274c0df895f48b0434408f3bed21b5e12b7c3638051db28d848eaa",
+      "actual_sha256": "86e2d562e568af478075398cd04365307bca05b1f79ed6d382ab027b4117e27a",
+      "match": false
+    },
+    {
+      "path": "docs/ideal-filetree-plan.md",
+      "expected_sha256": "e8d9e0f5ff5482d82f7d85810b87a98b6e519450344a4b2fdffc9cef26a0577e",
+      "actual_sha256": "3609caae5d95d48468f0e08f4fd6765d7a4e9035b9fc43f6d866dbef0fd343f8",
+      "match": false
+    },
+    {
+      "path": "docs/ideal-filetree-plan/tasks.md",
+      "expected_sha256": "3ec66435696210441d5a04b8a24d3fc0478b5a00474a62f4b2cabba11f5d7e9d",
+      "actual_sha256": "3ec66435696210441d5a04b8a24d3fc0478b5a00474a62f4b2cabba11f5d7e9d",
+      "match": true
+    },
+    {
+      "path": "docs/ideal-filetree-plan/finished-product/tasks.json",
+      "expected_sha256": "78f157a8de2d5c7cbcc58338f38b90255621eb7b43287c4919ab80d50f651f0a",
+      "actual_sha256": "78f157a8de2d5c7cbcc58338f38b90255621eb7b43287c4919ab80d50f651f0a",
+      "match": true
+    },
+    {
+      "path": "docs/ideal-filetree-plan/finished-product/requirements.json",
+      "expected_sha256": "d8fffff5a993def7fb1df7ac862a32b9c474edb6d099d99a205d173914a3b8ea",
+      "actual_sha256": "d8fffff5a993def7fb1df7ac862a32b9c474edb6d099d99a205d173914a3b8ea",
+      "match": true
+    },
+    {
+      "path": "docs/ideal-filetree-plan/finished-product/consolidation-review.json",
+      "expected_sha256": "d999930458d2b55231c3a9f0ee1d9d2558c9b27f4cd930acab03af6f31062ea7",
+      "actual_sha256": "d999930458d2b55231c3a9f0ee1d9d2558c9b27f4cd930acab03af6f31062ea7",
+      "match": true
+    },
+    {
+      "path": "docs/research/package-subsystem-ports-20261006/implementation-plans/artifact-preparation.tasks.json",
+      "expected_sha256": "2985b1b40b12cc9754d86f7720b783ea053aac8acd34239c0962d66f43c84aef",
+      "actual_sha256": "2985b1b40b12cc9754d86f7720b783ea053aac8acd34239c0962d66f43c84aef",
+      "match": true
+    },
+    {
+      "path": "docs/research/package-subsystem-ports-20261006/implementation-plans/exact-values.tasks.json",
+      "expected_sha256": "bf940aa4222d9fae2185bdda6ca0a642e8574f36348070003f14566a0cd917bd",
+      "actual_sha256": "bf940aa4222d9fae2185bdda6ca0a642e8574f36348070003f14566a0cd917bd",
+      "match": true
+    },
+    {
+      "path": "docs/research/package-subsystem-ports-20261006/implementation-plans/execution-manifest.json",
+      "expected_sha256": "3fe03f3ff97f09fd45971c81162a5552052f15b19eb58b3ef647913e49a9a328",
+      "actual_sha256": "3fe03f3ff97f09fd45971c81162a5552052f15b19eb58b3ef647913e49a9a328",
+      "match": true
+    },
+    {
+      "path": "docs/research/package-subsystem-ports-20261006/implementation-plans/input-validation.tasks.json",
+      "expected_sha256": "03d024eb78dd16a9cfa96ebccfdb03eb3a61b03b18192e337921c178570d695b",
+      "actual_sha256": "03d024eb78dd16a9cfa96ebccfdb03eb3a61b03b18192e337921c178570d695b",
+      "match": true
+    },
+    {
+      "path": "docs/research/package-subsystem-ports-20261006/implementation-plans/shared.tasks.json",
+      "expected_sha256": "4ce369e02d466f194427cbfbaa3c232757eba1c8d791bc03921cec3545851327",
+      "actual_sha256": "4ce369e02d466f194427cbfbaa3c232757eba1c8d791bc03921cec3545851327",
+      "match": true
+    },
+    {
+      "path": "docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.tasks.json",
+      "expected_sha256": "f73f82460d08600a54a9a5a2f480aa59e72e6d9eab8b82bc46d5ddf824a501c5",
+      "actual_sha256": "f73f82460d08600a54a9a5a2f480aa59e72e6d9eab8b82bc46d5ddf824a501c5",
+      "match": true
+    }
+  ],
+  "ambiguities": [
+    "Canonical ledger contains 333 identities and ten auxiliary records; preserved all records without inferring a different canonical subset.",
+    "Dependency strings may refer to differently scoped task identities; unresolved strings are reported rather than interpreted.",
+    "Source hash comparisons report byte equality only and do not assign semantic meaning to conflicts."
+  ],
+  "port_mechanical_counts": {
+    "open_required_total": 166,
+    "open_required_by_plan_status": {
+      "artifact-preparation": {
+        "needs_verification": 8,
+        "held": 21,
+        "partial": 1
+      },
+      "exact-values": {
+        "partial": 19,
+        "needs_verification": 1,
+        "not_started": 11
+      },
+      "input-validation": {
+        "partial": 15,
+        "not_started": 46
+      },
+      "shared": {
+        "needs_verification": 1,
+        "partial": 7,
+        "not_started": 2,
+        "held": 1
+      },
+      "work-transitions": {
+        "partial": 7,
+        "not_started": 22,
+        "needs_verification": 4
+      }
+    },
+    "disposition_counts": {
+      "REQUIRED": {
+        "total": 220,
+        "status_counts": {
+          "complete": 54,
+          "needs_verification": 14,
+          "held": 22,
+          "partial": 49,
+          "not_started": 81
+        },
+        "open_count": 166
+      },
+      "ACCEPTED-CONDITIONAL": {
+        "total": 6,
+        "status_counts": {
+          "not_started": 5,
+          "partial": 1
+        },
+        "open_count": 6
+      },
+      "DEFERRED": {
+        "total": 4,
+        "status_counts": {
+          "deferred": 4
+        },
+        "open_count": 4
+      }
+    },
+    "required_open_with_all_direct_dependencies_status_complete_ids": [
+      "ports:A01.1",
+      "ports:A03",
+      "ports:A04.1",
+      "ports:A04.3",
+      "ports:A05.3",
+      "ports:A07.2",
+      "ports:C04.graph",
+      "ports:C04.ready",
+      "ports:P04.1",
+      "ports:P04.2",
+      "ports:P04.3",
+      "ports:P05.2",
+      "ports:P09.1",
+      "ports:V01.1",
+      "ports:V01.2",
+      "ports:V01.3",
+      "ports:V01.4",
+      "ports:V02.6",
+      "ports:V10.1",
+      "ports:V10.2",
+      "ports:W01.3",
+      "ports:W03.1"
+    ],
+    "basis": "unchanged source ledger; direct depends_on only; complete means status exactly complete; no readiness judgment"
+  }
+}

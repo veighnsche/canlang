@@ -6,7 +6,7 @@ afterwards; every byte and metadata read re-verifies the caller against
 the bound owner and fails closed. Internal package; the public surface
 assembles in `@canlang/stdlib`.
 
-Ownership per `implementation/PLAN.md`: lane 04
+Ownership per `docs/implementation/PLAN.md`: lane 04
 (`prompts/04-work-services-files.md`) owns the file lifecycle. There is
 a root entry and explicit exported subpaths; import the capability you need.
 

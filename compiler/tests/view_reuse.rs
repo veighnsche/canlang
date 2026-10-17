@@ -497,7 +497,7 @@ fn original_ordered_list_columns_reach_the_authorized_installed_consumer() {
     let artifact = scratch.path().join("artifact.json");
     std::fs::write(&artifact, compiled.stdout).unwrap();
     let consumer = Command::new("node")
-        .arg(root.join("implementation/compiler-completion/view-reuse/consumer.mjs"))
+        .arg(root.join("docs/implementation/compiler-completion/view-reuse/consumer.mjs"))
         .arg(root)
         .arg(&artifact)
         .arg(scratch.path().join("staged"))
@@ -568,7 +568,7 @@ fn original_nullable_enum_initial_default_reaches_native_page_admission() {
     let artifact = scratch.path().join("artifact.json");
     std::fs::write(&artifact, compiled.stdout).unwrap();
     let consumer = Command::new("node")
-        .arg(root.join("implementation/compiler-completion/view-reuse/consumer.mjs"))
+        .arg(root.join("docs/implementation/compiler-completion/view-reuse/consumer.mjs"))
         .arg(root)
         .arg(&artifact)
         .arg(scratch.path().join("staged"))
@@ -616,7 +616,7 @@ fn checked_scenario_checkbox_reaches_the_complete_protected_native_form() {
     let artifact = scratch.path().join("artifact.json");
     std::fs::write(&artifact, compiled.stdout).unwrap();
     let consumer = Command::new("node")
-        .arg(root.join("implementation/compiler-completion/view-reuse/consumer.mjs"))
+        .arg(root.join("docs/implementation/compiler-completion/view-reuse/consumer.mjs"))
         .arg(root)
         .arg(&artifact)
         .arg(scratch.path().join("staged"))
@@ -734,7 +734,7 @@ fn authored_row_checkbox_keeps_the_complete_protected_native_edit() {
     let artifact = scratch.path().join("artifact.json");
     std::fs::write(&artifact, compiled.stdout).unwrap();
     let consumer = Command::new("node")
-        .arg(root.join("implementation/compiler-completion/view-reuse/consumer.mjs"))
+        .arg(root.join("docs/implementation/compiler-completion/view-reuse/consumer.mjs"))
         .arg(root)
         .arg(&artifact)
         .arg(scratch.path().join("staged"))
@@ -836,7 +836,7 @@ fn owned_date_calendar_reaches_the_complete_installed_form_control() {
     let artifact = scratch.path().join("artifact.json");
     std::fs::write(&artifact, compiled.stdout).unwrap();
     let consumer = Command::new("node")
-        .arg(root.join("implementation/compiler-completion/view-reuse/consumer.mjs"))
+        .arg(root.join("docs/implementation/compiler-completion/view-reuse/consumer.mjs"))
         .arg(root)
         .arg(&artifact)
         .arg(scratch.path().join("staged"))
@@ -906,7 +906,7 @@ fn bare_row_edits_use_complete_allowed_defaults_in_the_native_form() {
     let artifact = scratch.path().join("artifact.json");
     std::fs::write(&artifact, &compiled.stdout).unwrap();
     let consumer = Command::new("node")
-        .arg(root.join("implementation/compiler-completion/view-reuse/consumer.mjs"))
+        .arg(root.join("docs/implementation/compiler-completion/view-reuse/consumer.mjs"))
         .arg(root)
         .arg(&artifact)
         .arg(scratch.path().join("staged"))
@@ -1154,7 +1154,7 @@ fn local_views_bind_rows_once_and_keep_native_occurrences_distinct() {
     }
     std::fs::write(&artifact, &compiled.stdout).unwrap();
     let consumer = Command::new("node")
-        .arg(root.join("implementation/compiler-completion/view-reuse/consumer.mjs"))
+        .arg(root.join("docs/implementation/compiler-completion/view-reuse/consumer.mjs"))
         .arg(root)
         .arg(&artifact)
         .arg(scratch.path().join("staged"))

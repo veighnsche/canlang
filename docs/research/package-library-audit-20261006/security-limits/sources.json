@@ -100,28 +100,28 @@
       "kind": "git-frozen-source"
     },
     {
-      "path": "implementation/CHALLENGE-AUDIT-PLAN.md",
+      "path": "docs/implementation/CHALLENGE-AUDIT-PLAN.md",
       "sha256": "2c36b1f8afce9793088f4adabdce001afdb0d54ef4d966b7295bc8a7ee2dabcb",
       "lines": 663,
       "bytes": 75383,
       "kind": "git-frozen-source"
     },
     {
-      "path": "implementation/DESCRIPTION-REFERENCE-PLAN.md",
+      "path": "docs/implementation/DESCRIPTION-REFERENCE-PLAN.md",
       "sha256": "98f0cecc7b41874a453ffc2eb5011d2175fd33db85c49b8a7d76fb2950cde078",
       "lines": 150,
       "bytes": 24500,
       "kind": "git-frozen-source"
     },
     {
-      "path": "implementation/challenge-audit-run/t33-resolution.md",
+      "path": "docs/implementation/challenge-audit-run/t33-resolution.md",
       "sha256": "b4a310ce2e3d9eccbc2d6a8c98381d531897ff0ce76feaed84a3d84490d59d05",
       "lines": 48,
       "bytes": 10751,
       "kind": "git-frozen-source"
     },
     {
-      "path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/DECISIONS-PENDING-HANDOFF.md",
+      "path": "docs/implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/DECISIONS-PENDING-HANDOFF.md",
       "sha256": "2d7e72aa84ac62e2ec1448fbbb869539dee977dfe9662005e52f31794bafb9cb",
       "lines": 18,
       "bytes": 3270,

@@ -51,7 +51,7 @@ interfaces/dependencies and independently authored examples authoritative.
 `DESIGN.md:291–306` separates role/subject/current-team facts from read grants,
 with no read policy meaning deny. `DESIGN.md:1023` keeps `canApp()` a callable
 factory without spreading `appDefinition`; declaration facts remain on their
-owner. `implementation/CONTRACTS.md:21` requires one producer-authored catalog
+owner. `docs/implementation/CONTRACTS.md:21` requires one producer-authored catalog
 instead of independently evolving Rust, TS, MCP and form schema mirrors.
 
 The parser remains lossless and rollback-aware. Resolution precedes typing;
@@ -298,5 +298,5 @@ cutover. Existing retirement decisions remain unchanged.
 
 The old implementation run is user-stopped, its heartbeat paused, and only the main
 checkout remains. No Muse instances, timers, worktrees or implementation are launched
-by this merge. The separate [remaining implementation plan](../../../implementation/REMAINING-IMPLEMENTATION-LANES.md)
+by this merge. The separate [remaining implementation plan](../../implementation/REMAINING-IMPLEMENTATION-LANES.md)
 defines that finite authorized backlog; this file-tree plan does not expand it.

@@ -80,4 +80,4 @@ Record the finite packet, model, effort, known risks, available evidence and rea
 
 No representative Can model comparison, product build/test, paid API experiment or implementation was run. During later authorized work, record actual completion, repairs/retries, wall time and available usage to refine these starting choices. API pricing is not a measure of Codex subscription usage and does not prove savings. Public documentation cannot establish an optimum for our exact tasks.
 
-[Machine allocation](model-allocation-20261007.json) preserves all 27 IDs and all 12 reminders. The [ordered checklist](../../../implementation/RUST-PORT-START-HERE.md) applies it without changing dependency order, original status or acceptance gates.
+[Machine allocation](model-allocation-20261007.json) preserves all 27 IDs and all 12 reminders. The [ordered checklist](../../implementation/RUST-PORT-START-HERE.md) applies it without changing dependency order, original status or acceptance gates.

@@ -127,7 +127,7 @@ def main():
     # Crosswalk references: source location presence only, not new task IDs or readiness.
     refs = sorted({ref for f in findings for ref in f['original_ids']})
     ref_corpus = '\n'.join((ROOT / p).read_text(errors='replace') for p in paths
-                           if p.startswith(('docs/', 'implementation/')))
+                           if p.startswith(('docs/', 'docs/implementation/')))
     assert all(ref in ref_corpus for ref in refs), ('unknown task/rule refs', [r for r in refs if r not in ref_corpus])
     status = read('review-status.json')
     assert status['Astra']['status'] == 'explicit egress approval pending'

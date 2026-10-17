@@ -84,105 +84,105 @@
     "binary": false
   },
   {
-    "path": "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/acceptance.json",
+    "path": "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/acceptance.json",
     "sha256": "d61e2fc7e89cf46295ca2122308027db6bdb4e3fd54a198477d230479cf02091",
     "bytes": 1535,
     "lines": 30,
     "binary": false
   },
   {
-    "path": "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/final-source-equivalence.json",
+    "path": "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/final-source-equivalence.json",
     "sha256": "9f90272eab38c1a0f9cebd99c981fe4804610967fe975249b9792e34282ad514",
     "bytes": 10482,
     "lines": 232,
     "binary": false
   },
   {
-    "path": "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/fresh-joined-gates.json",
+    "path": "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/fresh-joined-gates.json",
     "sha256": "e86338c2ad28f28bc2d6f117f046042728525412effeae5424eeba5cf21f0b02",
     "bytes": 10626,
     "lines": 202,
     "binary": false
   },
   {
-    "path": "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/raw/astra/source-bridge-check.json",
+    "path": "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/raw/astra/source-bridge-check.json",
     "sha256": "29a26542c8e3c0bf426e480aacfeb95a15b85726e06315ade200ebcdcf65ea57",
     "bytes": 38,
     "lines": 4,
     "binary": false
   },
   {
-    "path": "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/raw/sol/source-bridge.json",
+    "path": "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/raw/sol/source-bridge.json",
     "sha256": "f7822f7beb1166990d202235cbae83ecba95e6591173b91308c246eb1e4ba42a",
     "bytes": 25909,
     "lines": 581,
     "binary": false
   },
   {
-    "path": "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/residual-task-index.json",
+    "path": "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/residual-task-index.json",
     "sha256": "21501e24392b2974b18b282fb53a192f686f8deb750d44f8b059ed9a74895b34",
     "bytes": 213007,
     "lines": 4414,
     "binary": false
   },
   {
-    "path": "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/reviews/ASTRA-CRITICAL.md",
+    "path": "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/reviews/ASTRA-CRITICAL.md",
     "sha256": "f301710a547bf3fdd209546cf9ea7c942c5d9614f17cfbe7499e45a8f661c4d0",
     "bytes": 9527,
     "lines": 45,
     "binary": false
   },
   {
-    "path": "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/reviews/SOL-QUALIFICATION.md",
+    "path": "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/reviews/SOL-QUALIFICATION.md",
     "sha256": "af21f9082890ed45c0564ff19e22d3336885b23c22d49aa3003837309afd0a02",
     "bytes": 8747,
     "lines": 32,
     "binary": false
   },
   {
-    "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/acceptance.json",
+    "path": "docs/implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/acceptance.json",
     "sha256": "bb93c8cf44154eefcf90e92c477a27af9134c5526a2a493436755b32d5e49afd",
     "bytes": 11098,
     "lines": 270,
     "binary": false
   },
   {
-    "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/root-asset-refresh.json",
+    "path": "docs/implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/root-asset-refresh.json",
     "sha256": "1250869887c7aa8641973ccbd612c9ef7566de60025e7b4111a23aa74aa35555",
     "bytes": 1649,
     "lines": 37,
     "binary": false
   },
   {
-    "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-independent-installed.json",
+    "path": "docs/implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-independent-installed.json",
     "sha256": "c71a908b6702d09bb22ee9987c11d0cfc6f3c7cf47c7e85e560819e365312217",
     "bytes": 2932,
     "lines": 68,
     "binary": false
   },
   {
-    "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-independent-source-review.json",
+    "path": "docs/implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-independent-source-review.json",
     "sha256": "3a4ed358bea2549f1f1e27cc4a69f67e04d86d61546c1aa2dbce2aba9a871cc8",
     "bytes": 6293,
     "lines": 105,
     "binary": false
   },
   {
-    "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-qualification-receipt.json",
+    "path": "docs/implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-qualification-receipt.json",
     "sha256": "93a5748b3551772efef7ff3fde7f1e63d16106d2effa68a689a6479041a40d75",
     "bytes": 38309,
     "lines": 542,
     "binary": false
   },
   {
-    "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-reproducibility.json",
+    "path": "docs/implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-reproducibility.json",
     "sha256": "b763c4b95fd4aa8deb7acbfd4b21ea6e66dad5b4e437f6a78941679033d0efa7",
     "bytes": 1456,
     "lines": 47,
     "binary": false
   },
   {
-    "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-workerd-receipt.json",
+    "path": "docs/implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-workerd-receipt.json",
     "sha256": "9630fd15fff76d5d3a050561ea2ec7017a9af7b22ca9a5fb5ee61c6b173a3bfc",
     "bytes": 3848,
     "lines": 94,

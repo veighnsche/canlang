@@ -32,8 +32,8 @@ producer runners to their owners; lane 03 also uses `node:test`).
   (`catalog_version`/`language_version`/`entries`); L1 acknowledgment pending.
   Generated `dist/catalog.json` is a build artifact, not app config.
 - Normative detail, representation decisions (R1-R5) and the JEV round live in
-  `implementation/status/lane-02.md` and
-  `implementation/evidence/jev/values-20261004/`.
+  `docs/implementation/status/lane-02.md` and
+  `docs/implementation/evidence/jev/values-20261004/`.
 
 Built JavaScript and declarations stay under this package: `dist/src/`,
 `dist/test/`, and `dist/bindings/`. The normal build validates and stages

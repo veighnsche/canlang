@@ -19,7 +19,7 @@
     "approval_question_pending": false,
     "human_approval": "Approve scoped review for the exact prepared 187 KB payload to OpenAI",
     "payload_sha256": "5e38ac5a4107eea2e2c4f3c920b636da7ddc2062f8c4f6ed2e0e3e1bf68c393b",
-    "review": "../../../../implementation/package-maintenance-repair/runs/codex-go-20261007/critical-security-review.json",
+    "review": "../../../implementation/package-maintenance-repair/runs/codex-go-20261007/critical-security-review.json",
     "critical_acceptance": false,
     "scope_limits": "Finite frozen excerpt review; eight findings require source-current caller/configuration/root adjudication; no full-package security acceptance or policy adoption",
     "pending_cleanup_owner": "Root Codex; preserve approved frozen input until joined adjudication and released readers finish"

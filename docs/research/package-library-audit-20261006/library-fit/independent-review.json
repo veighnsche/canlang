@@ -92,7 +92,7 @@
           "note": "Source-order scan keeps last eligible segment."
         },
         {
-          "path": "implementation/rust-port-orchestration/contracts-20261007/sourcemaps-raw.md",
+          "path": "docs/implementation/rust-port-orchestration/contracts-20261007/sourcemaps-raw.md",
           "lines": [
             13,
             17
@@ -174,7 +174,7 @@
           "note": "Header and armored/escaped data rows use lines.join(LF) plus LF."
         },
         {
-          "path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/DECISIONS-PENDING-HANDOFF.md",
+          "path": "docs/implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/DECISIONS-PENDING-HANDOFF.md",
           "lines": [
             14,
             14

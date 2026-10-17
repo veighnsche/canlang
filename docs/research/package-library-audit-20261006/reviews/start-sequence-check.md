@@ -1,6 +1,6 @@
 # Start sequence consistency review
 
-Scope: read-only comparison of `implementation/RUST-PORT-START-HERE.md`, `implementation/rust-port-orchestration/packets.json`, and `implementation/RUST-PORT-EXECUTION-PLAN.md` against the six requested checks.
+Scope: read-only comparison of `docs/implementation/RUST-PORT-START-HERE.md`, `docs/implementation/rust-port-orchestration/packets.json`, and `docs/implementation/RUST-PORT-EXECUTION-PLAN.md` against the six requested checks.
 
 Result: no blocking defect found.
 

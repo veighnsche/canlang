@@ -82,7 +82,7 @@
       "blob": "5894800b646fb2ab0e29c73df98c3b0f3dd309d6"
     },
     {
-      "path": "implementation/rust-port-orchestration/contracts-20261007/sourcemaps-raw.md",
+      "path": "docs/implementation/rust-port-orchestration/contracts-20261007/sourcemaps-raw.md",
       "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
       "sha256": "5665fd668c57d6968811a0314360660e9df1c5b7c23fa241f3af75b8caac1aad",
       "bytes": 18311,
@@ -90,7 +90,7 @@
       "blob": "7bdc193ed0fd1bbdb3233ec97a02ec92ceb76374"
     },
     {
-      "path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/DECISIONS-PENDING-HANDOFF.md",
+      "path": "docs/implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/DECISIONS-PENDING-HANDOFF.md",
       "ref": "f8e9e73b11f19a7d59ac62487033a5bc189c46a1",
       "sha256": "2d7e72aa84ac62e2ec1448fbbb869539dee977dfe9662005e52f31794bafb9cb",
       "bytes": 3270,

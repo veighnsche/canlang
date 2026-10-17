@@ -140,14 +140,14 @@ def task_catalog():
             if t['id'].startswith('V08') or t['id'].startswith('V10'):row['required_product_transport']='HTTP/MCP/forms remain required through a valid TS or qualified Rust path; Rust provenance/adoption itself conditional.'
             ports.append(row)
     challenge=[]
-    text=(ROOT/'implementation/CHALLENGE-AUDIT-PLAN.md').read_text()
+    text=(ROOT/'docs/implementation/CHALLENGE-AUDIT-PLAN.md').read_text()
     for id,body in re.findall(r'^- \[ \] \*\*(T\d\d) (.*?)\n',text,re.M):
         title=body.split('**',1)[0].rstrip('.')
         challenge.append({'namespace':'challenge','id':id,'title':title,'contract':body,'depends_on':TDEPS[id],
           'capabilities':TCAPS[int(id[1:])],'disposition':'REQUIRED','status':'canonical parent; current accepted slices must be reused at exact scope, no new execution status',
           'gate_policy':'Dependencies refer to matching released capability slices, not unrelated full parent barriers; exact scoped prerequisites retained in contract.'})
     descriptions=[]
-    text=(ROOT/'implementation/DESCRIPTION-REFERENCE-PLAN.md').read_text()
+    text=(ROOT/'docs/implementation/DESCRIPTION-REFERENCE-PLAN.md').read_text()
     matches=list(re.finditer(r'^- \[ \] \*\*(D\d\d) — (.+?)\*\*',text,re.M))
     for i,m in enumerate(matches):
         id=m.group(1);block=text[m.start():matches[i+1].start() if i+1<len(matches) else text.find('\n## ',m.end())]
@@ -155,7 +155,7 @@ def task_catalog():
         descriptions.append({'namespace':'description','id':id,'title':m.group(2),'contract':block.strip(),'depends_on':deps,'capabilities':['F10'],'disposition':'REQUIRED',
           'gate_policy':'Existing source mechanisms observed; current partial reservations/slices and D04 requiredness/installed reference proof revalidate; no repeated description JEV'})
     supplemental=[]
-    text=(ROOT/'implementation/REMAINING-IMPLEMENTATION-LANES.md').read_text()
+    text=(ROOT/'docs/implementation/REMAINING-IMPLEMENTATION-LANES.md').read_text()
     for line in text.splitlines():
         m=re.match(r'^\| (A[1-5]|B[1-5]|C[1-4]|D[1-3]|E[12]|F1|LG0[0-6]) \|',line)
         if m:supplemental.append({'id':m.group(1),'namespace':'remaining','contract_row':line,'authority':'existing coordinator packet; read only','audit_assignment':False})
@@ -227,7 +227,7 @@ def owner(path):
     if path.startswith('.github/') or path in ('package.json','bun.lock'):return 'delivery-integrator'
     if path.startswith('tests/'):return 'qualification'
     if path.startswith('docs/ideal-filetree-plan'):return 'Codex-living-plan'
-    if '/evidence/' in path or path.startswith('implementation/'):return 'existing-evidence/coordinator owner; exact reservation before edits'
+    if '/evidence/' in path or path.startswith('docs/implementation/'):return 'existing-evidence/coordinator owner; exact reservation before edits'
     if path.startswith('editor/'):return 'compiler-editor'
     return 'repository-subject-owner'
 
@@ -286,7 +286,7 @@ def converge():
         known={t['id'] for t in ports+challenge+descriptions+extra}
         aggregate=[i for i in d['task_ids'] if i not in known and re.fullmatch(r'C0[1-4]',i)]
         remaining=[i for i in d['task_ids'] if i not in known and i not in aggregate]
-        d['external_task_refs']=[{'id':i,'namespace':'existing remaining coordinator packet','source':'implementation/REMAINING-IMPLEMENTATION-LANES.md','scope':'original duty site; no new assignment/status'} for i in remaining]
+        d['external_task_refs']=[{'id':i,'namespace':'existing remaining coordinator packet','source':'docs/implementation/REMAINING-IMPLEMENTATION-LANES.md','scope':'original duty site; no new assignment/status'} for i in remaining]
         d['aggregate_port_refs']=aggregate
         d['task_ids']=sorted(({i for i in d['task_ids'] if i in known})|{t['id'] for t in ports if any(t['id'].startswith(i+'.') for i in aggregate)})
     dump('requirements.json',{'source_pin':inventory['source_pin'],'stage':'accepted intended requirements; mechanisms and newly proposed leaves separate','capabilities':[{'id':i,'title':t,'duty':d,'primary':p,'challenger':c} for i,t,d,p,c in CAPS],'duties':ds,
@@ -531,7 +531,7 @@ def apply_documentation_review():
         text=file.read_text();start='<!-- documentation-review:start -->';end='<!-- documentation-review:end -->'
         text=re.sub(re.escape(start)+r'[\s\S]*?'+re.escape(end)+r'\n?', '',text).rstrip()
         file.write_text(text+'\n\n'+start+'\n'+body.rstrip()+'\n'+end+'\n')
-    common='## Markdown placement and consolidation\n\nOnly `README.md` and `AGENTS.md` remain at the repository root. The current requirements, design, grammar, and decision log are in `docs/specification/`; the completed evaluation plan is `design/evaluation/PLAN.md`. These five moves and live reference repairs are applied locally, including the separate draft working tree; publication and complete checkpoint advancement remain separate.\n\n[Documentation inventory](documentation-inventory.json) records 490 tracked and three added Markdown paths at its observation. [Review and migration ledger](documentation-review.json) retains every disposition, original hash, exact successor, task and preservation gate. The selected target consolidates 52 small assessment/correction notes into 25 topic records, potentially reducing Markdown by 27 files. This consolidation remains future work. Moving the five root files alone does not reduce total file count. Frozen captures, final report bytes and raw consultation JSON retain their provenance.\n\nKeep project decisions in `docs/specification/DECISIONS.md`; proposals and accepted decisions have distinct status. Prior-plan prose, shared setup guidance and superseded launch instructions have further scoped review tasks; archival moves alone are not pruning. All 493 paths are structurally accounted for, but focused semantic review does not certify every paragraph for deletion.'
+    common='## Markdown placement and consolidation\n\nOnly `README.md` and `AGENTS.md` remain at the repository root. The current requirements, design, grammar, and decision log are in `docs/specification/`; the completed evaluation plan is `docs/design/evaluation/PLAN.md`. These five moves and live reference repairs are applied locally, including the separate draft working tree; publication and complete checkpoint advancement remain separate.\n\n[Documentation inventory](documentation-inventory.json) records 490 tracked and three added Markdown paths at its observation. [Review and migration ledger](documentation-review.json) retains every disposition, original hash, exact successor, task and preservation gate. The selected target consolidates 52 small assessment/correction notes into 25 topic records, potentially reducing Markdown by 27 files. This consolidation remains future work. Moving the five root files alone does not reduce total file count. Frozen captures, final report bytes and raw consultation JSON retain their provenance.\n\nKeep project decisions in `docs/specification/DECISIONS.md`; proposals and accepted decisions have distinct status. Prior-plan prose, shared setup guidance and superseded launch instructions have further scoped review tasks; archival moves alone are not pruning. All 493 paths are structurally accounted for, but focused semantic review does not certify every paragraph for deletion.'
     if review.get('execution',{}).get('topic_consolidation'):
         common=common.replace('The selected target consolidates 52 small assessment/correction notes into 25 topic records, potentially reducing Markdown by 27 files. This consolidation remains future work.',
             'The selected consolidation is applied: 52 assessment/correction notes now form 25 topic records, reducing Markdown by 27 files. All original source blocks, corrections, uncertainty, witnesses and limitations were preserved under heading/navigation normalization and independently cross-reviewed; 169 raw JSON records remain byte-identical. Stable source anchors replace old note paths. The ledger records original hashes, section preservation hashes, live reference repairs and 51 retired predecessors; one existing README was retained and 24 new successors created.')

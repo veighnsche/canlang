@@ -84,28 +84,28 @@
       "proof_scope": "accepted contract/challenge source inspected at cited sections"
     },
     {
-      "path": "design/complex-apps/knowledge.md",
+      "path": "docs/design/complex-apps/knowledge.md",
       "sha256": "657f15de292ff1d4d875f1ea0908440a90a58c2a288e2b2b21abebd6240a8c0c",
       "bytes": 21212,
       "lines": 122,
       "proof_scope": "accepted contract/challenge source inspected at cited sections"
     },
     {
-      "path": "design/jev/complex-knowledge-20261004/1.result.json",
+      "path": "docs/design/jev/complex-knowledge-20261004/1.result.json",
       "sha256": "501a9b36773675104aedef45609a603b7c9ebfc610d259a86352e511567c093f",
       "bytes": 4863,
       "lines": 58,
       "proof_scope": "accepted contract/challenge source inspected at cited sections"
     },
     {
-      "path": "design/jev/complex-knowledge-20261004/2.result.json",
+      "path": "docs/design/jev/complex-knowledge-20261004/2.result.json",
       "sha256": "cd8ed27491703949d979674103a7634bcc5937837ae690f2fa412f700ce29f2b",
       "bytes": 4885,
       "lines": 58,
       "proof_scope": "accepted contract/challenge source inspected at cited sections"
     },
     {
-      "path": "design/jev/complex-knowledge-20261004/3.result.json",
+      "path": "docs/design/jev/complex-knowledge-20261004/3.result.json",
       "sha256": "1376fdbb1e951f0303ecdb9db33b076fd241fb2372f5ae50a7c96e01119bece8",
       "bytes": 5021,
       "lines": 58,
@@ -203,56 +203,56 @@
       "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
     },
     {
-      "path": "implementation/CHALLENGE-AUDIT-PLAN.md",
+      "path": "docs/implementation/CHALLENGE-AUDIT-PLAN.md",
       "sha256": "c71f9a33cea8dcd4024e1bdda72294029d7a10995d588736d51aca5c1fdf2202",
       "bytes": 67012,
       "lines": 641,
       "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
     },
     {
-      "path": "implementation/CONTRACTS.md",
+      "path": "docs/implementation/CONTRACTS.md",
       "sha256": "7750365ff46288777a53f3bc7e387187d1a1f9d9b4ca8d9e70d915e17614d27c",
       "bytes": 10772,
       "lines": 60,
       "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
     },
     {
-      "path": "implementation/DESCRIPTION-REFERENCE-PLAN.md",
+      "path": "docs/implementation/DESCRIPTION-REFERENCE-PLAN.md",
       "sha256": "88633a4c29c3a8749adf59b56d5fb8c39e69f17de66e983abf9c5b57a48a5429",
       "bytes": 24481,
       "lines": 150,
       "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
     },
     {
-      "path": "implementation/REMAINING-IMPLEMENTATION-LANES.md",
+      "path": "docs/implementation/REMAINING-IMPLEMENTATION-LANES.md",
       "sha256": "ffa464ed1ef7181de0cbcfebf755d86f851a44700dc8ba03007500677416efcf",
       "bytes": 29146,
       "lines": 378,
       "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
     },
     {
-      "path": "implementation/challenge-audit-run/evidence/fanout-decision.md",
+      "path": "docs/implementation/challenge-audit-run/evidence/fanout-decision.md",
       "sha256": "47c64ec04491b0e37911e33d2eb38124a04bcc19acf26727d171816294c05ea8",
       "bytes": 107981,
       "lines": 1832,
       "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
     },
     {
-      "path": "implementation/challenge-audit-run/evidence/t34-plan.md",
+      "path": "docs/implementation/challenge-audit-run/evidence/t34-plan.md",
       "sha256": "f3ce146c18658b7081963db5e43b2f70113f3a31509db71b3cc13f3fa82f8eb1",
       "bytes": 10800,
       "lines": 200,
       "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
     },
     {
-      "path": "implementation/challenge-audit-run/remaining-tasks.md",
+      "path": "docs/implementation/challenge-audit-run/remaining-tasks.md",
       "sha256": "5a119c8dd72d700863da029820f3823c4e8a251c25b8d38777ab7dda4a1c880d",
       "bytes": 30041,
       "lines": 445,
       "proof_scope": "pinned current bytes; body inspection limited to duties cited in review, not exhaustive certification"
     },
     {
-      "path": "implementation/challenge-audit-run/t33-resolution.md",
+      "path": "docs/implementation/challenge-audit-run/t33-resolution.md",
       "sha256": "b4a310ce2e3d9eccbc2d6a8c98381d531897ff0ce76feaed84a3d84490d59d05",
       "bytes": 10751,
       "lines": 48,
@@ -910,7 +910,7 @@
       "disposition": "REQUIRED",
       "requirement_authority": [
         "REQUIREMENTS.md:179-212",
-        "implementation/CONTRACTS.md:Transactions, identities and disclosure"
+        "docs/implementation/CONTRACTS.md:Transactions, identities and disclosure"
       ],
       "current_defining_files": [
         "packages/state/src/invocation/context.ts",
@@ -1023,7 +1023,7 @@
       "disposition": "REQUIRED",
       "requirement_authority": [
         "REQUIREMENTS.md:218",
-        "implementation/CHALLENGE-AUDIT-PLAN.md:T16-T18"
+        "docs/implementation/CHALLENGE-AUDIT-PLAN.md:T16-T18"
       ],
       "current_defining_files": [
         "packages/state/src/mutation/models.ts",
@@ -1095,7 +1095,7 @@
       "title": "Imported containment, parent/team/lifetime ownership",
       "disposition": "REQUIRED",
       "requirement_authority": [
-        "implementation/CHALLENGE-AUDIT-PLAN.md:T28-T29",
+        "docs/implementation/CHALLENGE-AUDIT-PLAN.md:T28-T29",
         "REQUIREMENTS.md:194,210"
       ],
       "current_defining_files": [
@@ -1161,7 +1161,7 @@
       "title": "Provenance and flat secondary hook staging",
       "disposition": "REQUIRED",
       "requirement_authority": [
-        "implementation/CHALLENGE-AUDIT-PLAN.md:T30-T31",
+        "docs/implementation/CHALLENGE-AUDIT-PLAN.md:T30-T31",
         "packages/state/src/mutation/pipeline.ts:269-283"
       ],
       "current_defining_files": [
@@ -1212,8 +1212,8 @@
       "title": "Authoritative predicates, revocation and dispatch spend fence",
       "disposition": "REQUIRED",
       "requirement_authority": [
-        "implementation/CHALLENGE-AUDIT-PLAN.md:T32",
-        "implementation/challenge-audit-run/evidence/fanout-decision.md:C4"
+        "docs/implementation/CHALLENGE-AUDIT-PLAN.md:T32",
+        "docs/implementation/challenge-audit-run/evidence/fanout-decision.md:C4"
       ],
       "current_defining_files": [
         "packages/state/src/invocation/admission.ts",
@@ -1270,7 +1270,7 @@
       "disposition": "REQUIRED",
       "requirement_authority": [
         "REQUIREMENTS.md:189-192",
-        "implementation/CHALLENGE-AUDIT-PLAN.md:T24"
+        "docs/implementation/CHALLENGE-AUDIT-PLAN.md:T24"
       ],
       "current_defining_files": [
         "packages/work/src/intent/index.ts",
@@ -1380,7 +1380,7 @@
       "disposition": "REQUIRED",
       "requirement_authority": [
         "REQUIREMENTS.md:191",
-        "implementation/CHALLENGE-AUDIT-PLAN.md:T25"
+        "docs/implementation/CHALLENGE-AUDIT-PLAN.md:T25"
       ],
       "current_defining_files": [
         "packages/state/src/receipt/tables.ts",
@@ -1475,7 +1475,7 @@
       "title": "Related observable progress, cancel, late usage and notification",
       "disposition": "REQUIRED",
       "requirement_authority": [
-        "implementation/CHALLENGE-AUDIT-PLAN.md:T26",
+        "docs/implementation/CHALLENGE-AUDIT-PLAN.md:T26",
         "draft/CanChat.can:66-193",
         "draft/CanCreative.can:93-185"
       ],
@@ -1544,7 +1544,7 @@
       "title": "Complete authoritative finite cohorts and independent durable children",
       "disposition": "REQUIRED",
       "requirement_authority": [
-        "implementation/challenge-audit-run/t33-resolution.md:C1-C9,M1-M10",
+        "docs/implementation/challenge-audit-run/t33-resolution.md:C1-C9,M1-M10",
         "draft/CanShift.can:237-248",
         "draft/CanVolunteer.can:47-52,178-185"
       ],
@@ -1687,7 +1687,7 @@
       "title": "Ordinary and fanout act-time recovery",
       "disposition": "REQUIRED",
       "requirement_authority": [
-        "implementation/CHALLENGE-AUDIT-PLAN.md:T24,T26,T34",
+        "docs/implementation/CHALLENGE-AUDIT-PLAN.md:T24,T26,T34",
         "docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.md:Required behavior and trace vectors"
       ],
       "current_defining_files": [
@@ -1738,7 +1738,7 @@
       "disposition": "REQUIRED",
       "requirement_authority": [
         "REQUIREMENTS.md:192,198",
-        "implementation/CONTRACTS.md:Transactions, identities and disclosure",
+        "docs/implementation/CONTRACTS.md:Transactions, identities and disclosure",
         "packages/contracts/src/services.ts:727"
       ],
       "current_defining_files": [
@@ -1882,7 +1882,7 @@
       "disposition": "REQUIRED",
       "requirement_authority": [
         "REQUIREMENTS.md:193",
-        "implementation/CHALLENGE-AUDIT-PLAN.md:T27",
+        "docs/implementation/CHALLENGE-AUDIT-PLAN.md:T27",
         "packages/files/src/ports.ts:1-26"
       ],
       "current_defining_files": [
@@ -2089,7 +2089,7 @@
       "disposition": "REQUIRED",
       "requirement_authority": [
         "REQUIREMENTS.md:195",
-        "implementation/CONTRACTS.md:Migration and BDD joins"
+        "docs/implementation/CONTRACTS.md:Migration and BDD joins"
       ],
       "current_defining_files": [
         "packages/state/src/migration/transition.ts",
@@ -2196,7 +2196,7 @@
       "disposition": "REQUIRED",
       "requirement_authority": [
         "DESIGN.md:694-698",
-        "design/complex-apps/knowledge.md:Corpus contract",
+        "docs/design/complex-apps/knowledge.md:Corpus contract",
         "draft/CanKnowledge.can:25,143-175,209-234"
       ],
       "current_defining_files": [
@@ -4338,7 +4338,7 @@
     }
   ],
   "fanout_matrix": {
-    "authority": "implementation/challenge-audit-run/t33-resolution.md:29-42",
+    "authority": "docs/implementation/challenge-audit-run/t33-resolution.md:29-42",
     "source_vs_children": "source success commits own truth + durable intent; children separately admitted/progressed",
     "membership": "complete frozen canonical owner identities at explicit source occurrence/handler cutoff; bounded revision-stable enumeration, never partial complete",
     "M1": "499/500/501/1000 independently accounted identities + ordinary inline overflow negative",
@@ -4481,10 +4481,10 @@
       "disposition": "REQUIRED unfinished producer/runtime integration",
       "authority": [
         "DESIGN.md:694-698",
-        "design/complex-apps/knowledge.md:Corpus contract",
-        "design/jev/complex-knowledge-20261004/1.result.json",
-        "design/jev/complex-knowledge-20261004/2.result.json",
-        "design/jev/complex-knowledge-20261004/3.result.json"
+        "docs/design/complex-apps/knowledge.md:Corpus contract",
+        "docs/design/jev/complex-knowledge-20261004/1.result.json",
+        "docs/design/jev/complex-knowledge-20261004/2.result.json",
+        "docs/design/jev/complex-knowledge-20261004/3.result.json"
       ],
       "gap": "Complete interface already accepted; compiler-generated members/opaque Answer, current source proof, index/controller/progress/grounded disclosure and isolated fixture joins remain required.",
       "targets": [
@@ -4577,7 +4577,7 @@
         "subject": "accepted corpus generated interface/opaque grounded type producer",
         "evidence": [
           "DESIGN.md:694-698",
-          "design/complex-apps/knowledge.md:13-63",
+          "docs/design/complex-apps/knowledge.md:13-63",
           "compiler/src/syntax/parser.rs:4008-4034",
           "compiler/src/analysis/catalog.rs:2347"
         ],
@@ -4612,7 +4612,7 @@
         "severity": "wording/classification clarification",
         "status": "resolved: containment/effects/fanout REQUIRED, accepted semantics vs execution gates explicit; no automatic filtered-sweep supersession/no semantic 500 cap",
         "evidence": [
-          "implementation/challenge-audit-run/t33-resolution.md:C1-C9",
+          "docs/implementation/challenge-audit-run/t33-resolution.md:C1-C9",
           "docs/ideal-filetree-plan/finished-product/reviews/language.json:LANG-CONTAINMENT,LANG-EFFECTS,LANG-FANOUT,LANG-LIFETIME-EVOLUTION"
         ],
         "change_required": "Classify adopted required semantic scope separately from actual availability/qualification; explicitly no automatic filtered-sweep supersession/no numeric cohort cap. Existing lifetime/evolution duty covers retain/migration; no missing-duty allegation."

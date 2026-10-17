@@ -377,17 +377,17 @@
       "conclusion": "Committed acceptance records finite Node22.0.0/Node24.21.0/workerd results and scoped current six identity hashes match accepted-source pins. Workerd receipt names crypto.subtle.timingSafeEqual, compatibilityDate2026-07-15 and no flags. Private Node22 raw log is presently absent; historical committed receipts are neither erased by absence nor newly reproduced runtime proof.",
       "source_anchors": [
         {
-          "path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/acceptance.json",
+          "path": "docs/implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/acceptance.json",
           "start_line": 1,
           "end_line": 1
         },
         {
-          "path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/installed-workerd-receipt.json",
+          "path": "docs/implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/installed-workerd-receipt.json",
           "start_line": 1,
           "end_line": 13
         },
         {
-          "path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/accepted-source-pins.json",
+          "path": "docs/implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/accepted-source-pins.json",
           "start_line": 1,
           "end_line": 1
         }
@@ -474,7 +474,7 @@
       "current_matches_pin": true
     },
     {
-      "path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/acceptance.json",
+      "path": "docs/implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/acceptance.json",
       "sha256": "3efc8539b90885c9dd00daaa0da7c337657d3a604f5439e44c124995b912dadc",
       "bytes": 7715,
       "kind": "pinned_repository",
@@ -482,7 +482,7 @@
       "current_matches_pin": true
     },
     {
-      "path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/accepted-source-pins.json",
+      "path": "docs/implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/accepted-source-pins.json",
       "sha256": "6e99ad9f9dbc868e992593d1f6f2ef422742678339cb62bccdf045ca215f3467",
       "bytes": 2834,
       "kind": "pinned_repository",
@@ -490,7 +490,7 @@
       "current_matches_pin": true
     },
     {
-      "path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/installed-workerd-receipt.json",
+      "path": "docs/implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/installed-workerd-receipt.json",
       "sha256": "27d77885311202f1cfafa3d1d5425e8034a92a98a21e6303190f0fc3733c5743",
       "bytes": 1305,
       "kind": "pinned_repository",

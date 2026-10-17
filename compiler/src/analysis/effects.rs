@@ -919,7 +919,7 @@ pub struct DescriptionEntry {
 /// [`ModuleData::descriptions`]; this map covers only field/parameter
 /// slots, where the new spellings live.
 ///
-/// Frozen representation (`implementation/DESCRIPTION-REFERENCE-PLAN.md`):
+/// Frozen representation (`docs/implementation/DESCRIPTION-REFERENCE-PLAN.md`):
 /// `source` prose plus the owning `source_lang`, ordered `variants`,
 /// and the authored-value `location` (`node` span; the file is the
 /// span's source id). Absence — no entry in

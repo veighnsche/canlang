@@ -46,13 +46,13 @@
           "claim": "Default authentication owns sessions and account recovery."
         },
         {
-          "path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/contracts/identity-encoding-contract.md",
+          "path": "docs/implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/contracts/identity-encoding-contract.md",
           "line": 13,
           "declared_stage": "released for root acceptance; not installed acceptance",
           "claim": "Preserve issued token text and exact bearer UTF-8 hashing; never decode or mask before hashing."
         },
         {
-          "path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/contracts/identity-encoding-contract.md",
+          "path": "docs/implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/contracts/identity-encoding-contract.md",
           "line": 21,
           "declared_stage": "released scoped contract",
           "claim": "Keep WebCrypto, TextEncoder and 32-byte token issuance."
@@ -98,19 +98,19 @@
           "claim": "Email/password authentication is canonical."
         },
         {
-          "path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/contracts/identity-encoding-contract.md",
+          "path": "docs/implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/contracts/identity-encoding-contract.md",
           "line": 15,
           "declared_stage": "released scoped contract",
           "claim": "Retain public decoder acceptance including unused tail bits."
         },
         {
-          "path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/contracts/identity-encoding-contract.md",
+          "path": "docs/implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/contracts/identity-encoding-contract.md",
           "line": 17,
           "declared_stage": "released rationale with explicit uncertainty",
           "claim": "No actual noncanonical stored row assumed; preserve admitted domain to avoid unmeasured break."
         },
         {
-          "path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/contracts/identity-encoding-contract.md",
+          "path": "docs/implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/contracts/identity-encoding-contract.md",
           "line": 25,
           "declared_stage": "released scoped contract",
           "claim": "Preserve password representation, iteration admission and verifier failure behavior."
@@ -150,25 +150,25 @@
       "exact_compatibility_verdict": "HttpOnly/Secure default/SameSite=Lax/Path=/ are selected transport policy. Exact attribute order, first normalized can_session occurrence, one decodeURIComponent, JS trim and fault precedence are explicitly frozen by this bounded cookie replacement. They are not all intrinsically security requirements. Explicit empty/invalid Domain rejection is a deliberate correction, so legacy injection/Domain= behavior is not compatibility to retain.",
       "authority": [
         {
-          "path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/contracts/identity-cookie-contract.md",
+          "path": "docs/implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/contracts/identity-cookie-contract.md",
           "line": 13,
           "declared_stage": "released for root acceptance; no implementation acceptance",
           "claim": "First target wins even malformed/empty, decode once and no duplicate fallback."
         },
         {
-          "path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/contracts/identity-cookie-contract.md",
+          "path": "docs/implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/contracts/identity-cookie-contract.md",
           "line": 21,
           "declared_stage": "released scoped contract",
           "claim": "Keep secure defaults, error precedence and Max-Age policy."
         },
         {
-          "path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/contracts/identity-cookie-contract.md",
+          "path": "docs/implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/contracts/identity-cookie-contract.md",
           "line": 23,
           "declared_stage": "released scoped exact-byte contract",
           "claim": "Preserve exact Set-Cookie attribute order."
         },
         {
-          "path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/contracts/identity-cookie-contract.md",
+          "path": "docs/implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/contracts/identity-cookie-contract.md",
           "line": 27,
           "declared_stage": "deliberate correction",
           "claim": "Reject unsafe/empty Domain without reflecting raw input."
@@ -204,19 +204,19 @@
       "exact_compatibility_verdict": "Native Node/workerd comparator selection, synchronous signatures, byte-length rejection and operational-fault propagation are explicitly selected. Whole-helper constant-time claims are unsupported. CSRF HMAC-SHA256 with message can-csrf-v1 is a current wire mechanism, while DESIGN requires current CSRF without selecting that exact construction.",
       "authority": [
         {
-          "path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/contracts/identity-host-contract.md",
+          "path": "docs/implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/contracts/identity-host-contract.md",
           "line": 7,
           "declared_stage": "released binding policy; installed acceptance separate",
           "claim": "Private Node/default binding, unchanged Node >=22 and synchronous API."
         },
         {
-          "path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/contracts/identity-host-contract.md",
+          "path": "docs/implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/contracts/identity-host-contract.md",
           "line": 9,
           "declared_stage": "released policy",
           "claim": "Length/parse branches excluded from primitive timing claims."
         },
         {
-          "path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/contracts/identity-host-contract.md",
+          "path": "docs/implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/contracts/identity-host-contract.md",
           "line": 11,
           "declared_stage": "released fail-closed host policy",
           "claim": "No JS-loop fallback; missing primitive is operational failure."
@@ -458,7 +458,7 @@
           "claim": "No cross-D1/DO atomic authorization guarantee."
         },
         {
-          "path": "implementation/challenge-audit-run/evidence/jev-t32a-20261005/README.md",
+          "path": "docs/implementation/challenge-audit-run/evidence/jev-t32a-20261005/README.md",
           "line": 81,
           "declared_stage": "ADOPTED Alternative A; implementation obligations separate",
           "claim": "Commit-time permission/revocation revalidation; L291 and narrower-fence questions retained."
@@ -709,19 +709,19 @@
           "claim": "Single batch writes constraints/history/receipt/outbox and revision."
         },
         {
-          "path": "implementation/challenge-audit-run/t33-resolution.md",
+          "path": "docs/implementation/challenge-audit-run/t33-resolution.md",
           "line": 17,
           "declared_stage": "adopted architecture direction, implementation/proof separate",
           "claim": "Authoritative frozen cutoff membership."
         },
         {
-          "path": "implementation/challenge-audit-run/t33-resolution.md",
+          "path": "docs/implementation/challenge-audit-run/t33-resolution.md",
           "line": 19,
           "declared_stage": "adopted design contract",
           "claim": "Child identity includes parent+handler+record; current child authority and atomic checkpoint at 20..21."
         },
         {
-          "path": "implementation/challenge-audit-run/t33-resolution.md",
+          "path": "docs/implementation/challenge-audit-run/t33-resolution.md",
           "line": 27,
           "declared_stage": "adopted direction",
           "claim": "Precise representations still owner-produced."
@@ -768,19 +768,19 @@
           "claim": "Canonical CSV intake with explicit correction/exclusion and independent replay-safe rows."
         },
         {
-          "path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/contracts/csv-contract.md",
+          "path": "docs/implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/contracts/csv-contract.md",
           "line": 5,
           "declared_stage": "released grammar contract",
           "claim": "Specific finite parser options/raw semantics and limit order."
         },
         {
-          "path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/contracts/csv-contract.md",
+          "path": "docs/implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/contracts/csv-contract.md",
           "line": 7,
           "declared_stage": "deliberate admission corrections",
           "claim": "Reject malformed quoting and lone surrogates; exact accepted-source/candidate digests retained."
         },
         {
-          "path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/contracts/csv-contract.md",
+          "path": "docs/implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/contracts/csv-contract.md",
           "line": 11,
           "declared_stage": "bounded authoring lease",
           "claim": "Preserve auth/CSRF, candidate digest and commit behavior; grammar is not authority."
@@ -834,7 +834,7 @@
           "claim": "User/app/team private review, 24h expiry, immediate loss on logout/context change."
         },
         {
-          "path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/contracts/csv-contract.md",
+          "path": "docs/implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/contracts/csv-contract.md",
           "line": 11,
           "declared_stage": "released grammar scope only",
           "claim": "Preserve candidate digest and consent/replay while substituting grammar; no blanket acceptance of full flow."
@@ -1211,7 +1211,7 @@
           "claim": "Preparation/native-release HOLD unchanged."
         },
         {
-          "path": "implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/contracts/identity-host-contract.md",
+          "path": "docs/implementation/rust-port-orchestration/runs/codex-step10-20261007T015711Z/contracts/identity-host-contract.md",
           "line": 3,
           "declared_stage": "released scoped identity work",
           "claim": "Human preparation/native-release HOLD unchanged."
@@ -1269,7 +1269,7 @@
       "finding": "Accepted T32 live revocation direction and source narrowing conflict with unreconciled DESIGN already-admitted-may-finish wording; already-fenced-batch ordering remains open.",
       "evidence": [
         "docs/specification/DESIGN.md:291",
-        "implementation/challenge-audit-run/evidence/jev-t32a-20261005/README.md:81",
+        "docs/implementation/challenge-audit-run/evidence/jev-t32a-20261005/README.md:81",
         "packages/identity/src/authentication/revocation.ts:70"
       ],
       "disposition": "Reconcile scope in design; do not weaken live checks or claim full fence proof."

@@ -16,8 +16,8 @@
     }
   },
   "provenance": {
-    "implementation/compiler-completion/release-prerequisites/archives.json": "5b5498124cd98cf6ad8c6379f299e59fb882409eae5b1bb4282d5bc79ced1c05",
-    "implementation/compiler-completion/release-prerequisites/target-closures.json": "139dd858215ff6dd6916059cfc3a65ff32f786d2f5fd8d4ed14e9696b7fa209f",
-    "implementation/compiler-completion/release-prerequisites/supplemental-notices.json": "f94c48fd913868ba307842a400a33e97f09efe763af1fb60dbc39241a594f1d4"
+    "docs/implementation/compiler-completion/release-prerequisites/archives.json": "5b5498124cd98cf6ad8c6379f299e59fb882409eae5b1bb4282d5bc79ced1c05",
+    "docs/implementation/compiler-completion/release-prerequisites/target-closures.json": "139dd858215ff6dd6916059cfc3a65ff32f786d2f5fd8d4ed14e9696b7fa209f",
+    "docs/implementation/compiler-completion/release-prerequisites/supplemental-notices.json": "f94c48fd913868ba307842a400a33e97f09efe763af1fb60dbc39241a594f1d4"
   }
 }

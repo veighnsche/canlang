@@ -21,7 +21,7 @@ Keep the twelve semantic workspace owners while fixing their actual joins. A sin
 | Platform | `packages/cloudflare/src/cli/platform.ts`, `deploy/`, `release/`, `upgrade/`, `worker/{main,entry,assembly}.ts`, `runtime/{artifact,modules,invoke,env-assembly,grant-route,mcp-registry,mcp-permissions}.ts` | Node build/stage/deploy versus Worker serving composition. Move Node artifact/module staging to `build/`; retain thin canonical invocation/dispatch/context adapters. `worker/artifact.js` is generated staged data, so do not introduce a conflicting `worker/artifact.ts` module. |
 | Testkit and delivery | `packages/testkit/src/{runner,fixtures,playback,reporting}/`, `tests/integration/`, `tests/e2e/fixtures/artifact-loader.ts`, `examples/` | Fresh scope, source/tool-bound compiled identity, independent expected observations and loud rejection. `executed:0` and unsupported rows stay gaps. Handbuilt and compiled paths remain distinguishable. |
 | Repository graph | `package.json`, `bun.lock`, `tsconfig.check.json`, `vitest.config.ts`, `playwright.config.ts`, `.github/workflows/*.yml` | One workspace install, explicit producer runners and closed release/load graph. Root build now emits more producers; packed package set and CI test ownership remain incomplete. |
-| Product/evidence/draft | Root contracts; `design/`, `implementation/`, `docs/`, parent `draft` gitlink | Keep normative authority, execution records, frozen evidence and independent draft ownership distinct. Historical code/JSON/media retains exact provenance. Source movement never renames semantic app/package/operation or migration identity. |
+| Product/evidence/draft | Root contracts; `docs/design/`, `docs/implementation/`, `docs/`, parent `draft` gitlink | Keep normative authority, execution records, frozen evidence and independent draft ownership distinct. Historical code/JSON/media retains exact provenance. Source movement never renames semantic app/package/operation or migration identity. |
 
 ## Retirement and compatibility gates
 
@@ -49,5 +49,5 @@ cutover. Existing retirement decisions remain unchanged.
 
 The old implementation run is user-stopped, its heartbeat paused, and only the main
 checkout remains. No Muse instances, timers, worktrees or implementation are launched
-by this merge. The separate [remaining implementation plan](../../implementation/REMAINING-IMPLEMENTATION-LANES.md)
+by this merge. The separate [remaining implementation plan](../implementation/REMAINING-IMPLEMENTATION-LANES.md)
 defines that finite authorized backlog; this file-tree plan does not expand it.

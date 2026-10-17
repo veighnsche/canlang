@@ -106,7 +106,7 @@ it("retains released native originating context and keeps unqualified ranking lo
   await writeFile(join(root, "T.can"), source);
   // Captured real help bytes retain their checked relative source links.
   for (const path of ["docs/specification/CONSTRUCT-HELP.md", "docs/specification/GRAMMAR.md",
-    "docs/specification/DESIGN.md", "design/UI-COMPONENTS.md"]) {
+    "docs/specification/DESIGN.md", "docs/design/UI-COMPONENTS.md"]) {
     await mkdir(dirname(join(root, path)), { recursive: true });
     await copyFile(join(project, path), join(root, path));
   }

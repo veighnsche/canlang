@@ -43,7 +43,7 @@
     {"path":"packages/values/scripts/emit-catalog.mjs","bytes":2518,"sha256":"45c5d3d3be91e85574949939a55e19b06de1e8a5d6f3c1025f3edf07d87b221d","resolved_path":"packages/values/scripts/emit-catalog.mjs"},
     {"path":"packages/values/dist/src/catalog.js","bytes":18732,"sha256":"1b5a52a148437ee7301cff8a68efa439448b7304b4ff85f6189ecaf75ad8925f","resolved_path":"packages/values/dist/src/catalog.js"},
     {"path":"packages/values/conformance/v1/values.json","bytes":38987,"sha256":"7b352f68235ce03c834b44f5cf0345e362ff43140280b77db6c42a269af52b37","resolved_path":"packages/values/conformance/v1/values.json"},
-    {"path":"implementation/DIAGNOSTICS.md","bytes":5919,"sha256":"90f6233569bc999149dc09b4a7dc239d8f99860de14c2da2c7cea1c331231061","resolved_path":"/Users/vince/Projects/canlang/implementation/DIAGNOSTICS.md"},
+    {"path":"docs/implementation/DIAGNOSTICS.md","bytes":5919,"sha256":"90f6233569bc999149dc09b4a7dc239d8f99860de14c2da2c7cea1c331231061","resolved_path":"/Users/vince/Projects/canlang/docs/implementation/DIAGNOSTICS.md"},
     {"path":"scripts/pack-release.mjs","bytes":7019,"sha256":"f7f22dc79a36a6a6a1c37fa0264d5aaef1e2731aa27c5019fa67eff88b8cb169","resolved_path":"/Users/vince/Projects/canlang/scripts/pack-release.mjs"},
     {"path":"node_modules/@jridgewell/sourcemap-codec/package.json","available":false},
     {"path":"node_modules/@jridgewell/sourcemap-codec/dist/sourcemap-codec.mjs","available":false},

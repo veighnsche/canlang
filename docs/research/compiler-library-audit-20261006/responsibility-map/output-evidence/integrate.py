@@ -31,7 +31,7 @@ def main():
  # Pin additional declarations/contracts/actual current-source consumer closure.
  text=' '.join((HERE/(v+'.json')).read_text() for v in ['serialization','transforms','coordinates'])
  paths=set(re.findall(r'(?:compiler|packages|docs/specification)/[A-Za-z0-9_./-]+\.[A-Za-z0-9_]+',text))
- paths.update(['implementation/DIAGNOSTICS.md','packages/cloudflare/src/runtime/sourcemap.ts','packages/cloudflare/src/runtime/invoke.ts','packages/cloudflare/src/runtime/artifact.ts','packages/cloudflare/src/runtime/context.ts','packages/testkit/src/reporting/report.ts'])
+ paths.update(['docs/implementation/DIAGNOSTICS.md','packages/cloudflare/src/runtime/sourcemap.ts','packages/cloudflare/src/runtime/invoke.ts','packages/cloudflare/src/runtime/artifact.ts','packages/cloudflare/src/runtime/context.ts','packages/testkit/src/reporting/report.ts'])
  pins=[{'path':p,'sha256':digest(ROOT/p),'bytes':(ROOT/p).stat().st_size} for p in sorted(paths) if (ROOT/p).is_file()]
  save('support-inputs.json',{'scope':'Final reviewed source/contract closure; tracked inputs unchanged from collection HEAD, current-source map consumer hashes captured independently in native stderr','pins':pins,'normative_web':[{'url':'https://spec.commonmark.org/0.31.2/#code-spans','version':'0.31.2','checked':'2026-10-07','claim':'backslashes literal; matching-length backtick delimiters'}, {'url':'https://github.github.com/gfm/#tables-extension-','checked':'2026-10-07','claim':'escape pipes in table cells including inline spans'}]})
  print(json.dumps({'ledger_records':len(rows),'duties':len(duties),'findings':len(findings),'support_pins':len(pins),'ledger_sha256':digest(ledger)}))

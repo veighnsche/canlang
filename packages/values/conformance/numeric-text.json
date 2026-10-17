@@ -8,7 +8,7 @@
     "arch": "arm64"
   },
   "frozenOracle": {
-    "path": "implementation/rust-port-orchestration/contracts-20261007/oracles/frozen-oracle.json.gz",
+    "path": "docs/implementation/rust-port-orchestration/contracts-20261007/oracles/frozen-oracle.json.gz",
     "sha256": "d4bfe45964e46da4b3970702428d4e336b46fd8391ef6fc12572748c138d2a7b"
   },
   "generatorSha256": "bd831d965063a0c57fee063f0714a223c622c3fae4f36ad321b87afd9319770d",

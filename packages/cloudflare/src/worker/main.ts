@@ -107,7 +107,7 @@ import type { WorkerApp, WorkerAppOptions } from "./entry.js";
  * No other binding is needed today: P-C's `handleMcpGrant` takes the
  * already-built `identityStore`, not `env`. If P-C's deps constructor
  * grows further `env` reads, this list grows with it (join note in
- * `implementation/evidence/mcpd-a.md`).
+ * `docs/implementation/evidence/mcpd-a.md`).
  */
 export const REQUIRED_BINDINGS: readonly string[] = ["DB"];
 

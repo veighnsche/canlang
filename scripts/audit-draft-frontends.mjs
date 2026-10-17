@@ -190,7 +190,7 @@ const report = {
   analysis, changedInputs, sources, witnesses,
   generation: { status: 'not-exercised-by-this-audit; qualification prerequisites are the existing BGI plan', requestedRecipe: { model: 'gpt-6.1-sol', reasoningEffort: 'medium', scope: ['style', 'component', 'trait', 'keyword'] }, actualProviderProvenance: null, draftConfig: rel(join(root, 'draft/can.gen.toml')), limits: 'Requested recipe is user intent. Saved association records and handwritten outputs do not establish generation execution or validation.' },
   execution: { compile: 'not-run', inlineExamples: 'not-run', devServer: 'not-started; admission only', screenshots: 'not-captured', styles: 'not-rendered' },
-  prerequisites: Array.from({ length: 13 }, (_, i) => { const id = `BGI-${String(i + 1).padStart(2, '0')}`; return { id, plan: 'design/proposals/build-generation/implementation-plan.md', status: 'existing owner requirement; this audit closes no implementation criterion' }; }),
+  prerequisites: Array.from({ length: 13 }, (_, i) => { const id = `BGI-${String(i + 1).padStart(2, '0')}`; return { id, plan: 'docs/design/proposals/build-generation/implementation-plan.md', status: 'existing owner requirement; this audit closes no implementation criterion' }; }),
   gaps: [
     ...(appSources.some(s => !s.previewAdmission.ok) ? ['Current preview admission rejects at least one draft source; exact producer reasons appear per source. Preserve canonical source composition while providing required owner support.'] : []),
     ...(promptSyntaxRejected ? ['This exact compiler run rejects prompt dollar carriers (E1007); source design remains authoritative.'] : []),

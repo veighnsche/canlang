@@ -58,7 +58,7 @@ Local upload links expire after one hour, and unattached files after 24 hours.
 Attached files remain available until explicitly deleted. Published-byte cleanup
 still requires the authoritative reference census; deleting an association does
 not promise immediate physical byte reclamation. See the
-[binding scope and limits](https://github.com/veighnsche/canlang/blob/main/implementation/lean-install/local-bindings.md)
+[binding scope and limits](https://github.com/veighnsche/canlang/blob/main/docs/implementation/lean-install/local-bindings.md)
 for supported root and queue compositions.
 
 ## Inspect diagnostics at their revision

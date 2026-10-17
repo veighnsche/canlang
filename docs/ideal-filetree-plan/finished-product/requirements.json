@@ -519,13 +519,13 @@
         {
           "id": "A1",
           "namespace": "existing remaining coordinator packet",
-          "source": "implementation/REMAINING-IMPLEMENTATION-LANES.md",
+          "source": "docs/implementation/REMAINING-IMPLEMENTATION-LANES.md",
           "scope": "original duty site; no new assignment/status"
         },
         {
           "id": "LG04",
           "namespace": "existing remaining coordinator packet",
-          "source": "implementation/REMAINING-IMPLEMENTATION-LANES.md",
+          "source": "docs/implementation/REMAINING-IMPLEMENTATION-LANES.md",
           "scope": "original duty site; no new assignment/status"
         }
       ],
@@ -558,19 +558,19 @@
         {
           "id": "LG00",
           "namespace": "existing remaining coordinator packet",
-          "source": "implementation/REMAINING-IMPLEMENTATION-LANES.md",
+          "source": "docs/implementation/REMAINING-IMPLEMENTATION-LANES.md",
           "scope": "original duty site; no new assignment/status"
         },
         {
           "id": "LG01",
           "namespace": "existing remaining coordinator packet",
-          "source": "implementation/REMAINING-IMPLEMENTATION-LANES.md",
+          "source": "docs/implementation/REMAINING-IMPLEMENTATION-LANES.md",
           "scope": "original duty site; no new assignment/status"
         },
         {
           "id": "LG02",
           "namespace": "existing remaining coordinator packet",
-          "source": "implementation/REMAINING-IMPLEMENTATION-LANES.md",
+          "source": "docs/implementation/REMAINING-IMPLEMENTATION-LANES.md",
           "scope": "original duty site; no new assignment/status"
         }
       ],
@@ -610,19 +610,19 @@
         {
           "id": "LG02",
           "namespace": "existing remaining coordinator packet",
-          "source": "implementation/REMAINING-IMPLEMENTATION-LANES.md",
+          "source": "docs/implementation/REMAINING-IMPLEMENTATION-LANES.md",
           "scope": "original duty site; no new assignment/status"
         },
         {
           "id": "LG03",
           "namespace": "existing remaining coordinator packet",
-          "source": "implementation/REMAINING-IMPLEMENTATION-LANES.md",
+          "source": "docs/implementation/REMAINING-IMPLEMENTATION-LANES.md",
           "scope": "original duty site; no new assignment/status"
         },
         {
           "id": "LG05",
           "namespace": "existing remaining coordinator packet",
-          "source": "implementation/REMAINING-IMPLEMENTATION-LANES.md",
+          "source": "docs/implementation/REMAINING-IMPLEMENTATION-LANES.md",
           "scope": "original duty site; no new assignment/status"
         }
       ],
@@ -637,7 +637,7 @@
         "compiler/src/diagnostic.rs",
         "compiler/src/explain.rs",
         "compiler/src/analysis/check.rs",
-        "implementation/DIAGNOSTICS.md"
+        "docs/implementation/DIAGNOSTICS.md"
       ],
       "target_paths": [
         "compiler/src/diagnostic.rs",
@@ -660,7 +660,7 @@
         {
           "id": "LG06",
           "namespace": "existing remaining coordinator packet",
-          "source": "implementation/REMAINING-IMPLEMENTATION-LANES.md",
+          "source": "docs/implementation/REMAINING-IMPLEMENTATION-LANES.md",
           "scope": "original duty site; no new assignment/status"
         }
       ],
@@ -1423,7 +1423,7 @@
       "disposition": "REQUIRED",
       "source_paths": [
         "DESIGN.md",
-        "design/complex-apps/knowledge.md",
+        "docs/design/complex-apps/knowledge.md",
         "draft/CanKnowledge.can",
         "packages/contracts/src/services.ts",
         "compiler/src/analysis/resolve.rs",
@@ -1690,8 +1690,8 @@
       "requirement": "Original source compilation, actual fixture/calls, independent expectations and browser/MCP/persistence/recovery journeys",
       "disposition": "REQUIRED",
       "source_paths": [
-        "implementation/CHALLENGE-AUDIT-PLAN.md",
-        "implementation/REMAINING-IMPLEMENTATION-LANES.md"
+        "docs/implementation/CHALLENGE-AUDIT-PLAN.md",
+        "docs/implementation/REMAINING-IMPLEMENTATION-LANES.md"
       ],
       "target_paths": [
         "packages/testkit/test/original-workflow-qualification.test.ts",
@@ -1758,7 +1758,7 @@
       "gate": "see work lifecycle/cutovers and linked tasks",
       "evidence": [
         "REQUIREMENTS.md:179-212",
-        "implementation/CONTRACTS.md:Transactions, identities and disclosure"
+        "docs/implementation/CONTRACTS.md:Transactions, identities and disclosure"
       ],
       "availability": "source inspection at pinned scope; no workflow run",
       "task_scope": "Matching released duty/profile and current producer, not every unrelated parent gate; exact review contract/target site constrains these IDs",
@@ -1794,7 +1794,7 @@
       "gate": "see work lifecycle/cutovers and linked tasks",
       "evidence": [
         "REQUIREMENTS.md:218",
-        "implementation/CHALLENGE-AUDIT-PLAN.md:T16-T18"
+        "docs/implementation/CHALLENGE-AUDIT-PLAN.md:T16-T18"
       ],
       "availability": "source inspection at pinned scope; no workflow run",
       "task_scope": "Matching released duty/profile and current producer, not every unrelated parent gate; exact review contract/target site constrains these IDs",
@@ -1826,7 +1826,7 @@
       ],
       "gate": "see work lifecycle/cutovers and linked tasks",
       "evidence": [
-        "implementation/CHALLENGE-AUDIT-PLAN.md:T28-T29",
+        "docs/implementation/CHALLENGE-AUDIT-PLAN.md:T28-T29",
         "REQUIREMENTS.md:194,210"
       ],
       "availability": "source inspection at pinned scope; no workflow run",
@@ -1856,7 +1856,7 @@
       ],
       "gate": "see work lifecycle/cutovers and linked tasks",
       "evidence": [
-        "implementation/CHALLENGE-AUDIT-PLAN.md:T30-T31",
+        "docs/implementation/CHALLENGE-AUDIT-PLAN.md:T30-T31",
         "packages/state/src/mutation/pipeline.ts:269-283"
       ],
       "availability": "source inspection at pinned scope; no workflow run",
@@ -1887,8 +1887,8 @@
       ],
       "gate": "see work lifecycle/cutovers and linked tasks",
       "evidence": [
-        "implementation/CHALLENGE-AUDIT-PLAN.md:T32",
-        "implementation/challenge-audit-run/evidence/fanout-decision.md:C4"
+        "docs/implementation/CHALLENGE-AUDIT-PLAN.md:T32",
+        "docs/implementation/challenge-audit-run/evidence/fanout-decision.md:C4"
       ],
       "availability": "source inspection at pinned scope; no workflow run",
       "task_scope": "Matching released duty/profile and current producer, not every unrelated parent gate; exact review contract/target site constrains these IDs",
@@ -1936,7 +1936,7 @@
       "gate": "see work lifecycle/cutovers and linked tasks",
       "evidence": [
         "REQUIREMENTS.md:189-192",
-        "implementation/CHALLENGE-AUDIT-PLAN.md:T24"
+        "docs/implementation/CHALLENGE-AUDIT-PLAN.md:T24"
       ],
       "availability": "source inspection at pinned scope; no workflow run",
       "task_scope": "Matching released duty/profile and current producer, not every unrelated parent gate; exact review contract/target site constrains these IDs",
@@ -1984,7 +1984,7 @@
       "gate": "see work lifecycle/cutovers and linked tasks",
       "evidence": [
         "REQUIREMENTS.md:191",
-        "implementation/CHALLENGE-AUDIT-PLAN.md:T25"
+        "docs/implementation/CHALLENGE-AUDIT-PLAN.md:T25"
       ],
       "availability": "source inspection at pinned scope; no workflow run",
       "task_scope": "Matching released duty/profile and current producer, not every unrelated parent gate; exact review contract/target site constrains these IDs",
@@ -2017,7 +2017,7 @@
       ],
       "gate": "see work lifecycle/cutovers and linked tasks",
       "evidence": [
-        "implementation/CHALLENGE-AUDIT-PLAN.md:T26",
+        "docs/implementation/CHALLENGE-AUDIT-PLAN.md:T26",
         "draft/CanChat.can:66-193",
         "draft/CanCreative.can:93-185"
       ],
@@ -2070,7 +2070,7 @@
       ],
       "gate": "see work lifecycle/cutovers and linked tasks",
       "evidence": [
-        "implementation/challenge-audit-run/t33-resolution.md:C1-C9,M1-M10",
+        "docs/implementation/challenge-audit-run/t33-resolution.md:C1-C9,M1-M10",
         "draft/CanShift.can:237-248",
         "draft/CanVolunteer.can:47-52,178-185"
       ],
@@ -2101,7 +2101,7 @@
       ],
       "gate": "see work lifecycle/cutovers and linked tasks",
       "evidence": [
-        "implementation/CHALLENGE-AUDIT-PLAN.md:T24,T26,T34",
+        "docs/implementation/CHALLENGE-AUDIT-PLAN.md:T24,T26,T34",
         "docs/research/package-subsystem-ports-20261006/implementation-plans/work-transitions.md:Required behavior and trace vectors"
       ],
       "availability": "source inspection at pinned scope; no workflow run",
@@ -2159,7 +2159,7 @@
       "gate": "see work lifecycle/cutovers and linked tasks",
       "evidence": [
         "REQUIREMENTS.md:192,198",
-        "implementation/CONTRACTS.md:Transactions, identities and disclosure",
+        "docs/implementation/CONTRACTS.md:Transactions, identities and disclosure",
         "packages/contracts/src/services.ts:727"
       ],
       "availability": "source inspection at pinned scope; no workflow run",
@@ -2202,7 +2202,7 @@
       "gate": "see work lifecycle/cutovers and linked tasks",
       "evidence": [
         "REQUIREMENTS.md:193",
-        "implementation/CHALLENGE-AUDIT-PLAN.md:T27",
+        "docs/implementation/CHALLENGE-AUDIT-PLAN.md:T27",
         "packages/files/src/ports.ts:1-26"
       ],
       "availability": "source inspection at pinned scope; no workflow run",
@@ -2285,7 +2285,7 @@
       "gate": "see work lifecycle/cutovers and linked tasks",
       "evidence": [
         "REQUIREMENTS.md:195",
-        "implementation/CONTRACTS.md:Migration and BDD joins"
+        "docs/implementation/CONTRACTS.md:Migration and BDD joins"
       ],
       "availability": "source inspection at pinned scope; no workflow run",
       "task_scope": "Matching released duty/profile and current producer, not every unrelated parent gate; exact review contract/target site constrains these IDs",
@@ -2322,7 +2322,7 @@
       "gate": "see work lifecycle/cutovers and linked tasks",
       "evidence": [
         "DESIGN.md:694-698",
-        "design/complex-apps/knowledge.md:Corpus contract",
+        "docs/design/complex-apps/knowledge.md:Corpus contract",
         "draft/CanKnowledge.can:25,143-175,209-234"
       ],
       "availability": "source inspection at pinned scope; no workflow run",
@@ -4640,7 +4640,7 @@
         "docs/specification/DESIGN.md",
         "docs/specification/GRAMMAR.md",
         "docs/specification/DECISIONS.md",
-        "design/evaluation/PLAN.md",
+        "docs/design/evaluation/PLAN.md",
         "README.md",
         "docs/ideal-filetree-plan/finished-product/capture.py",
         "AGENTS.md",
@@ -4693,7 +4693,7 @@
       "target_paths": [
         "AGENTS.md",
         "README.md",
-        "design/evaluation/PLAN.md",
+        "docs/design/evaluation/PLAN.md",
         "docs/ideal-filetree-plan/finished-product/capture.py",
         "docs/ideal-filetree-plan/finished-product/check.py",
         "docs/specification/DECISIONS.md",
@@ -4761,83 +4761,83 @@
       "requirement": "Consolidate 52 consultation prose leaves into 25 complete topic records",
       "disposition": "REQUIRED",
       "source_paths": [
-        "design/jev/README.md",
-        "design/jev/cafe-completion-20261004/README.md",
-        "design/jev/cafe-completion-20261004/analysis.md",
-        "design/jev/cafe-completion-20261004/equivalence.md",
-        "design/jev/catch-intake-20261004/README.md",
-        "design/jev/catch-intake-20261004/assessment.md",
-        "design/jev/catch-intake-20261004/wording-check.md",
-        "design/jev/check-completion-20261004/README.md",
-        "design/jev/check-completion-20261004/decision.md",
-        "design/jev/check-completion-20261004/wording-check.md",
-        "design/jev/complex-enrich-20261004/README.md",
-        "design/jev/complex-enrich-20261004/assessment.md",
-        "design/jev/complex-enrich-20261004/wording.md",
-        "design/jev/complex-inbox-20261004/README.md",
-        "design/jev/complex-inbox-20261004/authoring-comparison.md",
-        "design/jev/complex-inbox-20261004/verification.md",
-        "design/jev/complex-sync-20261004/README.md",
-        "design/jev/complex-sync-20261004/assessment.md",
-        "design/jev/complex-sync-20261004/wording.md",
-        "design/jev/crm-connections-reschedule-20261004/README.md",
-        "design/jev/crm-connections-reschedule-20261004/verification.md",
-        "design/jev/daisyui-catalog-20261004/README.md",
-        "design/jev/daisyui-catalog-20261004/assessment.md",
-        "design/jev/daisyui-catalog-20261004/wording-check.md",
-        "design/jev/delivery-recipe-overrides-20261004/README.md",
-        "design/jev/delivery-recipe-overrides-20261004/verification.md",
-        "design/jev/delivery-recipe-overrides-20261004/wording-check.md",
-        "design/jev/desk-handoff-20261004/README.md",
-        "design/jev/desk-handoff-20261004/review.md",
-        "design/jev/desk-handoff-20261004/wording-check.md",
-        "design/jev/feedback-completion-20261004/README.md",
-        "design/jev/feedback-completion-20261004/analysis.md",
-        "design/jev/feedback-completion-20261004/equivalence.md",
-        "design/jev/hire-onboard-20261004/README.md",
-        "design/jev/hire-onboard-20261004/assessment.md",
-        "design/jev/hire-onboard-20261004/wording-check.md",
-        "design/jev/hire-retention-20261004/README.md",
-        "design/jev/hire-retention-20261004/assessment.md",
-        "design/jev/hire-retention-20261004/corrected-wording-check.md",
-        "design/jev/hire-retention-20261004/correction.md",
-        "design/jev/hire-retention-20261004/wording-check.md",
-        "design/jev/loyalty-eligibility-20261004/README.md",
-        "design/jev/loyalty-eligibility-20261004/assessment.md",
-        "design/jev/loyalty-eligibility-20261004/wording-check.md",
-        "design/jev/maintain-inspection-progress/README.md",
-        "design/jev/maintain-inspection-progress/decision.md",
-        "design/jev/maintain-inspection-progress/verification.md",
-        "design/jev/maintain-recovery-20261004/README.md",
-        "design/jev/maintain-recovery-20261004/review.md",
-        "design/jev/maintain-recovery-20261004/wording-check.md",
-        "design/jev/mcp-file-handoff-20261004/README.md",
-        "design/jev/mcp-file-handoff-20261004/assessment.md",
-        "design/jev/mcp-file-handoff-20261004/wording-check.md",
-        "design/jev/member-consumed-stage-20261004/README.md",
-        "design/jev/member-consumed-stage-20261004/assessment.md",
-        "design/jev/member-consumed-stage-20261004/wording-check.md",
-        "design/jev/member-owner-20261004/README.md",
-        "design/jev/member-owner-20261004/assessment.md",
-        "design/jev/member-owner-20261004/wording-check.md",
-        "design/jev/muse-feedback-20261004/README.md",
-        "design/jev/muse-feedback-20261004/assessment.md",
-        "design/jev/muse-feedback-20261004/bounded-review.md",
-        "design/jev/record-input-admission-20261004/README.md",
-        "design/jev/record-input-admission-20261004/assessment.md",
-        "design/jev/record-input-admission-20261004/wording-check.md",
-        "design/jev/rent-sales-producer-20261004/README.md",
-        "design/jev/rent-sales-producer-20261004/assessment.md",
-        "design/jev/rent-sales-producer-20261004/wording-check.md",
-        "design/jev/rent-sales-version-boundary-20261004/README.md",
-        "design/jev/rent-sales-version-boundary-20261004/assessment.md",
-        "design/jev/rent-sales-version-boundary-20261004/wording-check.md",
-        "design/jev/stats-breakdown-20261004/README.md",
-        "design/jev/stats-breakdown-20261004/assessment.md",
-        "design/jev/stats-breakdown-20261004/wording-check.md",
-        "design/jev/time-completion-20261004/README.md",
-        "design/jev/time-completion-20261004/analysis.md",
-        "design/jev/time-completion-20261004/wording-check.md",
+        "docs/design/jev/README.md",
+        "docs/design/jev/cafe-completion-20261004/README.md",
+        "docs/design/jev/cafe-completion-20261004/analysis.md",
+        "docs/design/jev/cafe-completion-20261004/equivalence.md",
+        "docs/design/jev/catch-intake-20261004/README.md",
+        "docs/design/jev/catch-intake-20261004/assessment.md",
+        "docs/design/jev/catch-intake-20261004/wording-check.md",
+        "docs/design/jev/check-completion-20261004/README.md",
+        "docs/design/jev/check-completion-20261004/decision.md",
+        "docs/design/jev/check-completion-20261004/wording-check.md",
+        "docs/design/jev/complex-enrich-20261004/README.md",
+        "docs/design/jev/complex-enrich-20261004/assessment.md",
+        "docs/design/jev/complex-enrich-20261004/wording.md",
+        "docs/design/jev/complex-inbox-20261004/README.md",
+        "docs/design/jev/complex-inbox-20261004/authoring-comparison.md",
+        "docs/design/jev/complex-inbox-20261004/verification.md",
+        "docs/design/jev/complex-sync-20261004/README.md",
+        "docs/design/jev/complex-sync-20261004/assessment.md",
+        "docs/design/jev/complex-sync-20261004/wording.md",
+        "docs/design/jev/crm-connections-reschedule-20261004/README.md",
+        "docs/design/jev/crm-connections-reschedule-20261004/verification.md",
+        "docs/design/jev/daisyui-catalog-20261004/README.md",
+        "docs/design/jev/daisyui-catalog-20261004/assessment.md",
+        "docs/design/jev/daisyui-catalog-20261004/wording-check.md",
+        "docs/design/jev/delivery-recipe-overrides-20261004/README.md",
+        "docs/design/jev/delivery-recipe-overrides-20261004/verification.md",
+        "docs/design/jev/delivery-recipe-overrides-20261004/wording-check.md",
+        "docs/design/jev/desk-handoff-20261004/README.md",
+        "docs/design/jev/desk-handoff-20261004/review.md",
+        "docs/design/jev/desk-handoff-20261004/wording-check.md",
+        "docs/design/jev/feedback-completion-20261004/README.md",
+        "docs/design/jev/feedback-completion-20261004/analysis.md",
+        "docs/design/jev/feedback-completion-20261004/equivalence.md",
+        "docs/design/jev/hire-onboard-20261004/README.md",
+        "docs/design/jev/hire-onboard-20261004/assessment.md",
+        "docs/design/jev/hire-onboard-20261004/wording-check.md",
+        "docs/design/jev/hire-retention-20261004/README.md",
+        "docs/design/jev/hire-retention-20261004/assessment.md",
+        "docs/design/jev/hire-retention-20261004/corrected-wording-check.md",
+        "docs/design/jev/hire-retention-20261004/correction.md",
+        "docs/design/jev/hire-retention-20261004/wording-check.md",
+        "docs/design/jev/loyalty-eligibility-20261004/README.md",
+        "docs/design/jev/loyalty-eligibility-20261004/assessment.md",
+        "docs/design/jev/loyalty-eligibility-20261004/wording-check.md",
+        "docs/design/jev/maintain-inspection-progress/README.md",
+        "docs/design/jev/maintain-inspection-progress/decision.md",
+        "docs/design/jev/maintain-inspection-progress/verification.md",
+        "docs/design/jev/maintain-recovery-20261004/README.md",
+        "docs/design/jev/maintain-recovery-20261004/review.md",
+        "docs/design/jev/maintain-recovery-20261004/wording-check.md",
+        "docs/design/jev/mcp-file-handoff-20261004/README.md",
+        "docs/design/jev/mcp-file-handoff-20261004/assessment.md",
+        "docs/design/jev/mcp-file-handoff-20261004/wording-check.md",
+        "docs/design/jev/member-consumed-stage-20261004/README.md",
+        "docs/design/jev/member-consumed-stage-20261004/assessment.md",
+        "docs/design/jev/member-consumed-stage-20261004/wording-check.md",
+        "docs/design/jev/member-owner-20261004/README.md",
+        "docs/design/jev/member-owner-20261004/assessment.md",
+        "docs/design/jev/member-owner-20261004/wording-check.md",
+        "docs/design/jev/muse-feedback-20261004/README.md",
+        "docs/design/jev/muse-feedback-20261004/assessment.md",
+        "docs/design/jev/muse-feedback-20261004/bounded-review.md",
+        "docs/design/jev/record-input-admission-20261004/README.md",
+        "docs/design/jev/record-input-admission-20261004/assessment.md",
+        "docs/design/jev/record-input-admission-20261004/wording-check.md",
+        "docs/design/jev/rent-sales-producer-20261004/README.md",
+        "docs/design/jev/rent-sales-producer-20261004/assessment.md",
+        "docs/design/jev/rent-sales-producer-20261004/wording-check.md",
+        "docs/design/jev/rent-sales-version-boundary-20261004/README.md",
+        "docs/design/jev/rent-sales-version-boundary-20261004/assessment.md",
+        "docs/design/jev/rent-sales-version-boundary-20261004/wording-check.md",
+        "docs/design/jev/stats-breakdown-20261004/README.md",
+        "docs/design/jev/stats-breakdown-20261004/assessment.md",
+        "docs/design/jev/stats-breakdown-20261004/wording-check.md",
+        "docs/design/jev/time-completion-20261004/README.md",
+        "docs/design/jev/time-completion-20261004/analysis.md",
+        "docs/design/jev/time-completion-20261004/wording-check.md",
         "docs/specification/DECISIONS.md",
         "docs/specification/DESIGN.md",
         "draft/CanLoyalty.md",
@@ -4845,42 +4845,42 @@
         "draft/CanRent.md",
         "draft/CanFeedback.md",
         "draft/CanTime.md",
-        "design/complex-apps/inbox.md",
-        "design/UI-COMPONENTS.md",
-        "design/delivery-recipe-overrides-20261004.md",
-        "design/muse-migration-20261004/feedback-design.md"
+        "docs/design/complex-apps/inbox.md",
+        "docs/design/UI-COMPONENTS.md",
+        "docs/design/delivery-recipe-overrides-20261004.md",
+        "docs/design/muse-migration-20261004/feedback-design.md"
       ],
       "target_paths": [
-        "design/UI-COMPONENTS.md",
-        "design/complex-apps/inbox.md",
-        "design/delivery-recipe-overrides-20261004.md",
-        "design/jev/README.md",
-        "design/jev/cafe-completion-20261004/README.md",
-        "design/jev/catch-intake-20261004/README.md",
-        "design/jev/check-completion-20261004/README.md",
-        "design/jev/complex-enrich-20261004/README.md",
-        "design/jev/complex-inbox-20261004/README.md",
-        "design/jev/complex-sync-20261004/README.md",
-        "design/jev/crm-connections-reschedule-20261004/README.md",
-        "design/jev/daisyui-catalog-20261004/README.md",
-        "design/jev/delivery-recipe-overrides-20261004/README.md",
-        "design/jev/desk-handoff-20261004/README.md",
-        "design/jev/feedback-completion-20261004/README.md",
-        "design/jev/hire-onboard-20261004/README.md",
-        "design/jev/hire-retention-20261004/README.md",
-        "design/jev/loyalty-eligibility-20261004/README.md",
-        "design/jev/maintain-inspection-progress/README.md",
-        "design/jev/maintain-recovery-20261004/README.md",
-        "design/jev/mcp-file-handoff-20261004/README.md",
-        "design/jev/member-consumed-stage-20261004/README.md",
-        "design/jev/member-owner-20261004/README.md",
-        "design/jev/muse-feedback-20261004/README.md",
-        "design/jev/record-input-admission-20261004/README.md",
-        "design/jev/rent-sales-producer-20261004/README.md",
-        "design/jev/rent-sales-version-boundary-20261004/README.md",
-        "design/jev/stats-breakdown-20261004/README.md",
-        "design/jev/time-completion-20261004/README.md",
-        "design/muse-migration-20261004/feedback-design.md",
+        "docs/design/UI-COMPONENTS.md",
+        "docs/design/complex-apps/inbox.md",
+        "docs/design/delivery-recipe-overrides-20261004.md",
+        "docs/design/jev/README.md",
+        "docs/design/jev/cafe-completion-20261004/README.md",
+        "docs/design/jev/catch-intake-20261004/README.md",
+        "docs/design/jev/check-completion-20261004/README.md",
+        "docs/design/jev/complex-enrich-20261004/README.md",
+        "docs/design/jev/complex-inbox-20261004/README.md",
+        "docs/design/jev/complex-sync-20261004/README.md",
+        "docs/design/jev/crm-connections-reschedule-20261004/README.md",
+        "docs/design/jev/daisyui-catalog-20261004/README.md",
+        "docs/design/jev/delivery-recipe-overrides-20261004/README.md",
+        "docs/design/jev/desk-handoff-20261004/README.md",
+        "docs/design/jev/feedback-completion-20261004/README.md",
+        "docs/design/jev/hire-onboard-20261004/README.md",
+        "docs/design/jev/hire-retention-20261004/README.md",
+        "docs/design/jev/loyalty-eligibility-20261004/README.md",
+        "docs/design/jev/maintain-inspection-progress/README.md",
+        "docs/design/jev/maintain-recovery-20261004/README.md",
+        "docs/design/jev/mcp-file-handoff-20261004/README.md",
+        "docs/design/jev/member-consumed-stage-20261004/README.md",
+        "docs/design/jev/member-owner-20261004/README.md",
+        "docs/design/jev/muse-feedback-20261004/README.md",
+        "docs/design/jev/record-input-admission-20261004/README.md",
+        "docs/design/jev/rent-sales-producer-20261004/README.md",
+        "docs/design/jev/rent-sales-version-boundary-20261004/README.md",
+        "docs/design/jev/stats-breakdown-20261004/README.md",
+        "docs/design/jev/time-completion-20261004/README.md",
+        "docs/design/muse-migration-20261004/feedback-design.md",
         "docs/specification/DECISIONS.md",
         "docs/specification/DESIGN.md",
         "draft/CanFeedback.md",
@@ -4999,30 +4999,30 @@
       "requirement": "Consolidate obsolete implementation launch and steering prose after owner handoff",
       "disposition": "ACCEPTED-CONDITIONAL",
       "source_paths": [
-        "implementation/PLAN.md",
-        "implementation/WORKFLOW.md",
-        "implementation/UI-CATALOG-ADOPTION.md",
-        "implementation/DESIGN-DELTA-20261004.md",
-        "implementation/D3B-PRODUCTION-QUAL-PLAN.md",
-        "implementation/prompts/05-ui.md",
-        "implementation/prompts/05-ui-steering.md",
-        "implementation/briefs/05-ui.md",
-        "implementation/prompts/08-frontend-catalog-migration.md",
-        "implementation/prompts/08-frontend-catalog-steering.md",
-        "implementation/briefs/08-frontend-catalog-migration.md"
+        "docs/implementation/PLAN.md",
+        "docs/implementation/WORKFLOW.md",
+        "docs/implementation/UI-CATALOG-ADOPTION.md",
+        "docs/implementation/DESIGN-DELTA-20261004.md",
+        "docs/implementation/D3B-PRODUCTION-QUAL-PLAN.md",
+        "docs/implementation/prompts/05-ui.md",
+        "docs/implementation/prompts/05-ui-steering.md",
+        "docs/implementation/briefs/05-ui.md",
+        "docs/implementation/prompts/08-frontend-catalog-migration.md",
+        "docs/implementation/prompts/08-frontend-catalog-steering.md",
+        "docs/implementation/briefs/08-frontend-catalog-migration.md"
       ],
       "target_paths": [
-        "implementation/D3B-PRODUCTION-QUAL-PLAN.md",
-        "implementation/DESIGN-DELTA-20261004.md",
-        "implementation/PLAN.md",
-        "implementation/UI-CATALOG-ADOPTION.md",
-        "implementation/WORKFLOW.md",
-        "implementation/briefs/05-ui.md",
-        "implementation/briefs/08-frontend-catalog-migration.md",
-        "implementation/prompts/05-ui-steering.md",
-        "implementation/prompts/05-ui.md",
-        "implementation/prompts/08-frontend-catalog-migration.md",
-        "implementation/prompts/08-frontend-catalog-steering.md"
+        "docs/implementation/D3B-PRODUCTION-QUAL-PLAN.md",
+        "docs/implementation/DESIGN-DELTA-20261004.md",
+        "docs/implementation/PLAN.md",
+        "docs/implementation/UI-CATALOG-ADOPTION.md",
+        "docs/implementation/WORKFLOW.md",
+        "docs/implementation/briefs/05-ui.md",
+        "docs/implementation/briefs/08-frontend-catalog-migration.md",
+        "docs/implementation/prompts/05-ui-steering.md",
+        "docs/implementation/prompts/05-ui.md",
+        "docs/implementation/prompts/08-frontend-catalog-migration.md",
+        "docs/implementation/prompts/08-frontend-catalog-steering.md"
       ],
       "task_ids": [
         "DOC05"
@@ -5252,7 +5252,7 @@
         "editors/vscode/GRAMMAR-AUDIT.md",
         "editors/vscode/README.md",
         "editors/vscode/.vscodeignore",
-        "implementation/status/frontend-catalog-migration.md",
+        "docs/implementation/status/frontend-catalog-migration.md",
         "docs/specification/DECISIONS.md"
       ],
       "target_paths": [
@@ -5265,7 +5265,7 @@
         "editors/vscode/AUDIT-RESOLUTION.md",
         "editors/vscode/GRAMMAR-AUDIT.md",
         "editors/vscode/README.md",
-        "implementation/status/frontend-catalog-migration.md"
+        "docs/implementation/status/frontend-catalog-migration.md"
       ],
       "task_ids": [
         "DOC07"

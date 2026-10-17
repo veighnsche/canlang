@@ -23,7 +23,7 @@ def main():
     coverage = load(HERE / 'coverage.json')
     owners = load(HERE / 'owner-conflicts.json')
     pins = load(HERE / 'source-hashes.json')
-    ledger = load(ROOT / 'implementation/remaining-work/tasks.json')['tasks']
+    ledger = load(ROOT / 'docs/implementation/remaining-work/tasks.json')['tasks']
     canonical = {t['id']: t for t in ledger}
     packets = {p['id']: p for p in queue['packets']}
     check('48 unique finite packet labels; no canonical task creation', len(packets) == len(queue['packets']) == 48)

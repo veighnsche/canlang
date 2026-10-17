@@ -37,7 +37,7 @@ const guarded = file => {
 // Snapshot active untracked files too. Documentation/evidence and generated
 // output are not inputs to these package builds; committed bindings ARE inputs.
 const ignoredDirectories = new Set(['.git', 'node_modules', 'dist', 'target', '.turbo', 'coverage', '.wrangler', '.mf', '__pycache__', 'test-results', 'playwright-report']);
-const ignoredRootDirectories = new Set(['docs', 'design', 'implementation', 'output']);
+const ignoredRootDirectories = new Set(['docs', 'output']);
 const snapshot = {};
 function copyTree(source, destination, root = false, ancestry = new Set()) {
   const actual = realpathSync(source);

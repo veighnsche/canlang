@@ -103,7 +103,7 @@
       "status": "existing-frozen"
     },
     {
-      "path": "implementation/remaining-work/tasks.json",
+      "path": "docs/implementation/remaining-work/tasks.json",
       "sha256": "95ed73948dd399c19ed39411128cb7b01523bca332bfad607869d6c1286caa9e",
       "status": "existing-frozen"
     },

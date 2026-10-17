@@ -7,7 +7,7 @@ Verified verbatim on macOS on 2026-10-04 from a clean clone (commit
 re-verified locally the same day during the npm-to-bun migration). Linux
 CI runs the same commands via `.github/workflows/integration.yml`.
 
-The 2026-10-06 [Turbo scheduling round](../implementation/turbo-scheduling/README.md)
+The 2026-10-06 [Turbo scheduling round](implementation/turbo-scheduling/README.md)
 updates the workspace commands below. Its cache proof and runtime results have
 their own source/tool pins; the original fresh-clone qualification above remains
 historical evidence.
@@ -106,7 +106,7 @@ in an outside-checkout consumer with Bun’s isolated linker, then uses TypeScri
 export must resolve inside that consumer, expose symbols and use declared owned
 dependencies. Can declarations and the consumer fixture must have no diagnostics;
 missing/corrupt declaration controls must fail the same gate. Add `--skip-build`
-to check existing outputs. The [installed type evidence](../implementation/turbo-scheduling/evidence/final-acceptance/types/README.md)
+to check existing outputs. The [installed type evidence](implementation/turbo-scheduling/evidence/final-acceptance/types/README.md)
 records the scope: 150 typed exports across 13 owners pass, while all 797
 Miniflare 4.20260730.0 SDK declaration diagnostics remain visible. This is a
 scoped Can/consumer result; whole-program strict library checking does not pass.

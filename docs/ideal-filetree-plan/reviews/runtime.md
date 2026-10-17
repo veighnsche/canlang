@@ -6,7 +6,7 @@ The primary scope is S05 state and S06 work/services/files. The additional S09 s
 
 ## Requirements established before comparing implementation
 
-[CONTRACTS](../../../implementation/CONTRACTS.md) assigns verified context, normalized input, frozen clock and atomic domain/history/receipt/work-intent commit to L3; stable delivery identity, current guards, claim/replay and honest unknown outcomes to L4. L6 must construct context and use one operation envelope for HTTP and MCP. L7 wires these producers into real bindings. A trusted port is an internal capability, not an alternative public admission engine. Owner reads cannot be obtained from caller JSON. Eventual reads are display-only, and a captured state or role snapshot cannot authorize a later spend.
+[CONTRACTS](../../implementation/CONTRACTS.md) assigns verified context, normalized input, frozen clock and atomic domain/history/receipt/work-intent commit to L3; stable delivery identity, current guards, claim/replay and honest unknown outcomes to L4. L6 must construct context and use one operation envelope for HTTP and MCP. L7 wires these producers into real bindings. A trusted port is an internal capability, not an alternative public admission engine. Owner reads cannot be obtained from caller JSON. Eventual reads are display-only, and a captured state or role snapshot cannot authorize a later spend.
 
 [DESIGN](../../specification/DESIGN.md) defines boolean role predicates and subject-role checks (§4), no-policy denial except explicit exceptions, frozen operation time (§3), delivery outcome/reconciliation, safe transport errors (§10), and complete bounded migration iteration and activation (§11). [REQUIREMENTS](../../specification/REQUIREMENTS.md) retains record-bound root recurrence until authoritative fanout is specified. Complete workflows therefore include rejection, revoked membership, retries, cancellation/supersession, provider ambiguity, migration interruption, retained pending work and result disclosure, as well as a successful call.
 
@@ -145,7 +145,7 @@ Retain exact defining leaves `packages/work/src/observation/{association,observa
 
 ### Bounded T33 overlay caveat
 
-The separately read, untracked [T33 resolution](../../../implementation/challenge-audit-run/t33-resolution.md) supplies material companion requirements omitted from the earlier mixed consultation: complete finite admitted cohorts, per-child current evaluation and failure isolation, parent-trigger durability, and remaining/failed progress. Its corrected triple advice is reported as high-confidence direction A, and the resolution records durable per-child execution with authoritative membership cutoff, stable identities, atomic child effect/checkpoint, bounded execution units, honest resource admission and no automatic coverage-losing supersession.
+The separately read, untracked [T33 resolution](../../implementation/challenge-audit-run/t33-resolution.md) supplies material companion requirements omitted from the earlier mixed consultation: complete finite admitted cohorts, per-child current evaluation and failure isolation, parent-trigger durability, and remaining/failed progress. Its corrected triple advice is reported as high-confidence direction A, and the resolution records durable per-child execution with authoritative membership cutoff, stable identities, atomic child effect/checkpoint, bounded execution units, honest resource admission and no automatic coverage-losing supersession.
 
 R07 above is historical evidence for the original fixed pin and its incomplete consultation context. Production population estimates are not a prerequisite for preserving the stated complete-cohort contract, and the old request for such estimates must not become a new gate. The corrected resolution and consultation records are committed; F1–F5 mechanism source now provides a fanout substrate. G01/C09 concerns actual membership/identity/checkpoint/recovery and generated-serving qualification. F6/F7/T26 remain unfinished checkpoints. Mechanism source and reported unit proofs do not certify complete original-app delivery.
 
@@ -169,5 +169,5 @@ cutover. Existing retirement decisions remain unchanged.
 
 The old implementation run is user-stopped, its heartbeat paused, and only the main
 checkout remains. No Muse instances, timers, worktrees or implementation are launched
-by this merge. The separate [remaining implementation plan](../../../implementation/REMAINING-IMPLEMENTATION-LANES.md)
+by this merge. The separate [remaining implementation plan](../../implementation/REMAINING-IMPLEMENTATION-LANES.md)
 defines that finite authorized backlog; this file-tree plan does not expand it.

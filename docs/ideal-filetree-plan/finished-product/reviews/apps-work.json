@@ -6369,15 +6369,15 @@
             "line": 159
           },
           {
-            "path": "design/complex-apps/workbench.md",
+            "path": "docs/design/complex-apps/workbench.md",
             "line": 27
           },
           {
-            "path": "design/complex-apps/workbench.md",
+            "path": "docs/design/complex-apps/workbench.md",
             "line": 29
           },
           {
-            "path": "design/complex-apps/workbench.md",
+            "path": "docs/design/complex-apps/workbench.md",
             "line": 35
           },
           {
@@ -6431,7 +6431,7 @@
             "inspection": "selective challenge defining bodies/contracts, not whole-app intent reread"
           },
           {
-            "path": "design/complex-apps/workbench.md",
+            "path": "docs/design/complex-apps/workbench.md",
             "sha256": "78fd2396f6d48081b92ce4e851183259561537f8a57fe46b60387f083b9ee08e",
             "inspection": "selective challenge defining bodies/contracts, not whole-app intent reread"
           },

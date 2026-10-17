@@ -66,7 +66,7 @@ Then
 
     // These existing source inputs distinguish coverage, nominal subject
     // ownership, label collisions, nullable guards and unsupported patterns.
-    let packet = root.join("implementation/capability-roadmap-20261008/enum-comparison");
+    let packet = root.join("docs/implementation/capability-roadmap-20261008/enum-comparison");
     for (name, code, needle) in [
         ("duplicate-case", "E3001", "duplicate match case"),
         ("foreign-case", "E3001", "not in the subject enum"),

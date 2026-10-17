@@ -193,7 +193,7 @@
         "topic": "Complete plan identities",
         "requirement": "All 333 remaining-work identities including 10 auxiliary gate/handoff records, all 323 ideal DAG task identities and all 114 required/conditional/deferred/declined finished duties have an exact crosswalk; original subtask identities and acceptance remain independently recoverable.",
         "sources": [
-          "implementation/remaining-work/tasks.json",
+          "docs/implementation/remaining-work/tasks.json",
           "docs/ideal-filetree-plan/finished-product/tasks.json",
           "docs/ideal-filetree-plan/finished-product/requirements.json"
         ]
@@ -501,7 +501,7 @@
         "requirement": "Exact file owners/reservations, dependency successors and cycle handling; local readiness separate from execution authorization and holds. Repairs wait only for consequential interface agreements; migration required when actual API/bytes/identity/authority changes, not every equivalent internal replacement. No source-task status mutation or selected default/adoption/retirement inferred from planning.",
         "sources": [
           "required-behavior/contracts.jsonl",
-          "implementation/remaining-work/tasks.json",
+          "docs/implementation/remaining-work/tasks.json",
           "docs/ideal-filetree-plan/finished-product/ownership.md"
         ]
       }

@@ -11,7 +11,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:P01.2",
@@ -22,7 +22,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:P01",
@@ -33,7 +33,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:P02.1",
@@ -46,7 +46,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:P02.2",
@@ -56,7 +56,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:P02.3",
@@ -66,7 +66,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:P02",
@@ -77,7 +77,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:P03.1",
@@ -88,7 +88,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:P03.foundation",
@@ -98,7 +98,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:P03.2",
@@ -110,7 +110,7 @@
         "DEL-D05"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:P03.3",
@@ -123,7 +123,7 @@
         "DEL-D05"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:P03.4",
@@ -136,7 +136,7 @@
         "DEL-D05"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:P03",
@@ -149,7 +149,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:P04.1",
@@ -161,7 +161,7 @@
         "DEL-D05"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:P04.2",
@@ -171,7 +171,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:P04.3",
@@ -181,7 +181,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:P04.4",
@@ -194,7 +194,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:P04",
@@ -204,7 +204,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:P05.1",
@@ -217,7 +217,7 @@
         "DEL-D05"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:P05.2",
@@ -231,7 +231,7 @@
         "DEL-D05"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:P05.3",
@@ -245,7 +245,7 @@
         "DEL-D05"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:P05.4",
@@ -256,7 +256,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:P05.5",
@@ -266,7 +266,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:P05",
@@ -276,7 +276,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:P05.6",
@@ -288,7 +288,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:P05.mixed",
@@ -298,7 +298,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:P06.1",
@@ -310,7 +310,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:P06.2",
@@ -321,7 +321,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:P06.3",
@@ -332,7 +332,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:P06",
@@ -342,7 +342,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:P07.1",
@@ -356,7 +356,7 @@
         "DEL-D05"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:P07.2",
@@ -370,7 +370,7 @@
         "DEL-D05"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:P07",
@@ -384,7 +384,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:P08.1",
@@ -396,7 +396,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:P08.2",
@@ -408,7 +408,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:P08",
@@ -418,7 +418,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:P09.1",
@@ -432,7 +432,7 @@
         "DEL-E02"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:P09.2",
@@ -446,7 +446,7 @@
         "DEL-D05"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:P09",
@@ -456,7 +456,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:P10.1",
@@ -470,7 +470,7 @@
         "DEL-D05"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:P10.2",
@@ -482,7 +482,7 @@
         "DEL-D05"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:P10",
@@ -493,7 +493,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:P11.1",
@@ -504,7 +504,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:P11",
@@ -514,7 +514,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:A01.1",
@@ -524,7 +524,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:A01.2",
@@ -535,7 +535,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:A01",
@@ -546,7 +546,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:A02.1",
@@ -558,7 +558,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:A02.2",
@@ -568,7 +568,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:A02",
@@ -579,7 +579,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:A03.1",
@@ -592,7 +592,7 @@
         "TECH-V01-values"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:A03.foundation",
@@ -602,7 +602,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:A03.2",
@@ -612,7 +612,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:A03.3",
@@ -622,7 +622,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:A03.4",
@@ -632,7 +632,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:A03",
@@ -645,7 +645,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:A04.1",
@@ -655,7 +655,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:A04.2",
@@ -667,7 +667,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:A04.3",
@@ -679,7 +679,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:A04.4",
@@ -691,7 +691,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:A04.5",
@@ -705,7 +705,7 @@
         "TECH-V04"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:A04",
@@ -719,7 +719,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:A05.1",
@@ -732,7 +732,7 @@
         "TECH-V02-gregorian"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:A05.2",
@@ -744,7 +744,7 @@
         "TECH-V05"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:A05.3",
@@ -758,7 +758,7 @@
         "TECH-V02-gregorian"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:A05",
@@ -770,7 +770,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:A06.1",
@@ -784,7 +784,7 @@
         "TECH-V05"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:A06.2",
@@ -797,7 +797,7 @@
         "TECH-V05"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:A06.3",
@@ -808,7 +808,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:A06.4",
@@ -821,7 +821,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:A06",
@@ -834,7 +834,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:A07.1",
@@ -846,7 +846,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:A07.2",
@@ -857,7 +857,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:A07.foundation",
@@ -868,7 +868,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:A07.3",
@@ -886,7 +886,7 @@
         "TECH-V05"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:A07",
@@ -897,7 +897,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:A08.1",
@@ -909,7 +909,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:A08.2",
@@ -920,7 +920,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:A08",
@@ -931,7 +931,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:A09.1",
@@ -945,7 +945,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:A09.2",
@@ -963,7 +963,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:A09",
@@ -982,7 +982,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:A10.1",
@@ -993,7 +993,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:A10.2",
@@ -1004,7 +1004,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:A10.3",
@@ -1016,7 +1016,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:A10",
@@ -1028,7 +1028,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:A11.1",
@@ -1038,7 +1038,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:A11",
@@ -1048,7 +1048,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V01.1",
@@ -1058,7 +1058,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V01.2",
@@ -1068,7 +1068,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V01.3",
@@ -1082,7 +1082,7 @@
         "TECH-S04-cohort"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V01.4",
@@ -1092,7 +1092,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V10.1",
@@ -1102,7 +1102,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V10.2",
@@ -1112,7 +1112,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V02.1",
@@ -1125,7 +1125,7 @@
         "TECH-V03"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V02.2",
@@ -1139,7 +1139,7 @@
         "TECH-V02-gregorian"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V02.3",
@@ -1150,7 +1150,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V02.4",
@@ -1161,7 +1161,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V02.5",
@@ -1178,7 +1178,7 @@
         "DEL-A01-canonical"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V02.6",
@@ -1189,7 +1189,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V03.1",
@@ -1203,7 +1203,7 @@
         "TECH-V04"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V03.2",
@@ -1213,7 +1213,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V03.3",
@@ -1227,7 +1227,7 @@
         "TECH-V03"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V03.4",
@@ -1241,7 +1241,7 @@
         "TECH-V04"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V02.7",
@@ -1256,7 +1256,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V04.1",
@@ -1271,7 +1271,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V04.2",
@@ -1281,7 +1281,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V06.1",
@@ -1295,7 +1295,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V06.2",
@@ -1307,7 +1307,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V06.3",
@@ -1321,7 +1321,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V03.5",
@@ -1336,7 +1336,7 @@
         "TECH-V04"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V06.8",
@@ -1348,7 +1348,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V06.9",
@@ -1359,7 +1359,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V06.10",
@@ -1370,7 +1370,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V04.4",
@@ -1381,7 +1381,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V05.1",
@@ -1392,7 +1392,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V05.2",
@@ -1402,7 +1402,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V05.3",
@@ -1413,7 +1413,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V04.3",
@@ -1424,7 +1424,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V06.4",
@@ -1435,7 +1435,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V06.5",
@@ -1446,7 +1446,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V06.6",
@@ -1457,7 +1457,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V07.1",
@@ -1477,7 +1477,7 @@
         "TECH-S04-cohort"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V07.5",
@@ -1488,7 +1488,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V07.2",
@@ -1500,7 +1500,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V07.3",
@@ -1511,7 +1511,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V07.4",
@@ -1525,7 +1525,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V09.1",
@@ -1538,7 +1538,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V08.1",
@@ -1555,7 +1555,7 @@
         "TECH-V04"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V08.2",
@@ -1569,7 +1569,7 @@
         "TECH-V04"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V08.3",
@@ -1580,7 +1580,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V08.4",
@@ -1591,7 +1591,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V08.5",
@@ -1603,7 +1603,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V08.6",
@@ -1614,7 +1614,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V09.2",
@@ -1627,7 +1627,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V09.3",
@@ -1639,7 +1639,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V10.3",
@@ -1653,7 +1653,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V10.4",
@@ -1664,7 +1664,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V10.5",
@@ -1676,7 +1676,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V10.6",
@@ -1687,7 +1687,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V10.7",
@@ -1698,7 +1698,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V06.7",
@@ -1710,7 +1710,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V11.1",
@@ -1721,7 +1721,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V11.2",
@@ -1738,7 +1738,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V11.3",
@@ -1756,7 +1756,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V11.4",
@@ -1766,7 +1766,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V12.1",
@@ -1776,7 +1776,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V12.2",
@@ -1786,7 +1786,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V12.3",
@@ -1797,7 +1797,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V01",
@@ -1810,7 +1810,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V02",
@@ -1826,7 +1826,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V03",
@@ -1840,7 +1840,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V04",
@@ -1853,7 +1853,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V05",
@@ -1865,7 +1865,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V06",
@@ -1884,7 +1884,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V07",
@@ -1898,7 +1898,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V08",
@@ -1911,7 +1911,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V09",
@@ -1923,7 +1923,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V10",
@@ -1936,7 +1936,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V11",
@@ -1949,7 +1949,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:V12",
@@ -1961,7 +1961,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:C01.1",
@@ -1969,7 +1969,7 @@
       "depends_on_preserved": [],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:C01.2",
@@ -1979,7 +1979,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:C01.ready",
@@ -1990,7 +1990,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:C02.1",
@@ -2000,7 +2000,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:C02.ready",
@@ -2010,7 +2010,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:C03.1",
@@ -2020,7 +2020,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:C03.2",
@@ -2030,7 +2030,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:C03.ready",
@@ -2040,7 +2040,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:C04.asset",
@@ -2052,7 +2052,7 @@
         "DEL-D04"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:C04.1",
@@ -2062,7 +2062,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:C04.2",
@@ -2073,7 +2073,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:C04.ready",
@@ -2085,7 +2085,7 @@
         "DEL-D04"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:C04.graph",
@@ -2100,7 +2100,7 @@
         "DEL-R01"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:C04.values-assets",
@@ -2114,7 +2114,7 @@
         "DEL-R01"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:C04.work-assets",
@@ -2128,7 +2128,7 @@
         "DEL-R01"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:C04.preparation-join",
@@ -2142,7 +2142,7 @@
         "DEL-D03"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:C04.native-release",
@@ -2156,7 +2156,7 @@
         "DEL-R01"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:C04.validation-join",
@@ -2167,7 +2167,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:C05.1",
@@ -2177,7 +2177,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:C05.ready",
@@ -2189,7 +2189,7 @@
         "VERIFY-TV01"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:C01.complete",
@@ -2203,7 +2203,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:C02.complete",
@@ -2217,7 +2217,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:C03.complete",
@@ -2231,7 +2231,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:C04.complete",
@@ -2254,7 +2254,7 @@
         "DEL-R01"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:C05.complete",
@@ -2270,7 +2270,7 @@
         "DEL-E02"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:W01.1",
@@ -2280,7 +2280,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:W01.2",
@@ -2290,7 +2290,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:W01.3",
@@ -2300,7 +2300,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:W01.4",
@@ -2313,7 +2313,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:W02.1",
@@ -2324,7 +2324,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:W02.2",
@@ -2336,7 +2336,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:W02.3",
@@ -2348,7 +2348,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:W02.4",
@@ -2360,7 +2360,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:W02.5",
@@ -2375,7 +2375,7 @@
         "TECH-W03"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:W03.1",
@@ -2388,7 +2388,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:W03.2",
@@ -2400,7 +2400,7 @@
         "TECH-W03"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:W03.3",
@@ -2414,7 +2414,7 @@
         "TECH-W03"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:W03.4",
@@ -2432,7 +2432,7 @@
         "TECH-S04-cohort"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:W04.1",
@@ -2448,7 +2448,7 @@
         "TECH-W01-uri"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:W04.2",
@@ -2460,7 +2460,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:W04.3",
@@ -2476,7 +2476,7 @@
         "TECH-W01-uri"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:W04.4",
@@ -2493,7 +2493,7 @@
         "TECH-W03"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:W05.1",
@@ -2508,7 +2508,7 @@
         "TECH-W03"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:W05.2",
@@ -2520,7 +2520,7 @@
         "TECH-W03"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:W05.3",
@@ -2533,7 +2533,7 @@
         "TECH-W03"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:W06.1",
@@ -2549,7 +2549,7 @@
         "TECH-W03"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:W06.2",
@@ -2561,7 +2561,7 @@
         "TECH-W03"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:W06.runtimehandoff",
@@ -2573,7 +2573,7 @@
         "TECH-W03"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:W06.3",
@@ -2591,7 +2591,7 @@
         "TECH-S04-cohort"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:W07.1",
@@ -2613,7 +2613,7 @@
         "TECH-S04-cohort"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:W07.2",
@@ -2625,7 +2625,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:W07.3",
@@ -2640,7 +2640,7 @@
         "TECH-W03"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:W08.1",
@@ -2652,7 +2652,7 @@
         "TECH-W03"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:W08.2",
@@ -2665,7 +2665,7 @@
         "TECH-W03"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:W08.3",
@@ -2676,7 +2676,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:W09.1",
@@ -2686,7 +2686,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:W09.2",
@@ -2696,7 +2696,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:W09.3",
@@ -2706,7 +2706,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:W01",
@@ -2719,7 +2719,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:W02",
@@ -2734,7 +2734,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:W03",
@@ -2747,7 +2747,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:W04",
@@ -2760,7 +2760,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:W05",
@@ -2773,7 +2773,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:W06",
@@ -2786,7 +2786,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:W07",
@@ -2798,7 +2798,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:W08",
@@ -2810,7 +2810,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:W09",
@@ -2822,7 +2822,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:W02.foundation",
@@ -2832,7 +2832,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "ports:W05.4",
@@ -2845,7 +2845,7 @@
         "TECH-W03"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "challenge:T01",
@@ -2853,7 +2853,7 @@
       "depends_on_preserved": [],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "challenge:T03",
@@ -2861,7 +2861,7 @@
       "depends_on_preserved": [],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "challenge:T05",
@@ -2871,7 +2871,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "challenge:T06",
@@ -2881,7 +2881,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "challenge:T08",
@@ -2892,7 +2892,7 @@
         "FINAL-R03"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "challenge:T07",
@@ -2902,7 +2902,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "challenge:T30",
@@ -2910,7 +2910,7 @@
       "depends_on_preserved": [],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "challenge:T15",
@@ -2922,7 +2922,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "challenge:T14",
@@ -2935,7 +2935,7 @@
         "TECH-SV04"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "challenge:T35",
@@ -2943,7 +2943,7 @@
       "depends_on_preserved": [],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "challenge:T09",
@@ -2951,7 +2951,7 @@
       "depends_on_preserved": [],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "challenge:T10",
@@ -2959,7 +2959,7 @@
       "depends_on_preserved": [],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "challenge:T11",
@@ -2967,7 +2967,7 @@
       "depends_on_preserved": [],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "challenge:T18",
@@ -2981,7 +2981,7 @@
         "TECH-S02"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "challenge:T04",
@@ -2994,7 +2994,7 @@
         "TECH-F01"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "challenge:T16",
@@ -3021,7 +3021,7 @@
         "TECH-S04-cohort"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "challenge:T17",
@@ -3035,7 +3035,7 @@
         "PARSER-DP01"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "challenge:T28",
@@ -3043,7 +3043,7 @@
       "depends_on_preserved": [],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "challenge:T29",
@@ -3056,7 +3056,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "challenge:T31",
@@ -3068,7 +3068,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "challenge:T32",
@@ -3086,7 +3086,7 @@
         "TECH-S04-cohort"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "challenge:T12",
@@ -3094,7 +3094,7 @@
       "depends_on_preserved": [],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "challenge:T13",
@@ -3106,7 +3106,7 @@
         "PARSER-DP01"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "challenge:T24",
@@ -3124,7 +3124,7 @@
         "DEL-B02"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "challenge:T25",
@@ -3139,7 +3139,7 @@
         "REPLAY-IP07"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "challenge:T26",
@@ -3153,7 +3153,7 @@
         "FINAL-R03"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "challenge:T27",
@@ -3166,7 +3166,7 @@
         "TECH-F02"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "challenge:T33",
@@ -3174,7 +3174,7 @@
       "depends_on_preserved": [],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "challenge:T34",
@@ -3190,7 +3190,7 @@
         "TECH-S04-cohort"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "challenge:T20",
@@ -3212,7 +3212,7 @@
         "DEL-A01-canonical"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "challenge:T19",
@@ -3233,7 +3233,7 @@
         "DEL-A01-canonical"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "challenge:T02",
@@ -3243,7 +3243,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "challenge:T21",
@@ -3256,7 +3256,7 @@
         "DEL-D03"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "challenge:T22",
@@ -3272,7 +3272,7 @@
         "DEL-E02"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "challenge:T23",
@@ -3286,7 +3286,7 @@
         "DEL-E02"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "challenge:T37",
@@ -3307,7 +3307,7 @@
         "FINAL-R03"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "challenge:T38",
@@ -3317,7 +3317,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "challenge:T39",
@@ -3327,7 +3327,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "challenge:T40",
@@ -3337,7 +3337,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "challenge:T41",
@@ -3354,7 +3354,7 @@
         "FINAL-R03"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "challenge:T36",
@@ -3365,7 +3365,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "description:D01",
@@ -3373,7 +3373,7 @@
       "depends_on_preserved": [],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "description:D02",
@@ -3383,7 +3383,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "description:D03",
@@ -3393,7 +3393,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "description:D04",
@@ -3403,7 +3403,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "description:D05",
@@ -3413,7 +3413,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "description:D06",
@@ -3423,7 +3423,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "description:D07",
@@ -3436,7 +3436,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "description:D08",
@@ -3446,7 +3446,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "finished-product:FP.IDENTITY-CONTRACT",
@@ -3460,7 +3460,7 @@
         "TECH-I02"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "finished-product:FP.IDENTITY",
@@ -3475,7 +3475,7 @@
         "TECH-I02"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "finished-product:FP.BROWSER",
@@ -3492,7 +3492,7 @@
         "DEL-U01-draft"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "finished-product:FP.PREFERENCES",
@@ -3503,7 +3503,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "finished-product:FP.CSV",
@@ -3523,7 +3523,7 @@
         "DEL-A01-canonical"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "finished-product:FP.EXPORT",
@@ -3541,7 +3541,7 @@
         "DEL-A01-canonical"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "finished-product:FP.POLICY-REVIEW",
@@ -3553,7 +3553,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "finished-product:FP.LIFETIME",
@@ -3568,7 +3568,7 @@
         "DEL-B02"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "finished-product:FP.FILES-DURABLE",
@@ -3585,7 +3585,7 @@
         "DEL-B02"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "finished-product:FP.CORPUS",
@@ -3602,7 +3602,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "finished-product:FP.INSTALLED-RELEASE",
@@ -3622,7 +3622,7 @@
         "DEL-R01"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "finished-product:FP.UPGRADE-JOIN",
@@ -3636,7 +3636,7 @@
         "DEL-D03"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "finished-product:FP.DOC-REQUIREDNESS",
@@ -3647,7 +3647,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "finished-product:FP.COMPILED-DECIMAL",
@@ -3659,7 +3659,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "finished-product:FP.QUALIFY",
@@ -3704,7 +3704,7 @@
         "VERIFY-TV01"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "finished-product:FP.FULL",
@@ -3727,7 +3727,7 @@
         "FINAL-R03"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "finished-product:FP.CONTEXT",
@@ -3738,7 +3738,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "finished-product:FP.DISPATCH-AVAILABILITY",
@@ -3752,7 +3752,7 @@
         "TECH-SV02"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "finished-product:FP.MAINTENANCE",
@@ -3765,7 +3765,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "finished-product:FP.PING",
@@ -3777,7 +3777,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "finished-product:FP.INSTRUMENTATION",
@@ -3789,7 +3789,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "finished-product:FP.ALERTS",
@@ -3800,7 +3800,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "finished-product:FP.SOURCE-MAPPINGS",
@@ -3815,7 +3815,7 @@
         "TECH-SV02"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "finished-product:FP.SERVICE-CATALOG",
@@ -3833,7 +3833,7 @@
         "TECH-SV04"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "finished-product:FP.MAILBOX",
@@ -3845,7 +3845,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "finished-product:FP.REPORTS",
@@ -3857,7 +3857,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "finished-product:FP.TRACKER",
@@ -3869,7 +3869,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "finished-product:FP.INVOCATION",
@@ -3884,7 +3884,7 @@
         "TECH-S02"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "finished-product:FP.APP-ADJUDICATION",
@@ -3895,7 +3895,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "finished-product:FP.SOURCE-CLOSURE",
@@ -3905,7 +3905,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "finished-product:FP.AW-MAILBOX",
@@ -3915,7 +3915,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "finished-product:FP.AW-PAYMENTS",
@@ -3927,7 +3927,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "finished-product:FP.AW-DOCUMENTS",
@@ -3938,7 +3938,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "finished-product:FP.AW-SOURCE-CONNECTOR",
@@ -3948,7 +3948,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "finished-product:FP.AW-ONBOARD-HANDOFF",
@@ -3960,7 +3960,7 @@
       ],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "finished-product:FP.AW-JUDGMENT",
@@ -3974,7 +3974,7 @@
         "TECH-SV01"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "finished-product:FP.AW-REPLAY-IMPORT",
@@ -3990,7 +3990,7 @@
         "REPLAY-IP07"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "documentation:DOC01",
@@ -3998,7 +3998,7 @@
       "depends_on_preserved": [],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "documentation:DOC02",
@@ -4006,7 +4006,7 @@
       "depends_on_preserved": [],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "documentation:DOC03",
@@ -4014,7 +4014,7 @@
       "depends_on_preserved": [],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "documentation:DOC04",
@@ -4022,7 +4022,7 @@
       "depends_on_preserved": [],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "documentation:DOC05",
@@ -4030,7 +4030,7 @@
       "depends_on_preserved": [],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "documentation:DOC06",
@@ -4038,7 +4038,7 @@
       "depends_on_preserved": [],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "documentation:DOC07",
@@ -4046,7 +4046,7 @@
       "depends_on_preserved": [],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "challenge:M00",
@@ -4054,7 +4054,7 @@
       "depends_on_preserved": [],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "challenge:G0",
@@ -4062,7 +4062,7 @@
       "depends_on_preserved": [],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "challenge:G1",
@@ -4070,7 +4070,7 @@
       "depends_on_preserved": [],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "challenge:G2",
@@ -4078,7 +4078,7 @@
       "depends_on_preserved": [],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "challenge:G3",
@@ -4086,7 +4086,7 @@
       "depends_on_preserved": [],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "challenge:G4",
@@ -4094,7 +4094,7 @@
       "depends_on_preserved": [],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "challenge:G5",
@@ -4102,7 +4102,7 @@
       "depends_on_preserved": [],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "challenge:H01",
@@ -4110,7 +4110,7 @@
       "depends_on_preserved": [],
       "packet_refs": [],
       "disposition": "unchanged-original-required/conditional/held/completed-gate; not dropped",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "challenge:R01",
@@ -4121,7 +4121,7 @@
         "FINAL-R03"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     },
     {
       "id": "challenge:C01",
@@ -4131,7 +4131,7 @@
         "FINAL-R03"
       ],
       "disposition": "selected-narrow-follow-up",
-      "source": "implementation/remaining-work/tasks.json"
+      "source": "docs/implementation/remaining-work/tasks.json"
     }
   ],
   "finished_product_duties": [
@@ -4383,13 +4383,13 @@
         {
           "id": "A1",
           "namespace": "existing remaining coordinator packet",
-          "source": "implementation/REMAINING-IMPLEMENTATION-LANES.md",
+          "source": "docs/implementation/REMAINING-IMPLEMENTATION-LANES.md",
           "scope": "original duty site; no new assignment/status"
         },
         {
           "id": "LG04",
           "namespace": "existing remaining coordinator packet",
-          "source": "implementation/REMAINING-IMPLEMENTATION-LANES.md",
+          "source": "docs/implementation/REMAINING-IMPLEMENTATION-LANES.md",
           "scope": "original duty site; no new assignment/status"
         }
       ],
@@ -4413,19 +4413,19 @@
         {
           "id": "LG00",
           "namespace": "existing remaining coordinator packet",
-          "source": "implementation/REMAINING-IMPLEMENTATION-LANES.md",
+          "source": "docs/implementation/REMAINING-IMPLEMENTATION-LANES.md",
           "scope": "original duty site; no new assignment/status"
         },
         {
           "id": "LG01",
           "namespace": "existing remaining coordinator packet",
-          "source": "implementation/REMAINING-IMPLEMENTATION-LANES.md",
+          "source": "docs/implementation/REMAINING-IMPLEMENTATION-LANES.md",
           "scope": "original duty site; no new assignment/status"
         },
         {
           "id": "LG02",
           "namespace": "existing remaining coordinator packet",
-          "source": "implementation/REMAINING-IMPLEMENTATION-LANES.md",
+          "source": "docs/implementation/REMAINING-IMPLEMENTATION-LANES.md",
           "scope": "original duty site; no new assignment/status"
         }
       ],
@@ -4454,19 +4454,19 @@
         {
           "id": "LG02",
           "namespace": "existing remaining coordinator packet",
-          "source": "implementation/REMAINING-IMPLEMENTATION-LANES.md",
+          "source": "docs/implementation/REMAINING-IMPLEMENTATION-LANES.md",
           "scope": "original duty site; no new assignment/status"
         },
         {
           "id": "LG03",
           "namespace": "existing remaining coordinator packet",
-          "source": "implementation/REMAINING-IMPLEMENTATION-LANES.md",
+          "source": "docs/implementation/REMAINING-IMPLEMENTATION-LANES.md",
           "scope": "original duty site; no new assignment/status"
         },
         {
           "id": "LG05",
           "namespace": "existing remaining coordinator packet",
-          "source": "implementation/REMAINING-IMPLEMENTATION-LANES.md",
+          "source": "docs/implementation/REMAINING-IMPLEMENTATION-LANES.md",
           "scope": "original duty site; no new assignment/status"
         }
       ],
@@ -4491,7 +4491,7 @@
         {
           "id": "LG06",
           "namespace": "existing remaining coordinator packet",
-          "source": "implementation/REMAINING-IMPLEMENTATION-LANES.md",
+          "source": "docs/implementation/REMAINING-IMPLEMENTATION-LANES.md",
           "scope": "original duty site; no new assignment/status"
         }
       ],

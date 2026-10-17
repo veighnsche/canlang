@@ -241,31 +241,31 @@
           "source_line": "\"sha256\": \"f5870905f915ae63e267ad917a44940bdb851e9434168974e8787a6cebca5c81\","
         },
         {
-          "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-qualification-receipt.json",
+          "path": "docs/implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-qualification-receipt.json",
           "line": 8,
           "sha256": "93a5748b3551772efef7ff3fde7f1e63d16106d2effa68a689a6479041a40d75",
           "source_line": "\"exact_used_non_generated_source_copy\": {"
         },
         {
-          "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-qualification-receipt.json",
+          "path": "docs/implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-qualification-receipt.json",
           "line": 241,
           "sha256": "93a5748b3551772efef7ff3fde7f1e63d16106d2effa68a689a6479041a40d75",
           "source_line": "\"fresh_binary_sha256\": \"f5870905f915ae63e267ad917a44940bdb851e9434168974e8787a6cebca5c81\","
         },
         {
-          "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-reproducibility.json",
+          "path": "docs/implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-reproducibility.json",
           "line": 22,
           "sha256": "b763c4b95fd4aa8deb7acbfd4b21ea6e66dad5b4e437f6a78941679033d0efa7",
           "source_line": "\"independent_prefix_sha256\": \"f5870905f915ae63e267ad917a44940bdb851e9434168974e8787a6cebca5c81\","
         },
         {
-          "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/root-asset-refresh.json",
+          "path": "docs/implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/root-asset-refresh.json",
           "line": 35,
           "sha256": "1250869887c7aa8641973ccbd612c9ef7566de60025e7b4111a23aa74aa35555",
           "source_line": "\"all_executed_non_generated_sources_equal_current\": true,"
         },
         {
-          "path": "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/reviews/SOL-QUALIFICATION.md",
+          "path": "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/reviews/SOL-QUALIFICATION.md",
           "line": 11,
           "sha256": "af21f9082890ed45c0564ff19e22d3336885b23c22d49aa3003837309afd0a02",
           "source_line": "A separate 80-entry bridge checked the prior reviewed sources against current bytes. The only initial differences were the old values `BUILD.json` and Wasm asset, whose source-pin record preceded the explicit corrected asset refresh. Current `BUILD.json` and Wasm match the corrected fresh Step9 hashes, respectively `9b8f162a8906180e83e7f2faa6a148bafc4a4a040af89400fdf1a4b8cd80b161` and `f5870905f915ae63e267ad917a44940bdb851e9434168974e8787a6cebca5c81`. All four current generated inventory entries match their bytes and SHA-256. This resolves those two historical differences rather than treating the earlier stale asset as current evidence. Bridge details: `sol/source-bridge.json`."
@@ -284,37 +284,37 @@
       "required_report_correction_or_retention": "Credit those historical selected consumers and current hashes. Keep installed producer graph/archive/runtime resolution claims scoped to recorded snapshot and hosts; no new current-runtime qualification, default switch, full core-validation, arbitrary getter or persisted/in-flight rollback credit.",
       "evidence": [
         {
-          "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-independent-installed.json",
+          "path": "docs/implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-independent-installed.json",
           "line": 2,
           "sha256": "c71a908b6702d09bb22ee9987c11d0cfc6f3c7cf47c7e85e560819e365312217",
           "source_line": "\"scope\": \"Root independent six-operation opt-in installed values profile only\","
         },
         {
-          "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-independent-installed.json",
+          "path": "docs/implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-independent-installed.json",
           "line": 55,
           "sha256": "c71a908b6702d09bb22ee9987c11d0cfc6f3c7cf47c7e85e560819e365312217",
           "source_line": "\"wasm\": {"
         },
         {
-          "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-workerd-receipt.json",
+          "path": "docs/implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-workerd-receipt.json",
           "line": 18,
           "sha256": "9630fd15fff76d5d3a050561ea2ec7017a9af7b22ca9a5fb5ee61c6b173a3bfc",
           "source_line": "\"valuesWasm\": \"f5870905f915ae63e267ad917a44940bdb851e9434168974e8787a6cebca5c81\","
         },
         {
-          "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-workerd-receipt.json",
+          "path": "docs/implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-workerd-receipt.json",
           "line": 12,
           "sha256": "9630fd15fff76d5d3a050561ea2ec7017a9af7b22ca9a5fb5ee61c6b173a3bfc",
           "source_line": "\"source_sha256\": {"
         },
         {
-          "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-workerd-receipt.json",
+          "path": "docs/implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-workerd-receipt.json",
           "line": 77,
           "sha256": "9630fd15fff76d5d3a050561ea2ec7017a9af7b22ca9a5fb5ee61c6b173a3bfc",
           "source_line": "\"freshIsolates\": 2,"
         },
         {
-          "path": "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/reviews/SOL-QUALIFICATION.md",
+          "path": "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/reviews/SOL-QUALIFICATION.md",
           "line": 20,
           "sha256": "af21f9082890ed45c0564ff19e22d3336885b23c22d49aa3003837309afd0a02",
           "source_line": "| Values opt-in adapter | Backend registry preserves TS selection, uses own-name lookup, sends the actual JSON operation transport through glue, and has no semantic retry. Bootstrap copies native byte storage, pins the asset, checks ABI/required exports/memory/table, and refuses external prior glue initialization. Raw independent installed controls record six own-name refusals, six zero-argument-effect checks, six fixed operation outcomes, ten raw numeric transport witnesses, explicit TS rollback, and pinned-asset-change refusal. Raw Node/workerd controls show missing/corrupt startup refusal and two successful fresh isolates. | Six-op installed scaffold and admitted plain carriers only. Wider operation/profile adoption, arbitrary getter effect parity, negative-zero scale equivalence, persisted/in-flight rollback, and default adoption remain unproved. Raw legacy getter traces differ; the receipt's explicit out-of-profile limit must remain. Whole-call measurement is not a speedup claim: retained Node warm median Wasm/TS ratio is about 26.4. |"
@@ -530,32 +530,32 @@
   },
   "source_checks": [
     {
-      "path": "implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/reviews/SOL-QUALIFICATION.md",
+      "path": "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/reviews/SOL-QUALIFICATION.md",
       "sha256": "af21f9082890ed45c0564ff19e22d3336885b23c22d49aa3003837309afd0a02",
       "matches_report_pin": null
     },
     {
-      "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/root-asset-refresh.json",
+      "path": "docs/implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/root-asset-refresh.json",
       "sha256": "1250869887c7aa8641973ccbd612c9ef7566de60025e7b4111a23aa74aa35555",
       "matches_report_pin": true
     },
     {
-      "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-independent-installed.json",
+      "path": "docs/implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-independent-installed.json",
       "sha256": "c71a908b6702d09bb22ee9987c11d0cfc6f3c7cf47c7e85e560819e365312217",
       "matches_report_pin": true
     },
     {
-      "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-qualification-receipt.json",
+      "path": "docs/implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-qualification-receipt.json",
       "sha256": "93a5748b3551772efef7ff3fde7f1e63d16106d2effa68a689a6479041a40d75",
       "matches_report_pin": true
     },
     {
-      "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-reproducibility.json",
+      "path": "docs/implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-reproducibility.json",
       "sha256": "b763c4b95fd4aa8deb7acbfd4b21ea6e66dad5b4e437f6a78941679033d0efa7",
       "matches_report_pin": true
     },
     {
-      "path": "implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-workerd-receipt.json",
+      "path": "docs/implementation/rust-port-orchestration/runs/codex-step9-20261007T012914Z/values-workerd-receipt.json",
       "sha256": "9630fd15fff76d5d3a050561ea2ec7017a9af7b22ca9a5fb5ee61c6b173a3bfc",
       "matches_report_pin": true
     },
@@ -1106,6 +1106,6 @@
     "/private/tmp/canlang-rust-port-codex-step9-20261007T012914Z/values/corrected/fresh-frozen-witness.json"
   ],
   "minimization_review": "Current valid six-op scalar/plain-carrier exact route is smallest retained host proof; preparation native pure/source prototype is unjoined to actual TS CLI. Proposed owner-local single selected numeric core or closed accepted-tree seam is justified only by real consumer simplification and domain/whole-call evidence. Structural/native validator/scheduler/generic bridge expansion remains separate; no new selected architecture accepted.",
-  "bounded_search_limit": "Exact digest search restricted to docs/research/package-subsystem-ports-20261006, implementation/rust-port-orchestration and named package inventory; not a global absence claim.",
+  "bounded_search_limit": "Exact digest search restricted to docs/research/package-subsystem-ports-20261006, docs/implementation/rust-port-orchestration and named package inventory; not a global absence claim.",
   "disposition": "Reports largely accurate at source/proposal stage. Correct current-asset blanket unproven qualification and narrow shared-six-op input contract. Other outlined gates retained; no adoption or original parent closure."
 }
