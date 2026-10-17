@@ -2595,6 +2595,171 @@ fn serialize_sites(
     }
     Some(output)
 }
+/// A leading source requirement has its own observer; its original decision
+/// stage remains untouched. Fresh source/IR correspondence and the complete
+/// selected helper census authenticate the private emitted callable.
+pub(super) fn serialize_scenario_requires(
+    sources: &FreshSourceContext<'_>,
+) -> Option<Vec<(Span, serde_json::Value)>> {
+    use crate::analysis::scenario_disclosure::{CheckedDecisionPosition, CheckedDecisionStage};
+    let original = sources.original();
+    let ir = sources.ir();
+    let mut output = Vec::new();
+    for owner in &ir.items {
+        let Some(facts) = original
+            .scenario_disclosures()
+            .get(&owner.id)
+            .and_then(|value| value.source_facts())
+        else {
+            continue;
+        };
+        let Some(sites) = facts.source_requires.as_deref() else {
+            continue;
+        };
+        if sites.is_empty() {
+            continue;
+        }
+        let IrItemKind::Scenario {
+            params,
+            guards,
+            read: false,
+            trusted: false,
+            cohort: None,
+            ..
+        } = &owner.kind
+        else {
+            return None;
+        };
+        let expected = sources.fresh().items.get(owner.id.0 as usize)?;
+        let IrItemKind::Scenario {
+            guards: expected_guards,
+            ..
+        } = &expected.kind
+        else {
+            return None;
+        };
+        let mut semantic = SemanticJoin {
+            program: original,
+            actual: ir,
+            expected: sources.fresh(),
+            nodes: 0,
+            stack: HashSet::new(),
+        };
+        let mut consumer = Consumer {
+            program: original,
+            ir,
+            db: sources.db(),
+            catalog: sources.catalog(),
+            nodes: HashMap::new(),
+            steps: 0,
+            count: 0,
+        };
+        let mut required = HashSet::new();
+        for site in sites {
+            required.extend([site.node, site.statement]);
+            for call in &site.calls {
+                required.insert(call.node);
+                required.extend(call.arguments.iter().map(|(node, _)| *node));
+                if let CheckedDecisionCallTarget::DeriveFn(id) = call.target {
+                    required.insert(original.effects.derives.get(&id)?.expr?);
+                }
+            }
+        }
+        consumer.index_required(sources.trees(), &required)?;
+        for site in sites {
+            let [CheckedDecisionPosition::Guard(index)] = site.position.as_slice() else {
+                return None;
+            };
+            let IrStmt::Require { cond, span } = guards.get(*index)? else {
+                return None;
+            };
+            let IrStmt::Require {
+                cond: expected_cond,
+                span: expected_span,
+            } = expected_guards.get(*index)?
+            else {
+                return None;
+            };
+            if site.stage != CheckedDecisionStage::LeadingRequire
+                || site.owner != owner.id
+                || *span != *expected_span
+                || !consumer.same(site.statement, *span)
+                || !consumer.same(site.node, cond.span)
+                || cond.ty != ResolvedType::Scalar(Scalar::Bool)
+                || !consumer.origin(&site.source, site.node, owner.module)
+            {
+                return None;
+            }
+            semantic.expression(cond, expected_cond, 0)?;
+            consumer.steps = 0;
+            let mut matched = HashSet::new();
+            consumer.expression(cond, &[], &mut HashSet::new(), &site.calls, &mut matched, 0)?;
+            if matched.len() != site.calls.len() {
+                return None;
+            }
+            // Recollect the same expression for its read observer. This is not
+            // a mutation of the original LeadingRequire membership record.
+            let observer = crate::analysis::scenario_disclosure::checked_read_boolean_site(
+                sources.db(),
+                sources.trees(),
+                sources.resolved(),
+                &original.types,
+                &original.effects,
+                owner.module,
+                owner.id,
+                site.node,
+                site.statement,
+            )?;
+            if observer.calls != site.calls || observer.source != site.source {
+                return None;
+            }
+            let serialized = serialize_sites(
+                original,
+                ir,
+                sources.db(),
+                vec![observer],
+                Some(&owner.canonical),
+            )?;
+            let mut parameters = Vec::new();
+            if params.len() != facts.parameters.len() {
+                return None;
+            }
+            for (index, (id, checked)) in params.iter().zip(&facts.parameters).enumerate() {
+                let item = ir.items.get(id.0 as usize)?;
+                let IrItemKind::Param {
+                    owner: declared_owner,
+                    index: declared_index,
+                    ty: IrType::Known(ty),
+                    default: None,
+                    ..
+                } = &item.kind
+                else {
+                    return None;
+                };
+                if *id != checked.parameter
+                    || *declared_owner != owner.id
+                    || *declared_index != index
+                    || *ty != checked.ty
+                    || checked.default.is_some()
+                {
+                    return None;
+                }
+                parameters.push(
+                    serde_json::json!({"name":item.name,"typeId":serial_type(ty,original,ir,0)?}),
+                );
+            }
+            let identity = serde_json::json!({"source":serial_source(site.source.clone()),
+                "owner":owner.canonical,"node":serial_node(site.node),"statement":serial_node(site.statement),
+                "parameters":parameters,"sites":serialized});
+            if output.len() >= 200 {
+                return None;
+            }
+            output.push((cond.span, identity));
+        }
+    }
+    Some(output)
+}
+
 fn serial_node(node: NodeKey) -> SerialDecisionNode {
     SerialDecisionNode {
         start: node.start,

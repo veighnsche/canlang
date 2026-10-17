@@ -150,6 +150,7 @@ import type { ViewerGenerationCallbackReadObservation } from '@canlang/state/rec
 import { bindInstalledSourceQueryPredicate } from '@canlang/state/receipt';
 import { registerNativeUiQueryBinder, forwardNativeUiQueryBinder } from './native-ui-query.js';
 import { bindNativeReadBooleanContext, bindNativeReadBooleanReader, bindNativeSourceReferenceReader } from './native-read-boolean.js';
+import { bindNativeScenarioRequire } from './native-scenario-require.js';
 import { createSystemRegistry, enrollSystemCommandCommitCheck, systemCommandStageRevision } from '@canlang/state';
 import type { GeneratedOperationDef, LoadedArtifactDescriptors } from "@canlang/state/invocation/registry";
 import type { CheckedOwnerModelPolicies, OwnerModelPolicyBinding, OwnerModelPolicyViews, OwnerModelChange, OwnerRuleContext, OwnerMutationSession, OwnerMutationSourceStager, ModelTable } from '@canlang/state/mutation';
@@ -1385,6 +1386,7 @@ interface StateInvokeProducer {
   readonly readScenarioReceiptAssociation?: typeof import('@canlang/state/invocation').readScenarioReceiptAssociation;
   readonly projectScenarioReceipt?: typeof import('@canlang/state/invocation').projectScenarioReceipt;
   readonly beginScenarioReceiptMutation?: typeof import('@canlang/state/invocation').beginScenarioReceiptMutation;
+  readonly executeScenarioReceiptRequire?: typeof import('@canlang/state/invocation').executeScenarioReceiptRequire;
   readonly observeScenarioInputComputedDefault?: typeof import('@canlang/state/invocation').observeScenarioInputComputedDefault;
   readonly bindScenarioReceiptFrameworkProducer?: typeof import('@canlang/state/invocation').bindScenarioReceiptFrameworkProducer;
   readonly stageScenarioReceiptSend?: typeof import('@canlang/state/invocation').stageScenarioReceiptSend;
@@ -1736,6 +1738,9 @@ async function loadCanonicalStateProducers(): Promise<CanonicalStateProducers> {
       }),
       ...(typeof scenarioMod['beginScenarioReceiptMutation'] !== 'function' ? {} : {
         beginScenarioReceiptMutation: scenarioMod['beginScenarioReceiptMutation'] as NonNullable<StateInvokeProducer['beginScenarioReceiptMutation']>,
+      }),
+      ...(typeof scenarioMod['executeScenarioReceiptRequire'] !== 'function' ? {} : {
+        executeScenarioReceiptRequire: scenarioMod['executeScenarioReceiptRequire'] as NonNullable<StateInvokeProducer['executeScenarioReceiptRequire']>,
       }),
       ...(typeof scenarioMod['observeScenarioInputComputedDefault'] !== 'function' ? {} : {
         observeScenarioInputComputedDefault: scenarioMod['observeScenarioInputComputedDefault'] as NonNullable<StateInvokeProducer['observeScenarioInputComputedDefault']>,
@@ -5719,6 +5724,10 @@ function createSourceReadPolicyAdapter(input: {
   readonly owner?: string;
   readonly preferences?: HandlerContext['preferences'];
   readonly observeGrant?: (model: string, row: StoredRow, fields: readonly string[], allowed: boolean, rule: string) => void;
+  /** Only this exact installed source consumer tracks its executed reads.
+   * Policy sub-evaluations retain their independent current-read lifetimes. */
+  readonly observer?: { readonly predicate: Function;
+    readonly reads: import('@canlang/state/invocation').ScenarioReceiptRequireObserver };
 }) {
   const { loaded } = input, StateError = loaded.producers.errors;
   const evaluate = async (sourceModel: string,
@@ -5761,7 +5770,15 @@ function createSourceReadPolicyAdapter(input: {
       }
     };
     const recordView = (name: string, source: StoredRow | ProjectedRecord, presence?: readonly string[]): Record<string, unknown> => {
-      const view = nativeProjectedRecord(loaded, name, source, navigation, recordView, presence);
+      const projected = nativeProjectedRecord(loaded, name, source, navigation, recordView, presence);
+      const view = input.observer?.predicate !== installed ? projected : new Proxy(projected, {
+        get: (target, field, receiver) => {
+          const value = Reflect.get(target, field, receiver);
+          if (typeof field === 'string') input.observer!.reads.field(name, source, field);
+          return value;
+        },
+      });
+      if (view !== projected) bindNativeRecord(view, name, source.id, source.version);
       sourceViews.set(view, { model: name, row: source });
       rememberReferences(view);
       return view;
@@ -5786,6 +5803,9 @@ function createSourceReadPolicyAdapter(input: {
           ...(id === undefined ? {} : { id: id as RecordId }),
           ...(parent === undefined ? {} : { parent: { model: parent.model as ModelName, id: parent.id as RecordId } }),
           readPolicies: policies(model), policy: loaded.policy as import('@canlang/state/query').SourceObservationRecordsInput['policy'] });
+        if (input.observer?.predicate === installed) {
+          input.observer.reads.query(model, records.map(entry => entry.record), id, parent);
+        }
         const values: { readonly record: ProjectedRecord; readonly view: Record<string, unknown> }[] = [];
         for (const entry of records) {
           await navigation.prepare(model, entry.record);
@@ -9197,6 +9217,100 @@ async function runScenarioExecution(
     : callable?.inputStyle === "parameters"
     ? scenarioParameters(call, loaded, recordView, receiptAware ? undefined : resolvedDefaults, scenarioReceiptFrame)
     : { operation_id: call.context.operationId, inputs: call.inputs };
+  if (receiptAware && receiptStore !== undefined && ownerSession !== undefined && callable?.inputStyle === 'parameters' &&
+      due === undefined && cohort === undefined && scenarioDef !== undefined) {
+    // This exact context and parameter graph belong to the genuine admitted
+    // mutation. Generated closures cannot select a different row or scalar.
+    const actualCall = call as AdmittedCall;
+    const admittedParameters = Object.freeze({ ...localPolicyObject(argument) });
+    const consumed = new Set<string>();
+    bindNativeScenarioRequire(ctx, async (fn, supplied) => {
+      try {
+        const assertRequireCall = loaded.producers.invoke.assertScenarioReceiptCallExecution;
+        if (assertRequireCall === undefined) return refuseRecordBinding('Source Require needs its actual State execution join.');
+        assertRequireCall(actualCall, receiptStore);
+        if (nativeScenarioExecutions.get(actualCall) === undefined) return refuseRecordBinding('Source Require has no live original mutation.');
+        const module = await importVerifiedAssemblyModule(opts.asm, callable.module, opts.artifact);
+        const getter = privateSourceMember(module, 'canScenarioRequireSource');
+        if (typeof getter !== 'function') throw new AssemblyCorrespondenceError('Scenario Require lacks its original source getter.');
+        const raw: unknown = getter(fn);
+        const source = localPolicyObject(raw, ['source', 'owner', 'node', 'statement', 'parameters', 'sites']);
+        if (Object.keys(source).length !== 6 || source.owner !== scenarioDef.name) {
+          throw new AssemblyCorrespondenceError('Scenario Require differs from its original owning source.');
+        }
+        const original = captureDispatchPreclaimData(source) as unknown as import('@canlang/state/invocation').ScenarioReceiptRequireSource;
+        const originalSites = loaded.membershipSources.get(scenarioDef.name) ?? [];
+        const matches = originalSites.filter(site => site.stage === 'leading-require' &&
+          stableStringify(site.source) === stableStringify(original.source) &&
+          stableStringify(site.node) === stableStringify(original.node) &&
+          stableStringify(site.statement) === stableStringify(original.statement));
+        const [observerSite] = original.sites;
+        if (matches.length !== 1 || original.sites.length !== 1 || observerSite === undefined ||
+            observerSite.stage !== 'read-predicate' || observerSite.owner !== scenarioDef.name ||
+            stableStringify(observerSite.source) !== stableStringify(original.source) ||
+            stableStringify(observerSite.node) !== stableStringify(original.node) ||
+            stableStringify(observerSite.statement) !== stableStringify(original.statement) ||
+            stableStringify(observerSite.calls) !== stableStringify(matches[0]!.calls) ||
+            !opts.artifact.sources.some(source => source.path === original.source.path && source.sha256 === original.source.sha256)) {
+          throw new AssemblyCorrespondenceError('Scenario Require lacks its complete independently checked original guard observer.');
+        }
+        const declared = scenarioDef.descriptor.inputs;
+        const parameters = nativeCallArray(original.parameters, 200).map(value => {
+          const parameter = localPolicyObject(value, ['name', 'typeId']);
+          if (Object.keys(parameter).length !== 2 || typeof parameter.name !== 'string' || typeof parameter.typeId !== 'string') {
+            throw new AssemblyCorrespondenceError('Scenario Require lacks its original typed parameters.');
+          }
+          return { name: parameter.name, typeId: parameter.typeId };
+        });
+        const suppliedValues = localPolicyObject(supplied, parameters.map(parameter => parameter.name));
+        const modelParameters = parameters.filter(parameter => loaded.models.some(model => model.name === parameter.typeId));
+        if (parameters.length !== declared.length || Object.keys(suppliedValues).length !== parameters.length ||
+            new Set(parameters.map(parameter => parameter.name)).size !== parameters.length || modelParameters.length !== 1) {
+          throw new AssemblyCorrespondenceError('Scenario Require needs its complete parameters and one original admitted model.');
+        }
+        for (const [index, parameter] of parameters.entries()) {
+          const field = declared[index]!;
+          if (field.kind === 'delivery') throw new AssemblyCorrespondenceError('Scenario Require parameters need their supported original scalar or model declarations.');
+          const type = field.kind === 'ref' ? `${field.model}${Object.hasOwn(scenarioDef.inputArrays, field.name) ? '[]' : ''}${field.nullable ? '?' : ''}` :
+            field.valueType ?? (field.kind === 'enum' && field.enumValues !== undefined ? `enum(${field.enumValues.join(',')})` : field.kind);
+          const parsed = parseTypeId(parameter.typeId);
+          if (field.name !== parameter.name || type !== parameter.typeId || parsed.array || parsed.nullable ||
+              parsed.base.kind === 'nominal' && !loaded.models.some(model => model.name === parameter.typeId) ||
+              !Object.hasOwn(admittedParameters, parameter.name) ||
+              localPolicyMember(suppliedValues, parameter.name) !== admittedParameters[parameter.name]) {
+            throw new AssemblyCorrespondenceError('Scenario Require parameter differs from its genuine admitted native slot.');
+          }
+        }
+        const parameter = modelParameters[0]!.name;
+        if (!actualCall.recordRefs.some(reference => reference.param === parameter && reference.model === modelParameters[0]!.typeId)) {
+          throw new AssemblyCorrespondenceError('Scenario Require lacks its exact admitted model reference.');
+        }
+        const occurrence = stableStringify([original.source, original.node]);
+        if (consumed.has(occurrence)) throw new AssemblyCorrespondenceError('Scenario Require source must execute once.');
+        consumed.add(occurrence);
+        const execute = loaded.producers.invoke.executeScenarioReceiptRequire;
+        if (execute === undefined) return refuseRecordBinding('Source Require needs its installed owner observation producer.');
+        let adapter: ReturnType<typeof createSourceReadPolicyAdapter>;
+        return await execute(actualCall, receiptStore, { original, parameter,
+          policy: loaded.policy as Parameters<typeof execute>[2]['policy'],
+          readPolicies: model => adapter.policies(model),
+          capture: reads => {
+            const predicate: import('@canlang/state/receipt').InstalledSourceQueryPredicate = async (_record, observation) => {
+              if (observation === undefined) throw new AssemblyCorrespondenceError('Scenario Require lacks its genuine owner-stage observation.');
+              return adapter.evaluate(modelParameters[0]!.typeId, [{ owner: original.owner,
+                predicate: (context, row) => Reflect.apply(fn, undefined, [context,
+                  Object.freeze({ ...admittedParameters, [parameter]: row })]) }], observation, predicate);
+            };
+            bindNativeReadMembership(predicate, { source: original.source, rule: original.owner, sites: original.sites });
+            bindInstalledSourceQueryPredicate(predicate, { source: original.source, rule: original.owner });
+            adapter = createSourceReadPolicyAdapter({ loaded, opts: { ...opts, store: receiptStore },
+              now: () => actualCall.context.now, observer: { predicate, reads } });
+            return predicate;
+          },
+        });
+      } catch (error) { recordEngineFailure(error); throw error; }
+    });
+  }
   const observesDefaults = due === undefined && cohort === undefined && callable?.inputStyle === 'parameters';
   const defaultDef = generatedScenarioDef(call);
   const defaultInputs = defaultDef?.descriptor.inputs ?? [];

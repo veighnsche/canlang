@@ -912,3 +912,7 @@ their runtime/tool delivery owners. The current standalone installer is retained
 Soda tool packaging refuses dirty source. These additions preserve existing
 portable producer and authority boundaries. No complete-review checkpoint is
 advanced and unrelated CAN18 outcomes remain at their recorded scope.
+
+### 2026-10-18 — original Customer recover repair
+
+The human-authorized first CanCRM component is implemented at the existing Compiler analysis/receipt/source-preparation owners, State invocation/source-policy owners and Cloudflare runtime owner. New files stay with those responsibilities: `compiler/src/codegen/source_require_retained_tests.rs`, `packages/cloudflare/src/runtime/native-scenario-require.ts`, and the original-source helper/installed consumer under `packages/cloudflare/test/`. No target allocation or package split changes. Reuse prior accepted coverage; all 18 code paths in this batch were inspected, and decisions/one current Can18 plan are updated with the implementation. Keep the complete `44e6332c0` checkpoint unchanged; concurrent documentation relocation/Rust planning is accounted as documentation maintenance, not new implementation acceptance. Actual compiled recover passes its full guard/body consumer; original24 drops 276→275 with only its recover refusal removed. Remaining roots are unchanged and Muse stays stopped.

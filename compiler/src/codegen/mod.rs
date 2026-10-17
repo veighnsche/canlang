@@ -57,6 +57,8 @@ mod scenario_feasibility;
 pub mod scenario_queries;
 mod scenario_receipts;
 mod send_guards;
+#[cfg(test)]
+mod source_require_retained_tests;
 pub mod sourcemap;
 pub mod then_views;
 
@@ -242,7 +244,10 @@ pub fn emit(
     let read_predicates = sources
         .options
         .native_scenario_receipts
-        .then(|| source_context.and_then(read_predicates::prepare_with_context))
+        .then(|| match source_context {
+            Some(context) => read_predicates::prepare_with_context(context),
+            None => query_context.and_then(read_predicates::prepare_requires_with_context),
+        })
         .flatten();
     let send_guards = sources.options.native_scenario_receipts.then(|| {
         match source_preparation

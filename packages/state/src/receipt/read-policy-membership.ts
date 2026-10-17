@@ -305,8 +305,8 @@ export async function evaluateInstalledReadPolicy(read: InstalledSourceReadPredi
  * first argument; only State supplies the live predicate's second argument. */
 export async function evaluateInstalledReadPredicate(read: InstalledSourceQueryPredicate,
   record: Readonly<ProjectedRecord>, input: Readonly<ViewerGenerationCallbackReadObservation>,
-  store: StoragePort): Promise<boolean> {
-  return evaluateInstalledRead(read, 'read-predicate', input, store, observation => read(record, observation));
+  store: StoragePort, ownerRows?: InstalledSourceOwnerRows): Promise<boolean> {
+  return evaluateInstalledRead(read, 'read-predicate', input, store, observation => read(record, observation), undefined, ownerRows);
 }
 
 /** Internal query selection only. Unchanged predicates retain their existing

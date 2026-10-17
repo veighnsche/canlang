@@ -75,7 +75,7 @@ describe('generated view page/module join', () => {
   it('refuses missing implementations and misshapen exports', async () => {
     const empty = await fixtureUnit({});
     try {
-      await assert.rejects(loadSavedViewModule(empty, 'TaskTile'), /missing saved docs/implementation/);
+      await assert.rejects(loadSavedViewModule(empty, 'TaskTile'), /missing saved implementation/);
       assert.equal(await readSavedViewStyle(empty), null);
     } finally {
       await rm(empty, { recursive: true, force: true });

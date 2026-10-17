@@ -327,8 +327,9 @@ export async function readRecordsAtSourceObservation(input: SourceObservationRec
     if (read === undefined) invalid();
     const policyDomain = control ? ownerRows?.policyQuery : undefined;
     if (policyDomain !== undefined && parent !== undefined && read.parent !== parent.model) invalid();
-    if (ownerRows !== undefined && id === undefined && (!control ||
-        policyDomain === undefined && (parent !== undefined || ownerRows.query === undefined))) {
+    if (ownerRows !== undefined && id === undefined && (control
+        ? policyDomain === undefined && (parent !== undefined || ownerRows.query === undefined)
+        : parent !== undefined || ownerRows.query === undefined)) {
       throw new StateError('validation', 'Source collection needs its original committed query domain.');
     }
     await checkpoint();
