@@ -1632,6 +1632,53 @@ pub(super) fn checked_require_consumptions(
     Some(out)
 }
 
+/// Plain (non-machine) enum data reads transport as the sealed `enum(a,b)`
+/// identity, mirroring the query-predicate enum convention. A reused enum
+/// (`I.role: C.role`) names its declaring field, so the nominal path pins
+/// through the enum owner item rather than the reading field. The caller
+/// retains the transition/machine scoping: transition values and machine
+/// fields never enter here.
+fn checked_plain_enum_data_transport(
+    ir: &IrProgram,
+    dependency_type_id: &str,
+    ty_cases: &[String],
+    enum_owner: crate::analysis::SymbolId,
+    descriptor: &JsModelField,
+) -> Option<String> {
+    if descriptor.machine.is_some()
+        || descriptor.nullable
+        || descriptor.array_required.is_some()
+        || descriptor.server_only
+    {
+        return None;
+    }
+    let JsModelFieldType::Enum { values } = &descriptor.field else {
+        return None;
+    };
+    if values.as_slice() != ty_cases {
+        return None;
+    }
+    let owner_item = ir.items.get(enum_owner.0 as usize)?;
+    let IrItemKind::Field {
+        ty: IrType::Known(ResolvedType::Enum { cases: owner_cases, .. }),
+        ..
+    } = &owner_item.kind
+    else {
+        return None;
+    };
+    if owner_item.id != enum_owner
+        || owner_item.canonical != dependency_type_id
+        || owner_cases.as_slice() != ty_cases
+    {
+        return None;
+    }
+    let inline = format!("enum({})", ty_cases.join(","));
+    if inventory_type(descriptor)? != inline {
+        return None;
+    }
+    Some(inline)
+}
+
 /// `models` must be the actual descriptors emitted by the owning emitter.
 /// `entry_module` is the actual artifact callable module, not an inferred
 /// package path: native scenario implementations currently execute in entry.
@@ -2453,43 +2500,13 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                         if transition.is_some() {
                             return None;
                         }
-                        let descriptor = declared[0];
-                        if descriptor.machine.is_some()
-                            || descriptor.nullable
-                            || descriptor.array_required.is_some()
-                            || descriptor.server_only
-                        {
-                            return None;
-                        }
-                        let JsModelFieldType::Enum { values } = &descriptor.field
-                        else {
-                            return None;
-                        };
-                        if values != cases {
-                            return None;
-                        }
-                        let owner_item = ir.items.get(enum_owner.0 as usize)?;
-                        let IrItemKind::Field {
-                            ty: IrType::Known(ResolvedType::Enum {
-                                cases: owner_cases,
-                                ..
-                            }),
-                            ..
-                        } = &owner_item.kind
-                        else {
-                            return None;
-                        };
-                        if owner_item.id != *enum_owner
-                            || owner_item.canonical != dependency.type_id
-                            || owner_cases != cases
-                        {
-                            return None;
-                        }
-                        let inline = format!("enum({})", cases.join(","));
-                        if inventory_type(descriptor)? != inline {
-                            return None;
-                        }
-                        inline
+                        checked_plain_enum_data_transport(
+                            ir,
+                            &dependency.type_id,
+                            cases,
+                            *enum_owner,
+                            declared[0],
+                        )?
                     } else {
                         // This inventory adaptation belongs only to a real transition
                         // recipe. Standalone machine-field reads retain their refusal.
@@ -13272,6 +13289,10 @@ mod profile_pair_tests;
 #[cfg(test)]
 #[path = "scenario_transcript_selection_tests.rs"]
 mod transcript_selection_tests;
+
+#[cfg(test)]
+#[path = "scenario_enum_data_transport_tests.rs"]
+mod enum_data_transport_tests;
 
 #[cfg(test)]
 mod root_pair_schema_tests {
