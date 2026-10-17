@@ -10478,6 +10478,15 @@ fn checked_created_statements(
                     // earlier lets): the receiver name must be bound before
                     // the branch, and the conditional rule has already
                     // excluded leaks of the arm binding into this statement.
+                    // 0551: the actual receiver must also BE that authored
+                    // name; class membership alone admits a same-span/type
+                    // row swap.
+                    let IrExpr::Name(actual) = &record.expr else {
+                        return None;
+                    };
+                    if actual.as_str() != binding {
+                        return None;
+                    }
                     let IrItemKind::Scenario {
                         effects: owner_effects,
                         params: owner_params,
@@ -13316,5 +13325,120 @@ Then
                 );
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod branch_trailing_set_receiver_tests {
+    use super::*;
+    use crate::analysis::catalog::{CatalogRequest, load_catalog};
+    use crate::analysis::check_program;
+    use crate::source::Span;
+
+    const IFBRANCH: &str = include_str!("../../tests/fixtures/first-query-ifbranch-create.can");
+
+    fn fixture() -> (SourceDb, IrProgram) {
+        let mut db = SourceDb::new();
+        let file = db.add("ifbranch-create.can".into(), IFBRANCH.into());
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap()
+            .to_path_buf();
+        let catalog_path = root.join("packages/cloudflare/dist/native-catalog.json");
+        let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+            flag: Some(&catalog_path),
+            env: None,
+            cwd: &root,
+            primary: Span::new(file, 0, 0),
+        });
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let catalog = catalog.unwrap();
+        let (program, diagnostics) = check_program(&db, &[file], Some(&catalog));
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let (ir, diagnostics) = super::super::ir::build(&program, &db, Some(&catalog));
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        (db, ir)
+    }
+
+    /// 0551: a top-level trailing `set` on a pre-bound row must refuse when
+    /// the actual receiver names another row, even with identical span and
+    /// type. Param/let membership alone must not admit the swap.
+    #[test]
+    fn trailing_prebound_set_needs_exact_receiver_name() {
+        let (db, ir) = fixture();
+        let owner = ir
+            .items
+            .iter()
+            .find(|item| item.canonical == "IfBranchSources.go_trailing")
+            .unwrap();
+        let crate::analysis::scenario_disclosure::ScenarioDisclosure::Complete(checked) =
+            &ir.scenario_disclosures[&owner.id]
+        else {
+            panic!("complete disclosure");
+        };
+        let original = checked
+            .source_facts
+            .as_deref()
+            .unwrap()
+            .creates
+            .as_deref()
+            .unwrap()
+            .first()
+            .unwrap();
+        assert!(
+            checked_created_statements(&ir, owner, checked, original, &db).is_some(),
+            "genuine trailing prefix must match"
+        );
+        let mut tampered = ir.clone();
+        let tampered_owner = tampered
+            .items
+            .iter_mut()
+            .find(|item| item.canonical == "IfBranchSources.go_trailing")
+            .unwrap();
+        let IrItemKind::Scenario { effects, .. } = &mut tampered_owner.kind else {
+            panic!("scenario");
+        };
+        let tampered_set = effects
+            .iter_mut()
+            .find(|effect| {
+                matches!(effect, IrStmt::Set { record, .. } if matches!(&record.expr, IrExpr::Name(name) if name == "p"))
+            })
+            .unwrap();
+        let IrStmt::Set { record, .. } = tampered_set else {
+            panic!("trailing set");
+        };
+        // Same span and stored-row type; only the name changes rows.
+        record.expr = IrExpr::Name("ghost".into());
+        let tampered_owner = tampered
+            .items
+            .iter()
+            .find(|item| item.canonical == "IfBranchSources.go_trailing")
+            .unwrap();
+        let crate::analysis::scenario_disclosure::ScenarioDisclosure::Complete(
+            tampered_checked,
+        ) = &tampered.scenario_disclosures[&tampered_owner.id]
+        else {
+            panic!("complete disclosure");
+        };
+        let tampered_original = tampered_checked
+            .source_facts
+            .as_deref()
+            .unwrap()
+            .creates
+            .as_deref()
+            .unwrap()
+            .first()
+            .unwrap();
+        assert!(
+            checked_created_statements(
+                &tampered,
+                tampered_owner,
+                tampered_checked,
+                tampered_original,
+                &db
+            )
+            .is_none(),
+            "renamed trailing receiver must refuse"
+        );
     }
 }

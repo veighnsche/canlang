@@ -1389,7 +1389,7 @@ impl SourceExpressions<'_> {
                 span,
             } if node.kind == SyntaxKind::Set && node.span == *span => {
                 let owner = self.owner?;
-                let IrExpr::Name(_) = &record.expr else {
+                let IrExpr::Name(actual) = &record.expr else {
                     return None;
                 };
                 let mut paths = node
@@ -1410,6 +1410,12 @@ impl SourceExpressions<'_> {
                 }
                 let receiver_name =
                     super::scenario_receipts::direct_source_path_name(receiver, self.text)?;
+                // 0551: the actual receiver name must be the authored one in
+                // every class. Class membership alone (pre-bound param/let)
+                // would otherwise admit a same-span/type row swap.
+                if actual.as_str() != receiver_name {
+                    return None;
+                }
                 if receiver_name == self.original.binding {
                     super::scenario_receipts::created_record_name_matches(
                         record,
@@ -6037,7 +6043,7 @@ Then
             checked_create_prefix_if(&ir, owner, original, branch, node, &db).is_some(),
             "genuine arm prefix must match"
         );
-        for mode in ["operand", "receiver-span"] {
+        for mode in ["operand", "receiver-span", "receiver-name"] {
             let mut tampered = ir.clone();
             let tampered_owner = tampered
                 .items
@@ -6071,9 +6077,15 @@ Then
                 }
                 // Same operand, but the receiver no longer sits on the
                 // authored `set` path span.
-                _ => {
+                "receiver-span" => {
                     record.span =
                         Span::new(record.span.file, record.span.start + 1, record.span.end);
+                }
+                // 0551: same span and int type, but the actual receiver
+                // names another row than the authored `set c` path. Class
+                // membership (pre-bound `c`) alone must not admit it.
+                _ => {
+                    record.expr = IrExpr::Name("ghost".into());
                 }
             }
             let tampered_owner = tampered
