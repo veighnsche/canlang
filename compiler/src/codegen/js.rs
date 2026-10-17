@@ -3745,10 +3745,20 @@ fn enum_filter_derive_call(
 }
 
 /// Writable selector controls currently admitted by the source lowering.
+/// `toggle` decodes through the same bool-control owner as `checkbox` and
+/// carries the identical prepared-field contract.
 fn is_form_field_control(factory: &str) -> bool {
     matches!(
         factory,
-        "input" | "textarea" | "radio" | "select" | "calendar" | "checkbox" | "range" | "fileInput"
+        "input"
+            | "textarea"
+            | "radio"
+            | "select"
+            | "calendar"
+            | "checkbox"
+            | "toggle"
+            | "range"
+            | "fileInput"
     )
 }
 

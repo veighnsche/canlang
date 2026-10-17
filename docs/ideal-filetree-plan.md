@@ -176,6 +176,10 @@ Dispatch fence persistence intake: send-result envelope reads (delivery.id) in p
 
 Dispatch fence persistence intake: send-result envelope reads (delivery.id) in post-send sets + enum inventory profile + 4/4 analysis regression + 1/1 runtime proof (stage/persist/drive/skip/deny) on frozen 76fb0302/ca50. No original24 count claimed; has_ir_errors seal retained. Incoming interval `764c3c1aa..69579880f` accounts for 4 changed paths in `can18_merge_42_20261017` of the existing registry. dispatch_fence_persistence 4/4; runtime proof 1/1 on frozen 76fb0302/ca50; neighbors no new failures Existing defining owners and target allocations remain; focused new tests stay with Compiler. Reuse prior accumulated coverage; complete checkpoint remains unchanged. Original24 and required executable consumers remain open. Unfinished work stays in the running Muse checkout.
 
+### CAN18 incremental integration — can18_merge_43_20261017
+
+Toggle form-control repair (REVIEW-NOW-2 E): the admitted toggle factory travels the checkbox prepared-field contract at the shared owner; actual compiled Item.create render + false/true consumer with fail-before proof, neighbors green; REVIEW-NOW remainder stays open. Incoming interval `02781f83e..HEAD` accounts for 3 changed paths in `can18_merge_43_20261017` of the existing registry. toggle_form_control 1/1; ui_original_bindings 27/27; enum_filter_group 54/54; factory_profiles 33/33; collection_bool_filters 31/31; field_fragment_runtime original_cap failure pre-existing on clean HEAD. Existing defining owners and target allocations remain; focused new tests stay with Compiler. Reuse prior accumulated coverage; complete checkpoint remains unchanged. Original24 and required executable consumers remain open. Unfinished work stays in the running Muse checkout.
+
 ### Specification and installer documentation merge — 2026-10-15
 
 Merge installer commit `02470b74` into canonical `main` at `a70921e3`.

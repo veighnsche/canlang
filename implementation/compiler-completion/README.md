@@ -62,6 +62,58 @@ skipped fence records a distinct marker, foreign denial) on frozen
 retains its deliberate full-IR seal, so the original 23 clear only
 with composition-wide attribution, not from this slice alone.
 
+0101 correction (same slice): the added budget-interference fixture is
+source24 (not file26 — file26 is virtual generated contributions) and
+carries TWO diagnostics (file24 spans 504..512 send-guard, 576..634
+first-query). The earlier file26/zero-diag no-interference conclusion is
+withdrawn; the interference result is preserved with corrected
+attribution. `compiler/src/codegen/mod.rs:252` keeps refusing send-guard
+preparation while `context.has_ir_errors()`; guard diagnostics stay
+treated as dependent while the real local gaps are implemented.
+
+Merge42 qualification on frozen `76fb0302`/`ca50` (`/tmp/can18-merge42-capture.json`):
+exit 10, 683.96s, complete=true, omitted=0, 26 sources, 24/24 authored
+hashes match — 276 E6008. Exact multiset vs the 282 baseline: 7 removed
+/ 1 added (net −6). Removed: 6 enum-filter occurrences (CanExpense list
+41194..43555 + 41316..41329, board 43988..45693 + 44144..44157, table
+46477..46656 + 46577..46581) and 1 calendar enum occurrence (file18
+29151..29155). Added: 1 board UI option-`page` occurrence (file12
+44263..44278, owning factory profile does not consume `page`).
+Slice attribution stays open: the removed filter occurrences are not
+claimed as dispatch-slice fixes (different owner from the disclosure
+branch; base drift vs `982e9eda` not excluded), and the added board
+page-option occurrence is recorded as an open follow-on, not harmless.
+Occurrence counts are not cause counts.
+
+### Toggle form-control repair (REVIEW-NOW-2 E) — 2026-10-17
+
+`compiler/src/codegen/js.rs` `is_form_field_control` omitted the admitted
+`toggle` factory although IR decodes it through the same bool-control owner
+as `checkbox` (`ir.rs:14426`) and the UI implements it (`controls.ts`
+toggle, `forms.ts` case). The emitted toggle carried a raw `field:"urgent"`
+string and skipped `authoredFields`, so the real UI threw `field
+"undefined": type must be a string`. One-word defining-owner fix covers
+both the authored-field collector and the prepared-field emission backstop.
+Validation: new `compiler/tests/toggle_form_control.rs` 1/1 — actual
+compiled `Item.create` form through assemble + installed UI, asserting
+`authoredFields` `[title,urgent]`, successful render, and checked-state
+tracking of false/true bool defaults. Fail-before proven (0/1 on the
+pre-fix compiler). Neighbors: ui_original_bindings 27/27, enum 54/54,
+factory 33/33, bool 31/31. `field_fragment_runtime`
+`original_cap_fragments...` fails identically on clean HEAD — pre-existing,
+unrelated (no toggle in its source), recorded not fixed.
+
+### REVIEW-NOW queue (all open, one execution view) — 2026-10-17
+
+REVIEW-NOW-1: (1) UI settings inventory-free omit (`settings.ts:205`,
+`pages.ts:329`); (2) `ir.rs` completion-event app-name allowlist →
+checked declared-event identity. REVIEW-NOW-2: A/B authority gaps
+(statically traced, need actual-compiled reproduction), C/D hook
+parent/reference helper twins, F copy null/empty label, G steps item-slot
+guard, H dispatch stale-version test, I alert-notify spelling exception.
+E (above) done first. No finding is accepted until its actual compiled
+consumer passes; probe-only evidence stays labeled as such.
+
 ### Current original24 (frozen main c2 cohort) — 282 E6008 — 2026-10-17
 
 [evidence/original24-main-20261016.json](../../evidence/original24-main-20261016.json):
