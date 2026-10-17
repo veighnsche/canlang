@@ -1,13 +1,17 @@
 # Remaining CanLang work
 
-## Current execution resumed through Muse — 2026-10-13
+## Current Muse state — paused for plan agreement, 2026-10-17
+
+The existing Muse run and its native goal are paused; supervision is disabled (the matching automation has been removed and was not recreated). The [proposed Can18 root-cause plan](compiler-completion/README.md) is its single execution view, including accepted components, remaining original criteria, concrete dependencies and exact external/policy holds. No implementation or worker release is authorized until human agreement. The earlier cross-roadmap aggregation below preserves traceability; it is not another Muse dispatch queue.
+
+## Historical cross-roadmap execution — 2026-10-13
 
 The human explicitly resumed the SAME Muse run with Muse Spark 1.3 Contributor at MAX and live Contributor ON. The complete saved 41-position backlog remains its scope. All four original Codex workers stay stopped; one Muse coordinator/shared-native source/build/capture writer is allowed, with the four native lanes held/read-only except an explicit serialized handoff. Codex preserves/reviews local-main checkpoints and supervises through the authorized 25-minute check. Original task IDs, security/evaluation order, source/adoption/default/preparation/activation/publication holds and finite acceptance remain. Apply [finite execution](../AGENTS.md#finite-execution).
 
 | Existing lane | Complete remaining list / original accounting | Current scoped outcome / remaining work |
 | --- | --- | --- |
 | Packages | [Queue](../docs/research/package-library-audit-20261006/repair-queue/queue.json);7 remaining entries/41of48 selected, canonical333 distinct. | Exact cycle-free Work controls and composed Compiler fixture input common gate CLOSED at actual primary zero. Human-directed V03 actual serving producer implementation now active; then Packages Interfaces B02 backend/Files F01 serialization, with exact disjoint glue. Preserve precise holds. |
-| Compiler | [Current remainder](compiler-completion/README.md#current-remainder-and-finite-completion);nine residual references/58of67/C01–C24 retained. | 765 whole-original executable producer,7caf optional input and8a SEND-stage source checkpoints CLOSED. Optional SourceExpressions df57 source consumer CLOSED; membership read-rule cohort reuse30ac CLOSED; exact original Mailbox event and complete Chat owner-policy source next; Dev runtime remains separate. |
+| Compiler | [Single proposed root-cause plan](compiler-completion/README.md#current-remainder-and-finite-completion); existing18 outcomes /C01–C24 and nine reference consumers retained. | Paused pending human agreement. Latest post-auth original24 remains276E6008; source-ownership and authenticated ANY/first prerequisites are accepted without closing original accept/recover. Reuse closed source/runtime components; exact remaining native and external consumers are in that plan. |
 | Capability | [Current queue](capability-roadmap-20261008/README.md#current-implementation-queue-prioritized-capability-lane);30IDs/33stages retained. | State2ad+88 typed atomic tuple component CLOSED; declared-parent scalar708 claim/staged-live parent join CLOSED. S04 actual D1/DO Work recover(limit) selected driver criterion CLOSED; no duplicate driver/receiver. No duplicate receiver/full-app scan. |
 | Dev | [Current execution](can-dev-server/PLAN.md#current-execution-finish-the-declared-first-slice);native/app/provider/platform remainder explicit, compiled conditional scope closed; corrected current337 declared-parent qualification accepted actual MAIN. | Original conditional unique Identity/D1 native criterion CLOSED in MAIN; consume exact tuple/guarded SEND/preclaim releases and finish genuine original tuple adapter/caller. Scalar containment708 is reviewed/released for its affected native retry; preserve File/provider/current authority/rollback/replay. |
 
