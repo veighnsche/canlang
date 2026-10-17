@@ -120,6 +120,19 @@ test('native conjunction first query selects on every conjunct with order, rollb
         const namespace = object(await importVerifiedAssemblyModule(asm, callable.module, artifact));
         assert.equal(namespace[callable.export], name);
       }
+      {
+        // The real emitted predicate evaluates the v conjunct (with its
+        // dependency observation) before a short-circuiting && and the
+        // role conjunct after it, in source order. A row failing v never
+        // executes the role read; the engine's candidate correspondence
+        // would invalidate a mismatched marker set, so successful
+        // execution below proves the markers held.
+        const goConj = artifact.callables.find(callable => callable.id === `${APP}.go_conj`)!;
+        const goConjJs = artifact.modules.find(module => module.path === goConj.module)!.js;
+        const callSite = goConjJs.slice(goConjJs.indexOf('await firstQuery'));
+        assert.match(callSite, /observeScenarioReceiptQueryDependency\([^)]*"v"[\s\S]*?&&[\s\S]*?observeScenarioReceiptQueryDependency\([^)]*"role"/,
+          'emitted conjunction evaluates v, short-circuits, then role');
+      }
       const moduleBytes = await Promise.all(artifact.modules.map(async module => {
         const path = fileURLToPath(asm.moduleUrls[module.path]!); return { path, bytes: await readFile(path) };
       }));
@@ -225,6 +238,18 @@ test('native conjunction first query selects on every conjunct with order, rollb
         assert.equal(await dRows().then(rows => rows.length), 3);
       }
 
+      // The third conjunct filters too: c1 would still be selected if it
+      // were omitted, but a wrong tag matches nothing.
+      {
+        const cBefore = await cRows(), pBefore = await pRows(), dCount = await dRows().then(rows => rows.length);
+        const outcome = await invoke(envelope(`${APP}.go_conj3`, { p: { id: parentId, version: parentVersion }, n: '7', r: 'admin', t: 'zzz' }));
+        assert.ok('error' in outcome, JSON.stringify(outcome));
+        assert.equal(outcome.error.code, 'rule_failed', JSON.stringify(outcome));
+        assert.equal(await dRows().then(rows => rows.length), dCount);
+        assert.deepEqual(await cRows(), cBefore);
+        assert.deepEqual(await pRows(), pBefore);
+      }
+
       // Id order through the branch set arm: two rows match v = 9 AND
       // role = admin, so the lowest id wins the set.
       const c4 = await seedChild('9', 'admin', 'q');
@@ -250,6 +275,19 @@ test('native conjunction first query selects on every conjunct with order, rollb
         assert.ok('result' in replayed, JSON.stringify(replayed));
         assert.equal(replayed.result.status, 'replayed', JSON.stringify(replayed));
         assert.equal(await dRows().then(rows => rows.length), dCount);
+      }
+
+      // Matched-arm late failure: both staged sets (branch row and
+      // trailing parent) roll back when require m == 0 fails, with no D.
+      {
+        const cBefore = await cRows(), dCount = await dRows().then(rows => rows.length);
+        const failing = envelope(`${APP}.go_conj_branch`, { p: { id: parentId, version: '2' }, n: '7', r: 'admin', m: '1' });
+        const outcome = await invoke(failing);
+        assert.ok('error' in outcome, JSON.stringify(outcome));
+        assert.equal(outcome.error.code, 'rule_failed', JSON.stringify(outcome));
+        assert.equal(await dRows().then(rows => rows.length), dCount);
+        assert.deepEqual(await cRows(), cBefore, 'staged matched-arm sets rolled back');
+        assert.deepEqual((await pRows())[0]!.data, { v: '0' }, 'staged trailing parent set rolled back');
       }
 
       // A later business failure rolls back staged effects: absence stages

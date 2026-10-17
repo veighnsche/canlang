@@ -13535,3 +13535,258 @@ mod branch_trailing_set_receiver_tests {
         );
     }
 }
+
+mod conjunct_predicate_correspondence_tests {
+    use super::*;
+    use crate::analysis::catalog::{CatalogRequest, load_catalog};
+    use crate::analysis::check_program;
+
+    /// Inline probe with a spare same-type param `s`: the admitted shape is
+    /// `c.v==n and c.role==r`; `s` never appears in any checked fact.
+    const CONJ: &str = r#"app ConjTamper
+Given
+ P {v:int}
+ C in P {v:int,role:text}
+ D {w:int}
+ policy P read=members fields=v
+ policy C read=members fields=parent,v,role
+ policy D read=members fields=w
+When
+ crud P by=members fields=v
+ crud C by=members fields=parent,v,role
+ scenario go_t(p:P,n:int,r:text,s:text) -> int by=members
+  do
+   let c=first(p.C as c where c.v==n and c.role==r order=c.id)
+   require c!=null
+   create D {w=n} as d
+   return 1
+Then
+"#;
+
+    fn fixture() -> (SourceDb, IrProgram) {
+        let mut db = SourceDb::new();
+        let file = db.add("conj-tamper.can".into(), CONJ.into());
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap()
+            .to_path_buf();
+        let catalog_path = root.join("packages/cloudflare/dist/native-catalog.json");
+        let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+            flag: Some(&catalog_path),
+            env: None,
+            cwd: &root,
+            primary: Span::new(file, 0, 0),
+        });
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let catalog = catalog.unwrap();
+        let (program, diagnostics) = check_program(&db, &[file], Some(&catalog));
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let (ir, diagnostics) = super::super::ir::build(&program, &db, Some(&catalog));
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        (db, ir)
+    }
+
+    fn first_scan<'a>(
+        ir: &'a IrProgram,
+        owner: &'a IrItem,
+    ) -> (
+        &'a crate::analysis::scenario_disclosure::DisclosureQuery,
+        &'a super::super::ir::IrQuery,
+    ) {
+        let crate::analysis::scenario_disclosure::ScenarioDisclosure::Complete(checked) =
+            &ir.scenario_disclosures[&owner.id]
+        else {
+            panic!("complete disclosure");
+        };
+        let query = checked
+            .source_facts
+            .as_deref()
+            .unwrap()
+            .queries
+            .as_deref()
+            .unwrap()
+            .iter()
+            .find(|query| query.first.is_some())
+            .unwrap();
+        assert_eq!(query.dependencies.len(), 2, "two conjuncts recorded");
+        let first = query.first.as_ref().unwrap();
+        let IrItemKind::Scenario { effects, .. } = &owner.kind else {
+            panic!("scenario");
+        };
+        let call = effects
+            .iter()
+            .find_map(|effect| match effect {
+                IrStmt::Let { value, span, .. } if *span == node_span(first.binding) => Some(value),
+                _ => None,
+            })
+            .unwrap();
+        let (IrExpr::Call { args, .. } | IrExpr::BoundCall { args, .. }) = &call.expr else {
+            panic!("first call");
+        };
+        let [domain] = args.as_slice() else {
+            panic!("one domain");
+        };
+        let IrExpr::Query(scan) = &domain.expr else {
+            panic!("query domain");
+        };
+        (query, scan)
+    }
+
+    /// Drills the cloned IR to the `and` operands of the admitted where
+    /// clause and hands back the two conjunct right-operand expressions.
+    fn conjunct_operand_pair(
+        tampered: &mut IrProgram,
+        binding: Span,
+    ) -> (&mut Box<TypedExpr>, &mut Box<TypedExpr>) {
+        let owner = tampered
+            .items
+            .iter_mut()
+            .find(|item| item.canonical == "ConjTamper.go_t")
+            .unwrap();
+        let IrItemKind::Scenario { effects, .. } = &mut owner.kind else {
+            panic!("scenario");
+        };
+        let call = effects
+            .iter_mut()
+            .find_map(|effect| match effect {
+                IrStmt::Let { value, span, .. } if *span == binding => Some(value),
+                _ => None,
+            })
+            .unwrap();
+        let (IrExpr::Call { args, .. } | IrExpr::BoundCall { args, .. }) = &mut call.expr else {
+            panic!("first call");
+        };
+        let [domain] = args.as_mut_slice() else {
+            panic!("one domain");
+        };
+        let IrExpr::Query(scan) = &mut domain.expr else {
+            panic!("query domain");
+        };
+        let predicate = scan.where_pred.as_mut().unwrap();
+        let IrExpr::Binary {
+            op: IrBinOp::And,
+            left,
+            right,
+        } = &mut predicate.expr
+        else {
+            panic!("top-level and");
+        };
+        let IrExpr::Binary {
+            op: IrBinOp::Eq,
+            right: first_operand,
+            ..
+        } = &mut left.expr
+        else {
+            panic!("first conjunct ==");
+        };
+        let IrExpr::Binary {
+            op: IrBinOp::Eq,
+            right: second_operand,
+            ..
+        } = &mut right.expr
+        else {
+            panic!("second conjunct ==");
+        };
+        (first_operand, second_operand)
+    }
+
+    #[test]
+    fn second_conjunct_param_name_substitution_refuses() {
+        let (_db, ir) = fixture();
+        let owner = ir
+            .items
+            .iter()
+            .find(|item| item.canonical == "ConjTamper.go_t")
+            .unwrap();
+        let (query, scan) = first_scan(&ir, owner);
+        let binding = node_span(query.first.as_ref().unwrap().binding);
+        assert!(
+            checked_first_query_predicate(&ir, owner, query, scan).is_some(),
+            "genuine two-conjunct pair must admit"
+        );
+        let mut tampered = ir.clone();
+        let (_, second) = conjunct_operand_pair(&mut tampered, binding);
+        // Same span and text type; only the name changes rows from the
+        // recorded `r` operand to the never-mentioned `s` param.
+        let span = second.span;
+        let ty = second.ty.clone();
+        second.expr = IrExpr::Name("s".into());
+        assert_eq!(second.span, span, "span retained");
+        assert_eq!(second.ty, ty, "type retained");
+        let tampered_owner = tampered
+            .items
+            .iter()
+            .find(|item| item.canonical == "ConjTamper.go_t")
+            .unwrap();
+        let (tampered_query, tampered_scan) = first_scan(&tampered, tampered_owner);
+        assert!(
+            checked_first_query_predicate(&tampered, tampered_owner, tampered_query, tampered_scan)
+                .is_none(),
+            "renamed second-conjunct operand must refuse"
+        );
+    }
+
+    #[test]
+    fn conjunct_reorder_against_original_facts_refuses() {
+        let (_db, ir) = fixture();
+        let owner = ir
+            .items
+            .iter()
+            .find(|item| item.canonical == "ConjTamper.go_t")
+            .unwrap();
+        let (query, scan) = first_scan(&ir, owner);
+        let binding = node_span(query.first.as_ref().unwrap().binding);
+        assert!(
+            checked_first_query_predicate(&ir, owner, query, scan).is_some(),
+            "genuine two-conjunct pair must admit"
+        );
+        let mut tampered = ir.clone();
+        let tampered_owner = tampered
+            .items
+            .iter_mut()
+            .find(|item| item.canonical == "ConjTamper.go_t")
+            .unwrap();
+        let IrItemKind::Scenario { effects, .. } = &mut tampered_owner.kind else {
+            panic!("scenario");
+        };
+        let call = effects
+            .iter_mut()
+            .find_map(|effect| match effect {
+                IrStmt::Let { value, span, .. } if *span == binding => Some(value),
+                _ => None,
+            })
+            .unwrap();
+        let (IrExpr::Call { args, .. } | IrExpr::BoundCall { args, .. }) = &mut call.expr else {
+            panic!("first call");
+        };
+        let [domain] = args.as_mut_slice() else {
+            panic!("one domain");
+        };
+        let IrExpr::Query(scan) = &mut domain.expr else {
+            panic!("query domain");
+        };
+        let predicate = scan.where_pred.as_mut().unwrap();
+        let IrExpr::Binary {
+            op: IrBinOp::And,
+            left,
+            right,
+        } = &mut predicate.expr
+        else {
+            panic!("top-level and");
+        };
+        // Facts still record source order (v, then role); swapped IR must
+        // refuse even though each conjunct alone is well-formed.
+        std::mem::swap(left, right);
+        let tampered_owner = tampered
+            .items
+            .iter()
+            .find(|item| item.canonical == "ConjTamper.go_t")
+            .unwrap();
+        let (tampered_query, tampered_scan) = first_scan(&tampered, tampered_owner);
+        assert!(
+            checked_first_query_predicate(&tampered, tampered_owner, tampered_query, tampered_scan)
+                .is_none(),
+            "reordered conjuncts against original facts must refuse"
+        );
+    }
+}
