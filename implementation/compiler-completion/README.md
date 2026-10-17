@@ -24,6 +24,19 @@ session/admission remain local implementation work. Hook guards and ordinary val
 authority; missing parent-read implementation is not a new value-use prohibition. Exact17/18 external/policy holds remain unchanged. Continue ready work
 through these checkpoints; do not mark the overall goal complete.
 
+**Member-operand correction (0921) + member-cohort capture:** the merge56
+member batch over-admitted nothing but over-restricted contract-owned
+qualified cases (`Kinds.role.administrator`) via a model-name heuristic and
+shipped a vacuous tamper test. Corrected: closed-case identity rests on the
+retained checked set alone (type owner admits Model|Contract roots with a
+declared enum field owning the case); the nested `w.j.administrator`
+read-to-constant substitution refuses genuinely; the predicate cover pins
+receiver type and span occurrence. Frozen member producer `5b3ba6a33`
+(binary `31a502b3`, catalog `ca50`) re-qualifies the unchanged original24
+tuple at 276 E6008, full multiset identical (0 removed, 0 added):
+member admission holds with no regression; the CanCustomer accept span
+waits on navigation-parent/void/reference prerequisites next.
+
 ### Accepted first-query slice D (merge37) — 2026-10-17 (compiler half)
 
 Main integrates `ed672197e`: compiler admission for unscoped Text-equality

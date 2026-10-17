@@ -6116,7 +6116,10 @@ pub(super) fn checked_first_query_predicate(
         let original = facts.parameters.get(*index)?;
         // The sealed authored `base.field` path pins the exact read: a
         // same-domain sibling field (`i.other_role`) cannot substitute
-        // for the admitted operand.
+        // for the admitted operand. The receiver occurrence is pinned
+        // too: its type must equal the recorded param type, and its span
+        // must lead the outer member span (`base.field` grammar), so a
+        // retargeted base keeps the refusal even with the name intact.
         let expected_member = format!("{}.{}", actual.name, field);
         let sealed_path = first
             .operand_texts
@@ -6132,6 +6135,10 @@ pub(super) fn checked_first_query_predicate(
                 && original.parameter == *parameter
                 && original.default.is_none()
                 && original.ty == *ty
+                && base.ty == *ty
+                && base.span.file == right.span.file
+                && base.span.start == right.span.start
+                && base.span.end < right.span.end
                 && matches!(&base.expr, IrExpr::Name(name) if name == &actual.name))
         {
             return None;
@@ -13670,14 +13677,20 @@ Given
  C in P {v:int,role:text,kind:enum(administrator,booker)}
  D {w:int}
  I in P {role:C.kind,other_role:C.kind}
+ J {administrator:C.kind}
+ W {j:J}
  policy P read=members fields=v
  policy C read=members fields=parent,v,role,kind
  policy D read=members fields=w
  policy I read=members fields=parent,role,other_role
+ policy J read=members fields=administrator
+ policy W read=members fields=j
 When
  crud P by=members fields=v
  crud C by=members fields=parent,v,role,kind
  crud I by=members fields=parent,role,other_role
+ crud J by=members fields=administrator
+ crud W by=members fields=j
  scenario go_t(p:P,n:int,r:text,s:text) -> int by=members
   do
    let c=first(p.C as c where c.v==n and c.role==r order=c.id)
@@ -13707,6 +13720,11 @@ When
    let m=first(p.C as m where m.v==n and m.kind==u.role order=m.id)
    require m!=null
    create D {w=3} as d
+   return 1
+ scenario go_nested(w:W) -> int by=members
+  do
+   require w.j.administrator==administrator
+   create D {w=4} as d
    return 1
 Then
 "#;
@@ -14305,28 +14323,136 @@ Then
         );
     }
 
+    /// First member read with a member base (`w.j.administrator` in
+    /// `go_nested`'s require), mutably: the genuine nested shape the old
+    /// qualifier arm accepted and the checked-case arm must refuse once
+    /// replaced by a constant.
+    fn find_nested_member_mut<'a>(expr: &'a mut TypedExpr) -> Option<&'a mut TypedExpr> {
+        if matches!(&expr.expr, IrExpr::Member { base, .. } if matches!(&base.expr, IrExpr::Member { .. }))
+        {
+            return Some(expr);
+        }
+        match &mut expr.expr {
+            IrExpr::Binary { left, right, .. } => {
+                if let Some(found) = find_nested_member_mut(left) {
+                    return Some(found);
+                }
+                find_nested_member_mut(right)
+            }
+            _ => None,
+        }
+    }
+
+    fn nested_member_mut<'a>(ir: &'a mut IrProgram, canonical: &str) -> &'a mut TypedExpr {
+        let owner = ir
+            .items
+            .iter_mut()
+            .find(|item| item.canonical == canonical)
+            .expect("scenario owner");
+        let IrItemKind::Scenario { effects, .. } = &mut owner.kind else {
+            panic!("scenario effects");
+        };
+        for effect in effects.iter_mut() {
+            let cond = match effect {
+                IrStmt::Require { cond, .. } => Some(cond),
+                IrStmt::Let { value, .. } => Some(value),
+                _ => None,
+            };
+            if let Some(found) = cond.and_then(find_nested_member_mut) {
+                return found;
+            }
+        }
+        panic!("nested member read");
+    }
+
     #[test]
-    fn non_case_member_to_constant_source_expression_refuses() {
-        // A genuine enum-valued record read is not a closed case: even
-        // with matching span, type and facts, replacing it by a case
-        // constant must refuse at the source matcher (no resolved-case
-        // identity, no model qualifier).
+    fn nested_case_named_read_to_constant_source_expression_refuses() {
+        // A genuine nested enum-valued record read (`w.j.administrator`,
+        // field name collides with a declared case) is not a closed
+        // case: its row-binding root never enters the retained checked
+        // set. Replacing it by the case constant must refuse at the
+        // source matcher even with matching span, type and facts; the
+        // old qualifier arm accepted exactly this shape.
         let (db, mut ir) = fixture();
         let tampered = {
-            let right = member_right_mut(&mut ir, "ConjTamper.go_m");
-            let span = right.span;
-            let ty = right.ty.clone();
-            *right = TypedExpr::new(IrExpr::Text("administrator".to_string()), ty, span);
-            right.clone()
+            let nested = nested_member_mut(&mut ir, "ConjTamper.go_nested");
+            let IrExpr::Member { field, .. } = &nested.expr else {
+                panic!("nested member shape");
+            };
+            assert_eq!(field, "administrator", "honest case-named field");
+            let span = nested.span;
+            let ty = nested.ty.clone();
+            *nested = TypedExpr::new(IrExpr::Text("administrator".to_string()), ty, span);
+            nested.clone()
         };
         let fact = go_m_create_fact(&ir);
         let node = source_node_at(&db, tampered.span);
+        let (tree, diagnostics) = crate::syntax::parse(&db, tampered.span.file);
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let mut pending = vec![&tree];
+        let mut kinds = Vec::new();
+        while let Some(candidate) = pending.pop() {
+            if candidate.span == tampered.span {
+                kinds.push(candidate.kind);
+            }
+            pending.extend(candidate.children.iter());
+        }
+        assert!(
+            kinds
+                .iter()
+                .any(|kind| *kind == crate::syntax::SyntaxKind::Member),
+            "tamper targets the genuine nested member source"
+        );
         assert!(
             super::super::scenario_create_sources::checked_create_expression(
                 &ir, fact, &tampered, node, &db
             )
             .is_none(),
-            "non-case member replaced by a constant must refuse"
+            "nested record read replaced by a case constant must refuse"
+        );
+        let _ = db;
+    }
+
+    #[test]
+    fn member_operand_base_type_substitution_refuses() {
+        // The receiver occurrence carries the recorded param type: naming
+        // the right param while typing the base as another stored row
+        // must refuse.
+        let (db, mut ir) = fixture();
+        let right = member_right_mut(&mut ir, "ConjTamper.go_m");
+        let IrExpr::Member { base, .. } = &mut right.expr else {
+            panic!("member shape");
+        };
+        let IrExpr::Name(name) = &base.expr else {
+            panic!("param base");
+        };
+        assert_eq!(name, "u", "honest base");
+        base.ty = crate::analysis::ResolvedType::Scalar(crate::analysis::Scalar::Text);
+        let owner = owner_by_name(&ir, "ConjTamper.go_m");
+        let (query, scan) = first_scan_expecting(&ir, owner, 2);
+        assert!(
+            checked_first_query_predicate(&ir, owner, query, scan).is_none(),
+            "retargeted receiver type must refuse"
+        );
+        let _ = db;
+    }
+
+    #[test]
+    fn member_operand_base_span_shift_refuses() {
+        // The receiver occurrence leads the outer member span: shifting
+        // the base span while keeping name and type must refuse.
+        let (db, mut ir) = fixture();
+        let right = member_right_mut(&mut ir, "ConjTamper.go_m");
+        let IrExpr::Member { base, .. } = &mut right.expr else {
+            panic!("member shape");
+        };
+        base.span.start += 1;
+        base.span.end += 1;
+        let owner = owner_by_name(&ir, "ConjTamper.go_m");
+        let (query, scan) = first_scan_expecting(&ir, owner, 2);
+        assert!(
+            checked_first_query_predicate(&ir, owner, query, scan).is_none(),
+            "shifted receiver span must refuse"
         );
         let _ = db;
     }

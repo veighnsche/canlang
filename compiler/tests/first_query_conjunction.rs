@@ -101,6 +101,33 @@ Then
     )
 }
 
+fn conj_contract_go(pred: &str, params: &str) -> String {
+    format!(
+        r#"app ConjContractProbe
+Given
+ P {{v:int}}
+ contract Kinds {{role:enum(administrator,booker)}}
+ C in P {{account:user,role:Kinds.role}}
+ D {{w:int}}
+ policy P read=members fields=v
+ policy C read=members fields=parent,account,role
+ policy D read=members fields=w
+When
+ crud P by=members fields=v
+ crud C by=members fields=parent,account,role
+ scenario go(p:P,{params}) -> int by=members
+  do
+   let c=first(p.C as c where {pred} order=c.id)
+   require c!=null
+   create D {{w=1}} as d
+   return 1
+Then
+"#,
+        pred = pred,
+        params = params,
+    )
+}
+
 fn root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
@@ -373,6 +400,26 @@ fn conj_member_read_admits() {
         query_dep_fields(&prepared, "ConjMemberProbe.go"),
         ["account", "role"],
         "member-read conjunct emits its control dependency"
+    );
+    let _ = db;
+}
+
+#[test]
+fn conj_enum_contract_qualified_literal_admits() {
+    // A contract-owned qualified closed case lowers to the same semantic
+    // case as a model-owned one and must clear the complete emitted
+    // artifact: the retained checked set owns the Model|Contract rule,
+    // not a model-name heuristic.
+    let (db, program, _, catalog) = fixture_source(
+        "conj-enum-contract-qual.can",
+        &conj_contract_go("c.role==Kinds.role.administrator", "n:int"),
+    );
+    let (prepared, diagnostics) = prepared_artifact(&program, &db, &catalog);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    assert_eq!(
+        query_dep_fields(&prepared, "ConjContractProbe.go"),
+        ["role"],
+        "contract-owned qualified case emits its control dependency"
     );
     let _ = db;
 }
