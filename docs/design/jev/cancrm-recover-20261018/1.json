@@ -1,0 +1,44 @@
+{
+  "request": {
+    "state": {
+      "goal": "Implement original CanCustomer.recover unchanged in general Can compiler/runtime; no app-name exceptions, no weakened grants. This is design advice before implementation.",
+      "original": "by customer_manager; require customer_staff(actor,org) and trim(reason)!=\"\" and org.kind==company; customer_staff is any(org.locations as location,can_work(person,location)); imported can_work is any(Employee as e,e.user==person and e.active and active_member(person,team) and (e.operator_wide or e.home==location or location in e.locations)); then first CompanyRole by account/admin, create with org.locations or reactivate with org.locations; void result.",
+      "verified_current": "checked_helper_any_query_source only supports top-level user+model helper -> single root stored-model ANY, one helper frame. Receipt query IDs are executed/bound once and plan treats one original helper invocation. Original recover nests an actual reference-array iteration and repeated inner ANY. Checked decision sites already preserve complete selected helper/builtin call census and source/module/argument identities. General source-read-policy adapter executes checked nested helpers, references and repeated queries with current Identity/field grants at genuine State source observation. nativeReadBoolean exists only page/derived consumer: root one-record subject + fn(c,row), standalone read transaction. It cannot be called unchanged from mutation: loses operation scalar params and final owner-stage authority. State ownerRows, observeModelQuerySourceAuthority, ownerPolicyDomains and callGuards provide actual stage/revision/finalized overlay revalidation mechanisms.",
+      "constraints": "Preserve authored lazy order, empty-array false, imported inline equivalence, current customrole/field grants/membership, first query identity, staged writes, atomicity/late failures, replay and commit revalidation. Do not invent input maxima or require unrelated model read. Source guard cannot become permission via true result. No unreviewed general opaque guard escape.",
+      "alternatives": {
+        "A": "Extend existing query receipt representation/execution to support repeated nested helper ANY under checked reference-array iteration, with occurrence/call-chain and per-evaluation dynamic instance association; final authority/query replay uses actual original owner observations. Reuse current query protocol when possible; needs State/host ABI changes to allow multiple executions per static source node safely.",
+        "B": "Add a general checked scenario-require consumer using existing original source read-policy evaluator and full decision-call census. Bind original Require callable and exact admitted parameter slots at actual mutation stage; State issues genuine source observation with ownerRows/final overlay; retain row/field/domain/membership authority until commit without replaying effects. Keep independent first receipt path. Extend existing internal observer consumer rather than page kind relabel or standalone reads. Requires explicit compiler/source/State/host join but no dynamic query receipt instance scheme."
+      }
+    },
+    "questions": {
+      "repair": {
+        "type": "choice",
+        "instructions": "Which approach best fits the existing mechanisms for completing the unchanged original operation while preserving every listed authority, source-correspondence and transaction invariant with the smallest complete change?",
+        "criteria": {
+          "A": "Extend existing query receipt representation/execution to support repeated nested helper ANY under checked reference-array iteration, with occurrence/call-chain and per-evaluation dynamic instance association; final authority/query replay uses actual original owner observations. Reuse current query protocol when possible; needs State/host ABI changes to allow multiple executions per static source node safely.",
+          "B": "Add a general checked scenario-require consumer using existing original source read-policy evaluator and full decision-call census. Bind original Require callable and exact admitted parameter slots at actual mutation stage; State issues genuine source observation with ownerRows/final overlay; retain row/field/domain/membership authority until commit without replaying effects. Keep independent first receipt path. Extend existing internal observer consumer rather than page kind relabel or standalone reads. Requires explicit compiler/source/State/host join but no dynamic query receipt instance scheme.",
+          "uncertain": "Neither can be recommended from supplied verified facts; investigate the missing concrete join first."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "repair": {
+        "type": "choice",
+        "choice": "B",
+        "confidence": 0.79,
+        "probabilities": {
+          "A": 0.13,
+          "B": 0.86,
+          "uncertain": 0.01
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1154,
+      "output_tokens": 40
+    }
+  }
+}

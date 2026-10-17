@@ -2307,6 +2307,8 @@ fn emit_program_with_sources(
             .unwrap_or_default();
     }
     if native_receipts {
+        emitter.source_requires = decisions.read_predicates
+            .and_then(|source| source.source_requires(ir)).cloned().unwrap_or_default();
         emitter.boolean_sources = decisions
             .read_predicates
             .and_then(|source| source.booleans(ir))
@@ -2452,6 +2454,13 @@ fn emit_program_with_sources(
                     feasibility,
                 )
             {
+                let requires = ir.scenario_disclosures.get(&item.id)
+                    .and_then(|value| value.source_facts())
+                    .and_then(|facts| facts.source_requires.as_deref()).unwrap_or(&[]);
+                if requires.iter().any(|site| !emitter.source_requires.contains_key(&Span::new(site.node.file,site.node.start,site.node.end))) {
+                    emitter.unsupported("scenario source requirement", "original source observer correspondence is unavailable", item.span);
+                    continue;
+                }
                 emitter.native_receipts.insert(item.id, recipe);
             } else if super::scenario_receipts::has_original_transcript_source(
                 ir,
@@ -2600,6 +2609,10 @@ fn emit_program_with_sources(
     {
         body.push(entry_span, Some("canScenarioQueryPredicateSource".into()),
             "const $can$query$predicates=new WeakMap();function $can$query$issue(marker,context,predicate){$can$query$predicates.set(predicate,{marker,context});return predicate;}export function canScenarioQueryPredicateSource(predicate){const issued=$can$query$predicates.get(predicate);return issued===undefined?null:{marker:JSON.parse(issued.marker),context:issued.context};}");
+    }
+    if native_receipts && !emitter.source_requires.is_empty() {
+        body.push(entry_span,Some("canScenarioRequireSource".into()),
+            "const $can$require$sources=new WeakMap();function $can$require$issue(source,predicate){$can$require$sources.set(predicate,source);return predicate;}export function canScenarioRequireSource(predicate){const source=$can$require$sources.get(predicate);return source===undefined?null:JSON.parse(source);}");
     }
     if native_receipts && !emitter.membership_predicates.is_empty() {
         body.push(entry_span, Some("canReadPredicateSource".into()),
@@ -4131,6 +4144,7 @@ pub struct Emitter<'a> {
     /// generic catalog's external marker.
     membership_bound: Vec<Span>,
     boolean_sources: HashMap<Span, serde_json::Value>,
+    source_requires: HashMap<Span, serde_json::Value>,
     boolean_derives: HashSet<String>,
     boolean_rules: HashSet<String>,
     boolean_body: bool,
@@ -4338,6 +4352,7 @@ impl<'a> Emitter<'a> {
             membership_predicates: HashMap::new(),
             membership_bound: Vec::new(),
             boolean_sources: HashMap::new(),
+            source_requires: HashMap::new(),
             boolean_derives: HashSet::new(),
             boolean_rules: HashSet::new(),
             boolean_body: false,
@@ -10905,7 +10920,39 @@ impl<'a> Emitter<'a> {
                 if in_hook {
                     self.hook_decision_depth += 1;
                 }
-                let cond_text = self.lower_expr(cond);
+                let cond_text = if let Some(identity) = self.source_requires.get(&cond.span).cloned() {
+                    let parameters = identity["parameters"]
+                        .as_array()
+                        .expect("sealed Require parameters");
+                    let names = parameters
+                        .iter()
+                        .map(|parameter| {
+                            parameter["name"]
+                                .as_str()
+                                .expect("sealed parameter")
+                                .to_owned()
+                        })
+                        .collect::<Vec<_>>();
+                    let bindings = names
+                        .iter()
+                        .map(|name| format!("{}:{}", object_key(name), self.reference(name)))
+                        .collect::<Vec<_>>()
+                        .join(",");
+                    let previous_boolean = std::mem::replace(&mut self.boolean_body, true);
+                    let previous_receipt = self.receipt_capture.take();
+                    let previous_query = self.query_capture.take();
+                    let expression = self.lower_expr(cond);
+                    self.boolean_body = previous_boolean;
+                    self.receipt_capture = previous_receipt;
+                    self.query_capture = previous_query;
+                    self.stdlib.insert("nativeScenarioRequire".into());
+                    format!(
+                        "await nativeScenarioRequire(c,$can$require$issue({},async(c,{{{bindings}}})=>({expression})),{{{bindings}}})",
+                        descriptor_json(&descriptor_json(&identity))
+                    )
+                } else {
+                    self.lower_expr(cond)
+                };
                 if in_hook {
                     self.hook_decision_depth -= 1;
                 }

@@ -618,6 +618,7 @@ fn same_source(a: &CheckedScenarioSource, b: &CheckedScenarioSource) -> bool {
         && a.result == b.result
         && a.expression_types == b.expression_types
         && a.decision_sites == b.decision_sites
+        && a.source_requires == b.source_requires
         && a.queries == b.queries
         && a.transcripts == b.transcripts
         && a.inline_selections == b.inline_selections

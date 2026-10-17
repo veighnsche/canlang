@@ -9582,6 +9582,22 @@ fn stored_reference_operand_inner<'a>(
     // are checked nominal identities; they do not become recursive row views.
     if matches!(original.ty, ResolvedType::Array { .. }) {
         let source = super::scenario_calls::checked_source(ir, owner, db)?;
+        let direct_body = depth == 0
+            && source
+                .source_requires
+                .as_deref()
+                .is_some_and(|sites| !sites.is_empty())
+            && matches!(&owner.kind, IrItemKind::Scenario { effects, params, .. }
+                if effects.iter().any(|effect| { let at=match effect {IrStmt::Let{span,..}|IrStmt::If{span,..}|IrStmt::Create{span,..}|IrStmt::Set{span,..}=>*span,_=>return false}; at.file==value.span.file && at.start<=value.span.start && value.span.end<=at.end })
+                    && params.iter().any(|id| ir.items.get(id.0 as usize).is_some_and(|parameter|
+                        matches!(&base.expr,IrExpr::Name(name) if name==&parameter.name)
+                            && matches!(&parameter.kind,IrItemKind::Param {owner: declared,default:None,..} if *declared==owner.id))));
+        if direct_body {
+            // A whole declared reference array is copied as data. Its source
+            // field authority and canonical type are checked above; it is not
+            // the bounded Scope iteration consumer below.
+            return Some(original);
+        }
         let inventory = source.stored_contracts.as_deref()?;
         let reused = original.reuse?;
         let mut scopes = inventory.iter().filter(|schema| {
@@ -10709,7 +10725,7 @@ fn match_effect_proofs(
                     }
                     let mut declared = descriptor.fields.iter().filter(|f| f.name == *name);
                     let emitted = declared.next()?;
-                    if declared.next().is_some() || !assignment_inventory_matches(ty, emitted) {
+                    if declared.next().is_some() || !assignment_inventory_matches(ir, ty, emitted) {
                         return None;
                     }
                     let compatible = value.ty == *ty
@@ -11416,7 +11432,11 @@ fn checked_created_statements(
                 }
                 (SyntaxKind::Let, *span, Some(value))
             }
-            IrStmt::Require { cond, span } => (SyntaxKind::Require, *span, Some(cond)),
+            IrStmt::Require { cond, span } => {
+                let source_owned = facts.source_requires.as_deref().is_some_and(|sites| sites.iter().any(|site|
+                    node_span(site.statement)==*span && node_span(site.node)==cond.span));
+                (SyntaxKind::Require, *span, (!source_owned).then_some(cond))
+            },
             IrStmt::If { span, .. } => {
                 super::scenario_create_sources::checked_create_prefix_if(
                     ir,
@@ -12955,7 +12975,7 @@ fn closed_loop_changes(
     true
 }
 
-fn assignment_inventory_matches(ty: &ResolvedType, field: &JsModelField) -> bool {
+fn assignment_inventory_matches(ir: &IrProgram, ty: &ResolvedType, field: &JsModelField) -> bool {
     let (base, nullable) = match ty {
         ResolvedType::Nullable(inner) => (inner.as_ref(), true),
         ty => (ty, false),
@@ -12987,6 +13007,19 @@ fn assignment_inventory_matches(ty: &ResolvedType, field: &JsModelField) -> bool
         ResolvedType::Array { element, .. } => (element.as_ref(), true),
         ty => (ty, false),
     };
+    if array && !nullable && matches!(element, ResolvedType::Record { stored: true, .. }) {
+        let Some(expected) = reference_operand_type_id(ir, ty) else {
+            return false;
+        };
+        let Some(model) = expected.strip_suffix("[]") else {
+            return false;
+        };
+        return matches!(&field.field, JsModelFieldType::Ref {model: actual} if actual == model)
+            && field.value_type.as_deref() == Some(expected.as_str())
+            && field.array_required.is_some()
+            && !field.nullable
+            && field.machine.is_none();
+    }
     if let ResolvedType::Enum { cases, .. } = element {
         // Plain stored-enum assignment through the identical enum(...)
         // inventory as the declared field. Machine lifecycle enums keep
@@ -13006,7 +13039,8 @@ fn assignment_inventory_matches(ty: &ResolvedType, field: &JsModelField) -> bool
             cases.join(","),
             if nullable { "?" } else { "" }
         );
-        return native_result_type(ty) && inventory_type(field).as_deref() == Some(expected.as_str());
+        return native_result_type(ty)
+            && inventory_type(field).as_deref() == Some(expected.as_str());
     }
     let ResolvedType::Scalar(scalar) = element else {
         return false;
@@ -13395,7 +13429,16 @@ impl<'a> Sites<'a> {
                         push!(Visit::Expression(key));
                     }
                     IrStmt::Let { value, .. } => push!(Visit::Expression(value)),
-                    IrStmt::Require { cond, .. } => push!(Visit::Expression(cond)),
+                    IrStmt::Require { cond, span } => {
+                        let source_owned = context.calls.is_empty() && ir.scenario_disclosures.get(&owner.id)
+                            .and_then(|value| value.source_facts())
+                            .and_then(|facts| facts.source_requires.as_deref())
+                            .is_some_and(|sites| sites.iter().any(|site| node_span(site.statement)==*span && node_span(site.node)==cond.span));
+                        // The emitted source observer independently seals this whole
+                        // guard and owns repeated lazy query/read lifetimes. It must
+                        // not become once-per-parent static receipt observations.
+                        if !source_owned { push!(Visit::Expression(cond)); }
+                    },
                     IrStmt::Return { value, span } => {
                         if !out.returns.insert(*span) {
                             return None;

@@ -20,12 +20,16 @@ use super::ir::{IrExpr, IrProgram};
 pub(super) struct PreparedReadPredicates {
     predicates: HashMap<Span, serde_json::Value>,
     booleans: HashMap<Span, serde_json::Value>,
+    source_requires: HashMap<Span, serde_json::Value>,
     boolean_derives: HashSet<String>,
     boolean_rules: HashSet<String>,
     closure: String,
 }
 
 impl PreparedReadPredicates {
+    pub fn source_requires(&self, ir: &IrProgram) -> Option<&HashMap<Span, serde_json::Value>> {
+        (self.closure == format!("{ir:?}")).then_some(&self.source_requires)
+    }
     pub fn boolean_rules(&self, ir: &IrProgram) -> Option<&HashSet<String>> {
         (self.closure == format!("{ir:?}")).then_some(&self.boolean_rules)
     }
@@ -106,15 +110,14 @@ pub(super) fn prepare(
     prepare_with_context(&context)
 }
 
-pub(super) fn prepare_with_context(
+fn checked_context(
     context: &super::scenario_decisions::FreshSourceContext<'_>,
-) -> Option<PreparedReadPredicates> {
+) -> Option<()> {
     let program = context.program();
     let ir = context.ir();
     let db = context.db();
     let original = context.original();
     let fresh = context.fresh();
-    let trees = context.trees();
     if original.types.given_fields != program.types.given_fields
         || original.types.given_constraints != program.types.given_constraints
         || original.types.node_types != program.types.node_types
@@ -137,6 +140,36 @@ pub(super) fn prepare_with_context(
     {
         return None;
     }
+    Some(())
+}
+
+/// Only source Require observers may prepare beside unrelated IR refusals.
+/// Ordinary read predicates/rules remain empty; the original guard, helper
+/// closure, parameters and the complete retained IR still keep their seals.
+/// Unrelated diagnostics remain and still prevent installing the whole artifact.
+pub(super) fn prepare_requires_with_context(
+    context: &super::scenario_decisions::FreshSourceContext<'_>,
+) -> Option<PreparedReadPredicates> {
+    checked_context(context)?;
+    let (source_requires, boolean_derives) = source_require_inventory(context)?;
+    Some(PreparedReadPredicates {
+        predicates: HashMap::new(),
+        booleans: HashMap::new(),
+        source_requires,
+        boolean_derives,
+        boolean_rules: HashSet::new(),
+        closure: format!("{:?}", context.ir()),
+    })
+}
+
+pub(super) fn prepare_with_context(
+    context: &super::scenario_decisions::FreshSourceContext<'_>,
+) -> Option<PreparedReadPredicates> {
+    checked_context(context)?;
+    let ir = context.ir();
+    let db = context.db();
+    let original = context.original();
+    let trees = context.trees();
     // Only the sealed pages spend the finite lookup budget. Unrelated
     // Given/When bulk remains in the checked/fresh cohort unvisited.
     let mut seal_steps = 0usize;
@@ -291,6 +324,8 @@ pub(super) fn prepare_with_context(
             return None;
         }
     }
+    let (source_requires, require_derives) = source_require_inventory(context)?;
+    boolean_derives.extend(require_derives);
     let mut boolean_rules = HashSet::new();
     for rule in ir.read_rules.iter().chain(&ir.callback_read_rules) {
         if let Some(sites)=context.serialize_rule(rule)
@@ -305,10 +340,31 @@ pub(super) fn prepare_with_context(
     Some(PreparedReadPredicates {
         predicates,
         booleans,
+        source_requires,
         boolean_derives,
         boolean_rules,
         closure: format!("{ir:?}"),
     })
+}
+
+fn source_require_inventory(
+    context: &super::scenario_decisions::FreshSourceContext<'_>,
+) -> Option<(HashMap<Span, serde_json::Value>, HashSet<String>)> {
+    let mut boolean_derives = HashSet::new();
+    let mut source_requires = HashMap::new();
+    for (span, identity) in super::scenario_decisions::serialize_scenario_requires(context)? {
+        for site in identity["sites"].as_array()? {
+            for call in site["calls"].as_array()? {
+                if call["target"]["kind"] == "derive" {
+                    boolean_derives.insert(call["target"]["name"].as_str()?.to_owned());
+                }
+            }
+        }
+        if source_requires.insert(span, identity).is_some() {
+            return None;
+        }
+    }
+    Some((source_requires, boolean_derives))
 }
 
 fn contains(outer: Span, inner: Span) -> bool {

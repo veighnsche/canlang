@@ -44,6 +44,7 @@ import { bindScenarioQuerySelection, scenarioQuerySelectionWire, type ScenarioQu
 import { bindScenarioQueryAny, checkDirectPredicateCall, checkSavedScenarioQueryAny, type ScenarioQueryAnyMetadata, type ScenarioQueryAnyProfile } from './scenario-query-any.js';
 import { bindScenarioNarrowedFields, scenarioNarrowedFieldControls, type ScenarioNarrowedFieldBinding } from './scenario-narrowed-field.js';
 import { FenceConflictError } from '../storage/port.js';
+import { evaluateInstalledReadPredicate, type InstalledSourceQueryPredicate } from '../receipt/read-policy-membership.js';
 import { bindFileReferenceProfile, fileReferenceOccurrences, type FileReferenceProfile } from '../ports/file-reference-profile.js';
 import { bindModelLexicalSnapshotProfile, modelLexicalSnapshotOccurrences,
   type ModelLexicalSnapshotProfile } from '../ports/model-lexical-snapshot.js';
@@ -2854,6 +2855,195 @@ function ownerPolicyDomains(owner: ReceiptOwnerSession, healthy: () => void) {
       assertHealthy(); return Object.freeze(current);
     };
   return {capture, retained};
+}
+
+export interface ScenarioReceiptRequireSource {
+  readonly source: ScenarioResultDisclosurePlan['source'];
+  readonly owner: string;
+  readonly node: { readonly start: number; readonly end: number };
+  readonly statement: { readonly start: number; readonly end: number };
+  readonly parameters: readonly { readonly name: string; readonly typeId: CanTypeId }[];
+  readonly sites: readonly ScenarioReceiptMembershipSite[];
+}
+/** Private literal host tracking; these callbacks issue no row authority. */
+export interface ScenarioReceiptRequireObserver {
+  readonly field: (model: string, row: StoredRow | ProjectedRecord, field: string) => void;
+  readonly query: (model: string, records: readonly ProjectedRecord[], id?: string,
+    parent?: Readonly<{ model: string; id: string }>) => void;
+}
+
+/** One original leading Require, evaluated once on the genuine admitted row.
+ * Its ordinary source queries borrow this owner stage; only reached fields,
+ * complete visible query domains and current Identity survive to the fence. */
+export async function executeScenarioReceiptRequire(call: AdmittedCall, store: StoragePort, input: {
+  readonly original: ScenarioReceiptRequireSource;
+  readonly parameter: string;
+  readonly policy: PolicyTable;
+  readonly readPolicies: (model: string) => ReadonlyMap<ModelName, ViewerSourceReadPolicy>;
+  readonly capture: (observer: ScenarioReceiptRequireObserver) => InstalledSourceQueryPredicate;
+}): Promise<boolean> {
+  const state = capture(call, store), owner = ownerSessions.get(call);
+  let acquired = false;
+  try {
+    if (owner === undefined || owner.session === null || owner.stage !== 0 || owner.busy ||
+        state.pending !== 0 || state.returnId !== null || owner.executingCall !== call ||
+        owner.callGuards.length >= MAX_ITEMS || !(input.policy instanceof Map)) {
+      return invalid('source Require needs its actual initial owner stage.');
+    }
+    const original = deepFreeze(dataCopy(input.original));
+    const sites = checkScenarioReceiptMembershipSites(original.sites);
+    const source = membershipSource(call.def as GeneratedOperationDef, state.bound);
+    const [site] = sites;
+    const owning = membershipProducers.get(call.def as GeneratedOperationDef)?.sites.filter(candidate =>
+      candidate.stage === 'leading-require' && stableStringify(candidate.node) === stableStringify(original.node) &&
+      stableStringify(candidate.statement) === stableStringify(original.statement));
+    if (original.owner !== call.def.name || stableStringify(original.source) !== stableStringify(source) ||
+        sites.length !== 1 || site === undefined || site.stage !== 'read-predicate' || site.owner !== call.def.name ||
+        stableStringify(site.source) !== stableStringify(source) ||
+        stableStringify(site.node) !== stableStringify(original.node) ||
+        stableStringify(site.statement) !== stableStringify(original.statement) || owning?.length !== 1 ||
+        stableStringify(site.calls) !== stableStringify(owning[0]!.calls)) {
+      return invalid('source Require needs its exact original guard and independently checked read observer.');
+    }
+    const reference = call.recordRefs.find(ref => ref.param === input.parameter);
+    const declared = original.parameters.find(parameter => parameter.name === input.parameter);
+    if (reference === undefined || declared?.typeId !== reference.model ||
+        original.parameters.length !== (call.def as GeneratedOperationDef).descriptor.inputs.length ||
+        new Set(original.parameters.map(parameter => parameter.name)).size !== original.parameters.length) {
+      return invalid('source Require needs its complete original parameters and admitted model slot.');
+    }
+    const occurrence = `source-require:${call.def.name}:${original.node.start}:${original.node.end}`;
+    if (owner.callGuards.some(guard => guard.name === occurrence)) return invalid('source Require must execute once.');
+    owner.busy = true; state.pending++; acquired = true;
+    const healthy = () => {
+      capture(call, store); ownerHealthy(owner);
+      if (owner.stage !== 0 || owner.executingCall !== call || !owner.busy || state.pending !== 1 || state.returnId !== null) {
+        return invalid('source Require crossed its original owner stage.');
+      }
+    };
+    const rows = new Map<string, StoredRow>();
+    const rowKey = (model: string, id: string) => `${model}\0${id}`;
+    const read = async (model: ModelName, id: RecordId): Promise<StoredRow | null> => {
+      healthy(); const row = await owner.session!.views.final.get(model, id); healthy();
+      if (row !== null) rows.set(rowKey(model, id), row);
+      return row;
+    };
+    const policyDomains = ownerPolicyDomains(owner, healthy);
+    const query = async (model: ModelName): Promise<readonly StoredRow[]> => {
+      const domain = await policyDomains.capture(model);
+      for (const row of domain) rows.set(rowKey(model, row.id), row);
+      return domain;
+    };
+    const root = await read(reference.model, reference.id);
+    if (root === null || stableStringify(root) !== stableStringify(reference.row)) {
+      throw new StateError('conflict', 'Source Require model differs from its admitted row.');
+    }
+    const policies = new Map<string, ReadonlyMap<ModelName, ViewerSourceReadPolicy>>();
+    const policyFor = (model: string) => {
+      if (!policies.has(model)) policies.set(model, captureSourceReadPolicies(input.readPolicies(model)));
+      return policies.get(model)!;
+    };
+    const fields = new Map<string, { model: ModelName; row: StoredRow; fields: Set<string> }>();
+    const domains: Array<{ model: ModelName; ids: readonly string[]; id?: RecordId;
+      parent?: Readonly<{ model: ModelName; id: RecordId }> }> = [];
+    const observe = <T>(action: () => T): T => {
+      try { healthy(); return action(); }
+      catch (error) { state.poisoned = true; owner.capture.poisoned = true; throw error; }
+    };
+    const observer: ScenarioReceiptRequireObserver = Object.freeze({
+      field: (model: string, projected: StoredRow | ProjectedRecord, field: string) => observe(() => {
+        const row = rows.get(rowKey(model, projected.id));
+        if (row === undefined || row.version !== projected.version || !state.bound.artifactModels.has(model as ModelName)) {
+          return invalid('source field needs its actual original owner row.');
+        }
+        // Metadata identity is already tied to this issued row, without a data grant.
+        if (!state.bound.artifactModels.get(model as ModelName)!.fields.some(entry => entry.name === field) && field !== 'parent') return;
+        const key = rowKey(model, row.id);
+        if (!fields.has(key)) fields.set(key, { model: model as ModelName, row, fields: new Set() });
+        fields.get(key)!.fields.add(field); policyFor(model);
+      }),
+      query: (model: string, records: readonly ProjectedRecord[], id?: string,
+        parent?: Readonly<{ model: string; id: string }>) => observe(() => {
+        if (domains.length >= MAX_ITEMS || !state.bound.artifactModels.has(model as ModelName) ||
+            records.some(record => rows.get(rowKey(model, record.id))?.version !== record.version)) {
+          return invalid('source query needs its complete genuine owning domain.');
+        }
+        policyFor(model);
+        domains.push({ model: model as ModelName, ids: Object.freeze(records.map(record => record.id)),
+          ...(id === undefined ? {} : { id: id as RecordId }),
+          ...(parent === undefined ? {} : { parent: { model: parent.model as ModelName, id: parent.id as RecordId } }) });
+      }),
+    });
+    const predicate = input.capture(observer);
+    if (typeof predicate !== 'function') return invalid('source Require needs its installed original predicate.');
+    const memberships = scenarioReceiptMemberships(owner.call, store), actorUserId = call.context.actor?.userId ?? null,
+      teamId = call.context.team?.teamId ?? null;
+    const membership = actorUserId === null || teamId === null ? null : await memberships.findMembership(teamId, actorUserId);
+    healthy();
+    const context: ByContext = { actorUserId, teamId, membership, memberships };
+    const project = (model: ModelName, row: StoredRow, observed: ByContext,
+      load: typeof read, assertHealthy: () => void, policyQuery = policyDomains.capture) =>
+      projectInstalledSourceRowAndAncestors({ model, row, readPolicies: policyFor(model), policy: input.policy,
+        context: observed, revision: call.revision, fence: undefined, store, rows: new Map([[rowKey(model, row.id), row]]),
+        ownerRows: { read: load, assertHealthy, policyQuery } });
+    let answer: boolean | undefined;
+    const authority = await observeRowGrantAuthority(context, async observed => {
+      // The first pass records all actual source subjects. Snapshot validation
+      // may call this collector again; the original authored guard runs once.
+      if (answer !== undefined) return answer;
+      const projected = await project(reference.model, root, observed, read, healthy);
+      healthy();
+      if (projected.record === null) throw new StateError('forbidden', 'Source Require record is not readable.');
+      answer = await evaluateInstalledReadPredicate(predicate, projected.record, {
+        context: observed, row: { ...root, data: projected.record.data }, revision: call.revision, fence: undefined,
+        sourcePresence: Object.freeze(Object.keys(root.data)),
+      }, store, { read, assertHealthy: healthy, query, policyQuery: policyDomains.capture });
+      healthy(); return answer;
+    });
+    await authority.revalidate(); healthy();
+    owner.callGuards.push(Object.freeze({ name: occurrence, evaluate: async () => {
+      const final = owner.finalized;
+      if (final === null) return invalid('source Require needs actual finalized owner effects.');
+      const finalHealthy = () => {
+        if (owner.finalized !== final || owner.capture.poisoned) return invalid('source Require final capture changed.');
+      };
+      const finalRead = async (model: ModelName, id: RecordId): Promise<StoredRow | null> => {
+        finalHealthy();
+        const write = final.writes.find(write => write.model === model && (write.kind === 'insert' ? write.row.id : write.id) === id);
+        const row = write === undefined ? await store.cohortLoad({ model, id, expectedRevision: call.revision }) :
+          write.kind === 'remove' ? null : write.row;
+        finalHealthy(); return row;
+      };
+      const finalDomains = policyDomains.retained(finalHealthy, final.writes);
+      const current = await observeRowGrantAuthority(context, async observed => {
+        for (const reached of fields.values()) {
+          const row = await finalRead(reached.model, reached.row.id);
+          if (row === null || !sameModelLifetime(reached.row, row)) throw new StateError('forbidden', 'Source Require row lifetime changed.');
+          const projected = await project(reached.model, row, observed, finalRead, finalHealthy, finalDomains);
+          if (projected.record === null || [...reached.fields].some(field => field === 'parent'
+            ? projected.record!.parent == null : !Object.hasOwn(projected.record!.data, field))) {
+            throw new StateError('forbidden', 'Source Require consumed field authority changed.');
+          }
+        }
+        for (const domain of domains) {
+          const candidates = domain.id === undefined ? await finalDomains(domain.model, domain.parent) :
+            [await finalRead(domain.model, domain.id)].filter((row): row is StoredRow => row !== null);
+          const ids: string[] = [];
+          for (const row of candidates) {
+            const projected = await project(domain.model, row, observed, finalRead, finalHealthy, finalDomains);
+            if (projected.record !== null) ids.push(projected.record.id);
+          }
+          if (stableStringify(ids) !== stableStringify(domain.ids)) throw new StateError('forbidden', 'Source Require visible query domain changed.');
+        }
+        return true;
+      });
+      await current.revalidate(); await authority.revalidate(); finalHealthy();
+      if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Source Require moved beyond its original revision.');
+      return true;
+    } }));
+    return authority.value;
+  } catch (error) { state.poisoned = true; if (owner !== undefined) owner.capture.poisoned = true; throw error; }
+  finally { if (acquired) { state.pending--; owner!.busy = false; } }
 }
 
 /** Borrow only this complete root predicate domain. Source-policy collections

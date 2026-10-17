@@ -2,7 +2,7 @@
 
 ## Current remainder and finite completion
 
-**State: awaiting human agreement. Muse's native goal remains paused and supervision is disabled. The matching automation has been removed from the app and was not recreated. This document releases no implementation, workers, tests, captures or integrations.**
+**State: the human authorized the first scoped repair, original CanCustomer `recover`, on 2026-10-18; that component is now implemented and validated below. The rest of this plan still awaits agreement. Muse remains stopped and supervision disabled; no automation, Muse session or extra implementation worktree was started.**
 
 This is the **one execution plan** for the existing Can18 work: original CanCRM composition, existing outcomes 1–18 / C01–C24, and their already required executable/reference consumers. Shared work is counted once; consumers link to its output. Other roadmaps supply contracts and dependencies, not extra assignments. Product requirements remain in REQUIREMENTS, behavior in DESIGN and syntax in GRAMMAR.
 
@@ -12,12 +12,12 @@ The former 8,333-line completion journal is preserved as [historical evidence](h
 
 | Item | Current fact |
 | --- | --- |
-| Canonical checkout | `/Users/vince/Projects/canlang`, branch `main`, committed through `44e6332c052a4900f572d70ee791b9ffba423c32` before this planning edit |
-| Released code review | Complete through that commit: 190 distinct in-scope code paths. Review coverage does not establish workflow completion. |
-| Latest original24 | Frozen post-authentication producer: actual compiler exit **10**, complete=true, omitted=0, 26 source records including the unchanged 24 authored inputs; **276 E6008**, no artifact. Full diagnostic multiset unchanged: 0 removed / 0 added. |
-| Producer / catalog | Compiler SHA-256 `d312ddaa2f1a4c1217b555248f9331e1a882cb08bd4dab46971e6ee2ac1effd1`; catalog `ca50fdca852170b09f95ec4adb97cc63ddabf26437629c02dfd234991bc486a8` |
-| Existing raw inputs/evidence | `/tmp/can18-merge66-capture.json`, `/tmp/can18-capture-merge66.py`, `/private/tmp/cancrm-helper-invariants-card-20261015-argv.json`; frozen compiler/catalog under `/tmp/can18-merge66/`; supervision/handoff in the existing `can-conformance-20261015/monitor.json` |
-| Unfinished source | Preserve `compiler/src/codegen/scenario_receipts.rs` temporary test-module wiring and untracked `compiler/src/codegen/zz_dbg_recover.rs`, plus scratch probes/logs. These are unreleased diagnosis, not a production repair; decide their disposition with the next owning change. |
+| Canonical checkout | `/Users/vince/Projects/canlang`, branch `main`; user documentation commits through `e3ba3c9e2` are preserved before this repair |
+| Released code review | Retain the complete `44e6332c0` checkpoint/190 paths. The recover batch has its own complete 18-code-path review; neither review establishes full workflow completion. |
+| Latest original24 | Post-recover producer: actual compiler exit **10**, complete=true, omitted=0, 26 source records including the unchanged 24 authored inputs; **275 E6008**, no whole-composition artifact. Exactly the original recover refusal at CanCustomer165 was removed; 0 diagnostics added. Remaining CanCustomer refusal: accept135. |
+| Producer / catalog | Compiler SHA-256 `f98a156c4f254a9fa1d6998dd1ae36c711401503af58f0b012312a0a56c6a177`; catalog `ca50fdca852170b09f95ec4adb97cc63ddabf26437629c02dfd234991bc486a8` |
+| Existing raw inputs/evidence | `/tmp/cancrm-recover-original24.json` (488.10s), prior `/tmp/can18-merge66-capture.json`, `/private/tmp/cancrm-helper-invariants-card-20261015-argv.json`; frozen compiler/catalog under `/tmp/can18-merge66/`; supervision/handoff in the existing `can-conformance-20261015/monitor.json` |
+| Unfinished source | Old paused diagnostics remain preserved in stash `baecef7f8a745c08ef20b373cd81fc7e4cd006fa`; do not reapply them over the released repair. Temporary tracing was removed. The permanent original-source consumer is `packages/cloudflare/test/native-customer-recover.test.ts`. |
 
 Do not derive a completion percentage from goal progress, commit counts, diagnostic counts or reviewed paths. Do not rebuild merely because a commit label changed; use the actual producer/input identity.
 
@@ -34,8 +34,9 @@ These accepted components stay closed. Their original consumers and negative che
 | Hook engine, parent/value/helper plumbing, per-fire caller projection and selected-site linkage fix | Merges24/26, `f24306ab1`, `a284ffe3f`; actual joint consumers | Unsupported whole original hook graphs and open authority findings below; repaired 175-error linkage regression stays closed |
 | First/count/ancestor and contained-first engines; first-query receiver/conjunction/enum/member/navigation/actorFacts/void prerequisites | Accepted source and installed consumers, merges37–61 | Original scenarios, handlers and derives must still compose their actual guards/effects |
 | Created-model contract census/import identity and plain enum member data transport | Merge62, `70851154a`, `daa5f85ac`, `68d9361e5`; source/installed and genuine retained-facts tamper checks | Separately refused contract-owned nominal / same-model-param variants only where an original consumer needs them |
-| Direct leading **negated stored-query ANY + first**, with source/call ownership | `c63220f72`; compiler6, retained-IR3, State11, installed2 including 10 tamper/no-write cases | Positive ANY, helper/reference-array closures and full CanCustomer bodies |
-| Authenticated admission for that exact composition | `a3bbbbc2c`, reconciled `44e6332c0`; compiler7 and installed1, authenticated nonmember denied at source-field grants | Other accept guards, richer tail and recover; neither original Customer span cleared |
+| Direct leading **negated stored-query ANY + first**, with source/call ownership | `c63220f72`; compiler6, retained-IR3, State11, installed2 including 10 tamper/no-write cases | Positive stored ANY and remaining full CanCustomer bodies; recover is separately accepted below |
+| Authenticated admission for that exact composition | `a3bbbbc2c`, reconciled `44e6332c0`; compiler7 and installed1, authenticated nonmember denied at source-field grants | Remaining full accept guards/effects; recover has separate acceptance below |
+| Original Customer recover guard/body | This repair: original declarations/helper/read policies and unchanged recover body compiled and executed against installed D1/Identity (1/1, 281.28s); 43 compiler checks, full24 removes its exact refusal with no additions | Full accept, independent hooks and the other 275 original-composition errors remain open |
 | Recorded `delivery.id` persistence and dispatch fencing slices | `69579880f`, merge47 and recorded fence/field-grant consumers | Original cancel/retry shapes, stale-source mismatches and the open test correction |
 | Other closed finite original scopes | Guarded Email, supported Office A1–A6, original Chat source/optional-input/SEND prerequisites, scoped File and current-revision primitives: reuse the linked historical acceptance | Only the separately named runtime/host/whole-source consumers below remain |
 
@@ -59,7 +60,7 @@ The headings below group the existing outcomes; they are not new task IDs. An un
 
 **Ready local work; several causes still need isolation.** Owners: `scenario_disclosure.rs`, `scenario_queries.rs`, `scenario_receipts.rs`, `scenario_decisions.rs`, `scenario_feasibility.rs`, `js.rs`; State `scenario-query-plan.ts`, `scenario-query-selection.ts`, `scenario-receipt.ts`; Cloudflare `scenario-receipt-frame.ts` / `invoke.ts`.
 
-1. **Original CanCustomer recover:** `by=customer_manager`, `customer_staff(actor,org)` → positive `any(org.locations … can_work(person,location))`, then first/create-or-reactivate. `locations` is a **Location[] reference array** with an imported helper, not a stored-model scan. Preserve custom role, current row/field authority, helper context and lazy order.
+1. **Closed at its original guard/body scope — CanCustomer recover:** `by=customer_manager`, `customer_staff(actor,org)` → positive `any(org.locations … can_work(person,location))`, then first/create-or-reactivate. `locations` is a **Location[] reference array** with an imported helper, not a stored-model scan. Custom role, current row/field authority through commit, helper context, lazy order, both branches and replay are validated by actual compiled Can. Reuse this output; do not reopen it as another helper prerequisite. The unrelated whole-cohort IR gate no longer orphans this independently sealed observer; ordinary predicate/send gates stay strict.
 2. **Additional demonstrated discriminator:** a leading positive stored `require any(p.C …)` plus a companion first produces E6008; the debug disclosure declines with “query closure is not supported” before the ANY enters the plan. This proves that finite source-inventory gap only. It does not prove that mirroring the stored-ANY recipe implements recover's reference-array/helper closure.
 3. **Original CanCustomer accept:** compose verified-email/address/status/expiry/parent guards, `has_role` and location `all` helpers, the accepted negated ANY + first prerequisite, create-or-reactivate, invitation update and emission. Keep the actual authored inputs and examples. The full operation is still open.
 4. **Other first-query refusals:** identify each original consumer's first declined defining function and group consumers sharing that mechanism. The 90 occurrences comprise 18 scenario, 67 handler and 5 derive sites; they are neither 90 tasks nor proof of one common fix. Derive consumers must not be forced into scenario-only receipt profiles. Handler sites consume the required hook output below, not completion of all hook work.
