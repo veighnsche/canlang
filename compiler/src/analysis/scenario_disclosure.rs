@@ -9984,6 +9984,34 @@ impl<'a> Closure<'a> {
                 ..ValuePath::default()
             }]);
         }
+        // Checked contextual actor facts (CAN18-v1 actor guard slice): the
+        // literal `actor` context exposes exactly `email`/`email_verified`
+        // through the existing `actorFacts` carrier (same field/type pairs
+        // the IR decoder and policy profile already honor). The resolver
+        // binds only the literal context spelling (grouping-transparent via
+        // `query_binding`); aliases, user-typed inputs, and hook bindings
+        // never match, so they keep the stored-read refusal below. No store
+        // grant is recorded: the host supplies these caller facts with the
+        // invocation context, and emission lowers them to `c.actorFacts`.
+        if calls.is_empty()
+            && self.loop_node.is_none()
+            && matches!(
+                self.query_binding(base_key),
+                Some(Binding::Context(ContextVar::Actor(_)))
+            )
+            && matches!(
+                (field_name, ty),
+                ("email", ResolvedType::Scalar(Scalar::Email))
+                    | ("email_verified", ResolvedType::Scalar(Scalar::Bool))
+            )
+            && self
+                .types
+                .node_types
+                .get(&self.query_group(base_key).unwrap_or(base_key))
+                == Some(&ResolvedType::Scalar(Scalar::User))
+        {
+            return Ok(vec![ValuePath::default()]);
+        }
         let mut values = self.expr(base_key, module, env, calls)?;
         if self.types.node_types.get(&base_key) == Some(&ResolvedType::Scalar(Scalar::Money))
             && matches!(

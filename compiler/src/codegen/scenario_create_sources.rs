@@ -4091,6 +4091,112 @@ impl SourceExpressions<'_> {
                     && base.ty == ResolvedType::Unknown
                     && base.span == actual.span
             }
+            // Checked contextual actor facts (CAN18-v1 actor guard slice):
+            // the IR decoder rewrites literal `actor.email` /
+            // `actor.email_verified` to `c.actorFacts.<field>` (same
+            // field/type pairs the decoder and policy profile honor).
+            // Admit exactly that sealed shape against the authored
+            // `actor.<field>` occurrence: the authored base is the literal
+            // actor name with checked User type, and the final authored
+            // name, IR field, and checked types agree. Aliases and
+            // user-typed inputs never lower to `c.actorFacts`, so they
+            // keep the refusal below. No store grant is involved: the
+            // host supplies these caller facts with the invocation context.
+            (IrExpr::Member { base, field }, SyntaxKind::Member)
+                if self.operands
+                    && matches!(
+                        (field.as_str(), &actual.ty),
+                        ("email", ResolvedType::Scalar(Scalar::Email))
+                            | ("email_verified", ResolvedType::Scalar(Scalar::Bool),)
+                    )
+                    // Scope this arm to the genuine decoded contextual
+                    // receiver: ordinary stored `email`-typed member reads
+                    // must keep the existing generic path below, so only
+                    // the exact `c.actorFacts` shape enters here.
+                    && matches!(
+                        &base.expr,
+                        IrExpr::Member {
+                            base: facts_base,
+                            field: facts
+                        } if facts == "actorFacts"
+                            && matches!(&facts_base.expr, IrExpr::Name(context) if context == "c")
+                    ) =>
+            {
+                // The decoder's sealed contextual shape is exactly
+                // `c.actorFacts.<field>` over the synthetic context root:
+                // bind every nested receiver (not just the outer field)
+                // before comparing against the authored occurrence below.
+                let IrExpr::Member {
+                    base: facts_base,
+                    field: facts,
+                } = &base.expr
+                else {
+                    return None;
+                };
+                if facts != "actorFacts" {
+                    return None;
+                }
+                let IrExpr::Name(context) = &facts_base.expr else {
+                    return None;
+                };
+                if context != "c" {
+                    return None;
+                }
+                let [source_base] = children.as_slice() else {
+                    return None;
+                };
+                let name = node
+                    .children
+                    .iter()
+                    .rev()
+                    .find(|child| child.kind == SyntaxKind::Name)?;
+                if name.token()?.text(self.text) != field {
+                    return None;
+                }
+                // Grouping is transparent (mirrors the query receiver
+                // normalization): descend through authored groups to the
+                // literal actor occurrence before checking its spelling
+                // and checked type.
+                let mut base_key = crate::analysis::NodeKey::of(source_base);
+                for _ in 0..64 {
+                    let base_node = self.nodes.get(&base_key)?;
+                    if base_node.kind != SyntaxKind::Group {
+                        break;
+                    }
+                    let grouped = expressions(base_node);
+                    let [child] = grouped.as_slice() else {
+                        return None;
+                    };
+                    base_key = crate::analysis::NodeKey::of(child);
+                }
+                let base_node = self.nodes.get(&base_key)?;
+                if single_name(base_node, self.text)? != "actor" {
+                    return None;
+                }
+                if !self
+                    .original
+                    .expression_types
+                    .iter()
+                    .any(|(at, ty)| *at == base_key && ty == &ResolvedType::Scalar(Scalar::User))
+                {
+                    return None;
+                }
+                // Pin every introduced decoded receiver against its honest
+                // decoder shape (parallel to the query receiver seal): the
+                // middle `actorFacts` member keeps the caller-row User type
+                // over the exact authored actor occurrence, and the inner
+                // synthetic context root is the Unknown `c` over the exact
+                // pre-unwrap wrapper occurrence. Same-facts mutations to
+                // these nested types/occurrences keep the refusal below.
+                if base.ty != ResolvedType::Scalar(Scalar::User)
+                    || base.span != base_node.span
+                    || facts_base.ty != ResolvedType::Unknown
+                    || facts_base.span != source_base.span
+                {
+                    return None;
+                }
+                true
+            }
             (IrExpr::Member { base, field }, SyntaxKind::Member) if self.operands => {
                 let [source_base] = children.as_slice() else {
                     return None;
@@ -6149,6 +6255,102 @@ Then
                 )
                 .is_none(),
                 "{mode}: tampered arm set must refuse"
+            );
+        }
+    }
+
+    const ACTOR_FACT_SOURCE: &str = "app ActorFacts\nGiven\n P {v:int}\n C in P {v:int,role:text}\n D {w:int}\n policy P read=members fields=v\n policy C read=members fields=parent,v,role\n policy D read=members fields=w\nWhen\n crud P by=members fields=v\n crud C by=members fields=parent,v,role\n scenario go(p:P,n:int,r:text) -> int by=members\n  do\n   require actor.email_verified\n   let c=first(p.C as c where c.v==n and c.role==r order=c.id)\n   require c!=null\n   create D {w=n} as d\n   return 1\nThen\n";
+
+    fn actor_fact_guard(
+        ir: &IrProgram,
+    ) -> (
+        TypedExpr,
+        crate::source::Span,
+        crate::analysis::scenario_disclosure::CheckedScenarioCreate,
+    ) {
+        let owner = ir
+            .items
+            .iter()
+            .find(|item| item.canonical == "ActorFacts.go")
+            .unwrap();
+        let IrItemKind::Scenario {
+            guards, effects, ..
+        } = &owner.kind
+        else {
+            panic!("scenario")
+        };
+        let guard = guards
+            .iter()
+            .chain(effects.iter())
+            .find_map(|statement| match statement {
+                IrStmt::Require { cond, .. } if matches!(&cond.expr, IrExpr::Member { .. }) => {
+                    Some(cond.clone())
+                }
+                _ => None,
+            })
+            .unwrap();
+        let fact = ir.scenario_disclosures[&owner.id]
+            .source_facts()
+            .unwrap()
+            .creates
+            .as_deref()
+            .unwrap()
+            .first()
+            .unwrap()
+            .clone();
+        let span = guard.span;
+        (guard, span, fact)
+    }
+
+    #[test]
+    fn actor_fact_guard_keeps_checked_correspondence() {
+        let (db, ir) = fixture_for(ACTOR_FACT_SOURCE, "actor-fact-guard.can");
+        let (cond, span, original) = actor_fact_guard(&ir);
+        assert!(
+            checked_create_expression(&ir, &original, &cond, node_at(&db, span), &db).is_some(),
+            "honest actor fact guard keeps its source correspondence"
+        );
+    }
+
+    #[test]
+    fn actor_fact_nested_receiver_tamper_refuses() {
+        let (db, ir) = fixture_for(ACTOR_FACT_SOURCE, "actor-fact-guard.can");
+        let (cond, span, original) = actor_fact_guard(&ir);
+        let node = node_at(&db, span);
+        for mutation in 0..5 {
+            let mut changed = cond.clone();
+            let IrExpr::Member { base: middle, .. } = &mut changed.expr else {
+                panic!("outer actor fact member")
+            };
+            let IrExpr::Member { base: inner, .. } = &mut middle.expr else {
+                panic!("middle actorFacts member")
+            };
+            match mutation {
+                // Same facts, span and outer shape: only the middle
+                // receiver type changes (User is the honest decoder shape).
+                0 => middle.ty = ResolvedType::Scalar(Scalar::Bool),
+                // Same facts and types: only the middle occurrence moves.
+                1 => middle.span.start += 1,
+                // Same facts and types: the synthetic context root is renamed.
+                2 => {
+                    let IrExpr::Name(name) = &mut inner.expr else {
+                        panic!("synthetic context root")
+                    };
+                    *name = "other".into();
+                }
+                // Same facts, name and span: the synthetic root gains a type.
+                3 => inner.ty = ResolvedType::Scalar(Scalar::Bool),
+                // Same span and types: the outer field names another fact.
+                _ => {
+                    let IrExpr::Member { field, .. } = &mut changed.expr else {
+                        panic!("outer actor fact member")
+                    };
+                    *field = "email".into();
+                }
+            }
+            assert!(
+                checked_create_expression(&ir, &original, &changed, node, &db).is_none(),
+                "nested actor fact tamper {mutation} must refuse"
             );
         }
     }
