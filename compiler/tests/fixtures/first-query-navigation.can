@@ -1,10 +1,11 @@
 app NavProbe
 Given
+ role auditor
  P {v:int}
  C in P {v:int,account:user,role:enum(administrator,booker)}
  D {w:int}
  I in P {v:int,role:C.role}
- policy P read=members fields=v
+ policy P read=auditor fields=v
  policy C read=members fields=parent,v,account,role
  policy D read=members fields=w
  policy I read=members fields=parent,v,role

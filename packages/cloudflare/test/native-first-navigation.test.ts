@@ -114,18 +114,22 @@ async function setup() {
   const baseTime = Date.now(); let now = baseTime;
   const clock = { nowMs: () => now }, identities = createD1IdentityStore(identityDb, { clock });
   const team = await identities.createTeam({ timezone: 'UTC' });
-  async function actor(email: string) {
+  async function actor(email: string, roles: string[] = []) {
     const user = await identities.createUser({ email, password_hash: 'unused', email_verified: true });
-    const membership = await identities.createMembership({ team_id: team.team_id, user_id: user.user_id, is_owner: false, roles: [] });
+    const grants = roles.map(role => ({ role: `${APP}.${role}`, granted_at: new Date(baseTime).toISOString(), granted_by: user.user_id }));
+    const membership = await identities.createMembership({ team_id: team.team_id, user_id: user.user_id, is_owner: false, roles: grants });
     const token = `native-first-navigation-${user.user_id}`;
     await identities.createSession({ user_id: user.user_id, token_sha256: await sha256HexText(token),
       last_team_id: team.team_id, expires_at: new Date(baseTime + 3600_000).toISOString() });
     const current = () => resolveIdentity(identities, { session_token: token }, { clock });
     return { membership, current, identity: await current() };
   }
-  const member = await actor('first-navigation-member@example.test');
-  const other = await actor('first-navigation-other@example.test');
-  const norows = await actor('first-navigation-norows@example.test');
+  const member = await actor('first-navigation-member@example.test', ['auditor']);
+  const other = await actor('first-navigation-other@example.test', ['auditor']);
+  const norows = await actor('first-navigation-norows@example.test', ['auditor']);
+  // Member without the parent read role: keeps operation membership
+  // but cannot read the navigated parent row.
+  const unaudited = await actor('first-navigation-unaudited@example.test');
   const outsider = await identities.createUser({ email: 'first-navigation-outsider@example.test', password_hash: 'unused', email_verified: true });
   const outsiderToken = 'native-first-navigation-outsider';
   await identities.createSession({ user_id: outsider.user_id, token_sha256: await sha256HexText(outsiderToken),
@@ -147,7 +151,7 @@ async function setup() {
     return { id: ref.id, version: String(ref.version) };
   }
   return { directory, worker, artifact, originalArtifact, originalSource, capture, captureIsCurrent,
-    invoker, store, identities, member, other, norows, outsiderIdentity, envelope, create, clock,
+    invoker, store, identities, member, other, norows, unaudited, outsiderIdentity, envelope, create, clock,
     setNow: (delta: number) => { now = baseTime + delta; } };
 }
 
@@ -155,7 +159,7 @@ test('native navigation-parent first query selects within the navigated parent w
   { timeout: 180000 }, async () => {
     const t = await setup();
     try {
-      const { invoker, store, identities, member, other, norows, outsiderIdentity, envelope, create, setNow } = t;
+      const { invoker, store, identities, member, other, norows, unaudited, outsiderIdentity, envelope, create, setNow } = t;
       const dRows = async () => (await store.query({ model: D, authority: 'owner' }) as unknown as Array<{ data: Record<string, unknown> }>);
       setNow(10);
       const p1 = await create(`${APP}.P.create`, { v: '1' });
@@ -166,17 +170,22 @@ test('native navigation-parent first query selects within the navigated parent w
       async function seedInvitation(parent: { id: string }, v: string, role: string) {
         return create(`${APP}.I.create`, { parent: { id: parent.id }, v, role });
       }
-      // P1 children: member holds v=8, other holds v=7.
+      // P1 children: member holds v=8, and the unaudited caller holds a
+      // v=8 row whose predicate fully matches (used by the denial case
+      // to prove the parent gate alone refuses).
       await seedChild(p1, member.membership.user_id, '8', 'administrator');
-      await seedChild(p1, other.membership.user_id, '7', 'booker');
-      // P2 child is a full match for the member that must NOT leak
-      // across the navigation boundary.
-      await seedChild(p2, member.membership.user_id, '7', 'administrator');
+      await seedChild(p1, unaudited.membership.user_id, '8', 'administrator');
       const i7 = await seedInvitation(p1, '7', 'administrator');
+      const i8 = await seedInvitation(p1, '8', 'administrator');
+      // P2 children: other holds v=7, and member holds a v=7 row that
+      // must NOT leak across the navigation boundary.
+      await seedChild(p2, other.membership.user_id, '7', 'booker');
+      await seedChild(p2, member.membership.user_id, '7', 'administrator');
+      const iOther = await create(`${APP}.I.create`, { parent: { id: p2.id }, v: '7', role: 'booker' }, other.identity);
 
       // Matching row under the navigated parent selects.
       setNow(20);
-      const firstEnvelope = envelope(`${APP}.go_nav`, { p: p1, i: i7, n: '8' });
+      const firstEnvelope = envelope(`${APP}.go_nav`, { p: p1, i: i8, n: '8' });
       {
         const outcome = await invoker.invokeMutation(firstEnvelope, member.identity);
         assert.ok('result' in outcome, JSON.stringify(outcome));
@@ -208,11 +217,11 @@ test('native navigation-parent first query selects within the navigated parent w
       }
 
       // Caller scoping through the actor conjunct: other selects its
-      // own v=7 row under P1.
+      // own v=7 row under its own parent P2.
       setNow(50);
       {
         const outcome = await invoker.invokeMutation(
-          envelope(`${APP}.go_nav`, { p: p1, i: i7, n: '7' }), other.identity);
+          envelope(`${APP}.go_nav`, { p: p2, i: iOther, n: '7' }), other.identity);
         assert.ok('result' in outcome, JSON.stringify(outcome));
         assert.equal(outcome.result.status, 'committed');
       }
@@ -220,9 +229,23 @@ test('native navigation-parent first query selects within the navigated parent w
       // A member with no rows matches nothing.
       {
         const dCount = await dRows().then(rows => rows.length);
-        const outcome = await invoker.invokeMutation(envelope(`${APP}.go_nav`, { p: p1, i: i7, n: '8' }), norows.identity);
+        const outcome = await invoker.invokeMutation(envelope(`${APP}.go_nav`, { p: p1, i: i8, n: '8' }), norows.identity);
         assert.ok('error' in outcome, JSON.stringify(outcome));
         assert.equal(outcome.error.code, 'rule_failed', JSON.stringify(outcome));
+        assert.equal(await dRows().then(rows => rows.length), dCount);
+      }
+
+      // The navigated parent row is withheld from this caller: without
+      // the auditor role the query parent lifetime is unavailable, even
+      // though the caller's own v=8 row fully matches the predicate,
+      // the invitation input is valid, and operation membership (plain
+      // members) is retained.
+      {
+        const dCount = await dRows().then(rows => rows.length);
+        const outcome = await invoker.invokeMutation(
+          envelope(`${APP}.go_nav`, { p: p1, i: i8, n: '8' }), unaudited.identity);
+        assert.ok('error' in outcome, JSON.stringify(outcome));
+        assert.equal(outcome.error.code, 'forbidden', JSON.stringify(outcome));
         assert.equal(await dRows().then(rows => rows.length), dCount);
       }
 
@@ -287,10 +310,12 @@ test('native navigation-parent member-operand query reads the invitation field o
       const dRows = async () => (await store.query({ model: D, authority: 'owner' }) as unknown as Array<{ data: Record<string, unknown> }>);
       setNow(10);
       const p1 = await create(`${APP}.P.create`, { v: '1' });
+      const p2 = await create(`${APP}.P.create`, { v: '2' });
       await create(`${APP}.C.create`, { parent: { id: p1.id }, account: { id: member.membership.user_id }, v: '7', role: 'administrator' });
-      await create(`${APP}.C.create`, { parent: { id: p1.id }, account: { id: other.membership.user_id }, v: '7', role: 'booker' });
+      await create(`${APP}.C.create`, { parent: { id: p2.id }, account: { id: other.membership.user_id }, v: '7', role: 'booker' });
       const iAdmin = await create(`${APP}.I.create`, { parent: { id: p1.id }, v: '1', role: 'administrator' });
       const iBooker = await create(`${APP}.I.create`, { parent: { id: p1.id }, v: '1', role: 'booker' });
+      const iBooker2 = await create(`${APP}.I.create`, { parent: { id: p2.id }, v: '1', role: 'booker' }, other.identity);
 
       // Matching invitation field selects the member's administrator row.
       setNow(20);
@@ -311,11 +336,12 @@ test('native navigation-parent member-operand query reads the invitation field o
         assert.equal(await dRows().then(rows => rows.length), dCount);
       }
 
-      // Same booker invitation selects for its own holder.
+      // Same booker invitation selects for its own holder under its
+      // own parent.
       setNow(40);
       {
         const outcome = await invoker.invokeMutation(
-          envelope(`${APP}.go_nav_role`, { p: p1, i: iBooker }), other.identity);
+          envelope(`${APP}.go_nav_role`, { p: p2, i: iBooker2 }), other.identity);
         assert.ok('result' in outcome, JSON.stringify(outcome));
         assert.equal(outcome.result.status, 'committed');
       }
