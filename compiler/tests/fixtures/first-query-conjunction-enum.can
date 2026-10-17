@@ -1,0 +1,24 @@
+app ConjEnumSources
+Given
+ P {v:int}
+ C in P {account:user,role:enum(administrator,booker)}
+ D {w:int}
+ policy P read=members fields=v
+ policy C read=members fields=parent,account,role
+ policy D read=members fields=w
+When
+ crud P by=members fields=v
+ crud C by=members fields=parent,account,role
+ scenario go_enum(p:P,r:C.role) -> int by=members
+  do
+   let c=first(p.C as c where c.account==actor and c.role==r order=c.id)
+   require c!=null
+   create D {w=1} as d
+   return 1
+ scenario go_lit(p:P) -> int by=members
+  do
+   let c=first(p.C as c where c.role==administrator order=c.id)
+   require c!=null
+   create D {w=2} as d
+   return 1
+Then
