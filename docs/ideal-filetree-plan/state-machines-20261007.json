@@ -75633,5 +75633,58 @@
     "target_disposition": "existing defining owners retained; new focused tests belong with compiler/tests, the defining in-crate owner, and the owning package suites; no source moves, package redesign or new product scope",
     "checkpoint_advanced": false,
     "remaining_gates": "original24 and required executable consumers remain open; original authenticated accept and reference-array helper recover stay ready work; inherited complete semantic/target review unchanged"
+  },
+  "can18_merge_66_20261017": {
+    "incremental_base": "e9bc3d420968fd6f2666b51b02abb3fa418d1d80",
+    "incoming_end": "a3bbbbc2ce6b4ddf6884b7e8f4210a7d9d36ccee",
+    "retained_coverage": "reuse spec_installer_merge_reconciliation_20261015 and preceding CAN18 incremental merge entries; inherited complete checkpoint unchanged",
+    "changed_path_count": 8,
+    "rows": [
+      [
+        "compiler/src/analysis/scenario_disclosure.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/any_first_composition.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/fixtures/any-first-authenticated.can",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "packages/cloudflare/test/native-any-first-authenticated.test.ts",
+        "cloudflare",
+        "existing package source/test owner"
+      ],
+      [
+        "docs/ideal-filetree-plan.md",
+        "Specification",
+        "existing accepted design/decision owner"
+      ],
+      [
+        "docs/ideal-filetree-plan/state-machines-20261007.json",
+        "Specification",
+        "existing accepted design/decision owner"
+      ],
+      [
+        "docs/specification/DECISIONS.md",
+        "Specification",
+        "existing accepted design/decision owner"
+      ],
+      [
+        "implementation/compiler-completion/README.md",
+        "Compiler completion",
+        "existing finite execution record"
+      ]
+    ],
+    "choice": "Authenticated any/first composition (original accept shape) via narrow admission widening at checked_any_query_source only; sibling owners untouched.",
+    "validation": "Compiler source-shapes 7/7 (new authenticated admission), installed authenticated consumer 1/1 (commit/replay/active-refusal/stranger/mismatch/outsider-forbidden/revocation, each with unchanged D rows); retained-IR 3/3, State 11/11, members installed 2/2 reused unchanged.",
+    "target_disposition": "existing defining owners retained; new focused tests belong with compiler/tests and the owning package suite; no source moves, package redesign or new product scope",
+    "checkpoint_advanced": false,
+    "remaining_gates": "original24 and required executable consumers remain open; reference-array helper recover stays ready work; inherited complete semantic/target review unchanged"
   }
 }
