@@ -204,6 +204,10 @@ Guard-consumed conjunction slice with decision consumer. Incoming interval `d022
 
 Contained private-decision grant repair (0346/0411). Incoming interval `6137c3a93..HEAD` accounts for 7 changed paths in `can18_merge_50_20261017` of the existing registry. Compiler emission + State registration/observation owners; cloudflare 4/4 frozen with viewer-denial and revocation proofs, rust/state neighbors green. Existing defining owners and target allocations remain; focused new fixture stays with Compiler. Reuse prior accumulated coverage; complete checkpoint remains unchanged. Original24 and required executable consumers remain open. Unfinished work stays in the running Muse checkout.
 
+### CAN18 incremental integration — can18_merge_51_20261017
+
+If-branch conditional creates with nested/trailing Set source correspondence (0526 receiver-name repair 0551). Finite contained family with per-effect authorization; tampered IR operand/span/name refuses; installed live-branch consumer with rollback/replay. Frozen ifbranch original24 276 identical multiset; stale 298/359 corrected. Incoming interval `a5dbe4790..HEAD` accounts for 8 changed paths in `can18_merge_51_20261017` of the existing registry. ifbranch 7/7, receiver units 2/2, side_effect 10/10, hook_first 11/11, native_first 17/17, sources 7/7, installed consumer 1/1 on rebuilt target/debug/can; frozen 7957d542/ca50 original24 exit 10 complete/omitted0 24/24 hashes match. Existing defining owners and target allocations remain; focused new tests stay with Compiler. Reuse prior accumulated coverage; complete checkpoint remains unchanged. Original24 and required executable consumers remain open. Unfinished work stays in the running Muse checkout.
+
 ### Specification and installer documentation merge — 2026-10-15
 
 Merge installer commit `02470b74` into canonical `main` at `a70921e3`.
