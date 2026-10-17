@@ -638,7 +638,7 @@ pub(super) fn reference_name(
     let candidates: Vec<_> = module
         .imports
         .iter()
-        .filter(|import| import.provider == *provider && import.from.is_none())
+        .filter(|import| import.provider == *provider)
         .flat_map(|import| import.members.iter().map(move |member| (import, member)))
         .filter(|(_, (name, alias, _))| *name == item.name && alias == spelling)
         .collect();
@@ -659,18 +659,36 @@ pub(super) fn reference_name(
         .find(|node| node.kind == SyntaxKind::Import && node.span == import.span)?;
     if text.get(import.provider_span.start as usize..import.provider_span.end as usize)
         != Some(provider.as_str())
-        || source_import.children.iter().any(|node| {
-            node.kind == SyntaxKind::Attribute
-                && node
-                    .children
-                    .iter()
-                    .find(|child| child.kind == SyntaxKind::Name)
-                    .is_some_and(|name| {
-                        name.token().is_some_and(|token| token.text(text) == "from")
-                    })
-        })
     {
         return None;
+    }
+    // Deployment-qualified imports (`from=deployment.<binding>`) carry the
+    // same member identity as plain imports; the qualifier itself is part
+    // of the checked correspondence. Absence must match absence, and a
+    // present qualifier must be the exact recorded deployment path (first
+    // segment `deployment`, full trimmed text equal to the checked
+    // binding). This mirrors the existing deployment-import verification
+    // used for capability routes: no spelling-only bypass.
+    match (
+        import.from.as_deref(),
+        crate::analysis::attribute_value(source_import, "from", text),
+    ) {
+        (None, None) => {}
+        (Some(expected), Some(from_node)) => {
+            if from_node.kind != SyntaxKind::Path
+                || crate::analysis::path_segments(from_node, text)
+                    .first()
+                    .copied()
+                    != Some("deployment")
+                || text
+                    .get(from_node.span.start as usize..from_node.span.end as usize)?
+                    .trim()
+                    != expected
+            {
+                return None;
+            }
+        }
+        _ => return None,
     }
     let path = source_import
         .children
@@ -6309,6 +6327,76 @@ Then
         assert!(
             checked_create_expression(&ir, &original, &cond, node_at(&db, span), &db).is_some(),
             "honest actor fact guard keeps its source correspondence"
+        );
+    }
+
+    const DEPLOYMENT_SOURCE: &str =
+        include_str!("../../tests/fixtures/created-contract-deployment.can");
+
+    fn deployment_note(ir: &IrProgram) -> (&IrItem, crate::analysis::SymbolId) {
+        let receiving = ir
+            .items
+            .iter()
+            .find(|item| item.canonical == "worker.R")
+            .unwrap();
+        let field = ir
+            .items
+            .iter()
+            .find(|item| item.canonical == "worker.R.held")
+            .unwrap();
+        let IrItemKind::Field {
+            ty: IrType::Known(ty),
+            ..
+        } = &field.kind
+        else {
+            panic!("held field type")
+        };
+        let mut referenced = ty;
+        while let ResolvedType::Nullable(inner)
+        | ResolvedType::Array { element: inner, .. } = referenced
+        {
+            referenced = inner;
+        }
+        let ResolvedType::Record { symbol, .. } = referenced else {
+            panic!("contract type")
+        };
+        (receiving, *symbol)
+    }
+
+    #[test]
+    fn deployment_import_from_binding_keeps_source_identity() {
+        let (db, ir) = fixture_for(DEPLOYMENT_SOURCE, "created-contract-deployment.can");
+        let (receiving, target) = deployment_note(&ir);
+        assert!(
+            reference_name(&ir, receiving, target, "Note", &db).is_some(),
+            "honest deployment import keeps its source correspondence"
+        );
+    }
+
+    #[test]
+    fn deployment_import_from_binding_tamper_refuses() {
+        let (db, ir) = fixture_for(DEPLOYMENT_SOURCE, "created-contract-deployment.can");
+        let (receiving, target) = deployment_note(&ir);
+        let (receiving_id, target_id) = (receiving.id, target);
+        // Same source text, same checked facts: only the recorded
+        // deployment binding is rewritten in the retained IR copy. The
+        // direct defining-owner call must refuse without re-emitting.
+        let mut tampered = ir.clone();
+        let module = tampered
+            .modules
+            .iter_mut()
+            .find(|module| module.name == "worker")
+            .unwrap();
+        let import = module
+            .imports
+            .iter_mut()
+            .find(|import| import.provider == "api")
+            .unwrap();
+        import.from = Some("deployment.other".into());
+        let receiving = &tampered.items[receiving_id.0 as usize];
+        assert!(
+            reference_name(&tampered, receiving, target_id, "Note", &db).is_none(),
+            "rewritten deployment binding must refuse"
         );
     }
 

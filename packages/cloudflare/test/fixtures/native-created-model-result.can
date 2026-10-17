@@ -3,11 +3,15 @@ Given
  Run {count:int=0}
  Other {count:int=0}
  contract Result {run:Run}
+ contract Note {value:text}
+ Memo {held:Note?,count:int=0}
  policy Run read=members
  policy Other read=members
+ policy Memo read=members
 When
  crud Run by=members fields=count delete=remove
  crud Other by=members fields=count delete=remove
+ crud Memo by=members fields=held,count delete=remove
  scenario ask(value:int,note:text) -> Run by=members
   do
    create Run {} as run
@@ -19,4 +23,8 @@ When
  scenario retain(run:Run) -> Run by=members
   do
    return run
+ scenario jot(n:int) -> Memo by=members
+  do
+   create Memo {count=n} as memo
+   return memo
 Then

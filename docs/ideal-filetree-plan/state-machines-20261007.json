@@ -75396,5 +75396,58 @@
     ],
     "choice": "Void accept with invitation-sourced create parent (1306 record).",
     "validation": "Tests: installed void consumer 1/1, neighbors green; CLI probes exit 0 with refusals intact."
+  },
+  "can18_merge_62_20261017": {
+    "incremental_base": "d0c6c9fb29f24f4d9e4922a3aac74491da1a1916",
+    "incoming_end": "44feb5c3f13a6a2b6dab07a5569d0c48b771a948",
+    "retained_coverage": "reuse spec_installer_merge_reconciliation_20261015 and preceding CAN18 incremental merge entries; inherited complete checkpoint unchanged",
+    "changed_path_count": 8,
+    "rows": [
+      [
+        "compiler/src/analysis/scenario_disclosure.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/src/codegen/scenario_create_sources.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/created_contract_census.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/fixtures/created-contract-deployment.can",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "docs/specification/DECISIONS.md",
+        "Specification",
+        "existing accepted design/decision owner"
+      ],
+      [
+        "implementation/compiler-completion/README.md",
+        "Compiler completion",
+        "existing finite execution record"
+      ],
+      [
+        "packages/cloudflare/test/fixtures/native-created-model-result.can",
+        "cloudflare",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/cloudflare/test/native-created-model-result.test.ts",
+        "cloudflare",
+        "existing package source/test owner"
+      ]
+    ],
+    "choice": "Created-model contract census seeding plus deployment-import source verification with honest admission/tamper tests and installed null-contract-field consumer.",
+    "validation": "Compiler 3/3 + lib 2/2 + installed 2/2; original24 276 exact-identity with control on original paths.",
+    "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
+    "checkpoint_advanced": false,
+    "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
   }
 }

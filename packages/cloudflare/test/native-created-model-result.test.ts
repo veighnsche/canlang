@@ -263,3 +263,114 @@ test('captured native default Create and direct child model returns retain one D
       await worker?.dispose(); await rm(directory, { recursive: true, force: true });
     }
   });
+
+test('created model with absent nullable contract field commits, persists null and replays without duplicates',
+  { timeout: 120000 }, async () => {
+    const MEMO = asModel(`${APP}.Memo`);
+    const directory = await mkdtemp(join(tmpdir(), 'can-native-created-contract-field-'));
+    let worker: Miniflare | undefined;
+    let capture: Awaited<ReturnType<typeof import('../src/dev/source-capture.js')['captureSingleFileSource']>> | undefined;
+    try {
+      const { assembleModules, importVerifiedAssemblyModule } = await nodeImport(installed('runtime/modules.js')) as typeof import('../src/runtime/modules.js');
+      const { buildInvoker } = await nodeImport(installed('worker/assembly.js')) as typeof import('../src/worker/assembly.js');
+      const { prepareLocalPreviewCapture } = await nodeImport(installed('dev/preview-inputs.js')) as typeof import('../src/dev/preview-inputs.js');
+      const { captureIsCurrent, captureSingleFileSource, verifyCompilerSources } = await nodeImport(installed('dev/source-capture.js')) as typeof import('../src/dev/source-capture.js');
+      const { compileCapturedSingleFile } = await nodeImport(installed('dev/compiler-check.js')) as typeof import('../src/dev/compiler-check.js');
+      const originalSource = await readFile(sourcePath);
+      capture = await captureSingleFileSource(prepareLocalPreviewCapture({ checkoutRoot: root, appPath: sourcePath,
+        compilerPath: join(root, 'compiler/target/debug/can'), catalogPath: fileURLToPath(distribution.catalog),
+        helpIndexPath: join(root, 'docs/specification/CONSTRUCT-HELP.md') }));
+      assert.equal(await captureIsCurrent(capture), true);
+      const compiled = await compileCapturedSingleFile(capture);
+      assert.equal(compiled.kind, 'artifact', compiled.kind === 'diagnostics' ? JSON.stringify(compiled.envelope.diagnostics) : compiled.kind);
+      if (compiled.kind !== 'artifact') throw new Error('Contract-field CREATED source did not compile');
+      const artifact: CompileArtifact = compiled.artifact, originalArtifact = JSON.stringify(artifact);
+      assert.equal(verifyCompilerSources(capture, { complete: true, sources: artifact.sources }).ok, true);
+      const operation = artifact.operations?.find(candidate => candidate.name === `${APP}.jot`); assert.ok(operation);
+      assert.equal(operation.kind, 'scenario'); assert.equal(operation.result?.type, MEMO);
+      assert.ok(operation.result?.disclosure);
+      const callable = artifact.callables.find(callable => callable.id === operation.name); assert.ok(callable);
+      const generated = artifact.modules.find(module => module.path === callable.module); assert.ok(generated);
+      assert.match(generated.js, /await bindScenarioReceiptModelResult\(c,/);
+      const asm = await assembleModules({ artifact, sourcePath }, { workDir: join(directory, 'modules'),
+        stdlibUrl: installed('runtime/stdlib.js') });
+      const namespace = object(await importVerifiedAssemblyModule(asm, callable.module, artifact));
+      assert.equal(namespace[callable.export], operation.name);
+      worker = new Miniflare({ compatibilityDate: '2026-07-15', modules: true,
+        script: 'export default { fetch() { return new Response("ok"); } }',
+        d1Databases: { IDENTITY: 'created-memo-identity', OWNER: 'created-memo-owner' },
+        d1Persist: join(directory, 'd1') });
+      const identityDb = await worker.getD1Database('IDENTITY') as unknown as D1Database;
+      const ownerDb = await worker.getD1Database('OWNER') as unknown as D1Database;
+      await ensureIdentitySchema(identityDb); await ensureSchema(ownerDb);
+      const now = Date.now(), clock = { nowMs: () => now };
+      const identities = createD1IdentityStore(identityDb, { clock });
+      const team = await identities.createTeam({ timezone: 'UTC' });
+      async function actor(email: string) {
+        const user = await identities.createUser({ email, password_hash: 'unused', email_verified: true });
+        const membership = await identities.createMembership({ team_id: team.team_id, user_id: user.user_id, is_owner: false, roles: [] });
+        const token = `native-created-memo-${user.user_id}`;
+        await identities.createSession({ user_id: user.user_id, token_sha256: await sha256HexText(token),
+          last_team_id: team.team_id, expires_at: new Date(now + 3600_000).toISOString() });
+        const current = () => resolveIdentity(identities, { session_token: token }, { clock });
+        return { membership, identity: await current() };
+      }
+      const member = await actor('created-memo-member@example.test');
+      const outsiderUser = await identities.createUser({ email: 'created-memo-outsider@example.test', password_hash: 'unused', email_verified: true });
+      const outsiderToken = 'native-created-memo-outsider';
+      await identities.createSession({ user_id: outsiderUser.user_id, token_sha256: await sha256HexText(outsiderToken),
+        last_team_id: team.team_id, expires_at: new Date(now + 3600_000).toISOString() });
+      const outsiderIdentity = await resolveIdentity(identities, { session_token: outsiderToken }, { clock });
+      const underlying = createD1Storage(ownerDb);
+      const batches: CommitBatch[] = [];
+      const store: StoragePort = { ...underlying, async commit(batch) {
+        const result = await underlying.commit(batch); batches.push(batch); return result; } };
+      const invoker = buildInvoker(artifact, asm, store, { appId: APP, memberships: identities, source: 'http', now: clock.nowMs });
+      let sequence = 0;
+      const input: MutationEnvelope = { operation: `${APP}.jot`, operation_id: uuidv7(now, ++sequence), inputs: { n: '3' } };
+      const before = await store.query({ model: MEMO, authority: 'owner' });
+      assert.equal(before.length, 0);
+      const result = committed(await invoker.invokeMutation(input, member.identity));
+      assert.equal(batches.length, 1);
+      const batch = batches[0]!;
+      assert.equal(batch.writes.length, 1);
+      assert.equal(batch.writes[0]!.kind, 'insert'); assert.equal(batch.writes[0]!.model, MEMO);
+      const row = await store.load(MEMO, result.id as Parameters<StoragePort['load']>[1]); assert.ok(row);
+      assert.equal(row.data.count, '3');
+      assert.ok(row.data.held == null, `absent contract field persists null, got ${JSON.stringify(row.data)}`);
+      assert.deepEqual(batch.history[0]!.after, row.data);
+      const projected = object(result.outcome.records![0]);
+      assert.equal(projected.id, row.id);
+      assert.equal(projected.data.count, '3');
+      // Absent nullable storage normalizes to null in the emitted
+      // projection; both views agree the contract field has no value.
+      // Whether projection should mirror storage byte-for-byte is a
+      // separate runtime representation question, not this admission batch.
+      assert.ok(projected.data.held == null && row.data.held == null,
+        `projected/storage agree on absent held, got ${JSON.stringify(projected.data)} vs ${JSON.stringify(row.data)}`);
+      const association = readScenarioReceiptAssociation(await store.readReceipt(
+        { app: APP, owner: team.team_id, principal: member.membership.user_id,
+          operation: asOperation(input.operation), operationId: asOperationId(input.operation_id) }));
+      assert.ok(association);
+      assert.equal(association.resultType, MEMO);
+      const replayed = committed(await invoker.invokeRetainedMutation(input, member.identity), 'replayed');
+      assert.equal(replayed.id, result.id);
+      assert.equal((await store.query({ model: MEMO, authority: 'owner' })).length, 1);
+      assert.equal(batches.length, 1);
+      const denied = await invoker.invokeMutation(input, outsiderIdentity);
+      assert.ok('error' in denied, JSON.stringify(denied));
+      assert.equal(denied.error.code, 'forbidden');
+      assert.equal((await store.query({ model: MEMO, authority: 'owner' })).length, 1);
+      await identities.removeMembership(member.membership.membership_id);
+      const revoked = await invoker.invokeMutation(
+        { operation: `${APP}.jot`, operation_id: uuidv7(now, ++sequence), inputs: { n: '4' } }, member.identity);
+      assert.ok('error' in revoked, JSON.stringify(revoked));
+      assert.equal(revoked.error.code, 'forbidden');
+      assert.equal((await store.query({ model: MEMO, authority: 'owner' })).length, 1);
+      assert.deepEqual(await readFile(sourcePath), originalSource);
+      assert.equal(JSON.stringify(artifact), originalArtifact);
+      assert.equal(await captureIsCurrent(capture), true);
+    } finally {
+      await worker?.dispose(); await rm(directory, { recursive: true, force: true });
+    }
+  });

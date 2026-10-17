@@ -5940,6 +5940,60 @@ impl<'a> Closure<'a> {
         {
             pending.push((transcript.model, true));
         }
+        // Created models own their stored schemas: seed each created model
+        // and its contract-valued field targets (unwrapping nullable/array
+        // exactly like the codegen `referenced` walk) so nominal
+        // correspondence can prove them. Seeding is census only and never
+        // fails the inventory: every use still proves exact schema, field,
+        // type and source correspondence, and a missing entry keeps the
+        // existing refusal. Unresolvable creates are skipped here because
+        // their own create-source facts already refuse elsewhere.
+        {
+            let mut work: Vec<(&Effect, usize)> =
+                scenario.effects.iter().map(|effect| (effect, 0)).collect();
+            let mut steps = 0usize;
+            let mut seeded = 0usize;
+            while let Some((effect, depth)) = work.pop() {
+                steps += 1;
+                if steps > 16384 || depth > 64 || seeded > 200 {
+                    break;
+                }
+                for arm in effect.match_arms.iter() {
+                    work.extend(arm.effects.iter().map(|child| (child, depth + 1)));
+                }
+                work.extend(effect.then_effects.iter().map(|child| (child, depth + 1)));
+                work.extend(effect.else_effects.iter().map(|child| (child, depth + 1)));
+                if effect.verb != EffectVerb::Create {
+                    continue;
+                }
+                let Some(EffectTarget::Model(model)) = effect.target else {
+                    continue;
+                };
+                seeded += 1;
+                pending.push((model, true));
+                let Some(symbol) = self.resolve.symbols.get(model.0 as usize) else {
+                    continue;
+                };
+                let SymbolKind::Model { fields, .. } = &symbol.kind else {
+                    continue;
+                };
+                for field in fields {
+                    let Some(mut ty) = self.types.symbol_types.get(field) else {
+                        continue;
+                    };
+                    while let ResolvedType::Nullable(inner)
+                    | ResolvedType::Array { element: inner, .. } = ty
+                    {
+                        ty = inner;
+                    }
+                    if let ResolvedType::Record { symbol, .. } = ty
+                        && is_contract(*symbol)
+                    {
+                        pending.push((*symbol, false));
+                    }
+                }
+            }
+        }
         // A helper's lazy CONTROL census needs the exact declared reference
         // array even when it is not a reusable bounded Create operand. This
         // inventory is source evidence; it grants no array read or write.

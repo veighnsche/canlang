@@ -1,0 +1,19 @@
+app Probe uses=[worker]
+package api
+ Given
+  export contract Note {value:text}
+  export capability PortV1 version=1
+   read() -> Note
+ When
+ Then
+package worker
+ use api {Note,PortV1 as Port} from=deployment.port
+ Given
+  R {held:Note?,w:int}
+  policy R read=members fields=held,w
+ When
+  scenario go(n:int) -> R by=members
+   do
+    create R {w=n} as r
+    return r
+ Then
