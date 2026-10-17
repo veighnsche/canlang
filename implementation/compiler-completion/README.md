@@ -51,6 +51,17 @@ exact `rule_failed` with no added trigger, TRUE revocation (membership
 removed) `forbidden` with no new rows; prior stranger-only check retained
 as-is, not as revocation proof. No production repair needed.
 
+### Merge42 dispatch fence persistence — 2026-10-17
+
+Post-send sets persist sealed send-result envelope reads (`delivery.id`)
+with the pending enum literal (cancel/retry_release shape): compiler
+`dispatch_fence_persistence` 4/4 + installed runtime consumer 1/1
+(stage exactly once, persist staged id, drive hits provider once,
+skipped fence records a distinct marker, foreign denial) on frozen
+`76fb0302`/`ca50`. No original24 count claimed: guard preparation
+retains its deliberate full-IR seal, so the original 23 clear only
+with composition-wide attribution, not from this slice alone.
+
 ### Current original24 (frozen main c2 cohort) — 282 E6008 — 2026-10-17
 
 [evidence/original24-main-20261016.json](../../evidence/original24-main-20261016.json):

@@ -74585,5 +74585,38 @@
     "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
     "checkpoint_advanced": false,
     "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
+  },
+  "can18_merge_42_20261017": {
+    "incremental_base": "764c3c1aaaa52c4b4d9005e1b192bef634432786",
+    "incoming_end": "69579880f3ad9202b564ab476f6f898057e49da0",
+    "retained_coverage": "reuse spec_installer_merge_reconciliation_20261015 and preceding CAN18 incremental merge entries; inherited complete checkpoint unchanged",
+    "changed_path_count": 4,
+    "rows": [
+      [
+        "compiler/src/analysis/scenario_disclosure.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/src/codegen/scenario_receipts.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/dispatch_fence_persistence.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "packages/cloudflare/test/dispatch-fence-persistence.test.ts",
+        "cloudflare",
+        "existing package source/test owner"
+      ]
+    ],
+    "choice": "Dispatch fence persistence intake: send-result envelope reads (delivery.id) in post-send sets + enum inventory profile + 4/4 analysis regression + 1/1 runtime proof (stage/persist/drive/skip/deny) on frozen 76fb0302/ca50. No original24 count claimed; has_ir_errors seal retained.",
+    "validation": "dispatch_fence_persistence 4/4; runtime proof 1/1 on frozen 76fb0302/ca50; neighbors no new failures",
+    "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
+    "checkpoint_advanced": false,
+    "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
   }
 }
