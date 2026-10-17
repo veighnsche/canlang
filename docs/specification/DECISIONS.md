@@ -18448,3 +18448,8 @@ Accepted: Contained first-query domains may navigate one authored containment ho
 ## 2026-10-16 — can18_merge_58_20261017
 
 Accepted: Navigation-parent first-query admission with one-hop State resolution (0946/1011 correction record). Merge reviewed tested work incrementally into canonical `main`, preserving installer/specification changes and the active implementation branch. Tests: predicate 14/14, conjunction 18/18, neighbors qualified 4/4 + ifbranch 7/7 + hook-first 11/11 + native-first 17/17 + replay 4/4 + stored-query 9/9 + scope-authority 19/19, installed navigation 2/2 and member 2/2 on rebuilt target/debug/can; CLI probes exit 0 with E6008 refusals intact. Reconcile the living file-tree plan/registry over `3e6ccaa6e..ede7ec1bf` with existing owners; retain the complete checkpoint and all outstanding acceptance gates. A merged component is not a claim that original24 or the remaining runtime workflows are complete.
+
+
+## 2026-10-17 — can18 navigation hardening (1036)
+
+Accepted: Navigation Member arm pins the decoded base to the exact original NameRef occurrence and declared input type; the installed consumer executes the navigated parent's own read authority (full-match predicate with valid invitation and retained operation membership still refuses exact forbidden with no writes when the parent row is withheld). Tests: predicate 17/17, conjunction 18/18, installed navigation 2/2 + member 2/2, state parent suites 20/20 on rebuilt target/debug/can; CLI probes exit 0. Recorded open gap: predicate read policies (`read=... where=...`) emit no role or predicate and are unimplemented — no silent workaround. No original24 movement claimed.

@@ -4869,8 +4869,11 @@ pub(super) fn checked_first_query_parent<'a>(
     let receiver_text = text.get(receiver.start as usize..receiver.end as usize)?;
     // Direct receivers name the parameter; navigation receivers name the
     // exact one-hop containment path. Anything else keeps the refusal.
-    let navigation = match source_receiver.kind {
-        SyntaxKind::NameRef => false,
+    // The navigation arm also keeps the original base occurrence: the
+    // decoded IR base must match that exact NameRef span and the
+    // declared input type, not just the parameter name.
+    let (navigation, nav_base) = match source_receiver.kind {
+        SyntaxKind::NameRef => (false, None),
         SyntaxKind::Member => {
             // Exactly one NameRef base and one Name field; the dot and
             // any trivia carry no identity and are skipped by kind.
@@ -4888,9 +4891,11 @@ pub(super) fn checked_first_query_parent<'a>(
             let (Some(field), None) = (fields.next(), fields.next()) else {
                 return None;
             };
-            text.get(base.span.start as usize..base.span.end as usize)? == parameter.name
+            let sealed = text.get(base.span.start as usize..base.span.end as usize)?
+                == parameter.name
                 && text.get(field.span.start as usize..field.span.end as usize)? == "parent"
-                && receiver_text == format!("{}.parent", parameter.name)
+                && receiver_text == format!("{}.parent", parameter.name);
+            (sealed, sealed.then_some(base.span))
         }
         _ => return None,
     };
@@ -4903,7 +4908,9 @@ pub(super) fn checked_first_query_parent<'a>(
         IrExpr::Member { base, field }
             if navigation
                 && field == "parent"
-                && matches!(&base.expr, IrExpr::Name(name) if name == &parameter.name) =>
+                && matches!(&base.expr, IrExpr::Name(name) if name == &parameter.name)
+                && nav_base.is_some_and(|span| base.span == span)
+                && base.ty == fact.ty =>
         {
             match &parent_value.ty {
                 ResolvedType::Record {
@@ -13793,6 +13800,12 @@ When
    require w.j.administrator==administrator
    create D {w=4} as d
    return 1
+ scenario go_nav(p:P,i:I,n:int,r:text) -> int by=members
+  do
+   let c=first(i.parent.C as c where c.v==n and c.role==r order=c.id)
+   require c!=null
+   create D {w=1} as d
+   return 1
 Then
 "#;
 
@@ -14471,7 +14484,11 @@ Then
         let honest_node = source_node_at(&db, honest.span);
         assert!(
             super::super::scenario_create_sources::checked_create_expression(
-                &ir, fact, &honest, honest_node, &db
+                &ir,
+                fact,
+                &honest,
+                honest_node,
+                &db
             )
             .is_some(),
             "honest nested read matches its own create facts first"
@@ -14543,6 +14560,121 @@ Then
         assert!(
             checked_first_query_predicate(&ir, owner, query, scan).is_none(),
             "shifted receiver span must refuse"
+        );
+        let _ = db;
+    }
+
+    /// Drills the cloned IR to the decoded `i.parent` receiver of the
+    /// admitted `go_nav` first query.
+    fn nav_parent_mut(ir: &mut IrProgram) -> &mut Box<TypedExpr> {
+        let binding = {
+            let owner = ir
+                .items
+                .iter()
+                .find(|item| item.canonical == "ConjTamper.go_nav")
+                .expect("nav owner");
+            let crate::analysis::scenario_disclosure::ScenarioDisclosure::Complete(checked) =
+                &ir.scenario_disclosures[&owner.id]
+            else {
+                panic!("complete disclosure");
+            };
+            let query = checked
+                .source_facts
+                .as_deref()
+                .unwrap()
+                .queries
+                .as_deref()
+                .unwrap()
+                .iter()
+                .find(|query| query.first.is_some())
+                .unwrap();
+            node_span(query.first.as_ref().unwrap().binding)
+        };
+        let owner = ir
+            .items
+            .iter_mut()
+            .find(|item| item.canonical == "ConjTamper.go_nav")
+            .expect("nav owner");
+        let IrItemKind::Scenario { effects, .. } = &mut owner.kind else {
+            panic!("scenario effects");
+        };
+        let call = effects
+            .iter_mut()
+            .find_map(|effect| match effect {
+                IrStmt::Let { value, span, .. } if *span == binding => Some(value),
+                _ => None,
+            })
+            .unwrap();
+        let (IrExpr::Call { args, .. } | IrExpr::BoundCall { args, .. }) = &mut call.expr else {
+            panic!("first call");
+        };
+        let [domain] = args.as_mut_slice() else {
+            panic!("one domain");
+        };
+        let IrExpr::Query(scan) = &mut domain.expr else {
+            panic!("query domain");
+        };
+        scan.parent.as_mut().expect("nav parent value")
+    }
+
+    #[test]
+    fn navigation_parent_base_occurrence_pins() {
+        // Genuine navigation admits: the decoded base carries the exact
+        // original NameRef occurrence and the declared input type.
+        let (db, ir) = fixture();
+        let owner = owner_by_name(&ir, "ConjTamper.go_nav");
+        let (query, scan) = first_scan(&ir, owner);
+        assert!(
+            checked_first_query_parent(&ir, owner, query, scan, &db).is_some(),
+            "genuine navigation parent must admit"
+        );
+        let _ = db;
+    }
+
+    #[test]
+    fn navigation_parent_base_type_substitution_refuses() {
+        // Same base name and span, but the stored-record type retargeted
+        // to the child model: no longer the declared input type.
+        let (db, mut ir) = fixture();
+        {
+            let parent = nav_parent_mut(&mut ir);
+            let outer_ty = parent.ty.clone();
+            let IrExpr::Member { base, .. } = &mut parent.expr else {
+                panic!("nav parent shape");
+            };
+            let IrExpr::Name(name) = &base.expr else {
+                panic!("param base");
+            };
+            assert_eq!(name, "i", "honest base");
+            base.ty = outer_ty;
+        }
+        let owner = owner_by_name(&ir, "ConjTamper.go_nav");
+        let (query, scan) = first_scan(&ir, owner);
+        assert!(
+            checked_first_query_parent(&ir, owner, query, scan, &db).is_none(),
+            "retargeted navigation base type must refuse"
+        );
+        let _ = db;
+    }
+
+    #[test]
+    fn navigation_parent_base_span_shift_refuses() {
+        // Same base name and type, but the occurrence shifted off the
+        // original NameRef receiver.
+        let (db, mut ir) = fixture();
+        {
+            let parent = nav_parent_mut(&mut ir);
+            let IrExpr::Member { base, .. } = &mut parent.expr else {
+                panic!("nav parent shape");
+            };
+            base.span.start += 1;
+            base.span.end += 1;
+        }
+        let owner = owner_by_name(&ir, "ConjTamper.go_nav");
+        let (query, scan) = first_scan(&ir, owner);
+        assert!(
+            checked_first_query_parent(&ir, owner, query, scan, &db).is_none(),
+            "shifted navigation base span must refuse"
         );
         let _ = db;
     }

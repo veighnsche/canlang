@@ -35,7 +35,30 @@ receiver type and span occurrence. Frozen member producer `5b3ba6a33`
 (binary `31a502b3`, catalog `ca50`) re-qualifies the unchanged original24
 tuple at 276 E6008, full multiset identical (0 removed, 0 added):
 member admission holds with no regression; the CanCustomer accept span
-waits on navigation-parent/void/reference prerequisites next.
+still refuses at its next gate (nav-capable producer changes nothing:
+0 removed 0 added), with by=authenticated/void-shapes clearing in
+isolation — void/reference/guard prerequisites stay open.
+
+### Navigation hardening (1036) — 2026-10-17
+
+Two finite acceptance gaps closed on the navigation batch. Compiler:
+the navigation Member arm now pins the decoded base to the exact
+original NameRef occurrence (span) and the declared input type, not
+just the parameter name — same-facts base type/span mutations refuse.
+Consumer: the navigated parent's own read authority is now executed —
+a caller holding operation membership and a valid invitation whose
+predicate fully matches is still refused exact `forbidden` with no
+writes when the parent row is withheld (custom `auditor` read role the
+caller lacks). Fixture P reads `read=auditor`; auditor-holding callers
+keep every positive. Incidental finding (not repaired here):
+`read=members where=...` emits a grant with neither role nor predicate,
+so predicate read policies are unimplemented — recorded as an open
+original gap (CanCustomer `CompanyRole read=authenticated where=...`
+depends on it), not silently worked around. Validation on rebuilt
+in-target `7cfd0578` + `ca50`: rust predicate 17/17, conjunction
+18/18, installed navigation 2/2 + member 2/2, state parent suites
+20/20, neighbors green; CLI probes exit 0 with refusals intact. No
+original24 movement claimed.
 
 ### Navigation-parent first-query admission (0946/1011) — 2026-10-17
 
