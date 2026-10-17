@@ -991,7 +991,7 @@ export function bindScenarioReceiptPlan(def: GeneratedOperationDef, models: read
   }
   checkQueryInventory(plan, type, models, defaults.valueSchema);
   for (const query of plan.queries ?? []) if (query.parent?.origin.kind === 'admitted-reference' &&
-      !requiredVersionedReferenceInput(def, query.parent.origin.parameter, query.parent.model)) {
+      queryParentInputModel(def, query.parent.origin.parameter, query.parent.model, artifactModels) === undefined) {
     return invalid('query parent requires its declared required singular versioned reference input.');
   }
   boundPlans.set(def, { plan, type, resultModel, anyQueries: new Map(), models: inventory, inputs: deepFreeze(dataCopy(def.descriptor.inputs)),
@@ -1199,11 +1199,31 @@ function requiredVersionedReferenceInput(def: GeneratedOperationDef, parameter: 
   return input?.kind === 'ref' && input.model === model && input.required && input.versioned &&
     def.inputArrays[parameter] === undefined && def.inputNullableRefs?.[parameter] !== true;
 }
+/** Declared required singular versioned reference input model for a parameter, if any. */
+function versionedReferenceInputModel(def: GeneratedOperationDef, parameter: string): ModelName | undefined {
+  if (parameter.includes('/')) return contractInputLeaf(def, parameter)?.model as ModelName | undefined;
+  const input = def.descriptor.inputs.find(field => field.name === parameter);
+  return input?.kind === 'ref' && input.required && input.versioned &&
+    def.inputArrays[parameter] === undefined && def.inputNullableRefs?.[parameter] !== true
+    ? input.model as ModelName : undefined;
+}
+/** Exact one-hop containment navigation for a query parent edge: the named
+ * parameter is a declared required versioned reference whose model is a
+ * stored child of the query parent model. Direct same-model inputs keep
+ * their existing path with no hop; anything else stays refused. */
+function queryParentInputModel(def: GeneratedOperationDef, parameter: string, parent: ModelName,
+    artifactModels: ReadonlyMap<ModelName, ArtifactModel>): ModelName | undefined {
+  const input = versionedReferenceInputModel(def, parameter);
+  if (input === undefined) return undefined;
+  if (input === parent) return input;
+  return artifactModels.get(input)?.parent === parent ? input : undefined;
+}
 /** A first-query parent edge is honored only for the exact checked admitted
  * containment: the same checked source, the declared required versioned
- * parent parameter, the model's actual containment parent, and installed
- * viewer authority over the parent. A foreign, denied or tampered parent
- * keeps the first refusal. */
+ * parent parameter (direct same-model input, or one exact containment hop
+ * off a declared child input), the model's actual containment parent, and
+ * installed viewer authority over the parent. A foreign, denied or tampered
+ * parent keeps the first refusal. */
 function checkedFirstQueryParent(bound: BoundPlan, def: GeneratedOperationDef,
   query: NonNullable<BoundPlan['plan']['queries']>[number],
   policy: PolicyTable, readPolicies: ReadonlyMap<ModelName, ViewerSourceReadPolicy> | undefined): boolean {
@@ -1212,7 +1232,7 @@ function checkedFirstQueryParent(bound: BoundPlan, def: GeneratedOperationDef,
   if (parent.origin.kind !== 'admitted-reference' ||
       stableStringify(parent.source) !== stableStringify(query.source) ||
       stableStringify(parent.source) !== stableStringify(bound.plan.source) ||
-      !requiredVersionedReferenceInput(def, parent.origin.parameter, parent.model) ||
+      queryParentInputModel(def, parent.origin.parameter, parent.model, bound.artifactModels) === undefined ||
       bound.artifactModels.get(query.model)?.parent !== parent.model) return false;
   if (policy.has(parent.model)) return true;
   const read = readPolicies?.get(parent.model);
@@ -2948,13 +2968,27 @@ function guardConsumedDecisionPolicies(call: AdmittedCall, owner: ReceiptOwnerSe
     const parameter = plan.parent.origin.parameter;
     const references = call.recordRefs.filter(reference => reference.param === parameter);
     const reference = references[0];
-    if (references.length !== 1 || reference === undefined || reference.model !== plan.parent.model ||
+    // The issued reference must be exactly the declared input model: the
+    // plan parent selects either that row itself or its immutable parent
+    // linkage, never an unrelated child of the parent model.
+    const declared = queryParentInputModel(call.def as GeneratedOperationDef, parameter, plan.parent.model,
+      state.bound.artifactModels);
+    if (references.length !== 1 || reference === undefined ||
         reference.expectedVersion === null || reference.row.id !== reference.id ||
         reference.row.version !== reference.expectedVersion ||
-        !requiredVersionedReferenceInput(call.def as GeneratedOperationDef, parameter, plan.parent.model)) {
+        declared === undefined || reference.model !== declared) {
       return undefined;
     }
-    admittedParent = { model: plan.parent.model, id: reference.id };
+    // Direct same-model inputs resolve to the admitted row itself; a
+    // one-hop navigation resolves to the admitted row's immutable parent
+    // linkage, verified against the plan parent model here.
+    const navigated = reference.model === plan.parent.model
+      ? { model: reference.model, id: reference.id }
+      : state.bound.artifactModels.get(reference.model)?.parent === plan.parent.model &&
+        reference.row.parent?.model === plan.parent.model
+        ? { model: plan.parent.model, id: reference.row.parent.id } : undefined;
+    if (navigated === undefined) return undefined;
+    admittedParent = navigated;
   }
   const executions = referenceProducers.get(call.def as GeneratedOperationDef)?.boundExecutionDependencies;
   const executionFields = [...executions?.values() ?? []].filter(value => value.association.queryId === plan.id)
@@ -3006,12 +3040,24 @@ async function resolveQueryParent(call: AdmittedCall, store: StoragePort, owner:
     const parameter = parent.origin.parameter;
     const references = call.recordRefs.filter(ref => ref.param === parameter);
     const reference = references[0];
-    if (references.length !== 1 || reference === undefined || reference.model !== parent.model ||
+    const declared = queryParentInputModel(call.def as GeneratedOperationDef, parameter, parent.model,
+      state.bound.artifactModels);
+    if (references.length !== 1 || reference === undefined ||
         reference.expectedVersion === null || reference.row.id !== reference.id || reference.row.version !== reference.expectedVersion ||
-        !requiredVersionedReferenceInput(call.def as GeneratedOperationDef, parameter, parent.model)) {
+        declared === undefined || reference.model !== declared) {
       return invalid('query parent requires its exact admitted versioned reference.');
     }
-    id = reference.id; original = reference.row;
+    if (reference.model === parent.model) {
+      id = reference.id; original = reference.row;
+    } else if (state.bound.artifactModels.get(reference.model)?.parent === parent.model &&
+        reference.row.parent?.model === parent.model) {
+      // One-hop navigation: the admitted row is version-pinned and its
+      // parent linkage immutable, so the navigated parent id is exact for
+      // this call; no same-model lifetime witness exists for the hop.
+      id = reference.row.parent.id; original = undefined;
+    } else {
+      return invalid('query parent requires its exact admitted versioned reference.');
+    }
   } else {
     const dependencyId = parent.origin.dependencyId;
     const observations = state.observations.filter(observation => observation.dependencyId === dependencyId);

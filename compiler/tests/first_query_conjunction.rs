@@ -386,6 +386,25 @@ fn conj_forged_case_refuses_early() {
 }
 
 #[test]
+fn conj_member_grouped_base_admits() {
+    // Grouping and trivia shift surface spans: the sealed path is
+    // normalized (`i.role`) and the receiver occurrence is the exact
+    // recorded original, so a grouped base still clears full emission.
+    let (db, program, _, catalog) = fixture_source(
+        "conj-member-grouped.can",
+        &conj_member_go("c.account==actor and c.role==(i).role", "i:I"),
+    );
+    let (prepared, diagnostics) = prepared_artifact(&program, &db, &catalog);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    assert_eq!(
+        query_dep_fields(&prepared, "ConjMemberProbe.go"),
+        ["account", "role"],
+        "grouped member read emits both control dependencies"
+    );
+    let _ = db;
+}
+
+#[test]
 fn conj_member_read_admits() {
     // A param-row member read compares against the caller's admitted
     // row field through the complete emitted artifact: same-domain
@@ -440,5 +459,195 @@ fn conj_enum_qualified_literal_admits() {
         ["role"],
         "qualified case emits its control dependency"
     );
+    let _ = db;
+}
+
+fn conj_nav_go(pred: &str, params: &str) -> String {
+    format!(
+        r#"app ConjNavProbe
+Given
+ P {{v:int}}
+ C in P {{v:int,account:user}}
+ D {{w:int}}
+ I in P {{v:int}}
+ policy P read=members fields=v
+ policy C read=members fields=parent,v,account
+ policy D read=members fields=w
+ policy I read=members fields=parent,v
+When
+ crud P by=members fields=v
+ crud C by=members fields=parent,v,account
+ crud I by=members fields=parent,v
+ scenario go(p:P,i:I{params}) -> int by=members
+  do
+   let c=first(i.parent.C as c where {pred} order=c.id)
+   require c!=null
+   create D {{w=1}} as d
+   return 1
+Then
+"#,
+        pred = pred,
+        params = params,
+    )
+}
+
+fn conj_nav_member_go(pred: &str) -> String {
+    format!(
+        r#"app ConjNavMemberProbe
+Given
+ P {{v:int}}
+ C in P {{account:user,role:enum(administrator,booker)}}
+ D {{w:int}}
+ I in P {{role:C.role}}
+ policy P read=members fields=v
+ policy C read=members fields=parent,account,role
+ policy D read=members fields=w
+ policy I read=members fields=parent,role
+When
+ crud P by=members fields=v
+ crud C by=members fields=parent,account,role
+ crud I by=members fields=parent,role
+ scenario go(p:P,i:I) -> int by=members
+  do
+   let c=first(i.parent.C as c where {pred} order=c.id)
+   require c!=null
+   create D {{w=1}} as d
+   return 1
+Then
+"#,
+        pred = pred,
+    )
+}
+
+fn query_parent_plan<'a>(prepared: &'a Value, operation_name: &str) -> &'a Value {
+    let disclosure = &operation(prepared, operation_name)["result"]["disclosure"];
+    let [query] = disclosure["queries"].as_array().unwrap().as_slice() else {
+        panic!("one first query")
+    };
+    &query["parent"]
+}
+
+#[test]
+fn conj_navigation_parent_admits() {
+    // The one-hop containment navigation off a default-free stored-record
+    // parameter selects the exact parent model: the plan carries the
+    // admitted-reference hop, never a relabeled same-model parameter.
+    let (db, program, _, catalog) = fixture_source(
+        "conj-nav.can",
+        &conj_nav_go("c.account==actor and c.v==n", ",n:int"),
+    );
+    let (prepared, diagnostics) = prepared_artifact(&program, &db, &catalog);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    assert_eq!(
+        query_dep_fields(&prepared, "ConjNavProbe.go"),
+        ["account", "v"],
+        "navigation conjuncts emit both control dependencies"
+    );
+    let parent = query_parent_plan(&prepared, "ConjNavProbe.go");
+    assert_eq!(parent["model"], "ConjNavProbe.P");
+    assert_eq!(parent["origin"]["kind"], "admitted-reference");
+    assert_eq!(parent["origin"]["parameter"], "i");
+    let _ = db;
+}
+
+#[test]
+fn conj_navigation_member_over_parent_admits() {
+    // The original invitation shape: a member-operand conjunct over the
+    // navigated parent, keeping the exact sealed base.field occurrence.
+    let (db, program, _, catalog) = fixture_source(
+        "conj-nav-member.can",
+        &conj_nav_member_go("c.account==actor and c.role==i.role"),
+    );
+    let (prepared, diagnostics) = prepared_artifact(&program, &db, &catalog);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    assert_eq!(
+        query_dep_fields(&prepared, "ConjNavMemberProbe.go"),
+        ["account", "role"],
+        "member conjunct over navigation emits both control dependencies"
+    );
+    let parent = query_parent_plan(&prepared, "ConjNavMemberProbe.go");
+    assert_eq!(parent["model"], "ConjNavMemberProbe.P");
+    assert_eq!(parent["origin"]["kind"], "admitted-reference");
+    assert_eq!(parent["origin"]["parameter"], "i");
+    let _ = db;
+}
+
+#[test]
+fn conj_navigation_two_hop_refuses() {
+    // Exactly one authored hop is admitted: a two-hop containment path
+    // stays refused even though every member link typechecks.
+    let source = r#"app ConjNavTwoHop
+Given
+ G {v:int}
+ P in G {v:int}
+ C in G {v:int,account:user}
+ D {w:int}
+ I in P {v:int}
+ policy G read=members fields=v
+ policy P read=members fields=parent,v
+ policy C read=members fields=parent,v,account
+ policy D read=members fields=w
+ policy I read=members fields=parent,v
+When
+ crud G by=members fields=v
+ crud P by=members fields=parent,v
+ crud C by=members fields=parent,v,account
+ crud I by=members fields=parent,v
+ scenario go(g:G,i:I,n:int) -> int by=members
+  do
+   let c=first(i.parent.parent.C as c where c.account==actor and c.v==n order=c.id)
+   require c!=null
+   create D {w=n} as d
+   return 1
+Then
+"#;
+    let (db, program, _, catalog) = fixture_source("conj-nav-twohop.can", source);
+    let (_, diagnostics) = prepared_artifact(&program, &db, &catalog);
+    assert!(
+        has_e6008(&diagnostics, "cannot lower first query"),
+        "two-hop navigation must stay refused, got {diagnostics:?}"
+    );
+    let _ = db;
+}
+
+#[test]
+fn conj_navigation_parent_rooted_operand_refuses() {
+    // Conjunct receivers are parameters, never containment paths: a
+    // parent-rooted operand carries no input entry of its own.
+    let (db, program, _, catalog) = fixture_source(
+        "conj-nav-proot.can",
+        &conj_nav_go("c.account==actor and c.v==i.parent.v", ",n:int"),
+    );
+    let (_, diagnostics) = prepared_artifact(&program, &db, &catalog);
+    assert!(
+        has_e6008(&diagnostics, "cannot lower first query"),
+        "parent-rooted conjunct must stay refused, got {diagnostics:?}"
+    );
+    let _ = db;
+}
+
+#[test]
+fn conj_navigation_fixture_admits() {
+    // The committed navigation fixture pins both admitted scenarios end
+    // to end at the compiler level; the installed consumer below proves
+    // the executable half.
+    let source = include_str!("fixtures/first-query-navigation.can");
+    let (db, program, _, catalog) = fixture_source("first-query-navigation.can", source);
+    let (prepared, diagnostics) = prepared_artifact(&program, &db, &catalog);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    assert_eq!(
+        query_dep_fields(&prepared, "NavProbe.go_nav"),
+        ["account", "v"]
+    );
+    assert_eq!(
+        query_dep_fields(&prepared, "NavProbe.go_nav_role"),
+        ["account", "role"]
+    );
+    for scenario in ["NavProbe.go_nav", "NavProbe.go_nav_role"] {
+        let parent = query_parent_plan(&prepared, scenario);
+        assert_eq!(parent["model"], "NavProbe.P", "{scenario}");
+        assert_eq!(parent["origin"]["kind"], "admitted-reference", "{scenario}");
+        assert_eq!(parent["origin"]["parameter"], "i", "{scenario}");
+    }
     let _ = db;
 }

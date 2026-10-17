@@ -157,6 +157,10 @@ pub struct DisclosureFirstQuery {
     /// readers keep working unchanged.
     pub extra_operands: Vec<NodeKey>,
     /// Exact authored source identity per conjunct operand, aligned with
+    /// Exact original receiver occurrence per conjunct for member reads
+    /// (`None` elsewhere): grouping and trivia shift surface spans, so the
+    /// predicate join compares the IR base against this occurrence.
+    pub operand_receivers: Vec<Option<NodeKey>>,
     /// `operand` then `extra_operands`. Closed enum-case operands seal
     /// the checked semantic case: the predicate join pins the emitted
     /// case string against it so a sibling declared case cannot
@@ -2885,6 +2889,17 @@ impl<'a> Closure<'a> {
             .get(&key)
             .is_some_and(|node| node.kind == SyntaxKind::NameRef)
             && matches!(self.query_binding(key), Some(Binding::Symbol(id)) if *id == parameter)
+    }
+
+    /// The one-hop containment navigation off the original parameter
+    /// (`i.parent`): a member whose base is the parameter itself and
+    /// whose field is the containment link.
+    fn original_navigation_parameter(&self, key: NodeKey, parameter: SymbolId) -> bool {
+        let (base, field) = match self.count_member(key) {
+            Some(parts) => parts,
+            None => return false,
+        };
+        field == "parent" && self.original_reference_parameter(base, parameter)
     }
 
     /// A mutation CALL may pass the original required reference or its two
@@ -8357,6 +8372,7 @@ impl<'a> Closure<'a> {
             Option<(NodeKey, SymbolId)>,
         )> = Vec::new();
         let mut operand_texts: Vec<Option<String>> = Vec::new();
+        let mut operand_receivers: Vec<Option<NodeKey>> = Vec::new();
         for conjunct in &conjuncts {
             let (member, operand) = self.query_binary(*conjunct, "==")?;
             let field = self.query_member(member, alias.node, fact.model)?;
@@ -8379,17 +8395,26 @@ impl<'a> Closure<'a> {
             // carry exactly the compared enum type (same domain, per the
             // type checker). The sealed path pins the exact authored
             // base and field for the predicate join.
-            let member_operand = if event_operand || case_operand {
-                None
-            } else {
-                self.query_member_operand(scenario, operand)
-                    .filter(|(_, field)| self.types.symbol_types.get(field) == Some(&field_ty))
-                    .and_then(|(base, field)| {
-                        let base_name = &self.resolve.symbols.get(base.0 as usize)?.name;
-                        let field_name = &self.resolve.symbols.get(field.0 as usize)?.name;
-                        Some(((operand, base), format!("{base_name}.{field_name}")))
-                    })
-            };
+            let member_operand: Option<((NodeKey, SymbolId), String, NodeKey)> =
+                if event_operand || case_operand {
+                    None
+                } else {
+                    self.query_member_operand(scenario, operand)
+                        .filter(|(_, field, _)| {
+                            self.types.symbol_types.get(field) == Some(&field_ty)
+                        })
+                        .and_then(|(base, field, receiver)| {
+                            let base_name =
+                                &self.resolve.symbols.get(base.0 as usize)?.name;
+                            let field_name =
+                                &self.resolve.symbols.get(field.0 as usize)?.name;
+                            Some((
+                                (operand, base),
+                                format!("{base_name}.{field_name}"),
+                                receiver,
+                            ))
+                        })
+                };
             if !fields.contains(&field)
                 || !(primitive_type(&field_ty)
                     || matches!(&field_ty, ResolvedType::Enum { cases, .. } if !cases.is_empty()))
@@ -8430,8 +8455,13 @@ impl<'a> Closure<'a> {
             operand_texts.push(if case_operand {
                 Some(self.checked_case_operand_text(operand)?)
             } else {
-                member_operand.map(|(_, path)| path)
+                member_operand.as_ref().map(|(_, path, _)| path.clone())
             });
+            // The exact original receiver occurrence for member reads:
+            // grouping and trivia shift surface spans, so the predicate
+            // join compares the IR base against this recorded occurrence
+            // instead of span arithmetic.
+            operand_receivers.push(member_operand.as_ref().map(|(_, _, receiver)| *receiver));
         }
         // Bound before dependencies: the opaque query id anchors them.
         let id = self.opaque("query", fact.query, "").ok()?;
@@ -8531,6 +8561,7 @@ impl<'a> Closure<'a> {
                 operand,
                 extra_operands,
                 operand_texts,
+                operand_receivers,
                 // DESIGN442: the guard/presence-consumed marks land in the
                 // source-facts pass below, where the Require consumptions
                 // for this scenario are known. Unmarked here so every
@@ -8562,7 +8593,23 @@ impl<'a> Closure<'a> {
             return Some(None);
         }
         let (receiver, name) = self.count_member(query.domain)?;
-        let parameter = self.query_parameter(scenario, receiver)?;
+        // Direct `p.C`: the receiver is the parameter itself. Navigation
+        // `i.parent.C`: the receiver is the one-hop containment link off
+        // a default-free stored-record parameter. The path helper seals
+        // the ChildOf lineage, the declared-type match and the absence of
+        // a shadowing `parent` field; exactly one authored hop is
+        // admitted (a bare parameter always yields depth 0, a member
+        // receiver always yields depth >= 1).
+        let parameter = match self.query_parameter(scenario, receiver) {
+            Some(parameter) => parameter,
+            None => {
+                let (base, field) = self.count_member(receiver)?;
+                if field != "parent" {
+                    return None;
+                }
+                self.query_parameter(scenario, base)?
+            }
+        };
         let (parent, hops) = self.checked_call_parent_path(receiver, parameter, 0)?;
         let SymbolKind::Model {
             owner: ModelOwner::ChildOf(actual_parent),
@@ -8571,10 +8618,11 @@ impl<'a> Closure<'a> {
         else {
             return None;
         };
-        if hops != 0
+        if hops > 1
             || *actual_parent != parent
             || owner.name != name
-            || !self.original_reference_parameter(receiver, parameter)
+            || !(self.original_reference_parameter(receiver, parameter)
+                || self.original_navigation_parameter(receiver, parameter))
             || self.model_has_field(parent, name)
             || self.effects.models.get(&model)?.owner != ModelOwner::ChildOf(parent)
         {
@@ -8729,8 +8777,12 @@ impl<'a> Closure<'a> {
         &self,
         scenario: &super::effects::ScenarioData,
         key: NodeKey,
-    ) -> Option<(SymbolId, SymbolId)> {
+    ) -> Option<(SymbolId, SymbolId, NodeKey)> {
         let (receiver, name) = self.count_member(key)?;
+        // Normalize grouping/trivia off the recorded receiver: the IR
+        // erases groups when decoding, so the sealed occurrence is the
+        // normalized base (`i` for both `i.role` and `(i).role`).
+        let receiver = self.query_group(receiver)?;
         let Some(Binding::Symbol(parameter)) = self.query_binding(receiver) else {
             return None;
         };
@@ -8758,7 +8810,7 @@ impl<'a> Closure<'a> {
                         && matches!(symbol.kind, SymbolKind::Field {owner,..} if owner == *record)
                 })
         })?;
-        Some((*parameter, field))
+        Some((*parameter, field, receiver))
     }
 
     fn query_version(&self, key: NodeKey, alias: NodeKey, model: SymbolId) -> bool {

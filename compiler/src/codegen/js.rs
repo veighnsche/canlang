@@ -7580,14 +7580,20 @@ impl<'a> Emitter<'a> {
         {
             None => query.parent.is_none(),
             Some((receiver, parameter)) => query.parent.as_deref().is_some_and(|parent| {
+                let parameter_name = self
+                    .ir
+                    .items
+                    .get(parameter.0 as usize)
+                    .map(|item| item.name.as_str());
                 parent.span == Span::new(receiver.file, receiver.start, receiver.end)
-                    && matches!(&parent.expr, IrExpr::Name(name)
-                        if Some(name)
-                            == self
-                                .ir
-                                .items
-                                .get(parameter.0 as usize)
-                                .map(|item| &item.name))
+                    && match &parent.expr {
+                        IrExpr::Name(name) => Some(name.as_str()) == parameter_name,
+                        IrExpr::Member { base, field } => {
+                            field == "parent"
+                                && matches!(&base.expr, IrExpr::Name(name) if Some(name.as_str()) == parameter_name)
+                        }
+                        _ => false,
+                    }
             }),
         };
         first.call.file == at.file
