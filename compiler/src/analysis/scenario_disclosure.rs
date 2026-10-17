@@ -156,11 +156,14 @@ pub struct DisclosureFirstQuery {
     /// predicate. The first conjunct stays in `operand` so single-predicate
     /// readers keep working unchanged.
     pub extra_operands: Vec<NodeKey>,
-    /// Exact authored source text per conjunct operand, aligned with
-    /// `operand` then `extra_operands`; `Some` only for closed enum-case
-    /// operands. The predicate join pins the emitted case string against
-    /// this text so a sibling declared case cannot substitute at the same
-    /// span, type, source and facts.
+    /// Exact authored source identity per conjunct operand, aligned with
+    /// `operand` then `extra_operands`. Closed enum-case operands seal
+    /// the checked semantic case: the predicate join pins the emitted
+    /// case string against it so a sibling declared case cannot
+    /// substitute at the same span, type, source and facts. Param-row
+    /// member reads seal the exact authored `base.field` path so a
+    /// same-domain sibling field cannot substitute. All other operands
+    /// seal nothing.
     pub operand_texts: Vec<Option<String>>,
     /// DESIGN442 guard-consumed mark: the confined single-`Let(first)` plus
     /// single-`Require` hook slice consumes this occurrence only as a
@@ -8370,12 +8373,30 @@ impl<'a> Closure<'a> {
             // case literal carries no transported input.
             let case_operand = matches!(&field_ty, ResolvedType::Enum { cases, .. } if !cases.is_empty())
                 && self.types.resolved_cases.contains(&operand);
+            // Param-row member reads (`i.role`) compare against the
+            // caller's admitted row field; the value is read from the
+            // admitted row at predicate evaluation. The read field must
+            // carry exactly the compared enum type (same domain, per the
+            // type checker). The sealed path pins the exact authored
+            // base and field for the predicate join.
+            let member_operand = if event_operand || case_operand {
+                None
+            } else {
+                self.query_member_operand(scenario, operand)
+                    .filter(|(_, field)| self.types.symbol_types.get(field) == Some(&field_ty))
+                    .and_then(|(base, field)| {
+                        let base_name = &self.resolve.symbols.get(base.0 as usize)?.name;
+                        let field_name = &self.resolve.symbols.get(field.0 as usize)?.name;
+                        Some(((operand, base), format!("{base_name}.{field_name}")))
+                    })
+            };
             if !fields.contains(&field)
                 || !(primitive_type(&field_ty)
                     || matches!(&field_ty, ResolvedType::Enum { cases, .. } if !cases.is_empty()))
                 || self.types.node_types.get(&self.query_group(member)?) != Some(&field_ty)
                 || (!event_operand
                     && !case_operand
+                    && member_operand.is_none()
                     && self.nodes.get(&operand)?.kind != SyntaxKind::NameRef)
                 || self.types.node_types.get(&operand) != Some(&field_ty)
                 || self.types.node_types.get(conjunct) != Some(&ResolvedType::Scalar(Scalar::Bool))
@@ -8391,6 +8412,8 @@ impl<'a> Closure<'a> {
                 && self.word(self.nodes.get(&operand)?)? == "actor"
             {
                 None
+            } else if let Some(member) = member_operand.as_ref() {
+                Some(member.0)
             } else {
                 let parameter = self.query_parameter(scenario, operand)?;
                 if self.types.symbol_types.get(&parameter) != Some(&field_ty) {
@@ -8399,13 +8422,15 @@ impl<'a> Closure<'a> {
                 Some((operand, parameter))
             };
             members.push((member, field, field_ty, operand, input));
-            // Sealed authored case for closed cases; the predicate join
-            // pins the emitted case string against the checked semantic
-            // case (spelling-independent), not the raw source snippet.
+            // Sealed authored operand identity for the predicate join:
+            // closed cases seal the checked semantic case
+            // (spelling-independent); member reads seal the exact
+            // authored `base.field` path so a same-domain sibling field
+            // cannot substitute.
             operand_texts.push(if case_operand {
                 Some(self.checked_case_operand_text(operand)?)
             } else {
-                None
+                member_operand.map(|(_, path)| path)
             });
         }
         // Bound before dependencies: the opaque query id anchors them.
@@ -8693,6 +8718,47 @@ impl<'a> Closure<'a> {
                         && matches!(symbol.kind, SymbolKind::Field {owner,..} if owner == model)
                 })
         })
+    }
+
+    /// Param-row member operand (`i.role`): the base binds to a
+    /// default-free scenario param of stored-record type, and the final
+    /// field belongs to that record. Returns the base param and the
+    /// field. The value travels with the invocation; the predicate join
+    /// pins the exact base, field and enum correspondence.
+    fn query_member_operand(
+        &self,
+        scenario: &super::effects::ScenarioData,
+        key: NodeKey,
+    ) -> Option<(SymbolId, SymbolId)> {
+        let (receiver, name) = self.count_member(key)?;
+        let Some(Binding::Symbol(parameter)) = self.query_binding(receiver) else {
+            return None;
+        };
+        scenario
+            .params
+            .iter()
+            .find(|param| param.param == *parameter && param.default.is_none())?;
+        let ResolvedType::Record {
+            symbol: record,
+            stored: true,
+        } = self.types.symbol_types.get(parameter)?
+        else {
+            return None;
+        };
+        let SymbolKind::Model { fields, .. } = &self.resolve.symbols.get(record.0 as usize)?.kind
+        else {
+            return None;
+        };
+        let field = fields.iter().copied().find(|field| {
+            self.resolve
+                .symbols
+                .get(field.0 as usize)
+                .is_some_and(|symbol| {
+                    symbol.name == name
+                        && matches!(symbol.kind, SymbolKind::Field {owner,..} if owner == *record)
+                })
+        })?;
+        Some((*parameter, field))
     }
 
     fn query_version(&self, key: NodeKey, alias: NodeKey, model: SymbolId) -> bool {

@@ -72,6 +72,35 @@ Then
     )
 }
 
+fn conj_member_go(pred: &str, params: &str) -> String {
+    format!(
+        r#"app ConjMemberProbe
+Given
+ P {{v:int}}
+ C in P {{account:user,role:enum(administrator,booker)}}
+ D {{w:int}}
+ I in P {{role:C.role}}
+ policy P read=members fields=v
+ policy C read=members fields=parent,account,role
+ policy D read=members fields=w
+ policy I read=members fields=parent,role
+When
+ crud P by=members fields=v
+ crud C by=members fields=parent,account,role
+ crud I by=members fields=parent,role
+ scenario go(p:P,{params}) -> int by=members
+  do
+   let c=first(p.C as c where {pred} order=c.id)
+   require c!=null
+   create D {{w=1}} as d
+   return 1
+Then
+"#,
+        pred = pred,
+        params = params,
+    )
+}
+
 fn root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
@@ -325,6 +354,25 @@ fn conj_forged_case_refuses_early() {
             diagnostic.code == "E2001" && diagnostic.message.contains("unresolved name")
         }),
         "forged enum case keeps its loud early refusal, got {diagnostics:?}"
+    );
+    let _ = db;
+}
+
+#[test]
+fn conj_member_read_admits() {
+    // A param-row member read compares against the caller's admitted
+    // row field through the complete emitted artifact: same-domain
+    // enum, exact base and field.
+    let (db, program, _, catalog) = fixture_source(
+        "conj-member.can",
+        &conj_member_go("c.account==actor and c.role==i.role", "i:I"),
+    );
+    let (prepared, diagnostics) = prepared_artifact(&program, &db, &catalog);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    assert_eq!(
+        query_dep_fields(&prepared, "ConjMemberProbe.go"),
+        ["account", "role"],
+        "member-read conjunct emits its control dependency"
     );
     let _ = db;
 }

@@ -767,6 +767,11 @@ pub struct IrProgram {
         HashMap<SymbolId, crate::analysis::scenario_disclosure::ScenarioDisclosure>,
     /// Declaration census retained by the checked builder, never a wire claim.
     pub committed_sources: CheckedCommittedSources,
+    /// Checked closed-enum-case nodes retained for source correspondence:
+    /// only members admitted here may lower to a case constant. The
+    /// source-expression matcher consults this identity rather than
+    /// trusting token spelling or enum-type membership alone.
+    pub resolved_cases: HashSet<NodeKey>,
     pub standard_completion_sources: CheckedStandardCompletionSources,
     /// `catalog_version` consulted by analysis, or empty when none was.
     pub catalog_version: String,
@@ -907,6 +912,7 @@ fn empty_program(catalog_version: &str) -> IrProgram {
         value_constraints: HashMap::new(),
         scenario_disclosures: HashMap::new(),
         committed_sources: CheckedCommittedSources::default(),
+        resolved_cases: HashSet::new(),
         standard_completion_sources: CheckedStandardCompletionSources::default(),
         catalog_version: catalog_version.to_string(),
         referenced_builtins: Vec::new(),
@@ -5091,6 +5097,7 @@ impl<'a> Cx<'a> {
             value_constraints: self.program.types.value_constraints.clone(),
             scenario_disclosures: self.program.scenario_disclosures().clone(),
             committed_sources,
+            resolved_cases: self.program.types.resolved_cases.clone(),
             standard_completion_sources,
             catalog_version: self.program.catalog_version.clone(),
             referenced_builtins,
