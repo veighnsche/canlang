@@ -1396,7 +1396,28 @@ pub(super) fn checked_require_consumptions(
                     .iter()
                     .any(|dependency| dependency.id == read.id)
             }) {
-                continue;
+                // DESIGN442 (0411): a guard-consumed decision read still needs
+                // its execution capture — the State owner grant rides the bound
+                // execution dependency, while the result path keeps its own
+                // checks. Narrow to the single guard-consumed first query for
+                // this model (the State grant independently requires a
+                // single-query plan), so every other return-dep read keeps
+                // the result path exactly.
+                let decision = facts
+                    .queries
+                    .as_deref()
+                    .unwrap_or(&[])
+                    .iter()
+                    .filter(|query| query.first.is_some() && query.model == read.model)
+                    .collect::<Vec<_>>();
+                if decision.len() != 1
+                    || !decision[0]
+                        .first
+                        .as_ref()
+                        .is_some_and(|first| first.guard_consumed)
+                {
+                    continue;
+                }
             }
             let text = &db.get(read.node.file)?.text;
             let original_member = checked_effect_node(ir, owner, read.node, db)?;

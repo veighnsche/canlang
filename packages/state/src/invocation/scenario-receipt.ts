@@ -1348,7 +1348,15 @@ export function bindScenarioReceiptReferenceProducer(def: GeneratedOperationDef,
         dep.role !== 'control' || query === undefined || query.model !== dep.model ||
         stableStringify(query.source) !== stableStringify(bound.plan.source) ||
         executions.has(dep.id) ||
-        bound.plan.returns.some(returned => returned.dependencies.some(other => other.id === dep.id)) ||
+        // DESIGN442 (0411): a guard-consumed decision read keeps its execution
+        // capture despite return-dep status. The compiler emits the overlap
+        // only for the single guard-consumed first query of the model, and
+        // the owner grant independently requires the checked mark plus the
+        // same single-query scalar shape; the result path keeps its own
+        // checks. Every other overlap keeps the result path exactly.
+        (bound.plan.returns.some(returned => returned.dependencies.some(other => other.id === dep.id)) &&
+          !((bound.plan.queries?.length ?? 0) === 1 && bound.resultModel === undefined &&
+            query.dependencies.some(item => item.role === 'control' && item.field !== 'parent' && item.field === dep.field))) ||
         bound.plan.queries?.some(query => query.dependencies.some(other => other.id === dep.id))) {
       return invalid('execution Contract dependency requires its exact owning Require, first query and unique occurrence.');
     }
@@ -2920,8 +2928,27 @@ function guardConsumedDecisionPolicies(call: AdmittedCall, owner: ReceiptOwnerSe
   const producer = queryProducers.get(call.def as GeneratedOperationDef);
   const marked = producer?.first?.find(value => value.queryId === plan.id);
   const stored = marked?.guardConsumed === true, presence = marked?.presenceConsumed === true;
-  if (!stored && !presence || plan.parent !== undefined || state.bound.resultModel !== undefined ||
+  if (!stored && !presence || state.bound.resultModel !== undefined ||
       (state.bound.plan.queries?.length ?? 0) !== 1 || producer?.readPolicies === undefined) return undefined;
+  // Contained queries additionally require the exact admitted versioned
+  // parent reference (the same checks as resolveQueryParent); any other
+  // parent origin stays refused. The decision grant then verifies each
+  // observed child row's parent linkage against that admitted parent, so
+  // the mark never becomes model-wide access.
+  let admittedParent: { readonly model: ModelName; readonly id: string } | undefined;
+  if (plan.parent !== undefined) {
+    if (plan.parent.origin.kind !== 'admitted-reference') return undefined;
+    const parameter = plan.parent.origin.parameter;
+    const references = call.recordRefs.filter(reference => reference.param === parameter);
+    const reference = references[0];
+    if (references.length !== 1 || reference === undefined || reference.model !== plan.parent.model ||
+        reference.expectedVersion === null || reference.row.id !== reference.id ||
+        reference.row.version !== reference.expectedVersion ||
+        !requiredVersionedReferenceInput(call.def as GeneratedOperationDef, parameter, plan.parent.model)) {
+      return undefined;
+    }
+    admittedParent = { model: plan.parent.model, id: reference.id };
+  }
   const executions = referenceProducers.get(call.def as GeneratedOperationDef)?.boundExecutionDependencies;
   const executionFields = [...executions?.values() ?? []].filter(value => value.association.queryId === plan.id)
     .map(value => value.association.dependency.field);
@@ -2941,6 +2968,11 @@ function guardConsumedDecisionPolicies(call: AdmittedCall, owner: ReceiptOwnerSe
       const issued = ownerRows.get(observation.row);
       if (issued !== undefined && (issued.session !== owner || issued.stage !== stage ||
           issued.model !== plan.model)) return false;
+      // Contained grants additionally pin the observed child row to the
+      // admitted parent; rows from any other parent stay refused even
+      // when issued in the same stage.
+      if (admittedParent !== undefined && (observation.row.parent?.model !== admittedParent.model ||
+          observation.row.parent?.id !== admittedParent.id)) return false;
       return true;
     } });
   const policies = new Map(producer.readPolicies);
@@ -3055,6 +3087,11 @@ async function executeScenarioReceiptQueryMode(call: AdmittedCall, store: Storag
       const decisionPolicies = guardConsumedDecisionPolicies(call, owner, state, plan, [],
         new Set(domain.map(row => row.id)));
       const adapter = { ...store, readRevision: () => store.readRevision(), query: async () => domain };
+      // DESIGN442: the verified owner decision grant (sourceReadPolicies
+      // above) carries the marked Require decision's declared control reads
+      // through the existing verified grant machinery; without the grant the
+      // engine keeps ordinary viewer checks (fail-closed). No parallel
+      // string list excuses checks (0411).
       const base = { model: plan.model, modelDescriptor: queryModelDescriptor(state.bound, plan), authority: 'viewer' as const,
         policy: producer.policy, context, memberships, store: producer.readPolicies === undefined ? adapter : store,
         ...(producer.readPolicies === undefined ? {} : { sourceReadPolicies: decisionPolicies ?? producer.readPolicies }), archived: plan.archived,
@@ -3853,6 +3890,11 @@ async function observeScenarioReceiptDependencyValue(call: AdmittedCall, store: 
     // Opaque Files observations never pass through JSON/native wire copying.
     const observed = dataCopy({ dependencyId: input.dependencyId, model: input.model, row: input.row, field: input.field });
     const execution = referenceProducers.get(call.def as GeneratedOperationDef)?.boundExecutionDependencies.get(observed.dependencyId);
+    // DESIGN442 (0411): an execution-registered read that is also a result
+    // dependency records its observation below (return-dep completeness);
+    // execution-only reads keep the early return with no observation.
+    const executionResultLinked = execution !== undefined &&
+      state.bound.plan.returns.some(returned => returned.dependencies.some(other => other.id === observed.dependencyId));
     const dependency = execution?.association.dependency ?? state.bound.plan.returns.flatMap(entry => entry.dependencies).find(dep => dep.id === observed.dependencyId);
     if (dependency === undefined || dependency.model !== observed.model || dependency.field !== observed.field) return invalid('native observation disagrees with its checked dependency.');
     if (state.observations.length + state.intrinsics.length + (executedDependencies.get(state)?.size ?? 0) >= MAX_ITEMS) return invalid('observation budget exceeded.');
@@ -3904,21 +3946,27 @@ async function observeScenarioReceiptDependencyValue(call: AdmittedCall, store: 
       if (suppliedPosition && (admitted === undefined || admitted.expectedVersion === null || row.version !== admitted.expectedVersion ||
           !requiredVersionedReferenceInput(call.def as GeneratedOperationDef, admitted.param, observed.model))) admitted = undefined;
     }
+    // Execution-registered reads verified their row/stage discipline at query
+    // time and through once-only above; result-linked ones still record below.
+    // Both skip the ordinary busy/parent/issued gates (which cannot pass for
+    // execution reads) but keep liveness and owner acquisition.
     if (owner !== undefined) {
       ownerHealthy(owner);
-      const issued = ownerRows.get(input.row), parent = queryParentRows.get(input.row);
-      const candidate = parent === undefined ? undefined : parent.execution.candidates[querySlots.get(parent.slot)!.index];
-      const activeParent = parent !== undefined && !rowId && reference?.profile.kind === 'parent' &&
-        parent.dependencyId === dependency.id && parent.execution.call === call && parent.execution.owner === owner &&
-        parent.execution.stage === owner.stage && parent.execution.activeSlot === parent.slot && !parent.execution.complete &&
-        candidate?.pendingRead === null && (candidate.reads.get('parent') ?? 0) > 0 &&
-        parent.execution.plan.dependencies.some(dep => dep.field === 'parent' && candidate.dependencies.has(dep.id));
-      const activeAdmittedSource = admitted !== undefined && !rowId && (reference?.profile.kind === 'parent' || suppliedPosition) &&
-        linkedQuery !== undefined && linkedCandidate !== undefined;
-      if (parent !== undefined && (!activeParent || linkedQuery !== undefined && parent.execution !== linkedQuery) ||
-          owner.busy && !activeParent && !activeAdmittedSource && !selectedRead || admitted === undefined &&
-          (issued?.session !== owner || issued.stage !== owner.stage || issued.model !== observed.model)) {
-        return invalid('observation requires the actual current-stage owner row and active parent query slot.');
+      if (execution === undefined || !executionResultLinked) {
+        const issued = ownerRows.get(input.row), parent = queryParentRows.get(input.row);
+        const candidate = parent === undefined ? undefined : parent.execution.candidates[querySlots.get(parent.slot)!.index];
+        const activeParent = parent !== undefined && !rowId && reference?.profile.kind === 'parent' &&
+          parent.dependencyId === dependency.id && parent.execution.call === call && parent.execution.owner === owner &&
+          parent.execution.stage === owner.stage && parent.execution.activeSlot === parent.slot && !parent.execution.complete &&
+          candidate?.pendingRead === null && (candidate.reads.get('parent') ?? 0) > 0 &&
+          parent.execution.plan.dependencies.some(dep => dep.field === 'parent' && candidate.dependencies.has(dep.id));
+        const activeAdmittedSource = admitted !== undefined && !rowId && (reference?.profile.kind === 'parent' || suppliedPosition) &&
+          linkedQuery !== undefined && linkedCandidate !== undefined;
+        if (parent !== undefined && (!activeParent || linkedQuery !== undefined && parent.execution !== linkedQuery) ||
+            owner.busy && !activeParent && !activeAdmittedSource && !selectedRead || admitted === undefined &&
+            (issued?.session !== owner || issued.stage !== owner.stage || issued.model !== observed.model)) {
+          return invalid('observation requires the actual current-stage owner row and active parent query slot.');
+        }
       }
       if (!owner.busy) { owner.busy = true; acquiredOwner = true; }
     }
@@ -3996,7 +4044,11 @@ async function observeScenarioReceiptDependencyValue(call: AdmittedCall, store: 
       let executed = executedDependencies.get(state);
       if (executed === undefined) { executed = new Set(); executedDependencies.set(state, executed); }
       executed.add(dependency.id);
-      return undefined;
+      // Execution-only reads record nothing and return here; result-linked
+      // execution reads fall through to record their observation below.
+      if (!executionResultLinked) {
+        return undefined;
+      }
     }
     const secrets = state.bound.models.get(observed.model)!.secrets;
     if (secrets.length > MAX_ITEMS) return invalid('original secrecy inventory exceeds its finite budget.');

@@ -36,6 +36,35 @@ model-returning first-query invocation hits the pre-existing frame gap
 files untouched — branched model-result frame lifetimes are the named next
 prerequisite, not a silent pass.
 
+### Contained private-decision grant repair (0346/0411) — 2026-10-17
+
+Contained `p.C` decisions over viewer-withheld fields now execute under the
+verified owner grant end to end. Review 0346 showed merge49's mark alone
+could not discriminate decision authority (success also passed under viewer
+mode with readable fields); review 0411 then rejected two candidate
+bypasses — mark-keyed engine predicate paths firing after grant refusal,
+and projection tolerances declassifying genuine result dependencies — and
+directed the repair at the defining compiler/registration owner. The fix:
+compiler emits the execution capture for a guard-consumed decision read
+despite return-dep status (narrow: single guard-consumed first query per
+model), dedupes its identical observation emission (State once-only would
+refuse the duplicate), State registration accepts the overlap narrowly
+(single-query scalar shape, control model/field match; every other check
+stands), and result-linked execution reads record their observation
+(return-dep completeness) while execution-only reads keep the early
+return. No string list excuses checks; the result path is untouched.
+Honest acceptance: authorized absent/match arms commit with D effects and
+withhold the scalar (null) per genuine result-control/query-influence
+dependencies — execution authority is not disclosure authority. Fixture
+`first-query-side-effect-private.can` (C read fields=parent withheld, CRUD
+write keeps parent,v so the match row is seedable). Validation on frozen
+in-target `2aefa512` + `ca50`: cloudflare 4/4 whole file (absent commit+D
++withheld null, match commit+D+withheld null, real viewer C.read discloses
+no v, mismatch exact rule_failed+no D, revoked-caller forbidden+no D);
+rust first-query 10/10, hook 11/11, native_first 17/17, hook_lowering 26/26,
+bool 27/27, enum 54/54; state scalar unit 3/3; replay/lookup/fence suites
+green. No original24 movement claimed (276 frozen gc cohort stands).
+
 ### Require-conjunction guard-consumed slice (merge49) — 2026-10-17
 
 Flow-sensitive `c==null or c.v==m` / `c!=null and c.v==m` carry a stored
@@ -236,7 +265,20 @@ dispatch 4/4 + first-query 8/8. Original dispatch-guard family unchanged
 27 → 27; the remaining delivery.id remainder (cancel/retry_release
 shapes) stays ready work, not closed by this one-shape consumer.
 
-### Current original24 (frozen main fq cohort) — 276 E6008 — 2026-10-17
+### Current original24 (frozen main gc cohort) — 276 E6008 — 2026-10-17
+
+[evidence/original24-main-20261016.json](../../evidence/original24-main-20261016.json):
+frozen main producer `47dccb6d` (main `6137c3a93`: + absence primitive,
+guard-consumed conjunctions, fence correction) + native catalog `ca50`,
+saved argv, exit 10, 424.36s, complete=true, omitted=0, 26 sources, all
+authored hashes match. EXACT tuple identical to the fq 276 (0 removed / 0
+added): no original occurrence yet uses the newly admitted bare-absence
+or require-conjunction terminal shapes — the 90 remain hooks, derives,
+nested queries, if-branch creates and require-or with branch tails, which
+are separate recorded slices. Counts are not causes; the admitted shapes
+are proven by synthetic consumers, original attribution stays open.
+
+### Prior original24 (frozen main fq cohort) — 276 E6008 — 2026-10-17
 
 [evidence/original24-main-20261016.json](../../evidence/original24-main-20261016.json):
 frozen main producer `7ec8a4cc93fe` (main `96a71932e`: dispatch envelope +

@@ -567,3 +567,129 @@ test('native require conjunctions over absence decide with stored control reads'
       await worker?.dispose(); await rm(directory, { recursive: true, force: true });
     }
   });
+
+test('native require decision reads withheld fields under owner authority only',
+  { timeout: 180000 }, async () => {
+    // 0346/0411 discriminator: C.v is withheld from viewer grants
+    // (C read policy fields=parent; CRUD write eligibility unchanged), so
+    // the `or` field arm CANNOT pass under ordinary viewer mode. The
+    // Require decision must still execute under bounded owner authority
+    // via the contained decision grant (exact admitted parent, issued
+    // rows, current stage), gaining no viewer/result grant. Acceptance is
+    // the authorized commit plus its effects; scalar visibility follows
+    // the existing result/control contract, so both private arms withhold
+    // the scalar (genuine result-control/query-influence dependencies on
+    // the withheld field) while disclosing no field data.
+    const PRIV_APP = 'PrivateSources';
+    const privFixture = join(root, 'compiler/tests/fixtures/first-query-side-effect-private.can');
+    const privD = asModel(`${PRIV_APP}.D`);
+    const directory = await mkdtemp(join(tmpdir(), 'can-native-first-private-'));
+    let worker: Miniflare | undefined;
+    let capture: Awaited<ReturnType<typeof import('../src/dev/source-capture.js')['captureSingleFileSource']>> | undefined;
+    try {
+      const { assembleModules } = await nodeImport(installed('runtime/modules.js')) as typeof import('../src/runtime/modules.js');
+      const { buildInvoker } = await nodeImport(installed('worker/assembly.js')) as typeof import('../src/worker/assembly.js');
+      const { installedLocalPreviewInputInventory } = await nodeImport(installed('dev/preview-inputs.js')) as typeof import('../src/dev/preview-inputs.js');
+      const { captureIsCurrent, captureSingleFileSource, verifyCompilerSources } = await nodeImport(installed('dev/source-capture.js')) as typeof import('../src/dev/source-capture.js');
+      const { compileCapturedSingleFile } = await nodeImport(installed('dev/compiler-check.js')) as typeof import('../src/dev/compiler-check.js');
+      const { createD1Storage, ensureSchema } = await nodeImport(stateInstalled('storage/d1.js')) as typeof import('@canlang/state/storage/d1');
+      const originalSource = await readFile(privFixture);
+      const compilerPath = process.env.CAN_COMPILER_BIN ?? join(root, 'compiler/target/debug/can');
+      const catalogPath = process.env.CAN_NATIVE_CATALOG ?? join(root, 'packages/cloudflare/dist/native-catalog.json');
+      capture = await captureSingleFileSource({ checkoutRoot: root, appPath: privFixture,
+        profile: 'native-first-side-effect-private', compilerPath, catalogPath,
+        helpIndexPath: join(root, 'docs/specification/CONSTRUCT-HELP.md'),
+        ...installedLocalPreviewInputInventory(root, compilerPath), inputInventory: 'installed-local-preview',
+        semanticOptions: { nativeScenarioReceipts: 'true' } });
+      assert.equal(await captureIsCurrent(capture), true);
+      const compiled = await compileCapturedSingleFile(capture);
+      assert.equal(compiled.kind, 'artifact', compiled.kind === 'diagnostics' ? JSON.stringify(compiled.envelope.diagnostics) : compiled.kind);
+      if (compiled.kind !== 'artifact') throw new Error('Private source did not compile');
+      const artifact: CompileArtifact = compiled.artifact, originalArtifact = JSON.stringify(artifact);
+      assert.equal(verifyCompilerSources(capture, { complete: true, sources: artifact.sources }).ok, true);
+      const operation = artifact.operations?.find(operation => operation.name === `${PRIV_APP}.go_or`); assert.ok(operation);
+      assert.equal(operation.kind, 'scenario'); assert.equal(operation.result?.type, 'int');
+      const asm = await assembleModules({ artifact, sourcePath: privFixture }, { workDir: join(directory, 'modules'), stdlibUrl: installed('runtime/stdlib.js') });
+      const callable = artifact.callables.find(callable => callable.id === operation.name); assert.ok(callable);
+
+      worker = new Miniflare({ compatibilityDate: '2026-07-15', modules: true,
+        script: 'export default { fetch() { return new Response("ok"); } }',
+        d1Databases: { IDENTITY: 'first-private-identity', OWNER: 'first-private-owner' }, d1Persist: join(directory, 'd1') });
+      const identityDb = await worker.getD1Database('IDENTITY') as unknown as D1Database;
+      const ownerDb = await worker.getD1Database('OWNER') as unknown as D1Database;
+      await ensureIdentitySchema(identityDb); await ensureSchema(ownerDb);
+      const baseTime = Date.now();
+      const clock = { nowMs: () => baseTime + 10 }, identities = createD1IdentityStore(identityDb, { clock });
+      const team = await identities.createTeam({ timezone: 'UTC' });
+      const user = await identities.createUser({ email: 'first-private-member@example.test', password_hash: 'unused', email_verified: true });
+      const membership = await identities.createMembership({ team_id: team.team_id, user_id: user.user_id, is_owner: false, roles: [] });
+      const token = 'native-first-private-member';
+      await identities.createSession({ user_id: user.user_id, token_sha256: await sha256HexText(token),
+        last_team_id: team.team_id, expires_at: new Date(baseTime + 3600_000).toISOString() });
+      const identity = await resolveIdentity(identities, { session_token: token }, { clock });
+      const underlying = createD1Storage(ownerDb);
+      const store: StoragePort = underlying;
+      const invoker = buildInvoker(artifact, asm, store, { appId: PRIV_APP, memberships: identities, source: 'http', now: clock.nowMs });
+      let sequence = 0;
+      const sized = (inputs: MutationEnvelope['inputs']): MutationEnvelope => ({
+        operation: `${PRIV_APP}.go_or`, operation_id: uuidv7(baseTime, ++sequence), inputs });
+      const dCount = async () => (await store.query({ model: privD, authority: 'owner' }) as unknown as Array<unknown>).length;
+
+      const parent = await invoker.invokeMutation({ operation: `${PRIV_APP}.P.create`, operation_id: uuidv7(baseTime, ++sequence), inputs: { v: '1' } }, identity);
+      assert.ok('result' in parent, JSON.stringify(parent));
+      const parentRecords = ((parent.result as unknown as { records?: Array<{ id: string; version: number }> }).records ?? []);
+      assert.equal(parentRecords.length, 1);
+      const row = { p: { id: parentRecords[0]!.id, version: String(parentRecords[0]!.version) } };
+      const seedC = async (v: string) => {
+        const created = await invoker.invokeMutation({ operation: `${PRIV_APP}.C.create`, operation_id: uuidv7(baseTime, ++sequence), inputs: { parent: { id: parentRecords[0]!.id }, v } }, identity);
+        assert.ok('result' in created, JSON.stringify(created));
+      };
+
+      let d = await dCount();
+      // Absent arm commits without touching the withheld field. The scalar
+      // is withheld (null): the recorded return carries genuine
+      // query-influence dependencies on the withheld control field, and the
+      // existing result/control contract withholds it from viewers.
+      const absent = await invoker.invokeMutation(sized({ ...row, n: '80', m: '80' }), identity);
+      assert.ok('result' in absent, JSON.stringify(absent));
+      assert.equal(absent.result.status, 'committed');
+      assert.equal(absent.result.result, null, JSON.stringify(absent.result));
+      assert.equal(await dCount(), d + 1); d += 1;
+      // Match arm: C.v is withheld from viewers, so only the contained
+      // owner decision grant can satisfy the Require. The commit plus its D
+      // effect is the acceptance; the scalar stays withheld per its genuine
+      // v control dependency, disclosing no field data.
+      await seedC('81');
+      const matched = await invoker.invokeMutation(sized({ ...row, n: '81', m: '81' }), identity);
+      assert.ok('result' in matched, JSON.stringify(matched));
+      assert.equal(matched.result.status, 'committed');
+      assert.equal(matched.result.result, null, JSON.stringify(matched.result));
+      assert.equal(await dCount(), d + 1); d += 1;
+      // Viewer proof: a real viewer read of C discloses no v anywhere,
+      // even though a row carrying v exists.
+      const viewed = await invoker.invokeRead({ operation: `${PRIV_APP}.C.read`, inputs: {} }, identity);
+      assert.ok('result' in viewed, JSON.stringify(viewed));
+      const records = (viewed.result as { records?: Array<{ data?: Record<string, unknown> }> }).records ?? [];
+      assert.ok(records.length >= 1, JSON.stringify(viewed.result));
+      for (const record of records) assert.ok(!Object.hasOwn(record.data ?? {}, 'v'), JSON.stringify(record));
+      // Mismatch arm fails exact with no D.
+      const mismatched = await invoker.invokeMutation(sized({ ...row, n: '81', m: '82' }), identity);
+      assert.ok('error' in mismatched, JSON.stringify(mismatched));
+      assert.equal(mismatched.error.code, 'rule_failed', JSON.stringify(mismatched));
+      assert.equal(await dCount(), d);
+      // Revocation denies by owner authority with no effects.
+      await identities.removeMembership(membership.membership_id);
+      {
+        const before = await dCount();
+        const denied = await invoker.invokeMutation(sized({ ...row, n: '81', m: '81' }), identity);
+        assert.ok('error' in denied, JSON.stringify(denied));
+        assert.equal(denied.error.code, 'forbidden', JSON.stringify(denied));
+        assert.equal(await dCount(), before);
+      }
+
+      assert.deepEqual(await readFile(privFixture), originalSource);
+      assert.equal(JSON.stringify(artifact), originalArtifact); assert.equal(await captureIsCurrent(capture), true);
+    } finally {
+      await worker?.dispose(); await rm(directory, { recursive: true, force: true });
+    }
+  });
