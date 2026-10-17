@@ -1,0 +1,850 @@
+{
+  "source_base": "e3ba3c9e229ce5a1856bdf8bf1d8ea1902ed87ff",
+  "date": "2026-10-18",
+  "method": "Read-only source/evidence inspection and existing saved SHA comparison; no builds, product tests or runtime acceptance.",
+  "historical_base_object_available": false,
+  "historical_base": "aca27c2d483ee1d0d6e7f514868597e109ef7ba7",
+  "historical_commit_limit": "Old object absent locally; use retained file identities, not inferred ancestry. No fetch needed for this planning refresh.",
+  "groups": {
+    "review-source-manifest.json": {
+      "same": 16,
+      "changed": 21,
+      "missing": 0
+    },
+    "cloudflare-full-source-bridge.json": {
+      "same": 15,
+      "changed": 40,
+      "missing": 0
+    }
+  },
+  "files": [
+    {
+      "path": "packages/values/semantics/src/representations/numeric.rs",
+      "historical_sha256": "c012805095152f62168db2b00fa6c7a2ebc741f526f2e68a004bcfe3d149f13c",
+      "current_sha256": "208e99223e7089872d688155a80480a967270d2591c35e5b8d3f91d946fbf86a",
+      "status": "changed",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/review-source-manifest.json"
+      ]
+    },
+    {
+      "path": "packages/values/semantics/src/codecs/numeric.rs",
+      "historical_sha256": "6f06587f264ae4365739c7fbbbb9e2fe9e3b4319c5cc6fc71e056594dc740217",
+      "current_sha256": "6f06587f264ae4365739c7fbbbb9e2fe9e3b4319c5cc6fc71e056594dc740217",
+      "status": "same",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/review-source-manifest.json"
+      ]
+    },
+    {
+      "path": "packages/values/semantics/Cargo.toml",
+      "historical_sha256": "288e98e5ff913d884cb0c298afab590ff3b71b8c140ae38ab9134f03c4ed9a6a",
+      "current_sha256": "288e98e5ff913d884cb0c298afab590ff3b71b8c140ae38ab9134f03c4ed9a6a",
+      "status": "same",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/review-source-manifest.json"
+      ]
+    },
+    {
+      "path": "packages/values/bindings/src/lib.rs",
+      "historical_sha256": "3b1f7fefefd13438a04afa5b288600c590fba65e14dc8961f2fcff999e830ca6",
+      "current_sha256": "3b1f7fefefd13438a04afa5b288600c590fba65e14dc8961f2fcff999e830ca6",
+      "status": "same",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/review-source-manifest.json"
+      ]
+    },
+    {
+      "path": "packages/values/bindings/src/exact.rs",
+      "historical_sha256": "179c5201b342eb7578d18795b0d1935023b22820174477aef0ffe9c66318a423",
+      "current_sha256": "179c5201b342eb7578d18795b0d1935023b22820174477aef0ffe9c66318a423",
+      "status": "same",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/review-source-manifest.json"
+      ]
+    },
+    {
+      "path": "packages/values/bindings/backend.ts",
+      "historical_sha256": "bf1263532c90d0cdf64da032dd20040952682fb1f5f00c4a2daefa1f7f4304a3",
+      "current_sha256": "bf1263532c90d0cdf64da032dd20040952682fb1f5f00c4a2daefa1f7f4304a3",
+      "status": "same",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/review-source-manifest.json"
+      ]
+    },
+    {
+      "path": "packages/values/bindings/bootstrap.ts",
+      "historical_sha256": "39f2b698fd3b131451b2153adc2ab8050dc6cc0939814450b0e1161493796b5c",
+      "current_sha256": "39f2b698fd3b131451b2153adc2ab8050dc6cc0939814450b0e1161493796b5c",
+      "status": "same",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/review-source-manifest.json"
+      ]
+    },
+    {
+      "path": "packages/values/package.json",
+      "historical_sha256": "e542125300e2ee229f96bd37cc66af50c8982e588c26c9ba6cf363640688618f",
+      "current_sha256": "5995b963a7bea2fc186094f1a376b7b1566a1b71fd5c04a2a841fcc2af272c7c",
+      "status": "changed",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/review-source-manifest.json"
+      ]
+    },
+    {
+      "path": "packages/work-kernel/decisions/numeric_text.rs",
+      "historical_sha256": "e7b2326766bd664c5e50edf882ecbf4027558a503dfb000ab3ea5890867a9c00",
+      "current_sha256": "c7411ef966b6448a5ca9d2fa3df2c03f8834ea5e86fdf579a7132c4e14987d51",
+      "status": "changed",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/review-source-manifest.json"
+      ]
+    },
+    {
+      "path": "packages/work-kernel/bindings/host-values.ts",
+      "historical_sha256": "2a37bcc479bf53ec0a6e0f68a1a8fb6b14fd6a05217abcd93c1dcf51a4da3b26",
+      "current_sha256": "2a37bcc479bf53ec0a6e0f68a1a8fb6b14fd6a05217abcd93c1dcf51a4da3b26",
+      "status": "same",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/review-source-manifest.json"
+      ]
+    },
+    {
+      "path": "packages/work-kernel/src/index.ts",
+      "historical_sha256": "19d90ce21117e04456f95e44d5d51f7303fd9b17cbf236813b673173eedc4c49",
+      "current_sha256": "2267bc6f1a6f62005ad296e74687386902ae42159f56952da5463eba687a1f63",
+      "status": "changed",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/review-source-manifest.json"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/module-imports.ts",
+      "historical_sha256": "13ef57c952c0cadfabf873b49f64917113f2ce6721f941ba4611a95b4b597362",
+      "current_sha256": "2de919ad01bfd2cf3c3cc843321dd0be9a2e47d9aea49c85476eec850d199861",
+      "status": "changed",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/review-source-manifest.json",
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/cloudflare-full-source-bridge.json"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/module-maps.ts",
+      "historical_sha256": "e336c88f2ab17acc09bd57713a79d9a19b41c13a6241193edae4ae185aaa4f98",
+      "current_sha256": "4815cbb0ad2277c7239d27fe6e5681f96eb366f160e79ba0f0baf3e1ece8147c",
+      "status": "changed",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/review-source-manifest.json",
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/cloudflare-full-source-bridge.json"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/bundle.ts",
+      "historical_sha256": "7e8ad78a2674120ad59e96dbe2b34ab8923d8418578c015168c2b0ccd1a7a741",
+      "current_sha256": "5709e01c9d58e3fa1e5f621fdff02536087843a4a9ccf3d63c1483d9756efdbb",
+      "status": "changed",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/review-source-manifest.json",
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/cloudflare-full-source-bridge.json"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/sourcemap.ts",
+      "historical_sha256": "565f9c8521b6eaed277a65bbb8b82c4edea0c4f67ddada9df071dd16d4199113",
+      "current_sha256": "565f9c8521b6eaed277a65bbb8b82c4edea0c4f67ddada9df071dd16d4199113",
+      "status": "same",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/review-source-manifest.json",
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/cloudflare-full-source-bridge.json"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/modules.ts",
+      "historical_sha256": "c6297b40cdc68b3065d6dacd7b9a8dd4350ce0c4bcfc7268ee5d2527b6e4eb6d",
+      "current_sha256": "fae435823344a2c295f37b21752f28a7557b17e17a011e9521a1edce7ff41ac9",
+      "status": "changed",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/review-source-manifest.json",
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/cloudflare-full-source-bridge.json"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/package.json",
+      "historical_sha256": "3110b58d8d57ce356bef66c6545cfefbc2270c28542129b4ef5f9bb942998cd8",
+      "current_sha256": "d8eb8a2d54d600f7bec06e2b555aef35fc4ab516befe1d340c0a0ec686897d04",
+      "status": "changed",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/review-source-manifest.json"
+      ]
+    },
+    {
+      "path": "packages/identity/src/sessions/tokens.ts",
+      "historical_sha256": "d7867041c5c893cabdece58607af646c3468aa9e24a895b8608e8112cc7365fa",
+      "current_sha256": "d7867041c5c893cabdece58607af646c3468aa9e24a895b8608e8112cc7365fa",
+      "status": "same",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/review-source-manifest.json"
+      ]
+    },
+    {
+      "path": "packages/identity/src/sessions/cookies.ts",
+      "historical_sha256": "9766cfaa0a78204414f21468a8b1c046cbff7d8713556b49ae8cc235a00db099",
+      "current_sha256": "75f7742a160c8631e1ec638c4a1c83afd2c2a0cff674f8b2ec7a6c6d974564b4",
+      "status": "changed",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/review-source-manifest.json"
+      ]
+    },
+    {
+      "path": "packages/identity/src/sessions/comparison.ts",
+      "historical_sha256": "663079590c9147f2cb6f3de72187afcf84ea185ac3288c946fe05901738901db",
+      "current_sha256": "663079590c9147f2cb6f3de72187afcf84ea185ac3288c946fe05901738901db",
+      "status": "same",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/review-source-manifest.json"
+      ]
+    },
+    {
+      "path": "packages/identity/src/sessions/comparison-node.ts",
+      "historical_sha256": "4ab6f9af09469c5e9c876943867f05e47070519b8bfe820793efe7a637515e37",
+      "current_sha256": "4ab6f9af09469c5e9c876943867f05e47070519b8bfe820793efe7a637515e37",
+      "status": "same",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/review-source-manifest.json"
+      ]
+    },
+    {
+      "path": "packages/identity/src/sessions/comparison-worker.ts",
+      "historical_sha256": "d07b396186f6f28dccfe5809b9ee21342d3e51e0e969fe8d028320aa2351ff68",
+      "current_sha256": "d07b396186f6f28dccfe5809b9ee21342d3e51e0e969fe8d028320aa2351ff68",
+      "status": "same",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/review-source-manifest.json"
+      ]
+    },
+    {
+      "path": "packages/identity/src/accounts/passwords.ts",
+      "historical_sha256": "12e9f48e47452ce8af1c6b767bcca69843014290b85472071fea5251e738a969",
+      "current_sha256": "12e9f48e47452ce8af1c6b767bcca69843014290b85472071fea5251e738a969",
+      "status": "same",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/review-source-manifest.json"
+      ]
+    },
+    {
+      "path": "packages/identity/src/sessions/csrf.ts",
+      "historical_sha256": "b577b2619951a51f1aaccc62ae3db942a7d2237aec5f6d5c2d6d65a815040d60",
+      "current_sha256": "b577b2619951a51f1aaccc62ae3db942a7d2237aec5f6d5c2d6d65a815040d60",
+      "status": "same",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/review-source-manifest.json"
+      ]
+    },
+    {
+      "path": "packages/identity/src/authentication/oauth.ts",
+      "historical_sha256": "c548c8cdc916e4aaed503b3346ab7a4477c22c29d6b9e70c60986ea78daf14be",
+      "current_sha256": "c5ff43cc600ac4ef3f006489aaff5a66df72934666cb0b7916deae9aff84072b",
+      "status": "changed",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/review-source-manifest.json"
+      ]
+    },
+    {
+      "path": "packages/identity/package.json",
+      "historical_sha256": "50dfe25888fc7787c8cf4ede09abcb79c7fce8a4b5db496de0eeb86f375dcdd0",
+      "current_sha256": "fb715977532437ac5b0a086f6056fca6a3f3a49d555c4dfc20b91d3d06429c28",
+      "status": "changed",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/review-source-manifest.json"
+      ]
+    },
+    {
+      "path": "packages/ui/src/csv/grammar.ts",
+      "historical_sha256": "436633fe44c678cb6fc3cb88e45c7ad98df695690005e8e7d3a8aec771557efc",
+      "current_sha256": "5f7486a40b8b73dc44a6ee5cb5b90ad0c21f6323a4c790c81bb68ee1458a6bc6",
+      "status": "changed",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/review-source-manifest.json"
+      ]
+    },
+    {
+      "path": "packages/ui/src/csv/parse.ts",
+      "historical_sha256": "fb90f43c82a24932e6ae0c0332dbe3b53cbfeaf9e00bac41daa79c830c352af9",
+      "current_sha256": "0b9f386b6ddb7a09a63c378cc9afef89b0a1a07f7fcd22a4a8711e6d6fd379a5",
+      "status": "changed",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/review-source-manifest.json"
+      ]
+    },
+    {
+      "path": "packages/ui/package.json",
+      "historical_sha256": "5c7e8332525050e9503e397c27107b2f197e1edcec80b5ace95dc4b9ef3daaf4",
+      "current_sha256": "187aefdc8bcbf265c635bc1b4c18f1d9c5bc66aab5f61c7beb3dce28caacc5bf",
+      "status": "changed",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/review-source-manifest.json"
+      ]
+    },
+    {
+      "path": "packages/interfaces/src/http/csv.ts",
+      "historical_sha256": "6025d282f5afb52e127bafc5fa1154935c126dce833b57713310af47d94a3d2e",
+      "current_sha256": "737ff2d1be0ea2d779aa02d7153ab73417958f0f70225fe2cc30287b279a407f",
+      "status": "changed",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/review-source-manifest.json"
+      ]
+    },
+    {
+      "path": "packages/interfaces/src/http/export.ts",
+      "historical_sha256": "5da1415db2a27e24a79d045145e1fddf520b9ef525a7bf7ea2b316e1cf1321d3",
+      "current_sha256": "08f38964ae43de6eaa29990f9b13e4810611ebb46b149b0b38b730910846da3e",
+      "status": "changed",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/review-source-manifest.json"
+      ]
+    },
+    {
+      "path": "packages/services/src/http/client.ts",
+      "historical_sha256": "41b55f0bffee4a85a7a910ae8303da21f21fab010b1db5043a869d13c1a1f034",
+      "current_sha256": "a64b2a0c468937875186a6fa125a0580e9e5d689c38b56e79d874d74ad65babe",
+      "status": "changed",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/review-source-manifest.json"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/test/deploy-bundle.test.ts",
+      "historical_sha256": "e3523e94de4052d6d908ff248be11ae2e2e7fc2805afcebfd7108686eb4bc9c5",
+      "current_sha256": "ff7eb8e1a7302d6945ca349d0948fc8f861eff28f72618bc52824a2b2a9326a1",
+      "status": "changed",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/review-source-manifest.json"
+      ]
+    },
+    {
+      "path": "packages/identity/test/comparison.test.ts",
+      "historical_sha256": "384a94a493c83baabbd2b588dda973e8bb075b102e30bf8a670c9aad90add572",
+      "current_sha256": "384a94a493c83baabbd2b588dda973e8bb075b102e30bf8a670c9aad90add572",
+      "status": "same",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/review-source-manifest.json"
+      ]
+    },
+    {
+      "path": "packages/interfaces/test/csv-grammar-join.test.ts",
+      "historical_sha256": "87c4017b36b806b58caa6f7264b5c497ba5f77930c0d133d2c7c0c4e2deda399",
+      "current_sha256": "87c4017b36b806b58caa6f7264b5c497ba5f77930c0d133d2c7c0c4e2deda399",
+      "status": "same",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/review-source-manifest.json"
+      ]
+    },
+    {
+      "path": "packages/services/test/http-lifecycle.test.ts",
+      "historical_sha256": "e572900ef6ba07c957a62646a015c20f255d231d340b3a63f5090ec0b2a4121c",
+      "current_sha256": "f2b113bab88ce5e7998370e135f495285d1f62a1c3f4ceebe50d3fa485055264",
+      "status": "changed",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/review-source-manifest.json"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/invoke.ts",
+      "historical_sha256": "55178802cd4697279491b3997e79eb28b070a4ff580973d4513abdfe5023d2db",
+      "current_sha256": "2671fe0ef25fb34dff05580ca783536b5151e0cbcced61d85849570d9b850e4f",
+      "status": "changed",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/review-source-manifest.json",
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/cloudflare-full-source-bridge.json"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/index.ts",
+      "historical_sha256": "a70f7ed1df1459334d9065428aeb0b2bb00bc94f8d3630a6980c2d54a82665db",
+      "current_sha256": "a70f7ed1df1459334d9065428aeb0b2bb00bc94f8d3630a6980c2d54a82665db",
+      "status": "same",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/cloudflare-full-source-bridge.json"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/upgrade/apply.ts",
+      "historical_sha256": "167c77f7be30b29a3cbc37125d112208472ccf504a7f70e70e45e9d3aff73cca",
+      "current_sha256": "8724e169d04e43bbac2a7e8ba96a5e7e09cac1242b34845bcd5870ca1ba31ca1",
+      "status": "changed",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/cloudflare-full-source-bridge.json"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/activate.ts",
+      "historical_sha256": "1f39bfea83761034d1f93665c4f2fc80f444d0706148670637f8b1f7eae8db2c",
+      "current_sha256": "be4f1dd882b9591097faba89811598ac9768b1d4d8733015c6a4378999549617",
+      "status": "changed",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/cloudflare-full-source-bridge.json"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/installed.ts",
+      "historical_sha256": "512b47b2785c452ff500e9331783833ed4064bd26c9ffe1dc37f0c34d3ce34b1",
+      "current_sha256": "587e52a7b3220cfc15c8a0312fdb96149f7a4963eaac4e71c7120728c739c0f3",
+      "status": "changed",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/cloudflare-full-source-bridge.json"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/producer-files.ts",
+      "historical_sha256": "8ac214b19c81f74b9cf3561cf26c4c67a43ca20f28eedc8f94ef58574b72f6ba",
+      "current_sha256": "8ac214b19c81f74b9cf3561cf26c4c67a43ca20f28eedc8f94ef58574b72f6ba",
+      "status": "same",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/cloudflare-full-source-bridge.json"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/review.ts",
+      "historical_sha256": "7483e3867b3eaf0f7087d5846196512e96707acd6093667227cf78f94c1cbf5a",
+      "current_sha256": "e3a1c9a06085fc004e211ef39ccecf78cc006590ae0f034a3a91ed9ba0b3d6ec",
+      "status": "changed",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/cloudflare-full-source-bridge.json"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/render.ts",
+      "historical_sha256": "75bb7fb5eeb0cebafdf5c31079c12c63075b00d5708edaedf5a7f9c89b5bc980",
+      "current_sha256": "ab7f8f32d02c883f60e3043e08855e2c1a7cb2173076087508f922a8a7a1fa69",
+      "status": "changed",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/cloudflare-full-source-bridge.json"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/compat.ts",
+      "historical_sha256": "f78595dfc66957678a187e78b6fd3bd2ab20ec560c850637d7cb7425bbca2138",
+      "current_sha256": "f78595dfc66957678a187e78b6fd3bd2ab20ec560c850637d7cb7425bbca2138",
+      "status": "same",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/cloudflare-full-source-bridge.json"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/plan.ts",
+      "historical_sha256": "b3e90850bc619c6f1e8df843f393f639fef7c8dc0e59e3bdeae50eb2ed9ab335",
+      "current_sha256": "b50205d4bbc73c108487998792e3152d21b0cc9de032d2169cb6c22c35111732",
+      "status": "changed",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/cloudflare-full-source-bridge.json"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/package-assets.ts",
+      "historical_sha256": "878ee72f2d40d5a9ea457836d87934c217132b345ea8af80d9c1a48fe374993f",
+      "current_sha256": "3867b415b7230c5a7dbf51510627fc4b1efc99dcb6a0b39e031b85eb5ec06bd9",
+      "status": "changed",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/cloudflare-full-source-bridge.json"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/t34-f7-fanout.test.ts",
+      "historical_sha256": "bd21a2bb17efc8f7b89c21e5e12610a2d77174c7b09281c203654fc47e3591a0",
+      "current_sha256": "bd21a2bb17efc8f7b89c21e5e12610a2d77174c7b09281c203654fc47e3591a0",
+      "status": "same",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/cloudflare-full-source-bridge.json"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/t17b-cloudflare-flip.test.ts",
+      "historical_sha256": "d03d63f44510185d70fdf7f5208f126311c04875e610ed92960b9c4e889e550d",
+      "current_sha256": "6313ebd977d055f2051ffdb91b52fc06bf39f6a141fc50f503a171987778656c",
+      "status": "changed",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/cloudflare-full-source-bridge.json"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/mcp-registry.ts",
+      "historical_sha256": "cf8cf482728036635a1d964ab8fc94ff365eb900e3efb0a99d9f9daa69f34c14",
+      "current_sha256": "6ddab2c0c3bc9bd07b0d8a8ed59aac383f1c81ad86b24ff550c41a5a36d69826",
+      "status": "changed",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/cloudflare-full-source-bridge.json"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/t32b-cloudflare-durable.test.ts",
+      "historical_sha256": "880a5f3d5055f655ec39531d7d729f4483529b33ff305231b5070a0a2651ea9e",
+      "current_sha256": "351bd67c625b6f62162d7b55f3e0568ddc5828a5fc0f4fbbbd00dc602965577c",
+      "status": "changed",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/cloudflare-full-source-bridge.json"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/d3b-durable-serve.test.ts",
+      "historical_sha256": "1ce647814f81ebcd9657c28fb1dec37ab439acba4a1b67997805f0e184d9de53",
+      "current_sha256": "9742421d88b51d9942612571ddded5189342b855bff9fb9f09ed085edcb36aad",
+      "status": "changed",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/cloudflare-full-source-bridge.json"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/stdlib.ts",
+      "historical_sha256": "ced1c72a0244f7691471dd2aae3a88a3ae6198f67837af4008549df8bbc1662e",
+      "current_sha256": "b102c70ce2314201eabeb6fa94dcd505f8f237659b7985e743e9579794085214",
+      "status": "changed",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/cloudflare-full-source-bridge.json"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/t34-f7-emitted-cohorts.test.ts",
+      "historical_sha256": "a90182ca1d333f76a4072d6175356d04b280edd1055b68a2a26c5bd08a053d08",
+      "current_sha256": "a90182ca1d333f76a4072d6175356d04b280edd1055b68a2a26c5bd08a053d08",
+      "status": "same",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/cloudflare-full-source-bridge.json"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/grant-route.ts",
+      "historical_sha256": "523a5446fba7d0080a4572905a72c900ac91ba7c33ffa4508eac5f0e0479293d",
+      "current_sha256": "69df7b31a12644a6b0ca78b10f3d6c24d0e3db44c2fbcd3d3b87e26f53ab574a",
+      "status": "changed",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/cloudflare-full-source-bridge.json"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/t32b-cloudflare.test.ts",
+      "historical_sha256": "4c28d92d60517d529329eab34fb823e00a0fbe97db903e45eadc6a8d495f5824",
+      "current_sha256": "b3cb7954a88efc8589922e055d4597acb663ec0f8fb5e0e9bc4d95ac03868c40",
+      "status": "changed",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/cloudflare-full-source-bridge.json"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/env-assembly.ts",
+      "historical_sha256": "d39b218d24926884b627a30dadb5a1bf46db87cfbc1e6834b6f01ee136b95c25",
+      "current_sha256": "27155e40c05f3c207a811b95d0802c2783d46b7816004343a5571d7c37a19847",
+      "status": "changed",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/cloudflare-full-source-bridge.json"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/context.ts",
+      "historical_sha256": "9f628244197b61fc376319c9a4fe5aed82fbd04a62b283c96e564f6877a614d8",
+      "current_sha256": "b3ea0609fb10c58e27bdee4da4485d335c802284e66a7f6d9678fbcbbc8d585f",
+      "status": "changed",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/cloudflare-full-source-bridge.json"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/t16b-canonical.test.ts",
+      "historical_sha256": "a4b7ad1f3028e9480bbb514c30c642f3c990fcb710f1743f24cd0e950aebaba1",
+      "current_sha256": "fd03ae537511d22234bb9ddf03bd08725fb056f57654e203d9258038e87d5f52",
+      "status": "changed",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/cloudflare-full-source-bridge.json"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/executors.ts",
+      "historical_sha256": "76d481665ae5c9ada116e797d91b8848fcaa4c2171a5126970f9b83fcf6d33c1",
+      "current_sha256": "2f9cf8d04e4b99e1a1d2e258373650192deb1bb3e65e9864bd789d613062651f",
+      "status": "changed",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/cloudflare-full-source-bridge.json"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/mcp-permissions.ts",
+      "historical_sha256": "59f0d5aa713c3c114d1426a5e2354aa7f5672fd138276e30242061de13f8f61e",
+      "current_sha256": "59f0d5aa713c3c114d1426a5e2354aa7f5672fd138276e30242061de13f8f61e",
+      "status": "same",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/cloudflare-full-source-bridge.json"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/t17b-durable.test.ts",
+      "historical_sha256": "e331d4c9d724b31e5c2b1479357f60fd9b8798ae95ef17972f51b150bcf84b14",
+      "current_sha256": "f86a2fc7b050e0bfa059b981dc878cd7585545a41d9aff76f8daa719b7d70b1e",
+      "status": "changed",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/cloudflare-full-source-bridge.json"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/artifact.ts",
+      "historical_sha256": "e04b6ee1dc35b427d2e70aff35410142c1a1eabcfd73dc9ace973f965a51b04d",
+      "current_sha256": "efcc4da139420b517430ea9ef1de9bd36cd9adfe287e944fe7c18f9413eb830d",
+      "status": "changed",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/cloudflare-full-source-bridge.json"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/t34-f7-fanout-durable.test.ts",
+      "historical_sha256": "8636320772fbf995fd66bf122678d14a9047d996ab6b2502f761454abbba0c2d",
+      "current_sha256": "742d05420299d2bb1416e53921f305f3839dbc92a770c0f1ee06f4217ac707d1",
+      "status": "changed",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/cloudflare-full-source-bridge.json"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/d3b-selected-receipt.test.ts",
+      "historical_sha256": "54b17d8280f4cef50f165f49dd89d158e5efc8558e5ec8991347d45076d92c0f",
+      "current_sha256": "9e498ed16664564df4d1f006a5be0b0515064d685d3f5c51d5f862a475e2b92d",
+      "status": "changed",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/cloudflare-full-source-bridge.json"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/d3b-join-assembly.test.ts",
+      "historical_sha256": "824a5829be67d7bb167b120265b1b5298d7e645067163ad5a9bc38432b7a20e9",
+      "current_sha256": "5b22f2ba4ddf18abeda83a1f46f5aeadb5bcd53b1971b7c98bf016c6000d5ccf",
+      "status": "changed",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/cloudflare-full-source-bridge.json"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/t24b-dispatch-durable.test.ts",
+      "historical_sha256": "a838d4ae2f4bc895e2d3cd483389f5114e862882dd729d0bc0ae5c99c402925a",
+      "current_sha256": "749a64542c95d2896f355b9b9dbe96b21b4be5336b9d2259a85fc2ed0b890922",
+      "status": "changed",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/cloudflare-full-source-bridge.json"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/d3b-observer-seam.test.ts",
+      "historical_sha256": "d7fc8c4f963927ead2f8af67f45431739d58d1083afc3744f1fb0f55ef805db2",
+      "current_sha256": "845e922f0b1c2fa90a8cba9a37fe29f9d297ba9a61924887baccee4e3427d293",
+      "status": "changed",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/cloudflare-full-source-bridge.json"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/t24b-dispatch-execution.test.ts",
+      "historical_sha256": "a5678d07514194e8d4e03b84c4d1fd79ad588d89d83d25960f45ad27cb838ffc",
+      "current_sha256": "739dc0b2bd3fff16ca93b6065103e1a8e811d0d14a6a3731dc8f030754aee7fa",
+      "status": "changed",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/cloudflare-full-source-bridge.json"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/release/stamp.ts",
+      "historical_sha256": "d731f609c69be92b2fce043e8670b08a40da5c4f23dd72f0647e33d628be6863",
+      "current_sha256": "fe5069a8c95349a34173991b84f71630ca092581d2f54a126afa3ad080b93538",
+      "status": "changed",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/cloudflare-full-source-bridge.json"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/release/manifest.ts",
+      "historical_sha256": "0f1253522b0ee681173f788700835facdeb3bd2028daf2a461b75f1dc4c8a48d",
+      "current_sha256": "fe06c5e8bbed280ade063102dd519bc610dfa10840fdda069f3ecfd3b23f952c",
+      "status": "changed",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/cloudflare-full-source-bridge.json"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/cli/platform.ts",
+      "historical_sha256": "b6910c319e7196c585e9613f489f5ecab194483b9c9f9ea71913bfd4e0109e2a",
+      "current_sha256": "98f978565b6e89e8e35c2b4bb12ebda89dd6d5e470111205f92b00724fe5a19e",
+      "status": "changed",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/cloudflare-full-source-bridge.json"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/cli/docs.ts",
+      "historical_sha256": "dd15d0f9fbe4a0b4836f371e471d45f35c806f79c90139018a15d50847638bf1",
+      "current_sha256": "dd15d0f9fbe4a0b4836f371e471d45f35c806f79c90139018a15d50847638bf1",
+      "status": "same",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/cloudflare-full-source-bridge.json"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/dev/local-run.ts",
+      "historical_sha256": "78e2c5fca805c79003684360de328d793805693620facccb8ff7c8864687433a",
+      "current_sha256": "5b58ecfd7114e3ff716853ff2fadc13c769ac4a1439d0f19ed11d172d033ace9",
+      "status": "changed",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/cloudflare-full-source-bridge.json"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/dev/row-scope.ts",
+      "historical_sha256": "e291abb4f1b5d171f9f1949b1e8f30c4590377128c6d069ba56c8db235208183",
+      "current_sha256": "bc0638b7e5d172f01b1b166ebadaff9028e064e48e7f1efcfaf50def9ffd331e",
+      "status": "changed",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/cloudflare-full-source-bridge.json"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/dev/zero-config.ts",
+      "historical_sha256": "66cf73a6e9ae19695d652afa9ffee80647cda04a6d3e90ad47a88d67499635fe",
+      "current_sha256": "66cf73a6e9ae19695d652afa9ffee80647cda04a6d3e90ad47a88d67499635fe",
+      "status": "same",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/cloudflare-full-source-bridge.json"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/worker/main.ts",
+      "historical_sha256": "2335ee597c4d053960423baa07d1fb621b2b01e4f065a68881a94292f29a26ba",
+      "current_sha256": "cd27bbc0011550d8c32e8df2d57b2b4197e5f81af75e6e0db6f588a841bf827b",
+      "status": "changed",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/cloudflare-full-source-bridge.json"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/worker/entry.ts",
+      "historical_sha256": "106bfa11b9075dca53d4f4933497e5cb382d317471278d4f90c56402bad1580f",
+      "current_sha256": "106bfa11b9075dca53d4f4933497e5cb382d317471278d4f90c56402bad1580f",
+      "status": "same",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/cloudflare-full-source-bridge.json"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/worker/assembly.ts",
+      "historical_sha256": "489bf7f70fbb692227c9eb0482df42475b87ae2951d60abbc72d782fe2d51628",
+      "current_sha256": "6e27306dae5b017c8f5004f70b997fcbef1af297cb81d31b82bbe5b12ee9297f",
+      "status": "changed",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/cloudflare-full-source-bridge.json"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/preparation/publication.ts",
+      "historical_sha256": "d5a2a0bf875a2305648036cb7cc8c2d827a88980911384ba52d08a892d66a6d8",
+      "current_sha256": "d5a2a0bf875a2305648036cb7cc8c2d827a88980911384ba52d08a892d66a6d8",
+      "status": "same",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/cloudflare-full-source-bridge.json"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/preparation/executable.ts",
+      "historical_sha256": "a1804c5f4321de86194bcb1338291a3120687bc237505c71f8fd5e6e1934f0e3",
+      "current_sha256": "a1804c5f4321de86194bcb1338291a3120687bc237505c71f8fd5e6e1934f0e3",
+      "status": "same",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/cloudflare-full-source-bridge.json"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/preparation/inputs.ts",
+      "historical_sha256": "2d36665b20ff6387557355fe6ca63b11ce1f8c6a293b4c2494862a4b7a8229ac",
+      "current_sha256": "2d36665b20ff6387557355fe6ca63b11ce1f8c6a293b4c2494862a4b7a8229ac",
+      "status": "same",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/cloudflare-full-source-bridge.json"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/preparation/executable-manifest.ts",
+      "historical_sha256": "d479c648351dc2b13116d4f96bb83817f80fefbd472a95f24d77bf17048a442e",
+      "current_sha256": "d479c648351dc2b13116d4f96bb83817f80fefbd472a95f24d77bf17048a442e",
+      "status": "same",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/cloudflare-full-source-bridge.json"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/preparation/protocol.ts",
+      "historical_sha256": "0a8f5477e3ac10bbcacd0c43c467fc95bfaa125dbbd34a67929e1a8a5882ecf8",
+      "current_sha256": "0a8f5477e3ac10bbcacd0c43c467fc95bfaa125dbbd34a67929e1a8a5882ecf8",
+      "status": "same",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/cloudflare-full-source-bridge.json"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/preparation/host.ts",
+      "historical_sha256": "ee47c2dd8e45a50bac5dcdbd8592b447069348bdcfdb07e06ea6fe85b679bff1",
+      "current_sha256": "76b8a8c4262c1056fb2bf7b1788b385f3dcc20661a61d22319d016aef9f55981",
+      "status": "changed",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/cloudflare-full-source-bridge.json"
+      ]
+    },
+    {
+      "path": "packages/cloudflare/src/preparation/build-adapter.ts",
+      "historical_sha256": "ddbd1eb6abc50c1dfa1ccc59cfdd8f3e54cc5d296356004c794f2556f1053383",
+      "current_sha256": "4b9427f6368fdb33bf4ebeb1701829bd902f819f478220e3273f5f52797c0377",
+      "status": "changed",
+      "historical_manifest_refs": [
+        "docs/implementation/rust-port-orchestration/runs/codex-step12-20261007T025830Z/cloudflare-full-source-bridge.json"
+      ]
+    }
+  ],
+  "current_generated_inventory": [
+    {
+      "path": "packages/values/bindings/generated/values_semantics.d.ts",
+      "sha256": "b4fcaa531c8b9d9c0277854fb12e4b484194c7fda8e3cc55d563b9286d4f6848",
+      "bytes": 2184,
+      "matches_BUILD": true
+    },
+    {
+      "path": "packages/values/bindings/generated/values_semantics.js",
+      "sha256": "f369c7d79e367a15f1bdb12a7a5401dd4efc4648a8021845d2e613bf66d9b1f0",
+      "bytes": 7869,
+      "matches_BUILD": true
+    },
+    {
+      "path": "packages/values/bindings/generated/values_semantics_bg.wasm",
+      "sha256": "55cd8801037581538ae3d181dc359eff879028299f9b5ef78bf1ad29213e6b91",
+      "bytes": 650251,
+      "matches_BUILD": true
+    },
+    {
+      "path": "packages/values/bindings/generated/values_semantics_bg.wasm.d.ts",
+      "sha256": "9ac2938ac3d66379be0cf16f70c1d889be8c06b0e15e634407b94e2770fc7932",
+      "bytes": 643,
+      "matches_BUILD": true
+    }
+  ],
+  "current_BUILD_sha256": "23b37629495470a6ccb31e0fb59788c0958287453a5c2bd165937ee5b4d48ffb",
+  "canonical_ledger_sha256": "a2234d71ca27be84881bc2e62ed34e3263edbe444e891a184d0f23de9ebac930",
+  "canonical_statuses_advanced": false,
+  "qualification_limit": "Equal source files retain their historical evidence scope only. Changed paths require affected source/consumer reconciliation; these comparisons do not qualify current full installed runtime.",
+  "pre_sync_source_base": "ede59d0512ac9a5ede8c23dda47c006a150cb143",
+  "pre_sync_groups": {
+    "review-source-manifest.json": {
+      "same": 16,
+      "changed": 21,
+      "missing": 0
+    },
+    "cloudflare-full-source-bridge.json": {
+      "same": 15,
+      "changed": 40,
+      "missing": 0
+    }
+  },
+  "pre_sync_ledger_sha256": "95ed73948dd399c19ed39411128cb7b01523bca332bfad607869d6c1286caa9e",
+  "origin_sync": {
+    "head": "e3ba3c9e229ce5a1856bdf8bf1d8ea1902ed87ff",
+    "scope": "Rebased live documentation paths and source/ledger observations after fast-forward. Original historical hashes and evidence limits retained; no new runtime acceptance."
+  }
+}
