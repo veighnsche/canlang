@@ -336,11 +336,6 @@ test('created model with absent nullable contract field stores null, omits it fr
       assert.equal(batch.writes.length, 1);
       assert.equal(batch.writes[0]!.kind, 'insert'); assert.equal(batch.writes[0]!.model, MEMO);
       const row = await store.load(MEMO, result.id as Parameters<StoragePort['load']>[1]); assert.ok(row);
-      assert.equal(object(row.data).count, '3');
-      // Storage omits the absent nullable contract field; the emitted
-      // projection carries it as explicit null. Both views agree the field
-      // has no value; mirroring storage byte-for-byte in projection is a
-      // separate runtime representation question, not this admission batch.
       const storedData = object(row.data);
       assert.equal(storedData.count, '3');
       // Storage persists the absent nullable contract field as explicit
