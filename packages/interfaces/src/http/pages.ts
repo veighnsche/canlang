@@ -38,6 +38,7 @@ import type {
   TeamOption,
 } from '@canlang/contracts';
 import { deriveCsrfToken, parseSessionCookie, IdentityError } from '@canlang/identity';
+import { decodeValue } from '@canlang/values';
 import { buildNavigation, renderEnumPreferenceSettings, renderPage, selectDiscoveryCandidates } from '@canlang/ui';
 import type { PageHttpDeps, PagePreferenceKey } from '../ports.js';
 import {
@@ -152,7 +153,27 @@ function checkedPreferenceFields(descriptor: PageDescriptor): NonNullable<PageDe
     if (field.reference === true) {
       if (typeof field.name !== 'string' || !/^[A-Za-z][A-Za-z0-9_]*$/u.test(field.name) ||
           names.has(field.name) || !Array.isArray(field.options) || field.options.length !== 0 ||
-          field.defaultValue !== null || field.nullable !== true) {
+          field.defaultValue !== null || field.nullable !== true || field.date !== undefined) {
+        throw new Error('Invalid source preference descriptor.');
+      }
+      names.add(field.name);
+      continue;
+    }
+    // C3 civil-date preference leaf (DESIGN 1015-1025 operator table):
+    // a plain-date control carries no case options and no save
+    // control; the default is a civil date or null (empty means no
+    // restriction, DESIGN 1023) and the saved value validates as a
+    // civil date, never against an inventory. Only the compiler emits
+    // this shape (`date:true` with empty options); enum/bool leaves
+    // always carry their spellings below. The POST save path keeps
+    // refusing date leaves with validation: no save control admits
+    // them.
+    if (field.date === true) {
+      if (typeof field.name !== 'string' || !/^[A-Za-z][A-Za-z0-9_]*$/u.test(field.name) ||
+          names.has(field.name) || !Array.isArray(field.options) || field.options.length !== 0 ||
+          (field.defaultValue === null
+            ? field.nullable !== true
+            : !isCivilDate(field.defaultValue))) {
         throw new Error('Invalid source preference descriptor.');
       }
       names.add(field.name);
@@ -163,12 +184,12 @@ function checkedPreferenceFields(descriptor: PageDescriptor): NonNullable<PageDe
     // is a bounded string or null (empty means no restriction, DESIGN
     // 1023) and the saved value validates as a bounded string, never
     // against an inventory. Only the compiler emits this shape (empty
-    // options with no reference flag); enum/bool leaves always carry
+    // options with no reference/date flag); enum/bool leaves always carry
     // their spellings below. The POST save path keeps refusing text
     // leaves with validation: no save control admits them.
     if (Array.isArray(field.options) && field.options.length === 0) {
       if (typeof field.name !== 'string' || !/^[A-Za-z][A-Za-z0-9_]*$/u.test(field.name) ||
-          names.has(field.name) ||
+          names.has(field.name) || field.date !== undefined ||
           (field.defaultValue === null
             ? field.nullable !== true
             : typeof field.defaultValue !== 'string' || field.defaultValue.length > 200 ||
@@ -178,7 +199,7 @@ function checkedPreferenceFields(descriptor: PageDescriptor): NonNullable<PageDe
       names.add(field.name);
       continue;
     }
-    if (field.reference !== undefined || typeof field.name !== 'string' || !/^[A-Za-z][A-Za-z0-9_]*$/u.test(field.name) ||
+    if (field.reference !== undefined || field.date !== undefined || typeof field.name !== 'string' || !/^[A-Za-z][A-Za-z0-9_]*$/u.test(field.name) ||
         names.has(field.name) || !Array.isArray(field.options) || field.options.length === 0 ||
         field.options.some(value => typeof value !== 'string' || value === '') ||
         new Set(field.options).size !== field.options.length ||
@@ -190,6 +211,20 @@ function checkedPreferenceFields(descriptor: PageDescriptor): NonNullable<PageDe
     names.add(field.name);
   }
   return fields;
+}
+
+/**
+ * C3 civil-date check (DESIGN 1015-1025): a real civil `YYYY-MM-DD`
+ * date in years 0001-9999 through the canonical date wire (leap days
+ * and month lengths enforced, never a shifted instant).
+ */
+function isCivilDate(value: string): boolean {
+  try {
+    decodeValue('date', value);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function checkedPreferenceVersion(value: string): boolean {
@@ -227,18 +262,23 @@ async function preferenceSource(
     // validate the same way (C2 text-equality rule, DESIGN 975 scalar):
     // a bounded string with no inventory to violate, so an unknown
     // saved string narrows to no rows downstream instead of failing
-    // materialization; empty stays no restriction (DESIGN 1023).
-    const textLeaf = field.reference !== true &&
+    // materialization; empty stays no restriction (DESIGN 1023). Date
+    // values validate as civil dates (C3, DESIGN 1015-1025): a saved
+    // non-date is a materialization failure, never a silent empty.
+    const textLeaf = field.reference !== true && field.date !== true &&
       Array.isArray(field.options) && field.options.length === 0;
+    const dateLeaf = field.date === true;
     const savedOk = saved === null || !checkedPreferenceVersion(saved.version) || saved.version === '0'
       ? saved === null
       : field.reference === true
         ? typeof saved.value === 'string' && saved.value !== '' && saved.value.length <= 200 &&
           !/[\u0000-\u001f\u007f]/.test(saved.value)
-        : textLeaf
-          ? typeof saved.value === 'string' && saved.value.length <= 200 &&
-            !/[\u0000-\u001f\u007f]/.test(saved.value)
-          : field.options.includes(saved.value);
+        : dateLeaf
+          ? typeof saved.value === 'string' && isCivilDate(saved.value)
+          : textLeaf
+            ? typeof saved.value === 'string' && saved.value.length <= 200 &&
+              !/[\u0000-\u001f\u007f]/.test(saved.value)
+            : field.options.includes(saved.value);
     if (!savedOk) {
       throw new Error('Invalid saved page preference.');
     }

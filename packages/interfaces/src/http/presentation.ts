@@ -14,7 +14,7 @@
  * money rendering fails loudly without it rather than guessing.
  */
 import { DEFAULT_THEME, COLLECTION_FILTER_PREFIX, collectionFilterName } from '@canlang/contracts';
-import { decodeValue, makeUserRef } from '@canlang/values';
+import { decodeValue, encodeValue, makeUserRef } from '@canlang/values';
 import { createOperationFormPreparer } from './forms.js';
 import { buildBusinessError } from '../errors/envelope.js';
 import { systemInterfacesClock } from '../ports.js';
@@ -48,12 +48,14 @@ const unavailablePageRecords: PageRecordsReader = async () => {
  * inventory: enum case names, strict booleans for `bool` toggle columns,
  * bounded free text for `text` columns (C2 text-equality rule, DESIGN 975
  * scalar + operator table: ordinary string equality, never a spelling
- * inventory), or typed opaque identities for `user`/`member`/`ref:`
- * reference columns
+ * inventory), civil `YYYY-MM-DD` dates for `date` columns (C3
+ * civil-date equality rule, DESIGN 1015-1025 operator table: exact
+ * typed equality over civil dates, never shifted instants), or typed
+ * opaque identities for `user`/`member`/`ref:` reference columns
  * (DESIGN 977: reference equality is not an enum spelling, so no case
  * inventory applies; unknown or inaccessible references simply match nothing,
  * DESIGN 1027). Conditions carry typed predicate values (booleans stay
- * booleans; text stays strings; reference identities stay `{id}` objects; the spellings
+ * booleans; text and civil dates stay strings; reference identities stay `{id}` objects; the spellings
  * `"true"`/`"false"` only travel in column metadata and request text, never
  * as truthy filter values). Defaults initialize only declared controls
  * (DESIGN 975); explicit request selection or clear wins per control.
@@ -92,10 +94,43 @@ function collectionFilterPreparer(params: URLSearchParams): NonNullable<Presenta
           /[\u0000-\u001f\u007f]/.test(value)) refuse();
       return value as string;
     };
+    // C3 civil-date equality from request/defaults (DESIGN 1015-1025
+    // operator table): a real civil `YYYY-MM-DD` date in years
+    // 0001-9999, validated through the canonical date wire (leap days
+    // and month lengths enforced, never a shifted instant). The wire
+    // string itself flows downstream, where the state string equality
+    // evaluates it. Malformed input refuses; empty means no restriction
+    // (DESIGN 1023) and is mapped to null by the callers, never passed
+    // here.
+    const filterDate = (value: unknown): string => {
+      if (typeof value === 'string') {
+        if (value === '') refuse();
+        try {
+          decodeValue('date', value);
+        } catch {
+          refuse();
+        }
+        return value;
+      }
+      // Compiled `date("...")` literal defaults arrive as canonical
+      // DateValue objects (the `date()` helper returns decoded values,
+      // not wire strings); normalize them to the wire string the state
+      // string equality evaluates. Anything else refuses.
+      if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+        try {
+          const wire = encodeValue('date', value as never);
+          if (typeof wire !== 'string') refuse();
+          return wire as string;
+        } catch {
+          refuse();
+        }
+      }
+      return refuse();
+    };
     if (typeof occurrence !== 'string' || occurrence.length === 0) refuse();
     let prefix: string;
     try { prefix = `${COLLECTION_FILTER_PREFIX}${encodeURIComponent(occurrence)}:`; } catch { return refuse(); }
-    const inventories = new Map<string, { readonly kind: 'enum' | 'bool' | 'ref' | 'text'; readonly cases: Set<string> }>();
+    const inventories = new Map<string, { readonly kind: 'enum' | 'bool' | 'ref' | 'text' | 'date'; readonly cases: Set<string> }>();
     for (const column of fields) {
       if (typeof column !== 'object' || column === null) refuse();
       const field = own(column, 'field'), type = own(column, 'type'), labels = own(column, 'valueLabels');
@@ -123,6 +158,16 @@ function collectionFilterPreparer(params: URLSearchParams): NonNullable<Presenta
         if (cases.length !== 0) refuse();
         try { collectionFilterName(occurrence, field); } catch { return refuse(); }
         inventories.set(field, { kind: 'text', cases: new Set() });
+        continue;
+      }
+      // C3 civil-date equality rule (DESIGN 1015-1025 operator table):
+      // a `date` control carries no spellings, exactly like text/a
+      // reference: the descriptor must not smuggle an option inventory
+      // alongside the civil date.
+      if (type === 'date') {
+        if (cases.length !== 0) refuse();
+        try { collectionFilterName(occurrence, field); } catch { return refuse(); }
+        inventories.set(field, { kind: 'date', cases: new Set() });
         continue;
       }
       if (typeof type !== 'string' || !type.startsWith('enum:') || type.slice(5).trim().length === 0 ||
@@ -156,6 +201,17 @@ function collectionFilterPreparer(params: URLSearchParams): NonNullable<Presenta
           if (value !== null && typeof value !== 'string') refuse();
           selected.set(field, value === null || value === '' ? null : filterText(value));
           continue;
+        } else if (entry.kind === 'date') {
+          // C3 civil-date equality rule (DESIGN 1015-1025 + 1023): a
+          // date default is a civil date or null; empty means no
+          // restriction, exactly like a cleared request value.
+          // Compiled `date("...")` literal defaults arrive as canonical
+          // DateValue objects, not wire strings; filterDate normalizes
+          // both spellings and refuses anything else.
+          if (value !== null && typeof value !== 'string' &&
+              (typeof value !== 'object' || value === null || Array.isArray(value))) refuse();
+          selected.set(field, value === null || value === '' ? null : filterDate(value));
+          continue;
         } else if (value !== null && (typeof value !== 'string' || !entry.cases.has(value))) refuse();
         selected.set(field, value as string | boolean | null);
       }
@@ -186,6 +242,15 @@ function collectionFilterPreparer(params: URLSearchParams): NonNullable<Presenta
       if (entry.kind === 'text') {
         seen.add(field);
         selected.set(field, value === '' ? null : filterText(value));
+        continue;
+      }
+      // C3 civil-date equality rule: request dates validate like
+      // defaults (real civil dates); empty clears the control
+      // (DESIGN 1023). The emitted condition stays the existing
+      // `eq` shape below.
+      if (entry.kind === 'date') {
+        seen.add(field);
+        selected.set(field, value === '' ? null : filterDate(value));
         continue;
       }
       if (value !== '' && !entry.cases.has(value)) refuse();

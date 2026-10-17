@@ -3478,12 +3478,19 @@ fn collection_filter_props_are_valid(ir: &IrProgram, node: &IrUi) -> bool {
                 // exactly like a reference. Validated string-likes and
                 // every other shape keep the refusal below.
                 ResolvedType::Scalar(Scalar::Text) if text("type") == Some("text") => None,
+                // C3 civil-date equality rule (DESIGN 1015-1025 operator
+                // table): a plain `date` column carries no value labels,
+                // exactly like text/a reference. Datetime keeps the
+                // refusal below: no symmetry generalization.
+                ResolvedType::Scalar(Scalar::Date) if text("type") == Some("date") => None,
                 _ => return false,
             };
             // A reference column compares by typed opaque identity
             // (DESIGN 977), never enum spellings: its descriptor carries
             // no value labels. A text column carries none either: text
             // is not finite-choice, so the free-text control offers no
+            // option inventory. A date column carries none either: civil
+            // dates are not finite-choice, so the date control offers no
             // option inventory.
             let is_reference = matches!(
                 ty,
@@ -3491,6 +3498,7 @@ fn collection_filter_props_are_valid(ir: &IrProgram, node: &IrUi) -> bool {
                     | ResolvedType::Scalar(Scalar::User | Scalar::Member)
             );
             let is_text = matches!(ty, ResolvedType::Scalar(Scalar::Text));
+            let is_date = matches!(ty, ResolvedType::Scalar(Scalar::Date));
             if selected.insert(name, ty).is_some() {
                 return false;
             }
@@ -3500,7 +3508,7 @@ fn collection_filter_props_are_valid(ir: &IrProgram, node: &IrUi) -> bool {
             let IrExpr::Object(labels) = &labels.expr else {
                 return false;
             };
-            let labels_match = if is_reference || is_text {
+            let labels_match = if is_reference || is_text || is_date {
                 labels.is_empty()
             } else {
                 match expected_cases {
@@ -3546,6 +3554,9 @@ fn collection_filter_props_are_valid(ir: &IrProgram, node: &IrUi) -> bool {
                 // C2 text-equality rule: no case inventory (None, like
                 // references); other shapes keep the refusal.
                 ResolvedType::Scalar(Scalar::Text) => None,
+                // C3 civil-date equality rule: no case inventory (None,
+                // like text/references); other shapes keep the refusal.
+                ResolvedType::Scalar(Scalar::Date) => None,
                 _ => return false,
             };
             // C2 text-equality rule (DESIGN 975 scalar): a text-typed
@@ -3554,6 +3565,17 @@ fn collection_filter_props_are_valid(ir: &IrProgram, node: &IrUi) -> bool {
             // enum cases), so only this literal, a direct saved text
             // read, or null lower.
             let text_default = matches!(expected, ResolvedType::Scalar(Scalar::Text));
+            // C3 civil-date equality rule (DESIGN 1015-1025): a date
+            // literal (`date("...")` call or folded `Date`) matches the
+            // date control. No computed date form is admitted: only this
+            // literal, a direct saved date read, or null lower.
+            let date_default = matches!(expected, ResolvedType::Scalar(Scalar::Date));
+            let date_literal = date_default
+                && value.ty == **expected
+                && (matches!(&value.expr, IrExpr::Date(_))
+                    || matches!(&value.expr, IrExpr::Call { target, args }
+                        if matches!(&target, IrCallTarget::Builtin { id, .. } if id == "date")
+                            && matches!(args.as_slice(), [single] if matches!(single.expr, IrExpr::Text(_)))));
             let valid = match &value.expr {
                 IrExpr::Text(case) => {
                     enum_cases.is_some_and(|cases| {
@@ -3566,6 +3588,7 @@ fn collection_filter_props_are_valid(ir: &IrProgram, node: &IrUi) -> bool {
                             || matches!(value.ty, ResolvedType::Scalar(Scalar::Text))))
                         || (text_default && value.ty == **expected)
                 }
+                _ if date_literal => true,
                 IrExpr::Bool(_) => bool_default && value.ty == **expected,
                 IrExpr::Null => true,
                 IrExpr::Member { base, .. } if matches!(&base.expr, IrExpr::Name(name) if name == "preferences") => {
@@ -12887,7 +12910,7 @@ impl<'a> Emitter<'a> {
                         labels.push_str(&format!(",optionLabels:{{{values}}}"));
                     }
                     format!(
-                        "{{name:{},options:[{}],defaultValue:{}{}{}{labels}}}",
+                        "{{name:{},options:[{}],defaultValue:{}{}{}{}{labels}}}",
                         js_string(&field.name),
                         field
                             .options
@@ -12905,6 +12928,10 @@ impl<'a> Emitter<'a> {
                         // options: the saved identity stays opaque and is
                         // validated as an opaque string downstream.
                         if field.reference { ",reference:true" } else { "" },
+                        // C3 civil-date leaf (DESIGN 1015-1025): no case
+                        // options; the default/saved values are civil
+                        // dates validated downstream.
+                        if field.date { ",date:true" } else { "" },
                     )
                 })
                 .collect::<Vec<_>>()
