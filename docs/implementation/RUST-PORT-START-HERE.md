@@ -16,6 +16,17 @@ Current-byte Node binding smoke recorded below is already credited; it does not
 replace installed/vendor/workerd delivery evidence. No accepted recovery work is
 reopened. All native-preparation/source-adoption/default/publication holds remain.
 
+### Additional package opportunities — proposals only
+
+The [full packages opportunity audit](../ideal-filetree-plan/rust-package-audit/README.md)
+at merged source `08dc8c392` covers all 13 packages and 1,511 tracked paths.
+It retains the priorities below and proposes finite contract/cost evaluations
+for message syntax, exact Judgment response decoding, State batch ordering and
+generation diffing. Files byte analysis is conditional on actual workload demand.
+These are optional candidates, not new canonical tasks, implementation-ready
+packets or prerequisites for existing A/V/W/C04 outcomes. Native preparation and
+all original holds remain in force as recorded below.
+
 ### Implemented and credited
 
 | Owner / original scope | Current implementation and evidence | Limit that remains |

@@ -1,0 +1,228 @@
+{
+  "kind": "advisory; no authorization or proof",
+  "public_source_verification": "Repository marked Public and all five exact commit raw URLs opened without credentials before calls. Original richer internal-context request was blocked by automatic review; only verified public-source facts submitted.",
+  "state": {
+    "purpose": "Evaluate optional Rust kernel boundaries for this public open-source repository. Only public source facts are supplied; no benchmark or host-feature result is assumed.",
+    "public_repository": "https://github.com/veighnsche/canlang",
+    "candidates": {
+      "icu": {
+        "source": "https://raw.githubusercontent.com/veighnsche/canlang/08dc8c3928f53c7a06984136ac52ff944360075c/packages/values/src/icu.ts",
+        "facts": "Values IcuParser and compiler analysis/examples.rs IcuParser plus UI messages.ts implement related bounded grammar. Values treats # outside plural as literal; compiler rejects it. Runtime uses Intl locale/plural/date and exact numeric guards. Sharing parsing may reduce semantic drift; unification must resolve profile differences first. No measured parser bottleneck. Alternatives: retain profiled parsers with shared cases; shared TS parse owner; agreed Rust parse/usage core with host formatting retained."
+      },
+      "query": {
+        "source": "https://raw.githubusercontent.com/veighnsche/canlang/08dc8c3928f53c7a06984136ac52ff944360075c/packages/state/src/query/engine.ts",
+        "facts": "orderSourceReadRecords decodes typed keys then sorts after host authority/projection. Ordering and singleton decode errors observable. Money compare may throw. String/id UTF16 order and row identity matter. Page candidates cap1000, storage may scan more. Two-valued policy differs from SQL three-valued predicate behavior. Alternatives: retain/optimize TS prepared keys; Rust admitted total-order key batch to permutation; broader kernel with host callbacks. No latency/copy-cost evidence. Keep authority and source evaluation ordering intact."
+      },
+      "files": {
+        "source": "https://raw.githubusercontent.com/veighnsche/canlang/08dc8c3928f53c7a06984136ac52ff944360075c/packages/files/src/upload/index.ts",
+        "facts": "Synchronous detectContentType/checkContent uses small PDF/PNG/JPEG magic, otherwise nonempty NUL-free fatal TextDecoder UTF8. sha256Hex uses noble JS SHA256, consumed in completion/finalize/read/retention. Host authority/counts precede checks; failed content causes cleanup. Alternatives: current TS plus host native decoding; whole immutable byte-buffer Rust detection/digest kernel; async WebCrypto would require sync caller changes. No CPU measurements. Signature checks alone tiny; potential benefit only whole buffers."
+      },
+      "diff": {
+        "source": "https://raw.githubusercontent.com/veighnsche/canlang/08dc8c3928f53c7a06984136ac52ff944360075c/packages/cloudflare/src/generation/controls.ts",
+        "facts": "textHunks/myersDiff used by generation runDiff. Strict UTF8 round trip, LF splitting, Myers tie choices, n*m>4000000 fallback delete/insert;50 hunks/500 output lines enforced after full diff. Trace retained below fallback. Alternatives: retain bounded TS; improve memory algorithm TS; Rust pure bytes-to-hunks leaf with exact output compatibility and local delivery. No measured bottleneck; memory concern is static inference, not observed failure. Process/lease/journal remain host functions."
+      },
+      "judgment": {
+        "source": "https://raw.githubusercontent.com/veighnsche/canlang/08dc8c3928f53c7a06984136ac52ff944360075c/packages/services/src/judgments/systemone.ts",
+        "facts": "staticResult exactJson requires JSON.parse reviver context.source for numbers; throws if unavailable. wireDecimal guards exponent/scale, exact decimal units and tolerance, int64 usage, source question order, winner/distribution and weighted score checks. Legacy Number mapper separate. No established supported-host failure. Alternatives: keep host JSON parser; JS raw numeric lexeme reader; Rust raw-response to canonical static-result kernel with exact Values arithmetic. Must preserve duplicate-last-wins, strings/surrogates, invalid-to-null behavior and source ordering. HTTP/provider binding remains host."
+      }
+    }
+  },
+  "criteria": {
+    "propose_port": "Source evidence supports proposing a finite Rust implementation boundary now, subject to compatibility and delivery validation; further comparison need not precede the ownership proposal.",
+    "evaluate_first": "A finite contract/consumer or performance comparison is worthwhile before choosing Rust ownership; current implementation remains until that decision.",
+    "retain_now": "Keep current language and ownership; no new comparison is justified until a concrete consumer need or measured problem appears."
+  },
+  "requests": [
+    {
+      "variant": 1,
+      "instructions": "For the named candidate, choose its next planning disposition using the public facts. Compare complete behavior, user benefit, maintenance and delivery cost. Do not assume unmeasured speed or unverified host failure.",
+      "response": {
+        "model": "jev-1.13.0",
+        "answers": {
+          "icu": {
+            "type": "choice",
+            "choice": "evaluate_first",
+            "confidence": 0.77,
+            "probabilities": {
+              "propose_port": 0.0,
+              "evaluate_first": 0.85,
+              "retain_now": 0.15
+            }
+          },
+          "query": {
+            "type": "choice",
+            "choice": "evaluate_first",
+            "confidence": 0.49,
+            "probabilities": {
+              "propose_port": 0.01,
+              "evaluate_first": 0.66,
+              "retain_now": 0.33
+            }
+          },
+          "files": {
+            "type": "choice",
+            "choice": "retain_now",
+            "confidence": 0.4,
+            "probabilities": {
+              "propose_port": 0.01,
+              "evaluate_first": 0.39,
+              "retain_now": 0.6
+            }
+          },
+          "diff": {
+            "type": "choice",
+            "choice": "evaluate_first",
+            "confidence": 0.27,
+            "probabilities": {
+              "propose_port": 0.06,
+              "evaluate_first": 0.51,
+              "retain_now": 0.43
+            }
+          },
+          "judgment": {
+            "type": "choice",
+            "choice": "evaluate_first",
+            "confidence": 0.4,
+            "probabilities": {
+              "propose_port": 0.06,
+              "evaluate_first": 0.6,
+              "retain_now": 0.34
+            }
+          }
+        },
+        "usage": {
+          "input_tokens": 2158,
+          "output_tokens": 205
+        }
+      }
+    },
+    {
+      "variant": 2,
+      "instructions": "Assess the named optional Rust boundary on equal required semantics and total lifecycle cost. Which next step is justified by the public evidence and remaining uncertainty?",
+      "response": {
+        "model": "jev-1.13.0",
+        "answers": {
+          "icu": {
+            "type": "choice",
+            "choice": "evaluate_first",
+            "confidence": 0.85,
+            "probabilities": {
+              "propose_port": 0.0,
+              "evaluate_first": 0.9,
+              "retain_now": 0.1
+            }
+          },
+          "query": {
+            "type": "choice",
+            "choice": "evaluate_first",
+            "confidence": 0.76,
+            "probabilities": {
+              "propose_port": 0.01,
+              "evaluate_first": 0.84,
+              "retain_now": 0.15
+            }
+          },
+          "files": {
+            "type": "choice",
+            "choice": "evaluate_first",
+            "confidence": 0.4,
+            "probabilities": {
+              "propose_port": 0.01,
+              "evaluate_first": 0.6,
+              "retain_now": 0.39
+            }
+          },
+          "diff": {
+            "type": "choice",
+            "choice": "evaluate_first",
+            "confidence": 0.58,
+            "probabilities": {
+              "propose_port": 0.06,
+              "evaluate_first": 0.72,
+              "retain_now": 0.22
+            }
+          },
+          "judgment": {
+            "type": "choice",
+            "choice": "evaluate_first",
+            "confidence": 0.73,
+            "probabilities": {
+              "propose_port": 0.05,
+              "evaluate_first": 0.82,
+              "retain_now": 0.13
+            }
+          }
+        },
+        "usage": {
+          "input_tokens": 2093,
+          "output_tokens": 205
+        }
+      }
+    },
+    {
+      "variant": 3,
+      "instructions": "Select how the named candidate should be treated in a language-allocation audit. Weigh consistency, portability and CPU benefits against conversion, host coupling and evidence gaps; separate plausible from established gains.",
+      "response": {
+        "model": "jev-1.13.0",
+        "answers": {
+          "icu": {
+            "type": "choice",
+            "choice": "evaluate_first",
+            "confidence": 0.8,
+            "probabilities": {
+              "propose_port": 0.0,
+              "evaluate_first": 0.87,
+              "retain_now": 0.13
+            }
+          },
+          "query": {
+            "type": "choice",
+            "choice": "evaluate_first",
+            "confidence": 0.56,
+            "probabilities": {
+              "propose_port": 0.01,
+              "evaluate_first": 0.71,
+              "retain_now": 0.28
+            }
+          },
+          "files": {
+            "type": "choice",
+            "choice": "retain_now",
+            "confidence": 0.25,
+            "probabilities": {
+              "propose_port": 0.0,
+              "evaluate_first": 0.5,
+              "retain_now": 0.5
+            }
+          },
+          "diff": {
+            "type": "choice",
+            "choice": "evaluate_first",
+            "confidence": 0.41,
+            "probabilities": {
+              "propose_port": 0.12,
+              "evaluate_first": 0.61,
+              "retain_now": 0.27
+            }
+          },
+          "judgment": {
+            "type": "choice",
+            "choice": "evaluate_first",
+            "confidence": 0.61,
+            "probabilities": {
+              "propose_port": 0.06,
+              "evaluate_first": 0.74,
+              "retain_now": 0.2
+            }
+          }
+        },
+        "usage": {
+          "input_tokens": 2153,
+          "output_tokens": 205
+        }
+      }
+    }
+  ],
+  "api_reference": "https://docs.typesafe.ai/api",
+  "question_reference": "https://docs.typesafe.ai/primitives/choice"
+}

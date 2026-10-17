@@ -1,5 +1,22 @@
 # Living ideal file-tree plan for Canlang
 
+**Additional package Rust audit, 2026-10-18 (`08dc8c392`):** the
+[13-package opportunity audit](ideal-filetree-plan/rust-package-audit/README.md)
+accounts for all 1,511 tracked package paths, with explicit inspection depth,
+actual candidate consumers and independent source challenge. Existing owners,
+accepted Rust scopes and the current execution queue remain. New bounded message
+syntax, exact Judgment response, State order and generation diff ideas are
+conditional evaluations; Files byte analysis remains demand-triggered. No
+whole-package rewrite, new Rust owner, implementation or native-preparation
+release is selected. Source inventory is complete for this portfolio audit;
+product correctness/runtime qualification and the repository-wide complete
+review checkpoint do not advance.
+Main integration accounts for these 13 documentation paths (ten audit records,
+this entry, Rust navigation and DECISIONS), reusing the source review above and
+prior accumulated coverage. All product owners/target allocations remain; newer
+uncommitted compiler work in the main checkout stays with its existing owner
+and is outside this audit's `08dc8c392` source pin.
+
 **Rust plan main integration, 2026-10-18 (`0571eacb3` + `fd03732b8`):**
 merge the released plan into newer main while preserving the original CanCustomer
 recover compiler/runtime batch byte-for-byte. Incremental coverage accounts for
