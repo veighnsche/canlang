@@ -432,15 +432,136 @@ test('native terminal side-effect absence require creates only when no row match
       assert.equal(present.error.code, 'rule_failed', JSON.stringify(present));
       assert.equal(await dCount(), 1);
 
-      // Require-or/and conjunctions (`go_or`/`go_and` in the companion
-      // conjunction fixture) compile at the analysis carve-out but their
-      // stored control reads need the ordinary-scenario guard-consumed
-      // slice (marking + registration + decision-grant consumer): State
-      // registration loudly refuses their stored-bearing returns meanwhile.
-      // That slice — with exact rule codes and field-grant denial/
-      // revocation per 0321 — is the recorded next scope, not this test.
+      // Require-or/and conjunctions live in the companion conjunction
+      // fixture with their own runtime test below (guard-consumed
+      // registration + decision-authority consumer).
 
       assert.deepEqual(await readFile(absentFixture), originalSource);
+      assert.equal(JSON.stringify(artifact), originalArtifact); assert.equal(await captureIsCurrent(capture), true);
+    } finally {
+      await worker?.dispose(); await rm(directory, { recursive: true, force: true });
+    }
+  });
+
+test('native require conjunctions over absence decide with stored control reads',
+  { timeout: 180000 }, async () => {
+    const CONJ_APP = 'ConjunctionSources';
+    const conjFixture = join(root, 'compiler/tests/fixtures/first-query-side-effect-conjunction.can');
+    const conjD = asModel(`${CONJ_APP}.D`);
+    const directory = await mkdtemp(join(tmpdir(), 'can-native-first-conjunction-'));
+    let worker: Miniflare | undefined;
+    let capture: Awaited<ReturnType<typeof import('../src/dev/source-capture.js')['captureSingleFileSource']>> | undefined;
+    try {
+      const { assembleModules } = await nodeImport(installed('runtime/modules.js')) as typeof import('../src/runtime/modules.js');
+      const { buildInvoker } = await nodeImport(installed('worker/assembly.js')) as typeof import('../src/worker/assembly.js');
+      const { installedLocalPreviewInputInventory } = await nodeImport(installed('dev/preview-inputs.js')) as typeof import('../src/dev/preview-inputs.js');
+      const { captureIsCurrent, captureSingleFileSource, verifyCompilerSources } = await nodeImport(installed('dev/source-capture.js')) as typeof import('../src/dev/source-capture.js');
+      const { compileCapturedSingleFile } = await nodeImport(installed('dev/compiler-check.js')) as typeof import('../src/dev/compiler-check.js');
+      const { createD1Storage, ensureSchema } = await nodeImport(stateInstalled('storage/d1.js')) as typeof import('@canlang/state/storage/d1');
+      const originalSource = await readFile(conjFixture);
+      const compilerPath = process.env.CAN_COMPILER_BIN ?? join(root, 'compiler/target/debug/can');
+      const catalogPath = process.env.CAN_NATIVE_CATALOG ?? join(root, 'packages/cloudflare/dist/native-catalog.json');
+      capture = await captureSingleFileSource({ checkoutRoot: root, appPath: conjFixture,
+        profile: 'native-first-side-effect-conjunction', compilerPath, catalogPath,
+        helpIndexPath: join(root, 'docs/specification/CONSTRUCT-HELP.md'),
+        ...installedLocalPreviewInputInventory(root, compilerPath), inputInventory: 'installed-local-preview',
+        semanticOptions: { nativeScenarioReceipts: 'true' } });
+      assert.equal(await captureIsCurrent(capture), true);
+      const compiled = await compileCapturedSingleFile(capture);
+      assert.equal(compiled.kind, 'artifact', compiled.kind === 'diagnostics' ? JSON.stringify(compiled.envelope.diagnostics) : compiled.kind);
+      if (compiled.kind !== 'artifact') throw new Error('Conjunction source did not compile');
+      const artifact: CompileArtifact = compiled.artifact, originalArtifact = JSON.stringify(artifact);
+      assert.equal(verifyCompilerSources(capture, { complete: true, sources: artifact.sources }).ok, true);
+      // Both conjunction operations carry the guard-consumed decision mark.
+      for (const name of [`${CONJ_APP}.go_or`, `${CONJ_APP}.go_and`]) {
+        const operation = artifact.operations?.find(operation => operation.name === name); assert.ok(operation, name);
+        assert.equal(operation.kind, 'scenario'); assert.equal(operation.result?.type, 'int');
+      }
+      const asm = await assembleModules({ artifact, sourcePath: conjFixture }, { workDir: join(directory, 'modules'), stdlibUrl: installed('runtime/stdlib.js') });
+      for (const name of [`${CONJ_APP}.go_or`, `${CONJ_APP}.go_and`]) {
+        assert.ok(artifact.callables.some(callable => callable.id === name), name);
+      }
+
+      worker = new Miniflare({ compatibilityDate: '2026-07-15', modules: true,
+        script: 'export default { fetch() { return new Response("ok"); } }',
+        d1Databases: { IDENTITY: 'first-conjunction-identity', OWNER: 'first-conjunction-owner' }, d1Persist: join(directory, 'd1') });
+      const identityDb = await worker.getD1Database('IDENTITY') as unknown as D1Database;
+      const ownerDb = await worker.getD1Database('OWNER') as unknown as D1Database;
+      await ensureIdentitySchema(identityDb); await ensureSchema(ownerDb);
+      const baseTime = Date.now();
+      const clock = { nowMs: () => baseTime + 10 }, identities = createD1IdentityStore(identityDb, { clock });
+      const team = await identities.createTeam({ timezone: 'UTC' });
+      const user = await identities.createUser({ email: 'first-conjunction-member@example.test', password_hash: 'unused', email_verified: true });
+      const membership = await identities.createMembership({ team_id: team.team_id, user_id: user.user_id, is_owner: false, roles: [] });
+      const token = 'native-first-conjunction-member';
+      await identities.createSession({ user_id: user.user_id, token_sha256: await sha256HexText(token),
+        last_team_id: team.team_id, expires_at: new Date(baseTime + 3600_000).toISOString() });
+      const identity = await resolveIdentity(identities, { session_token: token }, { clock });
+      const underlying = createD1Storage(ownerDb);
+      const store: StoragePort = underlying;
+      const invoker = buildInvoker(artifact, asm, store, { appId: CONJ_APP, memberships: identities, source: 'http', now: clock.nowMs });
+      let sequence = 0;
+      const sized = (operation: string, inputs: MutationEnvelope['inputs']): MutationEnvelope => ({
+        operation, operation_id: uuidv7(baseTime, ++sequence), inputs });
+      const dCount = async () => (await store.query({ model: conjD, authority: 'owner' }) as unknown as Array<unknown>).length;
+      const committedWithD = async (input: MutationEnvelope, count: number) => {
+        const outcome = await invoker.invokeMutation(input, identity);
+        assert.ok('result' in outcome, JSON.stringify(outcome));
+        assert.equal(outcome.result.status, 'committed');
+        assert.equal(outcome.result.result, '1');
+        assert.equal(await dCount(), count + 1);
+        return count + 1;
+      };
+      const refusedWithoutD = async (input: MutationEnvelope, count: number, code = 'rule_failed') => {
+        const outcome = await invoker.invokeMutation(input, identity);
+        assert.ok('error' in outcome, JSON.stringify(outcome));
+        assert.equal(outcome.error.code, code, JSON.stringify(outcome));
+        assert.equal(await dCount(), count);
+      };
+
+      const parent = await invoker.invokeMutation({ operation: `${CONJ_APP}.P.create`, operation_id: uuidv7(baseTime, ++sequence), inputs: { v: '1' } }, identity);
+      assert.ok('result' in parent, JSON.stringify(parent));
+      const parentRecords = ((parent.result as unknown as { records?: Array<{ id: string; version: number }> }).records ?? []);
+      assert.equal(parentRecords.length, 1);
+      const row = { p: { id: parentRecords[0]!.id, version: String(parentRecords[0]!.version) } };
+      const seedC = async (v: string) => {
+        const created = await invoker.invokeMutation({ operation: `${CONJ_APP}.C.create`, operation_id: uuidv7(baseTime, ++sequence), inputs: { parent: { id: parentRecords[0]!.id }, v } }, identity);
+        assert.ok('result' in created, JSON.stringify(created));
+      };
+
+      let d = await dCount();
+      // or/absent: no C(v=80), the null arm passes without reading c.v.
+      d = await committedWithD(sized(`${CONJ_APP}.go_or`, { ...row, n: '80', m: '80' }), d);
+      // or/match: C(v=81) with m=81, the stored field arm passes.
+      await seedC('81');
+      const orMatch = sized(`${CONJ_APP}.go_or`, { ...row, n: '81', m: '81' });
+      d = await committedWithD(orMatch, d);
+      // or/replay: same input replays without a new D.
+      const orReplayed = await invoker.invokeRetainedMutation(orMatch, identity);
+      assert.ok('result' in orReplayed, JSON.stringify(orReplayed));
+      assert.equal(orReplayed.result.status, 'replayed', JSON.stringify(orReplayed));
+      assert.equal(await dCount(), d);
+      // or/mismatch: C(v=81) found but 81 != 82 — the stored comparison
+      // really executes, the require fails exact.
+      await refusedWithoutD(sized(`${CONJ_APP}.go_or`, { ...row, n: '81', m: '82' }), d);
+      // and/match, and/absent, and/mismatch.
+      d = await committedWithD(sized(`${CONJ_APP}.go_and`, { ...row, n: '81', m: '81' }), d);
+      await refusedWithoutD(sized(`${CONJ_APP}.go_and`, { ...row, n: '80', m: '80' }), d);
+      await refusedWithoutD(sized(`${CONJ_APP}.go_and`, { ...row, n: '81', m: '82' }), d);
+
+      // Revoking membership denies the decision path by owner authority
+      // (DESIGN §4: decision reads are owner-bounded, never a viewer
+      // grant and gain no result grant).
+      await identities.removeMembership(membership.membership_id);
+      {
+        const before = await dCount();
+        const denied = await invoker.invokeMutation(sized(`${CONJ_APP}.go_or`, { ...row, n: '81', m: '81' }), identity);
+        assert.ok('error' in denied, JSON.stringify(denied));
+        assert.equal(denied.error.code, 'forbidden', JSON.stringify(denied));
+        assert.equal(await dCount(), before);
+      }
+
+      assert.deepEqual(await readFile(conjFixture), originalSource);
       assert.equal(JSON.stringify(artifact), originalArtifact); assert.equal(await captureIsCurrent(capture), true);
     } finally {
       await worker?.dispose(); await rm(directory, { recursive: true, force: true });

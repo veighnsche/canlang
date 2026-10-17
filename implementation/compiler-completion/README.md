@@ -36,6 +36,28 @@ model-returning first-query invocation hits the pre-existing frame gap
 files untouched — branched model-result frame lifetimes are the named next
 prerequisite, not a silent pass.
 
+### Require-conjunction guard-consumed slice (merge49) — 2026-10-17
+
+Flow-sensitive `c==null or c.v==m` / `c!=null and c.v==m` carry a stored
+control read on the scalar return. State registration + retained replay
+now admit stored CONTROL-role deps (decision reads under caller
+authority, fail-closed for private rows until decision-mode lands); data
+roles keep the projection-or-model refusal, pinned both ways at unit
+level. The compiler marks the confined ordinary skeleton
+(let-first + require + create + scalar-return, event-less, guarded) with
+guardConsumed; bare presence stays unmarked under pure-control. Hook
+`==null or` admits symmetrically with its always-clean `and` sibling
+(the old refusal was pure null-direction asymmetry); hook or-execution
+proof stays C24-owner scope. Validation on frozen in-target `47dccb6d` +
+`ca50`: rust first-query 10/10, hook 11/11, neighbors (native 17/17,
+replay 4/4, sources 7/7, enum 54/54, bool 27/27, filters/pins/policy/
+predicate/order) green; state unit 3/3; cloudflare 3/3 (or/absent,
+or/match, or/mismatch exact rule_failed, or/replay, and trio, plus
+membership-revocation forbidden on the decision path). Pre-existing
+failures reproduced identically on clean HEAD and left untouched:
+bound_tab 1, delivery_error_shapes 3, model_hook_profile 1, b3_migrate
+compile. No original24 movement claimed yet — fresh capture after intake.
+
 ### First-query absence primitive (merge48) — 2026-10-17
 
 `expr_binary`'s first-query null carve-out covered only `!=`: `require

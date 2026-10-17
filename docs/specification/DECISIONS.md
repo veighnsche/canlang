@@ -18336,3 +18336,12 @@ Accepted: the `==null` absence carve-out at the defining analysis owner (a null 
 ## 2026-10-16 — can18_merge_48_20261017
 
 Accepted: Absence primitive with runtime consumer plus fence recovery correction. Merge reviewed tested work incrementally into canonical `main`, preserving installer/specification changes and the active implementation branch. rust 10/10, cloudflare 2/2 frozen, State unit reused. Reconcile the living file-tree plan/registry over `9a2d04165..HEAD` with existing owners; retain the complete checkpoint and all outstanding acceptance gates. A merged component is not a claim that original24 or the remaining runtime workflows are complete.
+
+## 2026-10-17 — require-conjunction guard-consumed slice
+
+Accepted: stored CONTROL-role dependencies on scalar first-query returns register and replay as Require decision reads under caller authority (fail-closed for private rows until decision-mode lands); data roles keep the projection-or-model refusal. The compiler marks only the confined ordinary skeleton (event-less let-first + require + create + scalar-return with stored reads) guardConsumed; bare presence stays unmarked under pure-control; hook `==null or` admits symmetrically with its accepted `and` sibling. Per DESIGN §4, decision-path authority is by/owner/parent plus revocation, never a viewer-grant prerequisite and with no result grant.
+
+
+## 2026-10-16 — can18_merge_49_20261017
+
+Accepted: Guard-consumed conjunction slice with decision consumer. Merge reviewed tested work incrementally into canonical `main`, preserving installer/specification changes and the active implementation branch. rust 10/10 + hook 11/11 + neighbors, state 3/3, cloudflare 3/3 frozen. Reconcile the living file-tree plan/registry over `d022be822..HEAD` with existing owners; retain the complete checkpoint and all outstanding acceptance gates. A merged component is not a claim that original24 or the remaining runtime workflows are complete.
