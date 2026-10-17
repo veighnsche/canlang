@@ -12,6 +12,15 @@ owner only after its finite comparison. Documentation and advisory records do
 not change product coverage, current task identities or the complete checkpoint.
 Native preparation and implementation remain held.
 
+Main integration completed at `9ef381a75` by fast-forward from `0bb480bef`.
+Incremental reconciliation accounts for all seven documentation paths: the ICU
+plan/advice, package-audit entry, Rust navigation, original C09I packet backlink,
+this living plan and DECISIONS. Reuse the retained product/source coverage and
+proposed allocations above; no compiler/package bytes changed in the merge.
+The main checkout's 14 existing modified/untracked files were unchanged across
+integration and remain with their compiler/runtime owner. The complete review
+checkpoint is unchanged; this bookkeeping does not reopen source qualification.
+
 **Additional package Rust audit, 2026-10-18 (`08dc8c392`):** the
 [13-package opportunity audit](ideal-filetree-plan/rust-package-audit/README.md)
 accounts for all 1,511 tracked package paths, with explicit inspection depth,
