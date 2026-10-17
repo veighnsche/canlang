@@ -74972,5 +74972,53 @@
     "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
     "checkpoint_advanced": false,
     "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
+  },
+  "can18_merge_52_20261017": {
+    "incremental_base": "2f3adfea7a7e8275500ebc1c7f37522e10cab1b0",
+    "incoming_end": "e0f58507fcebdda6551d4ef36a1da929692e856a",
+    "retained_coverage": "reuse spec_installer_merge_reconciliation_20261015 and preceding CAN18 incremental merge entries; inherited complete checkpoint unchanged",
+    "changed_path_count": 7,
+    "rows": [
+      [
+        "compiler/src/analysis/scenario_disclosure.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/src/codegen/scenario_queries.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/src/codegen/scenario_receipts.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/first_query_conjunction.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/fixtures/first-query-conjunction.can",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "packages/cloudflare/test/native-first-conjunction.test.ts",
+        "cloudflare",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/state/src/invocation/scenario-receipt.ts",
+        "state",
+        "existing package source/test owner"
+      ]
+    ],
+    "choice": "Conjunction first-query admission with ordered multi-dependency plans: an and chain of == conjuncts over actor/param operands admits with one Control dependency per conjunct and per-conjunct source correspondence; the predicate, query-plan and source-plan owners verify and emit every ordered dependency with unique IDs, and the State first-query receiver accepts one-or-more control deps with scalar types and unique IDs. or shapes, comparisons and unknown fields stay refused.",
+    "validation": "conjunction 6/6, ifbranch 7/7, side_effect 10/10, hook_first 11/11, native_first 17/17, sources 7/7, installed conjunction and ifbranch consumers 1/1 each on frozen 5921567e/ca50; three lib/module failures reproduce identically on clean HEAD (pre-existing, unrelated).",
+    "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests and the installed Cloudflare consumer stays with its package test owner; no source moves, package redesign or new product scope",
+    "checkpoint_advanced": false,
+    "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
   }
 }
