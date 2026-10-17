@@ -9710,6 +9710,36 @@ impl<'a> Closure<'a> {
         {
             return Ok(values);
         }
+        // Same-transaction send-result envelope reads (CAN18-v1 dispatch
+        // fence persistence, e.g. cancel/retry_release): `delivery.id`
+        // stores the sealed send fence. The base must be a flow-visible
+        // send binding (effects disclose in order, so a later use sees
+        // only already-executed sends); the leaf comes from the closed
+        // `DeliveryResult` envelope with its checker-resolved scalar
+        // type. Ordering is structural; source/owner/failure stay sealed
+        // by the existing receipt checks. The clone drops only the
+        // carrier flag — reads/observed/decisions are preserved.
+        let send_visible = match self.resolve.node_binding.get(&base_key) {
+            Some(Binding::SendAs { node }) => env.contains_key(&Local::Send(*node)),
+            _ => false,
+        };
+        if result_type(ty)
+            && send_visible
+            && values.iter().all(|value| {
+                matches!(
+                    value.delivery,
+                    Some(ResolvedType::Delivery { .. })
+                        | Some(ResolvedType::StdDelivery { .. })
+                )
+            })
+            && nominal_schema("DeliveryResult")
+                .is_some_and(|schema| schema.fields.iter().any(|(name, _)| *name == field_name))
+        {
+            for value in &mut values {
+                value.delivery = None;
+            }
+            return Ok(values);
+        }
         for value in &mut values {
             if matches!(
                 value.model_result,
