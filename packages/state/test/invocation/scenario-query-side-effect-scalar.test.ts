@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { loadArtifactDescriptors, isGeneratedOperationDef, IncompatibleArtifactError } from '../../src/invocation/registry.js';
@@ -23,7 +23,13 @@ const SOURCE = 'app SideEffectSources\nGiven\n P {v:int=0}\n C in P {v:int=0}\n 
 const OP = 'SideEffectSources.go';
 
 function artifact() {
-  const root = resolve(fileURLToPath(new URL('../../../..', import.meta.url)));
+  // Layout-agnostic checkout root: works from source (vitest) and dist (node --test).
+  let root = dirname(fileURLToPath(import.meta.url));
+  while (!existsSync(join(root, 'compiler')) || !existsSync(join(root, 'packages'))) {
+    const parent = dirname(root);
+    assert.notEqual(parent, root, 'checkout root with compiler/ + packages/ not found');
+    root = parent;
+  }
   const compilerBin = process.env.CAN_COMPILER_BIN ?? join(root, 'compiler/target/debug/can');
   const catalogPath = process.env.CAN_NATIVE_CATALOG ?? join(root, 'packages/cloudflare/dist/native-catalog.json');
   assert.ok(existsSync(compilerBin), `real built compiler required at ${compilerBin} (or CAN_COMPILER_BIN)`);

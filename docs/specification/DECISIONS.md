@@ -18318,3 +18318,12 @@ Accepted: pure-control scalar admission at the State invocation owner. Stored re
 ## 2026-10-16 — can18_merge_46_20261017
 
 Accepted: First-query terminal side-effect State pure-control admission with installed runtime consumer. Merge reviewed tested work incrementally into canonical `main`, preserving installer/specification changes and the active implementation branch. State unit 2/2, cloudflare runtime 1/1, rust side-effect 8/8 with fail-before; replay/revoke/rollback criteria per 0256/0256A. Reconcile the living file-tree plan/registry over `a98340f54..cb02c1e3e` with existing owners; retain the complete checkpoint and all outstanding acceptance gates. A merged component is not a claim that original24 or the remaining runtime workflows are complete.
+
+## 2026-10-17 — delivery.id runtime consumer + consumer-harness corrections
+
+Accepted: the dispatch `delivery.id` executable consumer at its one-shape scope (guarded send + post-send set persisting the sealed id and a pending enum, guard-false skip marker, foreign denial); compiler half already in main. Test-harness rules established from defects found during validation: run each consumer through its matching runner (vitest imports under vitest, node:test under node --test), resolve the checkout root by walking up to the directory containing `compiler/` + `packages/` (fixed `../` chains break across source/dist layouts), and satisfy the `compilerSourceInputs` inventory with an immutable `compiler/target/can18-frozen/<sha>/can` copy — never the mutable shared binary as provenance. Correction 0101 recorded: the budget-interference fixture is source24 with two diagnostics (send-guard + first-query correspondence); the file26 zero-diag no-interference conclusion is withdrawn and the `has_ir_errors` seal is retained.
+
+
+## 2026-10-16 — can18_merge_47_20261017
+
+Accepted: Consumer hardening plus 276 capture promotion with 0101 correction. Merge reviewed tested work incrementally into canonical `main`, preserving installer/specification changes and the active implementation branch. dispatch runtime 1/1, state 2/2, cloudflare 1/1, rust dispatch 4/4 + first-query 8/8, frozen 276 capture exact tuple. Reconcile the living file-tree plan/registry over `96a71932e..HEAD` with existing owners; retain the complete checkpoint and all outstanding acceptance gates. A merged component is not a claim that original24 or the remaining runtime workflows are complete.

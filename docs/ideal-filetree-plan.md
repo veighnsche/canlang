@@ -188,6 +188,10 @@ Toggle submit round-trip (0141): rendered names/marker/CSRF through the real ope
 
 First-query terminal side-effect State pure-control admission with installed runtime consumer. Incoming interval `a98340f54..cb02c1e3e` accounts for 9 changed paths in `can18_merge_46_20261017` of the existing registry. State unit 2/2, cloudflare runtime 1/1, rust side-effect 8/8 with fail-before; replay/revoke/rollback criteria per 0256/0256A. Existing defining owners and target allocations remain; focused new tests stay with Compiler. Reuse prior accumulated coverage; complete checkpoint remains unchanged. Original24 and required executable consumers remain open. Unfinished work stays in the running Muse checkout.
 
+### CAN18 incremental integration — can18_merge_47_20261017
+
+Consumer hardening plus 276 capture promotion with 0101 correction. Incoming interval `96a71932e..HEAD` accounts for 6 changed paths in `can18_merge_47_20261017` of the existing registry. dispatch runtime 1/1, state 2/2, cloudflare 1/1, rust dispatch 4/4 + first-query 8/8, frozen 276 capture exact tuple. Existing defining owners and target allocations remain; focused new tests stay with Compiler. Reuse prior accumulated coverage; complete checkpoint remains unchanged. Original24 and required executable consumers remain open. Unfinished work stays in the running Muse checkout.
+
 ### Specification and installer documentation merge — 2026-10-15
 
 Merge installer commit `02470b74` into canonical `main` at `a70921e3`.

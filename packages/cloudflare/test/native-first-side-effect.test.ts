@@ -10,9 +10,10 @@
  */
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
+import { existsSync } from 'node:fs';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { compileFunction, constants as vmConstants } from 'node:vm';
 import { test } from 'vitest';
@@ -26,7 +27,13 @@ import { hashInputs } from '@canlang/state/invocation/replay';
 import { asId, asModel, asOperation, asOperationId, uuidv7 } from '@canlang/state/testing/invocation/fixtures';
 import type { MutationOutcome } from '../src/worker/assembly.js';
 
-const root = resolve(fileURLToPath(new URL('../../../', import.meta.url)));
+// Layout-agnostic checkout root: works from source (vitest) and dist (node --test).
+let root = dirname(fileURLToPath(import.meta.url));
+while (!existsSync(join(root, 'compiler')) || !existsSync(join(root, 'packages'))) {
+  const parent = dirname(root);
+  assert.notEqual(parent, root, 'checkout root with compiler/ + packages/ not found');
+  root = parent;
+}
 const nodeImport = compileFunction('return import(url)', ['url'], {
   importModuleDynamically: vmConstants.USE_MAIN_CONTEXT_DEFAULT_LOADER,
 });

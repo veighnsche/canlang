@@ -13,9 +13,10 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
-import { mkdtemp } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { mkdtemp, rm } from 'node:fs/promises';
 import { createServer } from 'node:http';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { compileFunction, constants as vmConstants } from 'node:vm';
 import { test } from 'vitest';
@@ -24,7 +25,13 @@ import type { D1Database } from '@cloudflare/workers-types';
 import type { CompileArtifact, ModelName, MutationEnvelope, ProviderBinding } from '@canlang/contracts';
 import type { InstalledMailSender } from '@canlang/services';
 
-const root = resolve(fileURLToPath(new URL('../../../', import.meta.url)));
+// Layout-agnostic checkout root: works from source (vitest) and dist (node --test).
+let root = dirname(fileURLToPath(import.meta.url));
+while (!existsSync(join(root, 'compiler')) || !existsSync(join(root, 'packages'))) {
+  const parent = dirname(root);
+  assert.notEqual(parent, root, 'checkout root with compiler/ + packages/ not found');
+  root = parent;
+}
 const APP = 'FenceProof';
 const MODEL = `${APP}.M` as ModelName;
 const OP = `${APP}.go`;
@@ -209,5 +216,6 @@ test('guarded send persists staged delivery.id and pending enum', { timeout: 240
   } finally {
     server.close();
     await worker?.dispose();
+    await rm(directory, { recursive: true, force: true });
   }
 });
