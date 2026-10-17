@@ -1588,5 +1588,7 @@
       "canonical_reference": "docs/implementation/remaining-work/tasks.json#ports:W04.4"
     }
   },
-  "economical_dispatch_rule": "Recheck the least expensive supported reliable model/effort for every finite packet and record its reason at actual dispatch. Current packet selections are task inferences, not measured optimum or savings."
+  "economical_dispatch_rule": "Recheck the least expensive supported reliable model/effort for every finite packet and record its reason at actual dispatch. Current packet selections are task inferences, not measured optimum or savings.",
+  "historical_only": true,
+  "superseded_for_future_dispatch_by": "docs/implementation/rust-port-orchestration/next-packets.json"
 }

@@ -1,0 +1,385 @@
+{
+  "schema_version": 3,
+  "refreshed_on": "2026-10-18",
+  "source_base": "0571eacb36206e94eb5d09d6b81ab978e443b58c",
+  "stage": "planning-only",
+  "execution_authorized": false,
+  "future_dispatch_authorized": false,
+  "native_preparation": "HUMAN HOLD",
+  "default_adoption": false,
+  "TS_retirement": false,
+  "publication": false,
+  "current_execution_view": "docs/implementation/RUST-PORT-START-HERE.md#current-execution-view--2026-10-18",
+  "supersedes_for_dispatch": "docs/implementation/rust-port-orchestration/packets.json (historical first queue)",
+  "counting_policy": "Original canonical IDs retained; selected slices and consumer crosswalks add no obligations and advance no canonical statuses.",
+  "activation": "New exact finite human release, actual owner handoff and frozen source/tool/output closure are required. Recheck only changed inputs; planning readiness is not permission.",
+  "packets": [
+    {
+      "id": "ports:V02.6",
+      "title": "Qualify preserved ordinary TS HTTP source registration in an isolated Worker",
+      "kind": "qualification",
+      "defining_owner": "R2 Values/Interfaces producer; R3/Dev owns local Worker consumer",
+      "readiness": "dependency-ready-at-selected-scope",
+      "execution_authorized": false,
+      "active_lease": false,
+      "assigned_agent": null,
+      "prerequisite_outputs": [
+        {
+          "output": "Current source-owned serving registration, verified assembler association and canonical HTTP evaluator are implemented. Owner ACKs already exist; no repeated contract ACK is required.",
+          "paths": [
+            "packages/values/bindings/serving-validation.ts",
+            "packages/values/src/prepared/plan.ts",
+            "packages/interfaces/src/http/prepared-validation.ts",
+            "packages/cloudflare/src/runtime/prepared-validation.ts",
+            "packages/cloudflare/src/worker/assembly.ts",
+            "packages/cloudflare/src/runtime/assembly-verification.ts",
+            "packages/cloudflare/src/deploy/bundle.ts"
+          ]
+        },
+        {
+          "output": "Existing genuine compiled typed-operation/installed Node State-memory, factory/default/literal/lifetime checks are recorded; emitted browser export inventory was checked. Isolated Worker linking remains explicitly unrun.",
+          "paths": [
+            "packages/cloudflare/test/prepared-validation.test.ts",
+            "packages/cloudflare/test/fixtures/typed-operation-forms.can",
+            "docs/implementation/package-maintenance-repair/runs/codex-go-20261007/state.json"
+          ],
+          "evidence": "packet_state/TECH-V03/serving_association_implementation; 547d45b9f preservation checkpoint"
+        }
+      ],
+      "remaining_change": "First map the existing serving path to PH2/PH4 clauses in the result, then qualify that exact ordinary TS source-registration path through the actual staged isolated Worker. Do not replace the HTTP evaluator with values.validate(), add a native interpreter or reopen accepted default-copy work. A new isolated-Worker qualification fixture/adapter is a pending output, using the existing portable issuer, node-free assembly-verification and genuine host/store seams. The Node createTestDeps/State-memory test cannot be imported unchanged into Worker; no mock substitution may claim genuine installed qualification.",
+      "acceptance": [
+        "Actual isolated Worker links the current installed handler/catalog/codec exports and executes the original typed-operation request with canonical defaults and error precedence.",
+        "Copied/foreign/stale source or catalog refuses before effects; success and failure close the source/plan lifetime. Preserve final-await source revalidation, CSRF/body/error order and unsupported alias/NAME/keyed-array behavior. Reuse recorded Node mutation-during-credential-await proof; immutable portable metadata uses genuine host stale-generation/correspondence controls, without filesystem mutation or mock mutable declarations inside Worker.",
+        "State explicitly that Values plan registration/lifetime checks accompany runPreparedHttpPlan; they do not establish Rust validation or values.validate() adoption. Record admitted host/source/operation only and retain unmet PH3/native/profile/state/resource parents."
+      ],
+      "proposed_writable_paths": [
+        "packages/cloudflare/test/prepared-validation.test.ts",
+        "packages/cloudflare/test/prepared-validation.workerd.test.ts"
+      ],
+      "canonical_tasks": [
+        {
+          "id": "ports:V02.6",
+          "status": "partial",
+          "depends_on": [
+            "ports:V02.1",
+            "ports:V02.2"
+          ],
+          "original_acceptance": [
+            "A1/B2 current/facade legacy traces match; unknown/default/schema accessors observe the old evaluation order.",
+            "Private prepared calls reach extracted modules while unknown callers remain TS; no semantic exception retry."
+          ]
+        },
+        {
+          "id": "ports:V01.2",
+          "status": "partial",
+          "depends_on": [
+            "ports:C01.ready"
+          ],
+          "original_acceptance": [
+            "C01 source-owner contract names exact existing-handler join and owning files, or states absence without inventing a new HTTP feature.",
+            "Package/workerd fixture proof and default deployed adoption are separately testable gates; blocked join retains default 501."
+          ]
+        }
+      ],
+      "model_selection": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high",
+        "reason": "Cross-package installed host/source identity join"
+      },
+      "scope_limit": "This packet is a slice of its original task; completion does not close other parent criteria.",
+      "source_and_contract_dependencies_ready": true,
+      "runtime_launch_ready": false,
+      "review_evidence_root_template": "/private/tmp/canlang-rust-port-<run-id>/ports-V02.6",
+      "proposed_writable_paths_note": "The .workerd.test.ts file is a proposed new qualification fixture, not an implemented API. Product source repairs require the exact failed-scope release.",
+      "pending_qualification_outputs": [
+        "packages/cloudflare/test/prepared-validation.workerd.test.ts (proposed harness)",
+        "Current staged isolated Worker result through portable source issuer and real installed host/store seams"
+      ]
+    },
+    {
+      "id": "ports:C04.values-assets",
+      "title": "Qualify the current committed values asset through installed delivery",
+      "kind": "qualification",
+      "defining_owner": "R3 delivery; R1 supplies current values asset identity",
+      "readiness": "dependency-ready-at-selected-scope",
+      "execution_authorized": false,
+      "active_lease": false,
+      "assigned_agent": null,
+      "prerequisite_outputs": [
+        {
+          "output": "Generated ABI1 JS/declarations/Wasm and BUILD inventory already exist; existing installed graph and asset verifier are implemented.",
+          "paths": [
+            "packages/values/bindings/generated/BUILD.json",
+            "packages/values/bindings/generated/values_semantics_bg.wasm",
+            "packages/values/scripts/stage-semantics.mjs",
+            "packages/cloudflare/src/deploy/package-assets.ts"
+          ],
+          "evidence": "1f524a62f16414c1e9a39d4380cd3ebf57c9e856; Turbo final acceptance at its old admitted bytes."
+        },
+        {
+          "output": "A07.foundation opt-in scaffold and C04.ready/graph delivery mechanisms exist. Full A07 registration is not needed to qualify this existing scaffold.",
+          "paths": [
+            "packages/values/bindings/bootstrap.ts",
+            "packages/values/bindings/backend.ts",
+            "packages/values/test/exact-bootstrap.test.ts",
+            "docs/implementation/turbo-scheduling/evidence/final-acceptance/README.md",
+            "packages/cloudflare/test/deploy-package-assets.test.ts",
+            "packages/values/test/exact-bootstrap.workerd.mjs"
+          ]
+        }
+      ],
+      "remaining_change": "Renew changed-byte installed/Worker delivery evidence for SHA55cd8801\u2026 only. No new backend, codec, asset generation or delivery abstraction is selected.",
+      "acceptance": [
+        "BUILD names/lengths/SHA match current bytes; actual outside-checkout buildDeployBundleWithAssets output stages vendor/values-bindings JS/Wasm whose bytes and release inventory match the owning installed package. A direct dist-relative bootstrap fixture alone is insufficient.",
+        "Actual selected startup and add-int execute in Node and the existing isolated workerd host. Missing/corrupt/ABI/version controls fail visibly before semantic work; explicit TS is independently usable and no native-failure rerun occurs.",
+        "Native executables stay excluded from Worker maps. Reuse unchanged graph/archive/cache results; record exact input/asset identities and only affected checks once."
+      ],
+      "proposed_writable_paths": [
+        "packages/cloudflare/test/deploy-package-assets.test.ts",
+        "packages/values/test/exact-bootstrap.test.ts",
+        "packages/values/test/exact-bootstrap.workerd.mjs"
+      ],
+      "canonical_tasks": [
+        {
+          "id": "ports:C04.values-assets",
+          "status": "partial",
+          "depends_on": [
+            "ports:A07.foundation",
+            "ports:C04.graph",
+            "ports:C04.ready"
+          ],
+          "original_acceptance": [
+            "Values consumers use actual shipped assets, not the smoke fixture; native binary is excluded from Worker maps; missing/corrupt/version errors fail visibly."
+          ]
+        }
+      ],
+      "model_selection": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high",
+        "reason": "Cross-package installed host/source identity join"
+      },
+      "scope_limit": "This packet is a slice of its original task; completion does not close other parent criteria.",
+      "source_and_contract_dependencies_ready": true,
+      "runtime_launch_ready": false,
+      "review_evidence_root_template": "/private/tmp/canlang-rust-port-<run-id>/ports-C04.values-assets"
+    },
+    {
+      "id": "ports:W02.5",
+      "title": "Join shared fanout row helpers to Work and State through the TS facade",
+      "kind": "implementation-proposal",
+      "defining_owner": "R3 work-kernel assembly with Work/State error owners; R3 alone joins manifests/lock",
+      "readiness": "dependency-ready-at-selected-scope",
+      "execution_authorized": false,
+      "active_lease": false,
+      "assigned_agent": null,
+      "prerequisite_outputs": [
+        {
+          "output": "W02.2 shared fanout leaves and both-direction frozen original vectors exist. W02.3/W02.4 leaves exist but their unrelated integration is outside this slice.",
+          "paths": [
+            "packages/work-kernel/src/rows.ts",
+            "packages/work-kernel/conformance/rows.test.ts",
+            "packages/work-kernel/conformance/fixtures/rows/fanout_intent.json",
+            "packages/work-kernel/conformance/fixtures/rows/fanout_checkpoint.json",
+            "packages/work-kernel/conformance/fixtures/rows/fanout_child.json"
+          ]
+        },
+        {
+          "output": "Current Work and State fanout donor wrappers/public error classes are present; C04 graph owner/build machinery exists. New consumer edges are an output of this bounded join, not an already fulfilled prerequisite.",
+          "paths": [
+            "packages/work/src/kernel/tables.ts",
+            "packages/state/src/fanout/tables.ts",
+            "packages/state/src/errors.ts",
+            "packages/work/package.json",
+            "packages/state/package.json",
+            "packages/work-kernel/package.json",
+            "scripts/pack-install.mjs"
+          ]
+        }
+      ],
+      "remaining_change": "Expose only the existing shared fanout helpers via a narrow leaf facade and replace their Work/State wrapper mechanics. Fulfil only the two actual work-kernel consumer dependency/build/lock requests under C04.graph. Preserve original public error constructors and explicit work/state direction without creating a new profile/carrier/backend layer. scripts/pack-install.mjs currently rejects work-kernel in the production transitive closure; include exact installer admission/inventory adjustment in the same C04.graph handoff. Existing Cloudflare work-kernel dependency is dev-only.",
+      "acceptance": [
+        "Shared fanout intent/checkpoint/child constructors and readers preserve synchronous signatures, persisted bytes, metadata/default presence, own-key error shape and owning instanceof/class identity.",
+        "Preserve Work JSON-safety-before-clone versus State clone-only policy, alias/cycle/sparse/getter order and original non-leaf thrown values. Existing two-direction oracle and affected owning fanout/table checks pass once.",
+        "Production pack-install traverses the two new runtime edges and admits the actual work-kernel TS owner/inventory. Installed public leaf exports and both real consumers resolve without Work/State cycles or Node/test-loader/crypto leakage. Keep accepted explicit recovery and unrelated families unchanged; no native asset/default activation is inferred."
+      ],
+      "proposed_writable_paths": [
+        "packages/work-kernel/src/index.ts",
+        "packages/work-kernel/src/rows.ts",
+        "packages/work-kernel/conformance/rows.test.ts",
+        "packages/work-kernel/package.json",
+        "packages/work/src/kernel/tables.ts",
+        "packages/work/test/kernel-tables.test.ts",
+        "packages/work/package.json",
+        "packages/state/src/fanout/tables.ts",
+        "packages/state/package.json",
+        "packages/work/test/state-fanout/t34-f5-durable.test.ts",
+        "bun.lock",
+        "scripts/pack-install.mjs"
+      ],
+      "canonical_tasks": [
+        {
+          "id": "ports:W02.5",
+          "status": "partial",
+          "depends_on": [
+            "ports:W02.2",
+            "ports:W02.3",
+            "ports:W02.4",
+            "ports:C04.graph"
+          ],
+          "original_acceptance": [
+            "Single integrator assembles entries and profiles; preserve work/state/runtime classes/messages, pending pin policy, row clone/metadata and same exported synchronous shapes.",
+            "Build/typecheck leaf and consumers; installed exports resolve without full work/state/test-loader/Node-crypto runtime imports. Run proposed conformance glob and baseline suites."
+          ]
+        },
+        {
+          "id": "ports:C04.graph",
+          "status": "partial",
+          "depends_on": [
+            "ports:W02.foundation",
+            "ports:C04.asset"
+          ],
+          "original_acceptance": [
+            "Root/consumer build and lockfile graph is executable, no state\u2192full-work cycle, and no compiler Cargo workspace is introduced. This gate does not certify final work assets."
+          ]
+        }
+      ],
+      "model_selection": {
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high",
+        "reason": "Cross-package installed host/source identity join"
+      },
+      "scope_limit": "This packet is a slice of its original task; completion does not close other parent criteria.",
+      "source_and_contract_dependencies_ready": true,
+      "runtime_launch_ready": false,
+      "review_evidence_root_template": "/private/tmp/canlang-rust-port-<run-id>/ports-W02.5",
+      "proposed_writable_paths_note": "Use existing wrappers/leaf/error semantics; future exact-file leases must name any additional existing owning regression file before dispatch. No live lease exists."
+    }
+  ],
+  "held_packets": [
+    {
+      "id": "ports:A04.5",
+      "alias": "TECH-V04",
+      "readiness": "contract-ready-but-human-held",
+      "defining_owner": "Values bounded int producer; Interfaces CSV consumer; Dev installed qualifier",
+      "canonical_tasks": [
+        {
+          "id": "ports:A04.5",
+          "status": "partial",
+          "depends_on": [
+            "ports:A04.1",
+            "ports:A04.3",
+            "ports:C03.ready"
+          ],
+          "original_acceptance": [
+            "Validation can reuse proven numeric codecs without awaiting unrelated money factor math or aggregate work."
+          ]
+        },
+        {
+          "id": "ports:A07.3",
+          "status": "partial",
+          "depends_on": [
+            "ports:A03",
+            "ports:A04",
+            "ports:A05",
+            "ports:A06",
+            "ports:A07.foundation",
+            "ports:V03.5"
+          ],
+          "original_acceptance": [
+            "Full semantic vectors and asset/version/error checks pass through real binding and actual host delivery."
+          ]
+        }
+      ],
+      "prerequisite_output": "Accepted int/ASCII contract in DECISIONS First production codec contract and repair state selected_codec_contract; no new selection required.",
+      "remaining_change": "Bounded ASCII/int admission before JSON/tag/serde allocation; signed64 preflight before arbitrary BigInt; ordered violations projected by owning SchemaError; then exact existing CSV typed duplicate-key consumer.",
+      "release_condition": "Human explicitly releases selected source/adoption hold. This planning request does not release it.",
+      "execution_authorized": false,
+      "active_lease": false,
+      "acceptance": "Selected 1MiB ASCII/int64/leading-zero/-0/form-before-bound and ordered public fields, installed Node selected resource/startup/lifetime controls. No full Unicode/astral codec or whole A04.5 closure."
+    },
+    {
+      "id": "ports:P09",
+      "readiness": "HUMAN HOLD",
+      "scope": "All native artifact-preparation implementation and native release, including P04/P05/P09/P10/P11 and C04.preparation-join/C04.native-release; historical graph readiness does not override hold.",
+      "execution_authorized": false,
+      "active_lease": false
+    }
+  ],
+  "blocked_successors": [
+    {
+      "ids": [
+        "ports:A07.3",
+        "ports:A08.1",
+        "ports:A08.2",
+        "ports:A09.2",
+        "ports:A10.1",
+        "ports:A10.2",
+        "ports:A10.3"
+      ],
+      "missing": "Full A03/A04/A05/A06 semantic registration and original validation/profile/consumer inputs; selected asset proof does not supply them."
+    },
+    {
+      "ids": [
+        "ports:V06",
+        "ports:V07",
+        "ports:V08",
+        "ports:V09",
+        "ports:V11"
+      ],
+      "missing": "Remaining protected/native owner/default/Decimal/resource/state/actual-handler and rollback criteria. Ordinary TS serving proof cannot close them."
+    },
+    {
+      "ids": [
+        "ports:W03.3",
+        "ports:W03.4",
+        "ports:W04.4",
+        "ports:W05.1",
+        "ports:W05.2",
+        "ports:W05.3",
+        "ports:W05.4",
+        "ports:C04.work-assets",
+        "ports:W06.1",
+        "ports:W06.2",
+        "ports:W06.3",
+        "ports:W07.3",
+        "ports:W08.1"
+      ],
+      "missing": "Only other-family unmet slices: exact consuming profile, demand/provenance, unsampled native and actual binary/asset/consumer outputs before dependent joins. Selected recovery is already accepted; never redispatch it to satisfy a broad parent."
+    }
+  ],
+  "decisions_needed": [
+    {
+      "id": "ports:A04.1",
+      "decision": "Preserve native observable stored scale -0 or define proved pre-evaluation TS retention for that domain. Rust u8 and current carrier refusal do not preserve it.",
+      "status": "policy-ready, not an approved representation change; separate from accepted ordinary TS Decimal default copying",
+      "owner": "Values representation/public carrier owner",
+      "process": "Use existing verified source and balanced triple JEV advice for this difficult design decision if selected; no consultation or change is launched here."
+    }
+  ],
+  "execution_setup": {
+    "state": "not-materialized-in-this-worktree",
+    "observed_absent": [
+      "node_modules",
+      "compiler/target/debug/can",
+      "packages/cloudflare/dist/worker/assembly.js"
+    ],
+    "ready_definition": "Concrete source and contract outputs exist; this is not a claim that commands can run before activation/setup.",
+    "required_before_commands": "After finite release, check free disk and compatible lock/toolchain/features/flags/workspace-link caches, serialize writers, emit only needed consumers and freeze them. Obtain a released compatible compiler binary or build current source once for the typed-operation fixture; do not allocate another target/dependency tree by default.",
+    "performed_now": false
+  },
+  "planning_checks_scope": "Focused source/requirement review identified production pack-install refusal and the distinction between direct bootstrap fixtures and actual vendor delivery; both are included in the finite outputs. No runtime checks were executed.",
+  "pre_sync_source_base": "ede59d0512ac9a5ede8c23dda47c006a150cb143",
+  "finite_packet_detail": "docs/implementation/rust-port-orchestration/current-plan.md",
+  "origin_sync": {
+    "head": "e3ba3c9e229ce5a1856bdf8bf1d8ea1902ed87ff",
+    "upstream_ledger_retained": true,
+    "note": "Incoming origin updates eight started Work records to partial without closing gates. Consume these current observations; the local queue adds no status advancement. Canonical start-guide priorities retained; the current-byte Values delivery qualification is independent."
+  },
+  "pre_merge_source_base": "e3ba3c9e229ce5a1856bdf8bf1d8ea1902ed87ff",
+  "main_integration": {
+    "compiler_base": "0571eacb36206e94eb5d09d6b81ab978e443b58c",
+    "plan_commit": "fd03732b8938a14bda663e5d5d47774ebf541830",
+    "product_change": "None relative to the preserved compiler base; future qualifications must freeze the combined source.",
+    "execution_authorized": false
+  }
+}

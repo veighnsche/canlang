@@ -1,5 +1,7 @@
 # Four Rust-port implementation lanes
 
+Finite source-ready packet details are in [current-plan.md](rust-port-orchestration/current-plan.md) and [next-packets.json](rust-port-orchestration/next-packets.json), subordinate to the canonical priorities below. No packet is authorized.
+
 **Historical ownership allocation; source reconciled 2026-10-18.** Use the [single current execution view](RUST-PORT-START-HERE.md#current-execution-view--2026-10-18) for implemented components, priorities and holds. The baseline counts/static candidates below retain their original assessment dates and are not current progress or dispatch queues. This overlay launches no workers and releases no hold.
 
 Source: the [remaining-work ledger](remaining-work/tasks.json) at main `7fd8c6bf4717feeffc70b46819377b74b353e117`, with product/source evidence pinned separately at `fdb059c634c32c83760f35dd9175f49d9821762d`. The [machine-readable allocation](rust-port-lanes.json) assigns every one of the 230 port identities exactly once and preserves their original prerequisites, conditional/deferred disposition and acceptance reference. The original [port plans](../research/package-subsystem-ports-20261006/implementation-plans/README.md) and [ideal ownership](../ideal-filetree-plan/finished-product/ownership.md) remain authoritative for behavior.
