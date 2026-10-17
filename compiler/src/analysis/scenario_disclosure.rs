@@ -7374,13 +7374,14 @@ impl<'a> Closure<'a> {
             || scenario.on.is_some()
             || scenario.cohort.is_some()
             || !matches!(self.query_binding(by), Some(Binding::Predicate))
-            || self
-                .db
-                .get(by.file)?
-                .text
-                .get(by.start as usize..by.end as usize)?
-                .trim()
-                != "members"
+            || !matches!(
+                self.db
+                    .get(by.file)?
+                    .text
+                    .get(by.start as usize..by.end as usize)?
+                    .trim(),
+                "members" | "authenticated"
+            )
             || guard.node.file != scenario.node.file
             || call.file != guard.node.file
             || guard.node.start < scenario.node.start

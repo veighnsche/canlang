@@ -4,9 +4,10 @@
 //! over a navigated `invitation.parent.C` domain whose conjunction
 //! conjuncts are each sealed by operand shape/name/field/type/span
 //! (including the exact `c.actor` carrier) with the shared one-hop
-//! parent lineage, under `by=members`. The original CanCustomer accept
-//! uses `by=authenticated` and recover uses a reference-array helper
-//! closure: both remain separate recorded work, not claimed here.
+//! parent lineage, under `by=members` or `by=authenticated`. The
+//! original CanCustomer accept uses `by=authenticated` over the same
+//! navigated domain; recover uses a reference-array helper closure and
+//! remains separate recorded work, not claimed here.
 //! The scenario below is void (the accept shape): the installed
 //! `native-any-first-composition` consumer proves the executable half;
 //! these units pin source-level admission and refusals, while the
@@ -150,6 +151,32 @@ fn any_first_composition_admits_sealed_conjunction() {
         .find(|query| query["dependencies"].as_array().unwrap().len() == 3)
         .expect("three-conjunct any query");
     assert_eq!(any["parent"]["model"], "AnyFirstProbe.P");
+    assert_eq!(any["parent"]["origin"]["kind"], "admitted-reference");
+    let js = emitted_predicate(&prepared);
+    assert!(
+        js.contains(r#""kind":"predicate""#) && js.contains(r#""direct":true"#),
+        "emitted direct predicate ANY callback, got {js:?}"
+    );
+    let _ = db;
+}
+
+#[test]
+fn authenticated_by_admits_same_sealed_composition() {
+    let src = source("AnyFirstAuthProbe", GRANT)
+        .replacen("scenario accept(invitation:I) by=members", "scenario accept(invitation:I) by=authenticated", 1);
+    let loaded = load("any-first-authenticated-unit.can", &src);
+    assert!(loaded.diagnostics.is_empty(), "{:?}", loaded.diagnostics);
+    let Loaded { db, catalog, checked, .. } = loaded;
+    let program = checked.unwrap();
+    let (prepared, diagnostics) = prepared(&program, &db, &catalog);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let queries = accept_queries(&prepared, "AnyFirstAuthProbe");
+    assert_eq!(queries.len(), 2, "any plus first queries, got {queries:?}");
+    let any = queries
+        .iter()
+        .find(|query| query["dependencies"].as_array().unwrap().len() == 3)
+        .expect("three-conjunct any query");
+    assert_eq!(any["parent"]["model"], "AnyFirstAuthProbe.P");
     assert_eq!(any["parent"]["origin"]["kind"], "admitted-reference");
     let js = emitted_predicate(&prepared);
     assert!(
