@@ -18433,3 +18433,8 @@ Accepted: a first-query conjunction `==` arm may compare a candidate field again
 ## 2026-10-16 — can18_merge_56_20261017
 
 Accepted: Member-operand first-query admission with sealed base.field correspondence and installed param-row consumer. Merge reviewed tested work incrementally into canonical `main`, preserving installer/specification changes and the active implementation branch. Tests: predicate member units, conjunction 11/11, neighbors 7+11+17+7, installed member consumers 2/2 on rebuilt target/debug/can; member/qualified CLI probes exit 0. Reconcile the living file-tree plan/registry over `3c35b5a28..c4ad82faa` with existing owners; retain the complete checkpoint and all outstanding acceptance gates. A merged component is not a claim that original24 or the remaining runtime workflows are complete.
+
+
+## 2026-10-16 — can18_merge_57_20261017
+
+Accepted: Member-operand 0921 correction: checked-set-only closed-case identity, genuine nested discriminator, receiver occurrence pins. Merge reviewed tested work incrementally into canonical `main`, preserving installer/specification changes and the active implementation branch. Tests: predicate 14/14, conjunction 12/12, neighbors 7+11+17+7, installed member consumers 2/2 on rebuilt target/debug/can; contract/member/qualified CLI probes exit 0. Reconcile the living file-tree plan/registry over `5b3ba6a33..dd3bc1a25` with existing owners; retain the complete checkpoint and all outstanding acceptance gates. A merged component is not a claim that original24 or the remaining runtime workflows are complete.

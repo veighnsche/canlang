@@ -228,6 +228,10 @@ Exact authored enum-case pin across bare and qualified spellings with model-shap
 
 Member-operand first-query admission with sealed base.field correspondence and installed param-row consumer. Incoming interval `3c35b5a28..c4ad82faa` accounts for 8 changed paths in `can18_merge_56_20261017` of the existing registry. Tests: predicate member units, conjunction 11/11, neighbors 7+11+17+7, installed member consumers 2/2 on rebuilt target/debug/can; member/qualified CLI probes exit 0. Existing defining owners and target allocations remain; focused new tests stay with Compiler. Reuse prior accumulated coverage; complete checkpoint remains unchanged. Original24 and required executable consumers remain open. Unfinished work stays in the running Muse checkout.
 
+### CAN18 incremental integration — can18_merge_57_20261017
+
+Member-operand 0921 correction: checked-set-only closed-case identity, genuine nested discriminator, receiver occurrence pins. Incoming interval `5b3ba6a33..dd3bc1a25` accounts for 5 changed paths in `can18_merge_57_20261017` of the existing registry. Tests: predicate 14/14, conjunction 12/12, neighbors 7+11+17+7, installed member consumers 2/2 on rebuilt target/debug/can; contract/member/qualified CLI probes exit 0. Existing defining owners and target allocations remain; focused new tests stay with Compiler. Reuse prior accumulated coverage; complete checkpoint remains unchanged. Original24 and required executable consumers remain open. Unfinished work stays in the running Muse checkout.
+
 ### Specification and installer documentation merge — 2026-10-15
 
 Merge installer commit `02470b74` into canonical `main` at `a70921e3`.
