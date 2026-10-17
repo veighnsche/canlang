@@ -1,0 +1,27 @@
+app VoidParentProbe
+Given
+ P {v:int, active:bool}
+ C in P {v:int, role:text, active:bool}
+ I in P {email:email, active:bool}
+ D in P {w:int}
+ role members
+ role administrator
+ policy P read=members fields=v,active
+ policy C read=members fields=parent,v,role,active
+ policy I read=members fields=parent,email,active
+ policy D read=members fields=parent,w
+When
+ crud P by=members fields=v,active
+ crud C by=members fields=parent,v,role,active
+ crud I by=members fields=parent,email,active
+ crud D by=members fields=parent,w
+ scenario accept(invitation:I, n:int) by=members
+  do
+   require actor.email_verified and invitation.email==actor.email
+   let previous=first(invitation.parent.D as grant where grant.w==n order=grant.id)
+   if previous==null
+    create D {parent=invitation.parent,w=n} as grant
+   else
+    set previous {w=n}
+   set invitation {active=true}
+Then

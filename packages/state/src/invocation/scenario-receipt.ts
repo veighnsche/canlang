@@ -976,9 +976,17 @@ export function bindScenarioReceiptPlan(def: GeneratedOperationDef, models: read
   // (fail-closed for private rows until decision-mode lands), so a scalar
   // return bearing only control reads keeps the same profile. Anything
   // data-bearing keeps the projection-or-model-result demand.
+  //
+  // Void scenarios carry no result value to shape (the result wire demands
+  // null), so there is nothing for a projection or model-result profile to
+  // guard. Execution reads on a void path — including effect parent links,
+  // bound through the reference profiles above — still execute under caller
+  // authority, and the recorded queries, inputs and receipt are all
+  // revalidated on replay. The projection demand below therefore applies
+  // only to value-bearing returns.
   const pureControl = (returned: ScenarioResultDisclosurePlan['returns'][number]) =>
     returned.dependencies.every(dependency => dependency.role === 'control');
-  if (resultModel === undefined && plan.returns.some(returned => returned.projection === undefined && returned.influences.length !== 0 && !pureControl(returned))) {
+  if (type !== 'void' && resultModel === undefined && plan.returns.some(returned => returned.projection === undefined && returned.influences.length !== 0 && !pureControl(returned))) {
     return invalid('query influences without projection require the singular created-model result profile.');
   }
   if (resultModel === undefined && plan.queries?.some(query => query.dependencies.some(dependency => dependency.type === 'file[]'))) {
@@ -4676,8 +4684,10 @@ function readSavedScenarioAssociation(receipt: Receipt,
     // Same pure-control profile as registration: no stored reads, or only
     // stored CONTROL-role decision reads, means the influences are execution
     // gating only (admitted intrinsics are recorded replay-stable inputs),
-    // and the saved queries below revalidate the gating snapshot.
-    if (returned.influences.length !== 0 && !returned.dependencies.every(dependency => dependency.role === 'control'))
+    // and the saved queries below revalidate the gating snapshot. Void
+    // results carry no value to shape (the wire demands null), so the
+    // demand applies only to value-bearing returns, mirroring registration.
+    if (resultType !== 'void' && returned.influences.length !== 0 && !returned.dependencies.every(dependency => dependency.role === 'control'))
       return invalid('saved scalar query influences require their defining profile.');
     scalarWire(resultType, receipt.outcome.result); checkSavedQueries(plan, returned, value['queries'], receipt.outcome.result); }
   else checkSavedQueries(plan, returned, value['queries'], receipt.outcome.result);

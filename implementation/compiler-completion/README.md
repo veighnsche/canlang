@@ -81,13 +81,15 @@ neighbors lib predicate-filter 24/24 + conjunction 18/18 + ifbranch 7/7
 + hook-first 11/11 + native-first 17/17 + replay 4/4 + qualified 4/4 +
 stored-query 9/9 + scope-authority 19/19 + predicate-reuse 1/1 +
 first-query-sources 7/7, nav consumer 2/2; CLI probes exit 0 with
-refusals intact. Full-lib has 4 pre-existing main failures (stack
-overflow + 3 assertion failures, all reproduced on clean tree via
-stash). Record narrowing (1101): emitted predicate read registries
+refusals intact. Full-lib has 4 pre-existing main failures, all reproduced on clean tree via stash: `deep_expression_declines_without_changing_source_admission` stack overflow, `delivery_inspection_and_unreleased_metadata_remain_whole_declined`, `finite_query_closure_retains_original_body_without_native_publication`, `original_input_guards_refuse_changed_effect_or_signature_before_the_model_query`. The actor consumer's second invocation uses a new operation_id (update-in-place), not retained replay; genuine retained replay is proven in the void consumer below. Record narrowing (1101): emitted predicate read registries
 carry an intentional registry-only fallback, not a lost predicate. The
 fixture sources its create parent from a param to isolate the actor
 slice; the original void `create D{parent=invitation.parent,...}` State
 data-dep gate is the next prerequisite. No original24 movement claimed.
+
+### Void accept with invitation-sourced create parent — 2026-10-17
+
+Void scenarios may carry data dependencies from effect parent links on projection-less influenced returns: void carries no result value to shape (wire demands null), execution reads stay under caller authority through the reference profiles, and recorded queries/inputs/receipts are revalidated on replay, including the saved-association path (two State exemptions, registration + saved). Cloudflare preload defers parent-query defs to the invocation-local registry instead of binding them grant-free; the exact original/ancestor grant check is retained and runs with genuine caller policies. Fixture `first-query-void-parent.can` is the genuine invitation-parent shape (no org param). Validation on rebuilt state/cloudflare dists: installed void consumer 1/1 (commit + retained replay with unchanged versions, strict D.parent model+id linkage, mismatch/unverified rule_failed, outsider/revoked forbidden), actor/nav consumers still green, contained-first 5/5 with frozen env, receipt units 33/34 (1 pre-existing), parent dist tests 5/5. State full units 2055/2063 with the 8 classified (5 pass with frozen env, 3 pre-existing on clean tree). No original24 movement claimed; the CanMaintain created-model +1 stays as the next classified compiler root.
 
 ### Navigation-parent first-query admission (0946/1011) — 2026-10-17
 
