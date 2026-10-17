@@ -88,13 +88,17 @@ normalization differ; argument names, whitespace, rich tags, nesting limits and
 UTF16 offsets differ. UI validates locale/operands before parsing; Values renders
 by parsing first. Adopting one implementation silently would change behavior.
 
-**First finite output:** one explicit shared-versus-distinct profile table and
-choice between shared fixtures, a shared TS parser, or a Rust syntax/usage core.
-Use existing public tests and original compiler/UI callers to settle each listed
-difference. No full ICU or locale database replacement. The exact decision is
-whether differences are intentional profiles or accepted language changes.
+**Contract investigation completed, proposal pending:** the
+[source-current ICU matrix and finite shared-parser plan](icu-shared-parser-plan.md)
+at `0bb480bef` traces syntax, usage scanners and actual consumers. It recommends
+an explicit Values-based profile, sharing the TS parser with UI, and one compiler
+grammar/usage parser. This initially retains two implementations of one contract;
+a single Rust/Wasm implementation has a separate bounded evaluation. The plan
+reuses existing C09I correctness IDs and identifies intentional grammar,
+diagnostic and UI all-branch/all-variant changes. Profile approval and a finite
+implementation release remain necessary; neither is implied by this audit.
 
-**If Rust is later selected:** consume that agreed grammar/error profile; remove
+**If a single Rust implementation is later selected:** consume that agreed grammar/error profile; remove
 one actual duplicate parsing responsibility, keep host Intl/date/plural formatting,
 preserve exact selectors/frozen results/UTF16 and first error, and qualify actual
 compiled and public runtime consumers. Compare complete parse/render paths with

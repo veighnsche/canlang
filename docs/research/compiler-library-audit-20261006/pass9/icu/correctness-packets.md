@@ -2,6 +2,14 @@
 
 These are evaluation proposals, not production edit authorization. Root releases each implementation packet. Inputs, executable probes and original diagnostics are retained in this directory. `fixtures/` contains all eight permanent type fixtures. Every result uses the public owner entry, and source/built owner results agree.
 
+**Source-current follow-up, 2026-10-18:** the
+[shared-parser proposal](../../../../ideal-filetree-plan/rust-package-audit/icu-shared-parser-plan.md)
+retains these packet IDs and the accepted I-TYPE repair, refreshes anonymous
+descriptor/usage callers, and proposes explicit resolutions for lexical and
+outside-plural pound policy. It supplies finite consolidation dependencies;
+these original results remain evidence at their original pins. No implementation
+release, parser-library adoption or new correctness queue is created.
+
 | Packet | Defining writers / caller closure | Independent acceptance | Classification / uncertainty |
 | --- | --- | --- | --- |
 | I-TYPE | `compiler/src/analysis/examples.rs` IcuType/parse_argument/check_arg; `compiler/tests/check.rs` named-message checks. check_program → examples check_message → check_message_value → icu_error. | Ordinary number: int/decimal accept. Integer number: int accept, decimal E5007. Cardinal: int/decimal accept. Ordinal: int accept, decimal E5007. Source and every present variant use same signature. Preserve valid nested patterns and existing unsupported styles. | Definite two executed defects: number-decimal exits 10; ordinal-decimal exits 0. DESIGN §9.1 explicitly states integer/ordinal int and cardinal int/decimal; owner additionally admits ordinary decimal number and exact adapters require its precision. No new policy choice. |
