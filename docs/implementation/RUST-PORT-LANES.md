@@ -1,12 +1,12 @@
 # Four Rust-port implementation lanes
 
-**PROPOSED planning allocation — implementation remains deferred.** This overlay divides the existing port scope into four ownership queues. It launches no workers, creates no worktrees or goals, and changes no acceptance status or human hold.
+**Historical ownership allocation; source reconciled 2026-10-18.** Use the [single current execution view](RUST-PORT-START-HERE.md#current-execution-view--2026-10-18) for implemented components, priorities and holds. The baseline counts/static candidates below retain their original assessment dates and are not current progress or dispatch queues. This overlay launches no workers and releases no hold.
 
 Source: the [remaining-work ledger](remaining-work/tasks.json) at main `7fd8c6bf4717feeffc70b46819377b74b353e117`, with product/source evidence pinned separately at `fdb059c634c32c83760f35dd9175f49d9821762d`. The [machine-readable allocation](rust-port-lanes.json) assigns every one of the 230 port identities exactly once and preserves their original prerequisites, conditional/deferred disposition and acceptance reference. The original [port plans](../research/package-subsystem-ports-20261006/implementation-plans/README.md) and [ideal ownership](../ideal-filetree-plan/finished-product/ownership.md) remain authoritative for behavior.
 
 These are four workstreams, not four independent Rust packages. Exact values and validation share `packages/values/semantics` and its thin binding crate. Work owns the contracts-only `packages/work-kernel` leaf. Native preparation belongs to Cloudflare. A lane cannot create another arithmetic, validation, authority or catalog engine.
 
-| Lane | Primary responsibility | Required records still open | Work / completion gates |
+| Lane | Primary responsibility | Historical required records open | Historical work / completion gates |
 | --- | --- | ---: | ---: |
 | R1 — Exact values + values assembly | Exact arithmetic, temporal math, aggregates, scalar codecs, carriers, one shared crate/binding assembly writer; common complete-call review | 31 values + 1 shared = **32** | 20 / 12 |
 | R2 — Owned input validation | Prepared TS, provenance, plans, interpreter/profile policy, whole-input HTTP/state/selected MCP joins; common baseline and ABI review | 61 validation + 2 shared = **63** | 49 / 14 |
@@ -14,7 +14,7 @@ These are four workstreams, not four independent Rust packages. Exact values and
 | R4 — Retained native preparation | Full retained local job, ordered host stages, exact reviewed-byte publication, executable integrity/lifetime, real CLI/installed-host qualification | **30** | 21 / 9 |
 | Total | All selected required remaining port work | **166** | **119 / 47** |
 
-Counts include completion/review gates; they are not 166 coding jobs or equal estimates of effort. The 54 completed identities stay credited and are not redispatched. Six accepted-conditional identities and four deferred identities remain separately mapped: validation has five conditional adoption tasks; preparation has one conditional mixed-asset task; work has four deferred optional scheduler tasks.
+These October 6 counts include completion/review gates; they are not current remaining-work counts, 166 coding jobs or equal estimates of effort. The 54 baseline completed identities stay credited and are not redispatched. Later accepted components, including selected durable recovery, are recorded in the current execution view and reconciled ledger without closing unmet whole-port gates. Six baseline accepted-conditional identities and four deferred identities remain separately mapped: validation has five conditional adoption tasks; preparation has one conditional mixed-asset task; work has four deferred optional scheduler tasks.
 
 ## Workerd delivery readiness after the build migration
 
@@ -22,9 +22,9 @@ Refinement base: main `309644a6881909d8dba32560bc6711f67e00a7ab` (October 6, 202
 
 | Existing port duty | Reuse from the completed migration | Finite remainder before the original gate closes |
 | --- | --- | --- |
-| `C04.graph` | Thirteen declared JS owners, exported producer boundaries, removed dependency cycles, explicit producer build order, Bun/Turbo graph and outside-checkout package closure | State/Cloudflare/stdlib/testkit currently declare no work-kernel dependency; fulfil the exact dependency/export/build requests when their actual adapters release. Reuse existing graph repairs; final work-binary proof stays in its separate gate |
+| `C04.graph` | Thirteen declared JS owners, exported producer boundaries, removed dependency cycles, explicit producer build order, Bun/Turbo graph and outside-checkout package closure | Cloudflare now declares work-kernel. Fulfil only remaining dependency/export/build requests required by actual adapters; State/stdlib/testkit need no speculative unused dependency. Reuse existing graph repairs; final work-binary proof stays in its separate gate |
 | `C04.asset` / `C04.values-assets` / `C04.ready` inputs | Installed owning distributions, validated actual values glue/WASM, JS/binary/resource inventories, byte-safe writers and workerd ABI/add-int execution | Match original ABI/loader/error/consumer obligations to exact evidence; full values/validation regenerated outputs and actual supported consumer paths retain their named gates |
-| `C04.work-assets`, `W05`, `W06` | Emitted contracts-only JS work-kernel package and installed export/build foundation | Register actual Rust decisions/ABI, build package-specific work WASM/glue, fulfil final delivery, then prove installed workerd consumers and durable race/crash/restart behavior. The current Rust root contains a version constant only |
+| `C04.work-assets`, `W05`, `W06` | Registered Rust decision families, explicit recovery Wasm producer/distribution URL, synchronous startup-selected facade and accepted selected durable recovery use | Complete only missing family and final package/deploy/installed inventory/loader obligations. Ordinary emit does not produce recovery Wasm. Credit selected recovery once; broader original gates remain open |
 | Installed/release and verification prerequisites | Exact thirteen-owner archive closure, installed Worker/auth-refusal and selected values probe, accepted local cache/CI machinery | Actual final module/asset inventories and claimed hosts, original full consumer semantics, whole-call startup/resource/economics and independent acceptance. Hosted CI, browser and native release claims require their own evidence |
 
 R3's asset request must name the original owning task, candidate/source hashes, actual package export and release version, generated glue/backend/bootstrap and binary keys, ABI/toolchain/features, producer inventory/digests, installed dependency closure and selected host profile. The delivery owner returns reviewed source and exact written asset hashes; the consumer verifies those bytes outside the checkout. Use package-resolved exports, retain test-loader exclusions, and inspect the actual request-time import graph including dynamic loads. Cargo/Python/Bun/Turbo/native executables are host-side producers; their scheduling does not make them workerd runtime dependencies.
@@ -37,7 +37,7 @@ The [workerd deployment handoffs](../ideal-filetree-plan.md#workerd-deployment-r
 
 No fifth implementation lane is added. Each subsystem still supplies its own actual consumer and measurement evidence; the named owner of a common gate assembles all contributors' evidence, and independent review verifies it.
 
-| Lane | The eleven open required shared IDs |
+| Lane | Historical allocation of the eleven open required shared IDs |
 | --- | --- |
 | R1 | `C05.complete` |
 | R2 | `C02.complete`, `C03.complete` |
@@ -68,7 +68,7 @@ Preserve the exact DAG; broad parent gates are not blanket barriers when their o
 - `P05.2 → C04.preparation-join → P05.3 → P05.4`: native host consumes the existing bundle builder. The narrow shared join is already credited; consumption and native integration remain open.
 - `P09.1 + C04.graph → C04.native-release`: preparation supplies actual executable/release inputs; R3 performs only the released global integration and returns it for R4's consumer verification.
 
-The initial static candidate queues are embedded in the JSON and come from the current remaining ledger. R1 has native/carrier/codec verification and integration work; R2 has source/profile/provenance inventory and prepared hook work; R3 has kernel/demand contract work plus independent graph/readiness integration. R4's implementation queue remains held until explicit human release. A static candidate is not authorization, and current contracts/files/resources must be reconciled before a later start.
+The historical static candidate queues are embedded in the JSON and come from the baseline remaining ledger; use the current execution view for future priority/readiness. R1 has native/carrier/codec verification and integration work; R2 has source/profile/provenance inventory and prepared hook work; R3 has kernel/demand contract work plus independent graph/readiness integration. R4's implementation queue remains held until explicit human release. A static candidate is not authorization, and current contracts/files/resources must be reconciled before a later start.
 
 Four lanes are ownership queues, not permanent worker silos. A worker whose packet finishes can assist a different queue on a released, file-disjoint task; record the transfer instead of inventing duplicate authority. The larger R2 queue can receive such help. Waiting for another lane or a heavy command must not park a whole worker when fixtures, adapters or other prerequisite-unblocking work is genuinely ready. Preserve unfinished edits and reservations. Serialize only overlapping files, Git integration and exact command resources; mutable target/dist/fixture outputs remain private. Existing inner lane labels are subqueues, not additional independent writers.
 
@@ -78,4 +78,4 @@ Keep whole owned operations as the target seam: arithmetic internal to the valid
 
 Narrow matching challenge/product producer, descriptor, authority and dispatch-availability contracts remain readiness inputs when the chosen consumer requires them. This overlay neither imports the entire product backlog into Rust nor drops required consumer behavior. Public JS compatibility remains explicit; compiler lowering, optional W09 scheduling, unrelated product work and production deployment are not authorized here.
 
-Planning validation: 230 unique source identities allocated once; 166 required open = 119 work + 47 gates; 54 complete + 6 conditional + 4 deferred preserved; all eleven unresolved shared IDs assigned; six exact cross-lane planned source overlaps have explicit assembly/handoff resolutions. No product build/test or implementation was performed.
+Historical allocation validation: 230 unique source identities allocated once; baseline 166 required open = 119 work + 47 gates; 54 complete + 6 conditional + 4 deferred preserved; all eleven baseline unresolved shared IDs assigned; six exact cross-lane planned source overlaps have explicit assembly/handoff resolutions. October 18 source reconciliation changes no allocation, dependency, hold or full-gate acceptance. No product build/test or implementation was performed by this update.

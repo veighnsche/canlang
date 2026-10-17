@@ -1,5 +1,7 @@
 # Remaining CanLang work
 
+**Rust source reconciliation, 2026-10-18:** use the [single current Rust execution view](RUST-PORT-START-HERE.md#current-execution-view--2026-10-18) for current implementation credit and prioritized remainder. Its ledger corrects fifteen source observations and marks eight started Work records partial; no full port gate closes. Historical cross-roadmap counts below are not a current Rust completion percentage. All existing holds and stopped execution remain.
+
 ## Current Muse state — paused for plan agreement, 2026-10-17
 
 The existing Muse run and its native goal are paused; supervision is disabled (the matching automation has been removed and was not recreated). The [proposed Can18 root-cause plan](compiler-completion/README.md) is its single execution view, including accepted components, remaining original criteria, concrete dependencies and exact external/policy holds. No implementation or worker release is authorized until human agreement. The earlier cross-roadmap aggregation below preserves traceability; it is not another Muse dispatch queue.
