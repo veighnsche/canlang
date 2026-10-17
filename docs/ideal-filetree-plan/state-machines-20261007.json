@@ -75086,5 +75086,38 @@
     "target_disposition": "existing defining owners retained; enum admission tests stay with compiler/tests and the installed consumer owner; no source moves, package redesign or new product scope",
     "checkpoint_advanced": false,
     "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
+  },
+  "can18_merge_55_20261017": {
+    "incremental_base": "03c0a68e9198c67a276927b8d35d731899aef430",
+    "incoming_end": "3de911a1a41fdb8db87ed5a90c317000bc0f8f45",
+    "retained_coverage": "reuse spec_installer_merge_reconciliation_20261015 and preceding CAN18 incremental merge entries; inherited complete checkpoint unchanged",
+    "changed_path_count": 4,
+    "rows": [
+      [
+        "compiler/src/analysis/scenario_disclosure.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/src/codegen/scenario_create_sources.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/src/codegen/scenario_receipts.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/first_query_conjunction.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ]
+    ],
+    "choice": "Exact authored enum-case pin across bare and qualified spellings with model-shaped qualifier and checked subtree type seal.",
+    "validation": "Tests: predicate 6/6, conjunction 10/10, CLI bare/qualified exit 0 with forged E2013, installed consumer 2/2; complete checkpoint unchanged.",
+    "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
+    "checkpoint_advanced": false,
+    "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
   }
 }
