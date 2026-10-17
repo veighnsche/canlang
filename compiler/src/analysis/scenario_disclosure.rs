@@ -10399,7 +10399,13 @@ impl<'a> Closure<'a> {
             && self
                 .current_revision_at(key, module)
                 .is_some_and(|fact| fact.presence == key);
-        let first_null_check = current_null_check || op == "!=" && calls.is_empty()
+        // Absence primitive (CAN18-v1 first-query slice): a null test on the
+        // first-query let binding in EITHER direction (`!=null` presence or
+        // `==null` absence) consumes only that binding's presence, never a
+        // stored field. Field reads off the possibly-null binding keep the
+        // AbsentReference refusal below, as do require-or/if-branch shapes
+        // (their own slices, still refused at the terminal tail rule).
+        let first_null_check = current_null_check || matches!(op, "==" | "!=") && calls.is_empty()
             && [(children[0], children[1]), (children[1], children[0])].iter().any(|(value, null)| {
                 let key = NodeKey::of(value);
                 self.types.node_types.get(&NodeKey::of(null)) == Some(&ResolvedType::Null)

@@ -355,26 +355,79 @@ fn genuine_cli_refused_tails_emit_no_operations() {
 }
 
 #[test]
+fn absence_require_admits() {
+    // Absence primitive: `require c==null` consumes only the first
+    // binding's absence (same confined carve-out as `!=null`), so the
+    // terminal create + scalar return admits with the same four query
+    // influences and no stored-read dependencies.
+    let source = SEED.replace("require c!=null", "require c==null");
+    let (db, program, _, catalog) = fixture_source("side-effect-absence.can", &source);
+    let (prepared, diagnostics) = prepared_artifact(&program, &db, &catalog);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let disclosure = &operation(&prepared, "SideEffectSources.go")["result"]["disclosure"];
+    let [query] = disclosure["queries"].as_array().unwrap().as_slice() else {
+        panic!("one first query")
+    };
+    assert_eq!(query["model"], "SideEffectSources.C");
+    let [returned] = disclosure["returns"].as_array().unwrap().as_slice() else {
+        panic!("one scalar return")
+    };
+    assert!(returned["projection"].is_null());
+    assert_eq!(
+        returned["influences"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|influence| influence["kind"].as_str().unwrap())
+            .collect::<Vec<_>>(),
+        [
+            "query-existence",
+            "query-cardinality",
+            "query-membership",
+            "query-order"
+        ]
+    );
+    let _ = db;
+}
+
+const CONJUNCTION: &str = include_str!("fixtures/first-query-side-effect-conjunction.can");
+
+#[test]
+fn absence_conjunctions_admit_with_control_dependency() {
+    // Flow-sensitive conjunctions: `c==null or c.v==m` (RHS sees non-null
+    // c) and `c!=null and c.v==m` (same) consume the binding's absence plus
+    // one stored control read. The plan carries that control dependency; the
+    // guard-consumed runtime slice (next scope) proves the field comparison
+    // executes with decision authority.
+    let (db, program, _, catalog) =
+        fixture_source("first-query-side-effect-conjunction.can", CONJUNCTION);
+    let (prepared, diagnostics) = prepared_artifact(&program, &db, &catalog);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    for name in [
+        "ConjunctionSources.go_or",
+        "ConjunctionSources.go_and",
+    ] {
+        let disclosure = &operation(&prepared, name)["result"]["disclosure"];
+        let [query] = disclosure["queries"].as_array().unwrap().as_slice() else {
+            panic!("{name}: one first query")
+        };
+        assert_eq!(query["model"], "ConjunctionSources.C");
+    }
+    let _ = db;
+}
+
+#[test]
 fn absence_branch_and_predicateless_shapes_stay_refused() {
-    // Exact next scope: bare absence requires, absence/presence branches with
-    // in-branch creates, absence-or field checks, and predicateless first
-    // queries need State conditional-create/absence replay. The compiler keeps
-    // the precise correspondence refusal meanwhile.
+    // Still next scope: absence/presence branches with in-branch creates
+    // and predicateless first queries. The compiler keeps the precise
+    // correspondence refusal meanwhile.
     let cases = [
-        (
-            "bare-absence-require",
-            SEED.replace("require c!=null", "require c==null"),
-        ),
         (
             "absence-branch-create",
             SEED.replace(
                 "require c!=null\n   create D {w=n} as d\n   return 1",
                 "if c==null\n    create D {w=n} as d\n    return 1\n   else\n    return 0",
             ),
-        ),
-        (
-            "absence-or-require",
-            SEED.replace("require c!=null", "require c==null or c.v==n"),
         ),
         (
             "predicateless-contained",

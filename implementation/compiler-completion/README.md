@@ -36,6 +36,39 @@ model-returning first-query invocation hits the pre-existing frame gap
 files untouched — branched model-result frame lifetimes are the named next
 prerequisite, not a silent pass.
 
+### First-query absence primitive (merge48) — 2026-10-17
+
+`expr_binary`'s first-query null carve-out covered only `!=`: `require
+c==null` died as AbsentReference before any plan existed. The carve-out
+now covers `==` too — a null test on the first-let binding consumes only
+its absence, never a stored field — so bare `require c==null` + terminal
+create + scalar return admits with the same four influences and zero
+stored deps. Flow-sensitive conjunctions (`c==null or c.v==m`,
+`c!=null and c.v==m`) also compile now (RHS sees non-null c; short-circuit
+emitted with receipt choices), but their stored control reads need the
+ordinary-scenario guard-consumed slice (analysis marking + State
+registration + decision-grant consumer): State registration loudly refuses
+their stored-bearing returns meanwhile, and a shared artifact means the
+conjunction scenarios live in their own fixture until that slice lands.
+If-branch creates and predicateless queries stay refused. Validation:
+rust 10/10 (new absence + conjunction positives, branch/predicateless
+refusals); runtime absence 1/1 on frozen in-target `f901f324` + `ca50`
+(absent creates D + scalar '1', present fails exact rule_failed with no
+D, retained replay stable). No original24 movement claimed: the 90 are
+hooks/derives/nested queries/require-or/if shapes, not this bare form.
+Next: ordinary-scenario guard-consumed marking/registration/consumer with
+by/owner/parent authority + revocation on the decision path (never a
+viewer-grant prerequisite), exact rule codes, short-circuit preservation.
+
+Fence correction (0321): the committed contention phase pinned
+rule_failed, but invoke.ts retries instanceof FenceConflictError within a
+bounded budget — the pin was a mixed-loader artifact (static test-graph
+storage vs installed invoker). Storage now loads from the installed graph
+in both consumers; one-shot contention retries to committed, persistent
+contention exhausts to retryable busy with no new D. DECISIONS wording
+corrected with this intake. The H dispatch-test gaps (stale version,
+revoked-caller) stay open at H.
+
 ### First-query terminal side-effect batch (compiler + State halves) — 2026-10-17
 
 Compiler admits the require-present terminal side-effect family: contained

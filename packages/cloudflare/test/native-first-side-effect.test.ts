@@ -21,7 +21,6 @@ import { Miniflare } from 'miniflare';
 import type { D1Database } from '@cloudflare/workers-types';
 import type { CommitBatch, CompileArtifact, MutationEnvelope, ReceiptIdentity, StoragePort } from '@canlang/contracts';
 import { createD1IdentityStore, ensureIdentitySchema, resolveIdentity, sha256HexText } from '@canlang/identity';
-import { createD1Storage, ensureSchema } from '@canlang/state/storage/d1';
 import { readScenarioReceiptAssociation } from '@canlang/state/invocation';
 import { hashInputs } from '@canlang/state/invocation/replay';
 import { asId, asModel, asOperation, asOperationId, uuidv7 } from '@canlang/state/testing/invocation/fixtures';
@@ -38,6 +37,11 @@ const nodeImport = compileFunction('return import(url)', ['url'], {
   importModuleDynamically: vmConstants.USE_MAIN_CONTEXT_DEFAULT_LOADER,
 });
 const installed = (path: string) => pathToFileURL(join(root, 'packages/cloudflare/dist', path)).href;
+// Same installed module graph for storage and invoker: the invoker's
+// FenceConflictError retry is an instanceof check, so storage loaded
+// from a different graph (static test import vs installed assembly)
+// would silently disable retries. Load storage from installed dist.
+const stateInstalled = (path: string) => pathToFileURL(join(root, 'packages/state/dist/src', path)).href;
 const APP = 'SideEffectSources';
 const P = asModel(`${APP}.P`), C = asModel(`${APP}.C`), D = asModel(`${APP}.D`);
 const fixtureSourcePath = join(root, 'compiler/tests/fixtures/first-query-side-effect.can');
@@ -70,6 +74,7 @@ test('native terminal side-effect first query persists one row per success with 
       const { installedLocalPreviewInputInventory } = await nodeImport(installed('dev/preview-inputs.js')) as typeof import('../src/dev/preview-inputs.js');
       const { captureIsCurrent, captureSingleFileSource, verifyCompilerSources } = await nodeImport(installed('dev/source-capture.js')) as typeof import('../src/dev/source-capture.js');
       const { compileCapturedSingleFile } = await nodeImport(installed('dev/compiler-check.js')) as typeof import('../src/dev/compiler-check.js');
+      const { createD1Storage, ensureSchema } = await nodeImport(stateInstalled('storage/d1.js')) as typeof import('@canlang/state/storage/d1');
       const originalSource = await readFile(fixtureSourcePath);
       const compilerPath = process.env.CAN_COMPILER_BIN ?? join(root, 'compiler/target/debug/can');
       const catalogPath = process.env.CAN_NATIVE_CATALOG ?? join(root, 'packages/cloudflare/dist/native-catalog.json');
@@ -224,7 +229,7 @@ test('native terminal side-effect first query persists one row per success with 
       }
 
       // No matching C: exact require failure with no new D and no writes.
-      const dCount = await dRows().then(rows => rows.length);
+      let dCount = await dRows().then(rows => rows.length);
       await rejectedWithoutEffects(envelope({ p: { id: parentId, version: parentVersion }, n: '999' }));
       assert.equal(await dRows().then(rows => rows.length), dCount);
 
@@ -251,43 +256,60 @@ test('native terminal side-effect first query persists one row per success with 
         assert.equal(await dRows().then(rows => rows.length), dCount);
       }
 
-      // A storage revision conflict after the handler staged D rolls the
-      // whole commit back. A separate genuine revision-only competing commit
-      // (receipt null, everything empty) advances the store; the untouched
-      // candidate then fails with the exact store conflict and lands no D,
-      // history, outbox or schedule effects. Only the conflict timing is
-      // arranged; the refusal and rollback are real. Legitimate rejection
-      // receipt/fence bookkeeping may still advance.
+      // Storage fence contention uses the bounded admission retry, not a
+      // business rule. A genuine revision-only competing commit (receipt
+      // null, everything empty) arranges the conflict; nothing is
+      // hand-built. One-shot contention is retried and the identical
+      // envelope then commits with its D. Persistent contention on every
+      // staged-D attempt exhausts the budget and surfaces the retryable
+      // busy error with no landed D. (An earlier pin of rule_failed here
+      // was a mixed-loader artifact: storage from the static test graph
+      // threw a different FenceConflictError identity than the installed
+      // invoker catches, so no retry happened. Both now load installed.)
       {
         const forwarding = store.commit.bind(store);
+        const competitor = (expectedRevision: number) => underlying.commit({
+          expectedRevision, writes: [], history: [], receipt: null, outbox: [], schedules: [],
+          uniqueClaims: [], uniqueReleases: [],
+        });
+        const dBefore = await dRows().then(rows => rows.length);
+        // One-shot: conflict once, then let the retry through to success.
+        let fired = false;
         (store as { commit: StoragePort['commit'] }).commit = (async (batch: CommitBatch) => {
-          if (batch.writes.some(write => write.model === D)) {
-            (store as { commit: StoragePort['commit'] }).commit = forwarding;
-            await underlying.commit({
-              expectedRevision: batch.expectedRevision,
-              writes: [], history: [], receipt: null, outbox: [], schedules: [],
-              uniqueClaims: [], uniqueReleases: [],
-            });
+          if (!fired && batch.writes.some(write => write.model === D)) {
+            fired = true;
+            await competitor(batch.expectedRevision);
           }
           return forwarding(batch);
         }) as StoragePort['commit'];
         try {
-          const revision = await store.readRevision(), count = batches.length;
-          const conflicted = await invoke(envelope({ p: { id: parentId, version: parentVersion }, n: '7' }));
-          assert.ok('error' in conflicted, JSON.stringify(conflicted));
-          assert.equal(conflicted.error.code, 'rule_failed', JSON.stringify(conflicted));
-          assert.match(conflicted.error.message, /Fence conflict: expected revision \d+, actual \d+/, JSON.stringify(conflicted));
-          for (const batch of batches.slice(count)) {
-            assert.deepEqual(batch.writes, []);
-            assert.deepEqual(batch.history, []);
-            assert.deepEqual(batch.outbox, []);
-            assert.deepEqual(batch.schedules, []);
-          }
-          assert.ok((await store.readRevision()) >= revision + 1);
-          assert.equal(await dRows().then(rows => rows.length), dCount);
+          const outcome = await invoke(envelope({ p: { id: parentId, version: parentVersion }, n: '7' }));
+          assert.ok('result' in outcome, JSON.stringify(outcome));
+          assert.equal(outcome.result.status, 'committed');
+          assert.equal(await dRows().then(rows => rows.length), dBefore + 1);
         } finally {
           (store as { commit: StoragePort['commit'] }).commit = forwarding;
         }
+        // Persistent: conflict every staged-D attempt; the bounded budget
+        // exhausts with retryable busy and no new D.
+        const dAfterRetry = await dRows().then(rows => rows.length);
+        (store as { commit: StoragePort['commit'] }).commit = (async (batch: CommitBatch) => {
+          if (batch.writes.some(write => write.model === D)) {
+            await competitor(batch.expectedRevision);
+          }
+          return forwarding(batch);
+        }) as StoragePort['commit'];
+        try {
+          const conflicted = await invoke(envelope({ p: { id: parentId, version: parentVersion }, n: '7' }));
+          assert.ok('error' in conflicted, JSON.stringify(conflicted));
+          assert.equal(conflicted.error.code, 'busy', JSON.stringify(conflicted));
+          assert.equal(await dRows().then(rows => rows.length), dAfterRetry);
+        } finally {
+          (store as { commit: StoragePort['commit'] }).commit = forwarding;
+        }
+        // The one-shot retry above committed an extra D; re-baseline the
+        // no-new-D expectations for the phases below.
+        dCount = await dRows().then(rows => rows.length);
       }
 
       // Revoking membership withholds execution with no writes.
@@ -317,6 +339,109 @@ test('native terminal side-effect first query persists one row per success with 
       for (const module of moduleBytes) assert.deepEqual(await readFile(module.path), module.bytes);
       assert.equal(JSON.stringify(artifact), originalArtifact); assert.equal(await captureIsCurrent(capture), true);
       assert.equal(createHash('sha256').update(originalSource).digest('hex'), artifact.sources.find(source => resolve(source.path) === fixtureSourcePath)!.sha256);
+    } finally {
+      await worker?.dispose(); await rm(directory, { recursive: true, force: true });
+    }
+  });
+
+test('native terminal side-effect absence require creates only when no row matches',
+  { timeout: 180000 }, async () => {
+    const ABSENT_APP = 'AbsenceSources';
+    const absentFixture = join(root, 'compiler/tests/fixtures/first-query-side-effect-absence.can');
+    const absentD = asModel(`${ABSENT_APP}.D`);
+    const directory = await mkdtemp(join(tmpdir(), 'can-native-first-absence-'));
+    let worker: Miniflare | undefined;
+    let capture: Awaited<ReturnType<typeof import('../src/dev/source-capture.js')['captureSingleFileSource']>> | undefined;
+    try {
+      const { assembleModules } = await nodeImport(installed('runtime/modules.js')) as typeof import('../src/runtime/modules.js');
+      const { buildInvoker } = await nodeImport(installed('worker/assembly.js')) as typeof import('../src/worker/assembly.js');
+      const { installedLocalPreviewInputInventory } = await nodeImport(installed('dev/preview-inputs.js')) as typeof import('../src/dev/preview-inputs.js');
+      const { captureIsCurrent, captureSingleFileSource, verifyCompilerSources } = await nodeImport(installed('dev/source-capture.js')) as typeof import('../src/dev/source-capture.js');
+      const { compileCapturedSingleFile } = await nodeImport(installed('dev/compiler-check.js')) as typeof import('../src/dev/compiler-check.js');
+      const { createD1Storage, ensureSchema } = await nodeImport(stateInstalled('storage/d1.js')) as typeof import('@canlang/state/storage/d1');
+      const originalSource = await readFile(absentFixture);
+      const compilerPath = process.env.CAN_COMPILER_BIN ?? join(root, 'compiler/target/debug/can');
+      const catalogPath = process.env.CAN_NATIVE_CATALOG ?? join(root, 'packages/cloudflare/dist/native-catalog.json');
+      capture = await captureSingleFileSource({ checkoutRoot: root, appPath: absentFixture,
+        profile: 'native-first-side-effect-absence', compilerPath, catalogPath,
+        helpIndexPath: join(root, 'docs/specification/CONSTRUCT-HELP.md'),
+        ...installedLocalPreviewInputInventory(root, compilerPath), inputInventory: 'installed-local-preview',
+        semanticOptions: { nativeScenarioReceipts: 'true' } });
+      assert.equal(await captureIsCurrent(capture), true);
+      const compiled = await compileCapturedSingleFile(capture);
+      assert.equal(compiled.kind, 'artifact', compiled.kind === 'diagnostics' ? JSON.stringify(compiled.envelope.diagnostics) : compiled.kind);
+      if (compiled.kind !== 'artifact') throw new Error('Absence source did not compile');
+      const artifact: CompileArtifact = compiled.artifact, originalArtifact = JSON.stringify(artifact);
+      assert.equal(verifyCompilerSources(capture, { complete: true, sources: artifact.sources }).ok, true);
+      const operation = artifact.operations?.find(operation => operation.name === `${ABSENT_APP}.go_absent`); assert.ok(operation);
+      assert.equal(operation.kind, 'scenario'); assert.equal(operation.result?.type, 'int');
+      const asm = await assembleModules({ artifact, sourcePath: absentFixture }, { workDir: join(directory, 'modules'), stdlibUrl: installed('runtime/stdlib.js') });
+      const callable = artifact.callables.find(callable => callable.id === operation.name); assert.ok(callable);
+
+      worker = new Miniflare({ compatibilityDate: '2026-07-15', modules: true,
+        script: 'export default { fetch() { return new Response("ok"); } }',
+        d1Databases: { IDENTITY: 'first-absence-identity', OWNER: 'first-absence-owner' }, d1Persist: join(directory, 'd1') });
+      const identityDb = await worker.getD1Database('IDENTITY') as unknown as D1Database;
+      const ownerDb = await worker.getD1Database('OWNER') as unknown as D1Database;
+      await ensureIdentitySchema(identityDb); await ensureSchema(ownerDb);
+      const baseTime = Date.now();
+      const clock = { nowMs: () => baseTime + 10 }, identities = createD1IdentityStore(identityDb, { clock });
+      const team = await identities.createTeam({ timezone: 'UTC' });
+      const user = await identities.createUser({ email: 'first-absence-member@example.test', password_hash: 'unused', email_verified: true });
+      await identities.createMembership({ team_id: team.team_id, user_id: user.user_id, is_owner: false, roles: [] });
+      const token = 'native-first-absence-member';
+      await identities.createSession({ user_id: user.user_id, token_sha256: await sha256HexText(token),
+        last_team_id: team.team_id, expires_at: new Date(baseTime + 3600_000).toISOString() });
+      const identity = await resolveIdentity(identities, { session_token: token }, { clock });
+      const underlying = createD1Storage(ownerDb);
+      const store: StoragePort = underlying;
+      const invoker = buildInvoker(artifact, asm, store, { appId: ABSENT_APP, memberships: identities, source: 'http', now: clock.nowMs });
+      let sequence = 0;
+      const envelope = (inputs: MutationEnvelope['inputs']): MutationEnvelope => ({
+        operation: `${ABSENT_APP}.go_absent`, operation_id: uuidv7(baseTime, ++sequence), inputs });
+      const dCount = async () => (await store.query({ model: absentD, authority: 'owner' }) as unknown as Array<unknown>).length;
+
+      // Seed one parent P and no C rows.
+      const parent = await invoker.invokeMutation({ operation: `${ABSENT_APP}.P.create`, operation_id: uuidv7(baseTime, ++sequence), inputs: { v: '1' } }, identity);
+      assert.ok('result' in parent, JSON.stringify(parent));
+      const parentRecords = ((parent.result as unknown as { records?: Array<{ id: string; version: number }> }).records ?? []);
+      assert.equal(parentRecords.length, 1, `P.create wire: ${JSON.stringify(parent)}`);
+      const parentId = parentRecords[0]!.id;
+      const parentVersion = String(parentRecords[0]!.version);
+
+      // Absent: no matching C, the require passes, one D persists, scalar '1'.
+      const input = envelope({ p: { id: parentId, version: parentVersion }, n: '7' });
+      const absent = await invoker.invokeMutation(input, identity);
+      assert.ok('result' in absent, JSON.stringify(absent));
+      assert.equal(absent.result.status, 'committed');
+      assert.equal(absent.result.result, '1');
+      assert.equal(await dCount(), 1);
+
+      // Replaying the absent success replays without a second D.
+      const replayed = await invoker.invokeRetainedMutation(input, identity);
+      assert.ok('result' in replayed, JSON.stringify(replayed));
+      assert.equal(replayed.result.status, 'replayed', JSON.stringify(replayed));
+      assert.equal(await dCount(), 1);
+
+      // Present: seed the matching C, the absence require now fails with
+      // the exact authored-require code and no D.
+      const child = await invoker.invokeMutation({ operation: `${ABSENT_APP}.C.create`, operation_id: uuidv7(baseTime, ++sequence), inputs: { parent: { id: parentId }, v: '7' } }, identity);
+      assert.ok('result' in child, JSON.stringify(child));
+      const present = await invoker.invokeMutation(envelope({ p: { id: parentId, version: parentVersion }, n: '7' }), identity);
+      assert.ok('error' in present, JSON.stringify(present));
+      assert.equal(present.error.code, 'rule_failed', JSON.stringify(present));
+      assert.equal(await dCount(), 1);
+
+      // Require-or/and conjunctions (`go_or`/`go_and` in the companion
+      // conjunction fixture) compile at the analysis carve-out but their
+      // stored control reads need the ordinary-scenario guard-consumed
+      // slice (marking + registration + decision-grant consumer): State
+      // registration loudly refuses their stored-bearing returns meanwhile.
+      // That slice — with exact rule codes and field-grant denial/
+      // revocation per 0321 — is the recorded next scope, not this test.
+
+      assert.deepEqual(await readFile(absentFixture), originalSource);
+      assert.equal(JSON.stringify(artifact), originalArtifact); assert.equal(await captureIsCurrent(capture), true);
     } finally {
       await worker?.dispose(); await rm(directory, { recursive: true, force: true });
     }

@@ -18327,3 +18327,12 @@ Accepted: the dispatch `delivery.id` executable consumer at its one-shape scope 
 ## 2026-10-16 — can18_merge_47_20261017
 
 Accepted: Consumer hardening plus 276 capture promotion with 0101 correction. Merge reviewed tested work incrementally into canonical `main`, preserving installer/specification changes and the active implementation branch. dispatch runtime 1/1, state 2/2, cloudflare 1/1, rust dispatch 4/4 + first-query 8/8, frozen 276 capture exact tuple. Reconcile the living file-tree plan/registry over `96a71932e..HEAD` with existing owners; retain the complete checkpoint and all outstanding acceptance gates. A merged component is not a claim that original24 or the remaining runtime workflows are complete.
+
+## 2026-10-17 — first-query absence primitive + fence loader correction
+
+Accepted: the `==null` absence carve-out at the defining analysis owner (a null test on the first-query let binding consumes only absence) with the terminal create + scalar return; flow-sensitive require-or/and conjunctions compile with short-circuit emission, pending the ordinary-scenario guard-consumed slice. Corrected: storage fence contention follows the bounded admission retry (one-shot retries to committed; persistent exhausts to retryable busy), never a business rule_failed — the earlier rule_failed pin was a mixed test-loader artifact, and consumers now load storage from the installed graph. Decision-path authority stays by/owner/parent plus revocation per DESIGN §4 (no viewer-grant prerequisite, no result grant); the H dispatch-test gaps remain open.
+
+
+## 2026-10-16 — can18_merge_48_20261017
+
+Accepted: Absence primitive with runtime consumer plus fence recovery correction. Merge reviewed tested work incrementally into canonical `main`, preserving installer/specification changes and the active implementation branch. rust 10/10, cloudflare 2/2 frozen, State unit reused. Reconcile the living file-tree plan/registry over `9a2d04165..HEAD` with existing owners; retain the complete checkpoint and all outstanding acceptance gates. A merged component is not a claim that original24 or the remaining runtime workflows are complete.
