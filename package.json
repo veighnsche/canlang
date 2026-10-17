@@ -61,7 +61,8 @@
     "release:install": "node scripts/build-install.mjs",
     "release:install:pack": "node scripts/pack-install.mjs",
     "verify:install": "node scripts/verify-install.mjs",
-    "check:dependencies": "node scripts/check-package-boundaries.mjs --dependencies-only"
+    "check:dependencies": "node scripts/check-package-boundaries.mjs --dependencies-only",
+    "release:tools": "node scripts/pack-tools.mjs"
   },
   "devDependencies": {
     "@canlang/cloudflare": "workspace:*",

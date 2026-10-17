@@ -104,6 +104,12 @@ it('model-backed preview still refuses inactive owner activation', async () => {
   expect(result.confirm).toHaveBeenCalledTimes(1);
 });
 
+it('a direct File declaration refuses before activation or worker allocation', async () => {
+  const result = await setup([{ name: 'Office.Attachment', fields: [{ name: 'content', field: { kind: 'file' } }] }]);
+  expect(result.failure).toMatchObject({ name: 'PreviewAdmissionError', code: 'FILES_UNAVAILABLE' });
+  expect(mocks.start).not.toHaveBeenCalled();
+});
+
 it('omitted models use global DB activation without owner configuration', async () => {
   const result = await setup(undefined);
   expect(result.failure).toBe(result.probeReached);

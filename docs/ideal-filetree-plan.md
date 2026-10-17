@@ -794,3 +794,16 @@ Current main qualification (2026-10-16): the single generated artifact
 owner, recorded with merge17 coverage.369E6008 remain on unchanged24 authored
 sources (26 consumed, complete/omitted0). Existing source/target allocations and
 complete checkpoint are retained; this validation artifact adds no audit framework.
+
+
+### 2026-10-17 — Soda target and retained preview source integration
+
+The existing Cloudflare delivery owner gains `cli/soda`, `deploy/soda*` and
+`runtime/soda-application`; Files owns the portable SQLite core and Durable Object
+adapter, and Identity owns conditional owner/member bootstrap. Dev retains
+source/schema-keyed preview state and private seeded credentials separately from
+example fixtures. Native verification scripts and `.can` fixtures remain with
+their runtime/tool delivery owners. The current standalone installer is retained;
+Soda tool packaging refuses dirty source. These additions preserve existing
+portable producer and authority boundaries. No complete-review checkpoint is
+advanced and unrelated CAN18 outcomes remain at their recorded scope.

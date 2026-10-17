@@ -78,6 +78,14 @@
     "./distribution": {
       "types": "./dist/src/distribution.d.ts",
       "default": "./dist/src/distribution.js"
+    },
+    "./host/sqlite-core": {
+      "types": "./dist/src/host/sqlite-core.d.ts",
+      "default": "./dist/src/host/sqlite-core.js"
+    },
+    "./host/durable-sqlite": {
+      "types": "./dist/src/host/durable-sqlite.d.ts",
+      "default": "./dist/src/host/durable-sqlite.js"
     }
   }
 }

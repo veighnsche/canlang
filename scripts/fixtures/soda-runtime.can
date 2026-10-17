@@ -1,0 +1,21 @@
+## Real team data, canonical file authorization and retained scheduled occurrence.
+app SodaRuntime
+Given
+ Entry { label:text, attachment:file?, ticks:int=0 }
+ policy Entry read=owner fields=label,attachment,ticks
+ policy Entry read=members fields=label,ticks
+ event Due { entry:Entry }
+When
+ crud Entry by=owner fields=label
+ scenario attach(entry:Entry,attachment:file) -> bool by=owner
+  do
+   set entry {attachment=attachment}
+   return true
+ scenario arm(entry:Entry,due:datetime) by=owner
+  do schedule "increment" at=due event=Due {entry=entry}
+ scenario fire on=Due
+  do set event.entry {ticks=event.entry.ticks+1}
+Then
+ page / title="Soda runtime integration"
+  list Entry empty="No retained entries"
+   text row.label,row.ticks

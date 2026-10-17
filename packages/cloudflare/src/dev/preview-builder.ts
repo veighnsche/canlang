@@ -4,7 +4,7 @@
  * input inventory; the session owns capture, revisions, and promotion.
  */
 import { createHash, randomUUID } from "node:crypto";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { ActivationVerdict, CompileArtifact } from "@canlang/contracts";
@@ -30,6 +30,8 @@ import {
 } from "./source-capture.js";
 import type { SessionServicePreview } from "./session-service.js";
 import type { CompiledExampleInput } from "./example-runner.js";
+import { openRetainedPreviewState } from "./preview-state.js";
+import { artifactNeedsFiles } from "../runtime/artifact.js";
 import { configureLocalBindings, planLocalBindings, probeLocalR2, type LocalBindingImplementations } from "./local-bindings.js";
 
 const PROFILE = "local-d1-identity";
@@ -80,6 +82,8 @@ export interface LocalPreviewBuilderOptions {
   /** Real installed local providers; absent services/classes remain prerequisites. */
   readonly runtimeImplementations?: LocalBindingImplementations;
   readonly resources: LocalPreviewResources;
+  /** Host-owned retained development data; omission keeps fixtures disposable. */
+  readonly persistenceRoot?: string;
   /** Trusted T06 producer runs the actual activation gates for this local build. */
   readonly activationVerdict?: (artifact: CompileArtifact, capture: SingleFileCapture) => Promise<ActivationVerdict>;
   /** Recheck the same gates on the serving Worker's actual DB before exposure. */
@@ -184,6 +188,9 @@ function admitPreviewInputs(artifact: CompileArtifact, capture: SingleFileCaptur
   }
   if (artifact.pages.length === 0 && (artifact.operations?.length ?? 0) === 0) {
     fail("PROFILE_UNSUPPORTED", "preview profile requires at least one page or checked operation");
+  }
+  if (artifactNeedsFiles(artifact)) {
+    fail("FILES_UNAVAILABLE", "can-dev has no Files receiver; use the installed Soda target with separate development data and HTTPS");
   }
   for (const requirement of artifact.requires) {
     const supportedVersion = requirement.capability === "canlang.builtins" ? 0 : 1;
@@ -476,11 +483,13 @@ export function createLocalPreviewBuilder(options: LocalPreviewBuilderOptions):
       if (bindingPlan.bindings.some(binding => Object.hasOwn(vars, binding.binding))) {
         fail("RESOURCE_INVALID", "preview vars cannot replace source-declared runtime bindings");
       }
-      const databaseId = `can-preview-${randomUUID()}`;
+      const retained = options.persistenceRoot === undefined ? null
+        : await openRetainedPreviewState(options.persistenceRoot, capture, artifact, storageMode);
+      const databaseId = retained?.databaseId ?? `can-preview-${randomUUID()}`;
       if (options.seedLocalActors === undefined) {
         fail("IDENTITY_UNAVAILABLE", "real local Identity seed producer is unavailable");
       }
-      persistence = await mkdtemp(join(tmpdir(), "can-preview-d1-"));
+      persistence = retained?.persistence ?? await mkdtemp(join(tmpdir(), "can-preview-d1-"));
       const provisioning = await startLocalDev({
         workerName: `can-preview-provision-${randomUUID()}`,
         compatibilityDate: PINNED_COMPATIBILITY_DATE,
@@ -488,9 +497,21 @@ export function createLocalPreviewBuilder(options: LocalPreviewBuilderOptions):
         modules: { "provision.js": "export default { fetch() { return new Response(null, {status:404}); } };" },
         d1Databases: [{ binding: "DB", id: databaseId }],
         d1Persist: persistence,
+        d1PersistenceRequired: retained !== null,
       });
       let seed: LocalPreviewSeed;
-      try { seed = await options.seedLocalActors(await provisioning.getD1Database("DB"), artifact, capture); }
+      try {
+        const db = await provisioning.getD1Database("DB");
+        if (retained?.seed != null) seed = retained.seed;
+        else {
+          if (retained !== null) {
+            const existing = await db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'identity_users'").first();
+            if (existing !== null) fail("PREVIEW_SEED_INCOMPLETE", "retained Identity provisioning is incomplete; state was preserved for explicit recovery");
+          }
+          seed = await options.seedLocalActors(db, artifact, capture);
+          await retained?.saveSeed(seed);
+        }
+      }
       finally { await provisioning.dispose(); }
       if (seed.actors.length !== 4 || !seed.actors.some(actor => actor.email === seed.probe.email && actor.password === seed.probe.password) ||
           seed.owners.length !== 2 || new Set(seed.owners.map(owner => owner.owner)).size !== 2 ||
@@ -501,8 +522,11 @@ export function createLocalPreviewBuilder(options: LocalPreviewBuilderOptions):
         fail("IDENTITY_UNAVAILABLE", "real local Identity seed did not provide the expected isolated team matrix");
       }
       const ownerDatabases = (storageMode === "global" ? [] : seed.owners)
-        .map(owner => ({ ...owner, id: `can-preview-owner-${randomUUID()}` }));
+        .map((owner, index) => ({ ...owner, id: retained?.ownerDatabaseIds[index] ?? `can-preview-owner-${randomUUID()}` }));
       const runtimeBindings = configureLocalBindings(bindingPlan, persistence, options.runtimeImplementations);
+      if (retained !== null && runtimeBindings.worker.durableObjectsPersist !== undefined) {
+        await mkdir(runtimeBindings.worker.durableObjectsPersist, { recursive: true, mode: 0o700 });
+      }
       worker = await startLocalDev({
         ...runtimeBindings.worker,
         resourceRecovery: bindingPlan.bindings.some(binding => binding.kind === 'queue' || binding.kind === 'analytics-engine'),
@@ -513,6 +537,7 @@ export function createLocalPreviewBuilder(options: LocalPreviewBuilderOptions):
         binaryModules: bundle.binaries,
         d1Databases: [{ binding: "DB", id: databaseId }, ...ownerDatabases.map(owner => ({ binding: owner.binding, id: owner.id }))],
         d1Persist: persistence,
+        d1PersistenceRequired: retained !== null,
         vars: { ...vars, ...runtimeBindings.worker.vars, ...(ownerDatabases.length === 0 ? {} : { CAN_STATE_OWNERS: { version: 1, owners: ownerDatabases.map(owner => ({
           owner: owner.owner, binding: owner.binding, initializeFresh: true,
         })) } }) },
@@ -575,7 +600,7 @@ export function createLocalPreviewBuilder(options: LocalPreviewBuilderOptions):
           actors = null;
           disposing = (async () => {
             try { await protectedBridge.close(); }
-            finally { try { await builtWorker.dispose(); } finally { await rm(ownedPersistence, { recursive: true, force: true }); } }
+            finally { try { await builtWorker.dispose(); } finally { if (options.persistenceRoot === undefined) await rm(ownedPersistence, { recursive: true, force: true }); } }
           })();
           return disposing;
         },
@@ -583,7 +608,7 @@ export function createLocalPreviewBuilder(options: LocalPreviewBuilderOptions):
     } catch (error) {
       try { await bridge?.close(); }
       finally { try { await worker?.dispose(); } finally {
-        if (persistence !== null) await rm(persistence, { recursive: true, force: true });
+        if (persistence !== null && options.persistenceRoot === undefined) await rm(persistence, { recursive: true, force: true });
       } }
       throw error;
     }

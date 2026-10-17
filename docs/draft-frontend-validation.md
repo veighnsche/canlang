@@ -100,3 +100,52 @@ Playwright setup verification on the current checkout: both the existing E2E typ
 The new visual helper passes a direct Chromium fixture check for pending capture/report output, an inspected matching baseline and a material mismatch with retained comparison report. This uses controlled HTML only and makes no draft-layout claim. Real-session qualification exposed two installed bundle omissions: `env-assembly.js` consumed unstaged `export-downloads.js`, and that module's `canonicalJson` import was absent from the existing HTTP facade. The focused repair stages the existing module and exports its existing owning function; it changes no permissions or operation semantics. Cloudflare rebuild and the relevant existing bundle-closure and D1-boot tests pass.
 
 After that repair, the new session helper signs in through actual Identity and captures ModelFreePreview (`../output/draft-frontends/playwright-harness/model-free.png`, local run output) with HTTP 200, visible canonical main/CSS and unchanged serving identity. Inspection confirms the intended heading/text, sidebar and authenticated avatar. It also runs all four HelpOffice example rows (`../output/draft-frontends/playwright-harness/help-office-examples.json`, local run output), with zero failures, setup failures or unsupported rows and a matching source/build tuple. Owned sessions/browser resources close successfully. These results qualify the shared harness on supported fixtures; they do not close any original draft's functional or visual acceptance. The separate reference-image agent's concurrent source/image edits are outside this change's ownership.
+
+## Retained development preview data
+
+The installed `can-dev` owner retains its real Identity database and the separate
+Cedar/Oak State databases across preview replacement, `stop`/`start` and process
+restart. Storage defaults to `~/.local/state/canlang/preview`; set
+`CAN_DEV_STATE_ROOT` to an owner-only directory on retained Project storage when
+running in a Project container. Its source directory is keyed by canonical
+project root and source path. Metadata contains development actor credentials,
+so directories require mode 0700 and metadata requires mode 0600. Credentials
+remain available only through the existing owner-only `preview.open` protocol.
+The protected bridge and application login remain required after restart.
+
+Ordinary page and operation edits reuse the same data. A change to the compiled
+model descriptors or global/team ownership refuses the retained preview until
+migration support exists; use a separate `CAN_DEV_STATE_ROOT` to try a changed
+schema without discarding existing data. To reset data deliberately, stop the
+owning session, inspect that root's `preview.json` source identity, then remove
+only its identified source directory. Incomplete Identity provisioning also
+refuses instead of replacing saved data. Required retained storage must remain
+writable; runtime startup never substitutes ephemeral D1 for that binding.
+A refused owner `check` returns `preview=build_failed` and bounded
+`preview_error` explaining the actual host failure.
+
+Source examples still run in the existing disposable per-run fixture databases;
+example changes never populate or mutate the serving preview. The existing draft
+browser test helper selects its own private per-session state and temporary root
+and cleans it after verified owner shutdown, keeping those fixtures separate
+from a developer’s retained preview. Qualification
+builders also remain disposable unless their trusted host explicitly supplies a
+retained root. Development credentials and state are not production identity,
+backup or migration qualification.
+
+Run the focused actual HTTP/restart/example check after building the compiler
+and installed packages:
+
+```sh
+node scripts/verify-preview-persistence.mjs \
+  --compiler "$PWD/compiler/target/release/can" \
+  --state "$PWD/.artifacts/preview-persistence"
+```
+
+For a fresh installed Project, add `--project-root /home/USER/PROJECT` and
+`--tool-root /home/USER/TOOLS`, selecting its shipped compiler with `--compiler`.
+The command creates its finite `.artifacts/preview-persistence-input/Preview.can`
+witness, executes two compiled examples, writes and reads through actual
+application HTTP operations, and stops only the sessions it starts. State and
+credential-bearing metadata stay in the selected task-owned state root; the
+printed result contains no credentials.

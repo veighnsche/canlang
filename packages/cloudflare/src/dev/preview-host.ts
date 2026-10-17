@@ -19,10 +19,11 @@ import { probeInstalledRuntime } from "../deploy/installed.js";
 import { RELEASE_VERSION } from "../release/stamp.js";
 import { startLocalDev } from "./local-run.js";
 import { LOCAL_PREVIEW_CAPABILITIES, PreviewAdmissionError, createLocalPreviewBuilder, type LocalPreviewBundleRequest, type LocalPreviewSeed, type PortableBundleEvidence } from "./preview-builder.js";
-import { installedRoot, assertInstalledCatalog, bundlerExecutableInputs, compilerSourceInputs, installedOwnedSourceInputs, installedPortableBundleInputs } from "./preview-inputs.js";
+import { installedReferenceRoot, assertInstalledCatalog, bundlerExecutableInputs, compilerSourceInputs, installedOwnedSourceInputs, installedPortableBundleInputs } from "./preview-inputs.js";
 import { captureIsCurrent, type SingleFileCapture } from "./source-capture.js";
 import { PINNED_COMPATIBILITY_DATE } from "./zero-config.js";
 import type { LocalCommandLifetime } from "../cli/command-lifetime.js";
+import { defaultPreviewStateRoot } from "./preview-state.js";
 import { configureLocalBindings, planLocalBindings, type LocalBindingImplementations } from "./local-bindings.js";
 
 const BINDING_NAME = "DB";
@@ -157,7 +158,7 @@ function checkedInstalledInputs(capture: SingleFileCapture): PortableBundleEvide
     }
   }
   const grammar = capture.inputs.find(input => input.name === "extra:grammar");
-  if (grammar?.state !== "present" || grammar.canonicalPath !== realpathSync(join(installedRoot() ?? capture.root, "docs/specification/GRAMMAR.md"))) {
+  if (grammar?.state !== "present" || grammar.canonicalPath !== realpathSync(join(installedReferenceRoot(capture.root), "docs/specification/GRAMMAR.md"))) {
     throw new PreviewAdmissionError("BUNDLE_INPUTS_INCOMPLETE", "installed grammar reference was not captured");
   }
   const sourceInputs = installedOwnedSourceInputs(capture.root);
@@ -298,6 +299,7 @@ export function localPreviewWorkerVars(): Readonly<Record<string, unknown>> {
 export function createInstalledLocalPreviewBuilder(previewRoles: PreviewRoles = {}, runtimeImplementations: LocalBindingImplementations = {}) {
   const roles = parsePreviewRoles(previewRoles);
   return createLocalPreviewBuilder({
+    persistenceRoot: defaultPreviewStateRoot(),
     runtimeImplementations,
     resources: {
       d1: { binding: BINDING_NAME, availability: "real_local" },

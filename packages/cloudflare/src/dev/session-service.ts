@@ -15,7 +15,7 @@ import { ExampleRerunCoordinator, type ExampleRerunResult, type CompletedExample
 import { projectBusinessRefusal, projectCompilerFailure, projectExampleFailure, type FailureProjection } from "./failure-occurrence.js";
 import { ConstructRanker, type ConstructRankerOptions, type JevChoiceTransport, type RankResult } from "./jev-ranker.js";
 import { captureConstructEvidence, validAuthorIntent } from './construct-evidence.js';
-import { installedRoot, installedLocalPreviewInputInventory } from "./preview-inputs.js";
+import { installedReferenceRoot, installedLocalPreviewInputInventory } from "./preview-inputs.js";
 import { DevRevisionConflictError, DevSessionCore, type DevCheck, type DevPreview } from "./session-core.js";
 import {
   captureSingleFileSource,
@@ -334,7 +334,7 @@ async function capturedHelpIndex(capture: SingleFileCapture): Promise<ConstructH
   const profilePolicy = profileGuards.every(inputs => inputs.length === 1)
     ? { sha256: createHash('sha256').update(JSON.stringify(profileGuards.map(inputs => inputs[0]!.sha256))).digest('hex') }
     : undefined;
-  return loadConstructHelpIndex(installedRoot() ?? capture.root, {
+  return loadConstructHelpIndex(installedReferenceRoot(capture.root), {
     languageVersion: "1.0", compiler: { sha256: compiler.sha256 }, grammar: { sha256: grammar.sha256 },
     values: { sha256: values.sha256, entries: valuesEntries },
     ui: { sha256: ui.sha256, entries: uiEntries },

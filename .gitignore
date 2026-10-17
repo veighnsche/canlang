@@ -4,7 +4,7 @@ __pycache__/
 *.pyc
 
 # Generated Rust build output and packaged editor extensions
-/compiler/target/
+/compiler/target
 /output/editor/*.vsix
 
 # Package-local Cargo/native/Wasm build output
@@ -76,3 +76,7 @@ dist-manifest.json
 /output/resource-runtime-check/
 /output/install-refresh/
 /output/install-previous/
+
+# Offline Soda tool archives and disposable integration state
+/output/tools/
+/.artifacts/

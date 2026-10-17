@@ -144,7 +144,7 @@ async function validateSaved(args: SourceWorkflowArgs, ctx: SourceWorkflowContex
 
 export async function sourceWorkflow(args: SourceWorkflowArgs, ctx: SourceWorkflowContext = {}): Promise<ControlResult> {
   const root = dirname(args.file);
-  const workspace = resolve(ctx.workspace ?? process.env.CAN_INSTALL_ROOT ?? fileURLToPath(new URL("../../../../", import.meta.url)));
+  const workspace = resolve(ctx.workspace ?? process.env.CAN_INSTALL_ROOT ?? process.env.CAN_TOOL_ROOT ?? fileURLToPath(new URL("../../../../", import.meta.url)));
   const compiler = process.env["CAN_COMPILER_BIN"] ?? join(workspace, "compiler/target/debug/can");
   const requestId = `source-${randomUUID()}`;
   try {

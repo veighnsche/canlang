@@ -33,6 +33,7 @@
       "bin": {
         "can-platform": "./dist/cli/platform.js",
         "can-dev": "./dist/dev/control-cli.js",
+        "can-soda": "./dist/cli/soda.js",
       },
       "dependencies": {
         "@canlang/contracts": "workspace:*",

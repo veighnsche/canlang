@@ -1,8 +1,9 @@
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
-import { mkdir, writeFile } from "node:fs/promises";
-import { isAbsolute, resolve } from "node:path";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { isAbsolute, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 import type { BrowserContext, Page, Response as BrowserResponse } from "@playwright/test";
@@ -62,6 +63,8 @@ export async function openDraftSession(options: {
     if (left <= 0) throw new Error("Draft session deadline exceeded");
     return Math.min(limit, left);
   };
+  const testState = await mkdtemp(join(tmpdir(), "can-draft-session-"));
+  const controlEnv = { ...process.env, TMPDIR: testState, CAN_DEV_STATE_ROOT: join(testState, "preview") };
   let session = "";
   let owned = false;
   let closed = false;
@@ -76,7 +79,7 @@ export async function openDraftSession(options: {
     let stdout: string;
     try {
       ({ stdout } = await exec(process.execPath, [resolve(root, "packages/cloudflare/dist/dev/control-cli.js"), command, ...args], {
-        cwd: root, timeout: cleanup ? 15_000 : remaining(), maxBuffer: 256 * 1024,
+        cwd: root, env: controlEnv, timeout: cleanup ? 15_000 : remaining(), maxBuffer: 256 * 1024,
       }));
     } catch (error) {
       stdout = typeof (error as { stdout?: unknown }).stdout === "string" ? (error as { stdout: string }).stdout : "";
@@ -102,7 +105,7 @@ export async function openDraftSession(options: {
         catch (error) { currentError = error; }
       }
       closed = true;
-      if (!owned || !session) return;
+      if (!owned || !session) { await rm(testState, { recursive: true, force: true }); return; }
       const stopOwned = async (): Promise<void> => {
         try {
           const stopped = object((await control("stop", flags(), true)).result);
@@ -119,6 +122,7 @@ export async function openDraftSession(options: {
         }
       };
       await stopOwned();
+      await rm(testState, { recursive: true, force: true });
       for (const remove of browserListeners) remove();
       if (currentError !== undefined) throw currentError;
       if (receiptCurrent && acceptanceIdentity !== undefined && process.env.CAN_ACCEPTANCE_OUTPUT !== undefined) {

@@ -375,6 +375,8 @@ const WORK_ASSOCIATION_VENDOR_ENTRY = "vendor/work/observation/association.js";
 /** One defining module preserves Files' private observation identity. */
 const FILES_FINALIZE_SOURCE_SPECIFIER = "@canlang/files/finalize";
 const FILES_FINALIZE_VENDOR_ENTRY = "vendor/files/finalize/index.js";
+const FILES_DURABLE_SQLITE_SOURCE_SPECIFIER = "@canlang/files/host/durable-sqlite";
+const FILES_DURABLE_SQLITE_VENDOR_ENTRY = "vendor/files/host/durable-sqlite.js";
 const FILES_PORTS_SOURCE_SPECIFIER = "@canlang/files/ports";
 const FILES_PORTS_VENDOR_ENTRY = "vendor/files/ports.js";
 const FILES_BRIDGE_SOURCE_SPECIFIER = "@canlang/files/bridge";
@@ -754,8 +756,10 @@ function rewriteRuntimeImports(js: string, moduleKey: string): string {
     if (spec === WORK_RECEIPT_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_RECEIPT_VENDOR_ENTRY);
     if (spec === WORK_ASSOCIATION_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_ASSOCIATION_VENDOR_ENTRY);
     if (spec === FILES_FINALIZE_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, FILES_FINALIZE_VENDOR_ENTRY);
+    if (spec === FILES_DURABLE_SQLITE_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, FILES_DURABLE_SQLITE_VENDOR_ENTRY);
     if (spec === "@canlang/files/upload") return relativeSpecifier(moduleKey, "vendor/files/upload/index.js");
     if (spec === "@canlang/files/provenance") return relativeSpecifier(moduleKey, "vendor/files/provenance/index.js");
+    if (spec.startsWith("@canlang/files/")) return relativeSpecifier(moduleKey, `vendor/files/${spec.slice("@canlang/files/".length)}.js`);
     if (spec === FILES_PORTS_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, FILES_PORTS_VENDOR_ENTRY);
     if (spec === FILES_BRIDGE_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, FILES_BRIDGE_VENDOR_ENTRY);
     if (spec === ACORN_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, ACORN_VENDOR_ENTRY);
@@ -788,6 +792,7 @@ function rewriteRuntimeImports(js: string, moduleKey: string): string {
     [WORK_RECEIPT_SOURCE_SPECIFIER, WORK_RECEIPT_VENDOR_ENTRY],
     [WORK_ASSOCIATION_SOURCE_SPECIFIER, WORK_ASSOCIATION_VENDOR_ENTRY],
     [FILES_FINALIZE_SOURCE_SPECIFIER, FILES_FINALIZE_VENDOR_ENTRY],
+    [FILES_DURABLE_SQLITE_SOURCE_SPECIFIER, FILES_DURABLE_SQLITE_VENDOR_ENTRY],
     [FILES_PORTS_SOURCE_SPECIFIER, FILES_PORTS_VENDOR_ENTRY],
     [FILES_BRIDGE_SOURCE_SPECIFIER, FILES_BRIDGE_VENDOR_ENTRY],
     [ACORN_SOURCE_SPECIFIER, ACORN_VENDOR_ENTRY],
@@ -834,7 +839,7 @@ function stageWorkStagingProducers(): Record<string, string> {
 }
 
 /** Stage the public Files finalizer and page bridge's shared relative closure. */
-function stageFilesFinalizeProducer(): Record<string, string> {
+function stageFilesFinalizeProducer(extraEntries: readonly string[] = []): Record<string, string> {
   const entry = resolveProducerFile(FILES_FINALIZE_SOURCE_SPECIFIER, "bun run --filter @canlang/files build");
   const bridge = resolveProducerFile(FILES_BRIDGE_SOURCE_SPECIFIER, "bun run --filter @canlang/files build");
   const base = dirname(dirname(entry));
@@ -854,6 +859,40 @@ function stageFilesFinalizeProducer(): Record<string, string> {
   };
   visit(entry);
   visit(bridge);
+  for (const specifier of extraEntries) visit(resolveProducerFile(specifier, "bun run --filter @canlang/files build"));
+  return modules;
+}
+
+/**
+ * Add the native application actor through the same portable producer graph.
+ * Canonical vendor keys preserve the defining Files issuer; there is no second
+ * bundled finalizer or serialized observation authority at this boundary.
+ */
+export function stageSodaRuntimeModules(existing: Readonly<Record<string, string>>): Record<string, string> {
+  const modules: Record<string, string> = {};
+  const add = (key: string, js: string): void => {
+    const previous = existing[key] ?? modules[key];
+    if (previous !== undefined && previous !== js) throw new Error(`deploy bundle: conflicting native producer ${key}`);
+    if (existing[key] === undefined) modules[key] = js;
+  };
+  for (const closure of [stageWorkStagingProducers(),
+    stageFilesFinalizeProducer([FILES_DURABLE_SQLITE_SOURCE_SPECIFIER])]) {
+    for (const [key, js] of Object.entries(closure)) add(key, js);
+  }
+  const base = dirname(dirname(resolveProducerFile('@canlang/cloudflare/worker/main', 'bun run --filter @canlang/cloudflare build')));
+  const visit = (file: string): void => {
+    const key = relative(base, file).split(sep).join('/');
+    assertSafeRelativePath(key, 'native runtime producer');
+    if (Object.hasOwn(existing, key) || Object.hasOwn(modules, key)) return;
+    const js = readFileSync(file, 'utf8');
+    add(key, rewriteRuntimeImports(js, key));
+    for (const imported of scanModuleImports(js, key)) {
+      if (imported.specifier !== undefined && isRelativeSpecifier(imported.specifier)) {
+        visit(resolve(dirname(file), imported.specifier));
+      }
+    }
+  };
+  visit(join(base, 'runtime/soda-application.js'));
   return modules;
 }
 
@@ -895,8 +934,10 @@ function rewriteVendorImports(js: string, moduleKey: string): string {
     if (spec === VALUES_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, VALUES_VENDOR_ENTRY);
     if (spec === CONTRACTS_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, CONTRACTS_VENDOR_ENTRY);
     if (spec === FILES_FINALIZE_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, FILES_FINALIZE_VENDOR_ENTRY);
+    if (spec === FILES_DURABLE_SQLITE_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, FILES_DURABLE_SQLITE_VENDOR_ENTRY);
     if (spec === "@canlang/files/upload") return relativeSpecifier(moduleKey, "vendor/files/upload/index.js");
     if (spec === "@canlang/files/provenance") return relativeSpecifier(moduleKey, "vendor/files/provenance/index.js");
+    if (spec.startsWith("@canlang/files/")) return relativeSpecifier(moduleKey, `vendor/files/${spec.slice("@canlang/files/".length)}.js`);
     if (spec === FILES_PORTS_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, FILES_PORTS_VENDOR_ENTRY);
     if (spec === FILES_BRIDGE_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, FILES_BRIDGE_VENDOR_ENTRY);
     if (spec === ACORN_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, ACORN_VENDOR_ENTRY);

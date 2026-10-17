@@ -18362,3 +18362,29 @@ Accepted: the actual `set` receiver Name must equal the authored path name in ev
 ## 2026-10-16 — can18_merge_51_20261017
 
 Accepted: If-branch conditional creates with nested/trailing Set source correspondence (0526 receiver-name repair 0551). Finite contained family with per-effect authorization; tampered IR operand/span/name refuses; installed live-branch consumer with rollback/replay. Frozen ifbranch original24 276 identical multiset; stale 298/359 corrected. Merge reviewed tested work incrementally into canonical `main`, preserving installer/specification changes and the active implementation branch. ifbranch 7/7, receiver units 2/2, side_effect 10/10, hook_first 11/11, native_first 17/17, sources 7/7, installed consumer 1/1 on rebuilt target/debug/can; frozen 7957d542/ca50 original24 exit 10 complete/omitted0 24/24 hashes match. Reconcile the living file-tree plan/registry over `a5dbe4790..HEAD` with existing owners; retain the complete checkpoint and all outstanding acceptance gates. A merged component is not a claim that original24 or the remaining runtime workflows are complete.
+
+
+## Accepted: versioned Soda runtime and retained preview source (2026-10-17)
+
+Keep the self-hosted workerd target and retained owner-only preview state in
+their defining Canlang runtime, Files, Identity and preview owners. Preserve
+current standalone installation and portable producer behavior. The Soda target
+uses explicit app-local owner bootstrap, retained D1, SQLite Durable Object Files
+and existing durable Work recovery; unsupported services and migrations refuse.
+Preview source identity, schema pins and seeded users persist separately from
+qualification fixtures and production state.
+
+Soda tool packaging requires a clean committed checkout. Its manifest pins the
+source revision and exact native runtime versions and its checksum identifies
+the delivered archive. Generated Wasm and license notices follow the final
+owning source and existing release checks rather than being copied from an old
+build. Local runtime verification does not qualify appliance publication, full
+Cloudflare service coverage or production migration/recovery guarantees.
+
+Validation: current compiler and package producers compile; recovered Soda
+bundle/writer/lifecycle 5/5, storage integration 6/6, existing Files 185/185,
+preview/local-runtime 48/48, retained-state 2/2, and installer 14 passed
+(one platform-specific skip). The clean build exposed the existing Interfaces
+test dependency on State outputs; producers were compiled in dependency order
+after that bootstrap. Existing Interfaces dependency declarations and the
+worker default missing-DB diagnostic failure remain outside this change.
