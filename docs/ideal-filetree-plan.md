@@ -252,6 +252,10 @@ Navigation hardening: base occurrence pin and parent-authority consumer (1036 re
 
 Created-model contract census seeding plus deployment-import source verification with honest admission/tamper tests and installed null-contract-field consumer. Incoming interval `d0c6c9fb2..44feb5c3f` accounts for 8 changed paths in `can18_merge_62_20261017` of the existing registry. Compiler 3/3 + lib 2/2 + installed 2/2; original24 276 exact-identity with control on original paths. Existing defining owners and target allocations remain; focused new tests stay with Compiler. Reuse prior accumulated coverage; complete checkpoint remains unchanged. Original24 and required executable consumers remain open. Unfinished work stays in the running Muse checkout.
 
+### CAN18 incremental integration — can18_merge_63_20261017
+
+Plain enum data-read transport for member create inputs with sealed enum(a,b) identity, nominal owner correspondence and read-field seals; machine transition path unchanged. Incoming interval `d35512369..e6b64e733` accounts for 7 changed paths in `can18_merge_63_20261017` of the existing registry. Compiler enum_member_create_input 3/3 plus installed native-enum-create-input void consumer 1/1 (real D1/Identity, transported values persist, mismatch/replay/denial/revocation exact); 141 neighbor suites green; frozen 3e5c9878+ca50 original24 276 exact-identity (0 removed/0 added) with any-guard combination as the defined next gate. Existing defining owners and target allocations remain; focused new tests stay with Compiler. Reuse prior accumulated coverage; complete checkpoint remains unchanged. Original24 and required executable consumers remain open. Unfinished work stays in the running Muse checkout.
+
 ### Specification and installer documentation merge — 2026-10-15
 
 Merge installer commit `02470b74` into canonical `main` at `a70921e3`.

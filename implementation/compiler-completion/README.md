@@ -370,7 +370,35 @@ dispatch 4/4 + first-query 8/8. Original dispatch-guard family unchanged
 27 → 27; the remaining delivery.id remainder (cancel/retry_release
 shapes) stays ready work, not closed by this one-shape consumer.
 
-### Current original24 (frozen contract-census cohort) — 276 E6008 — 2026-10-17
+### Enum data-read transport for member create inputs — 2026-10-17
+
+A first query plus `create D {role=i.role}` (CanCustomer `accept` shape)
+refused although predicate, plan and every create-operand check pass: the
+read lifts as a return DATA dependency and the transport admitted enum data
+only for machine-transition recipes. Repaired at the return-dependency
+owner with a plain non-machine enum arm (sealed `enum(a,b)` transport,
+nominal owner identity, read-field seals; machine path unchanged).
+Compiler 3/3 + installed void executable consumer 1/1 (transported
+admin/booker persist, mismatch/replay/denial/revocation exact). Frozen
+producer `3e5c9878` + `ca50` re-qualifies the tuple at 276 with full
+multiset identity (0/0): enum-data sub-gate resolved, both CanCustomer
+spans still refuse at the next isolated gate — first-query plus any-guard
+(`require not any(...)`), the defined next slice. Contract nominal
+descriptors and same-model param reads stay identified open gaps.
+
+### Current original24 (frozen enum-data cohort) — 276 E6008 — 2026-10-17
+
+Frozen producer `3e5c9878b33316038d4ee47b721ec53608b413c4725cd6f096541d9219f3b7ed`
+(plain non-machine enum data-read transport) + catalog `ca50`, exact saved
+original24 argv on original paths, exit 10, complete=true, omitted=0,
+26 sources. EXACT multiset identical to the contract-census 276 (0 removed
+/ 0 added). The enum-data sub-gate clears in isolation (void and
+navigation probes compile); both CanCustomer spans refuse at the next
+isolated gate — first-query combined with an any-guard. Output:
+`/tmp/can18-enumcreate-orig24.json` (frozen binary
+`/tmp/can18-enum-create-can`, stderr empty, child rc retained).
+
+### Prior original24 (frozen contract-census cohort) — 276 E6008 — 2026-10-17
 
 Frozen repaired producer `d3156edb5abd6422` (contract stored-schema census
 seeding + deployment-import source verification) + catalog `ca50`, exact
