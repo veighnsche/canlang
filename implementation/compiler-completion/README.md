@@ -272,7 +272,20 @@ dispatch 4/4 + first-query 8/8. Original dispatch-guard family unchanged
 27 → 27; the remaining delivery.id remainder (cancel/retry_release
 shapes) stays ready work, not closed by this one-shape consumer.
 
-### Current original24 (frozen main gc cohort) — 276 E6008 — 2026-10-17
+### Current original24 (frozen ifbranch cohort) — 276 E6008 — 2026-10-17
+
+Frozen producer `7957d542` (main `e32b8df23`: finite if-branch creates +
+0526 nested-set correspondence) + native catalog `ca50`, saved argv, exit
+10, 533.32s, complete=true, omitted=0, 26 sources, all authored hashes
+match. EXACT multiset identical to the gc 276 (0 removed / 0 added). The
+two CanCustomer if-branch spans still refuse at the query gate, not the
+branch gate: `accept` 14313..14432 and `recover` 16749..16854 are
+two-predicate conjunctions (`account==actor and role==invitation.role`,
+`account==account and role==administrator`) while the admitted family is
+single-predicate — conjunction first queries are the defined next slice.
+Output: `/tmp/can18-main-ifbranch-capture.json`.
+
+### Prior original24 (frozen main gc cohort) — 276 E6008 — 2026-10-17
 
 [evidence/original24-main-20261016.json](../../evidence/original24-main-20261016.json):
 frozen main producer `47dccb6d` (main `6137c3a93`: + absence primitive,
