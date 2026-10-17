@@ -264,7 +264,7 @@ test('captured native default Create and direct child model returns retain one D
     }
   });
 
-test('created model with absent nullable contract field commits, persists null and replays without duplicates',
+test('created model with absent nullable contract field stores null, omits it from projection and replays without duplicates',
   { timeout: 120000 }, async () => {
     const MEMO = asModel(`${APP}.Memo`);
     const directory = await mkdtemp(join(tmpdir(), 'can-native-created-contract-field-'));
@@ -336,18 +336,24 @@ test('created model with absent nullable contract field commits, persists null a
       assert.equal(batch.writes.length, 1);
       assert.equal(batch.writes[0]!.kind, 'insert'); assert.equal(batch.writes[0]!.model, MEMO);
       const row = await store.load(MEMO, result.id as Parameters<StoragePort['load']>[1]); assert.ok(row);
-      assert.equal(row.data.count, '3');
-      assert.ok(row.data.held == null, `absent contract field persists null, got ${JSON.stringify(row.data)}`);
+      assert.equal(object(row.data).count, '3');
+      // Storage omits the absent nullable contract field; the emitted
+      // projection carries it as explicit null. Both views agree the field
+      // has no value; mirroring storage byte-for-byte in projection is a
+      // separate runtime representation question, not this admission batch.
+      const storedData = object(row.data);
+      assert.equal(storedData.count, '3');
+      // Storage persists the absent nullable contract field as explicit
+      // null; the emitted projection omits it. Both views agree the field
+      // has no value; unifying the two encodings is a separate runtime
+      // representation question, not this admission batch.
+      assert.strictEqual(storedData.held, null, `storage null held, got ${JSON.stringify(row.data)}`);
       assert.deepEqual(batch.history[0]!.after, row.data);
       const projected = object(result.outcome.records![0]);
+      const projectedData = object(projected.data);
       assert.equal(projected.id, row.id);
-      assert.equal(projected.data.count, '3');
-      // Absent nullable storage normalizes to null in the emitted
-      // projection; both views agree the contract field has no value.
-      // Whether projection should mirror storage byte-for-byte is a
-      // separate runtime representation question, not this admission batch.
-      assert.ok(projected.data.held == null && row.data.held == null,
-        `projected/storage agree on absent held, got ${JSON.stringify(projected.data)} vs ${JSON.stringify(row.data)}`);
+      assert.equal(projectedData.count, '3');
+      assert.ok(!('held' in projectedData), `projection omits null held, got ${JSON.stringify(projected.data)}`);
       const association = readScenarioReceiptAssociation(await store.readReceipt(
         { app: APP, owner: team.team_id, principal: member.membership.user_id,
           operation: asOperation(input.operation), operationId: asOperationId(input.operation_id) }));
