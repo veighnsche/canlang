@@ -220,6 +220,10 @@ Conjunction acceptance hardening: second-conjunct source/IR tamper controls at t
 
 Enum-typed first-query operands: nonempty enum field admission with param and closed-case-literal operand classes, predicate enum gate with declared-case membership, enum(cases) dependency spelling matching the State query owner, and artifact-declared enum acceptance in the State first receiver. Incoming interval `212b4c54d..f8e55291e` accounts for 6 changed paths in `can18_merge_54_20261017` of the existing registry. conjunction 9/9, predicate tamper 3/3, neighbors 7+11+17+7, installed consumers 2/2 on rebuilt target/debug/can with ca50 catalog; no original24 capture (producer behavior extends admission only, cohort re-qualification follows the next prerequisite batch). Existing defining owners and target allocations remain; focused new tests stay with Compiler. Reuse prior accumulated coverage; complete checkpoint remains unchanged. Original24 and required executable consumers remain open. Unfinished work stays in the running Muse checkout.
 
+### CAN18 incremental integration — can18_merge_55_20261017
+
+Exact authored enum-case pin across bare and qualified spellings with model-shaped qualifier and checked subtree type seal. Incoming interval `03c0a68e9..3de911a1a` accounts for 4 changed paths in `can18_merge_55_20261017` of the existing registry. Tests: predicate 6/6, conjunction 10/10, CLI bare/qualified exit 0 with forged E2013, installed consumer 2/2; complete checkpoint unchanged. Existing defining owners and target allocations remain; focused new tests stay with Compiler. Reuse prior accumulated coverage; complete checkpoint remains unchanged. Original24 and required executable consumers remain open. Unfinished work stays in the running Muse checkout.
+
 ### Specification and installer documentation merge — 2026-10-15
 
 Merge installer commit `02470b74` into canonical `main` at `a70921e3`.
