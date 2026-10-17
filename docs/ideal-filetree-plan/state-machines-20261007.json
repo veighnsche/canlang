@@ -75273,5 +75273,43 @@
     "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
     "checkpoint_advanced": false,
     "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
+  },
+  "can18_merge_59_20261017": {
+    "incremental_base": "82e2f75423a667ac609c82beedc6e723c7b06220",
+    "incoming_end": "7c3ff99e6e3b07c7d60ce1bc82f5bcf15feeb4f0",
+    "retained_coverage": "reuse spec_installer_merge_reconciliation_20261015 and preceding CAN18 incremental merge entries; inherited complete checkpoint unchanged",
+    "changed_path_count": 5,
+    "rows": [
+      [
+        "compiler/src/codegen/scenario_receipts.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/fixtures/first-query-navigation.can",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "docs/specification/DECISIONS.md",
+        "Specification",
+        "existing accepted design/decision owner"
+      ],
+      [
+        "implementation/compiler-completion/README.md",
+        "Compiler completion",
+        "existing finite execution record"
+      ],
+      [
+        "packages/cloudflare/test/native-first-navigation.test.ts",
+        "cloudflare",
+        "existing package source/test owner"
+      ]
+    ],
+    "choice": "Navigation hardening: base occurrence pin and parent-authority consumer (1036 record).",
+    "validation": "Tests: predicate 17/17, conjunction 18/18, installed navigation 2/2 + member 2/2, state parent suites 20/20 on rebuilt target/debug/can; CLI probes exit 0 with refusals intact.",
+    "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
+    "checkpoint_advanced": false,
+    "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
   }
 }

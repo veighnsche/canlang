@@ -18453,3 +18453,8 @@ Accepted: Navigation-parent first-query admission with one-hop State resolution 
 ## 2026-10-17 — can18 navigation hardening (1036)
 
 Accepted: Navigation Member arm pins the decoded base to the exact original NameRef occurrence and declared input type; the installed consumer executes the navigated parent's own read authority (full-match predicate with valid invitation and retained operation membership still refuses exact forbidden with no writes when the parent row is withheld). Tests: predicate 17/17, conjunction 18/18, installed navigation 2/2 + member 2/2, state parent suites 20/20 on rebuilt target/debug/can; CLI probes exit 0. Recorded open gap: predicate read policies (`read=... where=...`) emit no role or predicate and are unimplemented — no silent workaround. No original24 movement claimed.
+
+
+## 2026-10-16 — can18_merge_59_20261017
+
+Accepted: Navigation hardening: base occurrence pin and parent-authority consumer (1036 record). Merge reviewed tested work incrementally into canonical `main`, preserving installer/specification changes and the active implementation branch. Tests: predicate 17/17, conjunction 18/18, installed navigation 2/2 + member 2/2, state parent suites 20/20 on rebuilt target/debug/can; CLI probes exit 0 with refusals intact. Reconcile the living file-tree plan/registry over `82e2f7542..7c3ff99e6` with existing owners; retain the complete checkpoint and all outstanding acceptance gates. A merged component is not a claim that original24 or the remaining runtime workflows are complete.
