@@ -105,8 +105,10 @@ test('assembled date filters serve owned saved/literal defaults with source-firs
       // source lambdas ($can$read$issue) with their whereSource markers so
       // the assembled UI facade can bind each original callable through
       // its verified query scope before the adapter splits the conjunction.
+      const catalog = process.env['CAN_NATIVE_CATALOG'] ??
+        resolve('packages/cloudflare/dist/native-catalog.json');
       artifact = JSON.parse(execFileSync(process.env['CAN_COMPILER_BIN'] ?? resolve('compiler/target/debug/can'),
-        ['compile', '--format=json', '--catalog=packages/values/dist/catalog.json',
+        ['compile', '--format=json', '--catalog', catalog,
           '--native-scenario-receipts', path],
         { encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 })) as CompileArtifact;
     } catch (error) {
