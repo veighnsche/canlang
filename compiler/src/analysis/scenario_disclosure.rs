@@ -1083,6 +1083,40 @@ pub(super) fn analyze_scenario_disclosure_with_catalog<'a>(
                     }
                 }
             }
+            // Ordinary-scenario guard slice (CAN18-v1 first-query absence
+            // conjunctions): the confined let-first + require-conjunction +
+            // create + scalar-return skeleton consumes the first binding
+            // plus stored control reads as its Require decision. Mark
+            // guard-consumed only when a stored read is present; bare
+            // presence stays unmarked under the pure-control profile.
+            // Anything else keeps ordinary viewer behavior.
+            if let Some((binding, guard)) = cx.ordinary_first_decision(scenario) {
+                let stored = checked
+                    .require_consumptions
+                    .iter()
+                    .flat_map(|consumption| consumption.dependencies.iter())
+                    .any(|dependency| {
+                        cx.first_query_stored_require_read(dependency, scenario.module)
+                    });
+                let presence = guard.cond.is_some_and(|cond| {
+                    cx.first_binding_presence_consumed(binding, cond)
+                });
+                if stored && presence {
+                    for query in facts
+                        .queries
+                        .iter_mut()
+                        .flatten()
+                        .filter(|query| query.first.is_some())
+                    {
+                        if let Some(first) = query.first.as_mut() {
+                            if first.binding != binding.node {
+                                continue;
+                            }
+                            first.guard_consumed = true;
+                        }
+                    }
+                }
+            }
         }
         match out.get_mut(&scenario.scenario) {
             Some(ScenarioDisclosure::Complete(value)) => value.source_facts = facts,
@@ -8021,6 +8055,42 @@ impl<'a> Closure<'a> {
             return None;
         }
         Some(event)
+    }
+
+    /// Ordinary-scenario guard skeleton (CAN18-v1 first-query absence
+    /// conjunctions): an ordinary (event-less) scenario whose effects are
+    /// exactly let-first, require-with-condition, create and return. Only
+    /// this confined shape may gain the guard-consumed mark below; any
+    /// other tail, extra effect or branch keeps ordinary viewer behavior.
+    /// Parameters are allowed (checked inputs, not authority); guards,
+    /// cohorts, reads and result-less shapes are out of scope.
+    fn ordinary_first_decision<'b>(
+        &self,
+        scenario: &'b super::effects::ScenarioData,
+    ) -> Option<(&'b super::effects::Effect, &'b super::effects::Effect)> {
+        if scenario.on.is_some() {
+            return None;
+        }
+        if scenario.read
+            || scenario.by.is_none()
+            || scenario.result.is_none()
+            || scenario.cohort.is_some()
+            || !scenario.guards.is_empty()
+        {
+            return None;
+        }
+        let [binding, guard, create, ret] = scenario.effects.as_slice() else {
+            return None;
+        };
+        if binding.verb != EffectVerb::Let
+            || guard.verb != EffectVerb::Require
+            || guard.cond.is_none()
+            || create.verb != EffectVerb::Create
+            || ret.verb != EffectVerb::Return
+        {
+            return None;
+        }
+        Some((binding, guard))
     }
 
     /// DESIGN442 presence consumption: the confined hook `Require` consumes

@@ -14774,8 +14774,10 @@ impl<'a> Emitter<'a> {
                             let first = query.first.as_ref()?;
                             let source = capture.plan["queries"].as_array()?.iter().find(|value| value["id"].as_str() == Some(query.id.as_str()))?.get("source")?;
                             // DESIGN442: carry the checked guard-consumed mark
-                            // for the confined hook slice only; omission keeps
-                            // ordinary viewer behavior on every other shape.
+                            // for confined decision slices (hook event plus
+                            // ordinary require-conjunction skeletons);
+                            // omission keeps ordinary viewer behavior on
+                            // every other shape.
                             let mut entry = serde_json::json!({"queryId":query.id,"source":source,"query":{"start":query.node.start,"end":query.node.end},"node":{"start":first.call.start,"end":first.call.end},"statement":{"start":first.binding.start,"end":first.binding.end}});
                             if first.guard_consumed {
                                 entry["guardConsumed"] = serde_json::json!(true);

@@ -190,13 +190,34 @@ fn hook_event_first_query_with_split_requires_stays_refused() {
     ));
 }
 
-/// The nullable-or twin stays refused, matching its `by=` counterpart.
+/// The nullable-or twin admits symmetrically with the accepted presence-and
+/// shape above: the `==null` arm consumes only the binding's absence (same
+/// carve-out), the stored arm rides the same single control dependency
+/// through the accepted hook guard machinery. A dedicated hook or-decision
+/// execution proof remains C24-owner scope; this pins the compiler
+/// admission boundary only.
 #[test]
-fn hook_event_first_query_with_nullable_or_stays_refused() {
-    first_query_refusal(&HOOK_FIRST_SOURCE.replace(
+fn hook_event_first_query_with_nullable_or_admits() {
+    let source = HOOK_FIRST_SOURCE.replace(
         "   require budget!=null and budget.approved\n",
         "   require budget==null or budget.approved\n",
-    ));
+    );
+    let (db, program, _, catalog) = fixture_source("hook-first-nullable-or.can", &source);
+    let (artifact, diagnostics) = prepared_artifact(&program, &db, &catalog);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let text = artifact["modules"][0]["js"].as_str().unwrap();
+    assert!(
+        text.contains("await firstQuery(c,await executeScenarioReceiptQuery(c,"),
+        "hook or-first lowers natively"
+    );
+    let plan = hook_query_plan(text);
+    let queries = plan["queries"].as_array().unwrap();
+    assert_eq!(queries.len(), 1);
+    assert_eq!(queries[0]["model"], "HookFirst.Budget");
+    let dependencies = queries[0]["dependencies"].as_array().unwrap();
+    assert_eq!(dependencies.len(), 1);
+    assert_eq!(dependencies[0]["role"], "control");
+    let _ = db;
 }
 
 /// Header guards stay refused for the hook slice.

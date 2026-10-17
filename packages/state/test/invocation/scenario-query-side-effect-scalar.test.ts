@@ -102,3 +102,31 @@ test('data-bearing influenced scalar return keeps the projection-or-model refusa
     'stored-read influenced scalar still refuses without projection or model result',
   );
 });
+
+test('control-role influenced scalar return registers as a decision read', () => {
+  const parsed = artifact();
+  const operations = parsed.operations.map((entry: any) => {
+    if (entry.name !== OP) return entry;
+    const returned = entry.result.disclosure.returns[0];
+    // A CONTROL-role stored read is a Require decision, not a data grant:
+    // it executes under caller authority through the receipt machinery, so
+    // the scalar profile admits it while data-bearing still refuses above.
+    const decided = {
+      ...entry,
+      result: {
+        ...entry.result,
+        disclosure: {
+          ...entry.result.disclosure,
+          returns: [{ ...returned, dependencies: [{
+            id: 'decision-read', source: entry.result.disclosure.source,
+            role: 'control', model: 'SideEffectSources.C', field: 'v', type: 'int',
+          }] }],
+        },
+      },
+    };
+    return decided;
+  });
+  const loaded = loadArtifactDescriptors(loadable({ ...parsed, operations }) as any, { by: 'members' });
+  const def = loaded.registry.get(OP);
+  assert.ok(def && isGeneratedOperationDef(def), 'control-read scalar plan binds');
+});

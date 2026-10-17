@@ -971,9 +971,13 @@ export function bindScenarioReceiptPlan(def: GeneratedOperationDef, models: read
   // the recorded inputs and the recorded receipt, all revalidated on read.
   // Admitted intrinsics are replay-stable recorded inputs (parameter values,
   // version-pinned references, operation identity), unlike stored reads.
-  // Anything stored-read-bearing keeps the projection-or-model-result demand.
+  // Stored CONTROL-role reads are decision reads, not data grants: they
+  // execute under caller authority through the existing receipt machinery
+  // (fail-closed for private rows until decision-mode lands), so a scalar
+  // return bearing only control reads keeps the same profile. Anything
+  // data-bearing keeps the projection-or-model-result demand.
   const pureControl = (returned: ScenarioResultDisclosurePlan['returns'][number]) =>
-    returned.dependencies.length === 0;
+    returned.dependencies.every(dependency => dependency.role === 'control');
   if (resultModel === undefined && plan.returns.some(returned => returned.projection === undefined && returned.influences.length !== 0 && !pureControl(returned))) {
     return invalid('query influences without projection require the singular created-model result profile.');
   }
@@ -4564,11 +4568,11 @@ function readSavedScenarioAssociation(receipt: Receipt,
     modelResultWire(receipt.outcome.result);
     checkSavedQueries(plan, returned, value['queries'], receipt.outcome.result);
   } else if (returned.projection === undefined) {
-    // Same pure-control profile as registration: no stored reads means the
-    // influences are execution gating only (admitted intrinsics are recorded
-    // replay-stable inputs), and the saved queries below revalidate the
-    // gating snapshot.
-    if (returned.influences.length !== 0 && returned.dependencies.length !== 0)
+    // Same pure-control profile as registration: no stored reads, or only
+    // stored CONTROL-role decision reads, means the influences are execution
+    // gating only (admitted intrinsics are recorded replay-stable inputs),
+    // and the saved queries below revalidate the gating snapshot.
+    if (returned.influences.length !== 0 && !returned.dependencies.every(dependency => dependency.role === 'control'))
       return invalid('saved scalar query influences require their defining profile.');
     scalarWire(resultType, receipt.outcome.result); checkSavedQueries(plan, returned, value['queries'], receipt.outcome.result); }
   else checkSavedQueries(plan, returned, value['queries'], receipt.outcome.result);
