@@ -328,3 +328,22 @@ fn conj_forged_case_refuses_early() {
     );
     let _ = db;
 }
+
+#[test]
+fn conj_enum_qualified_literal_admits() {
+    // A qualified closed-case spelling lowers to the same semantic case
+    // as the bare literal and must clear the complete emitted artifact,
+    // not just the predicate correspondence check.
+    let (db, program, _, catalog) = fixture_source(
+        "conj-enum-qual.can",
+        &conj_enum_go("c.role==C.role.administrator", "n:int"),
+    );
+    let (prepared, diagnostics) = prepared_artifact(&program, &db, &catalog);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    assert_eq!(
+        query_dep_fields(&prepared, "ConjEnumProbe.go"),
+        ["role"],
+        "qualified case emits its control dependency"
+    );
+    let _ = db;
+}

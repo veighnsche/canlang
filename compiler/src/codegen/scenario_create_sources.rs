@@ -4029,6 +4029,51 @@ impl SourceExpressions<'_> {
                 single_name(node, self.text)? == value
                     && matches!(&actual.ty, ResolvedType::Enum {cases, ..} if cases.contains(value))
             }
+            (IrExpr::Text(value), SyntaxKind::Member) => {
+                // Qualified closed-case spelling (`C.role.administrator`):
+                // the lowered case is the final case token (mirrors
+                // `decode_member`, which reads the third significant
+                // child), and the enum type owns it. The qualifier must
+                // be model-shaped: a nested `Model.field` member, or a
+                // bare name that resolves to a checked model (two-part
+                // `Model.case`). A genuine enum-valued record read bottoms
+                // out at its row binding instead, so it is not a closed
+                // case and keeps the refusal below. The checked subtree
+                // type seal rules out unchecked paths.
+                let mut parts = node
+                    .children
+                    .iter()
+                    .filter(|part| !matches!(part.kind, SyntaxKind::Trivia | SyntaxKind::Comment));
+                let qualifier = parts.next()?;
+                let case = parts.nth(1)?;
+                let qualifier_is_model = match qualifier.kind {
+                    SyntaxKind::Member => true,
+                    SyntaxKind::Name | SyntaxKind::NameRef => {
+                        let name = if qualifier.kind == SyntaxKind::Name {
+                            qualifier.token()?.text(self.text)
+                        } else {
+                            qualifier
+                                .children
+                                .iter()
+                                .find(|child| child.kind == SyntaxKind::Name)?
+                                .token()?
+                                .text(self.text)
+                        };
+                        self.ir.items.iter().any(|item| {
+                            item.name == name
+                                && matches!(item.kind, super::ir::IrItemKind::Model { .. })
+                        })
+                    }
+                    _ => false,
+                };
+                qualifier_is_model
+                    && case.kind == SyntaxKind::Name
+                    && case.token()?.text(self.text) == value
+                    && matches!(&actual.ty, ResolvedType::Enum {cases, ..} if cases.contains(value))
+                    && self.original.expression_types.iter().any(|(at, ty)| {
+                        *at == crate::analysis::NodeKey::of(node) && ty == &actual.ty
+                    })
+            }
             (IrExpr::DurationMs(value), SyntaxKind::Literal) => {
                 primitive(Scalar::Duration) && duration(token(SyntaxKind::Duration)?)? == *value
             }
