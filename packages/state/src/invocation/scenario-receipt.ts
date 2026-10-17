@@ -966,7 +966,15 @@ export function bindScenarioReceiptPlan(def: GeneratedOperationDef, models: read
     }
     if (dep.kind === 'admitted-input' && !primitiveInput(def, dep)) return invalid('intrinsic input disagrees with its required singular primitive declaration.');
   }
-  if (resultModel === undefined && plan.returns.some(returned => returned.projection === undefined && returned.influences.length !== 0)) {
+  // Pure-control scalar returns carry only execution-gating provenance: they
+  // read no stored row, so replay needs nothing beyond the declared queries,
+  // the recorded inputs and the recorded receipt, all revalidated on read.
+  // Admitted intrinsics are replay-stable recorded inputs (parameter values,
+  // version-pinned references, operation identity), unlike stored reads.
+  // Anything stored-read-bearing keeps the projection-or-model-result demand.
+  const pureControl = (returned: ScenarioResultDisclosurePlan['returns'][number]) =>
+    returned.dependencies.length === 0;
+  if (resultModel === undefined && plan.returns.some(returned => returned.projection === undefined && returned.influences.length !== 0 && !pureControl(returned))) {
     return invalid('query influences without projection require the singular created-model result profile.');
   }
   if (resultModel === undefined && plan.queries?.some(query => query.dependencies.some(dependency => dependency.type === 'file[]'))) {
@@ -4556,7 +4564,12 @@ function readSavedScenarioAssociation(receipt: Receipt,
     modelResultWire(receipt.outcome.result);
     checkSavedQueries(plan, returned, value['queries'], receipt.outcome.result);
   } else if (returned.projection === undefined) {
-    if (returned.influences.length !== 0) return invalid('saved scalar query influences require their defining profile.');
+    // Same pure-control profile as registration: no stored reads means the
+    // influences are execution gating only (admitted intrinsics are recorded
+    // replay-stable inputs), and the saved queries below revalidate the
+    // gating snapshot.
+    if (returned.influences.length !== 0 && returned.dependencies.length !== 0)
+      return invalid('saved scalar query influences require their defining profile.');
     scalarWire(resultType, receipt.outcome.result); checkSavedQueries(plan, returned, value['queries'], receipt.outcome.result); }
   else checkSavedQueries(plan, returned, value['queries'], receipt.outcome.result);
   const observations = list(value['observations']);

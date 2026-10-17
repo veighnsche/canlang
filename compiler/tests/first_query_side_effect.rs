@@ -130,15 +130,9 @@ fn root() -> PathBuf {
 }
 
 fn native_owner_root() -> PathBuf {
-    let public = Path::new("/Users/vince/Projects/canlang");
-    if public
-        .join("packages/cloudflare/dist/native-catalog.json")
-        .is_file()
-    {
-        public.into()
-    } else {
-        root()
-    }
+    // Repository-relative by default; the old canonical-checkout hardcode
+    // would silently consume another checkout's catalog.
+    root()
 }
 
 /// Explicit frozen catalog override wins (e.g. `CAN_NATIVE_CATALOG` pointing
