@@ -2442,44 +2442,94 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                     cases,
                 } = ty
                 {
-                    // This inventory adaptation belongs only to a real transition
-                    // recipe. Standalone machine-field reads retain their refusal.
-                    if sites.transitions.is_empty()
-                        || *enum_owner != stored.id
-                        || dependency.type_id != stored.canonical
-                        || !modifiers.machine
-                    {
-                        return None;
+                    if !modifiers.machine {
+                        // Plain (non-machine) enum data reads transport as the
+                        // sealed `enum(a,b)` identity, mirroring the
+                        // query-predicate enum convention. A reused enum
+                        // (`I.role: C.role`) names its declaring field, so
+                        // the nominal path pins through the enum owner item
+                        // rather than the reading field. Machine fields keep
+                        // their existing transition-recipe path/refusal below.
+                        if transition.is_some() {
+                            return None;
+                        }
+                        let descriptor = declared[0];
+                        if descriptor.machine.is_some()
+                            || descriptor.nullable
+                            || descriptor.array_required.is_some()
+                            || descriptor.server_only
+                        {
+                            return None;
+                        }
+                        let JsModelFieldType::Enum { values } = &descriptor.field
+                        else {
+                            return None;
+                        };
+                        if values != cases {
+                            return None;
+                        }
+                        let owner_item = ir.items.get(enum_owner.0 as usize)?;
+                        let IrItemKind::Field {
+                            ty: IrType::Known(ResolvedType::Enum {
+                                cases: owner_cases,
+                                ..
+                            }),
+                            ..
+                        } = &owner_item.kind
+                        else {
+                            return None;
+                        };
+                        if owner_item.id != *enum_owner
+                            || owner_item.canonical != dependency.type_id
+                            || owner_cases != cases
+                        {
+                            return None;
+                        }
+                        let inline = format!("enum({})", cases.join(","));
+                        if inventory_type(descriptor)? != inline {
+                            return None;
+                        }
+                        inline
+                    } else {
+                        // This inventory adaptation belongs only to a real transition
+                        // recipe. Standalone machine-field reads retain their refusal.
+                        if sites.transitions.is_empty()
+                            || *enum_owner != stored.id
+                            || dependency.type_id != stored.canonical
+                            || !modifiers.machine
+                        {
+                            return None;
+                        }
+                        let descriptor = declared[0];
+                        let JsModelFieldType::Enum { values } = &descriptor.field else {
+                            return None;
+                        };
+                        let machine = descriptor.machine.as_ref()?;
+                        if descriptor.nullable
+                            || descriptor.array_required.is_some()
+                            || values != cases
+                            || &machine.states != cases
+                            || !cases.contains(&machine.initial)
+                        {
+                            return None;
+                        }
+                        if let Some((from, to)) = transition
+                            && (!cases.contains(from)
+                                || !cases.contains(to)
+                                || !machine.transitions.iter().any(|edge| {
+                                    edge.from == *from
+                                        && edge.to == *to
+                                        && edge.operation == item.canonical
+                                }))
+                        {
+                            return None;
+                        }
+                        let inline = format!("enum({})", cases.join(","));
+                        if inventory_type(descriptor)? != inline {
+                            return None;
+                        }
+                        inline
                     }
-                    let descriptor = declared[0];
-                    let JsModelFieldType::Enum { values } = &descriptor.field else {
-                        return None;
-                    };
-                    let machine = descriptor.machine.as_ref()?;
-                    if descriptor.nullable
-                        || descriptor.array_required.is_some()
-                        || values != cases
-                        || &machine.states != cases
-                        || !cases.contains(&machine.initial)
-                    {
-                        return None;
-                    }
-                    if let Some((from, to)) = transition
-                        && (!cases.contains(from)
-                            || !cases.contains(to)
-                            || !machine.transitions.iter().any(|edge| {
-                                edge.from == *from
-                                    && edge.to == *to
-                                    && edge.operation == item.canonical
-                            }))
-                    {
-                        return None;
-                    }
-                    let inline = format!("enum({})", cases.join(","));
-                    if inventory_type(descriptor)? != inline {
-                        return None;
-                    }
-                    inline
                 } else if let Some(prefix) = checked_transcript_prefix_inventory(
                     ir,
                     item,
