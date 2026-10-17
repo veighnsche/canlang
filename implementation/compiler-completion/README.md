@@ -37,6 +37,37 @@ tuple at 276 E6008, full multiset identical (0 removed, 0 added):
 member admission holds with no regression; the CanCustomer accept span
 waits on navigation-parent/void/reference prerequisites next.
 
+### Navigation-parent first-query admission (0946/1011) — 2026-10-17
+
+Contained first queries may select through the one-hop containment
+navigation off a default-free stored-record parameter (`i.parent.C`,
+the CanCustomer invitation shape). Analysis seals the ChildOf lineage,
+declared-type match, absence of a shadowing `parent` field and exactly
+one authored hop; the plan carries the admitted-reference hop (parent
+model, parameter `i`), never a relabeled same-model parameter. The
+State owner resolves the hop to the admitted row's immutable parent
+linkage after version-pinning the row itself, bound to the exact
+declared input model — any child of P is not accepted. Conjunct
+receivers stay parameters (a parent-rooted operand has no input entry
+of its own) and two-hop paths stay refused; grouped member bases
+(`(i).role`) admit through the normalized receiver occurrence while
+grouped navigation spellings stay refused. Fixtures
+`first-query-navigation.can` (`go_nav` int domain, `go_nav_role`
+member-operand over the navigated parent). Validation on rebuilt
+in-target `a1cb5a18` + `ca50`: rust predicate 14/14, conjunction
+18/18 (incl. 5 navigation admit/refuse), neighbors qualified 4/4,
+ifbranch 7/7, hook-first 11/11, native-first 17/17, replay 4/4,
+stored-query 9/9, scope-authority 19/19; installed navigation
+consumers 2/2 (match, mismatch rule_failed+no writes, cross-parent
+isolation, caller scoping, norows, tampered-version conflict+no
+writes, replay, outsider forbidden, revocation incl. replay path) and
+member consumers 2/2; state contained-parent 10/10, contained-first
+5/5, parent-navigation 5/5; member/contract/qualified/nav/direct CLI
+probes exit 0, two-hop/parent-rooted refusals E6008. Full lib has 3
+failures reproduced identically on clean HEAD (pre-existing, left
+untouched). No original24 movement claimed: void/reference
+prerequisites and the remaining groups stay open.
+
 ### Accepted first-query slice D (merge37) — 2026-10-17 (compiler half)
 
 Main integrates `ed672197e`: compiler admission for unscoped Text-equality

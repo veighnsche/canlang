@@ -4626,18 +4626,7 @@ fn checked_native_first_query_source_plan(
     let parent = match first.contained_parent {
         None => None,
         Some(_) => {
-            let parameter = checked_first_query_parent(ir, owner, query, db)?;
-            let IrItemKind::Param {
-                ty:
-                    IrType::Known(ResolvedType::Record {
-                        symbol: parent_id,
-                        stored: true,
-                    }),
-                ..
-            } = &parameter.kind
-            else {
-                return None;
-            };
+            let (parameter, parent_id) = checked_first_query_parent(ir, owner, query, scan, db)?;
             Some(ReceiptQueryParent {
                 source: transport_source(&query.source, entry_module)?,
                 model: ir.items.get(parent_id.0 as usize)?.canonical.clone(),
@@ -4826,12 +4815,19 @@ fn imported_field_source_corresponds(
 /// parameter the disclosure proved, and the child stays ChildOf it. Mirrors
 /// the count contained-parent proof; unscoped first queries have no
 /// contained parent and never reach here.
+/// Admitted contained-query parent: the declared parameter plus the
+/// resolved parent model. Direct `p.C` resolves the model from the
+/// parameter's own declared type; navigation `i.parent.C` resolves it
+/// from the decoded one-hop containment value, sealed against the exact
+/// authored `param.parent` path and the owning ChildOf lineage on both
+/// the input model and the child model.
 pub(super) fn checked_first_query_parent<'a>(
     ir: &'a IrProgram,
     owner: &IrItem,
     query: &crate::analysis::scenario_disclosure::DisclosureQuery,
+    scan: &super::ir::IrQuery,
     db: &SourceDb,
-) -> Option<&'a IrItem> {
+) -> Option<(&'a IrItem, crate::analysis::SymbolId)> {
     let first = query.first.as_ref()?;
     let (receiver, parameter_id) = first.contained_parent?;
     let facts = super::scenario_calls::checked_source(ir, owner, db)?;
@@ -4849,7 +4845,7 @@ pub(super) fn checked_first_query_parent<'a>(
         index,
         ty:
             IrType::Known(ResolvedType::Record {
-                symbol: parent_id,
+                symbol: input_id,
                 stored: true,
             }),
         array_bounds: None,
@@ -4863,12 +4859,6 @@ pub(super) fn checked_first_query_parent<'a>(
     };
     let fact = facts.parameters.get(*index)?;
     let child = checked_first_query_schema(ir, owner, query, db)?;
-    let mut parents = facts
-        .stored_contracts
-        .as_deref()?
-        .iter()
-        .filter(|schema| schema.model && schema.id == *parent_id);
-    let parent = parents.next()?;
     let source_receiver = checked_effect_node(ir, owner, receiver, db)?;
     let authored_parameter = checked_effect_node(ir, owner, fact.node, db)?;
     let parameter_name = authored_parameter
@@ -4876,6 +4866,73 @@ pub(super) fn checked_first_query_parent<'a>(
         .iter()
         .find(|node| node.kind == SyntaxKind::Name)?;
     let text = &db.get(receiver.file)?.text;
+    let receiver_text = text.get(receiver.start as usize..receiver.end as usize)?;
+    // Direct receivers name the parameter; navigation receivers name the
+    // exact one-hop containment path. Anything else keeps the refusal.
+    let navigation = match source_receiver.kind {
+        SyntaxKind::NameRef => false,
+        SyntaxKind::Member => {
+            // Exactly one NameRef base and one Name field; the dot and
+            // any trivia carry no identity and are skipped by kind.
+            let mut bases = source_receiver
+                .children
+                .iter()
+                .filter(|part| part.kind == SyntaxKind::NameRef);
+            let mut fields = source_receiver
+                .children
+                .iter()
+                .filter(|part| part.kind == SyntaxKind::Name);
+            let (Some(base), None) = (bases.next(), bases.next()) else {
+                return None;
+            };
+            let (Some(field), None) = (fields.next(), fields.next()) else {
+                return None;
+            };
+            text.get(base.span.start as usize..base.span.end as usize)? == parameter.name
+                && text.get(field.span.start as usize..field.span.end as usize)? == "parent"
+                && receiver_text == format!("{}.parent", parameter.name)
+        }
+        _ => return None,
+    };
+    // The parent value decoded from the authored receiver carries the
+    // resolved model and occurrence: direct shapes read the parameter
+    // name, navigation shapes read the exact `param.parent` member.
+    let parent_value = scan.parent.as_deref()?;
+    let parent_id = match &parent_value.expr {
+        IrExpr::Name(name) if !navigation && name == &parameter.name => *input_id,
+        IrExpr::Member { base, field }
+            if navigation
+                && field == "parent"
+                && matches!(&base.expr, IrExpr::Name(name) if name == &parameter.name) =>
+        {
+            match &parent_value.ty {
+                ResolvedType::Record {
+                    symbol,
+                    stored: true,
+                } => *symbol,
+                _ => return None,
+            }
+        }
+        _ => return None,
+    };
+    // A navigation parent must be the input model's owning containment
+    // parent; the direct shape keeps the parameter's own declared model.
+    if navigation {
+        let input_schema = facts
+            .stored_contracts
+            .as_deref()?
+            .iter()
+            .find(|schema| schema.model && schema.id == *input_id)?;
+        if input_schema.parent != Some(parent_id) {
+            return None;
+        }
+    }
+    let mut parents = facts
+        .stored_contracts
+        .as_deref()?
+        .iter()
+        .filter(|schema| schema.model && schema.id == parent_id);
+    let parent = parents.next()?;
     if parents.next().is_some()
         || parameter.id != parameter_id
         || *parameter_owner != owner.id
@@ -4884,7 +4941,7 @@ pub(super) fn checked_first_query_parent<'a>(
         || fact.parameter != parameter_id
         || fact.ty
             != (ResolvedType::Record {
-                symbol: *parent_id,
+                symbol: *input_id,
                 stored: true,
             })
         || fact.default.is_some()
@@ -4893,10 +4950,10 @@ pub(super) fn checked_first_query_parent<'a>(
         || parameter.canonical != format!("{}.{}", owner.canonical, parameter.name)
         || parameter.span != parameter_name.span
         || parameter_name.token()?.text(text) != parameter.name
-        || source_receiver.kind != SyntaxKind::NameRef
-        || text.get(receiver.start as usize..receiver.end as usize)? != parameter.name
-        || child.parent != Some(*parent_id)
-        || child.owner != Some(crate::analysis::resolve::ModelOwner::ChildOf(*parent_id))
+        || (!navigation && receiver_text != parameter.name)
+        || parent_value.span != node_span(receiver)
+        || child.parent != Some(parent_id)
+        || child.owner != Some(crate::analysis::resolve::ModelOwner::ChildOf(parent_id))
         || parent.source != query.source
         || parent.module != owner.module
         || parent.field_order.iter().any(|id| {
@@ -4916,7 +4973,7 @@ pub(super) fn checked_first_query_parent<'a>(
     for field in &parent.fields {
         match_stored_contract_field(ir, field, db)?;
     }
-    Some(parameter)
+    Some((parameter, parent_id))
 }
 
 /// The released contained COUNT selector is the original required singular
@@ -6118,13 +6175,20 @@ pub(super) fn checked_first_query_predicate(
         // same-domain sibling field (`i.other_role`) cannot substitute
         // for the admitted operand. The receiver occurrence is pinned
         // too: its type must equal the recorded param type, and its span
-        // must lead the outer member span (`base.field` grammar), so a
+        // must equal the exact original receiver occurrence recorded at
+        // analysis. Surface spans shift under grouping and trivia, so no
+        // span arithmetic against the outer member is used here; a
         // retargeted base keeps the refusal even with the name intact.
         let expected_member = format!("{}.{}", actual.name, field);
         let sealed_path = first
             .operand_texts
             .get(conjunct_index)
             .is_some_and(|sealed| sealed.as_deref() == Some(expected_member.as_str()));
+        let sealed_receiver = first
+            .operand_receivers
+            .get(conjunct_index)
+            .copied()
+            .flatten();
         if !sealed_path
             || !field_item
             || !(params.get(*index) == Some(parameter)
@@ -6136,9 +6200,7 @@ pub(super) fn checked_first_query_predicate(
                 && original.default.is_none()
                 && original.ty == *ty
                 && base.ty == *ty
-                && base.span.file == right.span.file
-                && base.span.start == right.span.start
-                && base.span.end < right.span.end
+                && sealed_receiver.is_some_and(|receiver| base.span == node_span(receiver))
                 && matches!(&base.expr, IrExpr::Name(name) if name == &actual.name))
         {
             return None;
@@ -6255,18 +6317,23 @@ fn checked_owner_first_query_ir<'a>(
     let first_parent = match first.contained_parent {
         None => scan.parent.is_none(),
         Some((receiver, _)) => {
-            let parameter = checked_first_query_parent(ir, owner, query, db)?;
-            let IrItemKind::Param {
-                ty: IrType::Known(parent_type),
-                ..
-            } = &parameter.kind
-            else {
-                return None;
+            let (parameter, parent_id) =
+                checked_first_query_parent(ir, owner, query, scan, db)?;
+            let expected = ResolvedType::Record {
+                symbol: parent_id,
+                stored: true,
             };
             let parent = scan.parent.as_deref()?;
             parent.span == node_span(receiver)
-                && &parent.ty == parent_type
-                && matches!(&parent.expr, IrExpr::Name(name) if name == &parameter.name)
+                && parent.ty == expected
+                && match &parent.expr {
+                    IrExpr::Name(name) => name == &parameter.name,
+                    IrExpr::Member { base, field } => {
+                        field == "parent"
+                            && matches!(&base.expr, IrExpr::Name(name) if name == &parameter.name)
+                    }
+                    _ => false,
+                }
         }
     };
     if id != "first"
@@ -14238,6 +14305,20 @@ Then
             .unwrap()
     }
 
+    fn go_nested_create_fact(
+        ir: &IrProgram,
+    ) -> &crate::analysis::scenario_disclosure::CheckedScenarioCreate {
+        let owner = owner_by_name(ir, "ConjTamper.go_nested");
+        ir.scenario_disclosures[&owner.id]
+            .source_facts()
+            .unwrap()
+            .creates
+            .as_deref()
+            .unwrap()
+            .first()
+            .unwrap()
+    }
+
     #[test]
     fn member_operand_pair_admits() {
         let (_db, ir) = fixture();
@@ -14374,18 +14455,27 @@ Then
         // source matcher even with matching span, type and facts; the
         // old qualifier arm accepted exactly this shape.
         let (db, mut ir) = fixture();
-        let tampered = {
+        let (honest, tampered) = {
             let nested = nested_member_mut(&mut ir, "ConjTamper.go_nested");
             let IrExpr::Member { field, .. } = &nested.expr else {
                 panic!("nested member shape");
             };
             assert_eq!(field, "administrator", "honest case-named field");
+            let honest = nested.clone();
             let span = nested.span;
             let ty = nested.ty.clone();
             *nested = TypedExpr::new(IrExpr::Text("administrator".to_string()), ty, span);
-            nested.clone()
+            (honest, nested.clone())
         };
-        let fact = go_m_create_fact(&ir);
+        let fact = go_nested_create_fact(&ir);
+        let honest_node = source_node_at(&db, honest.span);
+        assert!(
+            super::super::scenario_create_sources::checked_create_expression(
+                &ir, fact, &honest, honest_node, &db
+            )
+            .is_some(),
+            "honest nested read matches its own create facts first"
+        );
         let node = source_node_at(&db, tampered.span);
         let (tree, diagnostics) = crate::syntax::parse(&db, tampered.span.file);
         assert!(diagnostics.is_empty(), "{diagnostics:?}");

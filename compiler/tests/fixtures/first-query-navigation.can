@@ -1,0 +1,27 @@
+app NavProbe
+Given
+ P {v:int}
+ C in P {v:int,account:user,role:enum(administrator,booker)}
+ D {w:int}
+ I in P {v:int,role:C.role}
+ policy P read=members fields=v
+ policy C read=members fields=parent,v,account,role
+ policy D read=members fields=w
+ policy I read=members fields=parent,v,role
+When
+ crud P by=members fields=v
+ crud C by=members fields=parent,v,account,role
+ crud I by=members fields=parent,v,role
+ scenario go_nav(p:P,i:I,n:int) -> int by=members
+  do
+   let c=first(i.parent.C as c where c.account==actor and c.v==n order=c.id)
+   require c!=null
+   create D {w=n} as d
+   return 1
+ scenario go_nav_role(p:P,i:I) -> int by=members
+  do
+   let c=first(i.parent.C as c where c.account==actor and c.role==i.role order=c.id)
+   require c!=null
+   create D {w=1} as d
+   return 1
+Then

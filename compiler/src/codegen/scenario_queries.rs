@@ -2000,21 +2000,25 @@ fn checked_first_query_plan(
     let first_parent = match q.first.as_ref()?.contained_parent {
         None => query.parent.is_none(),
         Some((receiver, _)) => {
-            let parameter =
-                super::scenario_receipts::checked_first_query_parent(ir, owner, q, db)?;
-            let IrItemKind::Param {
-                ty: IrType::Known(parent_type),
-                ..
-            } = &parameter.kind
-            else {
-                return None;
+            let (parameter, parent_id) =
+                super::scenario_receipts::checked_first_query_parent(ir, owner, q, query, db)?;
+            let expected = ResolvedType::Record {
+                symbol: parent_id,
+                stored: true,
             };
             let parent = query.parent.as_deref()?;
             parent.span.file == receiver.file
                 && parent.span.start == receiver.start
                 && parent.span.end == receiver.end
-                && &parent.ty == parent_type
-                && matches!(&parent.expr, IrExpr::Name(name) if name == &parameter.name)
+                && parent.ty == expected
+                && match &parent.expr {
+                    IrExpr::Name(name) => name == &parameter.name,
+                    IrExpr::Member { base, field } => {
+                        field == "parent"
+                            && matches!(&base.expr, IrExpr::Name(name) if name == &parameter.name)
+                    }
+                    _ => false,
+                }
         }
     };
     if q.id.is_empty()
@@ -2149,19 +2153,8 @@ fn checked_first_query_plan(
     let parent = match q.first.as_ref()?.contained_parent {
         None => None,
         Some(_) => {
-            let parameter =
-                super::scenario_receipts::checked_first_query_parent(ir, owner, q, db)?;
-            let IrItemKind::Param {
-                ty:
-                    IrType::Known(ResolvedType::Record {
-                        symbol: parent_id,
-                        stored: true,
-                    }),
-                ..
-            } = &parameter.kind
-            else {
-                return None;
-            };
+            let (parameter, parent_id) =
+                super::scenario_receipts::checked_first_query_parent(ir, owner, q, query, db)?;
             Some(ReceiptQueryParent {
                 source: origin(&q.source, entry),
                 model: ir.items.get(parent_id.0 as usize)?.canonical.clone(),
