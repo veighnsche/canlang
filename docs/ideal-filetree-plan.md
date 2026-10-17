@@ -192,6 +192,10 @@ First-query terminal side-effect State pure-control admission with installed run
 
 Consumer hardening plus 276 capture promotion with 0101 correction. Incoming interval `96a71932e..HEAD` accounts for 6 changed paths in `can18_merge_47_20261017` of the existing registry. dispatch runtime 1/1, state 2/2, cloudflare 1/1, rust dispatch 4/4 + first-query 8/8, frozen 276 capture exact tuple. Existing defining owners and target allocations remain; focused new tests stay with Compiler. Reuse prior accumulated coverage; complete checkpoint remains unchanged. Original24 and required executable consumers remain open. Unfinished work stays in the running Muse checkout.
 
+### CAN18 incremental integration — can18_merge_48_20261017
+
+Absence primitive with runtime consumer plus fence recovery correction. Incoming interval `9a2d04165..HEAD` accounts for 7 changed paths in `can18_merge_48_20261017` of the existing registry. rust 10/10, cloudflare 2/2 frozen, State unit reused. Existing defining owners and target allocations remain; focused new tests stay with Compiler. Reuse prior accumulated coverage; complete checkpoint remains unchanged. Original24 and required executable consumers remain open. Unfinished work stays in the running Muse checkout.
+
 ### Specification and installer documentation merge — 2026-10-15
 
 Merge installer commit `02470b74` into canonical `main` at `a70921e3`.
