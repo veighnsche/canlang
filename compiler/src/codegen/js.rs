@@ -2567,11 +2567,18 @@ fn emit_program_with_sources(
                 .expect("owning receipt");
             let mut associations = Vec::new();
             for capture in captures {
-                recipe
-                    .dependencies
-                    .entry(capture.site)
-                    .or_default()
-                    .push(capture.observation);
+                let site_entries = recipe.dependencies.entry(capture.site).or_default();
+                // DESIGN442 (0411): a decision read already observed through
+                // its result dependency must not emit a second identical
+                // observation (State once-only execution would refuse the
+                // duplicate). The execution association below still records
+                // the bound Require consumption for the owner grant.
+                if !site_entries
+                    .iter()
+                    .any(|existing| existing.id == capture.observation.id)
+                {
+                    site_entries.push(capture.observation);
+                }
                 associations.push(capture.association);
             }
             if !associations.is_empty() {

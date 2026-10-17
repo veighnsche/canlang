@@ -74871,5 +74871,53 @@
     "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
     "checkpoint_advanced": false,
     "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
+  },
+  "can18_merge_50_20261017": {
+    "incremental_base": "6137c3a9392cfc503da5dfc968e0a1538e3dd21f",
+    "incoming_end": "96beba819c11d82feed365dfd0dd94f8d62a4dad",
+    "retained_coverage": "reuse spec_installer_merge_reconciliation_20261015 and preceding CAN18 incremental merge entries; inherited complete checkpoint unchanged",
+    "changed_path_count": 7,
+    "rows": [
+      [
+        "compiler/src/codegen/js.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/src/codegen/scenario_receipts.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/fixtures/first-query-side-effect-private.can",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "docs/specification/DECISIONS.md",
+        "Specification",
+        "existing accepted design/decision owner"
+      ],
+      [
+        "implementation/compiler-completion/README.md",
+        "Compiler completion",
+        "existing finite execution record"
+      ],
+      [
+        "packages/cloudflare/test/native-first-side-effect.test.ts",
+        "cloudflare",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/state/src/invocation/scenario-receipt.ts",
+        "state",
+        "existing package source/test owner"
+      ]
+    ],
+    "choice": "Contained private-decision grant repair (0346/0411).",
+    "validation": "rust 10/10 hook 11/11 native_first 17/17 hook_lowering 26/26 bool 27/27 enum 54/54 sources green; state scalar 3/3; cloudflare 4/4 frozen 2aefa512+ca50 with viewer-denial and revocation proofs; replay/lookup/fence suites green.",
+    "target_disposition": "existing defining owners retained; new focused compiler fixture belongs with compiler/tests; no source moves, package redesign or new product scope",
+    "checkpoint_advanced": false,
+    "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
   }
 }
