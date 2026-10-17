@@ -74618,5 +74618,33 @@
     "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
     "checkpoint_advanced": false,
     "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
+  },
+  "can18_merge_43_20261017": {
+    "incremental_base": "02781f83e3175f246b0cf157f7ca6190ba2e66fa",
+    "incoming_end": "1d421cd700c0fc518a31ec2f369f559dc689fcac",
+    "retained_coverage": "reuse spec_installer_merge_reconciliation_20261015 and preceding CAN18 incremental merge entries; inherited complete checkpoint unchanged",
+    "changed_path_count": 3,
+    "rows": [
+      [
+        "compiler/src/codegen/js.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/toggle_form_control.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "implementation/compiler-completion/README.md",
+        "Compiler completion",
+        "existing finite execution record"
+      ]
+    ],
+    "choice": "Toggle form-control repair (REVIEW-NOW-2 E): the admitted toggle factory travels the checkbox prepared-field contract at the shared owner; actual compiled Item.create render + false/true consumer with fail-before proof, neighbors green; REVIEW-NOW remainder stays open.",
+    "validation": "toggle_form_control 1/1; ui_original_bindings 27/27; enum_filter_group 54/54; factory_profiles 33/33; collection_bool_filters 31/31; field_fragment_runtime original_cap failure pre-existing on clean HEAD.",
+    "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
+    "checkpoint_advanced": false,
+    "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
   }
 }
