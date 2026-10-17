@@ -4033,40 +4033,25 @@ impl SourceExpressions<'_> {
                 // Qualified closed-case spelling (`C.role.administrator`):
                 // the lowered case is the final case token (mirrors
                 // `decode_member`, which reads the third significant
-                // child), and the enum type owns it. The qualifier must
-                // be model-shaped: a nested `Model.field` member, or a
-                // bare name that resolves to a checked model (two-part
-                // `Model.case`). A genuine enum-valued record read bottoms
-                // out at its row binding instead, so it is not a closed
-                // case and keeps the refusal below. The checked subtree
-                // type seal rules out unchecked paths.
+                // child). Closed-case identity comes from the retained
+                // checked set, not token spelling: a genuine enum-valued
+                // record read (`i.child.administrator`) is absent there,
+                // so replacing it by a constant keeps the refusal below.
+                // The qualifier root must additionally name a checked
+                // model (`C`, not a row binding `i`), the enum type must
+                // own the case, and the checked subtree type seal must
+                // record this node.
                 let mut parts = node
                     .children
                     .iter()
                     .filter(|part| !matches!(part.kind, SyntaxKind::Trivia | SyntaxKind::Comment));
                 let qualifier = parts.next()?;
                 let case = parts.nth(1)?;
-                let qualifier_is_model = match qualifier.kind {
-                    SyntaxKind::Member => true,
-                    SyntaxKind::Name | SyntaxKind::NameRef => {
-                        let name = if qualifier.kind == SyntaxKind::Name {
-                            qualifier.token()?.text(self.text)
-                        } else {
-                            qualifier
-                                .children
-                                .iter()
-                                .find(|child| child.kind == SyntaxKind::Name)?
-                                .token()?
-                                .text(self.text)
-                        };
-                        self.ir.items.iter().any(|item| {
-                            item.name == name
-                                && matches!(item.kind, super::ir::IrItemKind::Model { .. })
-                        })
-                    }
-                    _ => false,
-                };
-                qualifier_is_model
+                qualifier_is_model(self.ir, self.text, qualifier)
+                    && self
+                        .ir
+                        .resolved_cases
+                        .contains(&crate::analysis::NodeKey::of(node))
                     && case.kind == SyntaxKind::Name
                     && case.token()?.text(self.text) == value
                     && matches!(&actual.ty, ResolvedType::Enum {cases, ..} if cases.contains(value))
@@ -4713,6 +4698,44 @@ fn source_path(node: &SyntaxNode, text: &str) -> Option<String> {
             ))
         }
         _ => None,
+    }
+}
+
+/// Qualifier root of a qualified enum-case member (`C` in
+/// `C.role.administrator`): descend leftmost nested members to the base
+/// name, which must name a checked model. A row binding or field base
+/// (`i` in `i.child.administrator`) is not a closed-case qualifier.
+fn qualifier_is_model(ir: &IrProgram, text: &str, qualifier: &SyntaxNode) -> bool {
+    let mut cursor = qualifier;
+    loop {
+        let mut significant = cursor
+            .children
+            .iter()
+            .filter(|part| !matches!(part.kind, SyntaxKind::Trivia | SyntaxKind::Comment));
+        let Some(first) = significant.next() else {
+            return false;
+        };
+        if first.kind == SyntaxKind::Member {
+            cursor = first;
+            continue;
+        }
+        let name = if first.kind == SyntaxKind::Name {
+            first.token().map(|token| token.text(text))
+        } else if first.kind == SyntaxKind::NameRef {
+            first
+                .children
+                .iter()
+                .find(|child| child.kind == SyntaxKind::Name)
+                .and_then(|child| child.token())
+                .map(|token| token.text(text))
+        } else {
+            None
+        };
+        return name.is_some_and(|name| {
+            ir.items.iter().any(|item| {
+                item.name == name && matches!(item.kind, super::ir::IrItemKind::Model { .. })
+            })
+        });
     }
 }
 

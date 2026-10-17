@@ -5871,8 +5871,10 @@ pub(super) fn checked_first_query_predicate(
     // in order. The field cross-check keeps the pairing honest.
     let mut unmatched: Vec<_> = query.dependencies.iter().collect();
     // Per-conjunct member/operand correspondence; operand classes resolve
-    // below. Param-class conjuncts record their index for input cover.
+    // below. Param-class conjuncts record their index for input cover, as
+    // do transported member-read conjuncts for member cover.
     let mut param_conjuncts = Vec::new();
+    let mut member_conjuncts = Vec::new();
     for (index, conjunct) in conjuncts.iter().enumerate() {
         let IrExpr::Binary {
             op: IrBinOp::Eq,
@@ -5889,9 +5891,10 @@ pub(super) fn checked_first_query_predicate(
             .iter()
             .position(|dependency| &dependency.field_name == field)?;
         let dependency = unmatched.remove(position);
-        // Member operands only admit the scalar actor/event classes below;
-        // enum member reads stay refused (deferred scope). Params and
-        // closed enum cases flow through the Name/Text arms.
+        // Member operands admit the scalar actor/event classes below, or
+        // a transported param-row member read (`i.role`) that names its
+        // input entry. Params and closed enum cases flow through the
+        // Name/Text arms.
         let scalar = match &dependency.ty {
             ResolvedType::Scalar(scalar) => Some(scalar),
             ResolvedType::Enum { .. } => None,
@@ -5911,6 +5914,17 @@ pub(super) fn checked_first_query_predicate(
             return None;
         }
         match &right.expr {
+            IrExpr::Member { .. }
+                if query
+                    .inputs
+                    .iter()
+                    .any(|(node, _)| *node == operand_nodes[index]) =>
+            {
+                // A transported member read (`i.role`) names its input
+                // entry; the member cover below pins the exact base
+                // param, field and enum correspondence.
+                member_conjuncts.push((index, dependency));
+            }
             IrExpr::Member { .. } => {
                 // Actor/event operands carry no transported input, so no
                 // inputs entry may name them.
@@ -6009,9 +6023,9 @@ pub(super) fn checked_first_query_predicate(
             _ => return None,
         }
     }
-    // Transported inputs cover exactly the param-class conjuncts: each
-    // entry verifies against one recorded operand, and every recorded
-    // param conjunct is covered exactly once.
+    // Transported inputs cover exactly the param-class and member-class
+    // conjuncts: each entry verifies against one recorded operand, and
+    // every recorded conjunct of either class is covered exactly once.
     let facts = ir.scenario_disclosures.get(&owner.id)?.source_facts()?;
     let IrItemKind::Scenario {
         params,
@@ -6022,11 +6036,52 @@ pub(super) fn checked_first_query_predicate(
         return None;
     };
     for (entry_operand, parameter) in query.inputs.iter() {
-        let position = param_conjuncts
+        if let Some(position) = param_conjuncts
+            .iter()
+            .position(|(index, _)| operand_nodes[*index] == *entry_operand)
+        {
+            let (index, dependency) = param_conjuncts.remove(position);
+            let IrExpr::Binary { right, .. } = &conjuncts[index].expr else {
+                return None;
+            };
+            let actual = ir.items.get(parameter.0 as usize)?;
+            let IrItemKind::Param {
+                owner: parameter_owner,
+                index,
+                ty: IrType::Known(ty),
+                default: None,
+                default_node: None,
+                default_copy_source: None,
+                array_bounds: None,
+                ..
+            } = &actual.kind
+            else {
+                return None;
+            };
+            let original = facts.parameters.get(*index)?;
+            if !(params.get(*index) == Some(parameter)
+                && *parameter_owner == owner.id
+                && actual.id == *parameter
+                && actual.module == owner.module
+                && actual.canonical == format!("{}.{}", owner.canonical, actual.name)
+                && original.parameter == *parameter
+                && original.default.is_none()
+                && original.ty == dependency.ty
+                && *ty == dependency.ty
+                && matches!(&right.expr, IrExpr::Name(name) if name == &actual.name))
+            {
+                return None;
+            }
+            continue;
+        }
+        let position = member_conjuncts
             .iter()
             .position(|(index, _)| operand_nodes[*index] == *entry_operand)?;
-        let (index, dependency) = param_conjuncts.remove(position);
-        let IrExpr::Binary { right, .. } = &conjuncts[index].expr else {
+        let (conjunct_index, dependency) = member_conjuncts.remove(position);
+        let IrExpr::Binary { right, .. } = &conjuncts[conjunct_index].expr else {
+            return None;
+        };
+        let IrExpr::Member { base, field } = &right.expr else {
             return None;
         };
         let actual = ir.items.get(parameter.0 as usize)?;
@@ -6043,22 +6098,46 @@ pub(super) fn checked_first_query_predicate(
         else {
             return None;
         };
+        // The base must be the recorded stored row itself; the read
+        // field must belong to that row and carry exactly the compared
+        // enum type. A scalar param base or a foreign field keeps the
+        // refusal.
+        let ResolvedType::Record {
+            symbol: record,
+            stored: true,
+        } = ty
+        else {
+            return None;
+        };
+        let field_item = ir.items.iter().any(|item| {
+            item.name == *field
+                && matches!(&item.kind, IrItemKind::Field { owner, ty: IrType::Known(field_ty), .. } if owner == record && field_ty == &dependency.ty)
+        });
         let original = facts.parameters.get(*index)?;
-        if !(params.get(*index) == Some(parameter)
-            && *parameter_owner == owner.id
-            && actual.id == *parameter
-            && actual.module == owner.module
-            && actual.canonical == format!("{}.{}", owner.canonical, actual.name)
-            && original.parameter == *parameter
-            && original.default.is_none()
-            && original.ty == dependency.ty
-            && *ty == dependency.ty
-            && matches!(&right.expr, IrExpr::Name(name) if name == &actual.name))
+        // The sealed authored `base.field` path pins the exact read: a
+        // same-domain sibling field (`i.other_role`) cannot substitute
+        // for the admitted operand.
+        let expected_member = format!("{}.{}", actual.name, field);
+        let sealed_path = first
+            .operand_texts
+            .get(conjunct_index)
+            .is_some_and(|sealed| sealed.as_deref() == Some(expected_member.as_str()));
+        if !sealed_path
+            || !field_item
+            || !(params.get(*index) == Some(parameter)
+                && *parameter_owner == owner.id
+                && actual.id == *parameter
+                && actual.module == owner.module
+                && actual.canonical == format!("{}.{}", owner.canonical, actual.name)
+                && original.parameter == *parameter
+                && original.default.is_none()
+                && original.ty == *ty
+                && matches!(&base.expr, IrExpr::Name(name) if name == &actual.name))
         {
             return None;
         }
     }
-    if !param_conjuncts.is_empty() {
+    if !param_conjuncts.is_empty() || !member_conjuncts.is_empty() {
         return None;
     }
     Some(())
@@ -13590,12 +13669,15 @@ Given
  P {v:int}
  C in P {v:int,role:text,kind:enum(administrator,booker)}
  D {w:int}
+ I in P {role:C.kind,other_role:C.kind}
  policy P read=members fields=v
  policy C read=members fields=parent,v,role,kind
  policy D read=members fields=w
+ policy I read=members fields=parent,role,other_role
 When
  crud P by=members fields=v
  crud C by=members fields=parent,v,role,kind
+ crud I by=members fields=parent,role,other_role
  scenario go_t(p:P,n:int,r:text,s:text) -> int by=members
   do
    let c=first(p.C as c where c.v==n and c.role==r order=c.id)
@@ -13619,6 +13701,12 @@ When
    let e=first(p.C as e where e.kind==booker order=e.id)
    require e!=null
    create D {w=1} as d
+   return 1
+ scenario go_m(p:P,n:int,u:I) -> int by=members
+  do
+   let m=first(p.C as m where m.v==n and m.kind==u.role order=m.id)
+   require m!=null
+   create D {w=3} as d
    return 1
 Then
 "#;
@@ -14002,6 +14090,245 @@ Then
             checked_first_query_predicate(&ir, owner, query, scan).is_some(),
             "genuine qualified closed-case pair must admit"
         );
+    }
+
+    /// The `u.role` member read on `go_m`'s second conjunct: the first
+    /// `==` arm (in source order) whose right side is a member read.
+    fn member_right<'a>(ir: &'a IrProgram, canonical: &str) -> &'a TypedExpr {
+        let owner = owner_by_name(ir, canonical);
+        let IrItemKind::Scenario { effects, .. } = &owner.kind else {
+            panic!("scenario effects");
+        };
+        for effect in effects.iter() {
+            let IrStmt::Let { value, .. } = effect else {
+                continue;
+            };
+            let (IrExpr::Call { args, .. } | IrExpr::BoundCall { args, .. }) = &value.expr else {
+                continue;
+            };
+            let [domain] = args.as_slice() else {
+                continue;
+            };
+            let IrExpr::Query(scan) = &domain.expr else {
+                continue;
+            };
+            let Some(pred) = scan.where_pred.as_ref() else {
+                continue;
+            };
+            let mut pending = vec![pred];
+            while let Some(part) = pending.pop() {
+                if let IrExpr::Binary {
+                    op: IrBinOp::And,
+                    left,
+                    right,
+                } = &part.expr
+                {
+                    pending.push(right);
+                    pending.push(left);
+                    continue;
+                }
+                if let IrExpr::Binary { right, .. } = &part.expr
+                    && matches!(&right.expr, IrExpr::Member { .. })
+                {
+                    return right;
+                }
+            }
+        }
+        panic!("member operand");
+    }
+
+    /// First `==` arm (source order) whose right side is a member read.
+    fn find_member_mut<'a>(expr: &'a mut TypedExpr) -> Option<&'a mut TypedExpr> {
+        match &mut expr.expr {
+            IrExpr::Binary {
+                op: IrBinOp::And,
+                left,
+                right,
+            } => {
+                if let Some(found) = find_member_mut(left) {
+                    return Some(found);
+                }
+                find_member_mut(right)
+            }
+            IrExpr::Binary { right, .. } if matches!(&right.expr, IrExpr::Member { .. }) => {
+                Some(right)
+            }
+            _ => None,
+        }
+    }
+
+    /// The `u.role` member read on `go_m`'s second conjunct, mutably.
+    fn member_right_mut<'a>(ir: &'a mut IrProgram, canonical: &str) -> &'a mut TypedExpr {
+        let owner = ir
+            .items
+            .iter_mut()
+            .find(|item| item.canonical == canonical)
+            .expect("scenario owner");
+        let IrItemKind::Scenario { effects, .. } = &mut owner.kind else {
+            panic!("scenario effects");
+        };
+        for effect in effects.iter_mut() {
+            let IrStmt::Let { value, .. } = effect else {
+                continue;
+            };
+            let (IrExpr::Call { args, .. } | IrExpr::BoundCall { args, .. }) = &mut value.expr
+            else {
+                continue;
+            };
+            let [domain] = args.as_mut_slice() else {
+                continue;
+            };
+            let IrExpr::Query(scan) = &mut domain.expr else {
+                continue;
+            };
+            let Some(pred) = scan.where_pred.as_mut() else {
+                continue;
+            };
+            if let Some(right) = find_member_mut(pred) {
+                return right;
+            }
+        }
+        panic!("member operand");
+    }
+
+    /// Authored source node at an IR span, mirroring the source-matcher
+    /// route: re-parse and select by exact span.
+    fn source_node_at(db: &SourceDb, span: crate::source::Span) -> crate::analysis::NodeKey {
+        let (tree, diagnostics) = crate::syntax::parse(db, span.file);
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let mut pending = vec![&tree];
+        while let Some(node) = pending.pop() {
+            if node.span == span {
+                return crate::analysis::NodeKey::of(node);
+            }
+            pending.extend(node.children.iter());
+        }
+        panic!("authored node");
+    }
+
+    fn go_m_create_fact(
+        ir: &IrProgram,
+    ) -> &crate::analysis::scenario_disclosure::CheckedScenarioCreate {
+        let owner = owner_by_name(ir, "ConjTamper.go_m");
+        ir.scenario_disclosures[&owner.id]
+            .source_facts()
+            .unwrap()
+            .creates
+            .as_deref()
+            .unwrap()
+            .first()
+            .unwrap()
+    }
+
+    #[test]
+    fn member_operand_pair_admits() {
+        let (_db, ir) = fixture();
+        let owner = owner_by_name(&ir, "ConjTamper.go_m");
+        let (query, scan) = first_scan_expecting(&ir, owner, 2);
+        assert!(
+            checked_first_query_predicate(&ir, owner, query, scan).is_some(),
+            "genuine param-row member read must admit"
+        );
+    }
+
+    #[test]
+    fn member_operand_sibling_field_substitution_refuses() {
+        let (db, mut ir) = fixture();
+        let right = member_right_mut(&mut ir, "ConjTamper.go_m");
+        let IrExpr::Member { field, .. } = &mut right.expr else {
+            panic!("member shape");
+        };
+        assert_eq!(field, "role", "honest field");
+        *field = "other_role".to_string();
+        let owner = owner_by_name(&ir, "ConjTamper.go_m");
+        let (query, scan) = first_scan_expecting(&ir, owner, 2);
+        assert!(
+            checked_first_query_predicate(&ir, owner, query, scan).is_none(),
+            "same-domain sibling field substitution must refuse"
+        );
+        let _ = db;
+    }
+
+    #[test]
+    fn member_operand_scalar_base_substitution_refuses() {
+        let (db, mut ir) = fixture();
+        let right = member_right_mut(&mut ir, "ConjTamper.go_m");
+        let IrExpr::Member { base, .. } = &mut right.expr else {
+            panic!("member shape");
+        };
+        let IrExpr::Name(name) = &mut base.expr else {
+            panic!("param base");
+        };
+        assert_eq!(name, "u", "honest base");
+        *name = "n".to_string();
+        let owner = owner_by_name(&ir, "ConjTamper.go_m");
+        let (query, scan) = first_scan_expecting(&ir, owner, 2);
+        assert!(
+            checked_first_query_predicate(&ir, owner, query, scan).is_none(),
+            "scalar param base substitution must refuse"
+        );
+        let _ = db;
+    }
+
+    #[test]
+    fn member_operand_constant_variant_substitution_refuses() {
+        let (db, mut ir) = fixture();
+        let right = member_right_mut(&mut ir, "ConjTamper.go_m");
+        assert!(
+            matches!(&right.expr, IrExpr::Member { .. }),
+            "honest member"
+        );
+        let span = right.span;
+        let ty = right.ty.clone();
+        *right = TypedExpr::new(IrExpr::Text("administrator".to_string()), ty, span);
+        let owner = owner_by_name(&ir, "ConjTamper.go_m");
+        let (query, scan) = first_scan_expecting(&ir, owner, 2);
+        assert!(
+            checked_first_query_predicate(&ir, owner, query, scan).is_none(),
+            "member-to-constant variant substitution must refuse"
+        );
+        let _ = db;
+    }
+
+    #[test]
+    fn member_read_source_expression_matches_checked_member() {
+        let (db, ir) = fixture();
+        let fact = go_m_create_fact(&ir);
+        let right = member_right(&ir, "ConjTamper.go_m");
+        let node = source_node_at(&db, right.span);
+        assert!(
+            super::super::scenario_create_sources::checked_create_expression(
+                &ir, fact, right, node, &db
+            )
+            .is_some(),
+            "genuine member read matches its authored member"
+        );
+    }
+
+    #[test]
+    fn non_case_member_to_constant_source_expression_refuses() {
+        // A genuine enum-valued record read is not a closed case: even
+        // with matching span, type and facts, replacing it by a case
+        // constant must refuse at the source matcher (no resolved-case
+        // identity, no model qualifier).
+        let (db, mut ir) = fixture();
+        let tampered = {
+            let right = member_right_mut(&mut ir, "ConjTamper.go_m");
+            let span = right.span;
+            let ty = right.ty.clone();
+            *right = TypedExpr::new(IrExpr::Text("administrator".to_string()), ty, span);
+            right.clone()
+        };
+        let fact = go_m_create_fact(&ir);
+        let node = source_node_at(&db, tampered.span);
+        assert!(
+            super::super::scenario_create_sources::checked_create_expression(
+                &ir, fact, &tampered, node, &db
+            )
+            .is_none(),
+            "non-case member replaced by a constant must refuse"
+        );
+        let _ = db;
     }
 
     #[test]
