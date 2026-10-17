@@ -2,7 +2,7 @@
  * TeamTasks MCP leg (B1): the same `.can` operations over MCP actions and
  * the browser, against real workerd/D1 with two authed users.
  *
- * Bar (`implementation/PLAN.md` B1): browser and MCP invoke the same
+ * Bar (`docs/implementation/PLAN.md` B1): browser and MCP invoke the same
  * operation with equal authority. Every D1 assertion is presence-shaped
  * (own rows only, never exact table counts): the worker — and its D1 — is
  * per Playwright *worker* process, shared across spec files (see

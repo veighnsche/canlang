@@ -15,7 +15,7 @@ Proves the I5 packet end to end against `examples/ExpenseFlow.can`:
 
 - `expenses.policy.json` — generated compiler output, byte-identical to
   the `policy::tests::golden_expenseflow_policy_dump` pin (captured
-  from a test run; see `implementation/evidence/b3-i5.md`). Never edit
+  from a test run; see `docs/implementation/evidence/b3-i5.md`). Never edit
   by hand; refresh from `can policy` once dispatch is wired.
 - `demo.mjs` — verification harness (test doubles for deps/invoker;
   L7 binds production deps at integration). Run directly to serve:

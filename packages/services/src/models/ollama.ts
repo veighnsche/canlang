@@ -1,7 +1,7 @@
 /**
  * `ai.ChatV1` provider adapter over Ollama `POST /api/chat`.
  *
- * Provider evidence (`design/research-ai-capabilities-20261004.md`):
+ * Provider evidence (`docs/design/research-ai-capabilities-20261004.md`):
  * - Chat takes model + message history with optional format/tools; the
  *   adapter sends the frozen authorized history, never a hidden
  *   provider conversation. Model selection is validated against the

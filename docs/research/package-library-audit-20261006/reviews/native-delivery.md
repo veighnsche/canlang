@@ -1,6 +1,6 @@
 # Native/delivery library audit — planning evidence, 2026-10-06
 
-Scope: `/Users/vince/Projects/canlang/packages/cloudflare` delivery/preparation/selected runtime mechanics, and `packages/work-kernel` Rust decisions, root, host-value bindings. Parent supplied HEAD `309644a6881909d8dba32560bc6711f67e00a7ab`; no Git command checked it. Source reads and official-source browsing only. No implementation, dependency installation, builds, tests, runtime probes or release actions. Preparation HUMAN HOLD remains in force. All changes below are proposals; difficult ownership changes require the existing design/JEV process when implementation is authorized.
+Scope: `/Users/vince/Projects/canlang/packages/cloudflare` delivery/preparation/selected runtime mechanics, and `packages/work-kernel` Rust decisions, root, host-value bindings. Parent supplied HEAD `309644a6881909d8dba32560bc6711f67e00a7ab`; no Git command checked it. Source reads and official-source browsing only. No implementation, dependency installation, builds, tests, runtime probes or release actions. Preparation HUMAN HOLD remains in force. All changes below are proposals; difficult ownership changes require the existing docs/design/JEV process when implementation is authorized.
 
 ## Wiring and dependencies verified by source
 

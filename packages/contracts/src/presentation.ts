@@ -761,7 +761,7 @@ export interface TableProps {
  * later L1/L7 join; L1 acknowledgment pending).
  */
 /**
- * Binding profile of a catalog word, per design/UI-COMPONENTS.md grammar
+ * Binding profile of a catalog word, per docs/design/UI-COMPONENTS.md grammar
  * profiles. "shell" marks non-word infrastructure (renderPage, discovery)
  * that lane 1 ignores for word checking.
  */
@@ -796,7 +796,7 @@ export interface ComponentSlotDef {
   readonly repeatable: boolean;
 }
 
-/** Finite semantic appearance tokens (design/UI-COMPONENTS.md). */
+/** Finite semantic appearance tokens (docs/design/UI-COMPONENTS.md). */
 export type AppearanceTone = "neutral" | "primary" | "secondary" | "accent" | "info" | "success" | "warning" | "error";
 export type AppearanceSize = "xs" | "sm" | "md" | "lg" | "xl";
 export type AppearanceVariant = "solid" | "outline" | "soft" | "ghost";
@@ -1608,7 +1608,7 @@ export interface TimelineItem {
  * Two modes share one renderer. Explicit mode passes `items` (one authored
  * `slot item` suite per entry). Collection mode passes `model` with
  * `renderRow` (one `slot item` template rendered once per admitted query
- * row, per design/UI-COMPONENTS.md): the factory queries authorized rows
+ * row, per docs/design/UI-COMPONENTS.md): the factory queries authorized rows
  * through the dispatcher, maps each row body to an entry, and renders the
  * shared items path. `items` and `model` must not be combined.
  */

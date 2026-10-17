@@ -12470,7 +12470,7 @@ interface StateReceiptWorkLoaderProducer {
 
 /**
  * Q2 SEAM CONTRACT (B-half input — see
- * `implementation/D3B-OBSERVER-SEAM-CONTRACT.md`): structural view of
+ * `docs/implementation/D3B-OBSERVER-SEAM-CONTRACT.md`): structural view of
  * B's worker-safe observer module
  * (`packages/state/src/receipt/observer.ts`, zero node imports).
  * Same observer shape as the work-loader leg, new module + loader

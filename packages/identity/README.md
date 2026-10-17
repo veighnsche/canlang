@@ -113,8 +113,8 @@ test/                 # accounts, context, contracts, grants, oauth, sessions, t
 
 ## Ownership
 
-Per `implementation/PLAN.md`: lane 06
-(`implementation/prompts/06-identity-interfaces.md`) owns
+Per `docs/implementation/PLAN.md`: lane 06
+(`docs/implementation/prompts/06-identity-interfaces.md`) owns
 `packages/identity`. Production store binding is lane 03 (join J2); mail
 binding is the lane-04 mail adapter.
 

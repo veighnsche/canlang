@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import { pathToFileURL } from 'node:url';
 
 const root = path.resolve(import.meta.dirname, '../../..');
-const frozenPath = path.join(root, 'implementation/rust-port-orchestration/contracts-20261007/oracles/frozen-oracle.json.gz');
+const frozenPath = path.join(root, 'docs/implementation/rust-port-orchestration/contracts-20261007/oracles/frozen-oracle.json.gz');
 const sha256 = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
 const hashFile = file => sha256(fs.readFileSync(file));
 const units = text => Array.from({ length: text.length }, (_, i) => text.charCodeAt(i));

@@ -4,9 +4,9 @@ Read-only source/ledger/orchestration review, 2026-10-06. No product commands, t
 
 ## Allocation constraints from current orchestration
 
-`implementation/RUST-PORT-EXECUTION-PLAN.md` assigns R1 common values Cargo/lock/module/binding/public assembly, R2 validation outcomes, R3 global dependency/lock/build/consumer/delivery source, and borrowed R4 disjoint temporal/state/validation leaves while preparation is held. Codex owns leases, review, main integration and status records. Only two bounded heavy local commands initially run across all four lanes; editing/fixtures need not wait on a command slot. No fifth library implementation lane or automatic identity/CSV product-backlog expansion follows.
+`docs/implementation/RUST-PORT-EXECUTION-PLAN.md` assigns R1 common values Cargo/lock/module/binding/public assembly, R2 validation outcomes, R3 global dependency/lock/build/consumer/delivery source, and borrowed R4 disjoint temporal/state/validation leaves while preparation is held. Codex owns leases, review, main integration and status records. Only two bounded heavy local commands initially run across all four lanes; editing/fixtures need not wait on a command slot. No fifth library implementation lane or automatic identity/CSV product-backlog expansion follows.
 
-`implementation/remaining-work/tasks.json:6099` credits A03.1 complete. A ryu-js change is a new bounded maintenance/adoption delta related to that foundation, **not redispatch of its credited implementation**. A04.5 at `:7364` is partial and explicitly still needs numeric error/path/text/stored-part proof including lossless UTF-16 **or preselected retained TS domains**. These source-path crosswalks do not close original prerequisites or gates.
+`docs/implementation/remaining-work/tasks.json:6099` credits A03.1 complete. A ryu-js change is a new bounded maintenance/adoption delta related to that foundation, **not redispatch of its credited implementation**. A04.5 at `:7364` is partial and explicitly still needs numeric error/path/text/stored-part proof including lossless UTF-16 **or preselected retained TS domains**. These source-path crosswalks do not close original prerequisites or gates.
 
 ## Numeric units (LIB-01 / LIB-03)
 

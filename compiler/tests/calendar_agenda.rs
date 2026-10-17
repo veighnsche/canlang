@@ -88,7 +88,7 @@ fn checked_agenda_body_filters_and_preferences_reach_installed_consumers() {
     let artifact = scratch.path().join("artifact.json");
     std::fs::write(&artifact, compiled.stdout).unwrap();
     let consumer = Command::new("node")
-        .arg(root.join("implementation/compiler-completion/view-reuse/agenda-consumer.mjs"))
+        .arg(root.join("docs/implementation/compiler-completion/view-reuse/agenda-consumer.mjs"))
         .arg(root)
         .arg(&artifact)
         .arg(scratch.path().join("staged"))

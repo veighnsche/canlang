@@ -482,7 +482,7 @@ export function createArtifactCatalog(artifact: CompileArtifact, baked?: BakedDe
  * real grant rechecks). DOCUMENTED LIMITATION: with this adapter live,
  * `tools/list` is empty and every `tools/call` answers
  * `isError`-forbidden even for valid grants; see
- * `implementation/evidence/mcp-p2.md`.
+ * `docs/implementation/evidence/mcp-p2.md`.
  */
 export function createDenyClosedMcpPermissions(): McpPermissions {
   return {

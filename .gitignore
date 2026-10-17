@@ -58,14 +58,14 @@ dist-manifest.json
 
 # Generated artifacts removed by the 2026-10-14 history cleanup.
 /output/build-in-public/
-/implementation/compiler-completion/corpus-admission/independent-review/probe
+/docs/implementation/compiler-completion/corpus-admission/independent-review/probe
 /docs/research/**/*.log
 /docs/research/**/*.stdout
 /docs/research/**/*.stderr
-/implementation/**/*.log
-/implementation/**/*.stdout
-/implementation/**/*.stderr
-/implementation/compiler-completion/lsp-support/raw-callers.txt
+/docs/implementation/**/*.log
+/docs/implementation/**/*.stdout
+/docs/implementation/**/*.stderr
+/docs/implementation/compiler-completion/lsp-support/raw-callers.txt
 /editors/vscode/audit-astra/*tokens.json
 
 # Owned standalone-install assembly and private release-tool dependencies

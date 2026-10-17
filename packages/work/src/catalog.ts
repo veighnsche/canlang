@@ -3,7 +3,7 @@
  *
  * Minimal `{package, version, entries[]}` shape only; the shared catalog
  * envelope (if any) is defined by the first L1/L2 contract join, not here
- * (implementation/CONTRACTS.md). Entries name kernel capabilities so
+ * (docs/implementation/CONTRACTS.md). Entries name kernel capabilities so
  * consumers can check feature availability at build/activation time.
  */
 export interface WorkCatalogEntry {

@@ -4,7 +4,7 @@
 //!
 //! Lint findings reuse the reserved `explain` codes where they exist and
 //! extend `I1xxx` for the two new description nits (see
-//! `implementation/status/lane-01.md` for the normative ranges):
+//! `docs/implementation/status/lane-01.md` for the normative ranges):
 //!
 //! | Rule id | Code | Severity | Default |
 //! | --- | --- | --- | --- |

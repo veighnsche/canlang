@@ -17,7 +17,7 @@ import type { CommittedChangeEvent, OccurrenceId, ReceiptError, TerminalReceiptS
  *
  * Status: v1 draft for slice S1. Storage/query ports will grow in S2/S4;
  * system-command ports land in S6. Breaking changes need the affected
- * owners' explicit handoff per implementation/CONTRACTS.md.
+ * owners' explicit handoff per docs/implementation/CONTRACTS.md.
  */
 
 /** This contract's version. The state engine build checks it against its own. */
@@ -1645,7 +1645,7 @@ export interface DiscardStagedRows {
  * execution agree on this version's descriptor/invoke/observation rules.
  * Additive-only growth; T04b extends without changing these rules. Recorded
  * with producer/consumer agreement in
- * `implementation/challenge-audit-run/evidence/execution-contract.md`.
+ * `docs/implementation/challenge-audit-run/evidence/execution-contract.md`.
  */
 export const EXECUTION_CONTRACT_VERSION = 1;
 
@@ -1904,7 +1904,7 @@ export interface ExampleStateObservation {
  * never a silent fallback. `EXECUTION_CONTRACT_VERSION` stays 1: old
  * consumers precisely reject the unknown `delivery` kind, so this
  * growth is additive-only. Ratification record:
- * `implementation/challenge-audit-run/evidence/execution-contract.md`
+ * `docs/implementation/challenge-audit-run/evidence/execution-contract.md`
  * §10.
  */
 

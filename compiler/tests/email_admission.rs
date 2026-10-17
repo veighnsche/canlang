@@ -39,7 +39,7 @@ fn email_admission_matches_public_codecs_and_production_metadata() {
     fs::write(
         &runner,
         include_str!(
-            "../../implementation/compiler-completion/email-admission/implementation/probe.mjs"
+            "../../docs/implementation/compiler-completion/email-admission/implementation/probe.mjs"
         ),
     )
     .unwrap();

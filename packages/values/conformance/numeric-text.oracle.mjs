@@ -58,7 +58,7 @@ export function invoke(c,kinds,decimal,wire) {
 if (process.argv[1] === import.meta.filename) {
   const [dist,out] = process.argv.slice(2);
   assert.ok(dist && out,'usage: node numeric-text.oracle.mjs <private compiled src directory> <explicit output>');
-  const frozenPath=path.join(root,'implementation/rust-port-orchestration/contracts-20261007/oracles/frozen-oracle.json.gz');
+  const frozenPath=path.join(root,'docs/implementation/rust-port-orchestration/contracts-20261007/oracles/frozen-oracle.json.gz');
   const frozen=JSON.parse(gunzipSync(fs.readFileSync(frozenPath)));
   const numbers=[...frozen.seeded,...frozen.boundaries];
   for(const row of numbers) {

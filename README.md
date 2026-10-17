@@ -36,7 +36,7 @@ For fuller examples, read [TeamTasks.can](examples/TeamTasks.can), which adds as
 - **Canonical operations and durable work.** `crud` supplies standard record operations. Typed `scenario` declarations express company-specific behavior through guards and an ordered `do` body. The design includes version checks, atomic business mutations, events, scheduled work, typed external delivery, receipts, and recovery from uncertain outcomes.
 - **Examples beside behavior.** Shared `fixture` declarations and attached `examples` tables or sequences express business success and rejection cases. The intended runner invokes the same canonical operations and permission checks in isolated state, using independently authored expectations.
 - **Source-owned composition.** Small apps own an implicit package named after the app. Larger products select packages or compose apps with `uses=[...]`; consumers explicitly import exported declarations with `use`. One app is selected per deployment. Dependencies and interfaces derive from owning declarations, and moving a package between files does not change its identity.
-- **Shared interfaces and localization.** Browser pages, forms, and MCP tools reuse operation types, descriptions, and permissions. The presentation target covers the full [68-component daisyUI vocabulary](design/UI-COMPONENTS.md), with HTMX and a shared shell. Translations live beside authored text; named messages serve actual reuse. `#` attaches description metadata, while `##` is an ordinary comment.
+- **Shared interfaces and localization.** Browser pages, forms, and MCP tools reuse operation types, descriptions, and permissions. The presentation target covers the full [68-component daisyUI vocabulary](docs/design/UI-COMPONENTS.md), with HTMX and a shared shell. Translations live beside authored text; named messages serve actual reuse. `#` attaches description metadata, while `##` is an ordinary comment.
 
 These are the language's intended capabilities; completion is tracked per workflow. Arbitrary app-level HTML, CSS, JavaScript, specialized visual editors, and unrestricted autonomous agents are outside v1.
 
@@ -97,7 +97,7 @@ bun run build:compiler
 ./compiler/target/debug/can --help
 ```
 
-Turbo schedules the 13 package producers through their declared dependencies. Builds use a local cache with verified host, Node and Bun identities; cleanup before restoration removes obsolete outputs. `bun run build --filter=@canlang/values` builds one owner's dependency closure, and `bun run build:uncached` executes producers with cache reads and writes disabled. [The scheduling and cache report](implementation/turbo-scheduling/README.md) records the proof and its limits.
+Turbo schedules the 13 package producers through their declared dependencies. Builds use a local cache with verified host, Node and Bun identities; cleanup before restoration removes obsolete outputs. `bun run build --filter=@canlang/values` builds one owner's dependency closure, and `bun run build:uncached` executes producers with cache reads and writes disabled. [The scheduling and cache report](docs/implementation/turbo-scheduling/README.md) records the proof and its limits.
 
 Use `bun run test` for the root integration suites, `bun run test:all` for those suites plus owning package and Cloudflare runtime tests, and `bun run test:compiler` for compiler tests. Test suites run uncached; `test:all` schedules them sequentially. Native builds and release verification also run uncached through explicit adapters. See [developer setup](docs/dev-setup.md), [compiler commands](compiler/README.md), and [installation](docs/install.md) for details. `can check`, `compile`, `lint`, `fmt`, `policy`, and `lsp` provide compiler and authoring services; platform commands delegate to `can-platform`, while `can dev` delegates to the owner-only JSON session client.
 
@@ -118,10 +118,10 @@ The [VS Code-compatible extension](editors/vscode/README.md) provides highlighti
 - [Language design](docs/specification/DESIGN.md): semantics, defaults, permissions, operations, integrations, and interfaces.
 - [Grammar](docs/specification/GRAMMAR.md): exact syntax and layout rules, including one-space indentation.
 - [Decisions](docs/specification/DECISIONS.md): accepted choices, rationale, uncertainty, and superseded proposals.
-- [Can dev server design](design/can-dev-server.md): living proposal for agent onboarding through Jev-ranked keyword help, deterministic debugging, examples, and preview.
-- [Completed evaluation plan](design/evaluation/PLAN.md): the design study, its reports, frozen baseline, and verification limits.
+- [Can dev server design](docs/design/can-dev-server.md): living proposal for agent onboarding through Jev-ranked keyword help, deterministic debugging, examples, and preview.
+- [Completed evaluation plan](docs/design/evaluation/PLAN.md): the design study, its reports, frozen baseline, and verification limits.
 - [Living ideal file-tree plan](docs/ideal-filetree-plan.md): unified finished-product architecture, responsibility owners, required workflows, and future work. After every merge, its handler reconciles accumulated changes and advances the checkpoint only after complete review; plan maintenance does not authorize implementation.
-- [Approved UI vocabulary](design/UI-COMPONENTS.md): all 68 pinned daisyUI components, typed bindings, and the shared shell.
+- [Approved UI vocabulary](docs/design/UI-COMPONENTS.md): all 68 pinned daisyUI components, typed bindings, and the shared shell.
 - [Subsystem-port plans](docs/research/package-subsystem-ports-20261006/implementation-plans/README.md): exact values, owned input validation, work transitions, and artifact preparation.
 - [Application drafts](https://github.com/veighnsche/canlang-drafts/blob/main/README.md): larger business sources and their companion requirements; [coverage and remaining gaps](https://github.com/veighnsche/canlang-drafts/blob/main/MIGRATION.md) records unfinished behavior.
 

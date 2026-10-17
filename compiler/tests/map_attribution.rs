@@ -46,7 +46,7 @@ fn production_failure_reaches_node_source_maps() {
         .join("..")
         .canonicalize()
         .unwrap();
-    let fixture = root.join("implementation/compiler-completion/map-attribution");
+    let fixture = root.join("docs/implementation/compiler-completion/map-attribution");
     let scratch = tempfile::tempdir().unwrap();
     // Absolute source identity allows the host to resolve it without guessing
     // project roots. Original bytes are used unchanged by the compiler.
@@ -90,7 +90,7 @@ fn production_failure_reaches_native_registry_mapped_outcome() {
         .join("..")
         .canonicalize()
         .unwrap();
-    let fixture = root.join("implementation/compiler-completion/map-attribution");
+    let fixture = root.join("docs/implementation/compiler-completion/map-attribution");
     let scratch = tempfile::tempdir().unwrap();
     let source = fixture.join("failure.can");
     let mut command = Command::new(env!("CARGO_BIN_EXE_can"));
@@ -134,7 +134,7 @@ fn production_failure_retains_internal_attribution_through_canonical_state() {
         .join("..")
         .canonicalize()
         .unwrap();
-    let fixture = root.join("implementation/compiler-completion/map-attribution");
+    let fixture = root.join("docs/implementation/compiler-completion/map-attribution");
     let scratch = tempfile::tempdir().unwrap();
     // Retain the original failing derive and its line-four source anchor.
     // The actual authored scenario stages a write before that same failure.

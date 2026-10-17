@@ -303,7 +303,7 @@ export interface ErrorAccepted {
 
 /**
  * Provider-owned `ai.ChatV1` message (research sketch "final chat";
- * `design/research-ai-capabilities-20261004.md`). Minimal final-only
+ * `docs/design/research-ai-capabilities-20261004.md`). Minimal final-only
  * shape: no tools/images/thinking until an app uses them.
  */
 export interface ModelMessage {

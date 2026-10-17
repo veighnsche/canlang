@@ -84,7 +84,7 @@ fn checked_table_orders_reach_the_original_native_query_and_protected_row() {
     let artifact = scratch.path().join("artifact.json");
     std::fs::write(&artifact, compiled.stdout).unwrap();
     let consumed = Command::new("node")
-        .arg(root.join("implementation/compiler-completion/view-reuse/table-order-consumer.mjs"))
+        .arg(root.join("docs/implementation/compiler-completion/view-reuse/table-order-consumer.mjs"))
         .arg(root)
         .arg(&artifact)
         .arg(scratch.path().join("staged"))

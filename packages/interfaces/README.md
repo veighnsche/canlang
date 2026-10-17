@@ -6,7 +6,7 @@ worker assembly binds at B1. Production bindings come from L1 (registry,
 catalog, app facts), L3 (canonical invocation), and L4 (file kernel,
 ingress verifier); this package ships the shell, not the engines.
 
-Ownership per `implementation/PLAN.md`: lane 06 (account/session/team
+Ownership per `docs/implementation/PLAN.md`: lane 06 (account/session/team
 identity, HTTP/MCP routing, canonical request/result and upload transport).
 
 An admitted `PageReadScope` can install `observeGenerationCallbackDiagnostics`
@@ -158,7 +158,7 @@ All paths under `packages/interfaces/`:
 
 ## Ownership / lane note
 
-Lane 06 per `implementation/PLAN.md` (row: lane
+Lane 06 per `docs/implementation/PLAN.md` (row: lane
 `prompts/06-identity-interfaces.md`; tree slot `interfaces/ # L6`).
 Downstream joins bind the ports: L1 operation/page registry and catalog
 (join J3), L3 canonical invocation (join J2), L4 file kernel (join J6)

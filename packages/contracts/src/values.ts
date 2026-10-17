@@ -11,7 +11,7 @@
  *
  * Status: v1 draft for PR1. Schema descriptor types land with PR5; breaking
  * changes need the affected owners' explicit handoff per
- * implementation/CONTRACTS.md.
+ * docs/implementation/CONTRACTS.md.
  */
 
 /** This contract's version. The values build checks it against its own. */

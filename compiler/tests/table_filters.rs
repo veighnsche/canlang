@@ -96,7 +96,7 @@ fn checked_table_filters_defaults_and_protected_rows_reach_installed_consumers()
     let artifact = scratch.path().join("artifact.json");
     std::fs::write(&artifact, compiled.stdout).unwrap();
     let consumer = Command::new("node")
-        .arg(root.join("implementation/compiler-completion/view-reuse/table-filter-consumer.mjs"))
+        .arg(root.join("docs/implementation/compiler-completion/view-reuse/table-filter-consumer.mjs"))
         .arg(root)
         .arg(&artifact)
         .arg(scratch.path().join("staged"))

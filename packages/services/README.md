@@ -6,7 +6,7 @@ envelopes: mail, models (Ollama chat), judgments (SystemOne), and media
 `@canlang/stdlib`. The root entry and explicit package subpaths load emitted
 modules; consumers do not import package source paths.
 
-Ownership per `implementation/PLAN.md`: lane 4 (provider adapters,
+Ownership per `docs/implementation/PLAN.md`: lane 4 (provider adapters,
 durable events/schedules/deliveries, file lifecycle, observable runs).
 
 Install (workspace, from the repo root):

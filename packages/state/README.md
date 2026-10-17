@@ -14,7 +14,7 @@ which re-exports producer surfaces. This package never imports that facade back.
 - `src/errors.ts` — safe business rejections (`StateError`, stable codes).
 - `src/invocation/`, `src/query/`, `src/policy/`, `src/mutation/`, `src/storage/`,
   `src/migration/` — engine modules (land slice by slice; see
-  `implementation/status/lane-03.md`).
+  `docs/implementation/status/lane-03.md`).
 - `src/ports.ts` — constrained transaction/read/system-command ports for lanes 4/6/7.
 - `test/` — `node:test` suites; storage suites run against real miniflare D1/DO APIs.
 

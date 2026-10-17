@@ -49,7 +49,7 @@ fn owning_context(packet: &Path, domain: &str, variant: &str) -> String {
 #[test]
 fn saved_enum_handlers_preserve_captions_and_original_admission() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
-    let packet = root.join("implementation/capability-roadmap-20261008/enum-comparison");
+    let packet = root.join("docs/implementation/capability-roadmap-20261008/enum-comparison");
     let scratch = tempfile::tempdir().unwrap();
     let installed_catalog = root.join("packages/values/dist/catalog.json");
     let mut host_catalog: serde_json::Value =

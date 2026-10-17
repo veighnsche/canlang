@@ -1,0 +1,342 @@
+{
+  "status": "Human-required outcomes remain accepted; Codex-selected D1/D4/D6 v1 is frozen under explicit human authorization for Muse implementation on 2026-10-13. No implemented engine, API or target qualification is claimed.",
+  "required_outcome": "One saved generation lifecycle for three initial categories: Given extensions including named/inline traits and named custom keyword definitions, Then scoped styles and custom reusable Then rendering, with source-owned composition/contracts and explicit actual runtime targets. Ordinary When scenarios and handlers retain normal Can implementations.",
+  "categories": [
+    {
+      "section": "Given",
+      "surface": "Given extensions: named/inline traits and named standalone custom keyword definitions",
+      "naming_status": "Given retains named and inline model/field trait prompts as distinct contribution/reuse forms. Named custom keywords define standalone declarations through keyword Name(signature) [agent=profile] $\"prompt\", with standalone Name key=value applications and named required compile-time arguments. Initial reference kinds model, field(target,type) and operation plus checked scalar/enum/array constants do not impose a capability ceiling: future kinds/producers require explicit compiler/canonical-owner integration. No anonymous keyword definition, prompted application, positional/default guessing, executable Given binding or built-in redefinition. Novel keyword behavior need not lower to existing Can expressions.",
+      "authoring": "Given retains named and inline model/field trait prompts as distinct contribution/reuse forms. Named custom keywords define standalone declarations through keyword Name(signature) [agent=profile] $\"prompt\", with standalone Name key=value applications and named required compile-time arguments. Initial reference kinds model, field(target,type) and operation plus checked scalar/enum/array constants do not impose a capability ceiling: future kinds/producers require explicit compiler/canonical-owner integration. No anonymous keyword definition, prompted application, positional/default guessing, executable Given binding or built-in redefinition. Novel keyword behavior need not lower to existing Can expressions.",
+      "syntax": "trait completable $\"Add done:bool=false and preserve the existing authorized update path.\"",
+      "generates": [
+        "Saved trait declaration contributions and required workerd JavaScript ES modules; named custom keyword implementations support new implicit semantics beyond existing .can expressibility",
+        "Typed owner-visible inputs, outputs, lifecycle, reads, dependencies, effects and authority contracts as needed, plus supported schema/interface declarations"
+      ],
+      "target": "workerd for runtime implementations",
+      "owner": "The frozen v1 descriptor selects owner-versioned producer schemas and exposes identity/targets/arguments, saved export, exact inputs/results, lifecycle, reads/dependencies, effects/authority and finite bounds. Source and checked owning contributions establish the contract; wrappers derive runtime artifacts without JS discovery or a second authored registry. Future required producers need concrete owner integration, never metadata self-registration. Canonical permission, storage, transaction, replay and value owners remain governing constraints."
+    },
+    {
+      "section": "Then",
+      "surface": "style",
+      "naming_status": "Reusable named definitions, named attachments and inline component attachments are retained; v1 source is frozen, engine unqualified.",
+      "authoring": "Top-level style Name $\"prompt\" defines reusable CSS without a visual body. Ordinary rendered components/pages/custom instances carry one $\"prompt\" or $Name suffix; nonvisual declarations and top-level anonymous scopes are excluded. Ordinary wrappers are superseded. Generated view renderer prompts stay in the view header, with one optional second $\"prompt\" or $Name suffix on that header for renderer-root styling and canonical controls as its only children; no inline, wrapper or leaf style statement exists. Compatible named uses share CSS without AI or copied outputs, with separate checked root/part instances; caller styling respects child-host/interior ownership.",
+      "syntax": [
+        "Then\n style CompactCard $\"Calm compact cards with clear focus indicators.\"\n page / $\"A calm responsive workspace.\"\n  card \"Add a task\" $CompactCard\n  card \"Your tasks\" $CompactCard",
+        "card \"One-off panel\" $\"Compact layout with clear focus indicators.\"",
+        "view TaskTile(row:Todo) $\"Render the admitted task fields.\"\n style CompactCard"
+      ],
+      "generates": [
+        "Accepted scoped CSS against compiler-owned component/part hooks"
+      ],
+      "target": "browser CSS",
+      "owner": "Named definitions and inline attachments retain internal source/output associations independent of provider-job grouping. Named applications share saved CSS, each with its own root/part instances; no AI call per use. Names provide semantic reuse, not retry handles."
+    },
+    {
+      "section": "Then",
+      "surface": "view/show",
+      "naming_status": "Accepted prompt-header view/show with existing row-bound same-module scope plus checked canonical controls/styles. Broader props/slots/nested show/exports excluded initially.",
+      "authoring": "Define a row-bound generated view with a render prompt and optional checked canonical control/style children; show it with the existing exact row binding.",
+      "syntax": "view TaskTile(row:Todo) $\"Render the task title and an Open/Done badge in an accessible compact tile.\"\n...\nshow TaskTile {row=row}",
+      "generates": [
+        "Saved server renderer/template JavaScript",
+        "Scoped CSS when needed",
+        "Separate browser JavaScript only when the component needs client interaction"
+      ],
+      "target": "workerd for server renderer; browser for client interaction/assets",
+      "owner": "Typed view input contract and admitted field projections/actions; custom rendering cannot create a business operation or permission by appearance."
+    }
+  ],
+  "current_view_contract": {
+    "implemented": "Same-module Then view NAME(row:LocalModel), ordinary presentation children, show NAME {row=expression}, exact required nonnullable stored row. Argument evaluates once; IR expands source presentation and carries use-specific identity.",
+    "missing": "Prompt-generated rendering/JS/assets and arbitrary typed props/reusable slots/export/import are not supplied by that pilot. Extending those is separate finite work.",
+    "evidence": [
+      "compiler/src/syntax/parser.rs:6045",
+      "compiler/src/analysis/resolve.rs:5993",
+      "compiler/src/analysis/types.rs:9147",
+      "compiler/src/codegen/ir.rs:3847"
+    ],
+    "documentation_gap": "Current grammar/design presentation tables omit this implemented view pilot; use verified code for this catalog, and do not claim a general public component factory.",
+    "accepted_initial_scope": "Extend the existing row-bound source-expansion pilot with generated render/browser exports, canonical controls and styles; broader component APIs are excluded."
+  },
+  "generation_order": [
+    "Resolve owning source, compile-time keyword applications, effective recipes and saved associations.",
+    "Prepare Given contributions/keyword bindings before dependent frontend consumers.",
+    "Group frontend work by compatible effective complete recipe, supplying each job whole-Then context and all style/view intents/use contracts.",
+    "Validate all required full-retry outputs and conditionally accept the complete set through one journal; selective refinement uses its affected scope."
+  ],
+  "ai_generation_trigger": "An explicit generation/preparation operation creates or refreshes selected candidates. Normal build/check/bundle does not contact an AI; it consumes accepted saved outputs. Missing/stale inputs diagnose. First-generation UX may combine preparation and build explicitly, but no silent provider call is assumed.",
+  "deterministic_build_outputs": [
+    "Application JavaScript and portable Worker bundle, including normal compiler-emitted runtime implementations of ordinary When bodies; these deterministic outputs are not stochastic generation artifacts",
+    "Schemas and HTTP/MCP/form interfaces derived from owning declarations",
+    "CSS/client assets and dependency graph from accepted generated implementation",
+    "Required resource/binding descriptors and schema/index migration plan using existing evolution rules",
+    "Separate inline example/test artifact from authored fixtures/examples"
+  ],
+  "shared_record": "Minimal declaring unit/source association, relevant source/contract/target fingerprint, effective generator recipe and original produced file identities/locations, with current compatibility state. Keep truthful historical origin distinct from current edited bytes; avoid authored dependency/interface manifests or patch-overlay reconstruction.",
+  "shared_controls": "Use the controls catalog. Primary implementation files are editable; candidates are isolated and promotion compares current source plus file bytes. Manual retry freshly regenerates every current prompt in the active app/build scope, including successful styles, without unit selection or per-prompt authored names. Current outputs/direct edits survive until acceptance and survive reset/cancel/failure. Ordinary builds use current tracked bytes with zero provider calls. The frozen implementation contract selects compatible-recipe whole-Then jobs and one complete full-retry acceptance set/run journal; scoped refinement remains available.",
+  "agent_defaults": {
+    "Then": "frontend by default; a configured frontend recipe overrides shared, otherwise shared supplies it. No repeated agent= option.",
+    "overrides": "Run profile > owning declaration agent > category default. Explicit settings file replaces root settings; run fields override the selected recipe. Record values and origins.",
+    "Given": "Accepted shared generation recipe for named/inline traits and named custom keyword definitions; no mandatory backend role. Effective recipes are recorded for each internal source association; ordinary When has no generation profile."
+  },
+  "constraints": [
+    "Mandatory static $\"...\" generation carriers are human accepted for named/inline traits, named custom Given keyword definitions, style and prompted view. The $ must be contiguous with a JSON string; no interpolation, runtime expressions or message variants. Existing ordinary strings, # descriptions and ## comments remain ordinary/nonexecutable. The marker is invalid as a do body; scenarios and handlers use ordinary Can bodies. No anonymous inline keyword definition or prompted keyword application is accepted.",
+    "Generated new Given keyword semantics need a defined extensible typed owner-visible integration ABI; current missing compiler/runtime seams are implementation gaps, not exclusions. New semantics need not reduce to existing constructs. Current Can checking does not prove arbitrary JS semantics or isolation.",
+    "Server JS must be qualified under selected workerd settings; browser interaction JS has a separate client execution environment.",
+    "Use admitted projections and canonical operation/form bindings; preserve current permissions, versions, transactions, replay, ordering and UI feedback.",
+    "Generation uses static owning contracts/templates and declared behavior, not live business records or embedded credentials.",
+    "Keep authored examples/expected behavior independent of implementation generation. Compiler checks and AI-written tests alone do not establish prose correspondence.",
+    "Generated schema changes still require the existing migration workflow; code generation does not itself migrate data."
+  ],
+  "advice": {
+    "records": "docs/design/jev/build-generation-20261013/{1,2,3}.{questions,result}.json",
+    "trait_probabilities": [
+      0.89,
+      0.62,
+      0.72
+    ],
+    "trait_confidence": [
+      0.85,
+      0.49,
+      0.63
+    ],
+    "do_prompt_probabilities": [
+      0.74,
+      0.59,
+      0.57
+    ],
+    "do_prompt_confidence": [
+      0.65,
+      0.45,
+      0.43
+    ],
+    "do_generate_probabilities": [
+      0.18,
+      0.32,
+      0.29
+    ],
+    "interpretation": "Historical requests favored trait and do prompt, with explicit do generate a meaningful alternative in two requests. The prior do-prompt adoption is superseded by the human decision to keep ordinary expressible When bodies in Can and exclude them from generation. Raw requests, probabilities and answers remain historical; they do not advise the new three-category scope or qualify implementation."
+  },
+  "open_decisions": [],
+  "provider_configuration": {
+    "status": "Accepted can.gen.toml version 1, complete runner/model profile pairs and explicit settings/run precedence; adapters remain implementation work.",
+    "proposed_file": "Accepted can.gen.toml at the explicitly supplied project root; retained key names earlier proposal history.",
+    "source_owner": ".can owns app composition, typed contracts, prompts and optional logical profile references. It need not embed tool binaries or provider/model recipes.",
+    "tooling_owner": "Project generation config selects CLI adapter/model and bounded execution preferences, with optional role/named profiles. It is not an app/source/dependency/interface manifest.",
+    "example": "# Accepted configuration example; not supported by the current compiler.\n# Replace the placeholders with models available to the selected installed CLI.\nversion = 1\n\n[generation]\nrunner = \"codex\"\nmodel = \"YOUR_AVAILABLE_MODEL_ID\"\nmax_attempts = 1\ntimeout_seconds = 600\n\n# Optional complete runner/model pair; omitted limits use shared finite limits.\n# Then uses frontend when configured, otherwise shared; Given uses shared; ordinary When has no generation profile.\n[generation.profiles.fast]\nrunner = \"opencode\"\nmodel = \"PROVIDER/MODEL_ID\"\n",
+    "profile_selection": "Run profile > owning declaration agent > category default. Then frontend resolves its configured complete pair or shared; Given named/inline traits and named custom keyword definitions use shared, with each owning prompt association retaining its effective recipe. Ordinary When has no generation profile. Unknown explicit profiles diagnose.",
+    "settings_resolution": "Explicit --settings file replaces committed can.gen.toml at the supplied project root; per-run fields override selected recipe. No ambient user/local/ancestor search. Runner override requires explicit compatible model. Report origins.",
+    "authentication": "Use installed CLI login/authentication and local environment. Do not commit credentials or pass them into generated/browser code.",
+    "model_identity": "Runner/CLI and model are separate controls. Pass explicit requested model selection; record adapter/executable version, requested model and actual model/provider reported by the tool when available. Report unknown resolved identity rather than inventing a pin.",
+    "change_semantics": "Runner/model/config changes affect future generation/refinement. They do not overwrite current implementation, force an AI call, or by themselves make compatible saved code invalid. Status reports recipe drift; relevant source/contracts/target changes still require compatibility reconciliation.",
+    "api_future": "A future API runner may implement the same finite input/candidate-output adapter contract. Direct API integration is out of the current CLI-first scope.",
+    "profile_schema": "Complete runner/model pairs; optional finite limits reuse shared limits, without an inheritance graph. Native options belong to the chosen adapter recipe and never cross runners implicitly."
+  },
+  "runner_contract": {
+    "adapters": [
+      "codex",
+      "muse",
+      "claude-code",
+      "opencode"
+    ],
+    "input": "Captured owning prompts/contracts/templates, current implementation when refining, target configuration, server-issued allowed logical output targets and finite run settings.",
+    "invocation": "CLI-specific noninteractive arguments passed as an argv array and prompt stdin/file, never concatenated shell commands. Use the installed tool's supported model/permission controls without requiring a TUI.",
+    "workspace": "Build-time generation/refinement runs read-only with enforced no-write capabilities and submits content through the custom MCP server. Only the host writes isolated candidate files/provenance/metadata. The user-facing authoring agent retains ordinary authorized direct primary-file edits under participating leases; adapter names do not establish enforcement.",
+    "result": "Stream progress, record attempt/session identity where available, completion/cancellation/exit state and host-owned MCP submissions/candidate output files. Candidate validity comes from file/interface/target checks, not a successful chat message.",
+    "limits": "One attempt by default, timeout and cancellation control. Optional turn/spend/permission controls only when the adapter can enforce them; unsupported requested controls diagnose rather than pretending they worked.",
+    "auth_failure": "Missing binary/login, unsupported model, permission prompt or unsupported headless mode yields an actionable failure/needs-attention state and retains current files. No automatic fallback to another tool or unrestricted permissions.",
+    "continuation": "Resume/recover a specific recorded session only where supported and while the captured request is still applicable. Session recovery, explicit retry and new refinement remain distinct.",
+    "capability_preflight": "Before launch, diagnose lack of custom MCP support or enforceable read-only/no-write operation, including generic write-tool and filesystem shell-write restrictions. Native availability/help evidence does not qualify this boundary; a prompt-only no-write instruction is insufficient."
+  },
+  "implementation_files": {
+    "ownership": "Tracked editable current JS/CSS, contributions and minimal unit.json live under can.generated/<opaque-unit-id>/; isolated candidates/logs/leases/journals under ignored .can/gen/.",
+    "example_layout": "can.generated/<opaque-unit-id>/unit.json plus server.js, browser.js, style.css, contributions.can and assets only where required. Candidates/logs/leases/journals are ignored under .can/gen/.",
+    "direct_editing": "The authoring agent inspects/edits current JS/CSS through ordinary authorized file access under brief edit leases. Builds consume actual current bytes with deterministic checks and no AI/candidate ceremony for source-compatible edits.",
+    "discovery": "Structured inspect/status returns unit IDs, owning source range, current/candidate paths, target, drift/recipe and attempt state. Inline scopes need no name/editor selection; edit.begin returns exact coordinated paths/token.",
+    "provenance": "Generation records identify the historical output that was actually produced. Later byte edits are marked modified since generation; do not credit them to the original generator or infer an editor identity. Current code and original receipt are distinct facts.",
+    "refine": "Capture current files plus owning intent/contracts and a refinement instruction, then produce a separate candidate. This preserves manual refinements as input rather than starting from the original generated base.",
+    "fresh": "An explicit fresh generation starts from the current source prompt/contracts without treating existing edited implementation as the design baseline. Generator content is submitted through MCP; the host writes isolated candidates without deleting current files.",
+    "promotion": "Selected D6 v1: Given preparation precedes dependent frontend consumers; jobs group by compatible effective complete recipe and every frontend job receives whole-Then context plus all style/view intents/use contracts. All required full-retry outputs validate and accept together under one run journal. Incomplete/failed/conflicting sets preserve every current group; recovery restores the whole old set before commit or finishes the whole new set after commit. Selective refinement retains its declared scope. One CLI job may make many model/tool calls. Cooperative leases and complete source/current-byte/fence comparisons gate replacement; BGEN10 excludes uncooperative-writer CAS.",
+    "source_repair": "Contract/intent drift may be repaired through AI refinement or direct code changes. An explicit deterministic validate/adopt operation can reconcile manually repaired files with current relevant inputs; it does not rewrite historical generation provenance or prove prose meaning.",
+    "durable_refinement": "If a refinement changes lasting intended behavior/style, update the owning .can prompt/contract or retain the instruction as an explicit refinement note. Current edited code remains saved even when intent has not yet been reconciled; fresh generation is deliberately a new candidate."
+  },
+  "controls_catalog": [
+    {
+      "control": "doctor",
+      "meaning": "Check configured adapter availability/version, supported headless/model controls, custom MCP support, enforceable read-only/no-write capabilities and usable native authentication where deterministically available, without generating code. Unsupported MCP/no-write capabilities diagnose before launch."
+    },
+    {
+      "control": "status / inspect",
+      "meaning": "Return structured units/IDs, source mapping, concrete current/candidate paths, target, drift, recipe and attempt state; no interactive unit picker required."
+    },
+    {
+      "control": "generate",
+      "meaning": "Explicit preparation creates candidates from current owning source/contracts and effective recipes. Selective preparation/refinement can retain its declared scope; full manual retry instead rediscovers all current prompts in normal active app/build selection, with no required explicit unit list. Existing outputs are retained until acceptance."
+    },
+    {
+      "control": "retry",
+      "meaning": "Fresh full candidate generation for all current generation prompts in the active app/build scope, including successful or loved styles, from current source/contracts and effective recipes. No per-prompt names, unit IDs, failed-attempt target or explicit unit list is required. Normal build selection determines scope; unrelated apps are excluded. Preserve working outputs/direct edits until acceptance. The frozen implementation contract selects compatible-recipe whole-Then jobs and one complete full-retry acceptance set/run journal; scoped refinement remains available. Selected D6 v1: Given preparation precedes dependent frontend consumers; jobs group by compatible effective complete recipe and every frontend job receives whole-Then context plus all style/view intents/use contracts. All required full-retry outputs validate and accept together under one run journal. Incomplete/failed/conflicting sets preserve every current group; recovery restores the whole old set before commit or finishes the whole new set after commit. Selective refinement retains its declared scope. One CLI job may make many model/tool calls."
+    },
+    {
+      "control": "refine UNIT \"instruction\"",
+      "meaning": "Use current implementation and current owning source/contract as the baseline for an AI candidate; optional per-run profile/tool/model override is recorded."
+    },
+    {
+      "control": "diff / preview",
+      "meaning": "Return machine-readable diffs and optional rendered preview URLs/images/results without replacing current code. Visual/editor UI is optional; no human review gate."
+    },
+    {
+      "control": "validate / adopt",
+      "meaning": "Run finite interface/contract and actual-target checks for a candidate or directly repaired files. Adoption binds manually reconciled files to current inputs without a provider call; the versioned dispatcher and frozen checked record contract supply the implementation handoff."
+    },
+    {
+      "control": "accept UNIT",
+      "meaning": "Conditional promotion of qualified candidates with current-input/byte/fence checks and no mandatory human review. Existing selective operations retain their declared scope; a full retry must not assume independent selected-unit promotion. The frozen implementation contract selects compatible-recipe whole-Then jobs and one complete full-retry acceptance set/run journal; scoped refinement remains available. Conflicts and late results preserve current files. Selected D6 v1: Given preparation precedes dependent frontend consumers; jobs group by compatible effective complete recipe and every frontend job receives whole-Then context plus all style/view intents/use contracts. All required full-retry outputs validate and accept together under one run journal. Incomplete/failed/conflicting sets preserve every current group; recovery restores the whole old set before commit or finishes the whole new set after commit. Selective refinement retains its declared scope. One CLI job may make many model/tool calls."
+    },
+    {
+      "control": "cancel",
+      "meaning": "Stop the runner best-effort and fence late results from promotion; distinguish confirmed stop from unknown provider work."
+    },
+    {
+      "control": "reset UNIT",
+      "meaning": "Discard/supersede pending candidate/attempt state at its declared operation scope, preserving current JS/CSS/direct edits. No AI call. The frozen implementation contract selects compatible-recipe whole-Then jobs and one complete full-retry acceptance set/run journal; scoped refinement remains available. Selected D6 v1: Given preparation precedes dependent frontend consumers; jobs group by compatible effective complete recipe and every frontend job receives whole-Then context plus all style/view intents/use contracts. All required full-retry outputs validate and accept together under one run journal. Incomplete/failed/conflicting sets preserve every current group; recovery restores the whole old set before commit or finishes the whole new set after commit. Selective refinement retains its declared scope. One CLI job may make many model/tool calls."
+    },
+    {
+      "control": "rollback",
+      "meaning": "Explicitly restore an earlier tracked implementation/metadata revision with compatibility checking, normally through source-control history."
+    },
+    {
+      "control": "build/check",
+      "meaning": "Consume current tracked implementations and derived dependencies/interfaces, validate and bundle, with zero AI calls and no generation credentials required."
+    }
+  ],
+  "controls_advice": {
+    "records": "docs/design/jev/generation-controls-20261013/{1,2,3}.{questions,result}.json",
+    "root_profiles_probabilities": [
+      0.94,
+      0.74,
+      0.95
+    ],
+    "root_profiles_confidence": [
+      0.92,
+      0.65,
+      0.93
+    ],
+    "editable_primary_probabilities": [
+      0.96,
+      0.93,
+      0.95
+    ],
+    "editable_primary_confidence": [
+      0.95,
+      0.91,
+      0.93
+    ],
+    "uncertainty": "All requests favor project profiles and editable primary files; the second retains .19 source-recipe and .07 external-preference probability. Advice does not adopt config grammar or qualify provider execution/JS semantics."
+  },
+  "verified_adapter_evidence": {
+    "codex": "Installed codex exec help exposes --model/--json/--cd/--sandbox; official noninteractive docs describe automation, JSONL, native authentication reuse and specific session resume. https://learn.chatgpt.com/docs/non-interactive-mode",
+    "claude_code": "Installed claude help exposes --print/--model/--output-format/--resume; official headless docs describe programmatic operation and session metadata. https://code.claude.com/docs/en/headless",
+    "opencode": "Executable found; official CLI docs describe run, --model provider/model, JSON format and session continuation. Local help failed opening its outside-workspace log, so installed behavior/auth is not qualified. https://dev.opencode.ai/docs/cli/",
+    "muse": "Installed muse exec help exposes noninteractive prompt/model/JSONL/workspace/model-step controls. Help printed despite a denied update-marker write; no generation/authentication run was performed.",
+    "qualification": "Availability/help/docs only. No coding model/provider inference, native login, changes to provider settings or working generator adapter is claimed. These historical checks do not establish custom MCP support or enforceable no-write operation; qualify both before any generator launch."
+  },
+  "targeting": {
+    "status": "Human adopts full current-source/recipe manual retry within active app/build scope. Earlier independent selected-unit retry and unselected-style preservation requirements are superseded; selective direct editing/refinement remains supported.",
+    "granularity": "Named trait definitions, inline trait scopes, named custom Given keyword definitions, named style definitions, inline style attachments and custom views retain distinct internal source/output associations. Named trait uses share saved contributions; custom keyword statements use the saved keyword definition without prompts. These associations do not mandate one provider job per source unit. Ordinary scenarios/handlers are not generation targets.",
+    "selection": "Full retry uses normal active-app selection without per-prompt names/IDs; selective editing/refinement/status retain explicit internal associations.",
+    "inline": "Structured status/inspect resolves stable internal identities for inline trait and component-style attachments from source ownership/location. These scopes require no editor selection or author-written name; a transient ordinal is not a saved identity. There are no anonymous inline custom keyword generation units.",
+    "isolation": "Selected D6 v1: Given preparation precedes dependent frontend consumers; jobs group by compatible effective complete recipe and every frontend job receives whole-Then context plus all style/view intents/use contracts. All required full-retry outputs validate and accept together under one run journal. Incomplete/failed/conflicting sets preserve every current group; recovery restores the whole old set before commit or finishes the whole new set after commit. Selective refinement retains its declared scope. One CLI job may make many model/tool calls.",
+    "batch": "Selected D6 v1: Given preparation precedes dependent frontend consumers; jobs group by compatible effective complete recipe and every frontend job receives whole-Then context plus all style/view intents/use contracts. All required full-retry outputs validate and accept together under one run journal. Incomplete/failed/conflicting sets preserve every current group; recovery restores the whole old set before commit or finishes the whole new set after commit. Selective refinement retains its declared scope. One CLI job may make many model/tool calls.",
+    "dependencies": "Revalidate relevant consumers when warranted, but do not regenerate or mutate their implementation implicitly. If changes outside selection are required, report the exact dependency and leave those units intact.",
+    "style_scope": "Selectors/hooks use per-application compiler-owned root/part instances while named uses share the definition CSS. A selected definition refinement reports every affected use; it preserves unrelated files, global theme/shared stylesheet and neighboring units. Inline prompts own one-off scopes.",
+    "shared_views": "A reusable view definition is a shared unit affecting its instances; structured inspect/diff reports the affected-use set for agent selection and qualification.",
+    "one_large_block": "Internal source scopes and reusable definitions describe ownership, not mandatory provider-job boundaries. Manual retry includes every current prompt in the active app/build scope regardless of authored names or block partitioning.",
+    "example": "Retry the active Todos app: freshly regenerate TaskEntry, TaskList and every other current generation prompt, even when TaskEntry is already loved. Keep working CSS/direct edits until candidate acceptance. A separate selective edit/refinement may still change only TaskList.",
+    "shared_styles": "Named style definitions are reusable within the owning package/app Then namespace. No exports, parameters or inheritance initially. Duplicate or unknown names and incompatible application contracts diagnose. Refinement selects the opaque definition unit ID and reports all uses."
+  },
+  "operator_contract": {
+    "status": "Human-required: generation tooling is primarily operated by the AI coding agent authoring .can, not by a person using a generation UI.",
+    "primary_surface": "Accepted can gen version 1 JSON dispatcher from stdin or --request FILE; one final envelope and optional JSONL events. Explicit IDs and typed errors; no dashboard/picker required.",
+    "discovery": "Structured inspect/status returns stable opaque unit identity, owner/source location, kind/target, current/candidate file paths, effective generator recipe, drift and attempt state. Named style names resolve reusable definitions; inline scope selection is machine-discoverable and needs no author-written name. Given discovery distinguishes named trait definitions, inline trait scopes and named custom keyword definitions; trait application words do not introduce keyword definitions.",
+    "requests": "Use structured instruction/request files or stdin; CLI arguments are programmatic argv, not interpolated shell text. Full retry selects the normal active app/build scope and needs no explicit unit IDs/list; internal IDs remain useful for discovery and selective controls.",
+    "errors": "Return typed failures with affected scope/source associations, retained current files, retry/resume capability and finite next actions. Unsupported or ambiguous app/build scope diagnoses; full retry does not diagnose absent per-prompt unit targets.",
+    "acceptance": "Selected D6 v1: Given preparation precedes dependent frontend consumers; jobs group by compatible effective complete recipe and every frontend job receives whole-Then context plus all style/view intents/use contracts. All required full-retry outputs validate and accept together under one run journal. Incomplete/failed/conflicting sets preserve every current group; recovery restores the whole old set before commit or finishes the whole new set after commit. Selective refinement retains its declared scope. One CLI job may make many model/tool calls.",
+    "inspection": "Diff and optional preview artifacts are machine-consumable diagnostics. A graphical editor or person viewing a preview is not a prerequisite to acceptance.",
+    "permissions": "The user-facing authoring agent retains authorized direct primary-file editing with participating leases. Launched build-time generators require enforced read-only/no-write operation and custom MCP submission; generic write tools/filesystem shell writes are disabled. Unsupported MCP/no-write capabilities diagnose before launch. Adapter authentication/permission needs return structured needs-attention state.",
+    "bounded_execution": "Provider work has finite attempt/time limits. Manual retry is a fresh full active app/build run; resume/recovery retains its recorded-session meaning. Failed validation, contract gaps, concurrent edits or out-of-scope dependencies preserve current files and return actionable state.",
+    "scope": "This is the developer generation-control surface. Existing generated application interaction contracts remain owned by Then/UI; no product UI behavior is changed by this decision.",
+    "implementation_status": "The machine protocol, stable inline identities, adapters, private local MCP output server, enforced generator no-write execution and generated-JS validation interface are unimplemented. The no-required-human-UI and host-owned submission boundaries are settled."
+  },
+  "requirements_document": "docs/specification/BUILD_GENERATION_REQUIREMENTS.md",
+  "requirements_ownership": "Human-clarified requirements own outcomes; choices.md and implementation-contract.md record Codex-selected frozen v1 under explicit Muse authorization. implementation-plan.md remains the single execution view. Historical advice does not qualify implementation.",
+  "open_decisions_consultation": {
+    "date": "2026-10-13",
+    "status": "Historical complete advice; unaffected choices adopted 2026-10-13. Narrow Given assumptions, do-prompt adoption and targeted retry are superseded; raw requests/results stay historical.",
+    "scope": "Historical D1-D6 consultation: 25 subchoices, three equivalent requests per group, 18 successful calls and 75 judgments. Retained raw advice did not settle the corrected keyword/full-retry scope; the later launch consultation separately advises the frozen implementation contract.",
+    "summary": "docs/design/jev/build-generation-decisions-20261013/summary.md",
+    "structured_results": "docs/design/jev/build-generation-decisions-20261013/summary.json",
+    "model": "jev-1.13.0",
+    "consistent_recommendations": [
+      "prompt-only new style surface initially",
+      "tracked minimal unit association records",
+      "unit-centered implementation directories",
+      "source-owned compiler-visible generated contributions",
+      "maps to current saved JavaScript with separate Can owner links"
+    ],
+    "unanimously_open": [
+      "Given application syntax",
+      "Given/When default role"
+    ],
+    "remaining_uncertainty": "Historical uncertainty remains saved; the launch consultation has weak/split keyword-surface advice. Codex selects frozen v1 under implementation authorization; neither consultation qualifies the engine.",
+    "relationship_to_prior_advice": "Earlier Given advice used the assistant's wrong bounded model/field/existing-rule framing; its raw requests/results remain historical and are not applicable advice for the corrected new local keyword outcome. Unrelated style/configuration advice and adopted choices retain their scope; no historical advice qualifies implementation."
+  },
+  "concrete_choices_proposal": {
+    "status": "Human-required outcomes remain accepted; Codex-selected D1/D4/D6 v1 is frozen under explicit human authorization for Muse implementation on 2026-10-13. No implemented engine, API or target qualification is claimed.",
+    "date": "2026-10-13",
+    "document": "docs/design/proposals/build-generation/choices.md",
+    "coverage": "Retain all 25 choice rows and human-required outcomes; D1/D4/D6 v1 is frozen in implementation-contract.md, with future owner-integrated capabilities remaining extensible.",
+    "required_qualification": "Explicitly adopted and integrated in BGEN10: concurrent replacement protection covers participating writer leases/coordinated readers, not uncooperative-writer CAS.",
+    "priority": "Human-clarified requirements own outcomes; choices.md and implementation-contract.md record Codex-selected frozen v1 under explicit Muse authorization. implementation-plan.md remains the single execution view. Historical advice does not qualify implementation."
+  },
+  "adopted_decisions": {
+    "date": "2026-10-13",
+    "authority": "Explicit human adoption in this conversation",
+    "choices": "docs/design/proposals/build-generation/choices.md",
+    "requirements": "docs/specification/BUILD_GENERATION_REQUIREMENTS.md",
+    "implementation_plan": "docs/design/proposals/build-generation/implementation-plan.md",
+    "scope": "Original 25 subchoices retained as history; human clarification supersedes narrow Given surface/integration assumptions. Unaffected subchoices, row-bound views/canonical controls, participating leases, mandatory static prompts and reusable named/inline styles stay accepted. The frozen implementation contract supplies Codex-selected explicit signatures, standalone named arguments and extensible owner-versioned producer bindings; implementation remains unqualified. The subsequent human decision supersedes do-prompt adoption: ordinary When bodies remain Can, with no generation unit or profile. Initial generation has exactly three categories. The frozen implementation contract selects compatible-recipe whole-Then jobs and one complete full-retry acceptance set/run journal; scoped refinement remains available. Retained historical advice is not evidence for the new policy or subsequently selected whole-Then grouping. Named/inline traits remain first-class. Named custom keywords introduce standalone Given statements; anonymous inline keyword definitions and prompted keyword applications are excluded.",
+    "concurrency_boundary": "BGEN10 now covers participating writers/readers. Direct edits use brief write leases; uncooperative arbitrary writers are not promised filesystem CAS.",
+    "implementation_status": "Explicit Muse implementation authorized; selected interfaces are frozen, with no engine/API/target completion claimed.",
+    "prompt_literal": "docs/design/proposals/build-generation/prompt-literal.json",
+    "generator_output_submission": "Custom MCP submission and host-owned candidate placement/metadata are human-required; private local server in existing Node tooling host, no required new package/daemon. Direct primary-file editing with leases remains available to the user-facing authoring agent, not the build-time generator."
+  },
+  "intent_correction": "Policy, unique, invariant and lock illustrated built-in implicit-behavior keywords, not generation targets. The assistant's earlier bounded model/field or existing-rule expansion framing is superseded by the required ability to define new local keywords with new behavior. The frozen implementation contract supplies Codex-selected explicit signatures, standalone named arguments and extensible owner-versioned producer bindings; implementation remains unqualified. The human also rejects outsourcing ordinary expressible When body writing through do prompts; its prior adoption is superseded. Initial generation categories are Given extensions including traits and custom keywords, Then scoped styles and custom reusable Then rendering. Declared integration of novel keyword semantics with ordinary When/workerd remains required; D1/D4 v1 is frozen in the implementation contract. Given extensions include first-class named and inline prompted traits contributing reusable properties and supported rules, plus named prompted custom keyword definitions introducing new standalone Given statements with declared targets, arguments and implicit semantics. Trait application words compose trait contributions; they are not standalone custom keyword declarations. Custom keywords operate at the level of policy, unique, invariant and lock, without replacing those built-ins with prose. Anonymous inline keyword definitions and prompted keyword applications are excluded. The frozen implementation contract supplies Codex-selected explicit signatures, standalone named arguments and extensible owner-versioned producer bindings; implementation remains unqualified.",
+  "frontend_orchestration_proposal": {
+    "status": "Codex-selected/frozen v1 under explicit Muse implementation authorization; no one-model-call or qualification claim.",
+    "old_plan": "Earlier orchestration was unit-centered captured attempts and independent batches; it did not specify one frontend session consuming the entire Then.",
+    "recommendation": "Selected D6 v1: Given preparation precedes dependent frontend consumers; jobs group by compatible effective complete recipe and every frontend job receives whole-Then context plus all style/view intents/use contracts. All required full-retry outputs validate and accept together under one run journal. Incomplete/failed/conflicting sets preserve every current group; recovery restores the whole old set before commit or finishes the whole new set after commit. Selective refinement retains its declared scope. One CLI job may make many model/tool calls.",
+    "open_boundary": "Selected D6 v1: Given preparation precedes dependent frontend consumers; jobs group by compatible effective complete recipe and every frontend job receives whole-Then context plus all style/view intents/use contracts. All required full-retry outputs validate and accept together under one run journal. Incomplete/failed/conflicting sets preserve every current group; recovery restores the whole old set before commit or finishes the whole new set after commit. Selective refinement retains its declared scope. One CLI job may make many model/tool calls."
+  },
+  "manual_retry_correction": "Human clarification adopts fresh full manual retry: redo all current generation prompts in the active app/build generation scope, including successful or loved styles, using current source and effective recipes. Scope follows normal build selection, not every unrelated app in the repository. No authored per-prompt names or unit selection is required. Working outputs and direct edits remain until acceptance; reset/cancel/failure preserve them and ordinary builds use zero AI calls. Prior selected-unit/captured failed-only retry restrictions are superseded history. The frozen implementation contract selects compatible-recipe whole-Then jobs and one complete full-retry acceptance set/run journal; scoped refinement remains available.",
+  "generator_output_submission": {
+    "status": "Human-required custom MCP output-submission boundary accepted; generation engine/server/adapters unimplemented.",
+    "input": "The host supplies captured generation context plus server-issued allowed logical output targets. These targets describe admitted artifacts, not filesystem paths chosen by the generator.",
+    "submission": "Build-time generator agents submit structured CSS, JavaScript and other generated code/content to the custom MCP server against those allowed logical targets. They must not create their own output files or supply filesystem destinations.",
+    "host_ownership": "The host validates each submission and controls correct placement, writing isolated candidate files and their provenance/required metadata. Existing validation, leases, current-input/byte/fence checks and acceptance controls govern promotion; submission alone does not accept output.",
+    "enforcement": "Adapters must enforce a read-only/no-write generator environment for protected project, current-output and candidate-output files, with generic write tools and filesystem shell writes disabled for those locations. MCP alone does not isolate filesystem access, and a prompt-only promise is insufficient. Diagnose unsupported runner MCP or enforceable no-write capabilities before launching generation; do not fall back to direct generator file writes. Native CLI session/cache housekeeping may be separately isolated and is not generated application output.",
+    "lifetime": "Private bounded Node tooling session; no new package or persistent daemon. Selected tools: generation_context for immutable context/handles/roles and generation_submit for batches of {target, role, content}; UTF-8 text and checked encoded assets. Transport remains adapter-specific and protected no-write enforcement gates launch.",
+    "job_grouping": "Selected D6 v1: Given preparation precedes dependent frontend consumers; jobs group by compatible effective complete recipe and every frontend job receives whole-Then context plus all style/view intents/use contracts. All required full-retry outputs validate and accept together under one run journal. Incomplete/failed/conflicting sets preserve every current group; recovery restores the whole old set before commit or finishes the whole new set after commit. Selective refinement retains its declared scope. One CLI job may make many model/tool calls.",
+    "authoring_agent": "The user-facing coding agent authoring .can remains permitted to inspect and directly edit primary generated files with existing participating edit leases. It is distinct from the launched build-time generator whose output must pass through MCP."
+  },
+  "given_extension_forms": "Given retains named and inline model/field trait prompts as distinct contribution/reuse forms. Named custom keywords define standalone declarations through keyword Name(signature) [agent=profile] $\"prompt\", with standalone Name key=value applications and named required compile-time arguments. Initial reference kinds model, field(target,type) and operation plus checked scalar/enum/array constants do not impose a capability ceiling: future kinds/producers require explicit compiler/canonical-owner integration. No anonymous keyword definition, prompted application, positional/default guessing, executable Given binding or built-in redefinition. Novel keyword behavior need not lower to existing Can expressions.",
+  "implementation_contract": "docs/design/proposals/build-generation/implementation-contract.md",
+  "selected_implementation": {
+    "authority": "Codex-selected/frozen v1 for explicitly human-authorized Muse implementation; required outcomes remain human-owned and implementation remains unqualified.",
+    "D1": "Explicit keyword signatures and standalone Name key=value uses; named/inline traits retained. Rendered-component $\"...\" / $Name attachments are the only style carriers besides the top-level named definition; a generated view carries its root style as a second suffix on its header.",
+    "D4": "Checked owner-versioned producers; initial state.unique-key@1 supplies novel NFKC/ASCII-lowercase uniqueness, without limiting future owner integration. Computed-key descriptor/code-closure fingerprints join existing schema activation.",
+    "D6": "Compatible-recipe jobs receive whole-Then context; full retry validates/accepts all required outputs together under one run journal. Scoped refinement remains supported.",
+    "contract": "docs/design/proposals/build-generation/implementation-contract.md"
+  },
+  "launch_consultation": "docs/design/jev/build-generation-launch-20261013/summary.md"
+}

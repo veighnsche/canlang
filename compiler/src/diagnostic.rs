@@ -1,6 +1,6 @@
 //! One diagnostic engine for CLI, compiler, linter and LSP.
 //!
-//! Implements the machine format from `implementation/DIAGNOSTICS.md`:
+//! Implements the machine format from `docs/implementation/DIAGNOSTICS.md`:
 //! versioned envelope, stable codes, canonical byte spans, deterministic
 //! ordering. Human text rendering shares the same data.
 

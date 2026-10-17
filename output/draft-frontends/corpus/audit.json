@@ -26211,67 +26211,67 @@
   "prerequisites": [
     {
       "id": "BGI-01",
-      "plan": "design/proposals/build-generation/implementation-plan.md",
+      "plan": "docs/design/proposals/build-generation/implementation-plan.md",
       "status": "existing owner requirement; this audit closes no implementation criterion"
     },
     {
       "id": "BGI-02",
-      "plan": "design/proposals/build-generation/implementation-plan.md",
+      "plan": "docs/design/proposals/build-generation/implementation-plan.md",
       "status": "existing owner requirement; this audit closes no implementation criterion"
     },
     {
       "id": "BGI-03",
-      "plan": "design/proposals/build-generation/implementation-plan.md",
+      "plan": "docs/design/proposals/build-generation/implementation-plan.md",
       "status": "existing owner requirement; this audit closes no implementation criterion"
     },
     {
       "id": "BGI-04",
-      "plan": "design/proposals/build-generation/implementation-plan.md",
+      "plan": "docs/design/proposals/build-generation/implementation-plan.md",
       "status": "existing owner requirement; this audit closes no implementation criterion"
     },
     {
       "id": "BGI-05",
-      "plan": "design/proposals/build-generation/implementation-plan.md",
+      "plan": "docs/design/proposals/build-generation/implementation-plan.md",
       "status": "existing owner requirement; this audit closes no implementation criterion"
     },
     {
       "id": "BGI-06",
-      "plan": "design/proposals/build-generation/implementation-plan.md",
+      "plan": "docs/design/proposals/build-generation/implementation-plan.md",
       "status": "existing owner requirement; this audit closes no implementation criterion"
     },
     {
       "id": "BGI-07",
-      "plan": "design/proposals/build-generation/implementation-plan.md",
+      "plan": "docs/design/proposals/build-generation/implementation-plan.md",
       "status": "existing owner requirement; this audit closes no implementation criterion"
     },
     {
       "id": "BGI-08",
-      "plan": "design/proposals/build-generation/implementation-plan.md",
+      "plan": "docs/design/proposals/build-generation/implementation-plan.md",
       "status": "existing owner requirement; this audit closes no implementation criterion"
     },
     {
       "id": "BGI-09",
-      "plan": "design/proposals/build-generation/implementation-plan.md",
+      "plan": "docs/design/proposals/build-generation/implementation-plan.md",
       "status": "existing owner requirement; this audit closes no implementation criterion"
     },
     {
       "id": "BGI-10",
-      "plan": "design/proposals/build-generation/implementation-plan.md",
+      "plan": "docs/design/proposals/build-generation/implementation-plan.md",
       "status": "existing owner requirement; this audit closes no implementation criterion"
     },
     {
       "id": "BGI-11",
-      "plan": "design/proposals/build-generation/implementation-plan.md",
+      "plan": "docs/design/proposals/build-generation/implementation-plan.md",
       "status": "existing owner requirement; this audit closes no implementation criterion"
     },
     {
       "id": "BGI-12",
-      "plan": "design/proposals/build-generation/implementation-plan.md",
+      "plan": "docs/design/proposals/build-generation/implementation-plan.md",
       "status": "existing owner requirement; this audit closes no implementation criterion"
     },
     {
       "id": "BGI-13",
-      "plan": "design/proposals/build-generation/implementation-plan.md",
+      "plan": "docs/design/proposals/build-generation/implementation-plan.md",
       "status": "existing owner requirement; this audit closes no implementation criterion"
     }
   ],

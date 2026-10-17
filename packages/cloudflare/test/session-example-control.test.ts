@@ -104,7 +104,7 @@ async function ownerFixture(constructRanking?: SessionConstructRankingOptions, r
   for (const name of ["compiler", "catalog.json", "help.md"]) writeFileSync(join(root, name), name);
   writeFileSync(runtime, "runtime v1");
   const capturedPaths = ["docs/specification/CONSTRUCT-HELP.md", "docs/specification/GRAMMAR.md",
-    "docs/specification/DESIGN.md", "design/UI-COMPONENTS.md", "packages/values/src/catalog.ts",
+    "docs/specification/DESIGN.md", "docs/design/UI-COMPONENTS.md", "packages/values/src/catalog.ts",
     "packages/ui/src/catalog.ts", "packages/values/dist/src/catalog.js", "packages/ui/dist/src/catalog.js"];
   if (realHelp) {
     const repository = resolve(import.meta.dirname, "../../..");

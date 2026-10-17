@@ -19,7 +19,7 @@ The public website serves the byte-identical installer from the qualified [v0.1.
 
 The installer configures your shell PATH. Open a new terminal, then run `can --version`. Write and run applications in your own folder; no source checkout, catalog build or runtime overrides are required. Follow the [first application tutorial](public/01-Getting-started/02-installation.md) and [local development guide](public/03-Build-and-operate/01-local-development.md).
 The script supports pinned versions with `bash -s -- --version VERSION` after
-the pipe. See the [website agent handoff](../implementation/lean-install/website-handoff.md)
+the pipe. See the [website agent handoff](implementation/lean-install/website-handoff.md)
 for the exact source, publication gates and copy-ready deployment prompt.
 
 ### Published standalone v0.1.1 — 2026-10-15
@@ -164,7 +164,7 @@ until they are installed; it never silently skips browser checks. Contributors w
 Service credentials and authored browser tests remain application inputs.
 Git is needed only for explicitly requested `git:<revision>` rollback.
 
-See [the bounded shipping audit](../implementation/lean-install/README.md) for
+See [the bounded shipping audit](implementation/lean-install/README.md) for
 retained files, dependency choices, verification and release gates.
 
 ## Optional compiler-only release artifact

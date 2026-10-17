@@ -481,7 +481,7 @@ fn imported_example_helpers_use_actual_production_registry() {
     )
     .unwrap();
     let source = root
-        .join("implementation/compiler-completion/bdd-facts/independent-review/sequence-alias.can");
+        .join("docs/implementation/compiler-completion/bdd-facts/independent-review/sequence-alias.can");
     let compiled = Command::new(env!("CARGO_BIN_EXE_can"))
         .args(["compile", "--format=json", "--catalog"])
         .arg(root.join("packages/values/dist/catalog.json"))

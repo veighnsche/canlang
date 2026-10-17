@@ -2,7 +2,7 @@
 
 Result: no blocking issue found in the proposed planning sequence. Implementation remains deferred. This review does not certify repository correctness, target execution, library suitability or future acceptance.
 
-Evidence inspected directly: adoption-sequence.md/.json; implementation/remaining-work/tasks.json; RUST-PORT-EXECUTION-PLAN.md and RUST-PORT-LANES.md; orchestration bootstrap/supervisor contracts; values numeric representations/codecs; work-kernel Cargo manifest/actual Rust root; Cloudflare modules/sourcemap/invoke/bundle source; UI/interfaces manifests; identity token/password helpers. Previous review verdicts were not used as proof. No source edit, build, test, install, runtime or Git operation occurred.
+Evidence inspected directly: adoption-sequence.md/.json; docs/implementation/remaining-work/tasks.json; RUST-PORT-EXECUTION-PLAN.md and RUST-PORT-LANES.md; orchestration bootstrap/supervisor contracts; values numeric representations/codecs; work-kernel Cargo manifest/actual Rust root; Cloudflare modules/sourcemap/invoke/bundle source; UI/interfaces manifests; identity token/password helpers. Previous review verdicts were not used as proof. No source edit, build, test, install, runtime or Git operation occurred.
 
 Verified planning properties:
 
