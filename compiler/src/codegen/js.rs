@@ -7822,6 +7822,154 @@ impl<'a> Emitter<'a> {
 
     /// Only the final admitted query recipe can replace the original scoped
     /// ANY with its short-circuit producer; no completed query array is made.
+    /// Navigated parent edge for the composed direct ANY: a `param.parent`
+    /// member over the admitted input, spanning the exact recorded receiver.
+    /// Source spelling and lineage seals stay with the defining matcher.
+    fn navigated_any_parent(
+        &self,
+        source: &crate::analysis::scenario_disclosure::DisclosureQuery,
+        query: &super::ir::IrQuery,
+    ) -> bool {
+        let [(receiver, parameter_id)] = source.inputs.as_slice() else {
+            return false;
+        };
+        let Some(parameter) = self.ir.items.get(parameter_id.0 as usize) else {
+            return false;
+        };
+        let Some(parent) = query.parent.as_deref() else {
+            return false;
+        };
+        let IrExpr::Member { base, field } = &parent.expr else {
+            return false;
+        };
+        let IrExpr::Name(base_name) = &base.expr else {
+            return false;
+        };
+        field == "parent"
+            && base_name == &parameter.name
+            && parent.span.file == receiver.file
+            && parent.span.start == receiver.start
+            && parent.span.end == receiver.end
+    }
+
+    /// One recorded Control dependency per authored `and` leaf, in source
+    /// order: `param.field == operand` equalities or bare bool reads, with
+    /// the operand off any non-alias member base. The emitted callback
+    /// tests exactly these leaves.
+    fn conjunct_dependencies_match(
+        &self,
+        source: &crate::analysis::scenario_disclosure::DisclosureQuery,
+        body: &TypedExpr,
+        param: &str,
+    ) -> bool {
+        let boolean = ResolvedType::Scalar(Scalar::Bool);
+        let mut pending = vec![body];
+        let mut leaves: Vec<&TypedExpr> = Vec::new();
+        while let Some(node) = pending.pop() {
+            if let IrExpr::Binary {
+                op: IrBinOp::And,
+                left,
+                right,
+            } = &node.expr
+            {
+                if node.ty != boolean {
+                    return false;
+                }
+                pending.push(right.as_ref());
+                pending.push(left.as_ref());
+                continue;
+            }
+            leaves.push(node);
+        }
+        if leaves.len() != source.dependencies.len() {
+            return false;
+        }
+        let mut seen = HashSet::new();
+        for (leaf, dependency) in leaves.iter().zip(source.dependencies.iter()) {
+            let (member, field_name, operand) = match &leaf.expr {
+                IrExpr::Binary {
+                    op: IrBinOp::Eq,
+                    left,
+                    right,
+                } => {
+                    let IrExpr::Member { base, field } = &left.expr else {
+                        return false;
+                    };
+                    let IrExpr::Name(base_name) = &base.expr else {
+                        return false;
+                    };
+                    if base_name != param {
+                        return false;
+                    }
+                    (left.as_ref(), field.as_str(), Some(right.as_ref()))
+                }
+                IrExpr::Member { base, field } => {
+                    let IrExpr::Name(base_name) = &base.expr else {
+                        return false;
+                    };
+                    if base_name != param {
+                        return false;
+                    }
+                    (*leaf, field.as_str(), None)
+                }
+                _ => return false,
+            };
+            if leaf.ty != boolean || dependency.ty != member.ty {
+                return false;
+            }
+            match operand {
+                Some(operand) => {
+                    if operand.ty != member.ty {
+                        return false;
+                    }
+                    let IrExpr::Member { base, .. } = &operand.expr else {
+                        return false;
+                    };
+                    let mut root = base.as_ref();
+                    loop {
+                        match &root.expr {
+                            IrExpr::Name(name) => {
+                                if name == param {
+                                    return false;
+                                }
+                                break;
+                            }
+                            IrExpr::Member { base: next, .. } => {
+                                root = next.as_ref();
+                            }
+                            _ => return false,
+                        }
+                    }
+                }
+                None => {
+                    if member.ty != boolean {
+                        return false;
+                    }
+                }
+            }
+            if dependency.role
+                != crate::analysis::scenario_disclosure::DependencyRole::Control
+                || dependency.model != source.model
+                || dependency.model_name != source.model_name
+                || dependency.field_name != field_name
+                || !dependency.calls.is_empty()
+                || dependency.query_id.is_some()
+                || dependency.id.is_empty()
+                || !seen.insert(&dependency.id)
+                || dependency.source != source.source
+                || dependency.type_id.is_empty()
+                || Span::new(
+                    dependency.node.file,
+                    dependency.node.start,
+                    dependency.node.end,
+                ) != member.span
+            {
+                return false;
+            }
+        }
+        true
+    }
+
     fn lower_native_any(
         &mut self,
         target: &IrCallTarget,
@@ -7929,6 +8077,91 @@ impl<'a> Emitter<'a> {
                     at,
                 );
                 return Some(self.throw_expr("helper ANY lacks its original predicate source"));
+            }
+            let marker = serde_json::json!({"queryId":source.id,
+                "siteIndex":selected["sourceCall"]["siteIndex"],
+                "callIndex":selected["sourceCall"]["callIndex"]});
+            self.enter_scope();
+            let param = self.bind(param);
+            let predicate = self.lower_expr(body);
+            self.exit_scope();
+            self.stdlib.insert("executeScenarioReceiptAny".into());
+            return Some(format!(
+                "(await executeScenarioReceiptAny(c,{},$can$query$issue({},c,async({param})=>{predicate})))",
+                js_string(&source.id),
+                js_string(&descriptor_json(&marker)),
+            ));
+        }
+        // Direct navigated ANY over the composed any/first shape: the
+        // admitted parent edge carries the resolved model, and one Control
+        // dependency stands per authored `and` conjunct in source order.
+        // The emitted callback tests exactly the recorded leaves; source
+        // spelling and lineage seals stay with the defining matcher.
+        if source.first.is_none()
+            && source.count.is_none()
+            && source.projection.is_none()
+            && source.cardinality_guard.is_none()
+            && !source.dependencies.is_empty()
+            && predicate.ty == ResolvedType::Scalar(Scalar::Bool)
+            && body.ty == predicate.ty
+            && source
+                .predicate
+                .is_none_or(|node| Span::new(node.file, node.start, node.end) == body.span)
+            && query.where_pred.is_none()
+            && !query.where_async
+            && query.select.is_none()
+            && query.select_param.is_none()
+            && query.order.is_empty()
+            && query.value_order.is_none()
+            && query.limit.is_none()
+            && query.archived.is_none()
+            && query.contract_collection_call.is_none()
+            && matches!(&query.domain, super::ir::IrQueryDomain::Model(name) if name == &source.model_name)
+            && collection.builtin == "any"
+            && collection.overload == 0
+            && Span::new(
+                collection.node.file,
+                collection.node.start,
+                collection.node.end,
+            ) == at
+            && collection.query == source.node
+            && collection.model == source.model
+            && collection
+                .predicate
+                .as_ref()
+                .is_none_or(|value| Some(value.node) == source.predicate && value.ty == body.ty)
+            && self.navigated_any_parent(&source, query)
+            && self.conjunct_dependencies_match(&source, body, param)
+            && self.receipt_calls.is_empty()
+        {
+            // The issued callback attests queryId/siteIndex/callIndex with
+            // the invocation context, exactly as the helper arm does; the
+            // runtime refuses an arbitrary unissued callback.
+            let owner = &self.query_capture.as_ref()?.owner;
+            let mut metadata = self
+                .query_any
+                .and_then(|metadata| metadata.get(owner))
+                .and_then(serde_json::Value::as_array)
+                .into_iter()
+                .flatten()
+                .filter(|metadata| {
+                    metadata["kind"] == "predicate" && metadata["queryId"] == source.id
+                });
+            let selected = metadata.next().cloned().unwrap_or(serde_json::Value::Null);
+            if selected.is_null()
+                || metadata.next().is_some()
+                || selected["dependencyIds"]
+                    != serde_json::json!(
+                        source
+                            .dependencies
+                            .iter()
+                            .map(|read| &read.id)
+                            .collect::<Vec<_>>()
+                    )
+                || selected["sourceCall"]["siteIndex"].as_u64().is_none()
+                || selected["sourceCall"]["callIndex"].as_u64().is_none()
+            {
+                return None;
             }
             let marker = serde_json::json!({"queryId":source.id,
                 "siteIndex":selected["sourceCall"]["siteIndex"],

@@ -14,6 +14,7 @@ import { loadArtifactDescriptors, isGeneratedOperationDef, type ArtifactDescript
 import { beginScenarioReceiptMutation, bindScenarioReceiptReferenceProducer, bindScenarioReceiptQueryProducer,
   executeScenarioReceiptAny, observeScenarioReceiptQueryDependency, bindScenarioReceiptModelResult,
   selectScenarioReceiptReturn, readScenarioReceiptAssociation, projectScenarioReceipt } from '../../src/invocation/scenario-receipt.js';
+import { bindScenarioQueryAny } from '../../src/invocation/scenario-query-any.js';
 import { asId, asModel, FIXED_NOW, makeBatch, makeEnvelope, makeIdentity, makeRow, uuidv7, type RowOpts } from './fixtures.js';
 
 const CONVERSATION = asModel('AnyReader.Conversation'), BRANCH = asModel('AnyReader.Branch');
@@ -198,4 +199,22 @@ test('Any saved backend corruption cannot omit a visited prefix marker or manufa
     assert.deepEqual(await projectScenarioReceipt({ ...w, store, receipt: altered }), { result: null, records: [] });
     assert.ok(backendReads > 0); assert.equal(await w.store.readRevision(), revision); assert.equal(ex.executions(), 1);
   }
+});
+
+test('Navigated predicate stripped of its owning call association refuses at bind', () => {
+  // The legacy root-only no-sourceCall allowance must not extend to the
+  // navigated predicate profile: without sourceCall (and, for direct,
+  // without the checked call record) the bind refuses even when the
+  // parent query, census and source all match.
+  const query = { id: QUERY, source, model: RUN,
+    parent: { source, model: BRANCH, origin: { kind: 'admitted-reference', parameter: 'branch' } },
+    order: [], limit: null, archived: 'exclude',
+    dependencies: [{ id: DEP, source, role: 'control', field: 'unfinished', type: 'bool' }] };
+  const bound = { plan: { version: 1, source, queries: [query], returns: [] },
+    artifactModels: new Map(), canonicalModels: [] };
+  const stripped = { kind: 'predicate', queryId: QUERY, dependencyIds: [DEP] };
+  assert.throws(() => bindScenarioQueryAny(bound as unknown as Parameters<typeof bindScenarioQueryAny>[0],
+    stripped as Parameters<typeof bindScenarioQueryAny>[1]),
+  error => error instanceof StateError &&
+    /navigated predicate requires its exact owning call association/.test(error.message));
 });

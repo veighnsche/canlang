@@ -4130,29 +4130,71 @@ async function bindNativeScenarioQueries(asm: AssembledModules, artifact: Compil
     const rawAny = isUnknownRecord(operation) ? readMetadataMember(operation, 'queryAny', where)?.value : undefined;
     const any = rawAny === undefined ? [] : nativeCallArray(rawAny, plan.queries.length).map(value => {
       if (isUnknownRecord(value) && readMetadataMember(value, 'kind', where)?.value === 'predicate') {
-        const metadata = localPolicyObject(value, ['kind', 'queryId', 'dependencyIds', 'sourceCall']);
+        const direct = (value as Record<string, unknown>)['direct'] === true;
+        const metadata = localPolicyObject(value, direct ? ['kind', 'queryId', 'dependencyIds', 'sourceCall', 'direct', 'call'] : ['kind', 'queryId', 'dependencyIds', 'sourceCall']);
+        // Missing sub-records must refuse with exact correspondence
+        // identity, not the generic owner-policy error below.
+        if (metadata.sourceCall === undefined || (direct && (metadata as Record<string, unknown>).call === undefined)) {
+          throw new AssemblyCorrespondenceError('Predicate ANY lacks its exact checked query, CONTROL census and owner call selector.');
+        }
         const sourceCall = localPolicyObject(metadata.sourceCall, ['siteIndex', 'callIndex']);
         const dependencyIds = nativeCallArray(metadata.dependencyIds, 200);
-        if (Object.keys(metadata).length !== 4 || metadata.kind !== 'predicate' ||
+        if (Object.keys(metadata).length !== (direct ? 6 : 4) || metadata.kind !== 'predicate' ||
+            (direct && metadata.direct !== true) ||
             typeof metadata.queryId !== 'string' || metadata.queryId === '' || dependencyIds.length === 0 ||
             dependencyIds.some(id => typeof id !== 'string' || id === '') ||
             Object.keys(sourceCall).length !== 2 || !Number.isSafeInteger(sourceCall.siteIndex) ||
             !Number.isSafeInteger(sourceCall.callIndex) || (sourceCall.siteIndex as number) < 0 || (sourceCall.callIndex as number) < 0) {
           throw new AssemblyCorrespondenceError('Predicate ANY lacks its exact checked query, CONTROL census and owner call selector.');
         }
+        const query = plan.queries!.find(query => query.id === metadata.queryId);
+        if (query === undefined || query.source.module !== plan.source.module) {
+          throw new AssemblyCorrespondenceError('Predicate ANY lacks its original checked query association.');
+        }
+        if (direct) {
+          // A direct leading-any guard carries its exact checked call
+          // record: the `direct` bit never exempts owner, stage, target,
+          // source/model argument slots, empty chain or bounded indices.
+          const call = localPolicyObject(metadata.call, ['owner', 'stage', 'siteIndex', 'callIndex', 'source', 'node', 'target', 'arguments', 'slots', 'chain']);
+          const callSource = localPolicyObject(call.source, ['path', 'sha256', 'module']);
+          const callNode = localPolicyObject(call.node, ['start', 'end']);
+          const target = localPolicyObject(call.target, ['kind', 'id', 'overload']);
+          const args = nativeCallArray(call.arguments, 200);
+          const slots = nativeCallArray(call.slots, 200);
+          const chain = nativeCallArray(call.chain, 200);
+          const argNode = (arg: unknown) => localPolicyObject((arg as Record<string, unknown>)['node'], ['start', 'end']);
+          const inside = (node: Record<string, unknown>) => Number.isSafeInteger(node.start) && Number.isSafeInteger(node.end) &&
+            (node.start as number) >= 0 && (node.end as number) > (node.start as number) &&
+            (node.start as number) >= (callNode.start as number) && (node.end as number) <= (callNode.end as number);
+          const domain = args[0] as Record<string, unknown> | undefined, predicate = args[1] as Record<string, unknown> | undefined;
+          if (Object.keys(call).length !== 10 || call.owner !== def.name || call.stage !== 'leading-require' ||
+              call.siteIndex !== sourceCall.siteIndex || call.callIndex !== sourceCall.callIndex ||
+              Object.keys(callSource).length !== 3 ||
+              stableStringify(captureDispatchPreclaimData(callSource)) !== stableStringify(query.source) ||
+              stableStringify(query.source) !== stableStringify(plan.source) ||
+              Object.keys(callNode).length !== 2 || !inside(callNode) ||
+              Object.keys(target).length !== 3 || target.kind !== 'builtin' || target.id !== 'any' || target.overload !== 0 ||
+              args.length !== 2 || slots.length !== 2 || (slots[0] as number) !== 0 || (slots[1] as number) !== 1 || chain.length !== 0 ||
+              domain === undefined || predicate === undefined || typeof domain.type !== 'string' || typeof predicate.type !== 'string' ||
+              domain.type !== `${query.model}[]` || predicate.type !== 'bool' ||
+              !inside(argNode(domain)) || !inside(argNode(predicate))) {
+            throw new AssemblyCorrespondenceError('Direct predicate ANY lacks its exact checked LeadingRequire owner call.');
+          }
+        }
+        if (!direct) {
         const ownerSites = (loaded.membershipSources.get(def.name) ?? [])
           .filter(site => site.stage !== 'read-policy' && site.stage !== 'read-predicate' && site.stage !== 'send-dispatch');
         const site = ownerSites[sourceCall.siteIndex as number], selected = site?.calls[sourceCall.callIndex as number];
-        const query = plan.queries!.find(query => query.id === metadata.queryId);
         if (site?.owner !== def.name || selected?.target.kind !== 'builtin' || selected.target.id !== 'any' ||
-            query === undefined || selected.source.path !== query.source.path || selected.source.sha256 !== query.source.sha256 ||
-            query.source.module !== plan.source.module) {
+            selected.source.path !== query.source.path || selected.source.sha256 !== query.source.sha256) {
           throw new AssemblyCorrespondenceError('Predicate ANY lacks its original logical helper and emitted callable association.');
+        }
         }
         return captureDispatchPreclaimData({ kind: 'predicate', queryId: metadata.queryId,
           dependencyIds: dependencyIds as string[], sourceCall: {
             siteIndex: sourceCall.siteIndex as number, callIndex: sourceCall.callIndex as number,
-          } }) as NativeQueryAnyMetadata;
+          }, ...(direct ? { direct: true as const,
+            call: captureDispatchPreclaimData((metadata as Record<string, unknown>).call) } : {}) }) as NativeQueryAnyMetadata;
       }
       const metadata = localPolicyObject(value, ['queryId', 'dependencyId']);
       if (Object.keys(metadata).length !== 2 || typeof metadata.queryId !== 'string' || metadata.queryId === '' ||

@@ -8,9 +8,20 @@ import { copyScenarioFileData } from './scenario-file-assignment.js';
 import { stableStringify } from './replay.js';
 import { checkScenarioReceiptMembershipSites, type ScenarioReceiptMembershipSite } from './scenario-membership-plan.js';
 
+export interface ScenarioQueryAnyDirectCall {
+  readonly owner: string; readonly stage: string;
+  readonly siteIndex: number; readonly callIndex: number;
+  readonly source: ScenarioReceiptQueryPlan['source'];
+  readonly node: { readonly start: number; readonly end: number };
+  readonly target: { readonly kind: string; readonly id: string; readonly overload: number };
+  readonly arguments: readonly { readonly type: string;
+    readonly node: { readonly start: number; readonly end: number } }[];
+  readonly slots: readonly number[]; readonly chain: readonly unknown[];
+}
 export type ScenarioQueryAnyMetadata = { readonly queryId: string; readonly dependencyId: string } |
   { readonly kind: 'predicate'; readonly queryId: string; readonly dependencyIds: readonly string[];
-    readonly sourceCall?: { readonly siteIndex: number; readonly callIndex: number } };
+    readonly sourceCall?: { readonly siteIndex: number; readonly callIndex: number };
+    readonly direct?: boolean; readonly call?: ScenarioQueryAnyDirectCall };
 interface StoredBoolAnyProfile {
   readonly kind?: never;
   readonly queryId: string; readonly dependencyId: string;
@@ -22,6 +33,7 @@ interface StoredBoolAnyProfile {
 interface PredicateAnyProfile {
   readonly kind: 'predicate'; readonly queryId: string; readonly dependencyIds: readonly string[];
   readonly model: ModelName; readonly source: ScenarioReceiptQueryPlan['source']; readonly query: ScenarioReceiptQueryPlan;
+  readonly parentModel?: ModelName; readonly parameter?: string;
 }
 export type ScenarioQueryAnyProfile = StoredBoolAnyProfile | PredicateAnyProfile;
 type Bound = { readonly valueSchema?: NormalizedSchema | undefined; readonly plan: ScenarioResultDisclosurePlan;
@@ -93,18 +105,46 @@ export function bindScenarioQueryAny(bound: Bound, metadata: ScenarioQueryAnyMet
 function bindPredicateAny(bound: Bound, metadata: Extract<ScenarioQueryAnyMetadata, { kind: 'predicate' }>,
   sources?: ScenarioPredicateAnySources): PredicateAnyProfile {
   const input = closed(copyScenarioFileData(metadata), ['kind', 'queryId', 'dependencyIds',
-    ...(Object.hasOwn(metadata, 'sourceCall') ? ['sourceCall'] : [])]);
+    ...(Object.hasOwn(metadata, 'sourceCall') ? ['sourceCall'] : []),
+    ...(Object.hasOwn(metadata, 'direct') ? ['direct'] : []),
+    ...(Object.hasOwn(metadata, 'call') ? ['call'] : [])]);
   if (input.kind !== 'predicate' || typeof input.queryId !== 'string' || !input.queryId ||
       !Array.isArray(input.dependencyIds) || input.dependencyIds.length === 0) return fail('exact predicate CONTROL census required.');
   const query = bound.plan.queries?.find(query => query.id === input.queryId);
-  if (query === undefined || query.parent !== undefined || query.order.length !== 0 || query.limit !== null ||
+  if (query === undefined || query.order.length !== 0 || query.limit !== null ||
       query.archived !== 'exclude' ||
-      !same(input.dependencyIds, query.dependencies.map(dependency => dependency.id))) return fail('exact root predicate query and ordered CONTROL census required.');
+      !same(input.dependencyIds, query.dependencies.map(dependency => dependency.id))) return fail('exact predicate query and ordered CONTROL census required.');
+  const navigated = query.parent !== undefined;
+  const parentOrigin = navigated ? query.parent!.origin : undefined;
+  if (parentOrigin !== undefined && (parentOrigin.kind !== 'admitted-reference' || !parentOrigin.parameter ||
+      !same(query.parent!.source, query.source))) return fail('navigated predicate requires its exact admitted parent edge.');
   const ownerRequire = Object.hasOwn(input, 'sourceCall');
-  if (ownerRequire) checkPredicateSourceCall(bound, query, input.sourceCall, sources);
+  const direct = Object.hasOwn(input, 'direct') && (input as { direct?: unknown }).direct === true;
+  const hasCall = Object.hasOwn(input, 'call');
+  // A navigated predicate never inherits the legacy root-only
+  // no-sourceCall allowance: it requires its exact owning call
+  // association (helper census or gate-verified direct record).
+  const associated = ownerRequire && (sources !== undefined || (direct && hasCall));
+  if (ownerRequire && sources !== undefined) checkPredicateSourceCall(bound, query, input.sourceCall, sources);
+  else if (direct) {
+    // A direct leading-any guard carries no helper owner census. Its exact
+    // checked call record is verified by the query-producer gate against
+    // the installed owner/source before this bind; presence of both the
+    // source-call selector and the record is still required here, and every
+    // query-level seal below applies unchanged.
+    if (!ownerRequire || !hasCall) return fail('direct predicate requires its exact checked owner call.');
+  } else if (ownerRequire) return fail('actual owner source-call indices required.');
   else if (!same(query.source, bound.plan.source)) return fail('imported predicate requires its actual owner source-call association.');
+  if (navigated && !associated) return fail('navigated predicate requires its exact owning call association.');
   const model = bound.artifactModels.get(query.model), canonical = bound.canonicalModels.find(model => model.name === query.model);
-  if (model === undefined || canonical === undefined || model.parent !== undefined) return fail('declared root query model required.');
+  if (model === undefined || canonical === undefined) return fail('declared query model required.');
+  if (!navigated && model.parent !== undefined) return fail('declared root query model required.');
+  if (navigated) {
+    const parent = bound.artifactModels.get(query.parent.model),
+      canonicalParent = bound.canonicalModels.find(model => model.name === query.parent!.model);
+    if (parent === undefined || canonicalParent === undefined || model.parent !== query.parent.model ||
+        parent.name !== query.parent.model) return fail('declared navigated parent model required.');
+  }
   for (const dependency of query.dependencies) {
     const fields = model.fields.filter(field => field.name === dependency.field);
     const field = fields[0] === undefined ? undefined : copyScenarioFileData(fields[0]) as typeof fields[0];
@@ -113,16 +153,30 @@ function bindPredicateAny(bound: Bound, metadata: Extract<ScenarioQueryAnyMetada
     // claim may be absent. Registry still supplies the exact canonical type.
     const nativeUser = field !== undefined && field.field.kind === 'user' && Reflect.ownKeys(field.field).length === 1 &&
       field.array === undefined && field.nullable !== true;
-    const declaredType = field !== undefined && !Object.hasOwn(field, 'valueType') && nativeUser ? 'user' : field?.valueType;
+    // Inline enum descriptors carry exact values without a redundant
+    // valueType claim, mirroring the nativeUser precedent above; the exact
+    // `enum(a,b)` spelling must equal the checked dependency type.
+    const enumValues = field !== undefined && field.field.kind === 'enum' &&
+      Array.isArray((field.field as { values?: unknown }).values) ?
+      (field.field as { values: unknown[] }).values : undefined;
+    const nativeEnum = enumValues !== undefined && enumValues.length !== 0 &&
+      enumValues.every(value => typeof value === 'string') ?
+      `enum(${(enumValues as string[]).join(',')})` : undefined;
+    const declaredType = field !== undefined && !Object.hasOwn(field, 'valueType') &&
+      (nativeUser ? 'user' : nativeEnum) ? (nativeUser ? 'user' : nativeEnum as string) : field?.valueType;
     if (dependency.role !== 'control' || !same(dependency.source, query.source) || fields.length !== 1 ||
-        field === undefined || checked === undefined || declaredType !== dependency.type || checked.valueType !== dependency.type ||
+        field === undefined || checked === undefined || declaredType !== dependency.type || (checked.valueType ?? nativeEnum) !== dependency.type ||
         dependency.type === 'user' && !nativeUser ||
         field.default?.kind === 'derived' || checked.default?.kind === 'derived') return fail('exact stored CONTROL field declaration required.');
     const type = parseTypeId(dependency.type);
     const modelReference = type.base.kind === 'nominal' && bound.artifactModels.has(type.base.path as ModelName) &&
       bound.valueSchema !== undefined && !Object.hasOwn(bound.valueSchema.contracts, type.base.path) &&
       !Object.hasOwn(bound.valueSchema.enums, type.base.path) && !Object.hasOwn(bound.valueSchema.aliases ?? {}, type.base.path);
-    if (type.nullable || type.requiredArray || !(dependency.type === 'bool' || dependency.type === 'user' || modelReference)) return fail('predicate requires bool, User or declared Model reference CONTROL fields.');
+    // Nominal model-field enums carry their exact case list in the type id;
+    // declaration string equality above already pins the precise cases.
+    const fieldEnum = type.base.kind === 'enum' && Array.isArray(type.base.cases) &&
+      type.base.cases.length !== 0 && type.base.cases.every(name => typeof name === 'string');
+    if (type.nullable || type.requiredArray || !(dependency.type === 'bool' || dependency.type === 'user' || modelReference || fieldEnum)) return fail('predicate requires bool, User, declared Model reference or exact enum CONTROL fields.');
     for (const marker of ['required', 'serverOnly', 'nullable', 'array', 'trim', 'min', 'max'] as const) {
       if (Object.hasOwn(field, marker) !== Object.hasOwn(checked, marker) || Object.hasOwn(field, marker) && !same(field[marker], checked[marker])) return fail('owning predicate field markers disagree.');
     }
@@ -133,7 +187,9 @@ function bindPredicateAny(bound: Bound, metadata: Extract<ScenarioQueryAnyMetada
   if (consumers.length === 0 && !ownerRequire || bound.plan.returns.some(returned => returned.projection?.queryId === query.id) ||
       consumers.some(returned => returned.dependencies.some(dependency => dependency.queryId === query.id && dependency.role === 'data'))) return fail('predicate requires actual CONTROL influence without projection.');
   const profile = deepFreeze({ kind: 'predicate' as const, queryId: query.id, dependencyIds: [...metadata.dependencyIds],
-    model: query.model, source: query.source, query: copyScenarioFileData(query) as ScenarioReceiptQueryPlan });
+    model: query.model, source: query.source, query: copyScenarioFileData(query) as ScenarioReceiptQueryPlan,
+    ...(parentOrigin !== undefined && parentOrigin.kind === 'admitted-reference' ?
+      { parentModel: query.parent!.model, parameter: parentOrigin.parameter } : {}) });
   profiles.add(profile); return profile;
 }
 
@@ -158,11 +214,52 @@ function checkPredicateSourceCall(bound: Bound, query: ScenarioReceiptQueryPlan,
   const domain = call.arguments[call.slots[0]!], predicate = call.arguments[call.slots[1]!];
   const inside = (node: { readonly start: number; readonly end: number }) => node.start >= call.node.start && node.end <= call.node.end;
   if (domain?.type !== `${query.model}[]` || predicate?.type !== 'bool' || !inside(domain.node) || !inside(predicate.node) ||
-      call.chain.length === 0 || !same(call.chain[0]!.source, site.source)) return fail('original Model domain, predicate slots and outer helper chain required.');
+      (call.chain.length !== 0 && !same(call.chain[0]!.source, site.source))) return fail('original Model domain, predicate slots and outer helper chain required.');
+  // A direct leading-any guard carries no helper chain; its domain and
+  // predicate slots above already pin the admitted collection call.
   for (const [index, frame] of call.chain.entries()) {
     if (!site.calls.some(parent => parent.target.kind === 'derive' && parent.target.name === frame.derive &&
         same(parent.source, frame.source) && same(parent.node, frame.node) && same(parent.chain, call.chain.slice(0, index)))) return fail('helper chain must retain each actual caller derive occurrence.');
   }
+}
+
+/** Verify a direct leading-any guard's exact checked call record against
+ * the installed owner/source producer. The `direct` bit never exempts
+ * this check: owner, LeadingRequire stage, builtin `any`, source/model
+ * argument slots, empty chain and bounded indices are each sealed. The
+ * query producer gate runs this before the predicate bind; the bind still
+ * requires the source-call selector and the record to be present. */
+export function checkDirectPredicateCall(owner: string, planSource: ScenarioReceiptQueryPlan['source'],
+  query: ScenarioReceiptQueryPlan, selector: unknown, call: unknown): void {
+  if (typeof owner !== 'string' || owner === '') return fail('direct predicate requires its exact installed owner.');
+  const selected = closed(selector, ['siteIndex', 'callIndex']);
+  if (!Number.isSafeInteger(selected.siteIndex) || (selected.siteIndex as number) < 0 ||
+      !Number.isSafeInteger(selected.callIndex) || (selected.callIndex as number) < 0) return fail('direct predicate requires its exact checked call indices.');
+  const record = closed(call, ['owner', 'stage', 'siteIndex', 'callIndex', 'source', 'node', 'target', 'arguments', 'slots', 'chain']) as unknown as ScenarioQueryAnyDirectCall;
+  if (record.owner !== owner || record.stage !== 'leading-require') return fail('direct predicate requires its exact LeadingRequire owner call.');
+  if (!Number.isSafeInteger(record.siteIndex) || (record.siteIndex as number) < 0 ||
+      !Number.isSafeInteger(record.callIndex) || (record.callIndex as number) < 0 ||
+      (selected.siteIndex as number) !== (record.siteIndex as number) ||
+      (selected.callIndex as number) !== (record.callIndex as number)) return fail('direct predicate requires its exact checked call indices.');
+  if (!same(record.source, planSource) || !same(record.source, query.source) ||
+      query.source.module !== planSource.module) return fail('direct predicate requires its exact owning query source.');
+  const node = closed(record.node, ['start', 'end']);
+  if (!Number.isSafeInteger(node.start) || !Number.isSafeInteger(node.end) ||
+      (node.start as number) < 0 || (node.end as number) <= (node.start as number)) return fail('direct predicate requires its exact call interval.');
+  const target = closed(record.target, ['kind', 'id', 'overload']);
+  if (target.kind !== 'builtin' || target.id !== 'any' || target.overload !== 0) return fail('direct predicate requires its exact builtin collection call.');
+  if (!Array.isArray(record.arguments) || record.arguments.length !== 2 ||
+      !Array.isArray(record.slots) || record.slots.length !== 2 ||
+      (record.slots as readonly unknown[])[0] !== 0 || (record.slots as readonly unknown[])[1] !== 1 ||
+      !Array.isArray(record.chain) || record.chain.length !== 0) return fail('direct predicate requires its exact source/model argument slots and empty chain.');
+  const [domainRaw, predicateRaw] = record.arguments;
+  const domain = closed(domainRaw, ['type', 'node']), predicate = closed(predicateRaw, ['type', 'node']);
+  const domainNode = closed(domain.node, ['start', 'end']), predicateNode = closed(predicate.node, ['start', 'end']);
+  const inside = (span: Record<string, unknown>) => Number.isSafeInteger(span.start) && Number.isSafeInteger(span.end) &&
+    (span.start as number) >= 0 && (span.end as number) > (span.start as number) &&
+    (span.start as number) >= (node.start as number) && (span.end as number) <= (node.end as number);
+  if (domain.type !== `${query.model}[]` || predicate.type !== 'bool' ||
+      !inside(domainNode) || !inside(predicateNode)) return fail('direct predicate requires its exact Model domain and predicate slots.');
 }
 
 /** Validate the retained lazy prefix; suffix rows were not predicate reads.
@@ -172,13 +269,14 @@ export function checkSavedScenarioQueryAny(profile: ScenarioQueryAnyProfile, obs
   try {
     const saved = copyScenarioFileData(observation) as ScenarioReceiptQueryObservation;
     if (saved.queryId !== profile.queryId || !Number.isSafeInteger(saved.revision) || saved.revision < 0 ||
-        (profile.kind === 'predicate' ? saved.parent !== undefined : saved.parent?.model !== profile.parentModel) || !Array.isArray(saved.candidates) || !Array.isArray(saved.selectedIndices) ||
+        (profile.kind === 'predicate' && profile.parentModel === undefined ? saved.parent !== undefined :
+          saved.parent?.model !== profile.parentModel) || !Array.isArray(saved.candidates) || !Array.isArray(saved.selectedIndices) ||
         saved.selectedIndices.length > 1) return fail('exact saved ANY domain required.');
     const identities = new Set<string>(); let firstTrue = -1;
     for (let index = 0; index < saved.candidates.length; index++) {
       const candidate = saved.candidates[index]!;
       if (typeof candidate.row.id !== 'string' || identities.has(candidate.row.id) || !Number.isSafeInteger(candidate.row.created) ||
-          candidate.row.archivedAt !== null || (profile.kind === 'predicate' ? candidate.row.parent != null :
+          candidate.row.archivedAt !== null || (profile.kind === 'predicate' && profile.parentModel === undefined ? candidate.row.parent != null :
           candidate.row.parent?.model !== profile.parentModel || candidate.row.parent.id !== saved.parent!.row.id) || typeof candidate.matched !== 'boolean' || !Array.isArray(candidate.dependencies)) return fail('complete genuine contained candidate census required.');
       identities.add(candidate.row.id);
       const previous = saved.candidates[index - 1];
