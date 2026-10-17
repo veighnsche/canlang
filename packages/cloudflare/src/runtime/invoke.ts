@@ -4292,9 +4292,12 @@ async function bindNativeScenarioReferences(asm: AssembledModules, artifact: Com
     // These profiles require full source grants from the actual invocation.
     // Source-only preloads check declarations without installing partial
     // authority; the invocation-local registry binds their genuine context.
+    // Parent queries need their ancestors' genuine grants, so they defer
+    // alongside file and model-result profiles instead of binding grant-free.
     if (context === undefined && ((nativeScenarioNominalFileProfiles.get(def)?.size ?? 0) !== 0 || plan.returns.some(returned =>
         returned.dependencies.some(dependency => dependency.type === 'file[]')) ||
-        loaded.models.some(model => model.name === def.descriptor.result?.type))) continue;
+        loaded.models.some(model => model.name === def.descriptor.result?.type) ||
+        plan.queries?.some(query => query.parent !== undefined || query.dependencies.some(dependency => dependency.field === 'parent')))) continue;
     if (context === undefined ? !plan.returns.some(entry => entry.dependencies.some(dependency => {
       const parsed = parseTypeId(dependency.type);
       const modelName = parsed.base.kind === 'nominal' ? parsed.base.path : undefined;
