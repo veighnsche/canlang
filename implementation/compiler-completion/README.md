@@ -370,6 +370,24 @@ dispatch 4/4 + first-query 8/8. Original dispatch-guard family unchanged
 27 → 27; the remaining delivery.id remainder (cancel/retry_release
 shapes) stays ready work, not closed by this one-shape consumer.
 
+### Enum transport tamper seals + accept/recover split — 2026-10-17
+
+The merge_63 transport helper is extracted as
+`checked_plain_enum_data_transport` with retained-facts tamper units
+(lib 5/5: honest sealed transport, forged owner canonical, widened owner
+cases, narrowed descriptor values, nullable descriptor — each refusal
+through the defining owner with original facts fixed). Scope correction
+to merge_63's record: the any-guard gate was demonstrated only for the
+ACCEPT shape (direct `require not any(...)` + first, probes
+notany/posany/noq); RECOVER has no authored require-not-any — its join
+is a helper-closure `any` (`customer_staff` derive) + first, demonstrated
+separately (recover-shaped probes: helper-any+first fails, helper
+without any passes, helper-any alone passes). Shared family is
+first-query × any-query composition (no admitted [any,first] shape in
+`checked_native_query_influences`/plan emission); mechanisms differ per
+span, and one probe does not prove the other. Next slice: admit the
+[any,first] composition at the defining plan owner with runtime binding.
+
 ### Enum data-read transport for member create inputs — 2026-10-17
 
 A first query plus `create D {role=i.role}` (CanCustomer `accept` shape)

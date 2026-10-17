@@ -75497,5 +75497,38 @@
     "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
     "checkpoint_advanced": false,
     "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
+  },
+  "can18_merge_64_20261017": {
+    "incremental_base": "70851154a0e98c5485ded9fde2040369623bf757",
+    "incoming_end": "86d9aacfdcf8aa461612a4640b0ebc480242b7b7",
+    "retained_coverage": "reuse spec_installer_merge_reconciliation_20261015 and preceding CAN18 incremental merge entries; inherited complete checkpoint unchanged",
+    "changed_path_count": 4,
+    "rows": [
+      [
+        "compiler/src/codegen/scenario_enum_data_transport_tests.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/src/codegen/scenario_receipts.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "docs/specification/DECISIONS.md",
+        "Specification",
+        "existing accepted design/decision owner"
+      ],
+      [
+        "implementation/compiler-completion/README.md",
+        "Compiler completion",
+        "existing finite execution record"
+      ]
+    ],
+    "choice": "Retained-facts tamper seals for the plain enum data transport plus the accept/recover any-gate scope correction.",
+    "validation": "Lib enum_data_transport 5/5 (honest sealed transport, forged owner canonical, widened owner cases, narrowed descriptor values, nullable read) with original facts fixed and no IR re-emit; helper extraction verified behavior-identical (3/3 integration, conjunction 18/18, state-machines 4/4, probes unchanged). Record corrects merge_63 overclaim: accept is direct-any+first, recover is helper-closure-any+first; shared missing [any,first] composition at the defining plan owner.",
+    "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
+    "checkpoint_advanced": false,
+    "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
   }
 }
