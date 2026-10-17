@@ -36,7 +36,7 @@ model-returning first-query invocation hits the pre-existing frame gap
 files untouched — branched model-result frame lifetimes are the named next
 prerequisite, not a silent pass.
 
-### First-query terminal side-effect batch (compiler half) — 2026-10-17
+### First-query terminal side-effect batch (compiler + State halves) — 2026-10-17
 
 Compiler admits the require-present terminal side-effect family: contained
 single-predicate id-ordered first with `require c!=null`, one top-level
@@ -52,11 +52,17 @@ native_first_query 17/17, scenario_first_query_sources 7/7, toggle 2/2,
 receipt-adjacent suites green; lib 246 pass with 3 failures reproduced
 identically on clean HEAD (delivery_inspection, deep-expression stack,
 transcript trim/count) plus pre-existing b3_migrate compile + 2 receipt
-cases. OPEN runtime half: State 954 registration refuses scalar returns
-with query influences (no projection/model-result); the installed
-native-first-side-effect runtime test is written and characterizes the exact
-boundary — pure-control State admission is the named next owner step, then
-original24 capture. Slice D model-return scope unchanged (its contained
+cases. State pure-control admission completes the runtime half:
+packages/state scenario-receipt 954 registration + 4550 association gates
+admit first-query consumer-shape creations (dependencies.length==0),
+intrinsics retained as replay-stable recorded inputs, stored reads still
+refused. Validation: State unit 2/2 (scalar result '1', D persisted,
+require-false, deny/revoke/no-write, dup-create replay conflict-stable,
+foreign/not-found, committed write/fence replay confidentiality), runtime
+native-first-side-effect 1/1 (same-op replay D-stable + result-preserving,
+revoked replay withheld, genuine revision-only fence-conflict rollback
+empty, foreign refused), native-lookup/expired-budget neighbors green. Saved
+queries revalidate the gating snapshot; next: original24 capture. Slice D model-return scope unchanged (its contained
 refusal case still refuses).
 
 ### Accepted helper-reuse repair (merge36) — 2026-10-17

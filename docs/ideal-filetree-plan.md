@@ -184,6 +184,10 @@ Toggle form-control repair (REVIEW-NOW-2 E): the admitted toggle factory travels
 
 Toggle submit round-trip (0141): rendered names/marker/CSRF through the real operation handler into compiled Item.create; persisted true/false incl. unchecked-against-true-default; fail-before 0/2, 2/2 with repair. E submit acceptance closed. Incoming interval `fdf3b372c..HEAD` accounts for 2 changed paths in `can18_merge_44_20261017` of the existing registry. toggle_form_control 2/2; no production change; neighbors reused from merge43. Existing defining owners and target allocations remain; focused new tests stay with Compiler. Reuse prior accumulated coverage; complete checkpoint remains unchanged. Original24 and required executable consumers remain open. Unfinished work stays in the running Muse checkout.
 
+### CAN18 incremental integration — can18_merge_46_20261017
+
+First-query terminal side-effect State pure-control admission with installed runtime consumer. Incoming interval `a98340f54..cb02c1e3e` accounts for 9 changed paths in `can18_merge_46_20261017` of the existing registry. State unit 2/2, cloudflare runtime 1/1, rust side-effect 8/8 with fail-before; replay/revoke/rollback criteria per 0256/0256A. Existing defining owners and target allocations remain; focused new tests stay with Compiler. Reuse prior accumulated coverage; complete checkpoint remains unchanged. Original24 and required executable consumers remain open. Unfinished work stays in the running Muse checkout.
+
 ### Specification and installer documentation merge — 2026-10-15
 
 Merge installer commit `02470b74` into canonical `main` at `a70921e3`.
