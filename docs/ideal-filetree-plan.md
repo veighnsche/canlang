@@ -260,6 +260,27 @@ Plain enum data-read transport for member create inputs with sealed enum(a,b) id
 
 Retained-facts tamper seals for the plain enum data transport plus the accept/recover any-gate scope correction. Incoming interval `70851154a..86d9aacfd` accounts for 4 changed paths in `can18_merge_64_20261017` of the existing registry. Lib enum_data_transport 5/5 (honest sealed transport, forged owner canonical, widened owner cases, narrowed descriptor values, nullable read) with original facts fixed and no IR re-emit; helper extraction verified behavior-identical (3/3 integration, conjunction 18/18, state-machines 4/4, probes unchanged). Record corrects merge_63 overclaim: accept is direct-any+first, recover is helper-closure-any+first; shared missing [any,first] composition at the defining plan owner. Existing defining owners and target allocations remain; focused new tests stay with Compiler. Reuse prior accumulated coverage; complete checkpoint remains unchanged. Original24 and required executable consumers remain open. Unfinished work stays in the running Muse checkout.
 
+### CAN18 incremental integration — can18_merge_65_20261017
+
+Direct any/first composition (members profile) with sealed
+LeadingRequire call record. Incoming interval
+`68d9361e5..c63220f7` accounts for 13 current code/test/fixture paths
+in `can18_merge_65_20261017` of the existing registry, plus the 1
+deferred merge_64 enum-transport test/scope path
+(`86d9aacfd..68d9361e5`, accepted review and 5/5 reused without
+re-review/rerun) and 4 record paths, 18 in all. Compiler
+source-shapes 6/6, retained-IR matcher
+3/3, State any 11/11, installed positive plus 10 metadata-tamper
+refusals 2/2, neighboring enum/conjunction suites green; 3 full-lib
+failures and 2 native-receipt failures are named pre-existing baseline.
+Existing defining owners and target allocations remain; focused new
+tests stay with Compiler (integration) and the defining in-crate owner
+(retained-IR); no source moves, package redesign or new product scope.
+Reuse prior accumulated coverage; complete checkpoint remains
+unchanged. Original authenticated accept and reference-array helper
+recover remain ready work. Unfinished work stays in the running Muse
+checkout.
+
 ### Specification and installer documentation merge — 2026-10-15
 
 Merge installer commit `02470b74` into canonical `main` at `a70921e3`.

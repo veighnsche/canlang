@@ -370,6 +370,30 @@ dispatch 4/4 + first-query 8/8. Original dispatch-guard family unchanged
 27 → 27; the remaining delivery.id remainder (cancel/retry_release
 shapes) stays ready work, not closed by this one-shape consumer.
 
+### Direct any/first composition with sealed call record (P1) — 2026-10-17
+
+The leading `require not any(...)` × `first` composition (members
+profile: navigated `invitation.parent.C`, multi-conjunct predicate,
+void effect tail) now executes end to end. Analysis admits the
+navigated multi-conjunct any; codegen emits the [any,first] plan with
+the shared sealed parent edge; the serializer emits the exact checked
+LeadingRequire call record (owner, stage, embedded indices, transported
+source, node, builtin-any target, Model[]+bool argument slots, empty
+chain); CF and the State producer gate re-verify every field against
+the installed owner/source before bind, and the marker still binds the
+issued callback. The `direct` bit routes past helper-chain resolution
+only and authorizes nothing; a navigated predicate without any owning
+call association refuses (legacy root-only no-sourceCall behavior
+preserved). Tests: compiler source-shapes 6/6 (admission, reorder and
+subset coherence, polarity/cross-model/type refusals), retained-IR 3/3
+(honest admit, parent-base span/type tampers refuse with facts fixed),
+State 11/11 (existing 10 plus stripped-navigated bind refusal),
+installed 2/2 (positive commit/replay/denial/revocation plus 10
+metadata-tamper mutants each refusing validation with unchanged D
+rows). Scope stays members-only: original authenticated accept and
+reference-array helper recover remain ready work. No original24
+movement claimed here; frozen-producer re-qualification follows intake.
+
 ### Enum transport tamper seals + accept/recover split — 2026-10-17
 
 The merge_63 transport helper is extracted as

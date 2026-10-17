@@ -75530,5 +75530,108 @@
     "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
     "checkpoint_advanced": false,
     "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
+  },
+  "can18_merge_65_20261017": {
+    "incremental_base": "68d9361e50267a37875a01f9cfc3368e448b90ea",
+    "incoming_end": "c63220f729915d64f5e2ff7565d22488dd6355ed",
+    "retained_coverage": "reuse spec_installer_merge_reconciliation_20261015 and preceding CAN18 incremental merge entries; inherited complete checkpoint unchanged",
+    "changed_path_count": 18,
+    "rows": [
+      [
+        "compiler/src/analysis/scenario_disclosure.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/src/codegen/any_first_retained_tests.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/src/codegen/js.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/src/codegen/scenario_create_sources.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/src/codegen/scenario_queries.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/src/codegen/scenario_receipts.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/src/codegen/scenario_enum_data_transport_tests.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/any_first_composition.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "compiler/tests/fixtures/any-first-composition.can",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "docs/ideal-filetree-plan.md",
+        "Specification",
+        "existing accepted design/decision owner"
+      ],
+      [
+        "docs/ideal-filetree-plan/state-machines-20261007.json",
+        "Specification",
+        "existing accepted design/decision owner"
+      ],
+      [
+        "docs/specification/DECISIONS.md",
+        "Specification",
+        "existing accepted design/decision owner"
+      ],
+      [
+        "implementation/compiler-completion/README.md",
+        "Compiler completion",
+        "existing finite execution record"
+      ],
+      [
+        "packages/cloudflare/src/runtime/invoke.ts",
+        "cloudflare",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/cloudflare/test/native-any-first-composition.test.ts",
+        "cloudflare",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/state/src/invocation/scenario-query-any.ts",
+        "state",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/state/src/invocation/scenario-receipt.ts",
+        "state",
+        "existing package source/test owner"
+      ],
+      [
+        "packages/state/test/invocation/scenario-query-any.test.ts",
+        "state",
+        "existing package source/test owner"
+      ]
+    ],
+    "choice": "Direct any/first composition (members profile) with sealed LeadingRequire call record at the defining serializer and both runtime layers; bundles the deferred merge_64 enum-transport test/scope correction (86d9aacfd..68d9361e5).",
+    "validation": "Compiler source-shapes 6/6, retained-IR matcher 3/3, State any 11/11, installed positive plus 10 metadata-tamper validation refusals with unchanged D rows 2/2; neighboring enum_member 3/3, enum lib 5/5 (reused accepted review, no rerun), conjunction 18/18 green. Full-lib 277 pass with 3 named pre-existing failures plus default-stack overflow; native_scenario_receipts 2 and CF query-any-consumer 9 failures each reproduced identical on clean HEAD.",
+    "target_disposition": "existing defining owners retained; new focused tests belong with compiler/tests, the defining in-crate owner, and the owning package suites; no source moves, package redesign or new product scope",
+    "checkpoint_advanced": false,
+    "remaining_gates": "original24 and required executable consumers remain open; original authenticated accept and reference-array helper recover stay ready work; inherited complete semantic/target review unchanged"
   }
 }
