@@ -4212,9 +4212,24 @@ impl SourceExpressions<'_> {
                 {
                     return None;
                 }
+                // A contained domain spells its receiver (`p.C`); the bare
+                // model name only fits unscoped scans. The receiver half is
+                // already authenticated as the checked containing parent by
+                // `checked_first_query_ir` above — reuse that correspondence
+                // instead of re-resolving the parent here.
+                let domain_path = source_path(self.nodes.get(&query.domain)?, self.text)?;
+                let model_name = &self.ir.items.get(query.model.0 as usize)?.name;
+                let contained_path = query
+                    .first
+                    .as_ref()
+                    .and_then(|first| first.contained_parent)
+                    .and_then(|(receiver, _)| {
+                        source_path(self.nodes.get(&receiver)?, self.text)
+                    })
+                    .map(|receiver| format!("{receiver}.{model_name}"));
                 if NodeKey::of(source_argument) != query.node
-                    || source_path(self.nodes.get(&query.domain)?, self.text)?
-                        != self.ir.items.get(query.model.0 as usize)?.name
+                    || (domain_path != *model_name
+                        && contained_path.as_deref() != Some(domain_path.as_str()))
                 {
                     return None;
                 }

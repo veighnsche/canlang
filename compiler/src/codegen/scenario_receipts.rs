@@ -10165,6 +10165,15 @@ fn checked_scenario_create(
         // Void scenarios own no result row; the individually checked create
         // executes terminally in the same transaction in source order, so no
         // call-consumption linkage applies.
+    } else if terminal_create_then_literal_return(owner, proof.node) {
+        // No model result, non-void result, terminal create directly
+        // followed by one plain scalar-constant return: the same terminal
+        // side-effect justification as the void arm. The rule is purely
+        // positional — any other tail (calls, lets, branches, further
+        // effects) keeps the intermediate-call linkage or its loud refusal
+        // below. No use/alias inventory is attempted, so alias escapes
+        // through objects, branches or rebindings cannot slip through as
+        // unlinked side effects.
     } else {
         ordered_intermediate_call_create(ir, owner, checked, proof.node, *model, binding, db)?;
     }
@@ -10630,6 +10639,39 @@ fn checked_created_object_entries(
         )?;
     }
     Some(())
+}
+
+/// A terminal side-effect create is the last effectful statement: it is
+/// immediately followed by exactly one plain scalar-constant return and
+/// nothing else. The rule is deliberately positional rather than a
+/// use/alias inventory — any other tail keeps the intermediate-call
+/// linkage or its loud refusal, so alias escapes through objects,
+/// branches or rebindings cannot slip through as unlinked side effects.
+fn terminal_create_then_literal_return(
+    owner: &IrItem,
+    create: crate::analysis::NodeKey,
+) -> bool {
+    let IrItemKind::Scenario { effects, .. } = &owner.kind else {
+        return false;
+    };
+    let Some(index) = effects.iter().position(|effect| {
+        matches!(effect, IrStmt::Create { span, .. } if *span == node_span(create))
+    }) else {
+        return false;
+    };
+    let [IrStmt::Return { value, .. }] = &effects[index + 1..] else {
+        return false;
+    };
+    matches!(
+        value.as_ref().map(|returned| &returned.expr),
+        Some(
+            IrExpr::Int(_)
+                | IrExpr::Decimal(_)
+                | IrExpr::Text(_)
+                | IrExpr::Bool(_)
+                | IrExpr::Null
+        )
+    )
 }
 
 /// An original intermediate Create is consumed only by the immediately

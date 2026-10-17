@@ -36,6 +36,29 @@ model-returning first-query invocation hits the pre-existing frame gap
 files untouched — branched model-result frame lifetimes are the named next
 prerequisite, not a silent pass.
 
+### First-query terminal side-effect batch (compiler half) — 2026-10-17
+
+Compiler admits the require-present terminal side-effect family: contained
+single-predicate id-ordered first with `require c!=null`, one top-level
+create immediately followed by exactly one plain scalar-constant return and
+nothing else (positional rule — no use/alias inventory, so alias escapes
+cannot slip through; any other tail keeps linkage/refusal). Contained `p.C`
+receiver correspondence fixed at its owner. Validation:
+first_query_side_effect 8/8 (2 positives incl. same-model create, 3 tail
+refusals with genuine-CLI no-operations recipe exclusion, 4-shape
+absence/branch/predicateless refusal boundary, genuine-CLI compile);
+fail-before 3/7 on pre-fix source; neighbors native_first_replay 4/4,
+native_first_query 17/17, scenario_first_query_sources 7/7, toggle 2/2,
+receipt-adjacent suites green; lib 246 pass with 3 failures reproduced
+identically on clean HEAD (delivery_inspection, deep-expression stack,
+transcript trim/count) plus pre-existing b3_migrate compile + 2 receipt
+cases. OPEN runtime half: State 954 registration refuses scalar returns
+with query influences (no projection/model-result); the installed
+native-first-side-effect runtime test is written and characterizes the exact
+boundary — pure-control State admission is the named next owner step, then
+original24 capture. Slice D model-return scope unchanged (its contained
+refusal case still refuses).
+
 ### Accepted helper-reuse repair (merge36) — 2026-10-17
 
 Main integrates `5898e5ae2`: hook helper variants are per-use — the same
