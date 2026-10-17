@@ -20,9 +20,20 @@ passed; the affected 165 parser/message tests passed again after diagnostic
 corrections, reusing the unchanged 76 locale/component results. An isolated copy
 of emitted package entry points passed shared syntax, exact branch, fallback,
 caption and error checks. This is selected local implementation evidence, not
-the later compiled-to-installed join or full formatter parity. No merge occurred;
-retain accumulated coverage and the complete review checkpoint. Native
-preparation remains **HUMAN HOLD**.
+the later compiled-to-installed join or full formatter parity. Native preparation
+remains **HUMAN HOLD**.
+
+Main integration fast-forwarded `5b27e7bdd` to `17f768d52`. Incremental
+reconciliation accounts for all 13 changed paths: five Values source/export/test/
+fixture paths, two UI implementation/test paths, and the six documentation paths
+listed above. Retain the accumulated checkpoint coverage and the defining
+Values/UI/Compiler allocations; only the selected shared TS parser allocation
+is now implemented. The complete review checkpoint remains unchanged. All 42
+pre-existing modified/untracked files in main retained their bytes and modes;
+foreign staging was unchanged. Reuse the recorded tests because integration
+changed no reviewed product behavior; only a trailing blank line was cleaned
+before commit. This reconciliation does not reopen qualification or release
+compiler, broader UI usage or native work.
 
 **ICU contract follow-up, 2026-10-18 (`0bb480bef`):** the
 [finite shared-parser proposal](ideal-filetree-plan/rust-package-audit/icu-shared-parser-plan.md)
