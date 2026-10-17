@@ -15,7 +15,7 @@ use super::types::{
     CheckedQuery, CheckedQueryClauseKind, CheckedQueryProjectionField,
     CheckedQueryProjectionMapping, SelectedCallTarget, checked_standard_nominal_name,
 };
-use super::{ModuleId, NodeKey, ResolvedType, Scalar, SymbolId, TypeTable};
+use super::{ModuleId, NodeKey, ResolvedType, Scalar, SymbolId, TypeTable, kids, name_text};
 use crate::source::{SourceDb, SourceId, sha256_hex};
 use crate::syntax::{SyntaxKind, SyntaxNode};
 
@@ -156,6 +156,12 @@ pub struct DisclosureFirstQuery {
     /// predicate. The first conjunct stays in `operand` so single-predicate
     /// readers keep working unchanged.
     pub extra_operands: Vec<NodeKey>,
+    /// Exact authored source text per conjunct operand, aligned with
+    /// `operand` then `extra_operands`; `Some` only for closed enum-case
+    /// operands. The predicate join pins the emitted case string against
+    /// this text so a sibling declared case cannot substitute at the same
+    /// span, type, source and facts.
+    pub operand_texts: Vec<Option<String>>,
     /// DESIGN442 guard-consumed mark: the confined single-`Let(first)` plus
     /// single-`Require` hook slice consumes this occurrence only as a
     /// decision (hook_first_event + checked_first_query_source +
@@ -8188,6 +8194,25 @@ impl<'a> Closure<'a> {
     /// whole candidate domain remains retained; first is never a query limit.
     /// This inventory is available even when another original source leaf
     /// declines. Native execution still needs the complete owner/source join.
+    /// Checked semantic enum case for a sealed query operand. This mirrors
+    /// IR lowering so every admitted spelling seals the same authored
+    /// case: bare cases lower their own name text, while qualified cases
+    /// lower the final case token (`decode_member` reads
+    /// `kids(node).get(2)`). Sealing raw span text would pin the
+    /// qualifier and reject honest qualified source.
+    fn checked_case_operand_text(&self, operand: NodeKey) -> Option<String> {
+        let node = self.nodes.get(&operand)?;
+        let text = &self.db.get(node.span.file)?.text;
+        if node.kind == SyntaxKind::Member {
+            let parts = kids(node);
+            let part = parts.get(2)?;
+            name_text(part, text).map(str::to_string)
+        } else {
+            text.get(node.span.start as usize..node.span.end as usize)
+                .map(|snippet| snippet.trim().to_string())
+        }
+    }
+
     fn checked_first_query_source(
         &self,
         scenario: &super::effects::ScenarioData,
@@ -8328,6 +8353,7 @@ impl<'a> Closure<'a> {
             NodeKey,
             Option<(NodeKey, SymbolId)>,
         )> = Vec::new();
+        let mut operand_texts: Vec<Option<String>> = Vec::new();
         for conjunct in &conjuncts {
             let (member, operand) = self.query_binary(*conjunct, "==")?;
             let field = self.query_member(member, alias.node, fact.model)?;
@@ -8342,9 +8368,8 @@ impl<'a> Closure<'a> {
             });
             // Closed enum cases compare like the former scalar operands; a
             // case literal carries no transported input.
-            let case_operand =
-                matches!(&field_ty, ResolvedType::Enum { cases, .. } if !cases.is_empty())
-                    && self.types.resolved_cases.contains(&operand);
+            let case_operand = matches!(&field_ty, ResolvedType::Enum { cases, .. } if !cases.is_empty())
+                && self.types.resolved_cases.contains(&operand);
             if !fields.contains(&field)
                 || !(primitive_type(&field_ty)
                     || matches!(&field_ty, ResolvedType::Enum { cases, .. } if !cases.is_empty()))
@@ -8374,6 +8399,14 @@ impl<'a> Closure<'a> {
                 Some((operand, parameter))
             };
             members.push((member, field, field_ty, operand, input));
+            // Sealed authored case for closed cases; the predicate join
+            // pins the emitted case string against the checked semantic
+            // case (spelling-independent), not the raw source snippet.
+            operand_texts.push(if case_operand {
+                Some(self.checked_case_operand_text(operand)?)
+            } else {
+                None
+            });
         }
         // Bound before dependencies: the opaque query id anchors them.
         let id = self.opaque("query", fact.query, "").ok()?;
@@ -8472,6 +8505,7 @@ impl<'a> Closure<'a> {
                 binding: binding.node,
                 operand,
                 extra_operands,
+                operand_texts,
                 // DESIGN442: the guard/presence-consumed marks land in the
                 // source-facts pass below, where the Require consumptions
                 // for this scenario are known. Unmarked here so every

@@ -5985,15 +5985,23 @@ pub(super) fn checked_first_query_predicate(
             IrExpr::Text(case) => {
                 // A closed enum case lowers to text with the enum type. The
                 // case must belong to this dependency's own declared cases,
-                // and no transported input may name it.
+                // spell exactly the sealed authored semantic case for this
+                // conjunct (bare and qualified spellings seal the same
+                // checked case; a sibling declared case must not
+                // substitute), and no transported input may name it.
                 let ResolvedType::Enum { cases, .. } = &dependency.ty else {
                     return None;
                 };
+                let authored = first
+                    .operand_texts
+                    .get(index)
+                    .and_then(|text| text.as_deref());
                 if !cases.contains(case)
                     || query
                         .inputs
                         .iter()
                         .any(|(node, _)| *node == operand_nodes[index])
+                    || authored != Some(case.as_str())
                 {
                     return None;
                 }
@@ -13600,6 +13608,18 @@ When
    require e!=null
    create D {w=1} as d
    return 1
+ scenario go_q(p:P) -> int by=members
+  do
+   let e=first(p.C as e where e.kind==C.kind.administrator order=e.id)
+   require e!=null
+   create D {w=1} as d
+   return 1
+ scenario go_b(p:P) -> int by=members
+  do
+   let e=first(p.C as e where e.kind==booker order=e.id)
+   require e!=null
+   create D {w=1} as d
+   return 1
 Then
 "#;
 
@@ -13903,12 +13923,97 @@ Then
         assert_eq!(name, "administrator", "honest case");
         *name = "superadmin".to_string();
         let tampered_owner = owner_by_name(&tampered, "ConjTamper.go_e");
-        let (tampered_query, tampered_scan) =
-            first_scan_expecting(&tampered, tampered_owner, 1);
+        let (tampered_query, tampered_scan) = first_scan_expecting(&tampered, tampered_owner, 1);
         assert!(
             checked_first_query_predicate(&tampered, tampered_owner, tampered_query, tampered_scan)
                 .is_none(),
             "forged enum case against original facts must refuse"
+        );
+    }
+
+    #[test]
+    fn valid_case_substitution_against_original_facts_refuses() {
+        let (_db, ir) = fixture();
+        let owner = owner_by_name(&ir, "ConjTamper.go_e");
+        let (query, scan) = first_scan_expecting(&ir, owner, 1);
+        assert!(
+            checked_first_query_predicate(&ir, owner, query, scan).is_some(),
+            "genuine closed-case pair must admit"
+        );
+        let mut tampered = ir.clone();
+        let tampered_owner = tampered
+            .items
+            .iter_mut()
+            .find(|item| item.canonical == "ConjTamper.go_e")
+            .unwrap();
+        let IrItemKind::Scenario { effects, .. } = &mut tampered_owner.kind else {
+            panic!("scenario");
+        };
+        let binding = node_span(query.first.as_ref().unwrap().binding);
+        let call = effects
+            .iter_mut()
+            .find_map(|effect| match effect {
+                IrStmt::Let { value, span, .. } if *span == binding => Some(value),
+                _ => None,
+            })
+            .unwrap();
+        let (IrExpr::Call { args, .. } | IrExpr::BoundCall { args, .. }) = &mut call.expr else {
+            panic!("first call");
+        };
+        let [domain] = args.as_mut_slice() else {
+            panic!("one domain");
+        };
+        let IrExpr::Query(scan) = &mut domain.expr else {
+            panic!("query domain");
+        };
+        let predicate = scan.where_pred.as_mut().unwrap();
+        let IrExpr::Binary {
+            op: IrBinOp::Eq,
+            right: case,
+            ..
+        } = &mut predicate.expr
+        else {
+            panic!("lone case ==");
+        };
+        // Same span, type, source and facts; only the authored case
+        // changes to the other DECLARED case. Membership alone admits.
+        let IrExpr::Text(name) = &mut case.expr else {
+            panic!("case literal");
+        };
+        assert_eq!(name, "administrator", "honest case");
+        *name = "booker".to_string();
+        let tampered_owner = owner_by_name(&tampered, "ConjTamper.go_e");
+        let (tampered_query, tampered_scan) = first_scan_expecting(&tampered, tampered_owner, 1);
+        assert!(
+            checked_first_query_predicate(&tampered, tampered_owner, tampered_query, tampered_scan)
+                .is_none(),
+            "valid-case substitution against original facts must refuse"
+        );
+    }
+
+    #[test]
+    fn qualified_enum_case_spelling_admits() {
+        let (_db, ir) = fixture();
+        let owner = owner_by_name(&ir, "ConjTamper.go_q");
+        let (query, scan) = first_scan_expecting(&ir, owner, 1);
+        // The qualified spelling lowers to the same semantic case as the
+        // bare spelling; the sealed correspondence must admit it.
+        assert!(
+            checked_first_query_predicate(&ir, owner, query, scan).is_some(),
+            "genuine qualified closed-case pair must admit"
+        );
+    }
+
+    #[test]
+    fn authored_alternate_case_admits() {
+        let (_db, ir) = fixture();
+        let owner = owner_by_name(&ir, "ConjTamper.go_b");
+        let (query, scan) = first_scan_expecting(&ir, owner, 1);
+        // The other declared case is legal authored source; only an
+        // IR/source mismatch must refuse.
+        assert!(
+            checked_first_query_predicate(&ir, owner, query, scan).is_some(),
+            "genuine alternate declared case must admit"
         );
     }
 }
