@@ -1,5 +1,16 @@
 # Living ideal file-tree plan for Canlang
 
+**Origin sync, 2026-10-18 (`ede59d051..e3ba3c9e2`):** fast-forward the two
+incoming commits and reconcile the local Rust packet detail with their complete
+design/implementation relocation and newer source/status observations. Reuse the
+relocation coverage and verification recorded below and in DECISIONS; all incoming
+paths are retained without local product edits. The three local packet-detail
+files belong under `docs/implementation/rust-port-orchestration/`, with the
+canonical start guide retaining priorities and holds. Restore both decision
+contributions, relocated links and incoming ledger dispositions; clear only the
+six local documentation conflicts. Existing owner/target allocations and retained
+accumulated coverage are reused; the complete source-review checkpoint is unchanged.
+
 **Rust migration reconciliation, 2026-10-18:** the [single current Rust execution view](implementation/RUST-PORT-START-HERE.md#current-execution-view--2026-10-18) credits the broad Values Rust core, ordinary TS validation/provenance progress, accepted selected durable Work recovery Wasm, and retained incomplete preparation candidate. Existing R1/R2 shared Values assembly, R3 Work/delivery and R4 preparation owners/target allocations stay unchanged. Original IDs and full acceptance contracts remain; selected codec/source-adoption, native-preparation/native-release, defaults/retirement, activation and publication holds remain. This documentation-only reconciliation starts no implementation, performs no merge and leaves the complete source-review checkpoint unchanged.
 
 This is the current planning entry for the intended finished Canlang, derived from the owning requirements, all original app intent, challenge/reference/remaining plans and the four subsystem-port plans. The selected target goes beyond reorganizing today's implementation. The audit stops at requirements, reviewed boundaries, defining owners, exact target allocations and dependency-ordered future work; it launches no implementation or product checks.

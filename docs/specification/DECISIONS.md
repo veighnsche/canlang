@@ -1,5 +1,62 @@
 # Canlang language design decisions
 
+## 2026-10-18 — origin sync with local Rust planning detail
+
+**Accepted integration decision.** Fast-forward this worktree from `ede59d051`
+to origin/main `e3ba3c9e2`, retaining both upstream commits and resolving six
+local documentation conflicts. Keep the upstream docs/design and
+docs/implementation relocation, canonical start-guide priorities, current ledger
+observations and existing eight Work partial-status corrections. Restore the
+local finite packet detail under the new owning directory, including changed-byte
+Values delivery, ordinary TS isolated-Worker qualification and bounded shared
+fanout integration; these refine the current guide and add no task identities or
+permission. Retain both decision contributions and exact holds.
+
+Reconcile the living filetree incrementally over that incoming interval using its
+retained relocation coverage; no product edits or complete checkpoint advance.
+Update live links and current snapshots, preserving historical raw hashes/captures.
+The new user instruction authorizes this origin integration; it does not start
+Rust implementation, qualification, builds, default switching or publication.
+
+## 2026-10-18 — Rust-port source refresh and finite next-packet proposals
+
+**Accepted planning maintenance.** Reconcile the Rust-port plan at
+`ede59d0512ac9a5ede8c23dda47c006a150cb143` through the existing step12 and newer
+maintenance/source records. Use
+[the current Rust-port execution view](../implementation/rust-port-orchestration/current-plan.md)
+and its next-packet queue as finite detail under the canonical start-guide execution view;
+retain canonical IDs, dependencies, original acceptance and historical statuses.
+The older first-packet queue and numbered step notes remain evidence only.
+
+Credit the accepted explicit recovery producer and original Images durable
+TS/Wasm consumer once. Preserve the ordinary TS HTTP source-registration/default
+components already implemented and checked; they do not call Values' native
+interpreter. Record changed current values asset bytes separately from older
+installed receipts. Reuse equal-source evidence only at its recorded scope;
+37 selected step12 paths compare as16 equal/21 changed, and55 overlapping
+Cloudflare bridge paths as15 equal/40 changed. No new runtime acceptance follows.
+
+**Proposed, awaiting a new finite human release:** current-byte installed values
+asset qualification (`C04.values-assets`); isolated Worker qualification of the
+preserved ordinary TS HTTP registration (`V02.6`, consuming `V01.2`); and shared
+fanout row TS facade/Work/State integration (`W02.5` with only its actual
+`C04.graph` requests, including the installer currently refusing work-kernel
+in production). Each has a defining owner, concrete existing prerequisite
+output, exact remaining change and finite acceptance in the queue. Parent
+statuses are not advanced by selecting a slice. No new general carrier,
+profile/backend framework or unused package dependency is selected.
+
+The existing ASCII/int TECH-V04 contract remains source/adoption-held. Stored
+Decimal scale `-0` still needs its exact native-preservation versus proved
+pre-evaluation TS-retention decision; accepted ordinary TS default-copy work
+must not be reopened to answer it. Full profiles/registration/native consumers,
+resource/rollback/adoption gates and other original programmes remain separate.
+Native preparation/native release and all recorded default/retirement/activation/
+publication holds remain. The user authorizes planning only: no implementation,
+product check, build, schedule change, merge or complete filetree checkpoint
+advance. JSON/reference/ID consistency and diff whitespace checks validate this
+planning edit; no behavior acceptance is claimed.
+
 ## 2026-10-18 — consolidate design and implementation records under docs
 
 **Accepted repository organization decision.** Move the complete root `design/`

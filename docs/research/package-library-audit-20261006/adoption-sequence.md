@@ -1,5 +1,7 @@
 # Library adoption sequence within the existing Can plans
 
+Current Rust-port dispatch planning is in the [18 October source refresh](../../implementation/rust-port-orchestration/current-plan.md). This dated sequence and its finite releases are evidence; they are not a second execution queue.
+
 **Historical planning sequence with recorded finite implementation releases. Future execution remains deferred.** This sequence turns the [package audit](README.md) into finite work and acceptance units. It supplements the existing challenge, Rust-port and ideal file-tree plans; it is not a replacement master plan, a live assignment or a new canonical task count. The [machine sequence](adoption-sequence.json) records dependencies, candidate files and original-task references.
 
 Source baseline: `309644a6881909d8dba32560bc6711f67e00a7ab`, with the package inventory and current remaining-work ledger as evidence. Refresh at actual activation. Keep credited results and their exact scope; fixes to credited source are corrective changes with affected requalification, not a redispatch of old work. `A03.1` is credited complete; `A04.5` is partial; `W04.1–W04.3` are `needs_verification`; `W04.4` is `not_started`. Standalone source/vector history does not establish compiled work-kernel acceptance.

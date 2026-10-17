@@ -4,6 +4,18 @@
 
 This is the single current execution view for the existing Rust migration. Source inspection: main `ede59d051`; later accepted package outcomes are credited below. The original task IDs, dependencies, acceptance clauses and defining owners remain in [tasks.json](remaining-work/tasks.json) and the [subsystem plans](../research/package-subsystem-ports-20261006/implementation-plans/README.md). The numbered historical sequence below is evidence, not another dispatch queue. This update authorizes documentation only: implementation remains stopped and existing holds remain in force.
 
+### Finite packet detail reconciled after origin sync
+
+The [finite packet detail](rust-port-orchestration/current-plan.md) and
+[machine packet queue](rust-port-orchestration/next-packets.json) refine the
+priorities below. They add no canonical tasks or implementation permission.
+Ordinary TS isolated-Worker qualification remains the first priority; changed-byte
+Values installed/vendor qualification can proceed independently. Shared fanout
+TS integration includes only its actual consumer graph and installer handoff.
+Current-byte Node binding smoke recorded below is already credited; it does not
+replace installed/vendor/workerd delivery evidence. No accepted recovery work is
+reopened. All native-preparation/source-adoption/default/publication holds remain.
+
 ### Implemented and credited
 
 | Owner / original scope | Current implementation and evidence | Limit that remains |
