@@ -101,11 +101,18 @@ ordinary-scenario guard-consumed slice (analysis marking + State
 registration + decision-grant consumer): State registration loudly refuses
 their stored-bearing returns meanwhile, and a shared artifact means the
 conjunction scenarios live in their own fixture until that slice lands.
-If-branch creates and predicateless queries stay refused. Validation:
-rust 10/10 (new absence + conjunction positives, branch/predicateless
-refusals); runtime absence 1/1 on frozen in-target `f901f324` + `ca50`
-(absent creates D + scalar '1', present fails exact rule_failed with no
-D, retained replay stable). No original24 movement claimed: the 90 are
+If-branch creates admit in the finite contained family: single-predicate
+id-ordered first query with `if <binding>==null` holding exactly one nested
+create, proven arm/trailing sets and a captured tail; the taken arm executes
+through normal per-effect authorization (the receipt observes the proven
+statements, it does not pre-register which arm runs). Predicateless queries
+stay refused. 0526 repair: arm-nested sets carry the same source
+correspondence as top-level sets (receiver span/type seal, binding class,
+exact operand entries) — a tampered IR operand/span refuses while the
+genuine prefix matches. Validation: rust 7/7 ifbranch (admit + refusals) +
+in-crate tamper unit (control + operand/span) + 10/10 side-effect + 11/11
+hook-first + 17/17 native-first + 7/7 sources; installed consumer 1/1 (live
+branch per call, rollback, replay). No original24 movement claimed: the 90 are
 hooks/derives/nested queries/require-or/if shapes, not this bare form.
 Next: ordinary-scenario guard-consumed marking/registration/consumer with
 by/owner/parent authority + revocation on the decision path (never a

@@ -13319,7 +13319,12 @@ impl<'a> Closure<'a> {
             .checked_create_source(effect, module)
             .ok_or_else(fail)?;
         let model = checked.model;
-        if self.statement_depth != 1 || self.loop_node.is_some() || !calls.is_empty() {
+        // Branch-arm creates prove conditionally: only `statements` arm
+        // recursion raises statement_depth past 1 (loops use loop_node, call
+        // frames use calls), so If/Match-arm nesting is admitted here while
+        // the receipt tail rule narrowly admits only captured conditional
+        // shapes — every other nested tail keeps its loud refusal there.
+        if self.loop_node.is_some() || !calls.is_empty() {
             return Err(fail());
         }
         // Retain the accepted legacy constructor/default proof. Other checked

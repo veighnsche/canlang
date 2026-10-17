@@ -5645,7 +5645,7 @@ pub(super) fn checked_native_count_query_plan(
     })
 }
 
-fn checked_first_query_row<'a>(
+pub(super) fn checked_first_query_row<'a>(
     ir: &'a IrProgram,
     owner: &IrItem,
     value: &TypedExpr,
@@ -10174,7 +10174,12 @@ fn checked_scenario_create(
         return None;
     }
     super::scenario_create_sources::checked_created_schema(ir, owner, models, original, db)?;
-    if facts.creates.as_deref()?.len() == 2 {
+    if !is_top_level_create(owner, proof.node) {
+        // Arm-nested creates admit only through the captured conditional
+        // rule — including void scenarios (no free pass): every other nesting
+        // keeps its loud refusal (no receipt).
+        conditional_branch_create_tail(ir, owner, checked, proof.node, binding)?;
+    } else if facts.creates.as_deref()?.len() == 2 {
         let (first, second) = checked_created_pair(ir, owner, db)?;
         if proof.node != first.node && proof.node != second.node {
             return None;
@@ -10406,6 +10411,7 @@ fn checked_created_statements(
             IrStmt::If { span, .. } => {
                 super::scenario_create_sources::checked_create_prefix_if(
                     ir,
+                    owner,
                     original,
                     statement,
                     NodeKey::of(authored),
@@ -10419,7 +10425,18 @@ fn checked_created_statements(
                 changes,
                 when: None,
                 span,
-            } if guarded_created || void_owner => {
+            } if guarded_created
+                || void_owner
+                || (!is_top_level_create(owner, original.node)
+                    && conditional_branch_create_tail(
+                        ir,
+                        owner,
+                        checked,
+                        original.node,
+                        &original.binding,
+                    )
+                    .is_some()) =>
+            {
                 let mut paths = authored
                     .children
                     .iter()
@@ -10447,6 +10464,47 @@ fn checked_created_statements(
                         *span,
                         db,
                     )?;
+                } else if !is_top_level_create(owner, original.node)
+                    && conditional_branch_create_tail(
+                        ir,
+                        owner,
+                        checked,
+                        original.node,
+                        &original.binding,
+                    )
+                    .is_some()
+                {
+                    // Conditional tails may set pre-bound rows (params or
+                    // earlier lets): the receiver name must be bound before
+                    // the branch, and the conditional rule has already
+                    // excluded leaks of the arm binding into this statement.
+                    let IrItemKind::Scenario {
+                        effects: owner_effects,
+                        params: owner_params,
+                        ..
+                    } = &owner.kind
+                    else {
+                        return None;
+                    };
+                    let mut prebound = false;
+                    for id in owner_params.iter() {
+                        if ir
+                            .items
+                            .get(id.0 as usize)
+                            .is_some_and(|item| item.name == binding)
+                        {
+                            prebound = true;
+                        }
+                    }
+                    for effect in owner_effects.iter() {
+                        if matches!(effect, IrStmt::Let { name, .. } if name == &binding) {
+                            prebound = true;
+                        }
+                    }
+                    if !prebound || !matches!(&record.ty, ResolvedType::Record { stored: true, .. })
+                    {
+                        return None;
+                    }
                 } else {
                     let selected = checked_first_query_row(ir, owner, record, db)?;
                     if record.ty
@@ -10591,7 +10649,7 @@ fn checked_created_statements(
 
 /// Effect containers are synthetic Unknown objects spanning the statement.
 /// Seal each authored ordered entry through its original typed operand instead.
-fn checked_created_object_entries(
+pub(super) fn checked_created_object_entries(
     ir: &IrProgram,
     original: &crate::analysis::scenario_disclosure::CheckedScenarioCreate,
     actual: &TypedExpr,
@@ -10693,6 +10751,334 @@ fn terminal_create_then_literal_return(
                 | IrExpr::Null
         )
     )
+}
+
+/// Collect every bare `Name` in an expression, descending into all child
+/// positions exhaustively (no wildcard arm: a new variant breaks compilation
+/// here so it cannot silently hide a use). Used only to prove a conditional
+/// binding does not leak outside its arm — a missed position would be a
+/// soundness hole, an extra hit only a loud refusal.
+fn conditional_binding_names(value: &TypedExpr, out: &mut Vec<String>) {
+    match &value.expr {
+        IrExpr::Name(name) => out.push(name.clone()),
+        IrExpr::Member { base, .. } => conditional_binding_names(base, out),
+        IrExpr::Call { args, .. } | IrExpr::BoundCall { args, .. } => {
+            for arg in args {
+                conditional_binding_names(arg, out);
+            }
+        }
+        IrExpr::Binary { left, right, .. } => {
+            conditional_binding_names(left, out);
+            conditional_binding_names(right, out);
+        }
+        IrExpr::Unary { operand, .. } => conditional_binding_names(operand, out),
+        IrExpr::Array(items) => {
+            for item in items {
+                conditional_binding_names(item, out);
+            }
+        }
+        IrExpr::Object(entries) => {
+            for (_, item) in entries {
+                conditional_binding_names(item, out);
+            }
+        }
+        IrExpr::Query(query) => {
+            if let super::ir::IrQueryDomain::Value { base, .. } = &query.domain {
+                conditional_binding_names(base, out);
+            }
+            for part in query
+                .parent
+                .iter()
+                .chain(query.where_pred.iter())
+                .chain(query.limit.iter())
+                .chain(query.archived.iter())
+                .chain(query.select.iter())
+            {
+                conditional_binding_names(part, out);
+            }
+            if let Some(order) = &query.value_order {
+                conditional_binding_names(&order.key, out);
+            }
+        }
+        IrExpr::DeliveryRead { record, .. } => conditional_binding_names(record, out),
+        IrExpr::Message(message) => {
+            for param in &message.params {
+                conditional_binding_names(&param.value, out);
+            }
+        }
+        IrExpr::MessageCall { args, params, .. } => {
+            for arg in args {
+                conditional_binding_names(arg, out);
+            }
+            for param in params {
+                if let Some(default) = &param.default {
+                    conditional_binding_names(default, out);
+                }
+            }
+        }
+        IrExpr::Format { args, .. } => {
+            for arg in args {
+                conditional_binding_names(arg, out);
+            }
+        }
+        IrExpr::HasRole { person, .. } => {
+            for value in person.iter() {
+                conditional_binding_names(value, out);
+            }
+        }
+        IrExpr::Lambda { body, .. } => conditional_binding_names(body, out),
+        IrExpr::JudgmentSpecification { options, .. } => {
+            for value in options.iter() {
+                conditional_binding_names(value, out);
+            }
+        }
+        IrExpr::PageTimePredicate(_)
+        | IrExpr::Unsupported { .. }
+        | IrExpr::Int(_)
+        | IrExpr::Decimal(_)
+        | IrExpr::Text(_)
+        | IrExpr::Bool(_)
+        | IrExpr::Null
+        | IrExpr::Money { .. }
+        | IrExpr::DurationMs(_)
+        | IrExpr::Date(_)
+        | IrExpr::Datetime(_) => {}
+    }
+}
+
+/// True when a statement's expressions mention a binding name. Statements
+/// outside the admitted conditional vocabularies count as uses (fail-closed)
+/// so a future vocabulary extension cannot silently leak a binding.
+fn conditional_binding_used(statement: &IrStmt, binding: &str) -> bool {
+    let mut exprs: Vec<&TypedExpr> = Vec::new();
+    match statement {
+        IrStmt::Let { value, .. } => exprs.push(value),
+        IrStmt::Create { input, .. } => exprs.push(input),
+        IrStmt::Set {
+            record, changes, ..
+        } => {
+            exprs.push(record);
+            exprs.push(changes);
+        }
+        IrStmt::Require { cond, .. } => exprs.push(cond),
+        IrStmt::Return { value, .. } => exprs.extend(value.iter()),
+        IrStmt::If { cond, .. } => exprs.push(cond),
+        IrStmt::Emit { payload, .. } => exprs.push(payload),
+        IrStmt::Call { inputs, .. } => exprs.push(inputs),
+        _ => return true,
+    }
+    let mut names = Vec::new();
+    for expr in exprs {
+        conditional_binding_names(expr, &mut names);
+    }
+    names.iter().any(|name| name == binding)
+}
+
+/// A conditional (branch-arm) create admits only through this captured rule:
+/// exactly one nested create under a single top-level null-check branch in a
+/// first-query scenario, with captured arms and a captured tail. The arm
+/// binding must not leak: arm/trailing lets are refused (no laundering, no
+/// shadowing), and the binding name must not occur in the condition, the
+/// sibling arm, or any trailing statement. Exactly one top-level branch
+/// construct is allowed, so coverage below is region-precise; every other
+/// nesting keeps its loud refusal (no receipt). The taken arm executes
+/// through normal per-effect authorization; the receipt observes the proven
+/// statements, it does not pre-register which arm runs.
+fn conditional_branch_create_tail(
+    ir: &IrProgram,
+    owner: &IrItem,
+    checked: &crate::analysis::scenario_disclosure::CheckedScenarioDisclosure,
+    create: crate::analysis::NodeKey,
+    binding: &str,
+) -> Option<()> {
+    // Conditional-create receipts exist only for first-query scenarios;
+    // other scenarios keep their existing plain path (no behavior change).
+    let first_query = checked
+        .source_facts
+        .as_deref()?
+        .queries
+        .as_deref()?
+        .iter()
+        .any(|query| query.first.is_some());
+    if !first_query {
+        return None;
+    }
+    let IrItemKind::Scenario {
+        effects, params, ..
+    } = &owner.kind
+    else {
+        return None;
+    };
+    // Exactly one top-level branch construct and no loops/matches: every
+    // nested statement then necessarily lives under the admitted If below.
+    let mut branches = 0;
+    for effect in effects.iter() {
+        match effect {
+            IrStmt::If { .. } => branches += 1,
+            IrStmt::Match { .. } | IrStmt::For { .. } => return None,
+            _ => {}
+        }
+    }
+    if branches != 1 {
+        return None;
+    }
+    // All possible binders in scope. Arm/trailing lets are refused below, so
+    // no shadowing can hide the conditional binding behind the same name.
+    let mut binders = std::collections::HashSet::new();
+    for id in params {
+        binders.insert(ir.items.get(id.0 as usize)?.name.clone());
+    }
+    for effect in effects.iter() {
+        if let IrStmt::Let { name, .. } = effect {
+            binders.insert(name.clone());
+        }
+    }
+    if binders.contains(binding) {
+        return None;
+    }
+    // The create must be a direct child of exactly one arm of the single
+    // top-level If; deeper nesting stays refused.
+    let mut enclosing: Option<(usize, &TypedExpr, &[IrStmt], &[IrStmt])> = None;
+    for (index, effect) in effects.iter().enumerate() {
+        if let IrStmt::If {
+            cond,
+            then_branch,
+            else_branch,
+            ..
+        } = effect
+        {
+            let hit = then_branch
+                .iter()
+                .chain(else_branch.iter())
+                .any(|statement| {
+                    matches!(statement, IrStmt::Create { span, .. } if *span == node_span(create))
+                });
+            if hit {
+                if enclosing.is_some() {
+                    return None;
+                }
+                enclosing = Some((index, cond, then_branch.as_slice(), else_branch.as_slice()));
+            }
+        }
+    }
+    let (position, cond, then_branch, else_branch) = enclosing?;
+    // Exactly one create lives under the branch (the checked one).
+    let mut nested = 0;
+    for statement in then_branch.iter().chain(else_branch.iter()) {
+        if let IrStmt::Create { span, .. } = statement {
+            if *span != node_span(create) {
+                return None;
+            }
+            nested += 1;
+        }
+    }
+    if nested != 1 {
+        return None;
+    }
+    // Slice condition: a null check on a pre-bound name. The check reads no
+    // stored fields, so no field disclosure rides on the branch choice.
+    let condition_name = match &cond.expr {
+        IrExpr::Binary {
+            op: super::ir::IrBinOp::Eq | super::ir::IrBinOp::Ne,
+            left,
+            right,
+        } => match (&left.expr, &right.expr) {
+            (IrExpr::Name(name), IrExpr::Null) | (IrExpr::Null, IrExpr::Name(name)) => {
+                Some(name.clone())
+            }
+            _ => None,
+        },
+        _ => None,
+    }?;
+    if !binders.contains(&condition_name) || condition_name == binding {
+        return None;
+    }
+    // Arm vocabulary: requires, the single checked create, and proven sets.
+    // Lets (laundering), calls (opaque consumption), nested branches, loops
+    // and sends keep their loud refusal. Every arm set must carry its
+    // analysis proof, else the receipt cannot observe it.
+    for arm in [then_branch, else_branch] {
+        for statement in arm.iter() {
+            match statement {
+                IrStmt::Require { .. } => {}
+                IrStmt::Create { span, .. } if *span == node_span(create) => {}
+                IrStmt::Set { span, .. } => {
+                    if !checked
+                        .effects
+                        .iter()
+                        .any(|proof| node_span(proof.node) == *span)
+                    {
+                        return None;
+                    }
+                }
+                _ => return None,
+            }
+        }
+    }
+    // Trailing vocabulary after the branch: requires, literal returns,
+    // proven sets and proven emits. Calls, lets and further branches keep
+    // their loud refusal.
+    for effect in effects.iter().skip(position + 1) {
+        match effect {
+            IrStmt::Require { .. } => {}
+            IrStmt::Return { value, .. } => {
+                if !matches!(
+                    value.as_ref().map(|returned| &returned.expr),
+                    Some(
+                        IrExpr::Int(_)
+                            | IrExpr::Decimal(_)
+                            | IrExpr::Text(_)
+                            | IrExpr::Bool(_)
+                            | IrExpr::Null
+                    )
+                ) {
+                    return None;
+                }
+            }
+            IrStmt::Set { span, .. } | IrStmt::Emit { span, .. } => {
+                if !checked
+                    .effects
+                    .iter()
+                    .any(|proof| node_span(proof.node) == *span)
+                {
+                    return None;
+                }
+            }
+            _ => return None,
+        }
+    }
+    // The conditional binding must not leak outside its own create: the
+    // condition, the sibling arm and every trailing statement are scanned.
+    // (Pre-branch uses cannot resolve through the postdominator env reset.)
+    let mut scoped = Vec::new();
+    conditional_binding_names(cond, &mut scoped);
+    if scoped.iter().any(|name| name == binding) {
+        return None;
+    }
+    for arm in [then_branch, else_branch] {
+        for statement in arm.iter() {
+            if conditional_binding_used(statement, binding) {
+                return None;
+            }
+        }
+    }
+    for effect in effects.iter().skip(position + 1) {
+        if conditional_binding_used(effect, binding) {
+            return None;
+        }
+    }
+    Some(())
+}
+
+/// A create directly in the scenario body keeps the existing positional
+/// rules; arm-nested creates take only the conditional branch rule.
+fn is_top_level_create(owner: &IrItem, create: crate::analysis::NodeKey) -> bool {
+    let IrItemKind::Scenario { effects, .. } = &owner.kind else {
+        return false;
+    };
+    effects
+        .iter()
+        .any(|effect| matches!(effect, IrStmt::Create { span, .. } if *span == node_span(create)))
 }
 
 /// An original intermediate Create is consumed only by the immediately
@@ -11411,7 +11797,7 @@ fn ordered_root_effects(
 
 /// A created binding is the current owner-session row, never another same-type
 /// local or admitted input whose copied Member site happens to match the proof.
-fn created_record_name_matches(
+pub(super) fn created_record_name_matches(
     value: &TypedExpr,
     record: &ResolvedType,
     binding: &str,
@@ -11473,7 +11859,10 @@ fn checked_effect_node(
 
 /// CST path spans own their leading trivia. Match the sole actual name token
 /// while preserving the original whole-path span used by the checked proof.
-fn direct_source_path_name<'a>(node: &crate::syntax::SyntaxNode, text: &'a str) -> Option<&'a str> {
+pub(super) fn direct_source_path_name<'a>(
+    node: &crate::syntax::SyntaxNode,
+    text: &'a str,
+) -> Option<&'a str> {
     if node.kind != SyntaxKind::Path {
         return None;
     }

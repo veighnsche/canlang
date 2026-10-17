@@ -1,0 +1,30 @@
+app IfBranchSources
+Given
+ P {v:int}
+ C in P {v:int}
+ D {w:int}
+ policy P read=members fields=v
+ policy C read=members fields=parent,v
+ policy D read=members fields=w
+When
+ crud P by=members fields=v
+ crud C by=members fields=parent,v
+ scenario go_branch(p:P,n:int,m:int) -> int by=members
+  do
+   let c=first(p.C as c where c.v==n order=c.id)
+   if c==null
+    create D {w=n} as d
+   else
+    set c {v=m}
+   return 1
+ scenario go_trailing(p:P,n:int,m:int) -> int by=members
+  do
+   let c=first(p.C as c where c.v==n order=c.id)
+   if c==null
+    create D {w=n} as d
+   else
+    set c {v=m}
+   set p {v=m}
+   require m==0
+   return 1
+Then
