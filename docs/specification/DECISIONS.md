@@ -18284,3 +18284,13 @@ Accepted: C2 installed-consumer closure: real assembled-worker text consumer (de
 ## 2026-10-16 — can18_merge_41_20261017
 
 Accepted: C3 civil-date selector intake (2321): compiler admits plain owned date equality controls per DESIGN 1015-1025; host preparer normalizes DateValue literal defaults and refuses malformed before query; installed date consumer + interfaces date tests green. Merge reviewed tested work incrementally into canonical `main`, preserving installer/specification changes and the active implementation branch. compiler enum 54/54 + bool 27/27 + pins 8/8; main installed date consumer 1/1 + interfaces date 3/3 on frozen 7ef0b2e6/ca50; C2 text regression 2/2. Reconcile the living file-tree plan/registry over `fa607aff8..9ea028396` with existing owners; retain the complete checkpoint and all outstanding acceptance gates. A merged component is not a claim that original24 or the remaining runtime workflows are complete.
+
+
+## 2026-10-16 — can18_merge_42_20261017
+
+Accepted: Dispatch fence persistence intake: send-result envelope reads (delivery.id) in post-send sets + enum inventory profile + 4/4 analysis regression + 1/1 runtime proof (stage/persist/drive/skip/deny) on frozen 76fb0302/ca50. No original24 count claimed; has_ir_errors seal retained. Merge reviewed tested work incrementally into canonical `main`, preserving installer/specification changes and the active implementation branch. dispatch_fence_persistence 4/4; runtime proof 1/1 on frozen 76fb0302/ca50; neighbors no new failures Reconcile the living file-tree plan/registry over `764c3c1aa..25ae63f18` with existing owners; retain the complete checkpoint and all outstanding acceptance gates. A merged component is not a claim that original24 or the remaining runtime workflows are complete.
+
+
+## 2026-10-16 — can18_merge_42_20261017
+
+Accepted: Dispatch fence persistence intake: send-result envelope reads (delivery.id) in post-send sets + enum inventory profile + 4/4 analysis regression + 1/1 runtime proof (stage/persist/drive/skip/deny) on frozen 76fb0302/ca50. No original24 count claimed; has_ir_errors seal retained. Merge reviewed tested work incrementally into canonical `main`, preserving installer/specification changes and the active implementation branch. dispatch_fence_persistence 4/4; runtime proof 1/1 on frozen 76fb0302/ca50; neighbors no new failures Reconcile the living file-tree plan/registry over `764c3c1aa..69579880f` with existing owners; retain the complete checkpoint and all outstanding acceptance gates. A merged component is not a claim that original24 or the remaining runtime workflows are complete.
