@@ -74646,5 +74646,28 @@
     "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
     "checkpoint_advanced": false,
     "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
+  },
+  "can18_merge_44_20261017": {
+    "incremental_base": "fdf3b372c7ed476948bb02d46ccc70ea5e48eb2a",
+    "incoming_end": "5fc23d5b62257736bfe9ebe5ef7adbded679d5b0",
+    "retained_coverage": "reuse spec_installer_merge_reconciliation_20261015 and preceding CAN18 incremental merge entries; inherited complete checkpoint unchanged",
+    "changed_path_count": 2,
+    "rows": [
+      [
+        "compiler/tests/toggle_form_control.rs",
+        "Compiler",
+        "existing compiler analysis/emission or focused conformance tests"
+      ],
+      [
+        "implementation/compiler-completion/README.md",
+        "Compiler completion",
+        "existing finite execution record"
+      ]
+    ],
+    "choice": "Toggle submit round-trip (0141): rendered names/marker/CSRF through the real operation handler into compiled Item.create; persisted true/false incl. unchecked-against-true-default; fail-before 0/2, 2/2 with repair. E submit acceptance closed.",
+    "validation": "toggle_form_control 2/2; no production change; neighbors reused from merge43.",
+    "target_disposition": "existing defining owners retained; new focused compiler tests belong with compiler/tests; no source moves, package redesign or new product scope",
+    "checkpoint_advanced": false,
+    "remaining_gates": "original24 and required executable consumers remain open; all unfinished worker source/commits preserved in Muse run; inherited complete semantic/target review unchanged"
   }
 }

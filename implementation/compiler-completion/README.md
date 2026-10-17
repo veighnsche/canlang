@@ -94,14 +94,20 @@ toggle, `forms.ts` case). The emitted toggle carried a raw `field:"urgent"`
 string and skipped `authoredFields`, so the real UI threw `field
 "undefined": type must be a string`. One-word defining-owner fix covers
 both the authored-field collector and the prepared-field emission backstop.
-Validation: new `compiler/tests/toggle_form_control.rs` 1/1 — actual
+Validation: `compiler/tests/toggle_form_control.rs` 2/2 — actual
 compiled `Item.create` form through assemble + installed UI, asserting
 `authoredFields` `[title,urgent]`, successful render, and checked-state
-tracking of false/true bool defaults. Fail-before proven (0/1 on the
-pre-fix compiler). Neighbors: ui_original_bindings 27/27, enum 54/54,
-factory 33/33, bool 31/31. `field_fragment_runtime`
-`original_cap_fragments...` fails identically on clean HEAD — pre-existing,
-unrelated (no toggle in its source), recorded not fixed.
+tracking of false/true bool defaults; plus a real worker round-trip
+(`assembleWorker` + memory storage + identity fixture + real
+`handlePageRequest`/`handleOperationRequest` joins): rendered form names,
+presence marker and CSRF POSTed urlencoded into compiled `Item.create`,
+committed 200, and the served list shows the persisted value — checked
+persists true, unchecked (marker only) persists false including against
+a true default. Fail-before proven on the true pre-fix producer (0/2).
+Neighbors: ui_original_bindings 27/27, enum 54/54, factory 33/33, bool
+31/31. `field_fragment_runtime` `original_cap_fragments...` fails
+identically on clean HEAD — pre-existing, unrelated (no toggle in its
+source), recorded not fixed. E submit acceptance closed.
 
 ### REVIEW-NOW queue (all open, one execution view) — 2026-10-17
 

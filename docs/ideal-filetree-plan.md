@@ -180,6 +180,10 @@ Dispatch fence persistence intake: send-result envelope reads (delivery.id) in p
 
 Toggle form-control repair (REVIEW-NOW-2 E): the admitted toggle factory travels the checkbox prepared-field contract at the shared owner; actual compiled Item.create render + false/true consumer with fail-before proof, neighbors green; REVIEW-NOW remainder stays open. Incoming interval `02781f83e..HEAD` accounts for 3 changed paths in `can18_merge_43_20261017` of the existing registry. toggle_form_control 1/1; ui_original_bindings 27/27; enum_filter_group 54/54; factory_profiles 33/33; collection_bool_filters 31/31; field_fragment_runtime original_cap failure pre-existing on clean HEAD. Existing defining owners and target allocations remain; focused new tests stay with Compiler. Reuse prior accumulated coverage; complete checkpoint remains unchanged. Original24 and required executable consumers remain open. Unfinished work stays in the running Muse checkout.
 
+### CAN18 incremental integration — can18_merge_44_20261017
+
+Toggle submit round-trip (0141): rendered names/marker/CSRF through the real operation handler into compiled Item.create; persisted true/false incl. unchecked-against-true-default; fail-before 0/2, 2/2 with repair. E submit acceptance closed. Incoming interval `fdf3b372c..HEAD` accounts for 2 changed paths in `can18_merge_44_20261017` of the existing registry. toggle_form_control 2/2; no production change; neighbors reused from merge43. Existing defining owners and target allocations remain; focused new tests stay with Compiler. Reuse prior accumulated coverage; complete checkpoint remains unchanged. Original24 and required executable consumers remain open. Unfinished work stays in the running Muse checkout.
+
 ### Specification and installer documentation merge — 2026-10-15
 
 Merge installer commit `02470b74` into canonical `main` at `a70921e3`.
