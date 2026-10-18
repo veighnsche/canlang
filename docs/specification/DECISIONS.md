@@ -20311,3 +20311,25 @@ Emission and execution semantics are unchanged throughout. Recorded
 separately: parallel workspace builds force-clean dependent dists
 mid-flight, so recovery builds run sequentially per package in
 dependency order.
+
+### Derive-nested and parameter-field disclosure admissions (2026-10-18)
+
+`cafe.reserve`/`cafe.seat` membership joins declined on
+navigation-domain queries reached through derive descent (the
+`available()`-body `any(...)` refused with "query closure is not
+supported") and, for seat, on its own guard conjunct
+`booking.table==table` (a nullable parameter field against a same-model
+parameter, refused before the admitted-comparison rule ran). Both are
+admitted fail-closed in `scenario_disclosure.rs`: (1) a
+`NestedAnyScope` threads derive formals to sealed outer args so one
+derive boundary keeps original-parameter lineage — every use still
+resolves to an original required scenario parameter or a sealed value,
+and unmapped formals refuse; (2) `binary_parent_comparison` also admits
+a stored-record field off an original required parameter against the
+same model's sealed operand, evaluated by the new nullable-only
+`expr_member_parameter_field_reference` select arm (no lineage kept,
+the field's own read stays on the value; non-nullable fields keep the
+required-reference path, `parent` keeps hop semantics, and comparisons
+against derive results still refuse). The admitted equality consumes
+containment into a lineage-free boolean, as the existing parent-hop
+shape does.

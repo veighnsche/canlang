@@ -97,6 +97,31 @@ pub struct DisclosureInfluence {
     pub query_id: Option<String>,
 }
 
+/// Derive-nested `any` parameter scope: derive formals mapped to their
+/// sealed outer-call arguments for one nesting level. A formal maps to
+/// its original required scenario parameter when the outer argument
+/// spells that parameter, and to nothing when the argument is a sealed
+/// non-parameter value (literal, enum case, or `now`). Anything else
+/// leaves the formal unmapped and the nested query refused.
+#[derive(Debug, Clone)]
+pub(crate) struct NestedAnyScope {
+    derive: SymbolId,
+    formals: Vec<(SymbolId, NodeKey, Option<SymbolId>)>,
+}
+
+/// One derive-nested `any` admission: the checked query plus the outer call
+/// chain and the domain formal lineage that the evaluator re-verifies
+/// against the live environment.
+#[derive(Debug, Clone)]
+pub(crate) struct NestedAnyQuery {
+    query: DisclosureQuery,
+    call: NodeKey,
+    chain: Vec<NodeKey>,
+    formal: SymbolId,
+    parameter: SymbolId,
+    parent: SymbolId,
+}
+
 /// Closed source producer for a viewer model scan and its nominal projection.
 /// This remains available when unrelated authorization/native admission declines.
 #[derive(Debug, Clone, PartialEq)]
@@ -3354,6 +3379,48 @@ impl<'a> Closure<'a> {
             return None;
         }
         Some((*parent, prior + 1))
+    }
+
+    /// A stored-record field selected off an original required record
+    /// parameter: the base keeps bare-parameter provenance and the field
+    /// names its own stored model. `parent` keeps its hop semantics and
+    /// never matches here, so a rejected hop cannot re-enter as a field.
+    fn call_parameter_field(&self, key: NodeKey, parameter: SymbolId) -> Option<SymbolId> {
+        let key = self.query_group(key)?;
+        let node = self.nodes.get(&key)?;
+        if node.kind != SyntaxKind::Member {
+            return None;
+        }
+        let mut operands = node.children.iter().filter(|part| expression(part.kind));
+        let base = operands.next()?;
+        if operands.next().is_some() {
+            return None;
+        }
+        if node
+            .children
+            .iter()
+            .rev()
+            .find(|part| part.kind == SyntaxKind::Name)
+            .and_then(|part| self.word(part))
+            == Some("parent")
+        {
+            return None;
+        }
+        let base_key = self.query_group(NodeKey::of(base))?;
+        self.call_parent_nameref(base_key, parameter)?;
+        let symbol = match self.types.node_types.get(&key)? {
+            ResolvedType::Record { symbol, stored: true } => *symbol,
+            ResolvedType::Nullable(inner) => match inner.as_ref() {
+                ResolvedType::Record { symbol, stored: true } => *symbol,
+                _ => return None,
+            },
+            _ => return None,
+        };
+        matches!(
+            self.resolve.symbols.get(symbol.0 as usize)?.kind,
+            SymbolKind::Model { .. }
+        )
+        .then_some(symbol)
     }
 
     fn field_type_id(
@@ -8564,6 +8631,39 @@ impl<'a> Closure<'a> {
         }])
     }
 
+    /// A `param.parent.field` required reference: one containment hop off
+    /// an original scenario parameter, then an ordinary stored-model
+    /// record field. Returns the consumer's (source model, field, target)
+    /// triple. (The shared required-reference check covers ordinary-field
+    /// chains; the containment link is not an ordinary field, so the
+    /// helper seals this one-hop shape locally from the same pieces. The
+    /// consumer re-verifies the live reference edge before admitting.)
+    fn helper_parent_chained_reference(
+        &self,
+        scenario: &super::effects::ScenarioData,
+        argument: NodeKey,
+    ) -> Option<(SymbolId, SymbolId, SymbolId)> {
+        let argument = self.query_group(argument)?;
+        let node = self.nodes.get(&argument)?;
+        if node.kind != SyntaxKind::Member {
+            return None;
+        }
+        let (base, _) = self.count_member(argument)?;
+        let (param_base, link) = self.count_member(base)?;
+        if link != "parent" {
+            return None;
+        }
+        let parameter = self.query_parameter(scenario, param_base)?;
+        let ResolvedType::Record { symbol: child, stored: true } =
+            self.types.symbol_types.get(&parameter)?
+        else {
+            return None;
+        };
+        let (parent, _) = self.call_parent_hop_valid(base, param_base, *child, 0)?;
+        let triple = self.required_reference_field(argument, node, &parent)?;
+        Some(triple)
+    }
+
     /// Preserve a helper Require's exact root ANY source census.
     /// This records its lazy candidate reads; it admits no query execution.
     fn checked_helper_any_query_sources(
@@ -8617,6 +8717,10 @@ impl<'a> Closure<'a> {
                                     .flatten()
                                     .map(|(_, _, model)| model)
                             })
+                            .or_else(|| {
+                                self.helper_parent_chained_reference(scenario, *argument)
+                                    .map(|(_, _, model)| model)
+                            })
                     })
                     .is_none()
                 {
@@ -8665,6 +8769,12 @@ impl<'a> Closure<'a> {
             self.checked_contract_input_reference(argument.0, scenario.module)
         {
             (Some(parameter), model)
+        } else if let Some((_, _, model)) =
+            self.helper_parent_chained_reference(scenario, argument.0)
+        {
+            // A `param.parent.field` chain seals like a required model
+            // reference; the consumer re-verifies the live edge.
+            (None, model)
         } else {
             if site.stage != CheckedDecisionStage::BodyRequire {
                 return None;
@@ -8978,7 +9088,9 @@ impl<'a> Closure<'a> {
                 {
                     continue;
                 }
-                queries.push(self.checked_any_query_source(scenario, guard, call)?);
+                if let Some(query) = self.checked_any_query_source(scenario, guard, call) {
+                    queries.push(query);
+                }
                 if queries.len() > 1 {
                     return None;
                 }
@@ -9179,11 +9291,85 @@ impl<'a> Closure<'a> {
         Some(())
     }
 
+    /// A derive formal in scope resolves exactly like the scenario
+    /// parameter its outer-call argument spells: the sealed lineage
+    /// crosses one derive boundary unchanged.
+    fn query_parameter_scoped(
+        &self,
+        scenario: &super::effects::ScenarioData,
+        key: NodeKey,
+        scope: Option<&NestedAnyScope>,
+    ) -> Option<SymbolId> {
+        if let Some(parameter) = self.query_parameter(scenario, key) {
+            return Some(parameter);
+        }
+        let scope = scope?;
+        let Some(Binding::Symbol(formal)) = self.query_binding(key) else {
+            return None;
+        };
+        let parameter = scope
+            .formals
+            .iter()
+            .find_map(|(candidate, _, mapped)| (*candidate == *formal).then_some(*mapped))??;
+        scenario
+            .params
+            .iter()
+            .find(|param| param.param == parameter && param.default.is_none())?;
+        Some(parameter)
+    }
+
+    /// A scoped formal name: the formal must belong to the scope's derive.
+    fn nested_scope_formal(&self, scope: &NestedAnyScope, formal: SymbolId) -> Option<String> {
+        scope.formals.iter().find(|(candidate, _, _)| *candidate == formal)?;
+        let symbol = self.resolve.symbols.get(formal.0 as usize)?;
+        match symbol.kind {
+            SymbolKind::Param { owner, .. } if owner == scope.derive => Some(symbol.name.clone()),
+            _ => None,
+        }
+    }
+
+    /// The scoped original-parameter checks: the existing scenario checks,
+    /// plus a formal mapped to the same scenario parameter through the
+    /// nested scope. A copied lexical value still acquires nothing.
+    fn scoped_reference_parameter(
+        &self,
+        key: NodeKey,
+        parameter: SymbolId,
+        scope: Option<&NestedAnyScope>,
+    ) -> bool {
+        self.original_reference_parameter(key, parameter)
+            || scope.is_some_and(|scope| {
+                matches!(self.query_binding(key), Some(Binding::Symbol(id))
+                    if scope.formals.iter().any(|(formal, _, mapped)| formal == id && *mapped == Some(parameter)))
+            })
+    }
+
+    /// The scoped one-hop containment navigation off the original
+    /// parameter, through either a scenario parameter or a mapped formal.
+    fn scoped_navigation_parameter(
+        &self,
+        key: NodeKey,
+        parameter: SymbolId,
+        scope: Option<&NestedAnyScope>,
+    ) -> bool {
+        self.original_navigation_parameter(key, parameter)
+            || {
+                let Some(scope) = scope else {
+                    return false;
+                };
+                let Some((base, field)) = self.count_member(key) else {
+                    return false;
+                };
+                field == "parent" && self.scoped_reference_parameter(base, parameter, Some(scope))
+            }
+    }
+
     fn any_query_domain_owner<'s>(
         &'s self,
         scenario: &super::effects::ScenarioData,
         supplied: NodeKey,
         call: NodeKey,
+        scope: Option<&NestedAnyScope>,
     ) -> Option<(
         NodeKey,
         &'a super::types::CheckedQuery,
@@ -9213,14 +9399,16 @@ impl<'a> Closure<'a> {
         // a default-free stored-record parameter (mirrors the admitted
         // first-query domain owner: base must bind the scenario parameter
         // through the `parent` link; the path helper below seals lineage).
-        let parameter = match self.query_parameter(scenario, receiver) {
+        // A nested scope additionally admits a derive formal mapped to its
+        // original scenario parameter through the outer call argument.
+        let parameter = match self.query_parameter_scoped(scenario, receiver, scope) {
             Some(parameter) => parameter,
             None => {
                 let (base, field) = self.count_member(receiver)?;
                 if field != "parent" {
                     return None;
                 }
-                self.query_parameter(scenario, base)?
+                self.query_parameter_scoped(scenario, base, scope)?
             }
         };
         Some((
@@ -9234,6 +9422,7 @@ impl<'a> Closure<'a> {
         receiver: NodeKey,
         parameter: SymbolId,
         model: SymbolId,
+        scope: Option<&NestedAnyScope>,
     ) -> Option<(
         SymbolId,
         u8,
@@ -9243,7 +9432,60 @@ impl<'a> Closure<'a> {
         &'t super::effects::ParamData,
         ResolvedType,
     )> {
-        let (parent, hops) = self.checked_call_parent_path(receiver, parameter, 0)?;
+        // A nested receiver spells exactly `formal.parent`: the base binds
+        // a scoped formal mapped to this scenario parameter, and the
+        // parent model follows the same one-hop containment validation as
+        // a direct receiver (the formal's model is contained in it, and
+        // the receiver carries the parent type).
+        let (parent, hops) = match scope {
+            Some(scope) => {
+                let (base, field) = self.count_member(receiver)?;
+                if field != "parent" {
+                    return None;
+                }
+                let Some(Binding::Symbol(formal)) = self.query_binding(base) else {
+                    return None;
+                };
+                if !scope
+                    .formals
+                    .iter()
+                    .any(|(candidate, _, mapped)| *candidate == *formal && *mapped == Some(parameter))
+                {
+                    return None;
+                }
+                self.nested_scope_formal(scope, *formal)?;
+                let formal_ty = self.types.symbol_types.get(formal)?.clone();
+                let ResolvedType::Record { symbol: child, stored: true } = &formal_ty else {
+                    return None;
+                };
+                let declaration = self.resolve.symbols.get(child.0 as usize)?;
+                let SymbolKind::Model {
+                    owner: ModelOwner::ChildOf(parent),
+                    fields,
+                    ..
+                } = &declaration.kind
+                else {
+                    return None;
+                };
+                let expected = ResolvedType::Record {
+                    symbol: *parent,
+                    stored: true,
+                };
+                if fields.iter().any(|field| {
+                    self.resolve
+                        .symbols
+                        .get(field.0 as usize)
+                        .is_none_or(|field| field.name == "parent")
+                }) || self.effects.models.get(child)?.owner != ModelOwner::ChildOf(*parent)
+                    || self.types.node_types.get(&receiver) != Some(&expected)
+                    || self.types.node_types.get(&base) != Some(&formal_ty)
+                {
+                    return None;
+                }
+                (*parent, 1)
+            }
+            None => self.checked_call_parent_path(receiver, parameter, 0)?,
+        };
         self.checked_count_model(parent, scenario.module)?;
         let parameter_symbol = self.resolve.symbols.get(parameter.0 as usize)?;
         let SymbolKind::Param {
@@ -9307,26 +9549,255 @@ impl<'a> Closure<'a> {
         operand: NodeKey,
         alias_node: NodeKey,
         model: SymbolId,
+        operator: &str,
     ) -> Option<(NodeKey, SymbolId)> {
+        // `==` and `!=` share the sealed control shape: a deterministic
+        // boolean control over the same member and operand reads.
+        if !matches!(operator, "==" | "!=") {
+            return None;
+        }
         let field = self.query_member(member, alias_node, model)
             .or_else(|| self.query_derived_member(member, alias_node, model))?;
         let field_ty = self.types.symbol_types.get(&field)?.clone();
         let operand = self.query_group(operand)?;
+        // A null comparison constrains a nullable field; the member read
+        // stays the recorded control either way.
+        if self.types.node_types.get(&operand) == Some(&ResolvedType::Null) {
+            let leaf = match &field_ty {
+                ResolvedType::Nullable(inner) => inner.as_ref(),
+                _ => return None,
+            };
+            if !(primitive_type(leaf)
+                || matches!(leaf, ResolvedType::Enum { cases, .. } if !cases.is_empty()))
+                || self.types.node_types.get(&self.query_group(member)?) != Some(&field_ty)
+                || self.types.node_types.get(&conjunct) != Some(&ResolvedType::Scalar(Scalar::Bool))
+            {
+                return None;
+            }
+            return Some((member, field));
+        }
+        // Nullability only shapes runtime semantics (null never equals);
+        // the recorded control is the same member read either way, so both
+        // sides compare by their unwrapped leaf.
+        let field_leaf = match &field_ty {
+            ResolvedType::Nullable(inner) => inner.as_ref(),
+            ty => ty,
+        };
+        let operand_ty = self.types.node_types.get(&operand)?.clone();
+        let operand_leaf = match &operand_ty {
+            ResolvedType::Nullable(inner) => inner.as_ref(),
+            ty => ty,
+        };
         let (case_operand, actor_operand, member_operand) =
             self.any_query_operand_class(scenario, operand, &field_ty)?;
-        if !(primitive_type(&field_ty)
-            || matches!(&field_ty, ResolvedType::Enum { cases, .. } if !cases.is_empty()))
+        // Stored-record comparison is the same sealed control shape as a
+        // scalar one: the member ref read is recorded, and reference
+        // identity touches no further row.
+        if !(primitive_type(field_leaf)
+            || matches!(field_leaf, ResolvedType::Enum { cases, .. } if !cases.is_empty())
+            || matches!(field_leaf, ResolvedType::Record { stored: true, .. }))
             || self.types.node_types.get(&self.query_group(member)?) != Some(&field_ty)
             || (!case_operand
                 && !actor_operand
                 && !member_operand
                 && self.nodes.get(&operand)?.kind != SyntaxKind::NameRef)
-            || self.types.node_types.get(&operand) != Some(&field_ty)
+            || operand_leaf != field_leaf
             || self.types.node_types.get(&conjunct) != Some(&ResolvedType::Scalar(Scalar::Bool))
         {
             return None;
         }
         Some((member, field))
+    }
+
+    /// A sealed outer-call argument for one nested formal: an original
+    /// required scenario parameter reference, or a sealed non-parameter
+    /// value (literal, enum case, or `now`). Anything else is unsealed.
+    fn nested_sealed_argument(
+        &self,
+        scenario: &super::effects::ScenarioData,
+        argument: NodeKey,
+    ) -> Option<Option<SymbolId>> {
+        let grouped = self.query_group(argument)?;
+        let node = self.nodes.get(&grouped)?;
+        if node.kind == SyntaxKind::Literal || self.types.resolved_cases.contains(&grouped) {
+            return Some(None);
+        }
+        if let Some(Binding::Symbol(parameter)) = self.query_binding(grouped) {
+            if scenario
+                .params
+                .iter()
+                .any(|param| param.param == *parameter && param.default.is_none())
+            {
+                return Some(Some(*parameter));
+            }
+            return None;
+        }
+        if matches!(
+            self.query_binding(grouped),
+            Some(Binding::Context(ContextVar::Now))
+        ) {
+            return Some(None);
+        }
+        None
+    }
+
+    /// A bare alias row compared to a sealed record operand
+    /// (`booking!=skip`): row iteration is authorized by the domain owner,
+    /// so the comparison records no extra field read.
+    #[allow(clippy::too_many_arguments)]
+    fn any_query_row_identity_conjunct(
+        &self,
+        scenario: &super::effects::ScenarioData,
+        conjunct: NodeKey,
+        left: NodeKey,
+        right: NodeKey,
+        operator: &str,
+        alias_node: NodeKey,
+        model: SymbolId,
+        scope: Option<&NestedAnyScope>,
+    ) -> Option<()> {
+        if !matches!(operator, "==" | "!=") {
+            return None;
+        }
+        let left = self.query_group(left)?;
+        let right = self.query_group(right)?;
+        let operand = if self.query_row(left, alias_node, model) {
+            right
+        } else if self.query_row(right, alias_node, model) {
+            left
+        } else {
+            return None;
+        };
+        // The operand is a sealed record reference: a scenario parameter
+        // or a scoped formal standing in for one, with the model record
+        // type (nullable when the formal is optional).
+        let operand_ty = self.types.node_types.get(&operand)?.clone();
+        let record_ok = match &operand_ty {
+            ResolvedType::Record { symbol, stored: true } => *symbol == model,
+            ResolvedType::Nullable(inner) => matches!(
+                inner.as_ref(),
+                ResolvedType::Record { symbol, stored: true } if *symbol == model
+            ),
+            _ => false,
+        };
+        if !record_ok
+            || self.types.node_types.get(&conjunct) != Some(&ResolvedType::Scalar(Scalar::Bool))
+        {
+            return None;
+        }
+        match self.query_binding(operand) {
+            Some(Binding::Symbol(parameter)) if scenario.params.iter().any(|param| {
+                param.param == *parameter && param.default.is_none()
+            }) => Some(()),
+            Some(Binding::Symbol(formal)) if scope.is_some_and(|scope| {
+                self.nested_scope_formal(scope, *formal).is_some()
+                    && scope.formals.iter().any(|(candidate, _, _)| candidate == formal)
+            }) => Some(()),
+            _ => None,
+        }
+    }
+
+    /// A pure `overlaps` interval call over datetime operands: alias-rooted
+    /// member arguments become control dependencies, every other argument
+    /// must be a sealed operand (scenario parameter, scoped formal,
+    /// literal, enum case, or `now`).
+    fn any_query_overlaps_conjunct(
+        &self,
+        scenario: &super::effects::ScenarioData,
+        conjunct: NodeKey,
+        alias_node: NodeKey,
+        model: SymbolId,
+        scope: Option<&NestedAnyScope>,
+    ) -> Option<Vec<(NodeKey, SymbolId)>> {
+        let grouped = self.query_group(conjunct)?;
+        if self.nodes.get(&grouped)?.kind != SyntaxKind::Call {
+            return None;
+        }
+        let selected = self.types.selected_calls.get(&grouped)?;
+        let SelectedCallTarget::Builtin { id, .. } = &selected.target else {
+            return None;
+        };
+        if id != "overlaps"
+            || self.catalog?.effects("overlaps") != Some(Effects::Pure)
+            || selected.arguments.len() != 4
+            || self.types.node_types.get(&grouped) != Some(&ResolvedType::Scalar(Scalar::Bool))
+            || self.types.node_types.get(&conjunct) != Some(&ResolvedType::Scalar(Scalar::Bool))
+        {
+            return None;
+        }
+        let boolean = ResolvedType::Scalar(Scalar::Bool);
+        let mut members = Vec::new();
+        for argument in &selected.arguments {
+            let argument = self.query_group(*argument)?;
+            if let Some(field) = self
+                .query_member(argument, alias_node, model)
+                .or_else(|| self.query_derived_member(argument, alias_node, model))
+            {
+                let field_ty = self.types.symbol_types.get(&field)?.clone();
+                let leaf = match &field_ty {
+                    ResolvedType::Nullable(inner) => inner.as_ref(),
+                    ty => ty,
+                };
+                // The read may carry a narrowed (non-null) type from an
+                // earlier null check; the recorded control is the same
+                // field read either way, so both sides compare by leaf.
+                let arg_leaf = match self.types.node_types.get(&argument)? {
+                    ResolvedType::Nullable(inner) => inner.as_ref(),
+                    ty => ty,
+                };
+                if !matches!(
+                    leaf,
+                    ResolvedType::Scalar(Scalar::Date | Scalar::Datetime)
+                ) || arg_leaf != leaf
+                {
+                    return None;
+                }
+                members.push((argument, field));
+                continue;
+            }
+            // A sealed operand: scenario parameter, scoped formal, literal,
+            // enum case, or `now`, carrying a date or datetime value.
+            let sealed = match self.query_binding(argument) {
+                Some(Binding::Symbol(parameter))
+                    if scenario
+                        .params
+                        .iter()
+                        .any(|param| param.param == *parameter && param.default.is_none()) =>
+                {
+                    true
+                }
+                Some(Binding::Symbol(formal))
+                    if scope.is_some_and(|scope| {
+                        self.nested_scope_formal(scope, *formal).is_some()
+                    }) =>
+                {
+                    true
+                }
+                _ => {
+                    self.nodes.get(&argument).is_some_and(|node| {
+                        node.kind == SyntaxKind::Literal
+                    }) || self.types.resolved_cases.contains(&argument)
+                        || matches!(
+                            self.query_binding(argument),
+                            Some(Binding::Context(ContextVar::Now))
+                        )
+                }
+            };
+            let arg_ty = self.types.node_types.get(&argument)?;
+            let leaf = match arg_ty {
+                ResolvedType::Nullable(inner) => inner.as_ref(),
+                ty => ty,
+            };
+            if !sealed
+                || !matches!(
+                    leaf,
+                    ResolvedType::Scalar(Scalar::Date | Scalar::Datetime)
+                ) || self.types.node_types.get(&conjunct) != Some(&boolean)
+            {
+                return None;
+            }
+        }
+        Some(members)
     }
 
     fn any_query_membership_conjunct(
@@ -9448,11 +9919,12 @@ impl<'a> Closure<'a> {
         Some(())
     }
 
-    fn any_query_receiver_spelling_ok(
+    fn any_query_receiver_spelling_scoped(
         &self,
         receiver: NodeKey,
         hops: u8,
         parameter_symbol: &Symbol,
+        scope: Option<&NestedAnyScope>,
     ) -> Option<()> {
         // Direct receiver spells exactly the parameter name.
         // A navigated `param.parent` receiver spells exactly the
@@ -9463,10 +9935,20 @@ impl<'a> Closure<'a> {
             return Some(());
         }
         let (base, field) = self.count_member(receiver)?;
-        if hops != 1
-            || field != "parent"
-            || self.word(self.nodes.get(&base)?)? != parameter_symbol.name
-        {
+        if hops != 1 || field != "parent" {
+            return None;
+        }
+        // A nested receiver spells the mapped formal, not the scenario
+        // parameter: the lineage proof above already ties the formal to
+        // this parameter through the outer call argument.
+        if let Some(scope) = scope {
+            let Some(Binding::Symbol(formal)) = self.query_binding(base) else {
+                return None;
+            };
+            let name = self.nested_scope_formal(scope, *formal)?;
+            return (self.word(self.nodes.get(&base)?)? == name).then_some(());
+        }
+        if self.word(self.nodes.get(&base)?)? != parameter_symbol.name {
             return None;
         }
         Some(())
@@ -9486,9 +9968,10 @@ impl<'a> Closure<'a> {
         parameter_data: &super::effects::ParamData,
         type_node: NodeKey,
         hops: u8,
+        scope: Option<&NestedAnyScope>,
     ) -> Option<()> {
-        if !(self.original_reference_parameter(receiver, parameter)
-            || self.original_navigation_parameter(receiver, parameter))
+        if !(self.scoped_reference_parameter(receiver, parameter, scope)
+            || self.scoped_navigation_parameter(receiver, parameter, scope))
             || self.model_has_field(parent, collection)
             || !matches!(owner.kind,SymbolKind::Model {owner:ModelOwner::ChildOf(actual),..} if actual==parent)
             || self.effects.models.get(&model)?.owner != ModelOwner::ChildOf(parent)
@@ -9501,7 +9984,7 @@ impl<'a> Closure<'a> {
         {
             return None;
         }
-        self.any_query_receiver_spelling_ok(receiver, hops, parameter_symbol)
+        self.any_query_receiver_spelling_scoped(receiver, hops, parameter_symbol, scope)
     }
 
     fn any_query_call_site(
@@ -9580,9 +10063,9 @@ impl<'a> Closure<'a> {
         domains: &[NodeKey],
         clauses: &[NodeKey],
         alias_words: &[&str],
-        predicate_node: NodeKey,
         members: &[(NodeKey, SymbolId)],
         selected_slots: &[Option<usize>],
+        scope: Option<&NestedAnyScope>,
     ) -> Option<DisclosureQuery> {
         self.any_query_fact_shape_ok(
             call, fact, overload, node, alias, predicate, boolean, authored, query,
@@ -9601,8 +10084,9 @@ impl<'a> Closure<'a> {
             parameter_data,
             type_node,
             hops,
+            scope,
         )?;
-        let (source, original) = self.any_query_call_site(
+        let (source, _original) = self.any_query_call_site(
             scenario,
             guard,
             condition,
@@ -9622,13 +10106,49 @@ impl<'a> Closure<'a> {
         // collector still proves the scenario's own return/effect
         // correspondence downstream.
         let return_node = returned.node;
+        self.any_query_emit_tail(
+            source,
+            node,
+            query.domain,
+            model,
+            owner.canonical.clone(),
+            alias.node,
+            predicate,
+            vec![(receiver, parameter)],
+            members,
+            return_node,
+            scenario.module,
+            &[],
+        )
+    }
+
+    /// The shared query-record tail: member control dependencies, the four
+    /// query influences, and the disclosure record. Nested queries record
+    /// their control reads in the derive's module and stamp the outer
+    /// invocation chain onto each read.
+    #[allow(clippy::too_many_arguments)]
+    fn any_query_emit_tail(
+        &self,
+        source: DisclosureSource,
+        node: NodeKey,
+        domain: NodeKey,
+        model: SymbolId,
+        model_name: String,
+        alias_node: NodeKey,
+        predicate: NodeKey,
+        inputs: Vec<(NodeKey, SymbolId)>,
+        members: &[(NodeKey, SymbolId)],
+        return_node: NodeKey,
+        dep_module: ModuleId,
+        dep_calls: &[NodeKey],
+    ) -> Option<DisclosureQuery> {
         let id = self.opaque("query", node, "").ok()?;
         let mut dependencies = Vec::new();
         for (member, field) in members {
-            dependencies.push(
-                self.query_dependency(
+            let mut read = self
+                .query_dependency(
                     *member,
-                    scenario.module,
+                    dep_module,
                     model,
                     *field,
                     DependencyRole::Control,
@@ -9637,14 +10157,17 @@ impl<'a> Closure<'a> {
                 .or_else(|| {
                     self.query_derived_dependency(
                         *member,
-                        scenario.module,
+                        dep_module,
                         model,
                         *field,
                         DependencyRole::Control,
                         &id,
                     )
-                })?,
-            );
+                })?;
+            for call in dep_calls {
+                read.calls.push(*call);
+            }
+            dependencies.push(read);
         }
         let influences = [
             InfluenceKind::QueryExistence,
@@ -9669,12 +10192,12 @@ impl<'a> Closure<'a> {
             id,
             source,
             node,
-            domain: query.domain,
+            domain,
             model,
-            model_name: owner.canonical.clone(),
-            alias: Some(alias.node),
+            model_name,
+            alias: Some(alias_node),
             predicate: Some(predicate),
-            inputs: vec![(receiver, parameter)],
+            inputs,
             dependencies,
             order: Vec::new(),
             limit: None,
@@ -9688,6 +10211,113 @@ impl<'a> Closure<'a> {
         })
     }
 
+    /// One `any` predicate's member control reads: the flattened `and`
+    /// conjuncts, each either a `member == operand` / `member != operand`
+    /// comparison (null included), a bare-alias row comparison against a
+    /// sealed record (no extra field read), a literal-array membership, a
+    /// pure `overlaps` interval call, or a bare bool member read.
+    fn any_query_conjunct_members(
+        &self,
+        scenario: &super::effects::ScenarioData,
+        predicate_node: NodeKey,
+        alias_node: NodeKey,
+        model: SymbolId,
+        boolean: &ResolvedType,
+        scope: Option<&NestedAnyScope>,
+    ) -> Option<Vec<(NodeKey, SymbolId)>> {
+        let mut pending = vec![predicate_node];
+        let mut conjuncts = Vec::new();
+        while let Some(node) = pending.pop() {
+            if let Some((left, right)) = self.query_binary(node, "and") {
+                pending.push(right);
+                pending.push(left);
+                continue;
+            }
+            conjuncts.push(node);
+        }
+        if conjuncts.is_empty() {
+            return None;
+        }
+        let mut members: Vec<(NodeKey, SymbolId)> = Vec::new();
+        for conjunct in &conjuncts {
+            if let Some((member, operand, operator)) = self
+                .query_binary(*conjunct, "==")
+                .map(|(member, operand)| (member, operand, "=="))
+                .or_else(|| {
+                    self.query_binary(*conjunct, "!=")
+                        .map(|(member, operand)| (member, operand, "!="))
+                })
+            {
+                if self
+                    .query_member(member, alias_node, model)
+                    .or_else(|| self.query_derived_member(member, alias_node, model))
+                    .is_some()
+                {
+                    let (member, field) = self.any_query_equality_conjunct(
+                        scenario,
+                        *conjunct,
+                        member,
+                        operand,
+                        alias_node,
+                        model,
+                        operator,
+                    )?;
+                    members.push((member, field));
+                } else if self
+                    .any_query_row_identity_conjunct(
+                        scenario,
+                        *conjunct,
+                        member,
+                        operand,
+                        operator,
+                        alias_node,
+                        model,
+                        scope,
+                    )
+                    .is_some()
+                {
+                    // Row iteration is authorized by the domain owner;
+                    // no extra field read travels with the comparison.
+                } else {
+                    return None;
+                }
+            } else if let Some((member, array)) = self.query_binary(*conjunct, "in") {
+                let (member, field) = self.any_query_membership_conjunct(
+                    *conjunct,
+                    member,
+                    array,
+                    alias_node,
+                    model,
+                )?;
+                members.push((member, field));
+            } else if self
+                .nodes
+                .get(conjunct)
+                .is_some_and(|node| node.kind == SyntaxKind::Call)
+            {
+                for (member, field) in self.any_query_overlaps_conjunct(
+                    scenario,
+                    *conjunct,
+                    alias_node,
+                    model,
+                    scope,
+                )? {
+                    members.push((member, field));
+                }
+            } else {
+                let field = self.query_member(*conjunct, alias_node, model)?;
+                if self.types.symbol_types.get(&field) != Some(boolean)
+                    || self.types.node_types.get(conjunct)
+                        != Some(&ResolvedType::Scalar(Scalar::Bool))
+                {
+                    return None;
+                }
+                members.push((*conjunct, field));
+            }
+        }
+        Some(members)
+    }
+
     fn any_query_domain_stage(
         &self,
         scenario: &super::effects::ScenarioData,
@@ -9699,11 +10329,12 @@ impl<'a> Closure<'a> {
         predicate: NodeKey,
         boolean: &ResolvedType,
         selected_slots: &[Option<usize>],
+        scope: Option<&NestedAnyScope>,
     ) -> Option<DisclosureQuery> {
         let (node, query, fact, alias, name, model, owner, receiver, collection, parameter) =
-            self.any_query_domain_owner(scenario, supplied, call)?;
+            self.any_query_domain_owner(scenario, supplied, call, scope)?;
         let (parent, hops, parameter_owner, parameter_symbol, type_node, parameter_data, array) =
-            self.any_query_domain_parameter(scenario, receiver, parameter, model)?;
+            self.any_query_domain_parameter(scenario, receiver, parameter, model, scope)?;
         let authored = self.nodes.get(&node)?;
         let domains: Vec<_> = authored
             .children
@@ -9728,51 +10359,17 @@ impl<'a> Closure<'a> {
         let predicate_node = self.query_group(predicate)?;
         // An any predicate is one bool conjunct or an `and` chain of them,
         // flattened order-preserving (mirrors the admitted first-query
-        // where owner). Each conjunct is either a `member == operand`
-        // comparison or a bare bool member read; the former single
-        // `unfinished` profile is the one-conjunct bare case.
-        let mut pending = vec![predicate_node];
-        let mut conjuncts = Vec::new();
-        while let Some(node) = pending.pop() {
-            if let Some((left, right)) = self.query_binary(node, "and") {
-                pending.push(right);
-                pending.push(left);
-                continue;
-            }
-            conjuncts.push(node);
-        }
-        if conjuncts.is_empty() {
-            return None;
-        }
-        let mut members: Vec<(NodeKey, SymbolId)> = Vec::new();
-        for conjunct in &conjuncts {
-            if let Some((member, operand)) = self.query_binary(*conjunct, "==") {
-                members.push(self.any_query_equality_conjunct(
-                    scenario,
-                    *conjunct,
-                    member,
-                    operand,
-                    alias.node,
-                    model,
-                )?);
-            } else if let Some((member, array)) = self.query_binary(*conjunct, "in") {
-                members.push(self.any_query_membership_conjunct(
-                    *conjunct,
-                    member,
-                    array,
-                    alias.node,
-                    model,
-                )?);
-            } else {
-                let field = self.query_member(*conjunct, alias.node, model)?;
-                if self.types.symbol_types.get(&field) != Some(boolean)
-                    || self.types.node_types.get(conjunct) != Some(&ResolvedType::Scalar(Scalar::Bool))
-                {
-                    return None;
-                }
-                members.push((*conjunct, field));
-            }
-        }
+        // where owner). Each conjunct shape is handled in the members
+        // helper; the former single `unfinished` profile is the
+        // one-conjunct bare case.
+        let members = self.any_query_conjunct_members(
+            scenario,
+            predicate_node,
+            alias.node,
+            model,
+            boolean,
+            scope,
+        )?;
         self.any_query_emit_stage(
             scenario,
             guard,
@@ -9803,9 +10400,9 @@ impl<'a> Closure<'a> {
             &domains,
             &clauses,
             &alias_words,
-            predicate_node,
             &members,
             selected_slots,
+            scope,
         )
     }
 
@@ -9892,7 +10489,310 @@ impl<'a> Closure<'a> {
             *predicate,
             &boolean,
             selected.slots.as_slice(),
+            None,
         )
+    }
+
+    /// One derive-nested `any` inventory: every `any` builtin call inside a
+    /// derive body invoked from a Require guard, with its outer call chain.
+    /// This records the nested query's lazy candidate reads; it admits no
+    /// query execution by itself (the evaluator consumer re-verifies the
+    /// live formal lineage before short-circuiting).
+    fn checked_nested_any_query_sources(
+        &self,
+        scenario: &super::effects::ScenarioData,
+    ) -> Option<Vec<NestedAnyQuery>> {
+        if scenario.read || scenario.on.is_some() || self.catalog.is_none() {
+            return Some(Vec::new());
+        }
+        let mut queries = Vec::new();
+        let sites = self.checked_decision_sites(scenario);
+        for site in sites? {
+            if site.owner != scenario.scenario
+                || !matches!(
+                    site.stage,
+                    CheckedDecisionStage::LeadingRequire | CheckedDecisionStage::BodyRequire
+                )
+            {
+                continue;
+            }
+            let Some(guard) = scenario
+                .guards
+                .iter()
+                .find(|guard| guard.node == site.statement)
+            else {
+                continue;
+            };
+            if guard.verb != EffectVerb::Require {
+                continue;
+            }
+            for outer in site.calls.iter().filter(|call| call.chain.is_empty()) {
+                let CheckedDecisionCallTarget::DeriveFn(derive) = outer.target else {
+                    continue;
+                };
+                let frame = CheckedDecisionCallFrame {
+                    node: outer.node,
+                    module: scenario.module,
+                    source: outer.source.clone(),
+                    derive,
+                };
+                for nested in site.calls.iter().filter(|call| {
+                    matches!(
+                        &call.target,
+                        CheckedDecisionCallTarget::Builtin { id, .. } if id == "any"
+                    ) && call.chain.as_slice() == std::slice::from_ref(&frame)
+                }) {
+                    // One unsealed shape skips; it must not starve the
+                    // other derives' admissions (the evaluator still
+                    // refuses the skipped call through its own path).
+                    if let Some(query) = self.checked_nested_any_query_source(
+                        scenario, site.source.clone(), guard, outer, derive, nested,
+                    ) {
+                        queries.push(query);
+                    }
+                    if queries.len() > 200 {
+                        return None;
+                    }
+                }
+            }
+        }
+        Some(queries)
+    }
+
+    /// One nested `any` admission: the outer derive call resolves in the
+    /// scenario module, every formal seals to an outer argument, and the
+    /// nested query passes the shared sealed stages with a scope threading
+    /// each formal back to its original scenario parameter.
+    #[allow(clippy::too_many_arguments)]
+    fn checked_nested_any_query_source(
+        &self,
+        scenario: &super::effects::ScenarioData,
+        site_source: DisclosureSource,
+        guard: &super::effects::Effect,
+        outer: &CheckedDecisionCall,
+        derive: SymbolId,
+        nested: &CheckedDecisionCall,
+    ) -> Option<NestedAnyQuery> {
+        let boolean = ResolvedType::Scalar(Scalar::Bool);
+        let data = self.effects.derives.get(&derive)?;
+        let declaration = self.resolve.symbols.get(derive.0 as usize)?;
+        let expected: Vec<SymbolId> = data.params.iter().map(|formal| formal.param).collect();
+        if declaration.module != data.module
+            || data.derive != derive
+            || !matches!(&declaration.kind, SymbolKind::DeriveFn { params, .. } if params.as_slice() == expected.as_slice())
+            || data.params.iter().any(|formal| formal.default.is_some())
+            || self.types.symbol_results.get(&derive) != Some(&Some(boolean.clone()))
+        {
+            return None;
+        }
+        let body = self.query_group(data.expr?)?;
+        if self.types.node_types.get(&body) != Some(&boolean)
+            || nested.module != data.module
+            || nested.node.file != body.file
+            || nested.node.start < body.start
+            || nested.node.end > body.end
+            || outer.module != scenario.module
+            || outer.source != site_source
+            || !outer.defaults.is_empty()
+            || outer.slots.len() != data.params.len()
+            || outer.arguments.len() != data.params.len()
+        {
+            return None;
+        }
+        // Every formal seals to its outer argument: an original required
+        // scenario parameter reference, or a sealed non-parameter value.
+        // A stricter-than-needed whole-derive seal keeps unreferenced
+        // formals from smuggling arbitrary values into the query closure.
+        let mut formals = Vec::new();
+        for (formal, slot) in data.params.iter().zip(&outer.slots) {
+            let argument = outer.arguments.get((*slot)?)?.0;
+            formals.push((formal.param, argument, self.nested_sealed_argument(scenario, argument)?));
+        }
+        let scope = NestedAnyScope { derive, formals };
+        let call_node = self.nodes.get(&outer.node)?;
+        let head = call_node.children.iter().find(|child| expression(child.kind))?;
+        let binding = self
+            .resolve
+            .module_scopes
+            .get(scenario.module.0 as usize)?
+            .prod
+            .get(self.word(head)?)?;
+        match binding {
+            ScopedName::Local(target)
+                if *target == derive && declaration.module == scenario.module => {}
+            ScopedName::Imported { target, bound: false }
+                if *target == derive && declaration.exported && declaration.module != scenario.module => {}
+            _ => return None,
+        }
+        let selected = self.types.selected_calls.get(&nested.node)?;
+        let SelectedCallTarget::Builtin { id: builtin, overload } = &selected.target else {
+            return None;
+        };
+        if builtin != "any" {
+            return None;
+        }
+        let [supplied, predicate] = selected.arguments.as_slice() else {
+            return None;
+        };
+        let catalog = self.catalog?;
+        let signature = catalog.overloads(builtin)?.get(*overload)?;
+        let [domain_input, predicate_input] = signature.params.as_slice() else {
+            return None;
+        };
+        let condition = body;
+        let unary = self.any_query_guard_cursor(condition, nested.node)?;
+        let (unary_node, unary_words, unary_values) = match unary {
+            Some(unary) => (
+                Some(unary),
+                unary
+                    .children
+                    .iter()
+                    .filter(|part| matches!(part.kind, SyntaxKind::Name | SyntaxKind::Punct))
+                    .map(|part| self.word(part))
+                    .collect::<Option<Vec<_>>>()?,
+                unary
+                    .children
+                    .iter()
+                    .filter(|part| expression(part.kind))
+                    .map(NodeKey::of)
+                    .collect(),
+            ),
+            None => (None, Vec::new(), Vec::new()),
+        };
+        let (nested_node, target, arguments) = self.any_query_call_shape(nested.node)?;
+        let by = scenario.by?;
+        self.any_query_signature_shape(
+            builtin,
+            catalog,
+            signature,
+            domain_input,
+            predicate_input,
+            selected,
+            nested.node,
+            predicate,
+            condition,
+            &boolean,
+        )?;
+        self.any_query_call_shape_ok(
+            guard,
+            condition,
+            unary_node,
+            &unary_words,
+            &unary_values,
+            nested.node,
+            nested_node,
+            &arguments,
+            selected.arguments.as_slice(),
+            target,
+        )?;
+        // The outer call is the direct guard call the scope check proves;
+        // the nested call lives in the derive body proven spanned above.
+        self.any_query_scope_shape_ok(scenario, guard, outer.node, by)?;
+        let (node, query, fact, alias, name, model, owner, receiver, collection, parameter) =
+            self.any_query_domain_owner(scenario, *supplied, nested.node, Some(&scope))?;
+        let (parent, hops, parameter_owner, parameter_symbol, type_node, parameter_data, array) =
+            self.any_query_domain_parameter(scenario, receiver, parameter, model, Some(&scope))?;
+        let authored = self.nodes.get(&node)?;
+        let domains: Vec<_> = authored
+            .children
+            .iter()
+            .filter(|part| expression(part.kind))
+            .map(NodeKey::of)
+            .collect();
+        let clauses: Vec<_> = authored
+            .children
+            .iter()
+            .filter(|part| part.kind == SyntaxKind::QueryClause)
+            .map(NodeKey::of)
+            .collect();
+        let alias_words: Vec<_> = self
+            .nodes
+            .get(&alias.node)?
+            .children
+            .iter()
+            .filter(|part| part.kind == SyntaxKind::Name)
+            .map(|part| self.word(part))
+            .collect::<Option<Vec<_>>>()?;
+        let predicate_node = self.query_group(*predicate)?;
+        let members = self.any_query_conjunct_members(
+            scenario,
+            predicate_node,
+            alias.node,
+            model,
+            &boolean,
+            Some(&scope),
+        )?;
+        self.any_query_fact_shape_ok(
+            nested.node, fact, *overload, node, alias, *predicate, &boolean, authored, query,
+            &array, *supplied, &domains, &clauses, &alias_words, name, owner, collection, hops,
+        )?;
+        self.any_query_fact_owner_ok(
+            scenario,
+            receiver,
+            parameter,
+            parent,
+            collection,
+            owner,
+            model,
+            parameter_owner,
+            parameter_symbol,
+            parameter_data,
+            type_node,
+            hops,
+            Some(&scope),
+        )?;
+        // The domain formal roots the navigation: resolve it off the
+        // receiver so the evaluator re-verifies this exact formal's live
+        // binding against the original scenario parameter. The stored
+        // lineage model is the formal's own record type, mirroring the
+        // direct consumer (which stores its parameter's type).
+        let (base, field) = self.count_member(receiver)?;
+        if field != "parent" {
+            return None;
+        }
+        let Some(Binding::Symbol(formal)) = self.query_binding(base) else {
+            return None;
+        };
+        if self.nested_scope_formal(&scope, *formal).is_none()
+            || !scope
+                .formals
+                .iter()
+                .any(|(candidate, _, mapped)| *candidate == *formal && *mapped == Some(parameter))
+        {
+            return None;
+        }
+        let ResolvedType::Record {
+            symbol: formal_model,
+            stored: true,
+        } = self.types.symbol_types.get(formal)?
+        else {
+            return None;
+        };
+        let formal_model = *formal_model;
+        let source = self.source(data.module, nested.node).ok()?;
+        let return_node = scenario.effects.last()?.node;
+        let query = self.any_query_emit_tail(
+            source,
+            node,
+            query.domain,
+            model,
+            owner.canonical.clone(),
+            alias.node,
+            *predicate,
+            vec![(receiver, parameter)],
+            &members,
+            return_node,
+            data.module,
+            std::slice::from_ref(&outer.node),
+        )?;
+        Some(NestedAnyQuery {
+            query,
+            call: nested.node,
+            chain: vec![outer.node],
+            formal: *formal,
+            parameter,
+            parent: formal_model,
+        })
     }
 
     /// Retain original model counts independently from executable disclosure.
@@ -14918,6 +15818,50 @@ impl<'a> Closure<'a> {
         ))
     }
 
+    /// A nullable stored-record field selected off an original required
+    /// record parameter: a sealed handle whose admitted consumer is the
+    /// same-model equality in `binary_parent_comparison`. Non-nullable
+    /// fields keep the required-reference path above; this arm never
+    /// re-admits a shape that path refused. Keeps no lineage; the
+    /// field's own read stays on the emitted value.
+    fn expr_member_parameter_field_reference(
+        &self,
+        key: NodeKey,
+        calls: &[NodeKey],
+        base_key: NodeKey,
+        field_ty: &ResolvedType,
+        value: &mut ValuePath,
+    ) -> Result<Option<String>, DisclosureDecline> {
+        if !calls.is_empty()
+            || self.loop_node.is_some()
+            || !matches!(field_ty, ResolvedType::Nullable(_))
+        {
+            return Ok(None);
+        }
+        let Some(ReferenceOrigin::Parameter(parameter)) = value.reference_origin else {
+            return Ok(None);
+        };
+        if !matches!(self.query_binding(base_key), Some(Binding::Symbol(actual)) if *actual == parameter)
+        {
+            return Ok(None);
+        }
+        let Some(target) = self.call_parameter_field(key, parameter) else {
+            return Ok(None);
+        };
+        let Some(canonical) = self
+            .resolve
+            .symbols
+            .get(target.0 as usize)
+            .map(|symbol| symbol.canonical.clone())
+        else {
+            return Ok(None);
+        };
+        value.contract_value = None;
+        value.first_query = None;
+        value.reference_origin = None;
+        Ok(Some(format!("{canonical}?")))
+    }
+
     fn expr_member_contract_record_type(
         &self,
         key: NodeKey,
@@ -15194,6 +16138,14 @@ impl<'a> Closure<'a> {
             field.id,
             field_ty,
             required_reference,
+            value,
+        )? {
+            type_id
+        } else if let Some(type_id) = self.expr_member_parameter_field_reference(
+            key,
+            calls,
+            base_key,
+            field_ty,
             value,
         )? {
             type_id
@@ -15552,7 +16504,10 @@ impl<'a> Closure<'a> {
             || checked_standard_nominal_name(element) == Some("TextMessage");
         let empty_files =
             children.is_empty() && matches!(element.as_ref(), ResolvedType::Scalar(Scalar::File));
-        if !primitive_type(element) && !composite && !empty_files {
+        // Closed enum sets carry no reads, like literals.
+        let closed_enum =
+            matches!(element.as_ref(), ResolvedType::Enum { cases, .. } if !cases.is_empty());
+        if !primitive_type(element) && !composite && !empty_files && !closed_enum {
             return Err(self.fail(key, "unsupported array expression type"));
         }
         let mut paths = vec![ValuePath::default()];
@@ -15565,6 +16520,7 @@ impl<'a> Closure<'a> {
             if !primitive_type(element_ty)
                 && !matches!(element_ty, ResolvedType::Object(_))
                 && checked_standard_nominal_name(element_ty) != Some("TextMessage")
+                && !matches!(element_ty, ResolvedType::Enum { cases, .. } if !cases.is_empty())
             {
                 return Err(self.fail(key, "unsupported array element type"));
             }
@@ -15606,8 +16562,17 @@ impl<'a> Closure<'a> {
             .ok_or_else(|| self.fail(key, "missing checked operator"))?;
         let (current_null_check, first_null_check, input_null_check) =
             self.binary_null_checks(key, module, env, calls, op, &children);
+        // Exact original required Model slots, direct or in Contracts, may
+        // consume checked containment in equality. Both operands retain their
+        // own admission provenance and must name the same model. Arbitrary
+        // stored-reference fields keep their direct-child/count-only boundary.
+        // The admitted shape below subsumes the nullable-record refusal: both
+        // sides are sealed scenario inputs and the result keeps no lineage.
+        let admitted_parent_comparison =
+            self.binary_parent_comparison(module, env, calls, op, &children);
         if !first_null_check
             && !input_null_check
+            && !admitted_parent_comparison
             && matches!(op, "??" | "==" | "!=")
             && children.iter().any(|operand| {
                 matches!(self.types.node_types.get(&NodeKey::of(operand)),
@@ -15622,12 +16587,6 @@ impl<'a> Closure<'a> {
                 "nullable reference selection or comparison",
             ));
         }
-        // Exact original required Model slots, direct or in Contracts, may
-        // consume checked containment in equality. Both operands retain their
-        // own admission provenance and must name the same model. Arbitrary
-        // stored-reference fields keep their direct-child/count-only boundary.
-        let admitted_parent_comparison =
-            self.binary_parent_comparison(module, env, calls, op, &children);
         let left = self.expr(NodeKey::of(children[0]), module, env, calls)?;
         if !current_null_check
             && !admitted_parent_comparison
@@ -15708,7 +16667,9 @@ impl<'a> Closure<'a> {
     }
 
     /// Whether a binary equality consumes checked containment: both
-    /// operands name the same model with a parent hop on either side.
+    /// operands name the same model with a parent hop on either side,
+    /// or a stored-record field off an original required parameter
+    /// against the same model's sealed operand.
     fn binary_parent_comparison(
         &self,
         module: ModuleId,
@@ -15731,8 +16692,16 @@ impl<'a> Closure<'a> {
                     let Local::Symbol(parameter) = local else {
                         return None;
                     };
-                    let (model, hops) = self.checked_call_parent_path(key, *parameter, 0)?;
-                    Some((model, hops > 0))
+                    if let Some((model, hops)) =
+                        self.checked_call_parent_path(key, *parameter, 0)
+                    {
+                        return Some((model, hops > 0));
+                    }
+                    // A stored-record field selected off an original
+                    // required record parameter names its own model with
+                    // the same sealed provenance as the bare parameter.
+                    self.call_parameter_field(key, *parameter)
+                        .map(|model| (model, true))
                 })
             };
             matches!((operand(children[0]), operand(children[1])),
@@ -15783,6 +16752,45 @@ impl<'a> Closure<'a> {
         self.bounded(key, out)
     }
 
+    /// A literal-array membership shape: a non-empty `[...]` of literals
+    /// or enum cases compared for a boolean result. Query calls, member
+    /// reads and other computed arrays keep the refusal.
+    fn binary_membership_shape(
+        &self,
+        key: NodeKey,
+        children: &[&SyntaxNode],
+    ) -> Option<()> {
+        let [left, right] = children else {
+            return None;
+        };
+        let array = self.query_group(NodeKey::of(right))?;
+        let node = self.nodes.get(&array)?;
+        if node.kind != SyntaxKind::Array {
+            return None;
+        }
+        let mut elements = node
+            .children
+            .iter()
+            .filter(|child| expression(child.kind))
+            .peekable();
+        if elements.peek().is_none() {
+            return None;
+        }
+        for element in elements {
+            let element = self.query_group(NodeKey::of(element))?;
+            let literal = self
+                .nodes
+                .get(&element)
+                .is_some_and(|node| node.kind == SyntaxKind::Literal);
+            if !literal && !self.types.resolved_cases.contains(&element) {
+                return None;
+            }
+        }
+        (self.types.node_types.get(&key) == Some(&ResolvedType::Scalar(Scalar::Bool))
+            && self.types.node_types.get(&NodeKey::of(left)).is_some())
+        .then_some(())
+    }
+
     /// A scalar binary: checked operator, admitted operands and the
     /// transcript/count refinements.
     #[allow(clippy::too_many_arguments)]
@@ -15803,7 +16811,12 @@ impl<'a> Closure<'a> {
             op,
             "+" | "-" | "*" | "/" | "%" | "==" | "!=" | "<" | "<=" | ">" | ">="
         ) {
-            return Err(self.fail(key, "unsupported scalar operator"));
+            // `member in [literal|cases]`: the array contributes no reads;
+            // the product below joins the member read like any other
+            // comparison. Anything else keeps the refusal.
+            if op != "in" || self.binary_membership_shape(key, children).is_none() {
+                return Err(self.fail(key, "unsupported scalar operator"));
+            }
         }
         let right = self.expr(NodeKey::of(children[1]), module, env, calls)?;
         if !admitted_parent_comparison
@@ -17050,15 +18063,60 @@ impl<'a> Closure<'a> {
         module: ModuleId,
         env: &Env,
         calls: &[NodeKey],
+        selected: &super::types::SelectedCall,
         result: &mut ValuePath,
     ) -> Result<(), DisclosureDecline> {
         let mut values = self.expr(supplied, module, env, calls)?;
+        // A parent-chained reference argument seals through the
+        // helper-reference edges before the slot checks below: ordinary
+        // evaluation records its reads, the edge walk verifies them
+        // against the static edges, and the stamps mirror the shared
+        // member path's record/model_result for ordinary required
+        // references (which never reach this branch: their member
+        // evaluation already stamps them).
+        let chained = supplied == argument
+            && input.is_none()
+            && self.checked_required_model_reference(supplied, module).is_none()
+            && required.is_some();
+        if chained {
+            let grouped = self
+                .query_group(supplied)
+                .ok_or_else(|| self.fail(supplied, "helper chained argument grouping"))?;
+            let argument_index = selected
+                .arguments
+                .iter()
+                .position(|actual| self.query_group(*actual) == Some(grouped))
+                .ok_or_else(|| self.fail(supplied, "helper chained argument slot"))?;
+            let mut helper_reference_reads = HashSet::new();
+            self.collect_helper_reference(
+                supplied,
+                module,
+                env,
+                calls,
+                selected,
+                supplied,
+                argument_index,
+                &mut values,
+                &mut helper_reference_reads,
+            )?;
+        }
         let [value] = values.as_mut_slice() else {
             return Err(self.fail(
                 supplied,
                 "helper query argument must have one original value",
             ));
         };
+        if chained {
+            let Some((source_model, field, target)) = required.as_ref() else {
+                return Err(self.fail(supplied, "helper query original reference source mismatch"));
+            };
+            value.model_result = Some(DisclosureModelResult::Reference {
+                model: *target,
+                node: argument_node,
+                source_model: *source_model,
+                field: *field,
+            });
+        }
         if supplied == argument {
             if value.record != Some(model) || !value.intrinsics.is_empty() {
                 return Err(self.fail(supplied, "helper query original Model slot"));
@@ -17921,6 +18979,9 @@ impl<'a> Closure<'a> {
             return Ok(Some(paths));
         }
         if let Some(paths) = self.call_any_builtin(key, module, env, calls, &selected)? {
+            return Ok(Some(paths));
+        }
+        if let Some(paths) = self.call_nested_any_builtin(key, module, env, calls, &selected)? {
             return Ok(Some(paths));
         }
         if let Some(paths) = self.call_transcript_derive(key, module, env, calls, &selected)? {
@@ -19408,6 +20469,72 @@ impl<'a> Closure<'a> {
                 Ok(None)
             }
 
+            /// One derive-nested `any` builtin call: the domain formal's
+            /// original required parent lineage, re-verified against the
+            /// live environment. The static inventory above proves the
+            /// shape; this proves the actual values flow from the original
+            /// scenario parameter, so a copied lexical value still
+            /// acquires nothing.
+            fn call_nested_any_builtin(
+                &mut self,
+                key: NodeKey,
+                module: ModuleId,
+                env: &Env,
+                calls: &[NodeKey],
+                selected: &super::types::SelectedCall,
+            ) -> Result<Option<Vec<ValuePath>>, DisclosureDecline> {
+                if calls.is_empty()
+                    || !self.authorization
+                    || self.statement_depth != 1
+                    || self.loop_node.is_some()
+                    || !matches!(&selected.target,SelectedCallTarget::Builtin {id,..} if id=="any")
+                {
+                    return Ok(None);
+                }
+                let found = self.effects.scenarios.values().find_map(|scenario| {
+                    if scenario.module != module {
+                        return None;
+                    }
+                    let outer = calls.first()?;
+                    if outer.file != scenario.node.file
+                        || outer.start < scenario.node.start
+                        || outer.end > scenario.node.end
+                    {
+                        return None;
+                    }
+                    let inventory = self.checked_nested_any_query_sources(scenario)?;
+                    inventory
+                        .into_iter()
+                        .find(|nested| nested.call == key && nested.chain.as_slice() == calls)
+                });
+                let Some(nested) = found else {
+                    return Ok(None);
+                };
+                let Some(ResolvedType::Record {
+                    symbol: parent,
+                    stored: true,
+                }) = self.types.symbol_types.get(&nested.parameter)
+                else {
+                    return Err(self.fail(key, "any needs its original parent type"));
+                };
+                if *parent != nested.parent
+                    || !env.get(&Local::Symbol(nested.formal)).is_some_and(|value| {
+                        value.record == Some(nested.parent)
+                            && matches!(value.reference_origin,
+                                Some(ReferenceOrigin::Parameter(original)) if original==nested.parameter)
+                    })
+                {
+                    return Err(self.fail(key, "any needs its original required parent lineage"));
+                }
+                Ok(Some(vec![ValuePath {
+                    // The external predicate is lazy and may run zero or many
+                    // times. Its real CONTROL read is retained by the query,
+                    // rather than becoming a parent scalar/root decision.
+                    influences: nested.query.influences.clone(),
+                    ..ValuePath::default()
+                }]))
+            }
+
             /// One pure-input-guarded call: the guarded argument's values, stripped to observations.
             /// (This was the pure input guard block.)
             fn call_pure_input(
@@ -19452,7 +20579,7 @@ impl<'a> Closure<'a> {
                     && self.loop_node.is_none()
                     && matches!(&selected.target, SelectedCallTarget::DeriveFn(_))
                 {
-                    let query = self.effects.scenarios.values().find_map(|scenario| {
+                    let found = self.effects.scenarios.values().find_map(|scenario| {
                         if scenario.module != module
                             || key.file != scenario.node.file
                             || key.start < scenario.node.start
@@ -19468,8 +20595,9 @@ impl<'a> Closure<'a> {
                                     .first()
                                     .is_some_and(|read| read.calls.as_slice() == [key])
                             })
+                            .map(|query| (scenario, query))
                     });
-                    if let Some(query) = query {
+                    if let Some((scenario, query)) = found {
                         let argument = selected
                             .slots
                             .get(1)
@@ -19479,7 +20607,9 @@ impl<'a> Closure<'a> {
                             .copied()
                             .ok_or_else(|| self.fail(key, "helper query selected reference argument"))?;
                         let input = self.checked_contract_input_reference(argument, module);
-                        let required = self.checked_required_model_reference(argument, module);
+                        let required = self
+                            .checked_required_model_reference(argument, module)
+                            .or_else(|| self.helper_parent_chained_reference(scenario, argument));
                         let model = match (&input, &required, query.inputs.as_slice()) {
                             (Some((parameter, model, _)), _, [(original, root)])
                                 if *original == argument && root == parameter =>
@@ -19510,6 +20640,7 @@ impl<'a> Closure<'a> {
                                 module,
                                 env,
                                 calls,
+                                selected,
                                 &mut result,
                             )?;
                         }
