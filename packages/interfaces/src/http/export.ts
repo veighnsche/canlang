@@ -324,92 +324,205 @@ function parseLimit(value: unknown): { limit: number; error: BusinessError | nul
  * Dispatch one export request. See the module doc for the grant,
  * projection, bounds, and descriptor rules.
  */
+async function dispatchExportDownload(deps: HttpDeps, request: Request, pathname: string): Promise<Response | null> {
+  if (pathname === EXPORTS_PATH) return null;
+  if (request.method.toUpperCase() === 'GET') {
+    const statusMatch = /^\/api\/exports\/status\/([^/]+)$/.exec(pathname);
+    if (statusMatch !== null) return await handleDownloadStatus(deps, request, statusMatch[1]!);
+    const downloadMatch = /^\/api\/exports\/download\/([^/]+)$/.exec(pathname);
+    if (downloadMatch !== null) return await handleDownload(deps, request, downloadMatch[1]!);
+  }
+  return deny(deps, buildBusinessError('not_found', 'Not found.'), pathname);
+}
+
+type LiveIdentity = ResolvedIdentity & { actor: NonNullable<ResolvedIdentity['actor']> };
+
+async function admitExportCaller(deps: HttpDeps, request: Request, pathname: string): Promise<{
+  identity: LiveIdentity; body: Record<string, unknown>;
+} | Response> {
+  const caller = await resolveRequestIdentity(
+    deps.identity.store,
+    request,
+    { clock: deps.clock },
+  );
+  const actor = caller.identity.actor;
+  if (caller.sessionToken === null || actor === null) {
+    return deny(deps, buildBusinessError('forbidden', 'Authentication required.'), pathname);
+  }
+  const body = await parseObjectBody(request);
+  await assertPostCsrf({
+    sessionToken: caller.sessionToken,
+    headerValue: request.headers.get(CSRF_HEADER),
+    fieldValue: body[CSRF_FIELD],
+  });
+  return { identity: { ...caller.identity, actor }, body };
+}
+
+function checkExportArgs(deps: HttpDeps, body: Record<string, unknown>, pathname: string): {
+  operation: string; requested: string[] | null; limit: number;
+  parent: unknown; filters: unknown; cursor: string | undefined;
+} | Response {
+  const operation = body['operation'];
+  const opError = checkListOperation(operation);
+  if (opError !== null || typeof operation !== 'string') {
+    return deny(deps, opError ?? buildBusinessError('validation', 'Missing operation.'), pathname);
+  }
+  const { columns: requested, error: columnsError } = parseColumns(body['columns']);
+  if (columnsError !== null) return deny(deps, columnsError, operation);
+  const { limit, error: limitError } = parseLimit(body['limit']);
+  if (limitError !== null) return deny(deps, limitError, operation);
+  const parent = body['parent'];
+  if (parent !== undefined) {
+    const ref = parent as Record<string, unknown>;
+    if (typeof parent !== 'object' || parent === null || Array.isArray(parent) || typeof ref['id'] !== 'string') {
+      return deny(deps, buildBusinessError('validation', 'Invalid export parent.'), operation);
+    }
+  }
+  const filters = body['filters'];
+  if (filters !== undefined && (typeof filters !== 'object' || filters === null || Array.isArray(filters))) {
+    return deny(deps, buildBusinessError('validation', 'Invalid export filters.'), operation);
+  }
+  const cursor = body['cursor'];
+  if (cursor !== undefined && typeof cursor !== 'string') {
+    return deny(deps, buildBusinessError('validation', 'Invalid export cursor.'), operation);
+  }
+  return { operation, requested, limit, parent, filters, cursor };
+}
+
+async function loadExportPage(
+  deps: HttpDeps,
+  identity: LiveIdentity,
+  operation: string,
+  parent: unknown,
+  filters: unknown,
+  limit: number,
+  cursor: string | undefined,
+): Promise<{ page: ExportPage } | Response> {
+  try {
+    await assertExportAuthority(deps, identity);
+  } catch (err) {
+    if (err instanceof IdentityError) {
+      return deny(deps, caughtToBusinessError(err), operation);
+    }
+    throw err;
+  }
+  const inputs: ClosedInputs = {
+    ...(parent === undefined ? {} : { parent }),
+    ...(filters === undefined ? {} : { filters }),
+    limit,
+    ...(cursor === undefined ? {} : { cursor }),
+  };
+  let page: ExportPage;
+  try {
+    page = await readExportPage(deps, identity, { operation, inputs });
+  } catch (err) {
+    if (typeof err === 'object' && err !== null && 'code' in err && 'message' in err) {
+      return deny(deps, caughtToBusinessError(err), operation);
+    }
+    throw err;
+  }
+  return { page };
+}
+
+async function selectExportColumns(
+  deps: HttpDeps,
+  page: ExportPage,
+  requested: string[] | null,
+  operation: string,
+): Promise<string[] | Response> {
+  const available = new Set(page.columns.map((column) => column.field));
+  const selection = requested ?? page.columns.map((column) => column.field);
+  for (const field of selection) {
+    if (!available.has(field)) {
+      return deny(deps, buildBusinessError('validation', `Unknown export column ${JSON.stringify(field)}.`), operation);
+    }
+  }
+  return selection;
+}
+
+async function buildExportDescriptor(
+  deps: HttpDeps,
+  request: Request,
+  identity: LiveIdentity,
+  operation: string,
+  args: { parent: unknown; filters: unknown; requested: string[] | null; limit: number; cursor: string | undefined },
+): Promise<ExportDescriptor> {
+  const normalized = {
+    parent: args.parent ?? null,
+    filters: args.filters ?? null,
+    columns: args.requested,
+    limit: args.limit,
+    cursor: args.cursor ?? null,
+  };
+  const digest = await sha256HexText(canonicalJson({
+    appId: deps.app.appId,
+    teamId: identity.team?.team_id ?? null,
+    principal: identity.actor.user_id,
+    operation,
+    args: normalized,
+  }));
+  const handle = `exp-${digest.slice(0, 16)}`;
+  const origin = new URL(request.url).origin;
+  let expires_at = new Date(deps.clock.nowMs() + EXPORT_DESCRIPTOR_TTL_SECONDS * 1000).toISOString();
+  const store = deps.exportDownloads;
+  if (store !== undefined) {
+    const nowIso = new Date(deps.clock.nowMs()).toISOString();
+    const record: ExportDownloadRecord = {
+      handle,
+      appId: deps.app.appId,
+      teamId: identity.team?.team_id ?? null,
+      principal: identity.actor.user_id,
+      operation,
+      args: normalized,
+      createdAt: nowIso,
+      expiresAt: expires_at,
+      status: 'pending',
+      digest: '',
+    };
+    const { digest: _empty, ...unsigned } = record;
+    const registered: ExportDownloadRecord = { ...record, digest: await downloadRecordDigest(unsigned) };
+    if (!await store.save(registered, null)) {
+      const existing = await store.read(handle);
+      if (existing === null || !sameDownloadIdentity(existing, registered)) {
+        throw buildBusinessError('conflict', 'Export registration changed.');
+      }
+      // Replay convergence: keep the original record (and expiry) untouched.
+      expires_at = existing.expiresAt;
+    }
+  }
+  return {
+    handle,
+    status: 'pending',
+    download_url: `${origin}/api/exports/download/${handle}`,
+    status_url: `${origin}/api/exports/status/${handle}`,
+    expires_at,
+    row_estimate: null,
+    truncated: true,
+  };
+}
+
 export async function handleExportRequest(deps: HttpDeps, request: Request): Promise<Response> {
   const pathname = requestPath(request.url);
   try {
-    if (pathname !== EXPORTS_PATH) {
-      if (request.method.toUpperCase() === 'GET') {
-        const statusMatch = /^\/api\/exports\/status\/([^/]+)$/.exec(pathname);
-        if (statusMatch !== null) return await handleDownloadStatus(deps, request, statusMatch[1]!);
-        const downloadMatch = /^\/api\/exports\/download\/([^/]+)$/.exec(pathname);
-        if (downloadMatch !== null) return await handleDownload(deps, request, downloadMatch[1]!);
-      }
-      return deny(deps, buildBusinessError('not_found', 'Not found.'), pathname);
-    }
+    const downloaded = await dispatchExportDownload(deps, request, pathname);
+    if (downloaded !== null) return downloaded;
     if (request.method.toUpperCase() !== 'POST') {
       return deny(deps, buildBusinessError('not_found', 'Not found.'), pathname);
     }
-    const { identity, sessionToken } = await resolveRequestIdentity(
-      deps.identity.store,
-      request,
-      { clock: deps.clock },
-    );
-    if (sessionToken === null || identity.actor === null) {
-      return deny(deps, buildBusinessError('forbidden', 'Authentication required.'), pathname);
-    }
-    const body = await parseObjectBody(request);
-    await assertPostCsrf({
-      sessionToken,
-      headerValue: request.headers.get(CSRF_HEADER),
-      fieldValue: body[CSRF_FIELD],
-    });
+    const admitted = await admitExportCaller(deps, request, pathname);
+    if (admitted instanceof Response) return admitted;
+    const { identity, body } = admitted;
 
-    const operation = body['operation'];
-    const opError = checkListOperation(operation);
-    if (opError !== null || typeof operation !== 'string') {
-      return deny(deps, opError ?? buildBusinessError('validation', 'Missing operation.'), pathname);
-    }
-    const { columns: requested, error: columnsError } = parseColumns(body['columns']);
-    if (columnsError !== null) return deny(deps, columnsError, operation);
-    const { limit, error: limitError } = parseLimit(body['limit']);
-    if (limitError !== null) return deny(deps, limitError, operation);
-    const parent = body['parent'];
-    if (parent !== undefined) {
-      const ref = parent as Record<string, unknown>;
-      if (typeof parent !== 'object' || parent === null || Array.isArray(parent) || typeof ref['id'] !== 'string') {
-        return deny(deps, buildBusinessError('validation', 'Invalid export parent.'), operation);
-      }
-    }
-    const filters = body['filters'];
-    if (filters !== undefined && (typeof filters !== 'object' || filters === null || Array.isArray(filters))) {
-      return deny(deps, buildBusinessError('validation', 'Invalid export filters.'), operation);
-    }
-    const cursor = body['cursor'];
-    if (cursor !== undefined && typeof cursor !== 'string') {
-      return deny(deps, buildBusinessError('validation', 'Invalid export cursor.'), operation);
-    }
+    const checked = checkExportArgs(deps, body, pathname);
+    if (checked instanceof Response) return checked;
+    const { operation, requested, limit, parent, filters, cursor } = checked;
 
-    try {
-      await assertExportAuthority(deps, identity);
-    } catch (err) {
-      if (err instanceof IdentityError) {
-        return deny(deps, caughtToBusinessError(err), operation);
-      }
-      throw err;
-    }
-
-    const inputs: ClosedInputs = {
-      ...(parent === undefined ? {} : { parent }),
-      ...(filters === undefined ? {} : { filters }),
-      limit,
-      ...(cursor === undefined ? {} : { cursor }),
-    };
-    let page: ExportPage;
-    try {
-      page = await readExportPage(deps, identity, { operation, inputs });
-    } catch (err) {
-      if (typeof err === 'object' && err !== null && 'code' in err && 'message' in err) {
-        return deny(deps, caughtToBusinessError(err), operation);
-      }
-      throw err;
-    }
-    const available = new Set(page.columns.map((column) => column.field));
-    const selection = requested ?? page.columns.map((column) => column.field);
-    for (const field of selection) {
-      if (!available.has(field)) {
-        return deny(deps, buildBusinessError('validation', `Unknown export column ${JSON.stringify(field)}.`), operation);
-      }
-    }
+    const loaded = await loadExportPage(deps, identity, operation, parent, filters, limit, cursor);
+    if (loaded instanceof Response) return loaded;
+    const selected = await selectExportColumns(deps, loaded.page, requested, operation);
+    if (selected instanceof Response) return selected;
+    const page = loaded.page;
+    const selection = selected;
     /* Enforce the requested bound even when the read over-delivers. */
     const overDelivered = page.rows.length > limit;
     const bounded: ExportPage = {
@@ -432,54 +545,8 @@ export async function handleExportRequest(deps: HttpDeps, request: Request): Pro
     }
 
     const asOf = new Date(deps.clock.nowMs()).toISOString();
-    let descriptor: ExportDescriptor | undefined;
-    if (truncated) {
-      const digest = await sha256HexText(canonicalJson({
-        appId: deps.app.appId,
-        teamId: identity.team?.team_id ?? null,
-        principal: identity.actor.user_id,
-        operation,
-        args: { parent: parent ?? null, filters: filters ?? null, columns: requested, limit, cursor: cursor ?? null },
-      }));
-      const handle = `exp-${digest.slice(0, 16)}`;
-      const origin = new URL(request.url).origin;
-      let expires_at = new Date(deps.clock.nowMs() + EXPORT_DESCRIPTOR_TTL_SECONDS * 1000).toISOString();
-      const store = deps.exportDownloads;
-      if (store !== undefined) {
-        const nowIso = new Date(deps.clock.nowMs()).toISOString();
-        const record: ExportDownloadRecord = {
-          handle,
-          appId: deps.app.appId,
-          teamId: identity.team?.team_id ?? null,
-          principal: identity.actor.user_id,
-          operation,
-          args: { parent: parent ?? null, filters: filters ?? null, columns: requested, limit, cursor: cursor ?? null },
-          createdAt: nowIso,
-          expiresAt: expires_at,
-          status: 'pending',
-          digest: '',
-        };
-        const { digest: _empty, ...unsigned } = record;
-        const registered: ExportDownloadRecord = { ...record, digest: await downloadRecordDigest(unsigned) };
-        if (!await store.save(registered, null)) {
-          const existing = await store.read(handle);
-          if (existing === null || !sameDownloadIdentity(existing, registered)) {
-            throw buildBusinessError('conflict', 'Export registration changed.');
-          }
-          // Replay convergence: keep the original record (and expiry) untouched.
-          expires_at = existing.expiresAt;
-        }
-      }
-      descriptor = {
-        handle,
-        status: 'pending',
-        download_url: `${origin}/api/exports/download/${handle}`,
-        status_url: `${origin}/api/exports/status/${handle}`,
-        expires_at,
-        row_estimate: null,
-        truncated: true,
-      };
-    }
+    const descriptor = truncated ? await buildExportDescriptor(deps, request, identity, operation,
+      { parent, filters, requested, limit, cursor }) : undefined;
     const outcome: ExportOutcome = {
       operation,
       as_of: asOf,
@@ -539,6 +606,19 @@ interface CheckedDownload {
   readonly identity: ResolvedIdentity;
 }
 
+function checkDownloadRecordShape(record: ExportDownloadRecord, handle: string): BusinessError | null {
+  if (record.handle !== handle || checkListOperation(record.operation) !== null ||
+      typeof record.args !== 'object' || record.args === null ||
+      !Number.isInteger(record.args.limit) || record.args.limit < 1 || record.args.limit > PAGE_MAX_RECORDS ||
+      (record.args.cursor !== null && typeof record.args.cursor !== 'string') ||
+      (record.args.columns !== null && (!Array.isArray(record.args.columns) ||
+        record.args.columns.some((field) => typeof field !== 'string' || field === ''))) ||
+      (record.status !== 'pending' && record.status !== 'ready')) {
+    return buildBusinessError('validation', 'Stored download record is malformed.');
+  }
+  return null;
+}
+
 /** Shared status/download admission: store presence, shape, expiry, caller, revocation, integrity. */
 async function checkDownloadAccess(
   deps: HttpDeps, request: Request, handle: string, pathname: string,
@@ -562,14 +642,9 @@ async function checkDownloadAccess(
   if (record.status === 'revoked') {
     return { response: deny(deps, buildBusinessError('forbidden', 'This download was revoked.'), pathname) };
   }
-  if (record.handle !== handle || checkListOperation(record.operation) !== null ||
-      typeof record.args !== 'object' || record.args === null ||
-      !Number.isInteger(record.args.limit) || record.args.limit < 1 || record.args.limit > PAGE_MAX_RECORDS ||
-      (record.args.cursor !== null && typeof record.args.cursor !== 'string') ||
-      (record.args.columns !== null && (!Array.isArray(record.args.columns) ||
-        record.args.columns.some((field) => typeof field !== 'string' || field === ''))) ||
-      (record.status !== 'pending' && record.status !== 'ready')) {
-    return { response: deny(deps, buildBusinessError('validation', 'Stored download record is malformed.'), pathname) };
+  const shapeError = checkDownloadRecordShape(record, handle);
+  if (shapeError !== null) {
+    return { response: deny(deps, shapeError, pathname) };
   }
   const { digest: _stored, ...rest } = record;
   if (await downloadRecordDigest(rest) !== record.digest) {
@@ -650,23 +725,30 @@ async function completeExportBody(
     if (page.nextCursor === undefined) break;
     cursor = page.nextCursor;
   }
-  const selection = record.args.columns ?? (columns ?? []).map((column) => column.field);
+  return projectCompletedExport(columns, record.args.columns, allRows);
+}
+
+function projectCompletedExport(
+  columns: ExportPage['columns'] | undefined,
+  requested: readonly string[] | null,
+  allRows: ExportPage['rows'],
+): { csv: string; rowCount: number } {
+  const selection = requested ?? (columns ?? []).map((column) => column.field);
   const available = new Set((columns ?? []).map((column) => column.field));
   for (const field of selection) {
     if (!available.has(field)) {
       throw buildBusinessError('validation', `Unknown export column ${JSON.stringify(field)}.`);
     }
   }
-  let projected: { csv: string; columns: ExportColumn[]; rowCount: number };
   try {
-    projected = pageToCsv({ rows: allRows, columns: columns ?? [], nextCursor: undefined }, selection);
+    const projected = pageToCsv({ rows: allRows, columns: columns ?? [], nextCursor: undefined }, selection);
+    return { csv: projected.csv, rowCount: projected.rowCount };
   } catch (err) {
     if (err instanceof SecretRefusal) {
       throw buildBusinessError('validation', 'Export refuses secret values.');
     }
     throw err;
   }
-  return { csv: projected.csv, rowCount: projected.rowCount };
 }
 
 /** Admission ends at this fresh record/caller check, before response publication.

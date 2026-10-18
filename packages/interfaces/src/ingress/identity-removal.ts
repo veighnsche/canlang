@@ -146,6 +146,64 @@ export function createIdentityRemovalIngressVerifier(options: {
   const current = (): boolean => scope.every((value, index) => nonempty(value) &&
     ownValue(binding, BINDING_FIELDS[index]!) === value) &&
     scope[1] === ADAPTER && isCurrent() === true;
+function settleVerifiedCapture(
+  captureVerified: (original: VerifiedTeamsMemberRemovedEnvelope, rawBodyDigest: string) => void,
+  admitted: () => boolean,
+  original: VerifiedTeamsMemberRemovedEnvelope,
+  rawDigest: Uint8Array,
+): VerifiedTeamsMemberRemovedEnvelope | null {
+  const digest = Array.from(rawDigest, byte => byte.toString(16).padStart(2, '0')).join('');
+  const capture: unknown = captureVerified(original, digest);
+  if (capture !== null && (typeof capture === 'object' || typeof capture === 'function') &&
+      typeof (capture as { then?: unknown }).then === 'function') {
+    // A void callback can still return a Promise in TypeScript. Reject
+    // asynchronous capture and consume its failure without admitting it.
+    void Promise.resolve(capture).catch(() => undefined);
+    return null;
+  }
+  return admitted() ? original : null;
+}
+
+function checkIngressHeaders(input: { headers: unknown }): { id: string; timestamp: string; signature: string } | null {
+  const id = ownValue(input.headers, 'webhook-id');
+  const timestamp = ownValue(input.headers, 'webhook-timestamp');
+  const signature = ownValue(input.headers, 'webhook-signature');
+  if (typeof id !== 'string' || !/^[A-Za-z0-9_-]{1,200}$/.test(id) ||
+      typeof timestamp !== 'string' || !/^(?:0|[1-9][0-9]{0,15})$/.test(timestamp) ||
+      !Number.isSafeInteger(Number(timestamp)) || typeof signature !== 'string' ||
+      signature.length > 4096) return null;
+  return { id, timestamp, signature };
+}
+
+function parseIngressSignatures(signature: string): Uint8Array[] | null {
+  const entries = signature.split(' ');
+  if (entries.length < 1 || entries.length > 8) return null;
+  const signatures: Uint8Array[] = [];
+  for (const entry of entries) {
+    const bytes = entry.startsWith('v1,') ? base64(entry.slice(3)) : null;
+    if (bytes === null) return null;
+    signatures.push(bytes);
+  }
+  return signatures;
+}
+
+async function verifyIngressSignatures(
+  initialKeys: Map<string, Uint8Array>,
+  signatures: Uint8Array[],
+  signed: Uint8Array,
+): Promise<Set<string>> {
+  const acceptedKeys = new Set<string>();
+  for (const [encoded, bytes] of initialKeys) {
+    const key = await globalThis.crypto.subtle.importKey('raw', bytes.slice(),
+      { name: 'HMAC', hash: 'SHA-256' }, false, ['verify']);
+    for (const mac of signatures) {
+      // Host HMAC verification owns the timing-safe comparison.
+      if (await globalThis.crypto.subtle.verify('HMAC', key, mac.slice(), signed)) acceptedKeys.add(encoded);
+    }
+  }
+  return acceptedKeys;
+}
+
   return {
     async verify(requestBinding, input) {
       try {
@@ -153,21 +211,11 @@ export function createIdentityRemovalIngressVerifier(options: {
             input.body.byteLength > INGRESS_BODY_MAX_BYTES) return null;
         // Detach all signed input before the first await; never reserialize it.
         const body = new Uint8Array(input.body);
-        const id = ownValue(input.headers, 'webhook-id');
-        const timestamp = ownValue(input.headers, 'webhook-timestamp');
-        const signature = ownValue(input.headers, 'webhook-signature');
-        if (typeof id !== 'string' || !/^[A-Za-z0-9_-]{1,200}$/.test(id) ||
-            typeof timestamp !== 'string' || !/^(?:0|[1-9][0-9]{0,15})$/.test(timestamp) ||
-            !Number.isSafeInteger(Number(timestamp)) || typeof signature !== 'string' ||
-            signature.length > 4096) return null;
-        const entries = signature.split(' ');
-        if (entries.length < 1 || entries.length > 8) return null;
-        const signatures: Uint8Array[] = [];
-        for (const entry of entries) {
-          const bytes = entry.startsWith('v1,') ? base64(entry.slice(3)) : null;
-          if (bytes === null) return null;
-          signatures.push(bytes);
-        }
+        const headers = checkIngressHeaders(input);
+        if (headers === null) return null;
+        const { id, timestamp, signature } = headers;
+        const signatures = parseIngressSignatures(signature);
+        if (signatures === null) return null;
         const event = parseBody(body), attempt = Number(timestamp) * 1000;
         if (!envelope(event) || event.producerEventId !== id || event.namespace !== scope[0] ||
             event.membershipRemoval.team_id !== scope[2] || !inAge(clock.nowMs(), attempt, event.occurredAt)) return null;
@@ -176,15 +224,7 @@ export function createIdentityRemovalIngressVerifier(options: {
         const prefix = new TextEncoder().encode(`${id}.${timestamp}.`);
         const signed = new Uint8Array(prefix.length + body.length);
         signed.set(prefix); signed.set(body, prefix.length);
-        const acceptedKeys = new Set<string>();
-        for (const [encoded, bytes] of initialKeys) {
-          const key = await globalThis.crypto.subtle.importKey('raw', bytes.slice(),
-            { name: 'HMAC', hash: 'SHA-256' }, false, ['verify']);
-          for (const mac of signatures) {
-            // Host HMAC verification owns the timing-safe comparison.
-            if (await globalThis.crypto.subtle.verify('HMAC', key, mac.slice(), signed)) acceptedKeys.add(encoded);
-          }
-        }
+        const acceptedKeys = await verifyIngressSignatures(initialKeys, signatures, signed);
         const admitted = (): boolean => {
           const active = configuredKeys(keys());
           return current() && active !== null && [...acceptedKeys].some(key => active.has(key)) &&
@@ -197,16 +237,7 @@ export function createIdentityRemovalIngressVerifier(options: {
           member_user_id: event.membershipRemoval.user.id, removed_by: event.removedBy.id,
           namespace: scope[0] as string, operationId: event.operationId });
         if (!envelope(original) || !sameOriginal(event, original) || !admitted()) return null;
-        const digest = Array.from(rawDigest, byte => byte.toString(16).padStart(2, '0')).join('');
-        const capture: unknown = captureVerified(original, digest);
-        if (capture !== null && (typeof capture === 'object' || typeof capture === 'function') &&
-            typeof (capture as { then?: unknown }).then === 'function') {
-          // A void callback can still return a Promise in TypeScript. Reject
-          // asynchronous capture and consume its failure without admitting it.
-          void Promise.resolve(capture).catch(() => undefined);
-          return null;
-        }
-        return admitted() ? original : null;
+        return settleVerifiedCapture(captureVerified, admitted, original, rawDigest);
       } catch { return null; }
     },
   };

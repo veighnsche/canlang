@@ -19,7 +19,7 @@
  * (row count, explicit truncation note) — a truncated print never
  * passes as complete.
  */
-import type { BusinessError, ClosedInputs, MessageValue } from '@canlang/contracts';
+import type { BusinessError, ClosedInputs, MessageValue, ResolvedIdentity } from '@canlang/contracts';
 import { COLLECTION_MAX_LIMIT, PAGE_MAX_RECORDS } from '@canlang/contracts';
 import { IdentityError } from '@canlang/identity';
 import type { HttpDeps } from '../ports.js';
@@ -111,6 +111,104 @@ function renderPrintPage(
   );
 }
 
+function resolvePrintView(deps: HttpDeps, views: PrintViewRegistry, name: string): PrintView | Response {
+  const view = views.views().find((candidate) => candidate.name === name) ?? null;
+  if (view === null) {
+    return deny(deps, buildBusinessError('not_found', 'Unknown print view.'), name);
+  }
+  const opError = checkListOperation(view.operation);
+  if (opError !== null) {
+    return deny(deps, opError, name);
+  }
+  return view;
+}
+
+function readPrintLimit(deps: HttpDeps, query: URLSearchParams, name: string): { limit: number; cursor: string | null } | Response {
+  const limitRaw = query.get('limit');
+  let limit = COLLECTION_MAX_LIMIT;
+  if (limitRaw !== null) {
+    if (!/^-?\d+$/.test(limitRaw.trim())) {
+      return deny(deps, buildBusinessError('validation', `Print limit is 1..${PAGE_MAX_RECORDS}.`), name);
+    }
+    const parsed = Number(limitRaw.trim());
+    if (!Number.isSafeInteger(parsed) || parsed < 1 || parsed > PAGE_MAX_RECORDS) {
+      return deny(deps, buildBusinessError('validation', `Print limit is 1..${PAGE_MAX_RECORDS}.`), name);
+    }
+    limit = parsed;
+  }
+  return { limit, cursor: query.get('cursor') };
+}
+
+async function loadPrintPage(
+  deps: HttpDeps,
+  identity: ResolvedIdentity,
+  view: PrintView,
+  limit: number,
+  cursor: string | null,
+  name: string,
+): Promise<{ bounded: ExportPage; truncated: boolean; asOf: string } | Response> {
+  try {
+    await assertExportAuthority(deps, identity);
+  } catch (err) {
+    if (err instanceof IdentityError) {
+      return deny(deps, caughtToBusinessError(err), name);
+    }
+    throw err;
+  }
+  const inputs: ClosedInputs = {
+    limit,
+    ...(cursor === null ? {} : { cursor }),
+  };
+  let page: ExportPage;
+  try {
+    page = await readExportPage(deps, identity, { operation: view.operation, inputs });
+  } catch (err) {
+    if (typeof err === 'object' && err !== null && 'code' in err && 'message' in err) {
+      return deny(deps, caughtToBusinessError(err), name);
+    }
+    throw err;
+  }
+  const available = new Set(page.columns.map((column) => column.field));
+  for (const column of view.columns) {
+    if (!available.has(column.field)) {
+      return deny(deps, buildBusinessError('validation', `Unknown print column ${JSON.stringify(column.field)}.`), name);
+    }
+  }
+  const overDelivered = page.rows.length > limit;
+  const bounded: ExportPage = {
+    rows: page.rows.slice(0, limit),
+    columns: page.columns,
+    nextCursor: page.nextCursor,
+  };
+  return { bounded, truncated: bounded.nextCursor !== undefined || overDelivered, asOf: new Date(deps.clock.nowMs()).toISOString() };
+}
+
+function renderPrintBody(
+  deps: HttpDeps,
+  view: PrintView,
+  bounded: ExportPage,
+  asOf: string,
+  truncated: boolean,
+  name: string,
+): Response {
+  let html: string;
+  try {
+    html = renderPrintPage(view, bounded, asOf, truncated, bounded.rows.length);
+  } catch (err) {
+    if (err instanceof SecretRefusal) {
+      return deny(deps, buildBusinessError('validation', 'Print refuses secret values.'), name);
+    }
+    if (typeof err === 'object' && err !== null && 'code' in err && 'message' in err) {
+      return deny(deps, caughtToBusinessError(err), name);
+    }
+    throw err;
+  }
+  return new Response(html, {
+    status: 200,
+    headers: { 'content-type': 'text/html; charset=utf-8' },
+  });
+}
+
 /**
  * Dispatch one print request. See the module doc for the declaration,
  * grant, projection, and completeness rules.
@@ -142,81 +240,13 @@ export async function handlePrintRequest(
     if (sessionToken === null || identity.actor === null) {
       return deny(deps, buildBusinessError('forbidden', 'Authentication required.'), name);
     }
-    const view = views.views().find((candidate) => candidate.name === name) ?? null;
-    if (view === null) {
-      return deny(deps, buildBusinessError('not_found', 'Unknown print view.'), name);
-    }
-    const opError = checkListOperation(view.operation);
-    if (opError !== null) {
-      return deny(deps, opError, name);
-    }
-    const query = new URL(request.url).searchParams;
-    const limitRaw = query.get('limit');
-    let limit = COLLECTION_MAX_LIMIT;
-    if (limitRaw !== null) {
-      if (!/^-?\d+$/.test(limitRaw.trim())) {
-        return deny(deps, buildBusinessError('validation', `Print limit is 1..${PAGE_MAX_RECORDS}.`), name);
-      }
-      const parsed = Number(limitRaw.trim());
-      if (!Number.isSafeInteger(parsed) || parsed < 1 || parsed > PAGE_MAX_RECORDS) {
-        return deny(deps, buildBusinessError('validation', `Print limit is 1..${PAGE_MAX_RECORDS}.`), name);
-      }
-      limit = parsed;
-    }
-    const cursor = query.get('cursor');
-
-    try {
-      await assertExportAuthority(deps, identity);
-    } catch (err) {
-      if (err instanceof IdentityError) {
-        return deny(deps, caughtToBusinessError(err), name);
-      }
-      throw err;
-    }
-
-    const inputs: ClosedInputs = {
-      limit,
-      ...(cursor === null ? {} : { cursor }),
-    };
-    let page: ExportPage;
-    try {
-      page = await readExportPage(deps, identity, { operation: view.operation, inputs });
-    } catch (err) {
-      if (typeof err === 'object' && err !== null && 'code' in err && 'message' in err) {
-        return deny(deps, caughtToBusinessError(err), name);
-      }
-      throw err;
-    }
-    const available = new Set(page.columns.map((column) => column.field));
-    for (const column of view.columns) {
-      if (!available.has(column.field)) {
-        return deny(deps, buildBusinessError('validation', `Unknown print column ${JSON.stringify(column.field)}.`), name);
-      }
-    }
-    const overDelivered = page.rows.length > limit;
-    const bounded: ExportPage = {
-      rows: page.rows.slice(0, limit),
-      columns: page.columns,
-      nextCursor: page.nextCursor,
-    };
-    const truncated = bounded.nextCursor !== undefined || overDelivered;
-    const asOf = new Date(deps.clock.nowMs()).toISOString();
-    let html: string;
-    try {
-      html = renderPrintPage(view, bounded, asOf, truncated, bounded.rows.length);
-    } catch (err) {
-      if (err instanceof SecretRefusal) {
-        return deny(deps, buildBusinessError('validation', 'Print refuses secret values.'), name);
-      }
-      if (typeof err === 'object' && err !== null && 'code' in err && 'message' in err) {
-        return deny(deps, caughtToBusinessError(err), name);
-      }
-      throw err;
-    }
-    return new Response(html, {
-      status: 200,
-      headers: { 'content-type': 'text/html; charset=utf-8' },
-    });
+    const resolvedView = resolvePrintView(deps, views, name);
+    if (resolvedView instanceof Response) return resolvedView;
+    const resolvedLimit = readPrintLimit(deps, new URL(request.url).searchParams, name);
+    if (resolvedLimit instanceof Response) return resolvedLimit;
+    const loaded = await loadPrintPage(deps, identity, resolvedView, resolvedLimit.limit, resolvedLimit.cursor, name);
+    if (loaded instanceof Response) return loaded;
+    return renderPrintBody(deps, resolvedView, loaded.bounded, loaded.asOf, loaded.truncated, name);
   } catch (err) {
     if (err instanceof IdentityError) {
       return deny(deps, caughtToBusinessError(err), name);

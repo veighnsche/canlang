@@ -19726,3 +19726,19 @@ adapter ordering probes pass with targeted typing clean; independent repair revi
 confirmed the original result-getter mutation now rejects in both adapters. This
 closes eight further original above-20 bodies; full failed-consumer qualification
 remains outside the accepted result above.
+
+
+## 2026-10-18 — extract interface request and schema phases
+
+Accepted implementation: split HTTP/auth/form/page, upload, ingress and MCP schema
+phases into private helpers, reducing all 30 original above-20 interface bodies.
+Preserve the original page scope through awaited rendering, native form drafts
+through projection failures, descriptor own-data guards before reads, operation
+lookup order, and complete User/File array/nullability profiles. Independent
+review found and repaired these five boundary regressions before acceptance.
+The released 15-source batch typechecks with exit 0; all changed owners score
+within 20. Existing interface suites pass 12/14, including page presentation
+37/37. The remaining metadata-rejection assertion (t19b-depth 23/24) and saved
+preference rule_failed/422 also reproduce in the isolated HEAD comparison.
+Those failures remain validation limits; full consumer qualification is not claimed.
+No complexity rules, allowances, permissions or public interfaces change.

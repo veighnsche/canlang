@@ -54,6 +54,7 @@ import { wantsBrowserAuth } from './browser-auth.js';
 import { isPartialRequest } from './fragments.js';
 import { readCappedBody } from './limits.js';
 import { buildPageSourceContext, buildPresentationContext } from './presentation.js';
+import type { BuildPresentationContextInput } from './presentation.js';
 import { SIGN_IN_PATH, SIGN_OUT_PATH, SWITCH_TEAM_PATH } from './routes.js';
 
 /** Authored unknown/method response: `not_found`, mirroring routes.ts. */
@@ -178,77 +179,102 @@ function readablePreferenceValue(field: PagePreferenceField, value: string): boo
     !/[\u0000-\u001f\u007f]/u.test(value) && (field.reference !== true || value !== '');
 }
 
+function checkPreferenceFieldShape(field: PagePreferenceField, names: Set<string>): void {
+  if (!editablePreferenceMatches(field) || typeof field.name !== 'string' ||
+      !/^[A-Za-z][A-Za-z0-9_]*$/u.test(field.name) || names.has(field.name) || !Array.isArray(field.options)) {
+    throw new Error('Invalid source preference descriptor.');
+  }
+  names.add(field.name);
+}
+
+function checkScalarPreferenceField(field: PagePreferenceField): void {
+  // Reference preference leaves carry no case options and no literal
+  // default (DESIGN 977: reference equality is not an enum spelling);
+  // the saved identity validates as an opaque string at read time.
+  const scalarType = field.scalarType;
+  if (scalarType === undefined || !['int', 'datetime', 'currency'].includes(scalarType) || field.reference !== undefined || field.date !== undefined ||
+      !Array.isArray(field.options) || field.options.length !== 0 || (field.defaultValue === null
+        ? field.nullable !== true : !isScalarFilterValue(scalarType, field.defaultValue))) {
+    throw new Error('Invalid source preference descriptor.');
+  }
+}
+
+function checkReferencePreferenceField(field: PagePreferenceField): void {
+  if (!Array.isArray(field.options) || field.options.length !== 0 ||
+      field.defaultValue !== null || field.nullable !== true || field.date !== undefined) {
+    throw new Error('Invalid source preference descriptor.');
+  }
+}
+
+function checkDatePreferenceField(field: PagePreferenceField): void {
+  // C3 civil-date preference leaf (DESIGN 1015-1025 operator table):
+  // a plain-date control carries no case options and no save
+  // control; the default is a civil date or null (empty means no
+  // restriction, DESIGN 1023) and the saved value validates as a
+  // civil date, never against an inventory. Only the compiler emits
+  // this shape (`date:true` with empty options); enum/bool leaves
+  // always carry their spellings below. The POST save path keeps
+  // refusing date leaves with validation: no save control admits
+  // them.
+  if (!Array.isArray(field.options) || field.options.length !== 0 ||
+      (field.defaultValue === null
+        ? field.nullable !== true
+        : !isCivilDate(field.defaultValue))) {
+    throw new Error('Invalid source preference descriptor.');
+  }
+}
+
+function checkTextPreferenceField(field: PagePreferenceField): void {
+  // C2 text-equality preference leaf (DESIGN 975 scalar): a plain-text
+  // control carries no case options and no save control; the default
+  // is a bounded string or null (empty means no restriction, DESIGN
+  // 1023) and the saved value validates as a bounded string, never
+  // against an inventory. Only the compiler emits this shape (empty
+  // options with no reference/date flag); enum/bool leaves always carry
+  // their spellings below. The POST save path keeps refusing text
+  // leaves with validation: no save control admits them.
+  if (field.date !== undefined ||
+      (field.defaultValue === null
+        ? field.nullable !== true
+        : typeof field.defaultValue !== 'string' || field.defaultValue.length > 200 ||
+          /[\u0000-\u001f\u007f]/.test(field.defaultValue))) {
+    throw new Error('Invalid source preference descriptor.');
+  }
+}
+
+function checkEnumPreferenceField(field: PagePreferenceField): void {
+  if (field.reference !== undefined || field.date !== undefined || !Array.isArray(field.options) || field.options.length === 0 ||
+      field.options.some(value => typeof value !== 'string' || value === '') ||
+      new Set(field.options).size !== field.options.length ||
+      (field.defaultValue === null
+        ? field.nullable !== true
+        : !field.options.includes(field.defaultValue))) {
+    throw new Error('Invalid source preference descriptor.');
+  }
+}
+
 function checkedPreferenceFields(descriptor: PageDescriptor): NonNullable<PageDescriptor['preferenceFields']> {
   const fields = descriptor.preferenceFields ?? [];
   const names = new Set<string>();
   for (const field of fields) {
-    if (!editablePreferenceMatches(field) || typeof field.name !== 'string' ||
-        !/^[A-Za-z][A-Za-z0-9_]*$/u.test(field.name) || names.has(field.name) || !Array.isArray(field.options)) {
-      throw new Error('Invalid source preference descriptor.');
-    }
-    names.add(field.name);
-    // Reference preference leaves carry no case options and no literal
-    // default (DESIGN 977: reference equality is not an enum spelling);
-    // the saved identity validates as an opaque string at read time.
+    checkPreferenceFieldShape(field, names);
     if (field.scalarType !== undefined) {
-      if (!['int', 'datetime', 'currency'].includes(field.scalarType) || field.reference !== undefined || field.date !== undefined ||
-          !Array.isArray(field.options) || field.options.length !== 0 || (field.defaultValue === null
-            ? field.nullable !== true : !isScalarFilterValue(field.scalarType, field.defaultValue))) {
-        throw new Error('Invalid source preference descriptor.');
-      }
+      checkScalarPreferenceField(field);
       continue;
     }
     if (field.reference === true) {
-      if (!Array.isArray(field.options) || field.options.length !== 0 ||
-          field.defaultValue !== null || field.nullable !== true || field.date !== undefined) {
-        throw new Error('Invalid source preference descriptor.');
-      }
+      checkReferencePreferenceField(field);
       continue;
     }
-    // C3 civil-date preference leaf (DESIGN 1015-1025 operator table):
-    // a plain-date control carries no case options and no save
-    // control; the default is a civil date or null (empty means no
-    // restriction, DESIGN 1023) and the saved value validates as a
-    // civil date, never against an inventory. Only the compiler emits
-    // this shape (`date:true` with empty options); enum/bool leaves
-    // always carry their spellings below. The POST save path keeps
-    // refusing date leaves with validation: no save control admits
-    // them.
     if (field.date === true) {
-      if (!Array.isArray(field.options) || field.options.length !== 0 ||
-          (field.defaultValue === null
-            ? field.nullable !== true
-            : !isCivilDate(field.defaultValue))) {
-        throw new Error('Invalid source preference descriptor.');
-      }
+      checkDatePreferenceField(field);
       continue;
     }
-    // C2 text-equality preference leaf (DESIGN 975 scalar): a plain-text
-    // control carries no case options and no save control; the default
-    // is a bounded string or null (empty means no restriction, DESIGN
-    // 1023) and the saved value validates as a bounded string, never
-    // against an inventory. Only the compiler emits this shape (empty
-    // options with no reference/date flag); enum/bool leaves always carry
-    // their spellings below. The POST save path keeps refusing text
-    // leaves with validation: no save control admits them.
     if (Array.isArray(field.options) && field.options.length === 0) {
-      if (field.date !== undefined ||
-          (field.defaultValue === null
-            ? field.nullable !== true
-            : typeof field.defaultValue !== 'string' || field.defaultValue.length > 200 ||
-              /[\u0000-\u001f\u007f]/.test(field.defaultValue))) {
-        throw new Error('Invalid source preference descriptor.');
-      }
+      checkTextPreferenceField(field);
       continue;
     }
-    if (field.reference !== undefined || field.date !== undefined || !Array.isArray(field.options) || field.options.length === 0 ||
-        field.options.some(value => typeof value !== 'string' || value === '') ||
-        new Set(field.options).size !== field.options.length ||
-        (field.defaultValue === null
-          ? field.nullable !== true
-          : !field.options.includes(field.defaultValue))) {
-      throw new Error('Invalid source preference descriptor.');
-    }
+    checkEnumPreferenceField(field);
   }
   return fields;
 }
@@ -276,6 +302,47 @@ function checkedPreferenceVersion(value: string): boolean {
 }
 
 /** Saved preference values are loaded only for this resolved active actor/team. */
+function checkPreferenceMembership(identity: ResolvedIdentity): void {
+  if (identity.actor === null || identity.team === null || identity.membership === null ||
+      identity.membership.status !== 'active' ||
+      identity.membership.user_id !== identity.actor.user_id ||
+      identity.membership.team_id !== identity.team.team_id) {
+    throw buildBusinessError('forbidden', 'An active team membership is required.');
+  }
+}
+
+async function loadPreferenceField(
+  deps: PageHttpDeps,
+  identity: ResolvedIdentity,
+  owner: string,
+  field: PagePreferenceField,
+  values: Record<string, string | null>,
+  versions: Record<string, string>,
+): Promise<void> {
+  const key: PagePreferenceKey = {
+    appId: deps.app.appId, actorUserId: identity.actor!.user_id,
+    teamId: identity.team!.team_id, owner, field: field.name,
+  };
+  const saved = await deps.preferences!.read(key);
+  // Reference identities validate as opaque strings (bounded like
+  // search input), never against a case inventory: unknown references
+  // simply match nothing downstream (DESIGN 1027). Text values
+  // validate the same way (C2 text-equality rule, DESIGN 975 scalar):
+  // a bounded string with no inventory to violate, so an unknown
+  // saved string narrows to no rows downstream instead of failing
+  // materialization; empty stays no restriction (DESIGN 1023). Date
+  // values validate as civil dates (C3, DESIGN 1015-1025): a saved
+  // non-date is a materialization failure, never a silent empty.
+  const savedOk = saved === null || (checkedPreferenceVersion(saved.version) && saved.version !== '0' &&
+    readablePreferenceValue(field, saved.value));
+  if (!savedOk) {
+    throw new Error('Invalid saved page preference.');
+  }
+  values[field.name] = saved !== null && clearedPreference(field, saved.value) ? null : saved?.value ?? field.defaultValue;
+  versions[field.name] = saved?.version ?? '0';
+}
+
+/** Saved preference values are loaded only for this resolved active actor/team. */
 async function preferenceSource(
   deps: PageHttpDeps, identity: ResolvedIdentity, descriptor: PageDescriptor, readRecords?: PageRecordsReader,
 ): Promise<PageSourceContext> {
@@ -285,37 +352,12 @@ async function preferenceSource(
     await deps.bindSourceReadContext?.(identity, source);
     return source;
   }
-  if (identity.actor === null || identity.team === null || identity.membership === null ||
-      identity.membership.status !== 'active' ||
-      identity.membership.user_id !== identity.actor.user_id ||
-      identity.membership.team_id !== identity.team.team_id) {
-    throw buildBusinessError('forbidden', 'An active team membership is required.');
-  }
+  checkPreferenceMembership(identity);
   if (deps.preferences === undefined) throw new Error('Page preference persistence is not configured.');
   const values: Record<string, string | null> = Object.create(null) as Record<string, string | null>;
   const versions: Record<string, string> = Object.create(null) as Record<string, string>;
   for (const field of fields) {
-    const key: PagePreferenceKey = {
-      appId: deps.app.appId, actorUserId: identity.actor.user_id,
-      teamId: identity.team.team_id, owner: descriptor.owner, field: field.name,
-    };
-    const saved = await deps.preferences.read(key);
-    // Reference identities validate as opaque strings (bounded like
-    // search input), never against a case inventory: unknown references
-    // simply match nothing downstream (DESIGN 1027). Text values
-    // validate the same way (C2 text-equality rule, DESIGN 975 scalar):
-    // a bounded string with no inventory to violate, so an unknown
-    // saved string narrows to no rows downstream instead of failing
-    // materialization; empty stays no restriction (DESIGN 1023). Date
-    // values validate as civil dates (C3, DESIGN 1015-1025): a saved
-    // non-date is a materialization failure, never a silent empty.
-    const savedOk = saved === null || (checkedPreferenceVersion(saved.version) && saved.version !== '0' &&
-      readablePreferenceValue(field, saved.value));
-    if (!savedOk) {
-      throw new Error('Invalid saved page preference.');
-    }
-    values[field.name] = saved !== null && clearedPreference(field, saved.value) ? null : saved?.value ?? field.defaultValue;
-    versions[field.name] = saved?.version ?? '0';
+    await loadPreferenceField(deps, identity, descriptor.owner, field, values, versions);
   }
   const result = Object.freeze({
     ...source,
@@ -324,6 +366,43 @@ async function preferenceSource(
   });
   await deps.bindSourceReadContext?.(identity, result);
   return result;
+}
+
+function parsePreferencePost(
+  body: URLSearchParams,
+  fields: NonNullable<PageDescriptor['preferenceFields']>,
+): { field: PagePreferenceField; value: string; expectedVersion: string } {
+  const names = [...body.keys()];
+  const selected = fields.filter(field => body.has(field.name));
+  if (selected.length !== 1 || names.length !== 3 || new Set(names).size !== 3 ||
+      !body.has('_csrf') || !body.has('_version') ||
+      names.some(name => name !== '_csrf' && name !== '_version' && name !== selected[0]?.name)) {
+    throw buildBusinessError('validation', 'Invalid preference form.');
+  }
+  const field = selected[0]!;
+  const value = body.get(field.name)!;
+  const expectedVersion = body.get('_version')!;
+  if (!acceptedPreferenceValue(field, value) || !checkedPreferenceVersion(expectedVersion)) {
+    throw buildBusinessError('validation', 'Invalid preference selection.');
+  }
+  return { field, value, expectedVersion };
+}
+
+async function resolvePreferenceIdentity(
+  deps: PageHttpDeps,
+  request: Request,
+  teamId: string | null,
+  body: URLSearchParams,
+): Promise<{ identity: ResolvedIdentity; sessionToken: string }> {
+  const resolved = await resolveRequestIdentity(deps.identity.store, request, {
+    clock: deps.clock, ...(teamId === null ? {} : { teamId }),
+  });
+  const { identity, sessionToken } = resolved;
+  if (sessionToken === null) throw buildBusinessError('forbidden', 'Authentication required.');
+  await assertPostCsrf({
+    sessionToken, headerValue: request.headers.get('x-csrf-token'), fieldValue: body.get('_csrf'),
+  });
+  return { identity, sessionToken };
 }
 
 /** Bound tabs save through their actual page route and return to that view. */
@@ -339,28 +418,8 @@ export async function handlePagePreferencePost(deps: PageHttpDeps, request: Requ
     throw buildBusinessError('validation', 'Invalid preference form.');
   }
   const body = new URLSearchParams(new TextDecoder().decode(await readCappedBody(request, 4096)));
-  const names = [...body.keys()];
-  const selected = fields.filter(field => body.has(field.name));
-  if (selected.length !== 1 || names.length !== 3 || new Set(names).size !== 3 ||
-      !body.has('_csrf') || !body.has('_version') ||
-      names.some(name => name !== '_csrf' && name !== '_version' && name !== selected[0]?.name)) {
-    throw buildBusinessError('validation', 'Invalid preference form.');
-  }
-  const field = selected[0]!;
-  const value = body.get(field.name)!;
-  const expectedVersion = body.get('_version')!;
-  if (!acceptedPreferenceValue(field, value) || !checkedPreferenceVersion(expectedVersion)) {
-    throw buildBusinessError('validation', 'Invalid preference selection.');
-  }
-  const teamId = url.searchParams.get('team');
-  const resolved = await resolveRequestIdentity(deps.identity.store, request, {
-    clock: deps.clock, ...(teamId === null ? {} : { teamId }),
-  });
-  const { identity, sessionToken } = resolved;
-  if (sessionToken === null) throw buildBusinessError('forbidden', 'Authentication required.');
-  await assertPostCsrf({
-    sessionToken, headerValue: request.headers.get('x-csrf-token'), fieldValue: body.get('_csrf'),
-  });
+  const { field, value, expectedVersion } = parsePreferencePost(body, fields);
+  const { identity } = await resolvePreferenceIdentity(deps, request, url.searchParams.get('team'), body);
   const source = await preferenceSource(deps, identity, match.descriptor);
   await match.descriptor.admit(source, match.routeBindings);
   const currentVersion = source.preferenceVersions?.[match.descriptor.owner]?.[field.name];
@@ -465,13 +524,214 @@ function cappedHtmlResponse(
   });
 }
 
-/**
- * Render one page request. GET/HEAD only; see the module doc for the
- * full dispatch/admission/discovery/render flow and error mapping.
- */
-async function handlePageRequestCore(deps: PageHttpDeps, request: Request): Promise<Response> {
+function checkPageQuery(url: URL): Response | null {
+  const searchValues = url.searchParams.getAll('q');
+  if (searchValues.length > 1 || searchValues.some(value => value.length > 200 || /[\u0000-\u001f\u007f]/u.test(value))) {
+    const error = buildBusinessError('validation', 'Invalid collection search.');
+    return jsonErrorResponse(error, httpStatusFor(error.code));
+  }
+  return null;
+}
+
+function stripPageSlash(url: URL, pathname: string): Response | null {
+  if (pathname.length > 1 && pathname.endsWith('/')) {
+    const stripped = pathname.replace(/\/+$/, '');
+    const target = `${stripped.length === 0 ? '/' : stripped}${url.search}`;
+    return new Response(null, { status: 308, headers: { location: target } });
+  }
+  return null;
+}
+
+async function resolvePageIdentity(
+  deps: PageHttpDeps,
+  pathname: string,
+  credentialRequest: Request,
+  selectedTeam: string | null,
+): Promise<{ identity: ResolvedIdentity; sessionToken: string | null } | Response> {
+  try {
+    // ?team= is honored only with a session cookie: anonymous callers must
+    // not probe team existence via 404-vs-render, and public record routes
+    // resolve their team from the record (L3), never from the query.
+    const resolved = await resolveRequestIdentity(
+      deps.identity.store,
+      credentialRequest,
+      {
+        clock: deps.clock,
+        ...(selectedTeam === null ? {} : { teamId: selectedTeam }),
+      },
+    );
+    return { identity: resolved.identity, sessionToken: resolved.sessionToken };
+  } catch (err) {
+    const error = caughtToBusinessError(err);
+    if (!isBusinessThrow(err)) logInternalError(deps.logger, err, { path: pathname });
+    return jsonErrorResponse(error, httpStatusFor(error.code));
+  }
+}
+
+async function readPageBindings(
+  deps: PageHttpDeps,
+  match: RouteMatch,
+  source: PageSourceContext,
+  pathname: string,
+): Promise<AdmittedBindings | Response> {
+  try {
+    return await match.descriptor.admit(source, match.routeBindings);
+  } catch (err) {
+    const error = caughtToBusinessError(err);
+    if (!isBusinessThrow(err)) logInternalError(deps.logger, err, { path: pathname });
+    return jsonErrorResponse(error, httpStatusFor(error.code));
+  }
+}
+
+async function derivePageCsrf(
+  deps: PageHttpDeps,
+  sessionToken: string | null,
+  pathname: string,
+): Promise<string | Response> {
+  try {
+    return sessionToken === null ? '' : await deriveCsrfToken(sessionToken);
+  } catch (err) {
+    return internalResponse(deps, err, pathname);
+  }
+}
+
+async function renderPageChildren(
+  deps: PageHttpDeps,
+  match: RouteMatch,
+  context: PresentationContext,
+  bindings: AdmittedBindings,
+  pathname: string,
+): Promise<readonly string[] | Response> {
+  try {
+    return match.descriptor.renderParts === undefined
+      ? [await match.descriptor.render(context, bindings)]
+      : await match.descriptor.renderParts(context, bindings);
+  } catch (err) {
+    return renderThrowResponse(deps, err, pathname);
+  }
+}
+
+interface PageRenderEnv {
+  readonly deps: PageHttpDeps;
+  readonly request: Request;
+  readonly match: RouteMatch;
+  readonly identity: ResolvedIdentity;
+  readonly sessionToken: string | null;
+  readonly source: PageSourceContext;
+  readonly bindings: AdmittedBindings;
+  readonly csrfToken: string;
+  readonly query: RowQueryRunner;
+  readonly scope: PageReadScope | undefined;
+  readonly candidates: readonly PageDescriptor[];
+  readonly ancestors: readonly PageDescriptor[];
+  readonly outcomes: ReadonlyMap<PageDescriptor, AdmissionOutcome>;
+  readonly breadcrumbs: NonNullable<PresentationContext['breadcrumbs']>;
+  readonly searchQuery: string;
+  readonly pathname: string;
+  readonly method: string;
+}
+
+function pageContextOptions(env: PageRenderEnv, isPartial: boolean): BuildPresentationContextInput {
+  const { deps, request, csrfToken, identity, source, breadcrumbs, query, scope } = env;
+  return {
+    ...(deps.deploymentBase === undefined ? {} : { deploymentBase: deps.deploymentBase }),
+    request,
+    pathname: env.pathname,
+    searchQuery: env.searchQuery,
+    isPartial,
+    appDefaultLocale: deps.app.appDefaultLocale,
+    csrfToken,
+    principal: identity,
+    source,
+    breadcrumbs,
+    query,
+    ...(scope?.readRecords === undefined ? {} : { readRecords: scope.readRecords }),
+    ...(scope?.readHistory === undefined ? {} : { readHistory: scope.readHistory }),
+    ...(scope?.presentFile === undefined ? {} : { presentFile: scope.presentFile.bind(scope) }),
+    ...(scope?.resolveFileImage === undefined ? {} : { resolveFileImage: scope.resolveFileImage.bind(scope) }),
+    ...(scope?.observeDelivery === undefined ? {} : { observeDelivery: scope.observeDelivery }),
+    ...(scope?.observeGenerationCallbackDiagnostics === undefined ? {} : {
+      observeGenerationCallbackDiagnostics: scope.observeGenerationCallbackDiagnostics,
+    }),
+    ...(deps.catalog === undefined ? {} : { catalog: deps.catalog }),
+    ...(deps.formBindings === undefined ? {} : { formBindings: deps.formBindings }),
+    appId: deps.app.appId, sessionToken: env.sessionToken,
+    clock: deps.clock,
+  };
+}
+
+async function finishPageRender(
+  deps: PageHttpDeps,
+  context: PresentationContext,
+  descriptor: PageDescriptor,
+  children: readonly string[],
+  method: string,
+  pathname: string,
+  shell: ShellData | undefined,
+): Promise<Response> {
+  let html: string;
+  try {
+    html = await renderPage(context, descriptor, children, shell);
+  } catch (err) {
+    return internalResponse(deps, err, pathname);
+  }
+  return cappedHtmlResponse(deps, html, { method, path: pathname });
+}
+
+async function renderPartialPage(env: PageRenderEnv): Promise<Response> {
+  const context = buildPresentationContext(pageContextOptions(env, true));
+  const children = await renderPageChildren(env.deps, env.match, context, env.bindings, env.pathname);
+  if (children instanceof Response) return children;
+  return finishPageRender(env.deps, context, env.match.descriptor, children, env.method, env.pathname, undefined);
+}
+
+async function renderFullPage(env: PageRenderEnv): Promise<Response> {
+  const { deps, match, pathname } = env;
+  let navigation: NavigationResult;
+  try {
+    navigation = buildNavigation(env.candidates, env.outcomes, {
+      currentPath: pathname,
+      ownerLabels: deps.app.ownerLabels,
+    });
+  } catch (err) {
+    return internalResponse(deps, err, pathname);
+  }
+  let teams: TeamOption[];
+  try {
+    teams = await teamOptions(deps, env.identity);
+  } catch (err) {
+    return internalResponse(deps, err, pathname);
+  }
+  const account: AccountMenuData = {
+    authenticated: env.identity.actor !== null,
+    ...(env.identity.actor !== null ? { userLabel: env.identity.actor.email } : {}),
+    teams,
+    ...(env.identity.team !== null ? { currentTeamId: env.identity.team.team_id } : {}),
+  };
+  const shell: ShellData = {
+    navigation,
+    brand: deps.app.brand,
+    routes: { signIn: SIGN_IN_PATH, signOut: SIGN_OUT_PATH, switchTeam: SWITCH_TEAM_PATH },
+    account,
+    settings: { sections: [] },
+  };
+  const context = buildPresentationContext(pageContextOptions(env, false));
+  const children = await renderPageChildren(deps, match, context, env.bindings, pathname);
+  if (children instanceof Response) return children;
+  return finishPageRender(deps, context, match.descriptor, children, env.method, pathname, {
+    ...shell, settings: renderEnumPreferenceSettings({
+      context, owner: match.descriptor.owner,
+      caption: deps.app.ownerLabels.get(match.descriptor.owner) ?? match.descriptor.owner,
+      fields: checkedPreferenceFields(match.descriptor),
+      postTo: context.pollUrl ?? context.path,
+    }),
+  });
+}
+
+function readPageHead(request: Request): {
+  url: URL; credentialRequest: Request; selectedTeam: string | null; method: string;
+} | Response {
   const url = new URL(request.url);
-  const identityStore = deps.identity.store, identityClock = deps.clock;
   const capturedCookie = request.headers.get('cookie');
   const credentialRequest = new Request(url.href, {
     headers: capturedCookie === null ? {} : { cookie: capturedCookie },
@@ -479,45 +739,32 @@ async function handlePageRequestCore(deps: PageHttpDeps, request: Request): Prom
   const selectedTeam = parseSessionCookie(capturedCookie ?? undefined) === null ? null : url.searchParams.get('team');
   const method = request.method.toUpperCase();
   if (method !== 'GET' && method !== 'HEAD') return notFoundResponse();
-  const searchValues = url.searchParams.getAll('q');
-  if (searchValues.length > 1 || searchValues.some(value => value.length > 200 || /[\u0000-\u001f\u007f]/u.test(value))) {
-    const error = buildBusinessError('validation', 'Invalid collection search.');
-    return jsonErrorResponse(error, httpStatusFor(error.code));
-  }
-  const searchQuery = searchValues[0] ?? '';
+  return { url, credentialRequest, selectedTeam, method };
+}
+
+/**
+ * Render one page request. GET/HEAD only; see the module doc for the
+ * full dispatch/admission/discovery/render flow and error mapping.
+ */
+async function handlePageRequestCore(deps: PageHttpDeps, request: Request): Promise<Response> {
+  const identityStore = deps.identity.store, identityClock = deps.clock;
+  const head = readPageHead(request);
+  if (head instanceof Response) return head;
+  const { url, credentialRequest, selectedTeam, method } = head;
+  const searched = checkPageQuery(url);
+  if (searched !== null) return searched;
+  const searchQuery = url.searchParams.getAll('q')[0] ?? '';
   const pathname = url.pathname;
-  if (pathname.length > 1 && pathname.endsWith('/')) {
-    const stripped = pathname.replace(/\/+$/, '');
-    const target = `${stripped.length === 0 ? '/' : stripped}${url.search}`;
-    return new Response(null, { status: 308, headers: { location: target } });
-  }
+  const redirected = stripPageSlash(url, pathname);
+  if (redirected !== null) return redirected;
 
   const descriptors = deps.pages.descriptors();
   const match = matchDescriptor(descriptors, pathname);
   if (match === null) return notFoundResponse();
 
-  let identity: ResolvedIdentity;
-  let sessionToken: string | null;
-  try {
-    // ?team= is honored only with a session cookie: anonymous callers must
-    // not probe team existence via 404-vs-render, and public record routes
-    // resolve their team from the record (L3), never from the query.
-    const teamParam = selectedTeam;
-    const resolved = await resolveRequestIdentity(
-      identityStore,
-      credentialRequest,
-      {
-        clock: identityClock,
-        ...(teamParam === null ? {} : { teamId: teamParam }),
-      },
-    );
-    identity = resolved.identity;
-    sessionToken = resolved.sessionToken;
-  } catch (err) {
-    const error = caughtToBusinessError(err);
-    if (!isBusinessThrow(err)) logInternalError(deps.logger, err, { path: pathname });
-    return jsonErrorResponse(error, httpStatusFor(error.code));
-  }
+  const identified = await resolvePageIdentity(deps, pathname, credentialRequest, selectedTeam);
+  if (identified instanceof Response) return identified;
+  const { identity, sessionToken } = identified;
 
   let source: PageSourceContext;
   let sourceReady = false;
@@ -567,21 +814,12 @@ async function handlePageRequestCore(deps: PageHttpDeps, request: Request): Prom
     } catch (err) {
       return renderThrowResponse(deps, err, pathname);
     }
-    let bindings: AdmittedBindings;
-    try {
-      bindings = await match.descriptor.admit(source, match.routeBindings);
-    } catch (err) {
-      const error = caughtToBusinessError(err);
-      if (!isBusinessThrow(err)) logInternalError(deps.logger, err, { path: pathname });
-      return jsonErrorResponse(error, httpStatusFor(error.code));
-    }
+    const admitted = await readPageBindings(deps, match, source, pathname);
+    if (admitted instanceof Response) return admitted;
 
-    let csrfToken: string;
-    try {
-      csrfToken = sessionToken === null ? '' : await deriveCsrfToken(sessionToken);
-    } catch (err) {
-      return internalResponse(deps, err, pathname);
-    }
+    const derived = await derivePageCsrf(deps, sessionToken, pathname);
+    if (derived instanceof Response) return derived;
+    const csrfToken = derived;
 
     const partial = isPartialRequest(request);
     try {
@@ -598,125 +836,11 @@ async function handlePageRequestCore(deps: PageHttpDeps, request: Request): Prom
     } catch (err) {
       return internalResponse(deps, err, pathname);
     }
-    if (partial) {
-      const context = buildPresentationContext({
-        ...(deps.deploymentBase === undefined ? {} : { deploymentBase: deps.deploymentBase }),
-        request,
-        pathname,
-        searchQuery,
-        isPartial: true,
-        appDefaultLocale: deps.app.appDefaultLocale,
-        csrfToken,
-        principal: identity,
-        source,
-        breadcrumbs,
-        query,
-        ...(scope?.readRecords === undefined ? {} : { readRecords: scope.readRecords }),
-        ...(scope?.readHistory === undefined ? {} : { readHistory: scope.readHistory }),
-        ...(scope?.presentFile === undefined ? {} : { presentFile: scope.presentFile.bind(scope) }),
-        ...(scope?.resolveFileImage === undefined ? {} : { resolveFileImage: scope.resolveFileImage.bind(scope) }),
-        ...(scope?.observeDelivery === undefined ? {} : { observeDelivery: scope.observeDelivery }),
-        ...(scope?.observeGenerationCallbackDiagnostics === undefined ? {} : {
-          observeGenerationCallbackDiagnostics: scope.observeGenerationCallbackDiagnostics,
-        }),
-        ...(deps.catalog === undefined ? {} : { catalog: deps.catalog }),
-        ...(deps.formBindings === undefined ? {} : { formBindings: deps.formBindings }),
-        appId: deps.app.appId, sessionToken,
-        clock: deps.clock,
-      });
-      let children: readonly string[];
-      try {
-        children = match.descriptor.renderParts === undefined
-          ? [await match.descriptor.render(context, bindings)]
-          : await match.descriptor.renderParts(context, bindings);
-      } catch (err) {
-        return renderThrowResponse(deps, err, pathname);
-      }
-      let html: string;
-      try {
-        html = await renderPage(context, match.descriptor, children);
-      } catch (err) {
-        return internalResponse(deps, err, pathname);
-      }
-      return cappedHtmlResponse(deps, html, { method, path: pathname });
-    }
-
-    let navigation: NavigationResult;
-    try {
-      navigation = buildNavigation(candidates, outcomes, {
-        currentPath: pathname,
-        ownerLabels: deps.app.ownerLabels,
-      });
-    } catch (err) {
-      return internalResponse(deps, err, pathname);
-    }
-
-    let teams: TeamOption[];
-    try {
-      teams = await teamOptions(deps, identity);
-    } catch (err) {
-      return internalResponse(deps, err, pathname);
-    }
-    const account: AccountMenuData = {
-      authenticated: identity.actor !== null,
-      ...(identity.actor !== null ? { userLabel: identity.actor.email } : {}),
-      teams,
-      ...(identity.team !== null ? { currentTeamId: identity.team.team_id } : {}),
+    const env: PageRenderEnv = {
+      deps, request, match, identity, sessionToken, source, bindings: admitted, csrfToken,
+      query, scope, candidates, ancestors, outcomes, breadcrumbs, searchQuery, pathname, method,
     };
-    const shell: ShellData = {
-      navigation,
-      brand: deps.app.brand,
-      routes: { signIn: SIGN_IN_PATH, signOut: SIGN_OUT_PATH, switchTeam: SWITCH_TEAM_PATH },
-      account,
-      settings: { sections: [] },
-    };
-    const context = buildPresentationContext({
-      ...(deps.deploymentBase === undefined ? {} : { deploymentBase: deps.deploymentBase }),
-      request,
-      pathname,
-      searchQuery,
-      isPartial: false,
-      appDefaultLocale: deps.app.appDefaultLocale,
-      csrfToken,
-      principal: identity,
-      source,
-      breadcrumbs,
-      query,
-      ...(scope?.readRecords === undefined ? {} : { readRecords: scope.readRecords }),
-      ...(scope?.readHistory === undefined ? {} : { readHistory: scope.readHistory }),
-      ...(scope?.presentFile === undefined ? {} : { presentFile: scope.presentFile.bind(scope) }),
-      ...(scope?.resolveFileImage === undefined ? {} : { resolveFileImage: scope.resolveFileImage.bind(scope) }),
-      ...(scope?.observeDelivery === undefined ? {} : { observeDelivery: scope.observeDelivery }),
-      ...(scope?.observeGenerationCallbackDiagnostics === undefined ? {} : {
-        observeGenerationCallbackDiagnostics: scope.observeGenerationCallbackDiagnostics,
-      }),
-      ...(deps.catalog === undefined ? {} : { catalog: deps.catalog }),
-      ...(deps.formBindings === undefined ? {} : { formBindings: deps.formBindings }),
-      appId: deps.app.appId, sessionToken,
-      clock: deps.clock,
-    });
-    let children: readonly string[];
-    try {
-      children = match.descriptor.renderParts === undefined
-          ? [await match.descriptor.render(context, bindings)]
-          : await match.descriptor.renderParts(context, bindings);
-    } catch (err) {
-      return renderThrowResponse(deps, err, pathname);
-    }
-    let html: string;
-    try {
-      html = await renderPage(context, match.descriptor, children, {
-        ...shell, settings: renderEnumPreferenceSettings({
-          context, owner: match.descriptor.owner,
-          caption: deps.app.ownerLabels.get(match.descriptor.owner) ?? match.descriptor.owner,
-          fields: checkedPreferenceFields(match.descriptor),
-          postTo: context.pollUrl ?? context.path,
-        }),
-      });
-    } catch (err) {
-      return internalResponse(deps, err, pathname);
-    }
-    return cappedHtmlResponse(deps, html, { method, path: pathname });
+    return partial ? await renderPartialPage(env) : await renderFullPage(env);
   } finally {
     scopeActive = false;
     try { await closeScope?.(); }

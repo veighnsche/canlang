@@ -52,7 +52,7 @@ import type {
 } from '@canlang/contracts';
 import { parseObjectBody, bearerToken } from '../internal/input-admission.js';
 import { IdentityError, assertAudience, resolveIdentity } from '@canlang/identity';
-import type { UploadDeps, UploadReceiver } from '../ports.js';
+import type { KernelAppendOutcome, KernelCompleteOutcome, UploadDeps, UploadReceiver } from '../ports.js';
 import {
   buildBusinessError,
   fromUnknown,
@@ -225,13 +225,9 @@ async function handleIntent(
   }
 }
 
-async function handleContent(
-  deps: UploadDeps,
-  request: Request,
-  receiver: ReturnType<typeof receiverFromIdentity>,
-  tool: string,
-  intentId: string,
-): Promise<Response> {
+async function readUploadChunk(deps: UploadDeps, request: Request, tool: string): Promise<{
+  chunk: Uint8Array; expectedOffset: number;
+} | Response> {
   const offsetHeader = request.headers.get('upload-offset');
   if (offsetHeader === null || !/^(0|[1-9][0-9]*)$/.test(offsetHeader)) {
     return deny(deps, buildBusinessError('validation', 'Invalid upload offset.'), tool);
@@ -250,35 +246,41 @@ async function handleContent(
       return deny(deps, buildBusinessError('limit', 'Upload exceeds the size limit.'), tool);
     }
   }
-  const chunk = await readCappedBody(request, maxBytes + 1);
-  const appended = await deps.kernel.append(intentId, receiver, chunk, expectedOffset);
-  if (appended.status === 'failed') {
-    switch (appended.reason) {
-      case 'foreign':
-      case 'expired':
-        return notFound(deps, tool);
-      case 'closed':
-        return deny(deps, buildBusinessError('rule_failed', 'Upload is closed.'), tool);
-      case 'conflict':
-        return deny(deps, buildBusinessError('conflict', 'Conflicting upload range.'), tool);
-      default:
-        return deny(deps, buildBusinessError('rule_failed', 'Upload failed.'), tool);
-      case 'oversized':
-        return deny(deps, buildBusinessError('limit', 'Upload exceeds the size limit.'), tool);
-    }
+  return { chunk: await readCappedBody(request, maxBytes + 1), expectedOffset };
+}
+
+function denyAppendFailure(
+  deps: UploadDeps,
+  reason: Extract<KernelAppendOutcome, { status: 'failed' }>['reason'],
+  tool: string,
+): Response {
+  switch (reason) {
+    case 'foreign':
+    case 'expired':
+      return notFound(deps, tool);
+    case 'closed':
+      return deny(deps, buildBusinessError('rule_failed', 'Upload is closed.'), tool);
+    case 'conflict':
+      return deny(deps, buildBusinessError('conflict', 'Conflicting upload range.'), tool);
+    default:
+      return deny(deps, buildBusinessError('rule_failed', 'Upload failed.'), tool);
+    case 'oversized':
+      return deny(deps, buildBusinessError('limit', 'Upload exceeds the size limit.'), tool);
   }
-  // Stateless completion: complete after every successful append.
-  const completed = await deps.kernel.complete(intentId, receiver);
+}
+
+function completeUploadResponse(
+  deps: UploadDeps,
+  receivedBytes: number,
+  completed: KernelCompleteOutcome,
+  tool: string,
+): Response {
   if (completed.status === 'completed') {
-    return jsonOk({
-      received_bytes: appended.receivedBytes,
-      complete: true,
-      check: completed.check,
-    });
+    return jsonOk({ received_bytes: receivedBytes, complete: true, check: completed.check });
   }
   switch (completed.reason) {
     case 'partial':
-      return jsonOk({ received_bytes: appended.receivedBytes, complete: false });
+      return jsonOk({ received_bytes: receivedBytes, complete: false });
     case 'foreign':
     case 'expired':
       return notFound(deps, tool);
@@ -292,6 +294,24 @@ async function handleContent(
     default:
       return deny(deps, buildBusinessError('rule_failed', 'Upload failed.'), tool);
   }
+}
+
+async function handleContent(
+  deps: UploadDeps,
+  request: Request,
+  receiver: ReturnType<typeof receiverFromIdentity>,
+  tool: string,
+  intentId: string,
+): Promise<Response> {
+  const admitted = await readUploadChunk(deps, request, tool);
+  if (admitted instanceof Response) return admitted;
+  const appended = await deps.kernel.append(intentId, receiver, admitted.chunk, admitted.expectedOffset);
+  if (appended.status === 'failed') {
+    return denyAppendFailure(deps, appended.reason, tool);
+  }
+  // Stateless completion: complete after every successful append.
+  const completed = await deps.kernel.complete(intentId, receiver);
+  return completeUploadResponse(deps, appended.receivedBytes, completed, tool);
 }
 
 async function handleFinalize(
@@ -338,6 +358,44 @@ async function handleFinalize(
   }
 }
 
+async function resolveUploadCaller(deps: UploadDeps, request: Request, pathname: string): Promise<Caller | Response> {
+  try {
+    return await resolveCaller(deps, request);
+  } catch (err) {
+    if (err instanceof IdentityError) {
+      return denyCredential(deps, caughtToBusinessError(err), pathname, request.url);
+    }
+    throw err;
+  }
+}
+
+async function dispatchUploadRoute(
+  deps: UploadDeps,
+  request: Request,
+  caller: Caller,
+  route: UploadRoute,
+  pathname: string,
+): Promise<Response> {
+  if (caller.via === 'session') {
+    // Header-only CSRF: JSON intent/finalize bodies are kernel-owned
+    // (passed verbatim, never stripped), and PUT carries raw bytes.
+    await assertPostCsrf({
+      sessionToken: caller.sessionToken,
+      headerValue: request.headers.get(CSRF_HEADER),
+      fieldValue: undefined,
+    });
+  }
+  const receiver = receiverFromIdentity(deps.app.appId, caller.identity);
+  switch (route.kind) {
+    case 'intents':
+      return await handleIntent(deps, request, receiver, pathname);
+    case 'content':
+      return await handleContent(deps, request, receiver, pathname, route.intentId);
+    case 'finalize':
+      return await handleFinalize(deps, request, receiver, pathname, route.intentId);
+  }
+}
+
 /**
  * Dispatch one upload-transport request. See the module doc for routing,
  * auth, body, and kernel-mapping rules.
@@ -354,34 +412,12 @@ export async function handleUploadRequest(
   if (!deps.files.usesFiles(deps.app)) {
     return deny(deps, buildBusinessError('not_found', 'Uploads unavailable.'), pathname);
   }
-  let caller: Caller;
-  try {
-    caller = await resolveCaller(deps, request);
-  } catch (err) {
-    if (err instanceof IdentityError) {
-      return denyCredential(deps, caughtToBusinessError(err), pathname, request.url);
-    }
-    throw err;
+  const caller = await resolveUploadCaller(deps, request, pathname);
+  if (caller instanceof Response) {
+    return caller;
   }
   try {
-    if (caller.via === 'session') {
-      // Header-only CSRF: JSON intent/finalize bodies are kernel-owned
-      // (passed verbatim, never stripped), and PUT carries raw bytes.
-      await assertPostCsrf({
-        sessionToken: caller.sessionToken,
-        headerValue: request.headers.get(CSRF_HEADER),
-        fieldValue: undefined,
-      });
-    }
-    const receiver = receiverFromIdentity(deps.app.appId, caller.identity);
-    switch (route.kind) {
-      case 'intents':
-        return await handleIntent(deps, request, receiver, pathname);
-      case 'content':
-        return await handleContent(deps, request, receiver, pathname, route.intentId);
-      case 'finalize':
-        return await handleFinalize(deps, request, receiver, pathname, route.intentId);
-    }
+    return await dispatchUploadRoute(deps, request, caller, route, pathname);
   } catch (err) {
     if (err instanceof IdentityError) {
       return deny(deps, caughtToBusinessError(err), pathname);

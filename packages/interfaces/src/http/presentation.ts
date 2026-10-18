@@ -31,6 +31,8 @@ import type {
   ResolvedIdentity,
   RowQueryRunner,
   RowView,
+  ColumnMeta,
+  CollectionFilterDefault,
   FilterCondition,
   DatetimeValue,
 } from '@canlang/contracts';
@@ -60,227 +62,349 @@ const unavailablePageRecords: PageRecordsReader = async () => {
  * as truthy filter values). Defaults initialize only declared controls
  * (DESIGN 975); explicit request selection or clear wins per control.
  */
+function refuseCollectionFilters(): never {
+  throw buildBusinessError('validation', 'Invalid collection filters.');
+}
+
+function ownFilterProperty(value: object, key: string): unknown {
+  const property = Object.getOwnPropertyDescriptor(value, key);
+  return property !== undefined && property.enumerable && 'value' in property ? property.value : refuseCollectionFilters();
+}
+
+// Opaque reference text from request/defaults: a non-empty string
+// without control characters, bounded like search input. Well-formed
+// but unknown ids match nothing downstream; malformed input refuses.
+function opaqueFilterId(value: unknown): string {
+  if (typeof value !== 'string' || value === '' || value.length > 200 ||
+      /[\u0000-\u001f\u007f]/.test(value)) refuseCollectionFilters();
+  return value as string;
+}
+
+function filterReferenceIdentity(value: unknown): { readonly id: string } {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) refuseCollectionFilters();
+  const property = Object.getOwnPropertyDescriptor(value, 'id');
+  if (property === undefined || !property.enumerable || !('value' in property)) refuseCollectionFilters();
+  return Object.freeze({ id: opaqueFilterId(property.value) });
+}
+
+// C2 text-equality free text from request/defaults (DESIGN 975
+// scalar + operator table): a bounded non-empty string without
+// control characters, like search input. Well-formed values compare
+// by the ordinary string equality downstream, never a spelling
+// inventory; malformed input refuses. Empty means no restriction
+// (DESIGN 1023) and is mapped to null by the callers, never passed
+// here.
+function filterTextValue(value: unknown): string {
+  if (typeof value !== 'string' || value === '' || value.length > 200 ||
+      /[\u0000-\u001f\u007f]/.test(value)) refuseCollectionFilters();
+  return value as string;
+}
+
+// C3 civil-date equality from request/defaults (DESIGN 1015-1025
+// operator table): a real civil `YYYY-MM-DD` date in years
+// 0001-9999, validated through the canonical date wire (leap days
+// and month lengths enforced, never a shifted instant). The wire
+// string itself flows downstream, where the state string equality
+// evaluates it. Malformed input refuses; empty means no restriction
+// (DESIGN 1023) and is mapped to null by the callers, never passed
+// here.
+function filterDateValue(value: unknown): string {
+  if (typeof value === 'string') {
+    if (value === '') refuseCollectionFilters();
+    try {
+      decodeValue('date', value);
+    } catch {
+      refuseCollectionFilters();
+    }
+    return value;
+  }
+  // Compiled `date("...")` literal defaults arrive as canonical
+  // DateValue objects (the `date()` helper returns decoded values,
+  // not wire strings); normalize them to the wire string the state
+  // string equality evaluates. Anything else refuses.
+  if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+    try {
+      const wire = encodeValue('date', value as never);
+      if (typeof wire !== 'string') refuseCollectionFilters();
+      return wire as string;
+    } catch {
+      refuseCollectionFilters();
+    }
+  }
+  return refuseCollectionFilters();
+}
+
+function filterScalarWire(type: 'int' | 'datetime' | 'currency', value: unknown): string {
+  try {
+    // Request/saved strings use canonical codecs. Compiled int defaults
+    // are bigint values and follow the same exact wire representation.
+    const decoded = typeof value === 'string' ? decodeValue(type, value) : value;
+    const wire = encodeValue(type, decoded as never);
+    if (typeof wire !== 'string') return refuseCollectionFilters();
+    return wire;
+  } catch { return refuseCollectionFilters(); }
+}
+
+type FilterInventoryKind = 'enum' | 'bool' | 'ref' | 'text' | 'date' | 'int' | 'datetime' | 'currency';
+
+interface FilterInventory {
+  readonly kind: FilterInventoryKind;
+  readonly cases: Set<string>;
+}
+
+type FilterSelection = string | boolean | { readonly id: string } | null;
+
+function admitFilterInventory(
+  inventories: Map<string, FilterInventory>,
+  occurrence: string,
+  field: string,
+  kind: FilterInventoryKind,
+  names: readonly string[],
+): void {
+  try { collectionFilterName(occurrence, field); } catch { return refuseCollectionFilters(); }
+  inventories.set(field, { kind, cases: new Set(names) });
+}
+
+function admitEmptyFilterInventory(
+  inventories: Map<string, FilterInventory>,
+  occurrence: string,
+  field: string,
+  cases: string[],
+  kind: 'ref' | 'text' | 'date' | 'int' | 'datetime' | 'currency',
+): void {
+  if (cases.length !== 0) refuseCollectionFilters();
+  admitFilterInventory(inventories, occurrence, field, kind, []);
+}
+
+function setFilterInventory(
+  inventories: Map<string, FilterInventory>,
+  occurrence: string,
+  field: string,
+  type: unknown,
+  cases: string[],
+): void {
+  if (type === 'bool') {
+    if (cases.length !== 2 || !cases.includes('true') || !cases.includes('false')) refuseCollectionFilters();
+    admitFilterInventory(inventories, occurrence, field, 'bool', cases);
+    return;
+  }
+  // Reference controls carry no spellings: the descriptor must not
+  // smuggle an enum inventory alongside the opaque identity.
+  if (type === 'user' || type === 'member' || (typeof type === 'string' && type.startsWith('ref:'))) {
+    admitEmptyFilterInventory(inventories, occurrence, field, cases, 'ref');
+    return;
+  }
+  // C2 text-equality rule (DESIGN 975 scalar): a `text` control
+  // carries no spellings, exactly like a reference: the descriptor
+  // must not smuggle an option inventory alongside the free text.
+  if (type === 'text') {
+    admitEmptyFilterInventory(inventories, occurrence, field, cases, 'text');
+    return;
+  }
+  // C3 civil-date equality rule (DESIGN 1015-1025 operator table):
+  // a `date` control carries no spellings, exactly like text/a
+  // reference: the descriptor must not smuggle an option inventory
+  // alongside the civil date.
+  if (type === 'date') {
+    admitEmptyFilterInventory(inventories, occurrence, field, cases, 'date');
+    return;
+  }
+  if (type === 'int' || type === 'datetime' || type === 'currency') {
+    admitEmptyFilterInventory(inventories, occurrence, field, cases, type);
+    return;
+  }
+  if (typeof type !== 'string' || !type.startsWith('enum:') || type.slice(5).trim().length === 0 ||
+      cases.length === 0 || cases.some(value => value.length === 0)) refuseCollectionFilters();
+  admitFilterInventory(inventories, occurrence, field, 'enum', cases);
+}
+
+function buildFilterInventories(
+  occurrence: string,
+  fields: readonly ColumnMeta[],
+): Map<string, FilterInventory> {
+  const inventories = new Map<string, FilterInventory>();
+  for (const column of fields) {
+    if (typeof column !== 'object' || column === null) refuseCollectionFilters();
+    const field = ownFilterProperty(column, 'field'), type = ownFilterProperty(column, 'type'),
+      labels = ownFilterProperty(column, 'valueLabels');
+    if (typeof field !== 'string' || field.trim().length === 0 || inventories.has(field) ||
+        typeof labels !== 'object' || labels === null || Array.isArray(labels)) refuseCollectionFilters();
+    setFilterInventory(inventories, occurrence, field, type, Object.keys(labels));
+  }
+  return inventories;
+}
+
+function setRefFilterDefault(
+  field: string,
+  value: CollectionFilterDefault,
+  selected: Map<string, FilterSelection>,
+): void {
+  // Saved reference identities arrive either decoded (`{id}`)
+  // or as the checked saved string the page preference capture
+  // owns; both normalize to the opaque identity.
+  selected.set(field, typeof value === 'string'
+    ? Object.freeze({ id: opaqueFilterId(value) })
+    : filterReferenceIdentity(value));
+}
+
+function setTextFilterDefault(
+  field: string,
+  value: CollectionFilterDefault,
+  selected: Map<string, FilterSelection>,
+): void {
+  // C2 text-equality rule (DESIGN 975 scalar + 1023): a text
+  // default is a bounded string or null; empty means no
+  // restriction, exactly like a cleared request value.
+  selected.set(field, value === null || value === '' ? null : filterTextValue(value));
+}
+
+function setDateFilterDefault(
+  field: string,
+  value: CollectionFilterDefault,
+  selected: Map<string, FilterSelection>,
+): void {
+  // C3 civil-date equality rule (DESIGN 1015-1025 + 1023): a
+  // date default is a civil date or null; empty means no
+  // restriction, exactly like a cleared request value.
+  // Compiled `date("...")` literal defaults arrive as canonical
+  // DateValue objects, not wire strings; filterDateValue normalizes
+  // both spellings and refuses anything else.
+  selected.set(field, value === null || value === '' ? null : filterDateValue(value));
+}
+
+function setFilterDefault(
+  entry: FilterInventory,
+  field: string,
+  value: CollectionFilterDefault,
+  selected: Map<string, FilterSelection>,
+): void {
+  if (entry.kind === 'bool') {
+    if (value !== null && typeof value !== 'boolean') refuseCollectionFilters();
+  } else if (entry.kind === 'ref') {
+    if (value !== null) {
+      setRefFilterDefault(field, value, selected);
+      return;
+    }
+  } else if (entry.kind === 'text') {
+    if (value !== null && typeof value !== 'string') refuseCollectionFilters();
+    setTextFilterDefault(field, value, selected);
+    return;
+  } else if (entry.kind === 'date') {
+    if (value !== null && typeof value !== 'string' &&
+        (typeof value !== 'object' || value === null || Array.isArray(value))) refuseCollectionFilters();
+    setDateFilterDefault(field, value, selected);
+    return;
+  } else if (value !== null) {
+    setScalarOrEnumFilterDefault(entry, field, value, selected);
+    return;
+  }
+  selected.set(field, value as string | boolean | null);
+}
+
+function setScalarOrEnumFilterDefault(
+  entry: FilterInventory,
+  field: string,
+  value: CollectionFilterDefault,
+  selected: Map<string, FilterSelection>,
+): void {
+  if (entry.kind === 'int' || entry.kind === 'datetime' || entry.kind === 'currency') {
+    selected.set(field, value === null || value === '' ? null : filterScalarWire(entry.kind, value));
+    return;
+  }
+  if (value !== null && (typeof value !== 'string' || !entry.cases.has(value))) refuseCollectionFilters();
+  selected.set(field, value as string | boolean | null);
+}
+
+function applyFilterDefaults(
+  defaults: Readonly<Record<string, CollectionFilterDefault>>,
+  inventories: Map<string, FilterInventory>,
+  selected: Map<string, FilterSelection>,
+): void {
+  if (typeof defaults !== 'object' || defaults === null || Array.isArray(defaults)) refuseCollectionFilters();
+  for (const field of Object.keys(defaults)) {
+    const entry = inventories.get(field);
+    if (entry === undefined) refuseCollectionFilters();
+    setFilterDefault(entry, field, ownFilterProperty(defaults, field) as CollectionFilterDefault, selected);
+  }
+}
+
+function setFilterSelection(
+  entry: FilterInventory,
+  field: string,
+  value: string,
+  seen: Set<string>,
+  selected: Map<string, FilterSelection>,
+): void {
+  if (entry.kind === 'bool') {
+    if (value !== '' && value !== 'true' && value !== 'false') refuseCollectionFilters();
+    seen.add(field);
+    selected.set(field, value === '' ? null : value === 'true');
+    return;
+  }
+  if (entry.kind === 'ref') {
+    seen.add(field);
+    selected.set(field, value === '' ? null : Object.freeze({ id: opaqueFilterId(value) }));
+    return;
+  }
+  // C2 text-equality rule: request text validates like defaults
+  // (bounded, no control characters); empty clears the control
+  // (DESIGN 1023). The emitted condition stays the existing
+  // `eq` shape below.
+  if (entry.kind === 'text') {
+    seen.add(field);
+    selected.set(field, value === '' ? null : filterTextValue(value));
+    return;
+  }
+  // C3 civil-date equality rule: request dates validate like
+  // defaults (real civil dates); empty clears the control
+  // (DESIGN 1023). The emitted condition stays the existing
+  // `eq` shape below.
+  if (entry.kind === 'date') {
+    seen.add(field);
+    selected.set(field, value === '' ? null : filterDateValue(value));
+    return;
+  }
+  if (entry.kind === 'int' || entry.kind === 'datetime' || entry.kind === 'currency') {
+    seen.add(field);
+    selected.set(field, value === '' ? null : filterScalarWire(entry.kind, value));
+    return;
+  }
+  if (value !== '' && !entry.cases.has(value)) refuseCollectionFilters();
+  seen.add(field);
+  selected.set(field, value === '' ? null : value);
+}
+
+function applyFilterSelectors(
+  selectors: ReadonlyArray<readonly [string, string]>,
+  prefix: string,
+  occurrence: string,
+  inventories: Map<string, FilterInventory>,
+  selected: Map<string, FilterSelection>,
+): void {
+  const seen = new Set<string>();
+  for (const [key, value] of selectors) {
+    if (key.startsWith('filter[') || key.startsWith('f[')) refuseCollectionFilters();
+    if (!key.startsWith(prefix)) continue;
+    let field: string;
+    try { field = decodeURIComponent(key.slice(prefix.length)); } catch { return refuseCollectionFilters(); }
+    const entry = inventories.get(field);
+    if (entry === undefined || collectionFilterName(occurrence, field) !== key || seen.has(field)) refuseCollectionFilters();
+    setFilterSelection(entry, field, value, seen, selected);
+  }
+}
+
 function collectionFilterPreparer(params: URLSearchParams): NonNullable<PresentationContext['prepareCollectionFilters']> {
   const selectors = [...params];
   return (occurrence, fields, defaults) => {
-    function refuse(): never { throw buildBusinessError('validation', 'Invalid collection filters.'); }
-    const own = (value: object, key: string): unknown => {
-      const property = Object.getOwnPropertyDescriptor(value, key);
-      return property !== undefined && property.enumerable && 'value' in property ? property.value : refuse();
-    };
-    // Opaque reference text from request/defaults: a non-empty string
-    // without control characters, bounded like search input. Well-formed
-    // but unknown ids match nothing downstream; malformed input refuses.
-    const opaqueId = (value: unknown): string => {
-      if (typeof value !== 'string' || value === '' || value.length > 200 ||
-          /[\u0000-\u001f\u007f]/.test(value)) refuse();
-      return value as string;
-    };
-    const referenceIdentity = (value: unknown): { readonly id: string } => {
-      if (typeof value !== 'object' || value === null || Array.isArray(value)) refuse();
-      const property = Object.getOwnPropertyDescriptor(value, 'id');
-      if (property === undefined || !property.enumerable || !('value' in property)) refuse();
-      return Object.freeze({ id: opaqueId(property.value) });
-    };
-    // C2 text-equality free text from request/defaults (DESIGN 975
-    // scalar + operator table): a bounded non-empty string without
-    // control characters, like search input. Well-formed values compare
-    // by the ordinary string equality downstream, never a spelling
-    // inventory; malformed input refuses. Empty means no restriction
-    // (DESIGN 1023) and is mapped to null by the callers, never passed
-    // here.
-    const filterText = (value: unknown): string => {
-      if (typeof value !== 'string' || value === '' || value.length > 200 ||
-          /[\u0000-\u001f\u007f]/.test(value)) refuse();
-      return value as string;
-    };
-    // C3 civil-date equality from request/defaults (DESIGN 1015-1025
-    // operator table): a real civil `YYYY-MM-DD` date in years
-    // 0001-9999, validated through the canonical date wire (leap days
-    // and month lengths enforced, never a shifted instant). The wire
-    // string itself flows downstream, where the state string equality
-    // evaluates it. Malformed input refuses; empty means no restriction
-    // (DESIGN 1023) and is mapped to null by the callers, never passed
-    // here.
-    const filterDate = (value: unknown): string => {
-      if (typeof value === 'string') {
-        if (value === '') refuse();
-        try {
-          decodeValue('date', value);
-        } catch {
-          refuse();
-        }
-        return value;
-      }
-      // Compiled `date("...")` literal defaults arrive as canonical
-      // DateValue objects (the `date()` helper returns decoded values,
-      // not wire strings); normalize them to the wire string the state
-      // string equality evaluates. Anything else refuses.
-      if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-        try {
-          const wire = encodeValue('date', value as never);
-          if (typeof wire !== 'string') refuse();
-          return wire as string;
-        } catch {
-          refuse();
-        }
-      }
-      return refuse();
-    };
-    const scalarWire = (type: 'int' | 'datetime' | 'currency', value: unknown): string => {
-      try {
-        // Request/saved strings use canonical codecs. Compiled int defaults
-        // are bigint values and follow the same exact wire representation.
-        const decoded = typeof value === 'string' ? decodeValue(type, value) : value;
-        const wire = encodeValue(type, decoded as never);
-        if (typeof wire !== 'string') return refuse();
-        return wire;
-      } catch { return refuse(); }
-    };
-    if (typeof occurrence !== 'string' || occurrence.length === 0) refuse();
+    if (typeof occurrence !== 'string' || occurrence.length === 0) refuseCollectionFilters();
     let prefix: string;
-    try { prefix = `${COLLECTION_FILTER_PREFIX}${encodeURIComponent(occurrence)}:`; } catch { return refuse(); }
-    const inventories = new Map<string, { readonly kind: 'enum' | 'bool' | 'ref' | 'text' | 'date' | 'int' | 'datetime' | 'currency'; readonly cases: Set<string> }>();
-    for (const column of fields) {
-      if (typeof column !== 'object' || column === null) refuse();
-      const field = own(column, 'field'), type = own(column, 'type'), labels = own(column, 'valueLabels');
-      if (typeof field !== 'string' || field.trim().length === 0 || inventories.has(field) ||
-          typeof labels !== 'object' || labels === null || Array.isArray(labels)) refuse();
-      const cases = Object.keys(labels);
-      if (type === 'bool') {
-        if (cases.length !== 2 || !cases.includes('true') || !cases.includes('false')) refuse();
-        try { collectionFilterName(occurrence, field); } catch { return refuse(); }
-        inventories.set(field, { kind: 'bool', cases: new Set(cases) });
-        continue;
-      }
-      if (type === 'user' || type === 'member' || (typeof type === 'string' && type.startsWith('ref:'))) {
-        // Reference controls carry no spellings: the descriptor must not
-        // smuggle an enum inventory alongside the opaque identity.
-        if (cases.length !== 0) refuse();
-        try { collectionFilterName(occurrence, field); } catch { return refuse(); }
-        inventories.set(field, { kind: 'ref', cases: new Set() });
-        continue;
-      }
-      // C2 text-equality rule (DESIGN 975 scalar): a `text` control
-      // carries no spellings, exactly like a reference: the descriptor
-      // must not smuggle an option inventory alongside the free text.
-      if (type === 'text') {
-        if (cases.length !== 0) refuse();
-        try { collectionFilterName(occurrence, field); } catch { return refuse(); }
-        inventories.set(field, { kind: 'text', cases: new Set() });
-        continue;
-      }
-      // C3 civil-date equality rule (DESIGN 1015-1025 operator table):
-      // a `date` control carries no spellings, exactly like text/a
-      // reference: the descriptor must not smuggle an option inventory
-      // alongside the civil date.
-      if (type === 'date') {
-        if (cases.length !== 0) refuse();
-        try { collectionFilterName(occurrence, field); } catch { return refuse(); }
-        inventories.set(field, { kind: 'date', cases: new Set() });
-        continue;
-      }
-      if (type === 'int' || type === 'datetime' || type === 'currency') {
-        if (cases.length !== 0) refuse();
-        try { collectionFilterName(occurrence, field); } catch { return refuse(); }
-        inventories.set(field, { kind: type, cases: new Set() });
-        continue;
-      }
-      if (typeof type !== 'string' || !type.startsWith('enum:') || type.slice(5).trim().length === 0 ||
-          cases.length === 0 || cases.some(value => value.length === 0)) refuse();
-      try { collectionFilterName(occurrence, field); } catch { return refuse(); }
-      inventories.set(field, { kind: 'enum', cases: new Set(cases) });
-    }
-    const selected = new Map<string, string | boolean | { readonly id: string } | null>();
+    try { prefix = `${COLLECTION_FILTER_PREFIX}${encodeURIComponent(occurrence)}:`; } catch { return refuseCollectionFilters(); }
+    const inventories = buildFilterInventories(occurrence, fields);
+    const selected = new Map<string, FilterSelection>();
     if (defaults !== undefined) {
-      if (typeof defaults !== 'object' || defaults === null || Array.isArray(defaults)) refuse();
-      for (const field of Object.keys(defaults)) {
-        const entry = inventories.get(field);
-        if (entry === undefined) refuse();
-        const value = own(defaults, field);
-        if (entry.kind === 'bool') {
-          if (value !== null && typeof value !== 'boolean') refuse();
-        } else if (entry.kind === 'ref') {
-          if (value !== null) {
-            // Saved reference identities arrive either decoded (`{id}`)
-            // or as the checked saved string the page preference capture
-            // owns; both normalize to the opaque identity.
-            selected.set(field, typeof value === 'string'
-              ? Object.freeze({ id: opaqueId(value) })
-              : referenceIdentity(value));
-            continue;
-          }
-        } else if (entry.kind === 'text') {
-          // C2 text-equality rule (DESIGN 975 scalar + 1023): a text
-          // default is a bounded string or null; empty means no
-          // restriction, exactly like a cleared request value.
-          if (value !== null && typeof value !== 'string') refuse();
-          selected.set(field, value === null || value === '' ? null : filterText(value));
-          continue;
-        } else if (entry.kind === 'date') {
-          // C3 civil-date equality rule (DESIGN 1015-1025 + 1023): a
-          // date default is a civil date or null; empty means no
-          // restriction, exactly like a cleared request value.
-          // Compiled `date("...")` literal defaults arrive as canonical
-          // DateValue objects, not wire strings; filterDate normalizes
-          // both spellings and refuses anything else.
-          if (value !== null && typeof value !== 'string' &&
-              (typeof value !== 'object' || value === null || Array.isArray(value))) refuse();
-          selected.set(field, value === null || value === '' ? null : filterDate(value));
-          continue;
-        } else if (entry.kind === 'int' || entry.kind === 'datetime' || entry.kind === 'currency') {
-          selected.set(field, value === null || value === '' ? null : scalarWire(entry.kind, value));
-          continue;
-        } else if (value !== null && (typeof value !== 'string' || !entry.cases.has(value))) refuse();
-        selected.set(field, value as string | boolean | null);
-      }
+      applyFilterDefaults(defaults, inventories, selected);
     }
-    const seen = new Set<string>();
-    for (const [key, value] of selectors) {
-      if (key.startsWith('filter[') || key.startsWith('f[')) refuse();
-      if (!key.startsWith(prefix)) continue;
-      let field: string;
-      try { field = decodeURIComponent(key.slice(prefix.length)); } catch { return refuse(); }
-      const entry = inventories.get(field);
-      if (entry === undefined || collectionFilterName(occurrence, field) !== key || seen.has(field)) refuse();
-      if (entry.kind === 'bool') {
-        if (value !== '' && value !== 'true' && value !== 'false') refuse();
-        seen.add(field);
-        selected.set(field, value === '' ? null : value === 'true');
-        continue;
-      }
-      if (entry.kind === 'ref') {
-        seen.add(field);
-        selected.set(field, value === '' ? null : Object.freeze({ id: opaqueId(value) }));
-        continue;
-      }
-      // C2 text-equality rule: request text validates like defaults
-      // (bounded, no control characters); empty clears the control
-      // (DESIGN 1023). The emitted condition stays the existing
-      // `eq` shape below.
-      if (entry.kind === 'text') {
-        seen.add(field);
-        selected.set(field, value === '' ? null : filterText(value));
-        continue;
-      }
-      // C3 civil-date equality rule: request dates validate like
-      // defaults (real civil dates); empty clears the control
-      // (DESIGN 1023). The emitted condition stays the existing
-      // `eq` shape below.
-      if (entry.kind === 'date') {
-        seen.add(field);
-        selected.set(field, value === '' ? null : filterDate(value));
-        continue;
-      }
-      if (entry.kind === 'int' || entry.kind === 'datetime' || entry.kind === 'currency') {
-        seen.add(field);
-        selected.set(field, value === '' ? null : scalarWire(entry.kind, value));
-        continue;
-      }
-      if (value !== '' && !entry.cases.has(value)) refuse();
-      seen.add(field);
-      selected.set(field, value === '' ? null : value);
-    }
+    applyFilterSelectors(selectors, prefix, occurrence, inventories, selected);
     const conditions: FilterCondition[] = [];
     for (const field of inventories.keys()) {
       const value = selected.get(field);
@@ -367,6 +491,35 @@ function parseAcceptLanguage(header: string | null): readonly string[] {
  * authority-bearing input (identity, CSRF token, query runner) arrives
  * already resolved; this function only shapes them for the renderer.
  */
+function collectRowSelections(url: URL): Map<string, string> {
+  const collectionSelections = new Map<string, string>();
+  if (url.search.length > COLLECTION_SELECTION_QUERY_MAX_CHARS + 1) return collectionSelections;
+  for (const [key, value] of url.searchParams) {
+    if (!key.startsWith('can-row:')) continue;
+    const occurrence = key.slice('can-row:'.length);
+    if (occurrence === '' || value === '' || collectionSelections.has(occurrence)) {
+      collectionSelections.clear();
+      break;
+    }
+    collectionSelections.set(occurrence, value);
+  }
+  return collectionSelections;
+}
+
+function attachOperationForm(
+  context: PresentationContext,
+  input: BuildPresentationContextInput,
+): PresentationContext {
+  if (input.catalog === undefined) return context;
+  return {
+    ...context,
+    prepareForm: createOperationFormPreparer(context, input.catalog, input.clock ?? systemInterfacesClock,
+      input.formBindings === undefined || input.appId === undefined || input.sessionToken == null ? undefined : {
+        service: input.formBindings, appId: input.appId, sessionToken: input.sessionToken, identity: input.principal,
+      }),
+  };
+}
+
 export function buildPresentationContext(
   input: BuildPresentationContextInput,
 ): PresentationContext {
@@ -378,18 +531,7 @@ export function buildPresentationContext(
       Pick<PresentationContext, 'deploymentBase' | 'readHistory' | 'breadcrumbs' | 'presentFile' | 'resolveFileImage'> & { readonly close?: unknown; readonly resolveCaller?: unknown };
   const { observeGenerationCallbackDiagnostics: _sourceCallbackDiagnostics, ...canonical } = source.canonical;
   const url = new URL(input.request.url);
-  const collectionSelections = new Map<string, string>();
-  if (url.search.length <= COLLECTION_SELECTION_QUERY_MAX_CHARS + 1) {
-    for (const [key, value] of url.searchParams) {
-      if (!key.startsWith('can-row:')) continue;
-      const occurrence = key.slice('can-row:'.length);
-      if (occurrence === '' || value === '' || collectionSelections.has(occurrence)) {
-        collectionSelections.clear();
-        break;
-      }
-      collectionSelections.set(occurrence, value);
-    }
-  }
+  const collectionSelections = collectRowSelections(url);
   const context: PresentationContext = {
     ...source,
     now: decodeValue('datetime', input.principal.admitted_at) as DatetimeValue,
@@ -427,13 +569,7 @@ export function buildPresentationContext(
     ...(input.resolveFileImage === undefined ? {} : { resolveFileImage: input.resolveFileImage }),
     prepareCollectionFilters: collectionFilterPreparer(url.searchParams),
   };
-  return input.catalog === undefined ? context : {
-    ...context,
-    prepareForm: createOperationFormPreparer(context, input.catalog, input.clock ?? systemInterfacesClock,
-      input.formBindings === undefined || input.appId === undefined || input.sessionToken == null ? undefined : {
-        service: input.formBindings, appId: input.appId, sessionToken: input.sessionToken, identity: input.principal,
-      }),
-  };
+  return attachOperationForm(context, input);
 }
 
 /**
