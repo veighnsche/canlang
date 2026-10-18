@@ -125,3 +125,61 @@ export function encodeAdmittedTree(value: unknown): TaggedNode {
 export function encodeAdmittedTreeJson(value: unknown): string {
   return JSON.stringify(encodeAdmittedTree(value));
 }
+
+/** One staged module buffer served to the native LOAD_MODULES stage. */
+export interface StagedModuleBuffer {
+  readonly key: string;
+  readonly js: string;
+}
+
+/**
+ * Build the LOAD_MODULES resume payload from actual staged module
+ * buffers: `{modules: [{key, js}]}` as one admitted tree, the exact
+ * shape the native `module_buffers` gate decodes (key/js as text).
+ * The host serves real bundle buffers through this; the native
+ * import/graph gates refuse before any bundle assembly materializes.
+ */
+export function buildLoadModulesPayload(modules: ReadonlyArray<StagedModuleBuffer>): {
+  readonly modules: TaggedNode;
+} {
+  return {
+    modules: encodeAdmittedTree(modules.map((module) => ({ key: module.key, js: module.js }))),
+  };
+}
+
+/**
+ * Build the PLAN resume payload from actual deploy plan options:
+ * `{options: {...}}` as one admitted tree, the exact shape the
+ * native `build_plan` gate decodes (workerName/main/
+ * compatibilityDate as text, plus the optional bundle ref). The
+ * caller passes the exact oracle options object (no undefined
+ * members — the encoder rejects them); binding failures refuse
+ * natively as unresolved-binding before any previous-plan demand.
+ */
+export function buildPlanOptionsPayload(options: {
+  readonly workerName: string;
+  readonly main: string;
+  readonly compatibilityDate: string;
+  readonly bundle?: { readonly main: string; readonly moduleCount: number; readonly sha256: string };
+}): {
+  readonly options: TaggedNode;
+} {
+  return {
+    options: encodeAdmittedTree(options),
+  };
+}
+
+/**
+ * Build the LOAD_PREVIOUS_PLAN resume payload from the already-read
+ * previous plan: every present sidecar value rides its admitted
+ * tree — including present-parsed null, which rides the tagged
+ * `{t:"null"}` tree so the native shape check refuses it as
+ * not-a-DeployPlan (never the absent marker). Literal
+ * `{previous: null}` is reserved for the actually-absent (ENOENT)
+ * sidecar and is produced by the adapter, not here.
+ */
+export function buildPreviousPlanPayload(previous: unknown): {
+  readonly previous: TaggedNode;
+} {
+  return { previous: encodeAdmittedTree(previous) };
+}

@@ -19065,3 +19065,31 @@ changed/new bodies in 9 changed production files: one new TS function above 20,
 two TS increases and five Rust increases in concurrent implementation. Those
 sources remain untouched. Scoped patch/syntax checks pass; CI itself was not run.
 No builds, downloads, worktrees, publication or deployment occurred.
+
+
+## 2026-10-18 — accept the native module/plan source boundary
+
+Accept source `6fb752375` as the finite private retained-job module/plan and
+matching payload slice. Compute the plan before demanding prior-plan IO; retain
+host parse/read diagnostics, distinguish ENOENT from present null and preserve
+optional KV nullish semantics and original field/section order. Transport the
+already canonical planJson instead of redundantly reparsing it into serde Value,
+which cannot hold admitted lone UTF16 surrogates. JS reconstructs the plan when
+needed. Final-file/stdout encoding rules remain unchanged.
+
+Independent source review and focused native lib10/outputs26/plan22/vectors22,
+frozen host payload11/typecheck, real surrogate/present-null probes and current
+main complexity checks pass. Restore historical complexity ceilings with small
+same-position helper extractions; never raise the baseline for the new branches.
+The separate pre-existing modules digest-pin failure stays explicit and unmodified.
+No accepted ICU/V02.6/int-CSV/fanout/recovery scope is rerun.
+
+P05.4/P06.3 remain partial at their original scope. Full host/module identity and
+output, real native CLI/backend differential, integrity before launch, reviewed
+local staging and actual installed consumers still need their concrete outputs.
+Exclude hot P07/scanner work from this early source commit; continue ready source
+work asynchronously during review/Git. Preserve all newer main history through
+`3bb610962`, retained defining-owner reviews and foreign working notes, and keep
+the complete living-plan checkpoint/stale notice unchanged. The compiler batch's
+final safe worktree intake remains pending. Public deployment/default changes/TS
+retirement stay held.

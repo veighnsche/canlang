@@ -1,5 +1,14 @@
 # Additional Rust opportunities across packages
 
+**Accepted native module/plan source slice:** `6fb752375` joins retained-job
+module gates, plan/prior-plan order and deterministic review outputs with matching
+host payloads. Present-null, parse diagnostics, optional KV nulls and lone UTF16
+canonical JSON are preserved; current-main complexity checks pass. This is an
+early private source slice; full host/CLI/integrity/staging/installed native
+acceptance remains open under the same finite checklist. Public deployment,
+default changes and TS retirement remain held.
+
+
 **Accepted selected Work slice:** `cd2651c5e` shares the ten ordinary helpers
 and preserves owning/caller error identity through explicit factories. Focused
 owning/leaf and actual installed Node/Work-facade Worker checks pass. Native
