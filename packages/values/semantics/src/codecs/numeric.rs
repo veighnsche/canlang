@@ -248,8 +248,28 @@ fn match_int_text(text: &str) -> bool {
     !digits.is_empty() && digits.bytes().all(|b| b.is_ascii_digit())
 }
 
+/// Selected int/ASCII admission: most significant-digit counts that can still
+/// reach a successful arbitrary-precision allocation. `u64::MAX` needs 20
+/// digits but `i64` needs at most 19 significant digits, so 19 is the last
+/// count where parsing can succeed; longer digit runs are refused lexically.
+const INT_MAX_SIGNIFICANT_DIGITS: usize = 19;
+
+/// Lexical magnitude limits for the 19-digit boundary: a 19-significant-digit
+/// magnitude above the matching limit is out of `i64` range without parsing.
+const INT_MAX_POSITIVE_19: &str = "9223372036854775807";
+const INT_MAX_NEGATIVE_19: &str = "9223372036854775808";
+
 /// Canonical int64 decimal string to bigint (`decodeInt64`); failures are
 /// recorded, never thrown.
+///
+/// Bounded-work order (TECH-V04 selected contract): the full optional-minus
+/// plus ASCII-digit grammar runs before any range decision (leading zeros
+/// and `-0` stay accepted), then a sign/zero/significant-digit scan with a
+/// lexical signed64 comparison decides range BEFORE arbitrary-precision
+/// parsing. Only digit runs with at most 19 significant digits ever reach a
+/// successful `BigInt` allocation; longer or lexically larger magnitudes
+/// refuse as `bound` with no bigint work. Verdicts match the legacy
+/// parse-then-narrow path exactly.
 fn decode_int64(
     ctx: &mut Ctx,
     wire: &Value,
@@ -268,7 +288,39 @@ fn decode_int64(
         ctx.fail_format(path, what, expected, wire);
         return None;
     }
-    let parsed = BigInt::parse_bytes(text.as_bytes(), 10).expect("digit-only parse");
+    let digits = text.strip_prefix('-').unwrap_or(text);
+    let significant = digits.trim_start_matches('0');
+    if significant.is_empty() {
+        // All zeros (including `-0`): value 0 with no parsing work.
+        return Some(BigInt::from(0));
+    }
+    if significant.len() > INT_MAX_SIGNIFICANT_DIGITS {
+        ctx.fail_bound(
+            path,
+            what,
+            &format!("int in [{}, {}]", i64::MIN, i64::MAX),
+            wire,
+        );
+        return None;
+    }
+    if significant.len() == INT_MAX_SIGNIFICANT_DIGITS {
+        let limit = if text.starts_with('-') {
+            INT_MAX_NEGATIVE_19
+        } else {
+            INT_MAX_POSITIVE_19
+        };
+        if significant > limit {
+            ctx.fail_bound(
+                path,
+                what,
+                &format!("int in [{}, {}]", i64::MIN, i64::MAX),
+                wire,
+            );
+            return None;
+        }
+    }
+    let parsed = BigInt::parse_bytes(significant.as_bytes(), 10).expect("digit-only parse");
+    let parsed = if text.starts_with('-') { -parsed } else { parsed };
     match narrow_int64(&parsed, "int64") {
         Ok(narrowed) => Some(BigInt::from(narrowed)),
         Err(_) => {
