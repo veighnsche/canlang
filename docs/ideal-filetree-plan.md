@@ -7,6 +7,19 @@
 > decisions and bounded coverage evidence are retained below; that evidence
 > applies only at its recorded scope and does not establish whole-plan currency.
 
+**Compiler-batch worktree intake and native release alignment, 2026-10-18:**
+This existing Rust checkout consumes committed main49cb90ab1, preserving all15
+native dirty files byte/mode-exactly. Reuse retained defining-owner coverage for
+all68 incoming paths since aff748d56: compiler/filter/query/hook/archive/board,
+Contracts/Interfaces/State/UI/Work/runtime, dev plans and complexity tooling.
+Native preparation ownership remains unchanged. Accepted `c105bf2c4` changes
+only five crate release/lock/fixture files to the owning0.1.1 stamp; source/fixture
+roles, drift cases and dependency checksums retain their contracts. Reuse affected
+release5/vectors22 and native9/9 evidence at its frozen producer scope. Hot CLI/
+integrity/scanner/publication work and the next compiler batch remain separate.
+This updates bounded coverage only; retain the complete checkpoint/stale notice,
+foreign notes, original native parents and public/default/retirement holds.
+
 **Native module/plan source intake, 2026-10-18:** `6fb752375` changes only
 13 preparation crate/job, matching TS host/payload and owning test files. Existing
 Cloudflare preparation ownership remains; no package, backend default or public

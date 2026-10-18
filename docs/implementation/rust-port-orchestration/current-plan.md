@@ -114,13 +114,40 @@ conformance and scanner repairs are excluded from this source commit. ACK015
 ended an unnecessary commit-wait loop; ready P07 work continues during Codex
 review/integration rather than waiting on Git.
 
-Current main `3bb610962` retains committed typed filters, consumed declaration
-checks, native-hook/State integration, board pagination and complexity policy.
-The requested final compiler-batch intake into this existing Rust worktree still
-waits for the active batch's completion and a safe source/command/capture boundary.
-Preserve foreign working notes and newer commits. Neither review nor Git waiting
-adds an implementation gate. Public deployment, defaults and TS retirement stay
-held; ICU/V02.6/int-CSV/fanout/recovery acceptance is reused.
+The requested completed compiler-batch intake is satisfied: at lease023 this
+existing worktree fast-forwarded from aff748d56 to main49cb90ab1. All15 native
+working files retained exact bytes/modes, with zero overlap against68 incoming
+committed paths and an empty index. Retain the compiler owner's typed-filter,
+consumed-declaration, native-hook/State, board and archive/grouped-source/hook-event
+reviews plus the dev/complexity owners' records. The next guarded-SEND compiler
+batch remains separately active. Only affected new producer/capture closures
+need rebuilding; accepted algorithms are not reopened.
+
+### Accepted current-release alignment — 18 October 2026
+
+Source `c105bf2c4` aligns only the preparation Cargo package/lock and runtime
+release constant to the owning0.1.1 release, with role-specific release/vector
+expectations. All dependency versions/checksums stay unchanged. Source review
+confirmed the13 changed vector leaves are current-version build inputs/outputs;
+stale-artifact d3/d5 mismatch cases and the root0.2.0 drift remain truthful.
+Release5/vectors22 and the affected native differential9/9 pass at the frozen
+pre-intake producer scope; this removes the old build-ok version skew. It does
+not qualify the remaining native CLI/packaged-publication contracts.
+
+Review019 continues exact executable binding and prebuilt/installed delivery.
+Review020 repairs introduced scanner parameter/default and regex-context
+differences. Review021 restores host read/error/cancellation/build admission and
+the original reviewed-byte/confirmed mocked-apply outcomes. Those hot files are
+excluded from this early source commit. Original parent gates remain partial.
+A named Linux host lacks Rust, but configured infra is Linux x64/glibc with the
+pinned1.99 toolchain, Node24 and all21 locked crate sources available. Codex owns
+its private build/launch after corrected source release; inventory alone certifies
+no host output. Muse retains Darwin outputs. No foreign/shared outputs are mutated.
+
+Preserve foreign notes/newer commits and the complete stale filetree checkpoint.
+Neither Codex review nor Git waiting adds a source gate. Public deployment,
+default changes and TS retirement remain held; accepted ICU/V02.6/int-CSV/Work/
+recovery evidence is reused.
 
 ## Planning refresh against current main — 18 October 2026
 

@@ -19175,3 +19175,24 @@ work asynchronously during review/Git. Preserve all newer main history through
 the complete living-plan checkpoint/stale notice unchanged. The compiler batch's
 final safe worktree intake remains pending. Public deployment/default changes/TS
 retirement stay held.
+
+
+## 2026-10-18 — align native preparation to the current owning release
+
+Accept source `c105bf2c4`: Cargo package/lock and the native release constant
+follow the existing owning0.1.1 stamp. This is implementation correspondence,
+not a public release or backend-default decision. Keep dependency versions and
+checksums unchanged; update current-version build fixture roles while retaining
+stale-artifact and intentional drift meanings. Source review and existing affected
+release5/vectors22/native9/9 results support this narrow slice; they close no full
+CLI, integrity, installed or publication parent.
+
+The requested completed compiler batch is incorporated into the existing Rust
+worktree at main49cb90ab1, with all15 native working files byte/mode preserved.
+Retain all68 incoming paths through their defining owners' current reviews; the
+next guarded-SEND batch is separate. Linux qualification has a ready alternative
+host (infra, pinned1.99, all21 crate sources); Codex owns only a private source/
+target/build lane after release, Muse owns Darwin. No host output is inferred
+from availability. Current scanner/host/integrity findings stay explicit and
+under repair. Public deployment/default changes/TS retirement and the complete
+living-plan checkpoint remain held.

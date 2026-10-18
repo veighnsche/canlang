@@ -19,7 +19,7 @@ use crate::input::{as_num, json_quote, obj_get, render_text, Node};
 use sha2::{Digest, Sha256};
 
 /// The one release version every lockstep package must carry.
-pub const RELEASE_VERSION: &str = "0.1.0";
+pub const RELEASE_VERSION: &str = "0.1.1";
 /// The contracts version this release was built against.
 pub const RELEASE_CONTRACTS_VERSION: f64 = 1.0;
 /// Documented 0.0.0 exemptions: (package, ONLY accepted version).
