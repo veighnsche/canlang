@@ -63,13 +63,30 @@ function printUrl(printBase: string, view: string, limit?: number, cursor?: stri
  * `{code:'transport'}`; server error JSON digests. An aborted host signal
  * fails fast and suppresses late results, even if the transport ignores it.
  */
-export async function fetchPrintView(input: FetchPrintInput): Promise<FetchPrintResult> {
+function checkPrintInput(input: FetchPrintInput): void {
   if (typeof input.printBase !== "string" || input.printBase === "") {
     throw new Error("fetchPrintView needs a non-empty printBase");
   }
   if (typeof input.view !== "string" || !PRINT_VIEW_PATTERN.test(input.view)) {
     throw new Error(`fetchPrintView needs a declared view name (got ${JSON.stringify(input.view)})`);
   }
+}
+
+function printErrorResult(body: string, status: number): FetchPrintResult {
+  let parsed: unknown = null;
+  try {
+    parsed = JSON.parse(body);
+  } catch {
+    parsed = null;
+  }
+  return {
+    ok: false,
+    error: digestExportError(parsed) ?? transportError(`Print request failed (status ${String(status)}).`),
+  };
+}
+
+export async function fetchPrintView(input: FetchPrintInput): Promise<FetchPrintResult> {
+  checkPrintInput(input);
   if (input.signal?.aborted) {
     return { ok: false, error: cancelledError() };
   }
@@ -92,16 +109,7 @@ export async function fetchPrintView(input: FetchPrintInput): Promise<FetchPrint
     return { ok: false, error: cancelledError() };
   }
   if (response.status < 200 || response.status >= 300 || Number.isNaN(response.status)) {
-    let parsed: unknown = null;
-    try {
-      parsed = JSON.parse(body);
-    } catch {
-      parsed = null;
-    }
-    return {
-      ok: false,
-      error: digestExportError(parsed) ?? transportError(`Print request failed (status ${String(response.status)}).`),
-    };
+    return printErrorResult(body, response.status);
   }
   const contentType = response.headers.get("content-type") ?? "";
   const mediaType = contentType.split(";", 1)[0]!.trim().toLowerCase();

@@ -180,17 +180,8 @@ export async function projectInstalledSourceRowAndAncestors(input: {
     visited.add(key);
     const read = readPolicies.get(model);
     if (read === undefined || !permitsSourceRowArchive(row, input.row, input.archived)) return denied();
-    const observation = Object.freeze({ context: Object.freeze({ ...context }), row, revision, fence });
-    let projected: InstalledSourceRowProjection;
-    if ('grants' in read) projected = await projectInstalledSourceRow({ read, observation, store,
-      ...(input.owningObservation === undefined ? {} : { owningObservation: input.owningObservation }),
-      ...(ownerRows === undefined ? {} : { ownerRows }) });
-    else {
-      const rowPolicy = policy.get(model);
-      if (rowPolicy === undefined || !(await evaluateBy(read.by, withPolicyRow(rowPolicy, context, row)))) return denied();
-      const legacy = await projectCurrentRecordForViewerPolicy({ policy: rowPolicy, context, row });
-      projected = { ...legacy, grants: [] };
-    }
+    const projected = await projectSourceAncestorRow(input, model, read, policy, context, revision, fence, store, ownerRows, row);
+    if (projected === null) return denied();
     ownerRows?.assertHealthy();
     if (target === undefined) target = projected;
     decisions.push({ model, id: row.id, allowed: projected.allowed, projection: projected.record });
@@ -200,20 +191,59 @@ export async function projectInstalledSourceRowAndAncestors(input: {
     if (read.parent === undefined ? parent !== null : parent === null || parent.model !== read.parent) return denied();
     if (parent === null) return deepFreeze({ ...target, decisions });
     model = parent.model;
-    const parentKey = `${model}\0${parent.id}`;
-    if (!rows.has(parentKey)) {
-      if (ownerRows !== undefined) await checkpoint();
-      const loaded = ownerRows === undefined
-        ? await store.cohortLoad({ model, id: parent.id, expectedRevision: revision })
-        : await ownerRows.read(model, parent.id);
-      if (ownerRows !== undefined) await checkpoint();
-      if (loaded === null) return denied();
-      if (loaded.id !== parent.id) invalid();
-      rows.set(parentKey, loaded);
-    }
-    row = rows.get(parentKey)!;
+    const loaded = await loadSourceAncestorParent(store, ownerRows, rows, model, parent.id, revision, checkpoint);
+    if (loaded === null) return denied();
+    row = loaded;
     if (row.id !== parent.id) invalid();
   }
+}
+
+/** One ancestor level: installed grants or legacy policy projection (null denies). */
+async function projectSourceAncestorRow(
+  input: { readonly owningObservation?: Readonly<ViewerGenerationCallbackReadObservation> },
+  model: ModelName,
+  read: ViewerSourceReadPolicy,
+  policy: PolicyTable,
+  context: ByContext,
+  revision: Revision,
+  fence: BaseQueryInput['fence'],
+  store: StoragePort,
+  ownerRows: InstalledSourceOwnerRows | undefined,
+  row: StoredRow,
+): Promise<InstalledSourceRowProjection | null> {
+  const observation = Object.freeze({ context: Object.freeze({ ...context }), row, revision, fence });
+  if ('grants' in read) {
+    return projectInstalledSourceRow({ read, observation, store,
+      ...(input.owningObservation === undefined ? {} : { owningObservation: input.owningObservation }),
+      ...(ownerRows === undefined ? {} : { ownerRows }) });
+  }
+  const rowPolicy = policy.get(model);
+  if (rowPolicy === undefined || !(await evaluateBy(read.by, withPolicyRow(rowPolicy, context, row)))) return null;
+  const legacy = await projectCurrentRecordForViewerPolicy({ policy: rowPolicy, context, row });
+  return { ...legacy, grants: [] };
+}
+
+/** Tracked parent load with checkpoint fences around owner reads. */
+async function loadSourceAncestorParent(
+  store: StoragePort,
+  ownerRows: InstalledSourceOwnerRows | undefined,
+  rows: Map<string, StoredRow>,
+  model: ModelName,
+  id: RecordId,
+  revision: Revision,
+  checkpoint: () => Promise<void>,
+): Promise<StoredRow | null> {
+  const parentKey = `${model}\0${id}`;
+  if (rows.has(parentKey)) return rows.get(parentKey)!;
+  if (ownerRows !== undefined) await checkpoint();
+  const loaded = ownerRows === undefined
+    ? await store.cohortLoad({ model, id, expectedRevision: revision })
+    : await ownerRows.read(model, id);
+  if (ownerRows !== undefined) await checkpoint();
+  if (loaded === null) return null;
+  if (loaded.id !== id) invalid();
+  rows.set(parentKey, loaded);
+  return loaded;
 }
 
 export interface CurrentRecordSourcePolicyInput extends Pick<BaseQueryInput, 'context' | 'memberships' | 'policy' | 'store' | 'fence'> {
@@ -229,49 +259,50 @@ export interface CurrentRecordSourcePolicyResult {
   readonly revision: Revision;
 }
 
-export function projectCurrentRecordForViewerSourcePolicies(input: CurrentRecordSourcePolicyInput): Promise<CurrentRecordSourcePolicyResult>;
-export function projectCurrentRecordForViewerSourcePolicies<Result>(input: CurrentRecordSourcePolicyInput,
-  transform: (result: Readonly<CurrentRecordSourcePolicyResult>, allowed: readonly boolean[],
-    sourcePresence: Readonly<{ fields: readonly string[] }> | null) => Result | Promise<Result>): Promise<Result>;
-/** Reader-owned current load and final checks. Installed source navigation can
- * borrow its actual live observation; independent reads open their own authority.
- * The trusted transform alone receives immutable field presence from that same
- * loaded row, so a staged parent needs no second committed load. Names grant no
- * field values or row authority; denied projections receive no presence. */
-export async function projectCurrentRecordForViewerSourcePolicies(input: CurrentRecordSourcePolicyInput,
-  transform?: (result: Readonly<CurrentRecordSourcePolicyResult>, allowed: readonly boolean[],
-    sourcePresence: Readonly<{ fields: readonly string[] }> | null) => unknown | Promise<unknown>): Promise<unknown> {
-  if (input.observation !== undefined) {
-    const observation = input.observation;
-    return withinInstalledReadObservation(observation, { store: input.store, model: input.model, id: input.id }, async (checkpoint, loadRow, ownerRows) => {
-      // Capture the full supplied policy closure while the original lifetime is
-      // already leased, before any async checkpoint can change its inputs.
-      const store = input.store, model = text(input.model) as ModelName, id = text(input.id) as RecordId;
-      const reads = captureSourceReadPolicies(input.readPolicies), policy = new Map(input.policy);
-      const { context, revision, fence } = observation;
-      if (input.context.actorUserId !== context.actorUserId || input.context.teamId !== context.teamId ||
-          input.memberships !== context.memberships || input.fence !== undefined && input.fence !== fence ||
-          typeof store.cohortLoad !== 'function' || transform !== undefined && typeof transform !== 'function') invalid();
-      await checkpoint();
-      const row = await loadRow(model, id);
-      await checkpoint();
-      if (row !== null && row.id !== id) invalid();
-      const sourcePresence = row === null ? null : deepFreeze({ fields: Object.keys(row.data) });
-      fence?.enroll({ kind: 'query', model, authority: 'viewer' });
-      const rows = new Map<string, StoredRow>();
-      if (row !== null) rows.set(`${model}\0${id}`, row);
-      const projected = row === null ? { record: null, allowed: [] } : await projectInstalledSourceRowAndAncestors({
-        model, row, readPolicies: reads, policy, context, revision, fence, store, rows, owningObservation: observation,
-        ...(ownerRows === undefined ? {} : { ownerRows }),
-      });
-      await checkpoint();
-      const result = deepFreeze({ record: projected.record, revision });
-      const output = transform === undefined ? result : await transform(result, projected.allowed,
-        result.record === null ? null : sourcePresence);
-      await checkpoint();
-      return output;
+type SourcePolicyTransform = (result: Readonly<CurrentRecordSourcePolicyResult>, allowed: readonly boolean[],
+  sourcePresence: Readonly<{ fields: readonly string[] }> | null) => unknown | Promise<unknown>;
+
+/** Borrowed live observation: policy capture, load, project, transform. */
+async function projectSourcePolicyObserved(
+  input: CurrentRecordSourcePolicyInput,
+  transform: SourcePolicyTransform | undefined,
+): Promise<unknown> {
+  const observation = input.observation!;
+  return withinInstalledReadObservation(observation, { store: input.store, model: input.model, id: input.id }, async (checkpoint, loadRow, ownerRows) => {
+    // Capture the full supplied policy closure while the original lifetime is
+    // already leased, before any async checkpoint can change its inputs.
+    const store = input.store, model = text(input.model) as ModelName, id = text(input.id) as RecordId;
+    const reads = captureSourceReadPolicies(input.readPolicies), policy = new Map(input.policy);
+    const { context, revision, fence } = observation;
+    if (input.context.actorUserId !== context.actorUserId || input.context.teamId !== context.teamId ||
+        input.memberships !== context.memberships || input.fence !== undefined && input.fence !== fence ||
+        typeof store.cohortLoad !== 'function' || transform !== undefined && typeof transform !== 'function') invalid();
+    await checkpoint();
+    const row = await loadRow(model, id);
+    await checkpoint();
+    if (row !== null && row.id !== id) invalid();
+    const sourcePresence = row === null ? null : deepFreeze({ fields: Object.keys(row.data) });
+    fence?.enroll({ kind: 'query', model, authority: 'viewer' });
+    const rows = new Map<string, StoredRow>();
+    if (row !== null) rows.set(`${model}\0${id}`, row);
+    const projected = row === null ? { record: null, allowed: [] } : await projectInstalledSourceRowAndAncestors({
+      model, row, readPolicies: reads, policy, context, revision, fence, store, rows, owningObservation: observation,
+      ...(ownerRows === undefined ? {} : { ownerRows }),
     });
-  }
+    await checkpoint();
+    const result = deepFreeze({ record: projected.record, revision });
+    const output = transform === undefined ? result : await transform(result, projected.allowed,
+      result.record === null ? null : sourcePresence);
+    await checkpoint();
+    return output;
+  });
+}
+
+/** Fresh authority: membership, load, observe, transform, revalidate. */
+async function projectSourcePolicyFresh(
+  input: CurrentRecordSourcePolicyInput,
+  transform: SourcePolicyTransform | undefined,
+): Promise<unknown> {
   const { store, memberships, fence } = input;
   const model = text(input.model) as ModelName, id = text(input.id) as RecordId;
   const reads = captureSourceReadPolicies(input.readPolicies), policy = new Map(input.policy);
@@ -289,18 +320,49 @@ export async function projectCurrentRecordForViewerSourcePolicies(input: Current
   fence?.enroll({ kind: 'query', model, authority: 'viewer' });
   const rows = new Map<string, StoredRow>();
   if (row !== null) rows.set(`${model}\0${id}`, row);
-  const authority = await observeRowGrantAuthority({ ...context, membership, memberships }, async coherent =>
-    row === null ? { record: null, allowed: [], grants: [], decisions: [] } : projectInstalledSourceRowAndAncestors({
-      model, row, readPolicies: reads, policy, context: coherent, revision, fence, store, rows,
+  return finishSourcePolicyFresh(transform, { store, model, reads, policy, context, membership, memberships, fence, revision, row, sourcePresence, rows });
+}
+
+/** Observed grant projection with final transform and revision fences. */
+async function finishSourcePolicyFresh(
+  transform: SourcePolicyTransform | undefined,
+  state: { store: StoragePort; model: ModelName; reads: ReadonlyMap<ModelName, ViewerSourceReadPolicy>;
+    policy: PolicyTable;
+    context: { readonly actorUserId: string | null; readonly teamId: string | null };
+    membership: ReturnType<typeof checkedMembershipFact> | null; memberships: CurrentRecordSourcePolicyInput['memberships'];
+    fence: BaseQueryInput['fence']; revision: Revision; row: StoredRow | null;
+    sourcePresence: Readonly<{ fields: readonly string[] }> | null; rows: Map<string, StoredRow> },
+): Promise<unknown> {
+  const { store, fence, revision } = state;
+  const authority = await observeRowGrantAuthority({ ...state.context, membership: state.membership, memberships: state.memberships }, async coherent =>
+    state.row === null ? { record: null, allowed: [], grants: [], decisions: [] } : projectInstalledSourceRowAndAncestors({
+      model: state.model, row: state.row, readPolicies: state.reads, policy: state.policy, context: coherent,
+      revision, fence, store, rows: state.rows,
     }));
   const result = deepFreeze({ record: authority.value.record, revision });
   const output = transform === undefined ? result : await transform(result, authority.value.allowed,
-    result.record === null ? null : sourcePresence);
+    result.record === null ? null : state.sourcePresence);
   await authority.revalidate();
   const actual = await store.readRevision();
   if (actual !== revision) throw new FenceConflictError(revision, actual);
   if (fence !== undefined && fence.revision !== revision) throw new FenceConflictError(fence.revision, revision);
   return output;
+}
+
+export function projectCurrentRecordForViewerSourcePolicies(input: CurrentRecordSourcePolicyInput): Promise<CurrentRecordSourcePolicyResult>;
+export function projectCurrentRecordForViewerSourcePolicies<Result>(input: CurrentRecordSourcePolicyInput,
+  transform: (result: Readonly<CurrentRecordSourcePolicyResult>, allowed: readonly boolean[],
+    sourcePresence: Readonly<{ fields: readonly string[] }> | null) => Result | Promise<Result>): Promise<Result>;
+/** Reader-owned current load and final checks. Installed source navigation can
+ * borrow its actual live observation; independent reads open their own authority.
+ * The trusted transform alone receives immutable field presence from that same
+ * loaded row, so a staged parent needs no second committed load. Names grant no
+ * field values or row authority; denied projections receive no presence. */
+export async function projectCurrentRecordForViewerSourcePolicies(input: CurrentRecordSourcePolicyInput,
+  transform?: (result: Readonly<CurrentRecordSourcePolicyResult>, allowed: readonly boolean[],
+    sourcePresence: Readonly<{ fields: readonly string[] }> | null) => unknown | Promise<unknown>): Promise<unknown> {
+  if (input.observation !== undefined) return projectSourcePolicyObserved(input, transform);
+  return projectSourcePolicyFresh(input, transform);
 }
 
 /** Private source-expression input, never a request or an independent read
@@ -317,6 +379,41 @@ export interface SourceObservationRecordsInput {
 export interface SourceObservationRecord {
   readonly record: ProjectedRecord;
   readonly sourcePresence: readonly string[];
+}
+
+/** Shared source-observation scan (one candidate domain). */
+interface SourceObservationScan {
+  readonly input: SourceObservationRecordsInput;
+  readonly model: ModelName;
+  readonly id: RecordId | undefined;
+  readonly parent: Readonly<{ model: ModelName; id: RecordId }> | undefined;
+  readonly read: ViewerSourceReadPolicy;
+  readonly control: boolean;
+  readonly ownerRows: InstalledSourceOwnerRows | undefined;
+  readonly reads: ReadonlyMap<ModelName, ViewerSourceReadPolicy>;
+  readonly policy: PolicyTable;
+  readonly store: StoragePort;
+  readonly rows: Map<string, StoredRow>;
+  readonly result: SourceObservationRecord[];
+  readonly checkpoint: () => Promise<void>;
+}
+
+/** One candidate in domain order: project, enroll, checkpoint. */
+async function projectSourceObservationRow(scan: SourceObservationScan, row: StoredRow): Promise<void> {
+  const { input, model, id, parent, read, control, ownerRows, reads, policy, store, rows, result, checkpoint } = scan;
+  const { observation } = input;
+  if (id !== undefined && row.id !== id) invalid();
+  if (row.archivedAt !== null || parent !== undefined && (row.parent?.model !== parent.model || row.parent.id !== parent.id)) return;
+  const projected = control
+    ? 'grants' in read ? projectSourceRowFields(row, [{ fields: read.fields }], read.secretFields) : null
+    : (await projectInstalledSourceRowAndAncestors({ model, row, readPolicies: reads, policy, context: observation.context,
+      revision: observation.revision, fence: observation.fence, store, rows, owningObservation: observation,
+      ...(ownerRows === undefined ? {} : { ownerRows }) })).record;
+  if (projected !== null) {
+    observation.fence?.enroll({ kind: 'record', model, id: row.id, version: row.version });
+    result.push(deepFreeze({ record: projected, sourcePresence: Object.keys(row.data) }));
+  }
+  await checkpoint();
 }
 
 /** Borrow one installed decision's original store, Identity context and R.
@@ -347,19 +444,9 @@ export async function readRecordsAtSourceObservation(input: SourceObservationRec
     const rows = new Map<string, StoredRow>();
     for (const row of candidates) rows.set(`${model}\0${row.id}`, row);
     const result: SourceObservationRecord[] = [];
+    const scan = { input, model, id, parent, read, control, ownerRows, reads, policy, store, rows, result, checkpoint };
     for (const row of candidates) {
-      if (id !== undefined && row.id !== id) invalid();
-      if (row.archivedAt !== null || parent !== undefined && (row.parent?.model !== parent.model || row.parent.id !== parent.id)) continue;
-      const projected = control
-        ? 'grants' in read ? projectSourceRowFields(row, [{ fields: read.fields }], read.secretFields) : null
-        : (await projectInstalledSourceRowAndAncestors({ model, row, readPolicies: reads, policy, context: observation.context,
-          revision: observation.revision, fence: observation.fence, store, rows, owningObservation: observation,
-          ...(ownerRows === undefined ? {} : { ownerRows }) })).record;
-      if (projected !== null) {
-        observation.fence?.enroll({ kind: 'record', model, id: row.id, version: row.version });
-        result.push(deepFreeze({ record: projected, sourcePresence: Object.keys(row.data) }));
-      }
-      await checkpoint();
+      await projectSourceObservationRow(scan, row);
     }
     observation.fence?.enroll({ kind: 'query', model, authority: 'viewer' });
     await checkpoint();

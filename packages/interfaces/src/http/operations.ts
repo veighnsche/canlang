@@ -46,6 +46,7 @@ import { checkArtifactOperation, checkArtifactOperations, checkBoundArguments, i
 import type {
   ArtifactOperationSlice,
   CheckedArtifactDeliveryField,
+  CheckedArtifactField,
   CheckedArtifactInput,
   CheckedArtifactOperation,
 } from '../mcp/schemas.js';
@@ -291,6 +292,319 @@ function projectNativeForm(derived: DerivedOperationInputs | null, form: Record<
  * sealed-handle submission is MCP-only, so it must never silently
  * dispatch as an ordinary envelope.
  */
+async function readOperationBody(request: Request, operation: string, deps: HttpDeps): Promise<{
+  record: Record<string, unknown>; nativeForm: Record<string, string> | null;
+} | Response> {
+  const mediaType = (request.headers.get('content-type') ?? '').split(';')[0]?.trim().toLowerCase() ?? '';
+  let body: unknown;
+  let nativeForm: Record<string, string> | null = null;
+  if (mediaType === JSON_CONTENT_TYPE) {
+    try {
+      body = readOwnedJson(await parseOwnedJsonBody(request, readCappedBody, JSON_BODY_MAX_BYTES)).value;
+    } catch (error) {
+      if (error instanceof OwnedInputError && error.code === 'validation') {
+        throw new IdentityError('validation', error.message);
+      }
+      throw error;
+    }
+  } else if (mediaType === FORM_CONTENT_TYPE) {
+    const form = await readOperationForm(request);
+    if (Object.hasOwn(form, 'inputs')) {
+      if (Object.keys(form).some(name => name.startsWith('inputs[') || name.startsWith(NATIVE_BOOLEAN_PRESENCE_PREFIX))) {
+        throw new IdentityError('validation', 'Mixed form input encodings.');
+      }
+      body = coerceFormBody(form);
+    } else {
+      nativeForm = form;
+      body = { ...coerceFormBody(form), inputs: {} };
+    }
+  } else {
+    return deny(deps, buildBusinessError('validation', 'Unsupported content type.'), operation);
+  }
+
+  if (typeof body !== 'object' || body === null || Array.isArray(body)) {
+    return deny(deps, buildBusinessError('validation', 'Invalid request body.'), operation);
+  }
+  const record = body as Record<string, unknown>;
+  if ('operation' in record && record['operation'] !== operation) {
+    return deny(deps, buildBusinessError('validation', 'Body operation does not match the route.'), operation);
+  }
+  // E2b handle-mode boundary: sealed-handle submission is MCP-only, so a
+  // top-level `action_handle` (the MCP sibling spelling) rejects loudly
+  // instead of falling into the documented extra-member leniency — a
+  // misrouted handle call must never silently dispatch as ordinary.
+  if ('action_handle' in record) {
+    const message =
+      "Unknown top-level member 'action_handle': sealed-handle submission is MCP-only " +
+      '(tools/call); HTTP operation POSTs carry ordinary inputs.';
+    return deny(
+      deps,
+      buildBusinessError('validation', message, {
+        fields: [{ path: '/action_handle', code: 'unknown', message }],
+      }),
+      operation,
+    );
+  }
+  return { record, nativeForm };
+}
+
+function resolveOperationDerived(
+  deps: HttpDeps,
+  operation: string,
+  aged: DerivedOperationInputs | null | undefined,
+): DerivedOperationInputs | null {
+  return aged === undefined ? deps.catalog.derivedFor?.(operation) ?? null : aged;
+}
+
+async function checkOperationAge(
+  deps: HttpDeps,
+  request: Request,
+  operation: string,
+  operationId: string,
+  record: Record<string, unknown>,
+  seen: SeenDrafts | null,
+  authed: { identity: ResolvedIdentity; sessionToken: string } | null,
+): Promise<{
+  derived: DerivedOperationInputs | null | undefined; retainedScenario: boolean; idError: BusinessError | null;
+} | Response> {
+  const idError = validateOperationId(operationId, deps.clock);
+  let derived: DerivedOperationInputs | null | undefined;
+  let retainedScenario = false;
+  if (idError !== null) {
+    // Checked scenarios use the dedicated current-authority saved-outcome
+    // join for expired identities only; fresh and future routing stay intact.
+    // Preserve ordinary fresh and malformed-ID demand order; consult the
+    // catalog here only when the original age gate would refuse.
+    if (validateOperationIdShape(operationId) === null) {
+      derived = deps.catalog.derivedFor?.(operation) ?? null;
+    }
+    retainedScenario = derived?.kind === 'scenario' && idError.message === 'Expired operation_id.' &&
+      typeof deps.invoker.invokeRetainedMutation === 'function' &&
+      (!Object.hasOwn(record, SOURCE_FORM_BINDING_FIELD) || typeof deps.formBindings?.restoreRetained === 'function');
+    if (!retainedScenario && derived?.kind !== 'create' && derived?.kind !== 'update' && derived?.kind !== 'delete') {
+      return denyOrRerender(deps, request, operation, idError, seen, authed);
+    }
+  }
+  return { derived, retainedScenario, idError };
+}
+
+async function restoreNativeDrafts(
+  deps: HttpDeps,
+  request: Request,
+  record: Record<string, unknown>,
+  nativeForm: Record<string, string>,
+  derived: DerivedOperationInputs | null,
+  operation: string,
+  operationId: string,
+  sessionToken: string,
+  identity: ResolvedIdentity,
+): Promise<ClosedInputs> {
+  let drafts = nativeFormDrafts(derived, nativeForm);
+  if (Object.hasOwn(record, SOURCE_FORM_BINDING_FIELD) && wantsHtmlRerender(request) && formBindingFor(operation) !== undefined) {
+    const token = record[SOURCE_FORM_BINDING_FIELD];
+    const restoredDrafts = typeof token !== 'string' || derived === null || deps.formBindings === undefined ? null :
+      await deps.formBindings.restore({ appId: deps.app.appId, sessionToken, identity, derived,
+        operationId, nowMs: deps.clock.nowMs() }, token, drafts);
+    // Signed bound refs may restore the update shell for redisplay only.
+    // An unavailable proof never turns submitted refs into protected ones.
+    drafts = restoredDrafts ?? Object.fromEntries(Object.entries(drafts).filter(([name]) =>
+      derived?.inputs.find(input => input.name === name)?.kind !== 'ref'));
+  }
+  return drafts;
+}
+
+function captureSeenDrafts(record: Record<string, unknown>): SeenDrafts {
+  const seenId = record['operation_id'];
+  const seenInputs = record['inputs'];
+  const seenObj: ClosedInputs =
+    typeof seenInputs === 'object' && seenInputs !== null && !Array.isArray(seenInputs)
+      ? (seenInputs as ClosedInputs)
+      : {};
+  const { [CSRF_FIELD]: _seenCsrf, ...seenRest } = seenObj;
+  void _seenCsrf;
+  return {
+    operationId: typeof seenId === 'string' ? seenId : '',
+    inputs: seenRest,
+  };
+}
+
+async function assertOperationCsrf(
+  request: Request,
+  record: Record<string, unknown>,
+  inputs: ClosedInputs,
+  sessionToken: string,
+): Promise<void> {
+  const csrfInInputs = inputs[CSRF_FIELD];
+  await assertPostCsrf({
+    sessionToken,
+    headerValue: request.headers.get(CSRF_HEADER),
+    fieldValue: typeof csrfInInputs === 'string' ? csrfInInputs : record[CSRF_FIELD],
+  });
+}
+
+async function checkOperationEnvelope(
+  deps: HttpDeps,
+  request: Request,
+  record: Record<string, unknown>,
+  operation: string,
+  seen: SeenDrafts | null,
+  authed: { identity: ResolvedIdentity; sessionToken: string } | null,
+): Promise<{ operationId: string; inputs: ClosedInputs } | Response> {
+  const operationId = record['operation_id'];
+  const rawInputs = record['inputs'];
+  if (typeof operationId !== 'string') {
+    return denyOrRerender(deps, request, operation, buildBusinessError('validation', 'Missing operation_id.'), seen, authed);
+  }
+  if (typeof rawInputs !== 'object' || rawInputs === null || Array.isArray(rawInputs)) {
+    return denyOrRerender(deps, request, operation, buildBusinessError('validation', 'Invalid inputs.'), seen, authed);
+  }
+  return { operationId, inputs: rawInputs as ClosedInputs };
+}
+
+async function checkClosedOperationInputs(
+  deps: HttpDeps,
+  request: Request,
+  operation: string,
+  businessInputs: ClosedInputs,
+  shape: OperationInputShape,
+  prepared: Awaited<ReturnType<typeof runSourceHttpPlan>>,
+  derived: DerivedOperationInputs | null,
+  seen: SeenDrafts | null,
+  authed: { identity: ResolvedIdentity; sessionToken: string } | null,
+): Promise<null | Response> {
+  const closedError = prepared === undefined ? checkClosedInputs(businessInputs, shape) : prepared.ok ? null : prepared.error;
+  if (closedError !== null) {
+    return denyOrRerender(deps, request, operation, closedError, seen, authed);
+  }
+  if (derived !== null && prepared === undefined) {
+    const boundError = checkBoundArguments(derived, businessInputs);
+    if (boundError !== null) {
+      return denyOrRerender(deps, request, operation, boundError, seen, authed);
+    }
+  }
+  return null;
+}
+
+async function restoreOperationBindings(
+  deps: HttpDeps,
+  request: Request,
+  record: Record<string, unknown>,
+  nativeForm: Record<string, string> | null,
+  derived: DerivedOperationInputs | null,
+  operation: string,
+  operationId: string,
+  sessionToken: string,
+  identity: ResolvedIdentity,
+  submittedInputs: ClosedInputs,
+  seenHolder: { current: SeenDrafts | null },
+): Promise<{
+  businessInputs: ClosedInputs; retainedBinding: boolean; seen: SeenDrafts | null;
+} | Response> {
+  if (nativeForm !== null) {
+    seenHolder.current = { operationId, inputs: await restoreNativeDrafts(deps, request, record, nativeForm,
+      derived, operation, operationId, sessionToken, identity) };
+  }
+  let retainedBinding = false;
+  let businessInputs = nativeForm === null ? submittedInputs : projectNativeForm(derived, nativeForm);
+  if (nativeForm !== null) seenHolder.current = { operationId, inputs: businessInputs };
+  if (Object.hasOwn(record, SOURCE_FORM_BINDING_FIELD)) {
+    const token = record[SOURCE_FORM_BINDING_FIELD];
+    let restored = typeof token !== 'string' || derived === null || deps.formBindings === undefined ? null :
+      await deps.formBindings.restore({ appId: deps.app.appId, sessionToken, identity, derived,
+        operationId, nowMs: deps.clock.nowMs() }, token, businessInputs);
+    if (restored === null && typeof token === 'string' && derived !== null &&
+        ['create', 'update', 'delete', 'scenario'].includes(derived.kind) &&
+        typeof deps.formBindings?.restoreRetained === 'function' && typeof deps.invoker.invokeRetainedMutation === 'function') {
+      restored = await deps.formBindings.restoreRetained({ appId: deps.app.appId, sessionToken, identity, derived,
+        operationId, nowMs: deps.clock.nowMs() }, token, businessInputs);
+      retainedBinding = restored !== null;
+    }
+    if (restored === null) {
+      return denyOrRerender(deps, request, operation,
+        buildBusinessError('forbidden', 'This form binding is no longer available. Reload the page.'), seenHolder.current, { identity, sessionToken });
+    }
+    businessInputs = restored;
+    seenHolder.current = { operationId, inputs: businessInputs };
+  }
+  return { businessInputs, retainedBinding, seen: seenHolder.current };
+}
+
+async function mintOperationRetry(
+  deps: HttpDeps,
+  record: Record<string, unknown>,
+  operation: string,
+  operationId: string,
+  derived: DerivedOperationInputs,
+  sessionToken: string,
+  identity: ResolvedIdentity,
+): Promise<FormRetry | undefined> {
+  const nextId = mintOperationId(deps.clock.nowMs());
+  if (Object.hasOwn(record, SOURCE_FORM_BINDING_FIELD)) {
+    const token = record[SOURCE_FORM_BINDING_FIELD];
+    const renewed = typeof token !== 'string' || typeof deps.formBindings?.renew !== 'function' ? null :
+      await deps.formBindings.renew({ appId: deps.app.appId, sessionToken, identity, derived,
+        operationId, nowMs: deps.clock.nowMs() }, token, nextId);
+    if (typeof renewed === 'string' && renewed.length > 0) return { operation_id: nextId, form_binding: renewed };
+    return undefined;
+  }
+  return { operation_id: nextId };
+}
+
+async function settleOperationOutcome(
+  deps: HttpDeps,
+  request: Request,
+  operation: string,
+  operationId: string,
+  businessInputs: ClosedInputs,
+  identity: ResolvedIdentity,
+  sessionToken: string,
+  seen: SeenDrafts | null,
+  authed: { identity: ResolvedIdentity; sessionToken: string } | null,
+  retainedBinding: boolean,
+  retainedScenario: boolean,
+  idError: BusinessError | null,
+  derived: DerivedOperationInputs | null,
+  record: Record<string, unknown>,
+): Promise<Response> {
+  /* B4 pre-invoker admission: re-read CURRENT session facts after the
+   * capped body and checked arguments. Revocation or expiry before this
+   * read refuses entry with the admission-identical message. Work already
+   * admitted to the invoker has no retroactive cancellation guarantee. */
+  await assertCredentialLive(deps.identity.store, {
+    kind: 'session',
+    tokenHash: await sha256HexText(sessionToken),
+    now: new Date(deps.clock.nowMs()).toISOString(),
+  });
+  await assertSourceValidationCurrent(deps.catalog, operation);
+  const envelope: MutationEnvelope = { operation, operation_id: operationId, inputs: businessInputs };
+  assertSourceValidationStable(deps.catalog, operation);
+  const outcome = retainedBinding || retainedScenario
+    ? await deps.invoker.invokeRetainedMutation!(envelope, identity)
+    : await deps.invoker.invokeMutation(envelope, identity);
+  if (!('error' in outcome)) {
+    return new Response(JSON.stringify(outcome.result), {
+      status: 200,
+      headers: { 'content-type': 'application/json; charset=utf-8' },
+    });
+  }
+  // Only the trusted invoker's exact durable rejection can start a new
+  // attempt. Unknown outcomes keep their original identity for replay.
+  const error = outcome.receipt === 'rejected' ? { ...outcome.error, operation_id: operationId } : outcome.error;
+  let retry: FormRetry | undefined;
+  if (outcome.receipt === 'rejected' && !retainedBinding && !retainedScenario && idError === null &&
+      derived !== null && ['create', 'update', 'scenario'].includes(derived.kind)) {
+    try {
+      await assertSourceValidationCurrent(deps.catalog, operation);
+      retry = await mintOperationRetry(deps, record, operation, operationId, derived, sessionToken, identity);
+      assertSourceValidationStable(deps.catalog, operation);
+    } catch {
+      // Renewal is optional recovery, never a replacement denial.
+      retry = undefined;
+    }
+  }
+  return denyOrRerender(deps, request, operation, error, seen, authed, retry);
+}
+
 export async function handleOperationRequest(
   deps: HttpDeps,
   request: Request,
@@ -319,210 +633,53 @@ export async function handleOperationRequest(
     }
     authed = { identity, sessionToken };
 
-    const mediaType = (request.headers.get('content-type') ?? '').split(';')[0]?.trim().toLowerCase() ?? '';
-    let body: unknown;
-    let nativeForm: Record<string, string> | null = null;
-    if (mediaType === JSON_CONTENT_TYPE) {
-      try {
-        body = readOwnedJson(await parseOwnedJsonBody(request, readCappedBody, JSON_BODY_MAX_BYTES)).value;
-      } catch (error) {
-        if (error instanceof OwnedInputError && error.code === 'validation') {
-          throw new IdentityError('validation', error.message);
-        }
-        throw error;
-      }
-    } else if (mediaType === FORM_CONTENT_TYPE) {
-      const form = await readOperationForm(request);
-      if (Object.hasOwn(form, 'inputs')) {
-        if (Object.keys(form).some(name => name.startsWith('inputs[') || name.startsWith(NATIVE_BOOLEAN_PRESENCE_PREFIX))) {
-          throw new IdentityError('validation', 'Mixed form input encodings.');
-        }
-        body = coerceFormBody(form);
-      } else {
-        nativeForm = form;
-        body = { ...coerceFormBody(form), inputs: {} };
-      }
-    } else {
-      return deny(deps, buildBusinessError('validation', 'Unsupported content type.'), operation);
-    }
-
-    if (typeof body !== 'object' || body === null || Array.isArray(body)) {
-      return deny(deps, buildBusinessError('validation', 'Invalid request body.'), operation);
-    }
-    const record = body as Record<string, unknown>;
-    if ('operation' in record && record['operation'] !== operation) {
-      return deny(deps, buildBusinessError('validation', 'Body operation does not match the route.'), operation);
-    }
-    // E2b handle-mode boundary: sealed-handle submission is MCP-only, so a
-    // top-level `action_handle` (the MCP sibling spelling) rejects loudly
-    // instead of falling into the documented extra-member leniency — a
-    // misrouted handle call must never silently dispatch as ordinary.
-    if ('action_handle' in record) {
-      const message =
-        "Unknown top-level member 'action_handle': sealed-handle submission is MCP-only " +
-        '(tools/call); HTTP operation POSTs carry ordinary inputs.';
-      return deny(
-        deps,
-        buildBusinessError('validation', message, {
-          fields: [{ path: '/action_handle', code: 'unknown', message }],
-        }),
-        operation,
-      );
-    }
+    const parsedBody = await readOperationBody(request, operation, deps);
+    if (parsedBody instanceof Response) return parsedBody;
+    const { record, nativeForm } = parsedBody;
     // Capture redisplay state best-effort: later denials re-render the form
     // when the request asks for HTML; `_csrf` is transport, never a draft.
-    const seenId = record['operation_id'];
-    const seenInputs = record['inputs'];
-    const seenObj: ClosedInputs =
-      typeof seenInputs === 'object' && seenInputs !== null && !Array.isArray(seenInputs)
-        ? (seenInputs as ClosedInputs)
-        : {};
-    const { [CSRF_FIELD]: _seenCsrf, ...seenRest } = seenObj;
-    void _seenCsrf;
-    seen = {
-      operationId: typeof seenId === 'string' ? seenId : '',
-      inputs: seenRest,
-    };
-    const operationId = record['operation_id'];
-    const rawInputs = record['inputs'];
-    if (typeof operationId !== 'string') {
-      return denyOrRerender(deps, request, operation, buildBusinessError('validation', 'Missing operation_id.'), seen, authed);
-    }
-    if (typeof rawInputs !== 'object' || rawInputs === null || Array.isArray(rawInputs)) {
-      return denyOrRerender(deps, request, operation, buildBusinessError('validation', 'Invalid inputs.'), seen, authed);
-    }
-    const inputs = rawInputs as ClosedInputs;
+    seen = captureSeenDrafts(record);
+    const envelope = await checkOperationEnvelope(deps, request, record, operation, seen, authed);
+    if (envelope instanceof Response) return envelope;
+    const { operationId, inputs } = envelope;
 
-    const csrfInInputs = inputs[CSRF_FIELD];
-    await assertPostCsrf({
-      sessionToken,
-      headerValue: request.headers.get(CSRF_HEADER),
-      fieldValue: typeof csrfInInputs === 'string' ? csrfInInputs : record[CSRF_FIELD],
-    });
+    await assertOperationCsrf(request, record, inputs, sessionToken);
 
-    const idError = validateOperationId(operationId, deps.clock);
-    let derived: DerivedOperationInputs | null | undefined;
-    let retainedScenario = false;
-    if (idError !== null) {
-      // Checked scenarios use the dedicated current-authority saved-outcome
-      // join for expired identities only; fresh and future routing stay intact.
-      // Preserve ordinary fresh and malformed-ID demand order; consult the
-      // catalog here only when the original age gate would refuse.
-      if (validateOperationIdShape(operationId) === null) {
-        derived = deps.catalog.derivedFor?.(operation) ?? null;
-      }
-      retainedScenario = derived?.kind === 'scenario' && idError.message === 'Expired operation_id.' &&
-        typeof deps.invoker.invokeRetainedMutation === 'function' &&
-        (!Object.hasOwn(record, SOURCE_FORM_BINDING_FIELD) || typeof deps.formBindings?.restoreRetained === 'function');
-      if (!retainedScenario && derived?.kind !== 'create' && derived?.kind !== 'update' && derived?.kind !== 'delete') {
-        return denyOrRerender(deps, request, operation, idError, seen, authed);
-      }
-    }
+    const aged = await checkOperationAge(deps, request, operation, operationId, record, seen, authed);
+    if (aged instanceof Response) return aged;
+    const { retainedScenario, idError } = aged;
     const shape = deps.catalog.shapeFor(operation);
     if (shape === null) {
       return denyOrRerender(deps, request, operation, buildBusinessError('not_found', 'Unknown operation.'), seen, authed);
     }
     const { [CSRF_FIELD]: _csrf, ...submittedInputs } = inputs;
     void _csrf;
-    if (derived === undefined) derived = deps.catalog.derivedFor?.(operation) ?? null;
-    if (nativeForm !== null) {
-      let drafts = nativeFormDrafts(derived, nativeForm);
-      if (Object.hasOwn(record, SOURCE_FORM_BINDING_FIELD) && wantsHtmlRerender(request) && formBindingFor(operation) !== undefined) {
-        const token = record[SOURCE_FORM_BINDING_FIELD];
-        const restoredDrafts = typeof token !== 'string' || derived === null || deps.formBindings === undefined ? null :
-          await deps.formBindings.restore({ appId: deps.app.appId, sessionToken, identity, derived,
-            operationId, nowMs: deps.clock.nowMs() }, token, drafts);
-        // Signed bound refs may restore the update shell for redisplay only.
-        // An unavailable proof never turns submitted refs into protected ones.
-        drafts = restoredDrafts ?? Object.fromEntries(Object.entries(drafts).filter(([name]) =>
-          derived?.inputs.find(input => input.name === name)?.kind !== 'ref'));
-      }
-      seen = { operationId, inputs: drafts };
+    const derived = resolveOperationDerived(deps, operation, aged.derived);
+    // The inline original assigned drafts to the shared `seen` binding before
+    // native projection; a throwing projection still re-rendered those drafts.
+    // The holder carries that partial state back when the helper throws.
+    const seenHolder = { current: seen };
+    let restored: Awaited<ReturnType<typeof restoreOperationBindings>> | Response;
+    try {
+      restored = await restoreOperationBindings(deps, request, record, nativeForm, derived,
+        operation, operationId, sessionToken, identity, submittedInputs, seenHolder);
+    } catch (err) {
+      seen = seenHolder.current;
+      throw err;
     }
-    let retainedBinding = false;
-    let businessInputs = nativeForm === null ? submittedInputs : projectNativeForm(derived, nativeForm);
-    if (nativeForm !== null) seen = { operationId, inputs: businessInputs };
-    if (Object.hasOwn(record, SOURCE_FORM_BINDING_FIELD)) {
-      const token = record[SOURCE_FORM_BINDING_FIELD];
-      let restored = typeof token !== 'string' || derived === null || deps.formBindings === undefined ? null :
-        await deps.formBindings.restore({ appId: deps.app.appId, sessionToken, identity, derived,
-          operationId, nowMs: deps.clock.nowMs() }, token, businessInputs);
-      if (restored === null && typeof token === 'string' && derived !== null &&
-          ['create', 'update', 'delete', 'scenario'].includes(derived.kind) &&
-          typeof deps.formBindings?.restoreRetained === 'function' && typeof deps.invoker.invokeRetainedMutation === 'function') {
-        restored = await deps.formBindings.restoreRetained({ appId: deps.app.appId, sessionToken, identity, derived,
-          operationId, nowMs: deps.clock.nowMs() }, token, businessInputs);
-        retainedBinding = restored !== null;
-      }
-      if (restored === null) {
-        return denyOrRerender(deps, request, operation,
-          buildBusinessError('forbidden', 'This form binding is no longer available. Reload the page.'), seen, authed);
-      }
-      businessInputs = restored;
-      seen = { operationId, inputs: businessInputs };
-    }
+    if (restored instanceof Response) return restored;
+    seen = restored.seen;
+    const { businessInputs, retainedBinding } = restored;
     const prepared = await runSourceHttpPlan(deps.catalog, operation, businessInputs);
-    const closedError = prepared === undefined ? checkClosedInputs(businessInputs, shape) : prepared.ok ? null : prepared.error;
-    if (closedError !== null) {
-      return denyOrRerender(deps, request, operation, closedError, seen, authed);
-    }
     // E1 bound-input wiring: framing first, then each present value binds
     // to its derived declaration (delivery binds to nothing — submitted
     // receipts fail here when framing admits them). Catalogs without the
     // derived channel keep framing-only behavior.
-    if (derived !== null && prepared === undefined) {
-      const boundError = checkBoundArguments(derived, businessInputs);
-      if (boundError !== null) {
-        return denyOrRerender(deps, request, operation, boundError, seen, authed);
-      }
-    }
-
-    /* B4 pre-invoker admission: re-read CURRENT session facts after the
-     * capped body and checked arguments. Revocation or expiry before this
-     * read refuses entry with the admission-identical message. Work already
-     * admitted to the invoker has no retroactive cancellation guarantee. */
-    await assertCredentialLive(deps.identity.store, {
-      kind: 'session',
-      tokenHash: await sha256HexText(sessionToken),
-      now: new Date(deps.clock.nowMs()).toISOString(),
-    });
-    await assertSourceValidationCurrent(deps.catalog, operation);
-    const envelope: MutationEnvelope = { operation, operation_id: operationId, inputs: businessInputs };
-    assertSourceValidationStable(deps.catalog, operation);
-    const outcome = retainedBinding || retainedScenario
-      ? await deps.invoker.invokeRetainedMutation!(envelope, identity)
-      : await deps.invoker.invokeMutation(envelope, identity);
-    if ('error' in outcome) {
-      // Only the trusted invoker's exact durable rejection can start a new
-      // attempt. Unknown outcomes keep their original identity for replay.
-      const error = outcome.receipt === 'rejected' ? { ...outcome.error, operation_id: operationId } : outcome.error;
-      let retry: FormRetry | undefined;
-      if (outcome.receipt === 'rejected' && !retainedBinding && !retainedScenario && idError === null &&
-          derived !== null && ['create', 'update', 'scenario'].includes(derived.kind)) {
-        try {
-          await assertSourceValidationCurrent(deps.catalog, operation);
-          const nextId = mintOperationId(deps.clock.nowMs());
-          if (Object.hasOwn(record, SOURCE_FORM_BINDING_FIELD)) {
-            const token = record[SOURCE_FORM_BINDING_FIELD];
-            const renewed = typeof token !== 'string' || typeof deps.formBindings?.renew !== 'function' ? null :
-              await deps.formBindings.renew({ appId: deps.app.appId, sessionToken, identity, derived,
-                operationId, nowMs: deps.clock.nowMs() }, token, nextId);
-            if (typeof renewed === 'string' && renewed.length > 0) retry = { operation_id: nextId, form_binding: renewed };
-          } else {
-            retry = { operation_id: nextId };
-          }
-          assertSourceValidationStable(deps.catalog, operation);
-        } catch {
-          // Renewal is optional recovery, never a replacement denial.
-          retry = undefined;
-        }
-      }
-      return denyOrRerender(deps, request, operation, error, seen, authed, retry);
-    }
-    return new Response(JSON.stringify(outcome.result), {
-      status: 200,
-      headers: { 'content-type': 'application/json; charset=utf-8' },
-    });
+    const admission = await checkClosedOperationInputs(deps, request, operation, businessInputs,
+      shape, prepared, derived, seen, authed);
+    if (admission instanceof Response) return admission;
+    return await settleOperationOutcome(deps, request, operation, operationId, businessInputs,
+      identity, sessionToken, seen, authed, retainedBinding, retainedScenario, idError, derived, record);
   } catch (err) {
     if (err instanceof IdentityError) {
       return denyOrRerender(deps, request, operation, caughtToBusinessError(err), seen, authed);
@@ -579,10 +736,10 @@ function toDerivedDeliveryInput(field: CheckedArtifactDeliveryField): DerivedWri
   };
 }
 
-/** Project one checked input to its wire documented-optionality shape. */
-function toDerivedInput(field: CheckedArtifactInput): DerivedWritableInput {
-  if (isDeliveryField(field)) return toDerivedDeliveryInput(field);
-  const common = {
+function commonDerivedInput(field: CheckedArtifactField): {
+  name: string; required: boolean;
+} {
+  return {
     name: field.name,
     ...(field.choices === undefined ? {} : { choices: field.choices }),
     required: field.required,
@@ -593,7 +750,13 @@ function toDerivedInput(field: CheckedArtifactInput): DerivedWritableInput {
     ...(field.default === undefined ? {} : { default: field.default }),
     ...(field.description === undefined ? {} : { description: field.description }),
   };
-  const tag = field.field;
+}
+
+function derivedKindInput(
+  tag: CheckedArtifactField['field'],
+  field: CheckedArtifactField,
+  common: ReturnType<typeof commonDerivedInput>,
+): DerivedWritableInput {
   switch (tag.kind) {
     case 'nominal':
       return { ...common, kind: 'nominal', valueTypes: tag.valueTypes,
@@ -626,6 +789,12 @@ function toDerivedInput(field: CheckedArtifactInput): DerivedWritableInput {
         file: { valueShape: 'opaque-file-id', format: 'can-file' },
       };
   }
+}
+
+/** Project one checked input to its wire documented-optionality shape. */
+function toDerivedInput(field: CheckedArtifactInput): DerivedWritableInput {
+  if (isDeliveryField(field)) return toDerivedDeliveryInput(field);
+  return derivedKindInput(field.field, field, commonDerivedInput(field));
 }
 
 /** Project one checked operation to its wire derived-inputs shape. */

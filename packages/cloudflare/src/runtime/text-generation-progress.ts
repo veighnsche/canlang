@@ -62,6 +62,57 @@ function generationTarget(source: string, profile: GenerationProfile): string | 
   return target?.family === (profile === 'image' ? 'images' : 'text') ? source : null;
 }
 
+function checkProgressIntent(input: { readonly intent: OutboxIntent; readonly context: ReceiptResultContext },
+  profile: GenerationProfile): { target: string; request: Record<string, unknown> } {
+  const { intent, context } = input;
+  const target = generationTarget(intent.target, profile);
+  if (target === null || intent.target !== target || intent.intentId === '' || context.source !== target ||
+      !PROFILES[profile].context(context) || context.request === undefined) refuse(profile);
+  const carrier = intent.arguments;
+  if (!record(carrier) || Object.keys(carrier).length !== 3 || typeof carrier.binding !== 'string' ||
+      carrier.binding === '' || typeof carrier.from !== 'string' || carrier.from === '' ||
+      !record(carrier.arguments)) refuse(profile);
+  const request = target === PROFILES[profile].target ? carrier.arguments.value : carrier.arguments;
+  if (!record(request)) refuse(profile);
+  if (request.source !== context.request.source || request.revision !== context.request.revision ||
+      encodeValue('int', decodeValue('int', request.revision)) !== context.request.revision) refuse(profile);
+  return { target, request };
+}
+
+async function stageAssociationProgress(target: string, retained: ReturnType<typeof readReceiptRow>,
+  envelope: { delivery_id: string }, context: ReceiptResultContext, ctx: SystemCommandContext,
+  rows: Awaited<ReturnType<SystemCommandContext['query']>>,
+  receiptRow: NonNullable<Awaited<ReturnType<SystemCommandContext['load']>>>,
+  meta: { actor: SystemCommandContext['actor']; nowMs: number },
+  profile: GenerationProfile): Promise<{ writes: DomainWrite[]; notification: ProgressTerminalNotification | null }> {
+  const writes: DomainWrite[] = [];
+  let notification: ProgressTerminalNotification | null = null;
+  let nextReceipt = retained.receipt;
+  for (const row of rows) {
+    const association = readAssociationRow(row);
+    const model = row.data.recordModel;
+    if (typeof model !== 'string' || association.deliveryId !== envelope.delivery_id || association.source !== target) refuse(profile);
+    const owner = await ctx.load(model as ModelName, association.locator.recordId as RecordId);
+    if (owner === null || owner.archivedAt !== null) refuse(profile);
+    const delivery = decodeValue(`delivery(${target})`, owner.data[association.locator.field]);
+    if (!isDeliveryRef(delivery) || delivery.id !== envelope.delivery_id || delivery.operation !== target) refuse(profile);
+    const applied = applyRelatedProgress(target, association, retained.receipt, envelope, context);
+    if (!applied.applied) refuse(profile);
+    if (applied.replay) continue;
+    nextReceipt = applied.receipt;
+    notification = applied.notification;
+    writes.push({ kind: 'update', model: RECEIPT_ASSOCIATION_MODEL as ModelName, id: row.id,
+      expectedVersion: row.version, row: withAssociationRowData(row, { recordModel: model,
+        recordId: association.locator.recordId, field: association.locator.field,
+        deliveryId: applied.association.deliveryId, source: applied.association.source,
+        revision: applied.association.revision }, meta) });
+  }
+  if (writes.length !== 0) writes.push({ kind: 'update', model: RECEIPT_MODEL as ModelName, id: receiptRow.id,
+    expectedVersion: receiptRow.version, row: withReceiptRowData(receiptRow, { ...nextReceipt,
+      contentRef: retained.contentRef, resultExpiresAtMs: retained.resultExpiresAtMs }, meta, context) });
+  return { writes, notification };
+}
+
 /** Returns conditional writes for the caller's existing owner fence; never commits. */
 async function stageGenerationProgress(input: TextGenerationProgressInput | ImageGenerationProgressInput,
   ctx: SystemCommandContext, profile: GenerationProfile): Promise<TextGenerationProgressStaging> {
@@ -72,18 +123,8 @@ async function stageGenerationProgress(input: TextGenerationProgressInput | Imag
     return { ...staged, writes: [...staged.writes ?? [], ...events.writes ?? []],
       schedules: [...staged.schedules ?? [], ...events.schedules ?? []] };
   };
-  const target = generationTarget(intent.target, profile);
-  if (target === null || intent.target !== target || intent.intentId === '' || context.source !== target ||
-      !PROFILES[profile].context(context) || context.request === undefined ||
-      !Number.isSafeInteger(revision) || revision < 0) refuse(profile);
-  const carrier = intent.arguments;
-  if (!record(carrier) || Object.keys(carrier).length !== 3 || typeof carrier.binding !== 'string' ||
-      carrier.binding === '' || typeof carrier.from !== 'string' || carrier.from === '' ||
-      !record(carrier.arguments)) refuse(profile);
-  const request = target === PROFILES[profile].target ? carrier.arguments.value : carrier.arguments;
-  if (!record(request)) refuse(profile);
-  if (request.source !== context.request.source || request.revision !== context.request.revision ||
-      encodeValue('int', decodeValue('int', request.revision)) !== context.request.revision) refuse(profile);
+  const { target } = checkProgressIntent(input, profile);
+  if (!Number.isSafeInteger(revision) || revision < 0) refuse(profile);
   const receiptRow = await ctx.load(RECEIPT_MODEL as ModelName, intent.intentId as RecordId);
   if (receiptRow === null) refuse(profile);
   const retained = readReceiptRow(receiptRow, context);
@@ -108,32 +149,8 @@ async function stageGenerationProgress(input: TextGenerationProgressInput | Imag
         contentRef: retained.contentRef, resultExpiresAtMs: retained.resultExpiresAtMs }, meta, context) }],
       result: { notification: applied.notification } });
   }
-  const writes: DomainWrite[] = [];
-  let notification: ProgressTerminalNotification | null = null;
-  let nextReceipt = retained.receipt;
-  for (const row of rows) {
-    const association = readAssociationRow(row);
-    const model = row.data.recordModel;
-    if (typeof model !== 'string' || association.deliveryId !== intent.intentId || association.source !== target) refuse(profile);
-    const owner = await ctx.load(model as ModelName, association.locator.recordId as RecordId);
-    if (owner === null || owner.archivedAt !== null) refuse(profile);
-    const delivery = decodeValue(`delivery(${target})`, owner.data[association.locator.field]);
-    if (!isDeliveryRef(delivery) || delivery.id !== intent.intentId || delivery.operation !== target) refuse(profile);
-    const applied = applyRelatedProgress(target, association, retained.receipt, envelope, context);
-    if (!applied.applied) refuse(profile);
-    if (applied.replay) continue;
-    nextReceipt = applied.receipt;
-    notification = applied.notification;
-    writes.push({ kind: 'update', model: RECEIPT_ASSOCIATION_MODEL as ModelName, id: row.id,
-      expectedVersion: row.version, row: withAssociationRowData(row, { recordModel: model,
-        recordId: association.locator.recordId, field: association.locator.field,
-        deliveryId: applied.association.deliveryId, source: applied.association.source,
-        revision: applied.association.revision }, meta) });
-  }
-  if (writes.length !== 0) writes.push({ kind: 'update', model: RECEIPT_MODEL as ModelName, id: receiptRow.id,
-    expectedVersion: receiptRow.version, row: withReceiptRowData(receiptRow, { ...nextReceipt,
-      contentRef: retained.contentRef, resultExpiresAtMs: retained.resultExpiresAtMs }, meta, context) });
-  return withOccurrences({ writes, result: { notification } });
+  const staged = await stageAssociationProgress(target, retained, envelope, context, ctx, rows, receiptRow, meta, profile);
+  return withOccurrences({ writes: staged.writes, result: { notification: staged.notification } });
 }
 
 /** Read the original checked receipt without requiring a terminal outcome. */
@@ -142,17 +159,7 @@ async function readRetainedGenerationReceipt(
   ctx: SystemCommandContext, profile: GenerationProfile,
 ): Promise<AssociatedReceipt | null> {
   const { intent, context } = input;
-  const target = generationTarget(intent.target, profile);
-  if (target === null || intent.target !== target || intent.intentId === '' || context.source !== target ||
-      !PROFILES[profile].context(context) || context.request === undefined) refuse(profile);
-  const carrier = intent.arguments;
-  if (!record(carrier) || Object.keys(carrier).length !== 3 || typeof carrier.binding !== 'string' ||
-      carrier.binding === '' || typeof carrier.from !== 'string' || carrier.from === '' ||
-      !record(carrier.arguments)) refuse(profile);
-  const request = target === PROFILES[profile].target ? carrier.arguments.value : carrier.arguments;
-  if (!record(request)) refuse(profile);
-  if (request.source !== context.request.source || request.revision !== context.request.revision ||
-      encodeValue('int', decodeValue('int', request.revision)) !== context.request.revision) refuse(profile);
+  checkProgressIntent(input, profile);
   const row = await ctx.load(RECEIPT_MODEL as ModelName, intent.intentId as RecordId);
   if (row === null) return null;
   const { receipt } = readReceiptRow(row, context);

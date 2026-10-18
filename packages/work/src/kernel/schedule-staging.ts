@@ -158,11 +158,7 @@ export type DueScheduleResult =
  * refusals retain admission/consumption and a failed receipt, without business
  * changes. Already-admitted work without a receipt has no first-delivery path.
  */
-export async function stageDueSchedule(
-  input: DueScheduleInput,
-  ctx: SystemCommandContext,
-): Promise<DueScheduleResult> {
-  const what = 'stageDueSchedule';
+const readDueScheduleRequest = (input: DueScheduleInput, what: string) => {
   // Keep the existing argument checks and scoped-key encoding used by put/cancel.
   const args = input as unknown as Readonly<Record<string, unknown>>;
   checkArgs(args, what);
@@ -172,50 +168,71 @@ export async function stageDueSchedule(
   const event = argString(args, 'event', what);
   const occurrenceId = argString(args, 'occurrenceId', what);
   const captured = snapshotWorkFilePayloadOrigin(args);
-  const l3Key = embedScheduleKey(scope, key, what);
-  const row = await ctx.load(WORK_SCHEDULE_MODEL, occurrenceId as RecordId);
-  if (row === null) return { status: 'refused', reason: 'missing' };
-  const data = readScheduleRow(row);
-  requireWorkFilePayloadOriginReplay(readWorkFilePayloadOrigin(captured, row,
-    WORK_SCHEDULE_MODEL, 'payload', 'deferred-input'), data.filePayloadOrigin);
-  if (
-    row.id !== data.occurrenceId ||
-    data.occurrenceId !== occurrenceId ||
-    data.key !== key ||
-    data.scopeApp !== scope.app ||
-    data.scopeOwner !== scope.owner ||
-    data.scopeOwnerPackage !== scope.ownerPackage ||
-    data.event !== event ||
-    data.at !== at
-  ) {
-    return { status: 'refused', reason: 'mismatched' };
-  }
-  // Retain the authoritative stored payload, never a delivery-supplied snapshot.
-  const occurrence = Object.freeze({ ...data, payload: freezeRequest(data.payload) });
+  return { key, scope, at, event, occurrenceId, captured };
+};
+const matchStoredSchedule = (row: StoredRow, data: ScheduleRowData,
+  occurrenceId: string, key: string, scope: WorkScope, event: string, at: number): boolean => !(
+  row.id !== data.occurrenceId ||
+  data.occurrenceId !== occurrenceId ||
+  data.key !== key ||
+  data.scopeApp !== scope.app ||
+  data.scopeOwner !== scope.owner ||
+  data.scopeOwnerPackage !== scope.ownerPackage ||
+  data.event !== event ||
+  data.at !== at
+);
+const readReplayedReceipt = async (ctx: SystemCommandContext, occurrenceId: string): Promise<DueScheduleResult | null> => {
   const receiptRow = await ctx.load(WORK_OCCURRENCE_MODEL, occurrenceId as RecordId);
-  if (receiptRow !== null) {
-    const receipt = readOccurrenceRow(receiptRow);
-    if (receiptRow.id !== occurrenceId || receipt.occurrenceId !== occurrenceId) {
-      return { status: 'refused', reason: 'mismatched-receipt' };
-    }
-    // Original receipts replay even after a replacement became the current head.
-    return { status: 'replayed', receipt };
+  if (receiptRow === null) return null;
+  const receipt = readOccurrenceRow(receiptRow);
+  if (receiptRow.id !== occurrenceId || receipt.occurrenceId !== occurrenceId) {
+    return { status: 'refused', reason: 'mismatched-receipt' };
   }
-  if (occurrence.state !== 'pending') {
-    return { status: 'refused', reason: occurrence.state };
-  }
-  if (occurrence.at > ctx.now) return { status: 'refused', reason: 'future' };
+  // Original receipts replay even after a replacement became the current head.
+  return { status: 'replayed', receipt };
+};
+const loadScheduleHead = async (ctx: SystemCommandContext, scope: WorkScope, key: string,
+  occurrenceId: string, version: number, event: string, at: number) => {
   const entries = await loadKeyedSchedules(ctx, scope, key);
   const head = selectScheduleHead(entries);
   if (
     head === null ||
     head.row.id !== occurrenceId ||
     head.data.occurrenceId !== occurrenceId ||
-    head.row.version !== row.version ||
+    head.row.version !== version ||
     head.data.state !== 'pending' ||
     head.data.event !== event ||
     head.data.at !== at
   ) {
+    return null;
+  }
+  return head;
+};
+export async function stageDueSchedule(
+  input: DueScheduleInput,
+  ctx: SystemCommandContext,
+): Promise<DueScheduleResult> {
+  const what = 'stageDueSchedule';
+  const { key, scope, at, event, occurrenceId, captured } = readDueScheduleRequest(input, what);
+  const l3Key = embedScheduleKey(scope, key, what);
+  const row = await ctx.load(WORK_SCHEDULE_MODEL, occurrenceId as RecordId);
+  if (row === null) return { status: 'refused', reason: 'missing' };
+  const data = readScheduleRow(row);
+  requireWorkFilePayloadOriginReplay(readWorkFilePayloadOrigin(captured, row,
+    WORK_SCHEDULE_MODEL, 'payload', 'deferred-input'), data.filePayloadOrigin);
+  if (!matchStoredSchedule(row, data, occurrenceId, key, scope, event, at)) {
+    return { status: 'refused', reason: 'mismatched' };
+  }
+  // Retain the authoritative stored payload, never a delivery-supplied snapshot.
+  const occurrence = Object.freeze({ ...data, payload: freezeRequest(data.payload) });
+  const replayed = await readReplayedReceipt(ctx, occurrenceId);
+  if (replayed !== null) return replayed;
+  if (occurrence.state !== 'pending') {
+    return { status: 'refused', reason: occurrence.state };
+  }
+  if (occurrence.at > ctx.now) return { status: 'refused', reason: 'future' };
+  const head = await loadScheduleHead(ctx, scope, key, occurrenceId, row.version, event, at);
+  if (head === null) {
     return { status: 'refused', reason: 'stale' };
   }
   return {

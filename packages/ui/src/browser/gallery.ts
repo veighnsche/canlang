@@ -34,13 +34,28 @@ function releaseGalleryResources(releases: readonly (() => void)[]): void {
   if (failure !== undefined) throw failure.value;
 }
 
-export const bindGallery: ComponentBinder = (root, client, internals) => {
+function galleryElements(root: ElementLike): {
+  dialog: GalleryDialog; image: GalleryImage; state: StatusElement; original: ElementLike;
+} | undefined {
   const dialog = root.querySelector?.('[data-can-gallery-dialog]') as GalleryDialog | null | undefined;
   const image = root.querySelector?.('[data-can-gallery-image]') as GalleryImage | null | undefined;
   const state = root.querySelector?.('[data-can-gallery-state]') as StatusElement | null | undefined;
   const original = root.querySelector?.('[data-can-gallery-preview-original]');
   if (dialog == null || image == null || state == null || original == null ||
-      typeof dialog.showModal !== 'function' || typeof dialog.close !== 'function' || typeof image.decode !== 'function') return () => {};
+      typeof dialog.showModal !== 'function' || typeof dialog.close !== 'function' || typeof image.decode !== 'function') return undefined;
+  return { dialog, image, state, original };
+}
+
+function checkPreviewResponse(response: ImageResponse): void {
+  const type = response.headers.get('content-type')?.split(';')[0]?.trim().toLowerCase();
+  if (!Number.isInteger(response.status) || response.status < 200 || response.status >= 300 || response.redirected === true ||
+      (type !== 'image/png' && type !== 'image/jpeg')) throw new Error('Gallery preview refused.');
+}
+
+export const bindGallery: ComponentBinder = (root, client, internals) => {
+  const elements = galleryElements(root);
+  if (elements === undefined) return () => {};
+  const { dialog, image, state, original } = elements;
   const context = client.contextKey();
   const loading = root.getAttribute('data-can-gallery-loading') ?? '';
   const error = root.getAttribute('data-can-gallery-error') ?? '';
@@ -86,6 +101,30 @@ export const bindGallery: ComponentBinder = (root, client, internals) => {
     }
     return undefined;
   };
+  const showPreview = async (
+    button: ElementLike, token: number,
+    rawPreviewUrl: string | null, rawOriginalUrl: string | null, alt: string,
+    current: () => boolean,
+  ) => {
+    state.textContent = loading;
+    if (!dialog.open) dialog.showModal();
+    root.querySelector?.('[data-can-gallery-close]')?.focus();
+    const previewUrl = protectedUrl(rawPreviewUrl, internals);
+    const originalUrl = protectedUrl(rawOriginalUrl, internals);
+    if (internals.imageFetch === undefined) throw new Error('Gallery preview transport is unavailable.');
+    controller = new AbortController();
+    const response = await internals.imageFetch(previewUrl, { method: 'GET', cache: 'no-store', credentials: 'same-origin',
+      mode: 'same-origin', redirect: 'error', signal: controller.signal });
+    if (!current()) { if (token === version) invalidate(); return; }
+    checkPreviewResponse(response);
+    const blob = await response.blob();
+    if (!current()) { if (token === version) invalidate(); return; }
+    objectUrl = URL.createObjectURL(blob); image.setAttribute('src', objectUrl);
+    await image.decode();
+    if (!current()) { if (token === version) invalidate(); return; }
+    image.setAttribute('alt', alt); image.removeAttribute('hidden'); state.textContent = '';
+    original.setAttribute('href', originalUrl); original.removeAttribute('hidden');
+  };
   const activate = async (button: ElementLike) => {
     if (!connected() || !button.isConnected) return;
     invalidate(); opener = button;
@@ -102,26 +141,7 @@ export const bindGallery: ComponentBinder = (root, client, internals) => {
       root.querySelector?.('[data-can-gallery-state]') === state &&
       root.querySelector?.('[data-can-gallery-preview-original]') === original;
     try {
-      state.textContent = loading;
-      if (!dialog.open) dialog.showModal();
-      root.querySelector?.('[data-can-gallery-close]')?.focus();
-      const previewUrl = protectedUrl(rawPreviewUrl, internals);
-      const originalUrl = protectedUrl(rawOriginalUrl, internals);
-      if (internals.imageFetch === undefined) throw new Error('Gallery preview transport is unavailable.');
-      controller = new AbortController();
-      const response = await internals.imageFetch(previewUrl, { method: 'GET', cache: 'no-store', credentials: 'same-origin',
-        mode: 'same-origin', redirect: 'error', signal: controller.signal });
-      if (!current()) { if (token === version) invalidate(); return; }
-      const type = response.headers.get('content-type')?.split(';')[0]?.trim().toLowerCase();
-      if (!Number.isInteger(response.status) || response.status < 200 || response.status >= 300 || response.redirected === true ||
-          (type !== 'image/png' && type !== 'image/jpeg')) throw new Error('Gallery preview refused.');
-      const blob = await response.blob();
-      if (!current()) { if (token === version) invalidate(); return; }
-      objectUrl = URL.createObjectURL(blob); image.setAttribute('src', objectUrl);
-      await image.decode();
-      if (!current()) { if (token === version) invalidate(); return; }
-      image.setAttribute('alt', alt); image.removeAttribute('hidden'); state.textContent = '';
-      original.setAttribute('href', originalUrl); original.removeAttribute('hidden');
+      await showPreview(button, token, rawPreviewUrl, rawOriginalUrl, alt, current);
     } catch {
       if (!current()) { if (token === version) invalidate(); return; }
       invalidate(); state.textContent = error;
@@ -146,28 +166,34 @@ export const bindGallery: ComponentBinder = (root, client, internals) => {
     try { await thumb.decode(); if (current()) outlet.textContent = ''; }
     catch { if (current()) outlet.textContent = error; }
   };
-  try {
-  listen(root, 'click', event => {
-    const closeButton = ownTarget(event.target, 'data-can-gallery-close');
-    if (closeButton !== undefined) { event.preventDefault(); close(); return; }
-    const button = ownTarget(event.target, 'data-can-gallery-preview');
-    if (button !== undefined) { event.preventDefault(); void activate(button); return; }
-    const link = ownTarget(event.target, 'data-can-gallery-original') ?? ownTarget(event.target, 'data-can-gallery-preview-original');
-    if (link !== undefined) { try { protectedUrl(link.getAttribute('href'), internals); } catch { event.preventDefault(); } }
-  });
-  listen(root, 'load', event => { const thumb = ownTarget(event.target, 'data-can-gallery-thumb'); if (thumb !== undefined) void loaded(thumb as GalleryImage); }, true);
-  listen(root, 'error', event => { const thumb = ownTarget(event.target, 'data-can-gallery-thumb'); if (thumb !== undefined) failed(thumb as GalleryImage); }, true);
-  for (const thumb of root.querySelectorAll?.('[data-can-gallery-thumb]') ?? []) {
-    const outlet = thumbnailState(thumb as GalleryImage);
-    if (outlet == null) continue;
-    outlet.textContent = loading;
-    if ((thumb as GalleryImage).complete === true) {
-      if (((thumb as GalleryImage).naturalWidth ?? 0) > 0) void loaded(thumb as GalleryImage);
-      else if (thumb.getAttribute('src') !== null) failed(thumb as GalleryImage);
+  const wireGalleryEvents = () => {
+    listen(root, 'click', event => {
+      const closeButton = ownTarget(event.target, 'data-can-gallery-close');
+      if (closeButton !== undefined) { event.preventDefault(); close(); return; }
+      const button = ownTarget(event.target, 'data-can-gallery-preview');
+      if (button !== undefined) { event.preventDefault(); void activate(button); return; }
+      const link = ownTarget(event.target, 'data-can-gallery-original') ?? ownTarget(event.target, 'data-can-gallery-preview-original');
+      if (link !== undefined) { try { protectedUrl(link.getAttribute('href'), internals); } catch { event.preventDefault(); } }
+    });
+    listen(root, 'load', event => { const thumb = ownTarget(event.target, 'data-can-gallery-thumb'); if (thumb !== undefined) void loaded(thumb as GalleryImage); }, true);
+    listen(root, 'error', event => { const thumb = ownTarget(event.target, 'data-can-gallery-thumb'); if (thumb !== undefined) failed(thumb as GalleryImage); }, true);
+    primeGalleryThumbs();
+    listen(dialog, 'cancel', event => { event.preventDefault(); close(); });
+    listen(dialog, 'close', () => { if (!dialog.open && (opener !== undefined || controller !== undefined || objectUrl !== undefined)) close(); });
+  };
+  const primeGalleryThumbs = () => {
+    for (const thumb of root.querySelectorAll?.('[data-can-gallery-thumb]') ?? []) {
+      const outlet = thumbnailState(thumb as GalleryImage);
+      if (outlet == null) continue;
+      outlet.textContent = loading;
+      if ((thumb as GalleryImage).complete === true) {
+        if (((thumb as GalleryImage).naturalWidth ?? 0) > 0) void loaded(thumb as GalleryImage);
+        else if (thumb.getAttribute('src') !== null) failed(thumb as GalleryImage);
+      }
     }
-  }
-  listen(dialog, 'cancel', event => { event.preventDefault(); close(); });
-  listen(dialog, 'close', () => { if (!dialog.open && (opener !== undefined || controller !== undefined || objectUrl !== undefined)) close(); });
+  };
+  try {
+    wireGalleryEvents();
   } catch (failure) {
     try { dispose(); } catch { /* Preserve the acquisition failure. */ }
     throw failure;

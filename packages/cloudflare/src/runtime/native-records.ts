@@ -83,25 +83,32 @@ function wireSnapshot(row: StoredRow): StoredRow {
   let immutable = true;
   let nodes = 0;
   const seen = new Set<object>();
-  const copy = (value: unknown, depth: number): unknown => {
-    if (++nodes > 20_000 || depth > 32) throw new StateError('validation', 'Scenario wire snapshot exceeds its bound.');
-    if (value === null || typeof value === 'string' || typeof value === 'boolean' ||
-        (typeof value === 'number' && Number.isFinite(value))) return value;
+  const copyOwnMember = (owner: object, key: string | symbol,
+    result: unknown[] | Record<string, unknown>, depth: number): void => {
+    const member = Object.getOwnPropertyDescriptor(owner, key);
+    if (typeof key !== 'string' || member === undefined || !('value' in member) || !member.enumerable ||
+        (Array.isArray(owner) && !/^(0|[1-9]\d*)$/.test(key))) {
+      throw new StateError('validation', 'Scenario wire snapshot cannot contain accessors or hidden members.');
+    }
+    Object.defineProperty(result, key, { value: copy(member.value, depth + 1), enumerable: true });
+  };
+  const assertCopyableValue: (value: unknown) => asserts value is object = (value) => {
     if (typeof value !== 'object' || value === null || seen.has(value) ||
         (!Array.isArray(value) && Object.getPrototypeOf(value) !== Object.prototype && Object.getPrototypeOf(value) !== null)) {
       throw new StateError('validation', 'Scenario wire snapshot requires own JSON data.');
     }
+  };
+  const copy = (value: unknown, depth: number): unknown => {
+    if (++nodes > 20_000 || depth > 32) throw new StateError('validation', 'Scenario wire snapshot exceeds its bound.');
+    if (value === null || typeof value === 'string' || typeof value === 'boolean' ||
+        (typeof value === 'number' && Number.isFinite(value))) return value;
+    assertCopyableValue(value);
     immutable &&= Object.isFrozen(value);
     seen.add(value);
     const result: unknown[] | Record<string, unknown> = Array.isArray(value) ? [] : {};
     for (const key of Reflect.ownKeys(value)) {
       if (Array.isArray(value) && key === 'length') continue;
-      const member = Object.getOwnPropertyDescriptor(value, key);
-      if (typeof key !== 'string' || member === undefined || !('value' in member) || !member.enumerable ||
-          (Array.isArray(value) && !/^(0|[1-9]\d*)$/.test(key))) {
-        throw new StateError('validation', 'Scenario wire snapshot cannot contain accessors or hidden members.');
-      }
-      Object.defineProperty(result, key, { value: copy(member.value, depth + 1), enumerable: true });
+      copyOwnMember(value, key, result, depth);
     }
     if (Array.isArray(value) && Object.keys(result).length !== value.length) {
       throw new StateError('validation', 'Scenario wire snapshot cannot contain sparse arrays.');

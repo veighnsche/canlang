@@ -357,54 +357,67 @@ function assertNormalizedSchema(schema: unknown): asserts schema is NormalizedSc
  * Compares a validated value against a bound of the same kind: -1/0/1, or
  * null when the pair is unorderable (money across currencies).
  */
+function compareIntBound(value: CanValue, bound: CanValue): -1 | 0 | 1 | null {
+  if (typeof value !== "bigint" || typeof bound !== "bigint") {
+    return null;
+  }
+  if (value < bound) {
+    return -1;
+  }
+  if (value > bound) {
+    return 1;
+  }
+  return 0;
+}
+
+function compareMoneyBound(value: CanValue, bound: CanValue): -1 | 0 | 1 | null {
+  if (!isMoney(value) || !isMoney(bound)) {
+    return null;
+  }
+  if (value.currency !== bound.currency) {
+    return null;
+  }
+  if (value.minor < bound.minor) {
+    return -1;
+  }
+  if (value.minor > bound.minor) {
+    return 1;
+  }
+  return 0;
+}
+
+function compareDateBound(value: CanValue, bound: CanValue): -1 | 0 | 1 | null {
+  if (!isDateValue(value) || !isDateValue(bound)) {
+    return null;
+  }
+  const order = compareDate(value, bound);
+  return order < 0 ? -1 : order > 0 ? 1 : 0;
+}
+
+function compareInstantBound(value: CanValue, bound: CanValue): -1 | 0 | 1 | null {
+  if (!isDatetime(value) || !isDatetime(bound)) {
+    return null;
+  }
+  const order = compareInstant(value, bound);
+  return order < 0 ? -1 : order > 0 ? 1 : 0;
+}
+
 function compareBound(kind: string, value: CanValue, bound: CanValue): -1 | 0 | 1 | null {
   switch (kind) {
     case "int":
     case "duration":
-      if (typeof value !== "bigint" || typeof bound !== "bigint") {
-        return null;
-      }
-      if (value < bound) {
-        return -1;
-      }
-      if (value > bound) {
-        return 1;
-      }
-      return 0;
+      return compareIntBound(value, bound);
     case "decimal":
       if (!isDecimal(value) || !isDecimal(bound)) {
         return null;
       }
       return compareDecimal(value, bound);
-    case "money": {
-      if (!isMoney(value) || !isMoney(bound)) {
-        return null;
-      }
-      if (value.currency !== bound.currency) {
-        return null;
-      }
-      if (value.minor < bound.minor) {
-        return -1;
-      }
-      if (value.minor > bound.minor) {
-        return 1;
-      }
-      return 0;
-    }
-    case "date": {
-      if (!isDateValue(value) || !isDateValue(bound)) {
-        return null;
-      }
-      const order = compareDate(value, bound);
-      return order < 0 ? -1 : order > 0 ? 1 : 0;
-    }
-    case "datetime": {
-      if (!isDatetime(value) || !isDatetime(bound)) {
-        return null;
-      }
-      const order = compareInstant(value, bound);
-      return order < 0 ? -1 : order > 0 ? 1 : 0;
-    }
+    case "money":
+      return compareMoneyBound(value, bound);
+    case "date":
+      return compareDateBound(value, bound);
+    case "datetime":
+      return compareInstantBound(value, bound);
     default:
       return null;
   }
@@ -419,57 +432,97 @@ function renderBound(leafId: string, value: CanValue): string {
  * Inclusive bound check on an already-validated non-null value. Bounds run
  * after normalization (DESIGN L131); money across currencies cannot order.
  */
-function checkBounds(field: FieldView, value: CanValue, path: Path, ctx: Collector): void {
-  if (field.format === "name" && typeof value === "string" && !NAME_RE.test(value)) {
-    pushViolation(ctx, path, "format", "text must match Can NAME", "letter/underscore followed by letters, digits or underscores", actualWire(value));
-  }
-  if (field.distinctBy === "id" && Array.isArray(value)) {
-    const seen = new Set<string>();
-    const excluded = new Set(field.excludedIds ?? []);
-    for (let index = 0; index < value.length; index += 1) {
-      const entry = value[index];
-      const id = typeof entry === "object" && entry !== null && !Array.isArray(entry)
-        ? (entry as Readonly<Record<string, unknown>>)["id"] : undefined;
-      const idPath = [...path, index, "id"];
-      if (typeof id !== "string") {
-        pushViolation(ctx, idPath, "format", "array ids must be text", "text id", actualWire(id));
-        continue;
-      }
-      if (seen.has(id)) pushViolation(ctx, idPath, "format", "array repeats an id", "distinct ids", actualWire(id));
-      if (excluded.has(id)) pushViolation(ctx, idPath, "format", "array id collides with an authored id", "id outside excludedIds", actualWire(id));
-      seen.add(id);
-    }
-  }
-  const lengthMin = field.lengthMin;
-  const lengthMax = field.lengthMax;
-  if (lengthMin !== undefined || lengthMax !== undefined) {
-    const length =
-      typeof value === "string" ? Number(scalarLength(value)) : Array.isArray(value) ? value.length : null;
-    if (length === null) {
-      return;
-    }
-    if (lengthMin !== undefined && length < lengthMin) {
-      pushViolation(
-        ctx,
-        path,
-        "bound",
-        `length ${length} is below the minimum of ${lengthMin}`,
-        `length >= ${lengthMin}`,
-        `length ${length}`,
-      );
-    }
-    if (lengthMax !== undefined && length > lengthMax) {
-      pushViolation(
-        ctx,
-        path,
-        "bound",
-        `length ${length} is above the maximum of ${lengthMax}`,
-        `length <= ${lengthMax}`,
-        `length ${length}`,
-      );
-    }
+/** Distinct-id check for `distinctBy=id` arrays. */
+function checkDistinctIds(field: FieldView, value: CanValue, path: Path, ctx: Collector): void {
+  if (field.distinctBy !== "id" || !Array.isArray(value)) {
     return;
   }
+  const seen = new Set<string>();
+  const excluded = new Set(field.excludedIds ?? []);
+  for (let index = 0; index < value.length; index += 1) {
+    const entry = value[index];
+    const id = typeof entry === "object" && entry !== null && !Array.isArray(entry)
+      ? (entry as Readonly<Record<string, unknown>>)["id"] : undefined;
+    const idPath = [...path, index, "id"];
+    if (typeof id !== "string") {
+      pushViolation(ctx, idPath, "format", "array ids must be text", "text id", actualWire(id));
+      continue;
+    }
+    if (seen.has(id)) pushViolation(ctx, idPath, "format", "array repeats an id", "distinct ids", actualWire(id));
+    if (excluded.has(id)) pushViolation(ctx, idPath, "format", "array id collides with an authored id", "id outside excludedIds", actualWire(id));
+    seen.add(id);
+  }
+}
+
+/** Length-bound check; returns after handling when length bounds apply. */
+function checkLengthBounds(field: FieldView, value: CanValue, path: Path, ctx: Collector): boolean {
+  const lengthMin = field.lengthMin;
+  const lengthMax = field.lengthMax;
+  if (lengthMin === undefined && lengthMax === undefined) {
+    return false;
+  }
+  const length =
+    typeof value === "string" ? Number(scalarLength(value)) : Array.isArray(value) ? value.length : null;
+  if (length === null) {
+    return true;
+  }
+  if (lengthMin !== undefined && length < lengthMin) {
+    pushViolation(
+      ctx,
+      path,
+      "bound",
+      `length ${length} is below the minimum of ${lengthMin}`,
+      `length >= ${lengthMin}`,
+      `length ${length}`,
+    );
+  }
+  if (lengthMax !== undefined && length > lengthMax) {
+    pushViolation(
+      ctx,
+      path,
+      "bound",
+      `length ${length} is above the maximum of ${lengthMax}`,
+      `length <= ${lengthMax}`,
+      `length ${length}`,
+    );
+  }
+  return true;
+}
+
+/** One-sided value-bound check against an already-validated value. */
+function checkOneValueBound(
+  leafId: string,
+  baseName: string,
+  value: CanValue,
+  bound: CanValue,
+  path: Path,
+  ctx: Collector,
+  side: "min" | "max",
+): void {
+  const order = compareBound(baseName, value, bound);
+  if (order === null) {
+    pushViolation(
+      ctx,
+      path,
+      "bound",
+      "money bound needs a matching currency",
+      `currency ${(bound as MoneyValue).currency}`,
+      renderBound(leafId, value),
+    );
+  } else if (side === "min" ? order < 0 : order > 0) {
+    pushViolation(
+      ctx,
+      path,
+      "bound",
+      side === "min" ? "value is below the minimum" : "value is above the maximum",
+      side === "min" ? `>= ${renderBound(leafId, bound)}` : `<= ${renderBound(leafId, bound)}`,
+      renderBound(leafId, value),
+    );
+  }
+}
+
+/** Value-bound check for scalar minima/maxima. */
+function checkValueBounds(field: FieldView, value: CanValue, path: Path, ctx: Collector): void {
   const valueMin = field.valueMin;
   const valueMax = field.valueMax;
   if (valueMin === undefined && valueMax === undefined) {
@@ -481,49 +534,22 @@ function checkBounds(field: FieldView, value: CanValue, path: Path, ctx: Collect
   }
   const leafId = printTypeBase(base);
   if (valueMin !== undefined) {
-    const order = compareBound(base.name, value, valueMin);
-    if (order === null) {
-      pushViolation(
-        ctx,
-        path,
-        "bound",
-        "money bound needs a matching currency",
-        `currency ${(valueMin as MoneyValue).currency}`,
-        renderBound(leafId, value),
-      );
-    } else if (order < 0) {
-      pushViolation(
-        ctx,
-        path,
-        "bound",
-        "value is below the minimum",
-        `>= ${renderBound(leafId, valueMin)}`,
-        renderBound(leafId, value),
-      );
-    }
+    checkOneValueBound(leafId, base.name, value, valueMin, path, ctx, "min");
   }
   if (valueMax !== undefined) {
-    const order = compareBound(base.name, value, valueMax);
-    if (order === null) {
-      pushViolation(
-        ctx,
-        path,
-        "bound",
-        "money bound needs a matching currency",
-        `currency ${(valueMax as MoneyValue).currency}`,
-        renderBound(leafId, value),
-      );
-    } else if (order > 0) {
-      pushViolation(
-        ctx,
-        path,
-        "bound",
-        "value is above the maximum",
-        `<= ${renderBound(leafId, valueMax)}`,
-        renderBound(leafId, value),
-      );
-    }
+    checkOneValueBound(leafId, base.name, value, valueMax, path, ctx, "max");
   }
+}
+
+function checkBounds(field: FieldView, value: CanValue, path: Path, ctx: Collector): void {
+  if (field.format === "name" && typeof value === "string" && !NAME_RE.test(value)) {
+    pushViolation(ctx, path, "format", "text must match Can NAME", "letter/underscore followed by letters, digits or underscores", actualWire(value));
+  }
+  checkDistinctIds(field, value, path, ctx);
+  if (checkLengthBounds(field, value, path, ctx)) {
+    return;
+  }
+  checkValueBounds(field, value, path, ctx);
 }
 
 /** Applies accumulated SchemaError violations from a leaf decode to this path. */
@@ -862,54 +888,78 @@ function validateNode(
       pushViolation(ctx, path, "type", "expected an array", printTypeId(ast), actualWire(wire));
       return FAIL;
     }
-    const element: NormalizedType = { base: ast.base, array: false, nullable: false, requiredArray: false };
-    // Array elements are complete values even in update partials.
-    const complete: NodeOptions =
-      options.nesting === "explicit"
-        ? { nesting: "explicit", requireVersion: options.requireVersion }
-        : { nesting: "create", requireVersion: options.requireVersion };
-    const out: CanValue[] = [];
-    let ok = true;
-    for (let index = 0; index < wire.length; index += 1) {
-      const decoded = validateNode(schema, element, wire[index], [...path, index], ctx, complete);
-      if (decoded === FAIL || decoded === UPDATE_OMITTED) {
-        ok = false;
-      } else {
-        out.push(decoded as CanValue);
-      }
-    }
-    return ok ? (Object.freeze(out) as CanValue[]) : FAIL;
+    return validateArrayElements(schema, ast, wire, path, ctx, options);
   }
   const base = ast.base;
   switch (base.kind) {
     case "union":
       return validateUnionValue(schema, base.arms, wire, path, ctx, options);
-    case "nominal": {
-      const alias = schema.aliases !== undefined && Object.hasOwn(schema.aliases, base.path) ? schema.aliases[base.path] : undefined;
-      if (alias !== undefined) {
-        const before = ctx.violations.length;
-        const decoded = validateNode(schema, alias.type, wire, path, ctx, options);
-        if (decoded === FAIL || decoded === UPDATE_OMITTED) return decoded;
-        // The receiving field normalizes decoded text before both declared
-        // alias constraints and its own constraints; direct alias reads retain
-        // their declared validation without receiving-field normalization.
-        const stored = receivingTrim && typeof decoded === "string" ? trimText(decoded) : decoded;
-        if (stored !== null && hasBounds(alias) && ctx.violations.length === before) checkBounds(alias, stored as CanValue, path, ctx);
-        return ctx.violations.length === before ? stored : FAIL;
-      }
-      const contract = schema.contracts[base.path];
-      if (contract !== undefined) {
-        return validateContractValue(schema, base.path, contract, wire, path, ctx, options);
-      }
-      const enumeration = schema.enums[base.path];
-      if (enumeration !== undefined) {
-        return validateEnumValue(base.path, enumeration.cases, wire, path, ctx);
-      }
-      return validateModelRef(base.path, wire, path, ctx, options);
-    }
+    case "nominal":
+      return validateNominalValue(schema, base.path, wire, path, ctx, options, receivingTrim);
     default:
       return validateLeaf(printTypeBase(base), wire, path, ctx);
   }
+}
+
+/** Elementwise validation for array values. */
+function validateArrayElements(
+  schema: SchemaView,
+  ast: NormalizedType,
+  wire: unknown[],
+  path: Path,
+  ctx: Collector,
+  options: NodeOptions,
+): NodeOut {
+  const element: NormalizedType = { base: ast.base, array: false, nullable: false, requiredArray: false };
+  // Array elements are complete values even in update partials.
+  const complete: NodeOptions =
+    options.nesting === "explicit"
+      ? { nesting: "explicit", requireVersion: options.requireVersion }
+      : { nesting: "create", requireVersion: options.requireVersion };
+  const out: CanValue[] = [];
+  let ok = true;
+  for (let index = 0; index < wire.length; index += 1) {
+    const decoded = validateNode(schema, element, wire[index], [...path, index], ctx, complete);
+    if (decoded === FAIL || decoded === UPDATE_OMITTED) {
+      ok = false;
+    } else {
+      out.push(decoded as CanValue);
+    }
+  }
+  return ok ? (Object.freeze(out) as CanValue[]) : FAIL;
+}
+
+/** Alias/contract/enum/model dispatch for nominal values. */
+function validateNominalValue(
+  schema: SchemaView,
+  name: string,
+  wire: unknown,
+  path: Path,
+  ctx: Collector,
+  options: NodeOptions,
+  receivingTrim: boolean,
+): NodeOut {
+  const alias = schema.aliases !== undefined && Object.hasOwn(schema.aliases, name) ? schema.aliases[name] : undefined;
+  if (alias !== undefined) {
+    const before = ctx.violations.length;
+    const decoded = validateNode(schema, alias.type, wire, path, ctx, options);
+    if (decoded === FAIL || decoded === UPDATE_OMITTED) return decoded;
+    // The receiving field normalizes decoded text before both declared
+    // alias constraints and its own constraints; direct alias reads retain
+    // their declared validation without receiving-field normalization.
+    const stored = receivingTrim && typeof decoded === "string" ? trimText(decoded) : decoded;
+    if (stored !== null && hasBounds(alias) && ctx.violations.length === before) checkBounds(alias, stored as CanValue, path, ctx);
+    return ctx.violations.length === before ? stored : FAIL;
+  }
+  const contract = schema.contracts[name];
+  if (contract !== undefined) {
+    return validateContractValue(schema, name, contract, wire, path, ctx, options);
+  }
+  const enumeration = schema.enums[name];
+  if (enumeration !== undefined) {
+    return validateEnumValue(name, enumeration.cases, wire, path, ctx);
+  }
+  return validateModelRef(name, wire, path, ctx, options);
 }
 
 // ---------------------------------------------------------------------------
@@ -983,25 +1033,12 @@ function normalizeValueBound(
   }
 }
 
-function normalizeField(
-  desc: unknown,
+/** Unknown-key check for a field descriptor; false when violations were pushed. */
+function checkFieldDescriptorKeys(
+  desc: Record<string, unknown>,
   path: Path,
   ctx: Collector,
-  allowRequiredArray: boolean,
-  allowServerInit: boolean,
-  aliases: Readonly<Record<string, PendingField>> = Object.create(null),
-): PendingField | null {
-  if (!isObject(desc)) {
-    pushViolation(
-      ctx,
-      path,
-      "type",
-      "field descriptor must be an object",
-      "{type, min?, max?, format?, distinctBy?, excludedIds?, default?, trim?, server?, derived?}",
-      actualWire(desc),
-    );
-    return null;
-  }
+): boolean {
   let ok = true;
   for (const key of Object.keys(desc)) {
     if (
@@ -1027,6 +1064,17 @@ function normalizeField(
       );
     }
   }
+  return ok;
+}
+
+/** Parse the field `type` id, enforcing the operation-input `[]!` rule. */
+function parseFieldType(
+  desc: Record<string, unknown>,
+  path: Path,
+  ctx: Collector,
+  allowRequiredArray: boolean,
+): { ast: NormalizedType | null; ok: boolean; hasDefault: boolean; rawDefault: unknown } {
+  let ok = true;
   const typeRaw = desc["type"];
   let ast: NormalizedType | null = null;
   if (isAbsent(typeRaw)) {
@@ -1084,8 +1132,19 @@ function normalizeField(
       "no default alongside []!",
     );
   }
+  return { ast, ok, hasDefault, rawDefault };
+}
+
+/** Read T09 engine-resolved markers (`server`/`derived` booleans). */
+function readEngineMarkers(
+  desc: Record<string, unknown>,
+  path: Path,
+  ctx: Collector,
+  allowServerInit: boolean,
+): { server: boolean; derived: boolean; ok: boolean } {
   // T09 engine-resolved markers: booleans, effective only when true, one
   // initializer only (GRAMMAR L192), contract fields only (GRAMMAR L198).
+  let ok = true;
   let server = false;
   let derived = false;
   for (const key of ["server", "derived"] as const) {
@@ -1127,6 +1186,19 @@ function normalizeField(
       }
     }
   }
+  return { server, derived, ok };
+}
+
+/** Cross-checks between engine markers, defaults and required arrays. */
+function checkEngineConsistency(
+  ast: NormalizedType | null,
+  server: boolean,
+  derived: boolean,
+  hasDefault: boolean,
+  path: Path,
+  ctx: Collector,
+): boolean {
+  let ok = true;
   if (server && derived) {
     ok = false;
     pushViolation(
@@ -1159,6 +1231,18 @@ function normalizeField(
       "no server/derived marker alongside []!",
     );
   }
+  return ok;
+}
+
+/** Read the `trim` flag, enforcing text-leaf applicability. */
+function readTrimFlag(
+  desc: Record<string, unknown>,
+  ast: NormalizedType | null,
+  aliases: Readonly<Record<string, PendingField>>,
+  path: Path,
+  ctx: Collector,
+): { trim: boolean | undefined; ok: boolean } {
+  let ok = true;
   const trimRaw = Object.hasOwn(desc, "trim") ? desc["trim"] : undefined;
   let trim: boolean | undefined;
   if (!isAbsent(trimRaw)) {
@@ -1191,104 +1275,209 @@ function normalizeField(
       }
     }
   }
-  const hasMin = Object.hasOwn(desc, "min") && !isAbsent(desc["min"]);
-  const hasMax = Object.hasOwn(desc, "max") && !isAbsent(desc["max"]);
+  return { trim, ok };
+}
+
+/** Length-bound half of min/max normalization. */
+function readLengthBounds(
+  desc: Record<string, unknown>,
+  hasMin: boolean,
+  hasMax: boolean,
+  path: Path,
+  ctx: Collector,
+): { lengthMin: number | undefined; lengthMax: number | undefined; ok: boolean } {
+  let ok = true;
   let lengthMin: number | undefined;
   let lengthMax: number | undefined;
-  let valueMin: CanValue | undefined;
-  let valueMax: CanValue | undefined;
-  if ((hasMin || hasMax) && ast !== null) {
-    const base = ast.base.kind === "nominal" ? aliases[ast.base.path]?.type.base ?? ast.base : ast.base;
-    const takesLength =
-      ast.array || (base.kind === "scalar" && base.name === "text") || base.kind === "stringlike";
-    const takesValue =
-      !ast.array &&
-      base.kind === "scalar" &&
-      (base.name === "int" ||
-        base.name === "decimal" ||
-        base.name === "duration" ||
-        base.name === "money" ||
-        base.name === "date" ||
-        base.name === "datetime");
-    if (!takesLength && !takesValue) {
+  if (hasMin) {
+    const bound = normalizeLengthBound(desc["min"], "min", path, ctx);
+    if (bound === null) {
       ok = false;
-      for (const key of ["min", "max"] as const) {
-        if (Object.hasOwn(desc, key) && !isAbsent(desc[key])) {
-          pushViolation(
-            ctx,
-            [...path, key],
-            "type",
-            `bounds are not supported on ${printTypeId(ast)}`,
-            "no min/max on this type",
-            actualWire(desc[key]),
-          );
-        }
-      }
-    } else if (takesLength) {
-      if (hasMin) {
-        const bound = normalizeLengthBound(desc["min"], "min", path, ctx);
-        if (bound === null) {
-          ok = false;
-        } else {
-          lengthMin = bound;
-        }
-      }
-      if (hasMax) {
-        const bound = normalizeLengthBound(desc["max"], "max", path, ctx);
-        if (bound === null) {
-          ok = false;
-        } else {
-          lengthMax = bound;
-        }
-      }
-      if (lengthMin !== undefined && lengthMax !== undefined && lengthMin > lengthMax) {
-        ok = false;
-        pushViolation(ctx, [...path, "max"], "bound", "max is below min", `length <= ${lengthMin}`, `length ${lengthMax}`);
-      }
     } else {
-      const leafId = printTypeBase(base);
-      if (hasMin) {
-        const bound = normalizeValueBound(leafId, desc["min"], "min", path, ctx);
-        if (bound === null) {
-          ok = false;
-        } else {
-          valueMin = bound;
-        }
-      }
-      if (hasMax) {
-        const bound = normalizeValueBound(leafId, desc["max"], "max", path, ctx);
-        if (bound === null) {
-          ok = false;
-        } else {
-          valueMax = bound;
-        }
-      }
-      if (valueMin !== undefined && valueMax !== undefined && base.kind === "scalar") {
-        const order = compareBound(base.name, valueMin, valueMax);
-        if (order === null) {
-          ok = false;
-          pushViolation(
-            ctx,
-            [...path, "max"],
-            "bound",
-            "money bounds need matching currencies",
-            `currency ${(valueMin as MoneyValue).currency}`,
-            actualWire(desc["max"]),
-          );
-        } else if (order > 0) {
-          ok = false;
-          pushViolation(
-            ctx,
-            [...path, "max"],
-            "bound",
-            "max is below min",
-            `<= ${renderBound(leafId, valueMin)}`,
-            renderBound(leafId, valueMax),
-          );
-        }
-      }
+      lengthMin = bound;
     }
   }
+  if (hasMax) {
+    const bound = normalizeLengthBound(desc["max"], "max", path, ctx);
+    if (bound === null) {
+      ok = false;
+    } else {
+      lengthMax = bound;
+    }
+  }
+  if (lengthMin !== undefined && lengthMax !== undefined && lengthMin > lengthMax) {
+    ok = false;
+    pushViolation(ctx, [...path, "max"], "bound", "max is below min", `length <= ${lengthMin}`, `length ${lengthMax}`);
+  }
+  return { lengthMin, lengthMax, ok };
+}
+
+/** Value-bound half of min/max normalization. */
+function readValueBounds(
+  desc: Record<string, unknown>,
+  base: NormalizedType["base"],
+  hasMin: boolean,
+  hasMax: boolean,
+  path: Path,
+  ctx: Collector,
+): { valueMin: CanValue | undefined; valueMax: CanValue | undefined; ok: boolean } {
+  let ok = true;
+  let valueMin: CanValue | undefined;
+  let valueMax: CanValue | undefined;
+  const leafId = printTypeBase(base);
+  if (hasMin) {
+    const bound = normalizeValueBound(leafId, desc["min"], "min", path, ctx);
+    if (bound === null) {
+      ok = false;
+    } else {
+      valueMin = bound;
+    }
+  }
+  if (hasMax) {
+    const bound = normalizeValueBound(leafId, desc["max"], "max", path, ctx);
+    if (bound === null) {
+      ok = false;
+    } else {
+      valueMax = bound;
+    }
+  }
+  if (valueMin !== undefined && valueMax !== undefined && base.kind === "scalar") {
+    const order = compareBound(base.name, valueMin, valueMax);
+    if (order === null) {
+      ok = false;
+      pushViolation(
+        ctx,
+        [...path, "max"],
+        "bound",
+        "money bounds need matching currencies",
+        `currency ${(valueMin as MoneyValue).currency}`,
+        actualWire(desc["max"]),
+      );
+    } else if (order > 0) {
+      ok = false;
+      pushViolation(
+        ctx,
+        [...path, "max"],
+        "bound",
+        "max is below min",
+        `<= ${renderBound(leafId, valueMin)}`,
+        renderBound(leafId, valueMax),
+      );
+    }
+  }
+  return { valueMin, valueMax, ok };
+}
+
+/** True when the resolved base takes scalar value bounds. */
+function takesValueBounds(ast: NormalizedType, base: NormalizedType["base"]): boolean {
+  return (
+    !ast.array &&
+    base.kind === "scalar" &&
+    (base.name === "int" ||
+      base.name === "decimal" ||
+      base.name === "duration" ||
+      base.name === "money" ||
+      base.name === "date" ||
+      base.name === "datetime")
+  );
+}
+
+/** Report min/max present on a type that takes no bounds; false when pushed. */
+function reportUnsupportedBounds(
+  desc: Record<string, unknown>,
+  ast: NormalizedType,
+  path: Path,
+  ctx: Collector,
+): boolean {
+  let ok = true;
+  for (const key of ["min", "max"] as const) {
+    if (Object.hasOwn(desc, key) && !isAbsent(desc[key])) {
+      ok = false;
+      pushViolation(
+        ctx,
+        [...path, key],
+        "type",
+        `bounds are not supported on ${printTypeId(ast)}`,
+        "no min/max on this type",
+        actualWire(desc[key]),
+      );
+    }
+  }
+  return ok;
+}
+
+interface FieldBoundsOut {
+  readonly lengthMin: number | undefined;
+  readonly lengthMax: number | undefined;
+  readonly valueMin: CanValue | undefined;
+  readonly valueMax: CanValue | undefined;
+  readonly ok: boolean;
+}
+
+/** min/max normalization dispatch by bound kind. */
+function readFieldBounds(
+  desc: Record<string, unknown>,
+  ast: NormalizedType | null,
+  aliases: Readonly<Record<string, PendingField>>,
+  path: Path,
+  ctx: Collector,
+): FieldBoundsOut {
+  const hasMin = Object.hasOwn(desc, "min") && !isAbsent(desc["min"]);
+  const hasMax = Object.hasOwn(desc, "max") && !isAbsent(desc["max"]);
+  const empty: FieldBoundsOut = {
+    lengthMin: undefined, lengthMax: undefined, valueMin: undefined, valueMax: undefined, ok: true,
+  };
+  if (!(hasMin || hasMax) || ast === null) {
+    return empty;
+  }
+  const base = ast.base.kind === "nominal" ? aliases[ast.base.path]?.type.base ?? ast.base : ast.base;
+  const takesLength =
+    ast.array || (base.kind === "scalar" && base.name === "text") || base.kind === "stringlike";
+  const takesValue = takesValueBounds(ast, base);
+  if (!takesLength && !takesValue) {
+    return { ...empty, ok: reportUnsupportedBounds(desc, ast, path, ctx) };
+  }
+  if (takesLength) {
+    const { lengthMin, lengthMax, ok } = readLengthBounds(desc, hasMin, hasMax, path, ctx);
+    return { ...empty, lengthMin, lengthMax, ok };
+  }
+  const { valueMin, valueMax, ok } = readValueBounds(desc, base, hasMin, hasMax, path, ctx);
+  return { ...empty, valueMin, valueMax, ok };
+}
+
+/** `excludedIds` NAME-array validation. */
+function readExcludedIds(
+  desc: Record<string, unknown>,
+  distinctBy: "id" | undefined,
+  path: Path,
+  ctx: Collector,
+): { excludedIds: readonly string[] | undefined; ok: boolean } {
+  let ok = true;
+  const raw = desc["excludedIds"];
+  if (distinctBy !== "id" || !Array.isArray(raw)) {
+    ok = false;
+    pushViolation(ctx, [...path, "excludedIds"], "format", "excludedIds requires distinctBy=id and a NAME array", "NAME ids", actualWire(raw));
+    return { excludedIds: undefined, ok };
+  }
+  const seen = new Set<string>();
+  for (const [index, entry] of raw.entries()) {
+    if (typeof entry !== "string" || !NAME_RE.test(entry) || scalarLength(entry) > 80n || seen.has(entry)) {
+      ok = false;
+      pushViolation(ctx, [...path, "excludedIds", index], "format", "excludedIds must contain distinct NAME ids of 1–80 scalars", "distinct NAME ids, length 1–80", actualWire(entry));
+    } else seen.add(entry);
+  }
+  return { excludedIds: Object.freeze(Array.from(raw) as string[]), ok };
+}
+
+/** `format`/`distinctBy`/`excludedIds` normalization. */
+function readFieldFormats(
+  desc: Record<string, unknown>,
+  ast: NormalizedType | null,
+  aliases: Readonly<Record<string, PendingField>>,
+  path: Path,
+  ctx: Collector,
+): { format: "name" | undefined; distinctBy: "id" | undefined; excludedIds: readonly string[] | undefined; ok: boolean } {
+  let ok = true;
   let format: "name" | undefined;
   let distinctBy: "id" | undefined;
   let excludedIds: readonly string[] | undefined;
@@ -1306,57 +1495,117 @@ function normalizeField(
     } else distinctBy = "id";
   }
   if (Object.hasOwn(desc, "excludedIds")) {
-    const raw = desc["excludedIds"];
-    if (distinctBy !== "id" || !Array.isArray(raw)) {
-      ok = false;
-      pushViolation(ctx, [...path, "excludedIds"], "format", "excludedIds requires distinctBy=id and a NAME array", "NAME ids", actualWire(raw));
-    } else {
-      const seen = new Set<string>();
-      for (const [index, entry] of raw.entries()) {
-        if (typeof entry !== "string" || !NAME_RE.test(entry) || scalarLength(entry) > 80n || seen.has(entry)) {
-          ok = false;
-          pushViolation(ctx, [...path, "excludedIds", index], "format", "excludedIds must contain distinct NAME ids of 1–80 scalars", "distinct NAME ids, length 1–80", actualWire(entry));
-        } else seen.add(entry);
-      }
-      excludedIds = Object.freeze(Array.from(raw) as string[]);
-    }
+    const read = readExcludedIds(desc, distinctBy, path, ctx);
+    excludedIds = read.excludedIds;
+    ok = read.ok && ok;
   }
+  return { format, distinctBy, excludedIds, ok };
+}
+
+function normalizeField(
+  desc: unknown,
+  path: Path,
+  ctx: Collector,
+  allowRequiredArray: boolean,
+  allowServerInit: boolean,
+  aliases: Readonly<Record<string, PendingField>> = Object.create(null),
+): PendingField | null {
+  if (!isObject(desc)) {
+    pushViolation(
+      ctx,
+      path,
+      "type",
+      "field descriptor must be an object",
+      "{type, min?, max?, format?, distinctBy?, excludedIds?, default?, trim?, server?, derived?}",
+      actualWire(desc),
+    );
+    return null;
+  }
+  const keysOk = checkFieldDescriptorKeys(desc, path, ctx);
+  const parsed = parseFieldType(desc, path, ctx, allowRequiredArray);
+  const { hasDefault, rawDefault } = parsed;
+  const markers = readEngineMarkers(desc, path, ctx, allowServerInit);
+  const consistent = checkEngineConsistency(parsed.ast, markers.server, markers.derived, hasDefault, path, ctx);
+  const trimmed = readTrimFlag(desc, parsed.ast, aliases, path, ctx);
+  const bounds = readFieldBounds(desc, parsed.ast, aliases, path, ctx);
+  const formats = readFieldFormats(desc, parsed.ast, aliases, path, ctx);
+  const { ast } = parsed;
+  const { server, derived } = markers;
+  const { trim } = trimmed;
+  const { lengthMin, lengthMax, valueMin, valueMax } = bounds;
+  const { format, distinctBy, excludedIds } = formats;
   const alias = ast?.base.kind === "nominal" && !ast.array ? aliases[ast.base.path] : undefined;
-  if (alias !== undefined && (lengthMin !== undefined || lengthMax !== undefined)) {
-    const minimum = Math.max(lengthMin ?? 0, alias.lengthMin ?? 0);
-    const maximum = Math.min(lengthMax ?? Infinity, alias.lengthMax ?? Infinity);
-    if (minimum > maximum) {
-      ok = false;
-      pushViolation(ctx, [...path, "max"], "bound", "receiving bounds cannot satisfy the declared text alias", "bounds intersect the alias bounds");
-    }
-  }
+  const aliasOk = checkAliasBounds(alias, lengthMin, lengthMax, path, ctx);
+  const ok = [keysOk, parsed.ok, markers.ok, consistent, trimmed.ok, bounds.ok, formats.ok, aliasOk].every(Boolean);
   if (!ok || ast === null) {
     return null;
   }
-  const engineResolved = server || derived;
-  const defaultOrigin: FieldDefaultOrigin | undefined = hasDefault
+  return assemblePendingField(ast, {
+    hasDefault, rawDefault, server, derived, trim, lengthMin, lengthMax, valueMin, valueMax, format, distinctBy, excludedIds,
+  });
+}
+
+/** Receiving-bounds-vs-alias-bounds intersection check. */
+function checkAliasBounds(
+  alias: PendingField | undefined,
+  lengthMin: number | undefined,
+  lengthMax: number | undefined,
+  path: Path,
+  ctx: Collector,
+): boolean {
+  if (alias === undefined || (lengthMin === undefined && lengthMax === undefined)) {
+    return true;
+  }
+  const minimum = Math.max(lengthMin ?? 0, alias.lengthMin ?? 0);
+  const maximum = Math.min(lengthMax ?? Infinity, alias.lengthMax ?? Infinity);
+  if (minimum <= maximum) {
+    return true;
+  }
+  pushViolation(ctx, [...path, "max"], "bound", "receiving bounds cannot satisfy the declared text alias", "bounds intersect the alias bounds");
+  return false;
+}
+
+interface PendingFieldParts {
+  readonly hasDefault: boolean;
+  readonly rawDefault: unknown;
+  readonly server: boolean;
+  readonly derived: boolean;
+  readonly trim: boolean | undefined;
+  readonly lengthMin: number | undefined;
+  readonly lengthMax: number | undefined;
+  readonly valueMin: CanValue | undefined;
+  readonly valueMax: CanValue | undefined;
+  readonly format: "name" | undefined;
+  readonly distinctBy: "id" | undefined;
+  readonly excludedIds: readonly string[] | undefined;
+}
+
+/** Assemble the pass-1 field from validated parts. */
+function assemblePendingField(ast: NormalizedType, parts: PendingFieldParts): PendingField {
+  const engineResolved = parts.server || parts.derived;
+  const defaultOrigin: FieldDefaultOrigin | undefined = parts.hasDefault
     ? "literal"
-    : server
+    : parts.server
       ? "server"
-      : derived
+      : parts.derived
         ? "derived"
         : undefined;
-  const required = !ast.nullable && !hasDefault && !engineResolved && !(ast.array && !ast.requiredArray);
+  const required = !ast.nullable && !parts.hasDefault && !engineResolved && !(ast.array && !ast.requiredArray);
   return {
     type: ast,
     required,
-    hasDefault,
-    rawDefault,
+    hasDefault: parts.hasDefault,
+    rawDefault: parts.rawDefault,
     serverOnly: engineResolved,
     ...(defaultOrigin !== undefined ? { defaultOrigin } : {}),
-    ...(lengthMin !== undefined ? { lengthMin } : {}),
-    ...(lengthMax !== undefined ? { lengthMax } : {}),
-    ...(valueMin !== undefined ? { valueMin } : {}),
-    ...(valueMax !== undefined ? { valueMax } : {}),
-    ...(trim !== undefined ? { trim } : {}),
-    ...(format !== undefined ? { format } : {}),
-    ...(distinctBy !== undefined ? { distinctBy } : {}),
-    ...(excludedIds !== undefined ? { excludedIds } : {}),
+    ...(parts.lengthMin !== undefined ? { lengthMin: parts.lengthMin } : {}),
+    ...(parts.lengthMax !== undefined ? { lengthMax: parts.lengthMax } : {}),
+    ...(parts.valueMin !== undefined ? { valueMin: parts.valueMin } : {}),
+    ...(parts.valueMax !== undefined ? { valueMax: parts.valueMax } : {}),
+    ...(parts.trim !== undefined ? { trim: parts.trim } : {}),
+    ...(parts.format !== undefined ? { format: parts.format } : {}),
+    ...(parts.distinctBy !== undefined ? { distinctBy: parts.distinctBy } : {}),
+    ...(parts.excludedIds !== undefined ? { excludedIds: parts.excludedIds } : {}),
   };
 }
 
@@ -1474,24 +1723,8 @@ function freezeField(field: PendingField, fallback: CanValue | undefined): Norma
   return Object.freeze(out);
 }
 
-/**
- * Validates a schema descriptor into a frozen NormalizedSchema. Unknown
- * keys, bad names, bad type ids, incompatible bounds, and invalid defaults
- * all throw one SchemaError with every collected violation.
- */
-export function normalizeSchema(descriptor: unknown): NormalizedSchema {
-  const ctx: Collector = { violations: [] };
-  if (!isObject(descriptor)) {
-    pushViolation(
-      ctx,
-      [],
-      "type",
-      "schema descriptor must be an object",
-      "{contracts?, enums?, operations?}",
-      actualWire(descriptor),
-    );
-    throw new SchemaError(ctx.violations);
-  }
+/** Unknown-section check for a schema descriptor. */
+function checkSchemaSectionKeys(descriptor: Record<string, unknown>, ctx: Collector): void {
   for (const key of Object.keys(descriptor)) {
     if (key !== "contracts" && key !== "enums" && key !== "operations" && key !== "aliases") {
       pushViolation(
@@ -1504,10 +1737,13 @@ export function normalizeSchema(descriptor: unknown): NormalizedSchema {
       );
     }
   }
-  const contracts: Record<string, Record<string, PendingField>> = {};
-  const enums: Record<string, { readonly cases: readonly string[] }> = {};
-  const operations: Record<string, PendingOperation> = {};
+}
 
+/** Normalize the `aliases` section into bounded text leaves. */
+function normalizeAliasSection(
+  descriptor: Record<string, unknown>,
+  ctx: Collector,
+): Record<string, PendingField> {
   const aliases: Record<string, PendingField> = Object.create(null);
   const aliasesRaw = descriptor["aliases"];
   if (Object.hasOwn(descriptor, "aliases")) {
@@ -1525,290 +1761,358 @@ export function normalizeSchema(descriptor: unknown): NormalizedSchema {
       if (alias !== null) aliases[name] = alias;
     }
   }
-  const contractsRaw = descriptor["contracts"];
-  if (!isAbsent(contractsRaw)) {
-    if (!isObject(contractsRaw)) {
-      pushViolation(ctx, ["contracts"], "type", "contracts must be an object", "{name: {...}}", actualWire(contractsRaw));
-    } else {
-      for (const [name, def] of Object.entries(contractsRaw)) {
-        if (isReservedName(name)) {
-          pushViolation(
-            ctx,
-            ["contracts", name],
-            "format",
-            `contract name "__proto__" is reserved`,
-            "any other contract name",
-            actualWire(name),
-          );
-          continue;
-        }
-        if (!PATH_RE.test(name)) {
-          pushViolation(
-            ctx,
-            ["contracts", name],
-            "format",
-            `contract name ${JSON.stringify(name)} is not a valid path`,
-            "a dotted type path",
-            actualWire(name),
-          );
-          continue;
-        }
-        if (!isObject(def)) {
-          pushViolation(
-            ctx,
-            ["contracts", name],
-            "type",
-            `contract ${name} descriptor must be an object`,
-            "{fields: {...}}",
-            actualWire(def),
-          );
-          continue;
-        }
-        for (const key of Object.keys(def)) {
-          if (key !== "fields") {
-            pushViolation(
-              ctx,
-              ["contracts", name, key],
-              "unknown-field",
-              `unknown contract-descriptor key ${JSON.stringify(key)}`,
-              "one of: fields",
-              actualWire(def[key]),
-            );
-          }
-        }
-        const fieldsRaw = def["fields"];
-        if (isAbsent(fieldsRaw)) {
-          pushViolation(
-            ctx,
-            ["contracts", name, "fields"],
-            "required",
-            `contract ${name} is missing its fields`,
-            "{name: {...}}",
-          );
-          continue;
-        }
-        if (!isObject(fieldsRaw)) {
-          pushViolation(
-            ctx,
-            ["contracts", name, "fields"],
-            "type",
-            `contract ${name} fields must be an object`,
-            "{name: {...}}",
-            actualWire(fieldsRaw),
-          );
-          continue;
-        }
-        const fields: Record<string, PendingField> = {};
-        for (const [fieldName, fieldDesc] of Object.entries(fieldsRaw)) {
-          if (isReservedName(fieldName)) {
-            pushViolation(
-              ctx,
-              ["contracts", name, "fields", fieldName],
-              "format",
-              `field name "__proto__" is reserved`,
-              "any other field name",
-              actualWire(fieldName),
-            );
-            continue;
-          }
-          if (!NAME_RE.test(fieldName)) {
-            pushViolation(
-              ctx,
-              ["contracts", name, "fields", fieldName],
-              "format",
-              `field name ${JSON.stringify(fieldName)} is not a valid name`,
-              "an unqualified name",
-              actualWire(fieldName),
-            );
-            continue;
-          }
-          const field = normalizeField(fieldDesc, ["contracts", name, "fields", fieldName], ctx, true, true, aliases);
-          if (field !== null) {
-            fields[fieldName] = field;
-          }
-        }
-        contracts[name] = fields;
-      }
-    }
-  }
+  return aliases;
+}
 
-  const enumsRaw = descriptor["enums"];
-  if (!isAbsent(enumsRaw)) {
-    if (!isObject(enumsRaw)) {
-      pushViolation(ctx, ["enums"], "type", "enums must be an object", "{name: {...}}", actualWire(enumsRaw));
-    } else {
-      for (const [name, def] of Object.entries(enumsRaw)) {
-        if (isReservedName(name)) {
-          pushViolation(
-            ctx,
-            ["enums", name],
-            "format",
-            `enum name "__proto__" is reserved`,
-            "any other enum name",
-            actualWire(name),
-          );
-          continue;
-        }
-        if (!PATH_RE.test(name)) {
-          pushViolation(
-            ctx,
-            ["enums", name],
-            "format",
-            `enum name ${JSON.stringify(name)} is not a valid path`,
-            "a dotted type path",
-            actualWire(name),
-          );
-          continue;
-        }
-        const cases = normalizeEnumCases(def, name, ["enums", name], ctx);
-        if (cases !== null) {
-          enums[name] = { cases };
-        }
-      }
-    }
-  }
-
-  const operationsRaw = descriptor["operations"];
-  if (!isAbsent(operationsRaw)) {
-    if (!isObject(operationsRaw)) {
+/** Normalize one contract's fields; null skips the whole contract. */
+function normalizeContractFields(
+  name: string,
+  fieldsRaw: Record<string, unknown>,
+  ctx: Collector,
+  aliases: Record<string, PendingField>,
+): Record<string, PendingField> {
+  const fields: Record<string, PendingField> = {};
+  for (const [fieldName, fieldDesc] of Object.entries(fieldsRaw)) {
+    if (isReservedName(fieldName)) {
       pushViolation(
         ctx,
-        ["operations"],
-        "type",
-        "operations must be an object",
-        "{name: {...}}",
-        actualWire(operationsRaw),
+        ["contracts", name, "fields", fieldName],
+        "format",
+        `field name "__proto__" is reserved`,
+        "any other field name",
+        actualWire(fieldName),
       );
-    } else {
-      for (const [name, def] of Object.entries(operationsRaw)) {
-        if (isReservedName(name)) {
-          pushViolation(
-            ctx,
-            ["operations", name],
-            "format",
-            `operation name "__proto__" is reserved`,
-            "any other operation name",
-            actualWire(name),
-          );
-          continue;
-        }
-        if (!PATH_RE.test(name)) {
-          pushViolation(
-            ctx,
-            ["operations", name],
-            "format",
-            `operation name ${JSON.stringify(name)} is not a valid path`,
-            "a dotted type path",
-            actualWire(name),
-          );
-          continue;
-        }
-        if (!isObject(def)) {
-          pushViolation(
-            ctx,
-            ["operations", name],
-            "type",
-            `operation ${name} descriptor must be an object`,
-            "{inputs: {...}, mutation?}",
-            actualWire(def),
-          );
-          continue;
-        }
-        for (const key of Object.keys(def)) {
-          if (key !== "inputs" && key !== "mutation") {
-            pushViolation(
-              ctx,
-              ["operations", name, key],
-              "unknown-field",
-              `unknown operation-descriptor key ${JSON.stringify(key)}`,
-              "one of: inputs, mutation",
-              actualWire(def[key]),
-            );
-          }
-        }
-        let mutation = false;
-        const mutationRaw = def["mutation"];
-        if (!isAbsent(mutationRaw)) {
-          if (typeof mutationRaw !== "boolean") {
-            pushViolation(
-              ctx,
-              ["operations", name, "mutation"],
-              "type",
-              `operation ${name} mutation must be a boolean`,
-              "a boolean",
-              actualWire(mutationRaw),
-            );
-            continue;
-          }
-          mutation = mutationRaw;
-        }
-        const inputsRaw = def["inputs"];
-        if (isAbsent(inputsRaw)) {
-          pushViolation(
-            ctx,
-            ["operations", name, "inputs"],
-            "required",
-            `operation ${name} is missing its inputs`,
-            "{name: {...}}",
-          );
-          continue;
-        }
-        if (!isObject(inputsRaw)) {
-          pushViolation(
-            ctx,
-            ["operations", name, "inputs"],
-            "type",
-            `operation ${name} inputs must be an object`,
-            "{name: {...}}",
-            actualWire(inputsRaw),
-          );
-          continue;
-        }
-        const inputs: Record<string, PendingField> = {};
-        for (const [inputName, inputDesc] of Object.entries(inputsRaw)) {
-          if (inputName === "operation_id") {
-            pushViolation(
-              ctx,
-              ["operations", name, "inputs", inputName],
-              "format",
-              "operation_id is reserved and cannot be a declared input",
-              "any other input name",
-              actualWire(inputName),
-            );
-            continue;
-          }
-          if (isReservedName(inputName)) {
-            pushViolation(
-              ctx,
-              ["operations", name, "inputs", inputName],
-              "format",
-              `input name "__proto__" is reserved`,
-              "any other input name",
-              actualWire(inputName),
-            );
-            continue;
-          }
-          if (!NAME_RE.test(inputName)) {
-            pushViolation(
-              ctx,
-              ["operations", name, "inputs", inputName],
-              "format",
-              `input name ${JSON.stringify(inputName)} is not a valid name`,
-              "an unqualified name",
-              actualWire(inputName),
-            );
-            continue;
-          }
-          const field = normalizeField(inputDesc, ["operations", name, "inputs", inputName], ctx, false, false, aliases);
-          if (field !== null) {
-            inputs[inputName] = field;
-          }
-        }
-        operations[name] = { inputs, mutation };
-      }
+      continue;
+    }
+    if (!NAME_RE.test(fieldName)) {
+      pushViolation(
+        ctx,
+        ["contracts", name, "fields", fieldName],
+        "format",
+        `field name ${JSON.stringify(fieldName)} is not a valid name`,
+        "an unqualified name",
+        actualWire(fieldName),
+      );
+      continue;
+    }
+    const field = normalizeField(fieldDesc, ["contracts", name, "fields", fieldName], ctx, true, true, aliases);
+    if (field !== null) {
+      fields[fieldName] = field;
     }
   }
+  return fields;
+}
 
+/** Normalize one contract descriptor; null skips it. */
+function normalizeOneContract(
+  name: string,
+  def: unknown,
+  ctx: Collector,
+  aliases: Record<string, PendingField>,
+): Record<string, PendingField> | null {
+  if (isReservedName(name)) {
+    pushViolation(
+      ctx,
+      ["contracts", name],
+      "format",
+      `contract name "__proto__" is reserved`,
+      "any other contract name",
+      actualWire(name),
+    );
+    return null;
+  }
+  if (!PATH_RE.test(name)) {
+    pushViolation(
+      ctx,
+      ["contracts", name],
+      "format",
+      `contract name ${JSON.stringify(name)} is not a valid path`,
+      "a dotted type path",
+      actualWire(name),
+    );
+    return null;
+  }
+  if (!isObject(def)) {
+    pushViolation(
+      ctx,
+      ["contracts", name],
+      "type",
+      `contract ${name} descriptor must be an object`,
+      "{fields: {...}}",
+      actualWire(def),
+    );
+    return null;
+  }
+  for (const key of Object.keys(def)) {
+    if (key !== "fields") {
+      pushViolation(
+        ctx,
+        ["contracts", name, key],
+        "unknown-field",
+        `unknown contract-descriptor key ${JSON.stringify(key)}`,
+        "one of: fields",
+        actualWire(def[key]),
+      );
+    }
+  }
+  const fieldsRaw = def["fields"];
+  if (isAbsent(fieldsRaw)) {
+    pushViolation(
+      ctx,
+      ["contracts", name, "fields"],
+      "required",
+      `contract ${name} is missing its fields`,
+      "{name: {...}}",
+    );
+    return null;
+  }
+  if (!isObject(fieldsRaw)) {
+    pushViolation(
+      ctx,
+      ["contracts", name, "fields"],
+      "type",
+      `contract ${name} fields must be an object`,
+      "{name: {...}}",
+      actualWire(fieldsRaw),
+    );
+    return null;
+  }
+  return normalizeContractFields(name, fieldsRaw, ctx, aliases);
+}
+
+/** Normalize the `contracts` section into the contracts record. */
+function normalizeContractSection(
+  descriptor: Record<string, unknown>,
+  ctx: Collector,
+  aliases: Record<string, PendingField>,
+  contracts: Record<string, Record<string, PendingField>>,
+): void {
+  const contractsRaw = descriptor["contracts"];
+  if (isAbsent(contractsRaw)) {
+    return;
+  }
+  if (!isObject(contractsRaw)) {
+    pushViolation(ctx, ["contracts"], "type", "contracts must be an object", "{name: {...}}", actualWire(contractsRaw));
+    return;
+  }
+  for (const [name, def] of Object.entries(contractsRaw)) {
+    const fields = normalizeOneContract(name, def, ctx, aliases);
+    if (fields !== null) {
+      contracts[name] = fields;
+    }
+  }
+}
+
+/** Normalize one enum descriptor; null skips it. */
+function normalizeOneEnum(
+  name: string,
+  def: unknown,
+  ctx: Collector,
+): readonly string[] | null {
+  if (isReservedName(name)) {
+    pushViolation(
+      ctx,
+      ["enums", name],
+      "format",
+      `enum name "__proto__" is reserved`,
+      "any other enum name",
+      actualWire(name),
+    );
+    return null;
+  }
+  if (!PATH_RE.test(name)) {
+    pushViolation(
+      ctx,
+      ["enums", name],
+      "format",
+      `enum name ${JSON.stringify(name)} is not a valid path`,
+      "a dotted type path",
+      actualWire(name),
+    );
+    return null;
+  }
+  return normalizeEnumCases(def, name, ["enums", name], ctx);
+}
+
+/** Normalize one operation's inputs; reserved names fail per input. */
+function normalizeOperationInputs(
+  name: string,
+  inputsRaw: Record<string, unknown>,
+  ctx: Collector,
+  aliases: Record<string, PendingField>,
+): Record<string, PendingField> {
+  const inputs: Record<string, PendingField> = {};
+  for (const [inputName, inputDesc] of Object.entries(inputsRaw)) {
+    if (inputName === "operation_id") {
+      pushViolation(
+        ctx,
+        ["operations", name, "inputs", inputName],
+        "format",
+        "operation_id is reserved and cannot be a declared input",
+        "any other input name",
+        actualWire(inputName),
+      );
+      continue;
+    }
+    if (isReservedName(inputName)) {
+      pushViolation(
+        ctx,
+        ["operations", name, "inputs", inputName],
+        "format",
+        `input name "__proto__" is reserved`,
+        "any other input name",
+        actualWire(inputName),
+      );
+      continue;
+    }
+    if (!NAME_RE.test(inputName)) {
+      pushViolation(
+        ctx,
+        ["operations", name, "inputs", inputName],
+        "format",
+        `input name ${JSON.stringify(inputName)} is not a valid name`,
+        "an unqualified name",
+        actualWire(inputName),
+      );
+      continue;
+    }
+    const field = normalizeField(inputDesc, ["operations", name, "inputs", inputName], ctx, false, false, aliases);
+    if (field !== null) {
+      inputs[inputName] = field;
+    }
+  }
+  return inputs;
+}
+
+/** Normalize one operation descriptor; null skips it. */
+function normalizeOneOperation(
+  name: string,
+  def: unknown,
+  ctx: Collector,
+  aliases: Record<string, PendingField>,
+): PendingOperation | null {
+  if (isReservedName(name)) {
+    pushViolation(
+      ctx,
+      ["operations", name],
+      "format",
+      `operation name "__proto__" is reserved`,
+      "any other operation name",
+      actualWire(name),
+    );
+    return null;
+  }
+  if (!PATH_RE.test(name)) {
+    pushViolation(
+      ctx,
+      ["operations", name],
+      "format",
+      `operation name ${JSON.stringify(name)} is not a valid path`,
+      "a dotted type path",
+      actualWire(name),
+    );
+    return null;
+  }
+  if (!isObject(def)) {
+    pushViolation(
+      ctx,
+      ["operations", name],
+      "type",
+      `operation ${name} descriptor must be an object`,
+      "{inputs: {...}, mutation?}",
+      actualWire(def),
+    );
+    return null;
+  }
+  for (const key of Object.keys(def)) {
+    if (key !== "inputs" && key !== "mutation") {
+      pushViolation(
+        ctx,
+        ["operations", name, key],
+        "unknown-field",
+        `unknown operation-descriptor key ${JSON.stringify(key)}`,
+        "one of: inputs, mutation",
+        actualWire(def[key]),
+      );
+    }
+  }
+  let mutation = false;
+  const mutationRaw = def["mutation"];
+  if (!isAbsent(mutationRaw)) {
+    if (typeof mutationRaw !== "boolean") {
+      pushViolation(
+        ctx,
+        ["operations", name, "mutation"],
+        "type",
+        `operation ${name} mutation must be a boolean`,
+        "a boolean",
+        actualWire(mutationRaw),
+      );
+      return null;
+    }
+    mutation = mutationRaw;
+  }
+  const inputsRaw = def["inputs"];
+  if (isAbsent(inputsRaw)) {
+    pushViolation(
+      ctx,
+      ["operations", name, "inputs"],
+      "required",
+      `operation ${name} is missing its inputs`,
+      "{name: {...}}",
+    );
+    return null;
+  }
+  if (!isObject(inputsRaw)) {
+    pushViolation(
+      ctx,
+      ["operations", name, "inputs"],
+      "type",
+      `operation ${name} inputs must be an object`,
+      "{name: {...}}",
+      actualWire(inputsRaw),
+    );
+    return null;
+  }
+  return { inputs: normalizeOperationInputs(name, inputsRaw, ctx, aliases), mutation };
+}
+
+/** Normalize the `operations` section into the operations record. */
+function normalizeOperationSection(
+  descriptor: Record<string, unknown>,
+  ctx: Collector,
+  aliases: Record<string, PendingField>,
+  operations: Record<string, PendingOperation>,
+): void {
+  const operationsRaw = descriptor["operations"];
+  if (isAbsent(operationsRaw)) {
+    return;
+  }
+  if (!isObject(operationsRaw)) {
+    pushViolation(
+      ctx,
+      ["operations"],
+      "type",
+      "operations must be an object",
+      "{name: {...}}",
+      actualWire(operationsRaw),
+    );
+    return;
+  }
+  for (const [name, def] of Object.entries(operationsRaw)) {
+    const operation = normalizeOneOperation(name, def, ctx, aliases);
+    if (operation !== null) {
+      operations[name] = operation;
+    }
+  }
+}
+
+/** Contract/enum nominal-name overlap check. */
+function checkContractEnumOverlaps(
+  contracts: Record<string, Record<string, PendingField>>,
+  enums: Record<string, { readonly cases: readonly string[] }>,
+  ctx: Collector,
+): void {
   for (const name of Object.keys(contracts)) {
     if (Object.hasOwn(enums, name)) {
       pushViolation(
@@ -1821,36 +2125,56 @@ export function normalizeSchema(descriptor: unknown): NormalizedSchema {
       );
     }
   }
-  if (ctx.violations.length > 0) {
-    throw new SchemaError(ctx.violations);
-  }
+}
 
+/** Alias-vs-contract/enum nominal-name overlap check. */
+function checkAliasOverlaps(
+  aliases: Record<string, PendingField>,
+  contracts: Record<string, Record<string, PendingField>>,
+  enums: Record<string, { readonly cases: readonly string[] }>,
+  ctx: Collector,
+): void {
   for (const name of Object.keys(aliases)) {
     if (Object.hasOwn(contracts, name) || Object.hasOwn(enums, name)) {
       pushViolation(ctx, ["aliases", name], "format", "alias names cannot overlap contracts or enums", "one declaration per nominal name", actualWire(name));
     }
   }
-  const checkArrayTargets = (fields: Record<string, PendingField>, path: Path): void => {
-    for (const [name, field] of Object.entries(fields)) {
-      if (field.distinctBy !== "id" || field.type.base.kind !== "nominal") continue;
-      const id = contracts[field.type.base.path]?.["id"];
-      const base = id?.type.base.kind === "nominal" ? aliases[id.type.base.path]?.type.base : id?.type.base;
-      if (id === undefined || id.type.array || id.type.nullable || id.serverOnly || base?.kind !== "scalar" || base.name !== "text") {
-        pushViolation(ctx, [...path, name, "distinctBy"], "format", "distinctBy=id requires a declared contract with a nonnullable text id", "declared contract with a text/alias id");
-      }
-    }
-  };
-  for (const [name, fields] of Object.entries(contracts)) checkArrayTargets(fields, ["contracts", name, "fields"]);
-  for (const [name, operation] of Object.entries(operations)) checkArrayTargets(operation.inputs, ["operations", name, "inputs"]);
-  if (ctx.violations.length > 0) throw new SchemaError(ctx.violations);
+}
 
-  // Pass 2: descriptor defaults must be explicit-complete values.
-  const viewContracts: Record<string, { readonly fields: Record<string, PendingField> }> = {};
-  for (const [name, fields] of Object.entries(contracts)) {
-    viewContracts[name] = { fields };
+/** `distinctBy=id` target checks for one field collection. */
+function checkArrayTargetFields(
+  fields: Record<string, PendingField>,
+  path: Path,
+  contracts: Record<string, Record<string, PendingField>>,
+  aliases: Record<string, PendingField>,
+  ctx: Collector,
+): void {
+  for (const [name, field] of Object.entries(fields)) {
+    if (field.distinctBy !== "id" || field.type.base.kind !== "nominal") continue;
+    const id = contracts[field.type.base.path]?.["id"];
+    const base = id?.type.base.kind === "nominal" ? aliases[id.type.base.path]?.type.base : id?.type.base;
+    if (id === undefined || id.type.array || id.type.nullable || id.serverOnly || base?.kind !== "scalar" || base.name !== "text") {
+      pushViolation(ctx, [...path, name, "distinctBy"], "format", "distinctBy=id requires a declared contract with a nonnullable text id", "declared contract with a text/alias id");
+    }
   }
-  const view: SchemaView = { contracts: viewContracts, enums, aliases };
-  const defaults = new Map<PendingField, CanValue>();
+}
+
+/** `distinctBy=id` target checks across contracts and operations. */
+function checkArrayTargets(
+  contracts: Record<string, Record<string, PendingField>>,
+  operations: Record<string, PendingOperation>,
+  aliases: Record<string, PendingField>,
+  ctx: Collector,
+): void {
+  for (const [name, fields] of Object.entries(contracts)) checkArrayTargetFields(fields, ["contracts", name, "fields"], contracts, aliases, ctx);
+  for (const [name, operation] of Object.entries(operations)) checkArrayTargetFields(operation.inputs, ["operations", name, "inputs"], contracts, aliases, ctx);
+}
+
+/** Collect fields with explicit defaults for pass 2. */
+function collectPendingDefaults(
+  contracts: Record<string, Record<string, PendingField>>,
+  operations: Record<string, PendingOperation>,
+): Array<{ readonly field: PendingField; readonly path: Path }> {
   const pendingDefaults: Array<{ readonly field: PendingField; readonly path: Path }> = [];
   for (const [name, fields] of Object.entries(contracts)) {
     for (const [fieldName, field] of Object.entries(fields)) {
@@ -1866,6 +2190,16 @@ export function normalizeSchema(descriptor: unknown): NormalizedSchema {
       }
     }
   }
+  return pendingDefaults;
+}
+
+/** Pass 2: validate explicit descriptor defaults into frozen values. */
+function validatePendingDefaults(
+  view: SchemaView,
+  pendingDefaults: ReadonlyArray<{ readonly field: PendingField; readonly path: Path }>,
+  ctx: Collector,
+  defaults: Map<PendingField, CanValue>,
+): void {
   for (const { field, path } of pendingDefaults) {
     const before = ctx.violations.length;
     const raw = validateNode(
@@ -1893,10 +2227,17 @@ export function normalizeSchema(descriptor: unknown): NormalizedSchema {
     }
     defaults.set(field, decoded as CanValue);
   }
-  if (ctx.violations.length > 0) {
-    throw new SchemaError(ctx.violations);
-  }
+}
 
+/** Freeze validated contracts/enums/operations/aliases into the schema. */
+function freezeNormalizedSchema(
+  descriptor: Record<string, unknown>,
+  contracts: Record<string, Record<string, PendingField>>,
+  enums: Record<string, { readonly cases: readonly string[] }>,
+  operations: Record<string, PendingOperation>,
+  aliases: Record<string, PendingField>,
+  defaults: ReadonlyMap<PendingField, CanValue>,
+): NormalizedSchema {
   const frozenContracts: Record<string, NormalizedContract> = {};
   for (const [name, fields] of Object.entries(contracts)) {
     const frozenFields: Record<string, NormalizedField> = {};
@@ -1930,6 +2271,82 @@ export function normalizeSchema(descriptor: unknown): NormalizedSchema {
   // This cannot register a plan or promote factory identity to adoption.
   factorySchemas.add(schema);
   return schema;
+}
+
+/** Normalize the `enums` section into the enums record. */
+function normalizeEnumSection(
+  descriptor: Record<string, unknown>,
+  ctx: Collector,
+  enums: Record<string, { readonly cases: readonly string[] }>,
+): void {
+  const enumsRaw = descriptor["enums"];
+  if (isAbsent(enumsRaw)) {
+    return;
+  }
+  if (!isObject(enumsRaw)) {
+    pushViolation(ctx, ["enums"], "type", "enums must be an object", "{name: {...}}", actualWire(enumsRaw));
+    return;
+  }
+  for (const [name, def] of Object.entries(enumsRaw)) {
+    const cases = normalizeOneEnum(name, def, ctx);
+    if (cases !== null) {
+      enums[name] = { cases };
+    }
+  }
+}
+
+/**
+ * Validates a schema descriptor into a frozen NormalizedSchema. Unknown
+ * keys, bad names, bad type ids, incompatible bounds, and invalid defaults
+ * all throw one SchemaError with every collected violation.
+ */
+export function normalizeSchema(descriptor: unknown): NormalizedSchema {
+  const ctx: Collector = { violations: [] };
+  if (!isObject(descriptor)) {
+    pushViolation(
+      ctx,
+      [],
+      "type",
+      "schema descriptor must be an object",
+      "{contracts?, enums?, operations?}",
+      actualWire(descriptor),
+    );
+    throw new SchemaError(ctx.violations);
+  }
+  checkSchemaSectionKeys(descriptor, ctx);
+  const contracts: Record<string, Record<string, PendingField>> = {};
+  const enums: Record<string, { readonly cases: readonly string[] }> = {};
+  const operations: Record<string, PendingOperation> = {};
+
+  const aliases = normalizeAliasSection(descriptor, ctx);
+  normalizeContractSection(descriptor, ctx, aliases, contracts);
+  normalizeEnumSection(descriptor, ctx, enums);
+
+  normalizeOperationSection(descriptor, ctx, aliases, operations);
+
+  checkContractEnumOverlaps(contracts, enums, ctx);
+  if (ctx.violations.length > 0) {
+    throw new SchemaError(ctx.violations);
+  }
+
+  checkAliasOverlaps(aliases, contracts, enums, ctx);
+  checkArrayTargets(contracts, operations, aliases, ctx);
+  if (ctx.violations.length > 0) throw new SchemaError(ctx.violations);
+
+  // Pass 2: descriptor defaults must be explicit-complete values.
+  const viewContracts: Record<string, { readonly fields: Record<string, PendingField> }> = {};
+  for (const [name, fields] of Object.entries(contracts)) {
+    viewContracts[name] = { fields };
+  }
+  const view: SchemaView = { contracts: viewContracts, enums, aliases };
+  const defaults = new Map<PendingField, CanValue>();
+  const pendingDefaults = collectPendingDefaults(contracts, operations);
+  validatePendingDefaults(view, pendingDefaults, ctx, defaults);
+  if (ctx.violations.length > 0) {
+    throw new SchemaError(ctx.violations);
+  }
+
+  return freezeNormalizedSchema(descriptor, contracts, enums, operations, aliases, defaults);
 }
 
 // ---------------------------------------------------------------------------
@@ -1983,31 +2400,13 @@ export function validateValueTsCore(
  * version on every model ref, queries preserve versions without
  * requiring them. Returns the frozen validated arguments.
  */
-export function validateOperationInputTsCore(
-  schema: NormalizedSchema,
+/** Unknown-argument check for operation inputs; false when violations were pushed. */
+function checkUnknownArguments(
   opName: string,
-  args: unknown,
-): ContractValue {
-  assertNormalizedSchema(schema);
-  if (typeof opName !== "string" || opName.length === 0) {
-    throw new ValueError("invalid-construction", "operation name must be a non-empty string");
-  }
-  const op = schema.operations[opName];
-  if (op === undefined) {
-    throw new ValueError("invalid-construction", `unknown operation ${JSON.stringify(opName)}`);
-  }
-  const ctx: Collector = { violations: [] };
-  if (!isObject(args)) {
-    pushViolation(
-      ctx,
-      [],
-      "type",
-      `operation ${opName} expects an argument object`,
-      `inputs for ${opName}`,
-      actualWire(args),
-    );
-    throw new SchemaError(ctx.violations);
-  }
+  op: NormalizedOperation,
+  args: Record<string, unknown>,
+  ctx: Collector,
+): boolean {
   const declared = Object.keys(op.inputs);
   const known = new Set(declared);
   const expectedArgs =
@@ -2034,62 +2433,119 @@ export function validateOperationInputTsCore(
       );
     }
   }
+  return ok;
+}
+
+/** Validate one declared input; false when the input failed. */
+function validateDeclaredInput(
+  schema: NormalizedSchema,
+  name: string,
+  field: NormalizedField,
+  args: Record<string, unknown>,
+  ctx: Collector,
+  options: NodeOptions,
+  out: Record<string, CanValue>,
+): boolean {
+  const raw = Object.hasOwn(args, name) ? args[name] : undefined;
+  if (raw === undefined) {
+    const omitted = omittedField(field, [name], ctx, options);
+    if (omitted === FAIL) {
+      return false;
+    }
+    if (!isEngineResolved(omitted)) {
+      out[name] = omitted as CanValue;
+    }
+    return true;
+  }
+  const before = ctx.violations.length;
+  const decoded = validateNode(schema, field.type, raw, [name], ctx, options, field.trim === true);
+  if (decoded === FAIL) {
+    return false;
+  }
+  const stored = applyTrim(field, decoded);
+  out[name] = stored as CanValue;
+  if (hasBounds(field) && ctx.violations.length === before && stored !== null) {
+    checkBounds(field, stored as CanValue, [name], ctx);
+    if (ctx.violations.length !== before) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/** Read and validate the mutation `operation_id`; false when it failed. */
+function readMutationOperationId(
+  opName: string,
+  args: Record<string, unknown>,
+  ctx: Collector,
+  out: Record<string, CanValue>,
+): boolean {
+  const rawId = Object.hasOwn(args, "operation_id") ? args["operation_id"] : undefined;
+  if (rawId === undefined) {
+    pushViolation(ctx, ["operation_id"], "required", `mutation ${opName} requires operation_id`, "non-empty text");
+    return false;
+  }
+  if (typeof rawId !== "string") {
+    pushViolation(
+      ctx,
+      ["operation_id"],
+      "type",
+      "operation_id must be text",
+      "non-empty text",
+      actualWire(rawId),
+    );
+    return false;
+  }
+  if (rawId.length === 0) {
+    pushViolation(
+      ctx,
+      ["operation_id"],
+      "format",
+      "operation_id must be non-empty",
+      "non-empty text",
+      actualWire(rawId),
+    );
+    return false;
+  }
+  out["operation_id"] = rawId;
+  return true;
+}
+
+export function validateOperationInputTsCore(
+  schema: NormalizedSchema,
+  opName: string,
+  args: unknown,
+): ContractValue {
+  assertNormalizedSchema(schema);
+  if (typeof opName !== "string" || opName.length === 0) {
+    throw new ValueError("invalid-construction", "operation name must be a non-empty string");
+  }
+  const op = schema.operations[opName];
+  if (op === undefined) {
+    throw new ValueError("invalid-construction", `unknown operation ${JSON.stringify(opName)}`);
+  }
+  const ctx: Collector = { violations: [] };
+  if (!isObject(args)) {
+    pushViolation(
+      ctx,
+      [],
+      "type",
+      `operation ${opName} expects an argument object`,
+      `inputs for ${opName}`,
+      actualWire(args),
+    );
+    throw new SchemaError(ctx.violations);
+  }
+  let ok = checkUnknownArguments(opName, op, args, ctx);
   const options: NodeOptions = { nesting: "create", requireVersion: op.mutation };
   const out: Record<string, CanValue> = {};
   for (const [name, field] of Object.entries(op.inputs)) {
-    const raw = Object.hasOwn(args, name) ? args[name] : undefined;
-    if (raw === undefined) {
-      const omitted = omittedField(field, [name], ctx, options);
-      if (omitted === FAIL) {
-        ok = false;
-      } else if (!isEngineResolved(omitted)) {
-        out[name] = omitted as CanValue;
-      }
-      continue;
-    }
-    const before = ctx.violations.length;
-    const decoded = validateNode(schema, field.type, raw, [name], ctx, options, field.trim === true);
-    if (decoded === FAIL) {
+    if (!validateDeclaredInput(schema, name, field, args, ctx, options, out)) {
       ok = false;
-      continue;
-    }
-    const stored = applyTrim(field, decoded);
-    out[name] = stored as CanValue;
-    if (hasBounds(field) && ctx.violations.length === before && stored !== null) {
-      checkBounds(field, stored as CanValue, [name], ctx);
-      if (ctx.violations.length !== before) {
-        ok = false;
-      }
     }
   }
-  if (op.mutation) {
-    const rawId = Object.hasOwn(args, "operation_id") ? args["operation_id"] : undefined;
-    if (rawId === undefined) {
-      ok = false;
-      pushViolation(ctx, ["operation_id"], "required", `mutation ${opName} requires operation_id`, "non-empty text");
-    } else if (typeof rawId !== "string") {
-      ok = false;
-      pushViolation(
-        ctx,
-        ["operation_id"],
-        "type",
-        "operation_id must be text",
-        "non-empty text",
-        actualWire(rawId),
-      );
-    } else if (rawId.length === 0) {
-      ok = false;
-      pushViolation(
-        ctx,
-        ["operation_id"],
-        "format",
-        "operation_id must be non-empty",
-        "non-empty text",
-        actualWire(rawId),
-      );
-    } else {
-      out["operation_id"] = rawId;
-    }
+  if (op.mutation && !readMutationOperationId(opName, args, ctx, out)) {
+    ok = false;
   }
   if (!ok || ctx.violations.length > 0) {
     throw new SchemaError(ctx.violations);

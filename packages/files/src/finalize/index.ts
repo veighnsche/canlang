@@ -180,6 +180,26 @@ function withinFileLifetime(stored: StoredFileRecord, now: number, retention: Fi
     BigInt(stored.attachedAtMs) - BigInt(stored.finalizedAtMs) < BigInt(retention.unattachedHorizonMs);
 }
 
+/**
+ * Load the stored row behind `ref` with its file/finalization identity
+ * established. Returns null unless the row is a live finalized/attached
+ * record whose file id and finalization instant agree.
+ */
+function loadStoredFileForRead(
+  deps: ObservationDeps,
+  ref: FinalizedFileRef,
+): { stored: StoredFileRecord; file: Record<string, unknown> } | null {
+  const stored = deps.files.get(ref);
+  if (stored === null || (stored.state !== 'finalized' && stored.state !== 'attached') ||
+      (stored.state === 'attached' && !nonempty(stored.attachedRecord)) ||
+      !milliseconds(stored.finalizedAtMs)) return null;
+  const file = ownData(stored.file, ['id', 'provenance', 'contentType', 'sizeBytes', 'bytesDigest', 'finalizedAt']);
+  if (file === null || file.id !== ref) return null;
+  const finalizedAt = ownData(file.finalizedAt, ['kind', 'ms']);
+  if (finalizedAt === null || finalizedAt.kind !== 'datetime' || finalizedAt.ms !== BigInt(stored.finalizedAtMs)) return null;
+  return { stored, file };
+}
+
 function currentFileRead(
   deps: ObservationDeps,
   ref: FinalizedFileRef,
@@ -193,14 +213,9 @@ function currentFileRead(
   const retention = snapshotRetention(options.retention);
   const now = deps.clock.nowMs();
   if (receiver === null || retention === null || !milliseconds(now)) return null;
-  const stored = deps.files.get(ref);
-  if (stored === null || (stored.state !== 'finalized' && stored.state !== 'attached') ||
-      (stored.state === 'attached' && !nonempty(stored.attachedRecord)) ||
-      !milliseconds(stored.finalizedAtMs)) return null;
-  const file = ownData(stored.file, ['id', 'provenance', 'contentType', 'sizeBytes', 'bytesDigest', 'finalizedAt']);
-  if (file === null || file.id !== ref) return null;
-  const finalizedAt = ownData(file.finalizedAt, ['kind', 'ms']);
-  if (finalizedAt === null || finalizedAt.kind !== 'datetime' || finalizedAt.ms !== BigInt(stored.finalizedAtMs)) return null;
+  const loaded = loadStoredFileForRead(deps, ref);
+  if (loaded === null) return null;
+  const { stored, file } = loaded;
   const facts = snapshotRetained({ ref, receiver: stored.owner, provenance: file.provenance,
     contentType: file.contentType, sizeBytes: file.sizeBytes, bytesDigest: file.bytesDigest,
     finalizedAtMs: stored.finalizedAtMs, retention });
@@ -390,33 +405,41 @@ function sweepExpiredIntent(deps: FinalizeDeps, record: UploadIntentRecord): voi
  * calls with separately persisted ports; hosts must serialize competing
  * callers. The SQLite binding wraps all phases in its own transaction.
  */
-export function finalizeUpload(deps: FinalizeDeps, input: FinalizeInput): FinalizeOutcome {
-  const record = deps.intents.get(input.intentId);
-  if (record === null || !callerOwnsIntent(record, input.caller)) {
-    return { status: 'failed', reason: 'foreign' };
+/**
+ * Settle a repeat finalize against the already published row. The durable
+ * pointer may have committed before staging cleanup; a repeat settles
+ * that cleanup, including after byte collection, and must never
+ * republish final bytes from the retained staging copy.
+ */
+function repeatFinalize(deps: FinalizeDeps, record: UploadIntentRecord, input: FinalizeInput): FinalizeOutcome {
+  if (input.retryId !== record.retryId || input.bytesDigest !== record.bytesDigest) {
+    return { status: 'failed', reason: 'conflict' };
   }
-  if (record.state === 'finalized') {
-    if (input.retryId !== record.retryId || input.bytesDigest !== record.bytesDigest) {
-      return { status: 'failed', reason: 'conflict' };
-    }
-    const stored =
-      record.finalizedRef === null ? null : deps.files.get(record.finalizedRef);
-    if (stored === null) {
-      return { status: 'failed', reason: 'expired' };
-    }
-    if (!publishedFileMatchesIntent(stored, record, record.finalizedRef!, input.caller)) {
-      return { status: 'failed', reason: 'conflict' };
-    }
-    // The durable pointer may have committed before staging cleanup.
-    // A repeat settles that cleanup, including after byte collection;
-    // it must never republish final bytes from the retained staging copy.
-    deps.blobs.remove(stagingKeyForIntent(record.intentId));
-    return {
-      status: 'repeated',
-      result: { file: stored.file.id },
-      file: stored.file,
-    };
+  const stored =
+    record.finalizedRef === null ? null : deps.files.get(record.finalizedRef);
+  if (stored === null) {
+    return { status: 'failed', reason: 'expired' };
   }
+  if (!publishedFileMatchesIntent(stored, record, record.finalizedRef!, input.caller)) {
+    return { status: 'failed', reason: 'conflict' };
+  }
+  deps.blobs.remove(stagingKeyForIntent(record.intentId));
+  return {
+    status: 'repeated',
+    result: { file: stored.file.id },
+    file: stored.file,
+  };
+}
+
+/**
+ * Check transfer lifecycle and retry identity before touching bytes.
+ * Returns the terminal outcome when a guard decides, else null.
+ */
+function checkFinalizeEligibility(
+  deps: FinalizeDeps,
+  record: UploadIntentRecord,
+  input: FinalizeInput,
+): FinalizeOutcome | null {
   if (record.state === 'expired' || deps.clock.nowMs() >= record.expiresAtMs) {
     if (record.state !== 'expired') {
       sweepExpiredIntent(deps, record);
@@ -432,6 +455,20 @@ export function finalizeUpload(deps: FinalizeDeps, input: FinalizeInput): Finali
   if (input.retryId !== record.retryId) {
     return { status: 'failed', reason: 'conflict' };
   }
+  return null;
+}
+
+/**
+ * Read and validate staging against the completion digest, assigning the
+ * durable pending-finalization identity on first pass. Returns the
+ * terminal outcome when validation decides, else the staging bytes with
+ * the publication identity.
+ */
+function readFinalizeStaging(
+  deps: FinalizeDeps,
+  record: UploadIntentRecord,
+  input: FinalizeInput,
+): FinalizeOutcome | { staging: Uint8Array; ref: FinalizedFileRef; finalizedAtMs: number; actualDigest: string; detectedType: string } {
   const staging = deps.blobs.read(stagingKeyForIntent(record.intentId));
   if (
     staging === null ||
@@ -462,14 +499,30 @@ export function finalizeUpload(deps: FinalizeDeps, input: FinalizeInput): Finali
   if (!Number.isSafeInteger(finalizedAtMs) || finalizedAtMs < 0) {
     return { status: 'failed', reason: 'conflict' };
   }
-  const provenance = record.provenance;
-  if (provenance.kind !== 'request') {
-    return { status: 'failed', reason: 'foreign' };
-  }
+  const detectedType: string = record.detectedType;
+  return { staging, ref, finalizedAtMs, actualDigest, detectedType };
+}
+
+/**
+ * Publish the immutable row and intent pointer before removing staging,
+ * reusing that identity after interruption. Save the publication
+ * reference/time before final bytes.
+ */
+function publishFinalizedFile(
+  deps: FinalizeDeps,
+  record: UploadIntentRecord,
+  input: FinalizeInput,
+  staging: Uint8Array,
+  ref: FinalizedFileRef,
+  finalizedAtMs: number,
+  actualDigest: string,
+  detectedType: string,
+  provenance: Extract<UploadIntentRecord['provenance'], { kind: 'request' }>,
+): FinalizeOutcome {
   const file = freezeFinalized({
     id: ref,
     provenance,
-    contentType: record.detectedType,
+    contentType: detectedType,
     sizeBytes: record.receivedBytes,
     bytesDigest: actualDigest,
     finalizedAt: { kind: 'datetime', ms: BigInt(finalizedAtMs) },
@@ -517,6 +570,29 @@ export function finalizeUpload(deps: FinalizeDeps, input: FinalizeInput): Finali
   deps.intents.put(record);
   deps.blobs.remove(stagingKeyForIntent(record.intentId));
   return { status: 'finalized', result: { file: ref }, file };
+}
+
+export function finalizeUpload(deps: FinalizeDeps, input: FinalizeInput): FinalizeOutcome {
+  const record = deps.intents.get(input.intentId);
+  if (record === null || !callerOwnsIntent(record, input.caller)) {
+    return { status: 'failed', reason: 'foreign' };
+  }
+  if (record.state === 'finalized') {
+    return repeatFinalize(deps, record, input);
+  }
+  const eligibility = checkFinalizeEligibility(deps, record, input);
+  if (eligibility !== null) {
+    return eligibility;
+  }
+  const staged = readFinalizeStaging(deps, record, input);
+  if ('status' in staged) {
+    return staged;
+  }
+  const provenance = record.provenance;
+  if (provenance.kind !== 'request') {
+    return { status: 'failed', reason: 'foreign' };
+  }
+  return publishFinalizedFile(deps, record, input, staged.staging, staged.ref, staged.finalizedAtMs, staged.actualDigest, staged.detectedType, provenance);
 }
 
 /**

@@ -381,6 +381,47 @@ function authFailureResponse(deps: AuthHttpDeps, err: unknown, pathname: string)
  * pre-session token; the other GETs are side-effect-free. POSTs run the
  * identity flows above. Anything unmapped is `not_found` JSON.
  */
+async function dispatchAuthGet(deps: AuthHttpDeps, request: Request, pathname: string, method: string): Promise<Response | null> {
+  if (method === 'GET' && pathname === '/auth/login') {
+    return browserAuthResponse(request, await handleLoginDescriptor(deps, request), '/auth/login', false);
+  }
+  if (method === 'GET' && pathname === '/auth/register') return jsonOk(REGISTER_DESCRIPTOR());
+  // Side-effect-free: the token query only pre-selects the form; the POST consumes it.
+  if (method === 'GET' && pathname === '/auth/verify') return jsonOk(VERIFY_DESCRIPTOR());
+  if (method === 'GET' && pathname === '/auth/recover') return jsonOk(RECOVER_DESCRIPTOR());
+  if (method === 'GET' && pathname === '/auth/select-team') {
+    return wantsBrowserAuth(request) ? await renderBrowserTeams(deps, request) : jsonOk(SELECT_TEAM_DESCRIPTOR());
+  }
+  if (method === 'GET' && pathname === '/auth/teams') return await handleTeams(deps, request);
+  return null;
+}
+
+async function dispatchAuthPost(deps: AuthHttpDeps, request: Request, pathname: string, method: string): Promise<Response | null> {
+  if (method === 'POST' && pathname === '/auth/register') return await handleRegister(deps, request);
+  if (method === 'POST' && pathname === '/auth/verify') return await handleVerifyPost(deps, request);
+  if (method === 'POST' && pathname === '/auth/login') {
+    const response = await handleLogin(deps, request);
+    if (wantsBrowserAuth(request) && response.status !== 200 && response.status !== 429) {
+      return browserAuthResponse(request, await handleLoginDescriptor(deps, request, response.status), '/auth/login', false);
+    }
+    return browserAuthResponse(request, response, '/auth/select-team');
+  }
+  if (method === 'POST' && pathname === '/auth/logout') {
+    return browserAuthResponse(request, await handleLogout(deps, request), '/auth/login');
+  }
+  if (method === 'POST' && pathname === '/auth/recover') return await handleRecoverPost(deps, request);
+  if (method === 'POST' && pathname === '/auth/recover/confirm') {
+    return await handleRecoverConfirm(deps, request);
+  }
+  if (method === 'POST' && pathname === '/auth/select-team') {
+    return browserAuthResponse(request, await handleSelectTeam(deps, request), '/');
+  }
+  if (method === 'POST' && pathname === '/auth/select-team/clear') {
+    return await handleSelectTeamClear(deps, request);
+  }
+  return null;
+}
+
 export async function handleAuthRequest(deps: AuthHttpDeps, request: Request): Promise<Response> {
   const pathname = new URL(request.url).pathname;
   const method = request.method;
@@ -389,39 +430,10 @@ export async function handleAuthRequest(deps: AuthHttpDeps, request: Request): P
         ['/auth/login', '/auth/logout', '/auth/select-team', '/auth/select-team/clear'].includes(pathname))) {
       assertTrustedAuthOrigin(request, deps.authOrigin);
     }
-    if (method === 'GET' && pathname === '/auth/login') {
-      return browserAuthResponse(request, await handleLoginDescriptor(deps, request), '/auth/login', false);
-    }
-    if (method === 'GET' && pathname === '/auth/register') return jsonOk(REGISTER_DESCRIPTOR());
-    // Side-effect-free: the token query only pre-selects the form; the POST consumes it.
-    if (method === 'GET' && pathname === '/auth/verify') return jsonOk(VERIFY_DESCRIPTOR());
-    if (method === 'GET' && pathname === '/auth/recover') return jsonOk(RECOVER_DESCRIPTOR());
-    if (method === 'GET' && pathname === '/auth/select-team') {
-      return wantsBrowserAuth(request) ? await renderBrowserTeams(deps, request) : jsonOk(SELECT_TEAM_DESCRIPTOR());
-    }
-    if (method === 'GET' && pathname === '/auth/teams') return await handleTeams(deps, request);
-    if (method === 'POST' && pathname === '/auth/register') return await handleRegister(deps, request);
-    if (method === 'POST' && pathname === '/auth/verify') return await handleVerifyPost(deps, request);
-    if (method === 'POST' && pathname === '/auth/login') {
-      const response = await handleLogin(deps, request);
-      if (wantsBrowserAuth(request) && response.status !== 200 && response.status !== 429) {
-        return browserAuthResponse(request, await handleLoginDescriptor(deps, request, response.status), '/auth/login', false);
-      }
-      return browserAuthResponse(request, response, '/auth/select-team');
-    }
-    if (method === 'POST' && pathname === '/auth/logout') {
-      return browserAuthResponse(request, await handleLogout(deps, request), '/auth/login');
-    }
-    if (method === 'POST' && pathname === '/auth/recover') return await handleRecoverPost(deps, request);
-    if (method === 'POST' && pathname === '/auth/recover/confirm') {
-      return await handleRecoverConfirm(deps, request);
-    }
-    if (method === 'POST' && pathname === '/auth/select-team') {
-      return browserAuthResponse(request, await handleSelectTeam(deps, request), '/');
-    }
-    if (method === 'POST' && pathname === '/auth/select-team/clear') {
-      return await handleSelectTeamClear(deps, request);
-    }
+    const getResponse = await dispatchAuthGet(deps, request, pathname, method);
+    if (getResponse !== null) return getResponse;
+    const postResponse = await dispatchAuthPost(deps, request, pathname, method);
+    if (postResponse !== null) return postResponse;
     return deny(deps, buildBusinessError('not_found', 'Unknown auth route.'), pathname);
   } catch (err) {
     const response = authFailureResponse(deps, err, pathname);

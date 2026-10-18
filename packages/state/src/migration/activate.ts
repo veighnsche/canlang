@@ -70,7 +70,7 @@ import type {
   FileReferenceInventory,
 } from '@canlang/contracts';
 import type { ClockPort } from '../invocation/context.js';
-import type { ModelTable } from '../mutation/models.js';
+import type { InterimModelDef, ModelTable } from '../mutation/models.js';
 import { StateError, storageToStateError } from '../errors.js';
 import { noteUnexpectedFailure } from './recover.js';
 import type { RetainedSet } from './retain.js';
@@ -246,6 +246,92 @@ function checkTableAgreement(
 /** Shared empty exemption (no retained set — pure S7 gate). */
 const EMPTY_EXEMPT: ReadonlySet<string> = Object.freeze(new Set<string>());
 
+interface InventoryFold {
+  readonly blocked: string[];
+  readonly unpinned: string[];
+  readonly invalidated: Array<{ intentId: string; handlerContract: string }>;
+  readonly retainedSeen: string[];
+  readonly seen: Set<string>;
+}
+
+function foldInventoryItem(
+  item: WorkInventoryItem,
+  pinned: ReadonlySet<string>,
+  exempt: ReadonlySet<string>,
+  fold: InventoryFold,
+): void {
+  if (typeof item !== 'object' || item === null || Array.isArray(item)) {
+    throw new StateError('validation', 'Migration inventory items must be objects.');
+  }
+  const intentId = item.intentId;
+  const handlerContract = item.handlerContract;
+  const state = item.state;
+  if (typeof intentId !== 'string' || intentId === '') {
+    throw new StateError('validation', 'Migration inventory intent ids must be non-empty.');
+  }
+  if (typeof handlerContract !== 'string' || handlerContract === '') {
+    throw new StateError('validation', 'Migration inventory handler contracts must be non-empty.');
+  }
+  if (state !== 'undispatched' && state !== 'inflight' && state !== 'accepted' && state !== 'uncertain') {
+    throw new StateError(
+      'validation',
+      `Migration inventory item ${JSON.stringify(intentId)} has unknown state.`,
+    );
+  }
+  if (exempt.has(intentId)) {
+    // Retained carry-over: exempt from the block, but still
+    // presence-checked below (evidence may have changed).
+    if (!fold.seen.has(intentId)) {
+      fold.seen.add(intentId);
+      fold.retainedSeen.push(intentId);
+    }
+    return;
+  }
+  if (state !== 'undispatched') {
+    fold.blocked.push(intentId);
+    return;
+  }
+  if (!pinned.has(handlerContract)) {
+    fold.unpinned.push(intentId);
+    return;
+  }
+  if (!fold.seen.has(intentId)) {
+    fold.seen.add(intentId);
+    fold.invalidated.push({ intentId, handlerContract });
+  }
+}
+
+async function checkInventoryEvidence(
+  store: StoragePort,
+  invalidated: ReadonlyArray<{ intentId: string; handlerContract: string }>,
+  retainedSeen: readonly string[],
+): Promise<void> {
+  if (invalidated.length === 0 && retainedSeen.length === 0) {
+    return;
+  }
+  const pending = await store.outboxPending();
+  const pendingIds = new Set(pending.map((intent) => intent.intentId));
+  const missing = invalidated
+    .map((entry) => entry.intentId)
+    .filter((id) => !pendingIds.has(id))
+    .sort();
+  if (missing.length > 0) {
+    throw new StateError(
+      'validation',
+      `Migration invalidate evidence changed under us (not pending): ` +
+        `${missing.map((id) => JSON.stringify(id)).join(', ')}.`,
+    );
+  }
+  const retainedMissing = retainedSeen.filter((id) => !pendingIds.has(id)).sort();
+  if (retainedMissing.length > 0) {
+    throw new StateError(
+      'validation',
+      `Migration retained evidence changed under us (not pending): ` +
+        `${retainedMissing.map((id) => JSON.stringify(id)).join(', ')}.`,
+    );
+  }
+}
+
 export async function checkActivationInventory(
   store: StoragePort,
   plan: ValidatedMigrationPlan,
@@ -258,52 +344,11 @@ export async function checkActivationInventory(
   const exempt: ReadonlySet<string> =
     retained === undefined ? EMPTY_EXEMPT : 'ids' in retained ? retained.ids : retained;
   const pinned = new Set(plan.invalidates);
-  const blocked: string[] = [];
-  const unpinned: string[] = [];
-  const invalidated: Array<{ intentId: string; handlerContract: string }> = [];
-  const retainedSeen: string[] = [];
-  const seen = new Set<string>();
+  const fold: InventoryFold = { blocked: [], unpinned: [], invalidated: [], retainedSeen: [], seen: new Set<string>() };
   for (const item of inventory) {
-    if (typeof item !== 'object' || item === null || Array.isArray(item)) {
-      throw new StateError('validation', 'Migration inventory items must be objects.');
-    }
-    const intentId = item.intentId;
-    const handlerContract = item.handlerContract;
-    const state = item.state;
-    if (typeof intentId !== 'string' || intentId === '') {
-      throw new StateError('validation', 'Migration inventory intent ids must be non-empty.');
-    }
-    if (typeof handlerContract !== 'string' || handlerContract === '') {
-      throw new StateError('validation', 'Migration inventory handler contracts must be non-empty.');
-    }
-    if (state !== 'undispatched' && state !== 'inflight' && state !== 'accepted' && state !== 'uncertain') {
-      throw new StateError(
-        'validation',
-        `Migration inventory item ${JSON.stringify(intentId)} has unknown state.`,
-      );
-    }
-    if (exempt.has(intentId)) {
-      // Retained carry-over: exempt from the block, but still
-      // presence-checked below (evidence may have changed).
-      if (!seen.has(intentId)) {
-        seen.add(intentId);
-        retainedSeen.push(intentId);
-      }
-      continue;
-    }
-    if (state !== 'undispatched') {
-      blocked.push(intentId);
-      continue;
-    }
-    if (!pinned.has(handlerContract)) {
-      unpinned.push(intentId);
-      continue;
-    }
-    if (!seen.has(intentId)) {
-      seen.add(intentId);
-      invalidated.push({ intentId, handlerContract });
-    }
+    foldInventoryItem(item, pinned, exempt, fold);
   }
+  const { blocked, unpinned, invalidated, retainedSeen } = fold;
   if (blocked.length > 0) {
     blocked.sort();
     throw new StateError(
@@ -320,29 +365,7 @@ export async function checkActivationInventory(
         `(no disposition): ${unpinned.map((id) => JSON.stringify(id)).join(', ')}.`,
     );
   }
-  if (invalidated.length > 0 || retainedSeen.length > 0) {
-    const pending = await store.outboxPending();
-    const pendingIds = new Set(pending.map((intent) => intent.intentId));
-    const missing = invalidated
-      .map((entry) => entry.intentId)
-      .filter((id) => !pendingIds.has(id))
-      .sort();
-    if (missing.length > 0) {
-      throw new StateError(
-        'validation',
-        `Migration invalidate evidence changed under us (not pending): ` +
-          `${missing.map((id) => JSON.stringify(id)).join(', ')}.`,
-      );
-    }
-    const retainedMissing = retainedSeen.filter((id) => !pendingIds.has(id)).sort();
-    if (retainedMissing.length > 0) {
-      throw new StateError(
-        'validation',
-        `Migration retained evidence changed under us (not pending): ` +
-          `${retainedMissing.map((id) => JSON.stringify(id)).join(', ')}.`,
-      );
-    }
-  }
+  await checkInventoryEvidence(store, invalidated, retainedSeen);
   return {
     invalidatedIntentIds: invalidated.map((entry) => entry.intentId),
     outcomes: invalidated.map((entry) => ({
@@ -419,6 +442,125 @@ async function checkActivationEvidence(store: StoragePort, plan: ValidatedMigrat
  * validation before anything publishes (DESIGN §11.2: drops remain
  * subject to expiry).
  */
+async function validateStagedGivenFields(
+  store: StoragePort,
+  plan: ValidatedMigrationPlan,
+  desiredModels: ModelTable,
+  chunkSize: number,
+): Promise<void> {
+  // Validate the complete staged set before the first publish chunk. The
+  // desired table comes from the same frozen implementation/schema load.
+  if (![...desiredModels.values()].some(def => (def.givenFieldValidations ?? []).length !== 0)) {
+    return;
+  }
+  let cursor: Parameters<StoragePort['readStagedRows']>[1] = null;
+  for (;;) {
+    const rows = await store.readStagedRows(plan.migrationId, cursor, chunkSize);
+    if (rows.length === 0) break;
+    for (const row of rows) await validateGivenFields(desiredModels.get(row.targetModel)?.givenFieldValidations ?? [], row.data);
+    const last = rows[rows.length - 1]!;
+    cursor = { model: last.targetModel as string, recordId: last.recordId as string };
+  }
+}
+
+interface PublishChunkState {
+  retainedGiven: RetainedGivenTouches | null;
+  published: boolean;
+}
+
+async function publishOneChunk(
+  store: StoragePort,
+  plan: ValidatedMigrationPlan,
+  oldModels: ModelTable,
+  desiredModels: ModelTable,
+  chunkSize: number,
+  now: number,
+  actor: string,
+  declarations: FileReferenceInventory | undefined,
+  givenScope: GivenUniqueKeyScope,
+  state: PublishChunkState,
+): Promise<boolean> {
+  const progress = await store.readMigrationProgress(plan.migrationId);
+  if (progress === null) {
+    throw new StateError('validation', 'Migration has no staged state to publish.');
+  }
+  if (progress.phase !== 'staged' && progress.phase !== 'publishing') {
+    throw new StateError(
+      'validation',
+      `Migration publish needs a staged or publishing set; progress is ${progress.phase}.`,
+    );
+  }
+  const staged = await store.readStagedRows(plan.migrationId, progress.publishCursor, chunkSize);
+  const drops = await enumerateDrops(store, plan, chunkSize);
+  const retainedPending =
+    state.retainedGiven !== null &&
+    (state.retainedGiven.claims.length > 0 || state.retainedGiven.releases.length > 0);
+  const empty = staged.length === 0 && drops.length === 0 && !retainedPending;
+  if (empty && (declarations === undefined || state.published)) {
+    return true;
+  }
+  const history: HistoryEntry[] = [];
+  const dropEntries: MigrationDrop[] = [];
+  const uniqueClaims: UniqueClaim[] = [];
+  const uniqueReleases: UniqueRelease[] = [];
+  if (state.retainedGiven !== null) {
+    uniqueClaims.push(...state.retainedGiven.claims);
+    uniqueReleases.push(...state.retainedGiven.releases);
+    state.retainedGiven = null;
+  }
+  for (const row of staged) {
+    await appendStagedPublish(
+      store,
+      plan,
+      oldModels,
+      desiredModels,
+      row,
+      now,
+      actor,
+      history,
+      dropEntries,
+      uniqueClaims,
+      uniqueReleases,
+      givenScope,
+    );
+  }
+  for (const drop of drops) {
+    await appendDropPublish(plan, oldModels, drop, now, actor, dropEntries, uniqueReleases, givenScope);
+  }
+  const revision = await store.readRevision();
+  const last = staged[staged.length - 1];
+  const next = {
+    migrationId: plan.migrationId,
+    phase: 'publishing',
+    stagedCursor: progress.stagedCursor,
+    publishCursor:
+      last === undefined
+        ? progress.publishCursor
+        : {
+            model: last.targetModel as string,
+            recordId: last.recordId as string,
+          },
+    updatedRevision: (revision as number + 1) as Revision,
+  } as const;
+  try {
+    await store.publishMigrationChunk({
+      expectedRevision: revision,
+      migrationId: plan.migrationId,
+      rows: staged,
+      history,
+      drops: dropEntries,
+      progress: next,
+      uniqueClaims,
+      uniqueReleases,
+      ...(declarations === undefined ? {} : { fileReferenceInventory: declarations }),
+    });
+    state.published = true;
+    return empty;
+  } catch (error) {
+    throw storageToStateError(error);
+  }
+}
+
 export async function publishStagedAndDrops(
   store: StoragePort,
   plan: ValidatedMigrationPlan,
@@ -432,7 +574,6 @@ export async function publishStagedAndDrops(
 ): Promise<void> {
   assertMigrationUniqueSupported(oldModels, desiredModels);
   const declarations = migrationFileInventory(store, plan, fileReferenceInventory);
-  let published = false;
   await checkActivationEvidence(store, plan);
   if (isExpiredRow !== undefined) {
     await checkDropExpiry(store, plan, isExpiredRow);
@@ -444,102 +585,16 @@ export async function publishStagedAndDrops(
   // recomputes nor double-claims.
   const givenScope = createGivenUniqueKeyScope();
   try {
-    let retainedGiven: RetainedGivenTouches | null = null;
+    const state: PublishChunkState = { retainedGiven: null, published: false };
     const entry = await store.readMigrationProgress(plan.migrationId);
     if (entry !== null && entry.phase === 'staged') {
-      // Validate the complete staged set before the first publish chunk. The
-      // desired table comes from the same frozen implementation/schema load.
-      if ([...desiredModels.values()].some(def => (def.givenFieldValidations ?? []).length !== 0)) {
-        let cursor: Parameters<StoragePort['readStagedRows']>[1] = null;
-        for (;;) {
-          const rows = await store.readStagedRows(plan.migrationId, cursor, chunkSize);
-          if (rows.length === 0) break;
-          for (const row of rows) await validateGivenFields(desiredModels.get(row.targetModel)?.givenFieldValidations ?? [], row.data);
-          const last = rows[rows.length - 1]!;
-          cursor = { model: last.targetModel as string, recordId: last.recordId as string };
-        }
-      }
-      retainedGiven = await diffRetainedGivenKeys(store, plan, oldModels, desiredModels, givenScope);
+      await validateStagedGivenFields(store, plan, desiredModels, chunkSize);
+      state.retainedGiven = await diffRetainedGivenKeys(store, plan, oldModels, desiredModels, givenScope);
     }
     for (;;) {
-      const progress = await store.readMigrationProgress(plan.migrationId);
-      if (progress === null) {
-        throw new StateError('validation', 'Migration has no staged state to publish.');
-      }
-      if (progress.phase !== 'staged' && progress.phase !== 'publishing') {
-        throw new StateError(
-          'validation',
-          `Migration publish needs a staged or publishing set; progress is ${progress.phase}.`,
-        );
-      }
-      const staged = await store.readStagedRows(plan.migrationId, progress.publishCursor, chunkSize);
-      const drops = await enumerateDrops(store, plan, chunkSize);
-      const retainedPending =
-        retainedGiven !== null &&
-        (retainedGiven.claims.length > 0 || retainedGiven.releases.length > 0);
-      const empty = staged.length === 0 && drops.length === 0 && !retainedPending;
-      if (empty && (declarations === undefined || published)) {
+      if (await publishOneChunk(store, plan, oldModels, desiredModels, chunkSize, now, actor,
+          declarations, givenScope, state)) {
         return;
-      }
-      const history: HistoryEntry[] = [];
-      const dropEntries: MigrationDrop[] = [];
-      const uniqueClaims: UniqueClaim[] = [];
-      const uniqueReleases: UniqueRelease[] = [];
-      if (retainedGiven !== null) {
-        uniqueClaims.push(...retainedGiven.claims);
-        uniqueReleases.push(...retainedGiven.releases);
-        retainedGiven = null;
-      }
-      for (const row of staged) {
-        await appendStagedPublish(
-          store,
-          plan,
-          oldModels,
-          desiredModels,
-          row,
-          now,
-          actor,
-          history,
-          dropEntries,
-          uniqueClaims,
-          uniqueReleases,
-          givenScope,
-        );
-      }
-      for (const drop of drops) {
-        await appendDropPublish(plan, oldModels, drop, now, actor, dropEntries, uniqueReleases, givenScope);
-      }
-      const revision = await store.readRevision();
-      const last = staged[staged.length - 1];
-      const next = {
-        migrationId: plan.migrationId,
-        phase: 'publishing',
-        stagedCursor: progress.stagedCursor,
-        publishCursor:
-          last === undefined
-            ? progress.publishCursor
-            : {
-                model: last.targetModel as string,
-                recordId: last.recordId as string,
-              },
-        updatedRevision: (revision as number + 1) as Revision,
-      } as const;
-      try {
-        await store.publishMigrationChunk({
-          expectedRevision: revision,
-          migrationId: plan.migrationId,
-          rows: staged,
-          history,
-          drops: dropEntries,
-          progress: next,
-          uniqueClaims,
-          uniqueReleases,
-          ...(declarations === undefined ? {} : { fileReferenceInventory: declarations }),
-        });
-        published = true;
-        if (empty) return;
-      } catch (error) {
-        throw storageToStateError(error);
       }
     }
   } finally {
@@ -559,6 +614,139 @@ export async function publishStagedAndDrops(
  * its new name, refs follow through desired defs, and mapped-lock
  * validity was proven at validation — only true drops gate.
  */
+interface StagedPublishMoves {
+  readonly liveData: Readonly<Record<string, unknown>>;
+  readonly stagedData: StagedRow['data'];
+  readonly renamed: boolean;
+}
+
+function recordStagedConversion(
+  row: StagedRow,
+  live: StoredRow,
+  source: ModelName,
+  target: string,
+  operation: OperationName,
+  operationId: OperationId,
+  actor: string,
+  now: number,
+  history: HistoryEntry[],
+  dropEntries: MigrationDrop[],
+): boolean {
+  if (row.converted) {
+    history.push({
+      model: row.targetModel,
+      recordId: row.recordId,
+      version: row.version,
+      operation,
+      operationId,
+      actor,
+      at: now,
+      change: 'update',
+      before: live.data,
+      after: row.data,
+    });
+  }
+  const renamed = (source as string) !== target;
+  if (renamed) {
+    // The move's source side: disposed as-is (no version advance — the
+    // target version already records the conversion), with a `remove`
+    // entry chaining the audit trail (pre-rename history stays queryable
+    // under the source model name; it is never rewritten onto the target).
+    dropEntries.push({
+      model: source,
+      recordId: row.recordId,
+      version: live.version,
+      history: {
+        model: source,
+        recordId: row.recordId,
+        version: live.version,
+        operation,
+        operationId,
+        actor,
+        at: now,
+        change: 'remove',
+        before: live.data,
+        after: null,
+      },
+    });
+  }
+  return renamed;
+}
+
+function moveStagedUniqueKeys(
+  oldDef: InterimModelDef,
+  desiredDef: InterimModelDef,
+  liveParent: StoredRow['parent'],
+  moves: StagedPublishMoves,
+  row: StagedRow,
+  source: ModelName,
+  uniqueReleases: UniqueRelease[],
+  uniqueClaims: UniqueClaim[],
+): void {
+  const { liveData, stagedData, renamed } = moves;
+  for (const key of oldDef.uniqueKeys) {
+    const oldValue = canonicalUniqueRowValue({data: liveData, parent: liveParent ?? null}, key, oldDef);
+    if (oldValue === null) continue;
+    const sameKey = desiredDef.uniqueKeys.includes(key) &&
+      canonicalUniqueRowValue({data: stagedData, parent: row.parent}, key, desiredDef) === oldValue;
+    if (renamed || !sameKey) uniqueReleases.push({model: source, keyName: key, keyValue: oldValue});
+  }
+  for (const key of desiredDef.uniqueKeys) {
+    const newValue = canonicalUniqueRowValue({data: stagedData, parent: row.parent}, key, desiredDef);
+    if (newValue === null) continue;
+    const sameKey = oldDef.uniqueKeys.includes(key) &&
+      canonicalUniqueRowValue({data: liveData, parent: liveParent ?? null}, key, oldDef) === newValue;
+    if (renamed || !sameKey) uniqueClaims.push({model: row.targetModel, keyName: key, keyValue: newValue, recordId: row.recordId});
+  }
+}
+
+async function moveStagedComputedKeys(
+  oldDef: InterimModelDef,
+  desiredDef: InterimModelDef,
+  live: StoredRow,
+  moves: StagedPublishMoves,
+  row: StagedRow,
+  source: ModelName,
+  givenScope: GivenUniqueKeyScope,
+  uniqueReleases: UniqueRelease[],
+  uniqueClaims: UniqueClaim[],
+): Promise<void> {
+  // BGI-08 repair: computed-claim moves mirror the builtin ones above —
+  // rules match across old/desired by rule identity, each side evaluated
+  // with its own saved export (so changed code nets release + claim),
+  // unchanged keys skip, and renames move across models.
+  const { liveData, stagedData, renamed } = moves;
+  const oldRules = oldDef.givenUniqueKeys ?? [];
+  const newRules = desiredDef.givenUniqueKeys ?? [];
+  if (oldRules.length === 0 && newRules.length === 0) {
+    return;
+  }
+  const oldKeys = new Map<string, string | null>();
+  for (const rule of oldRules) {
+    oldKeys.set(rule.rule, canonicalUniqueScopeValue(live, await givenScope.evaluate(rule, liveData[rule.field]), oldDef));
+  }
+  const newKeys = new Map<string, string | null>();
+  for (const rule of newRules) {
+    newKeys.set(rule.rule, canonicalUniqueScopeValue(row, await givenScope.evaluate(rule, stagedData[rule.field]), desiredDef));
+  }
+  for (const rule of oldRules) {
+    const oldValue = oldKeys.get(rule.rule) ?? null;
+    if (oldValue === null) continue;
+    const sameKey = !renamed && newKeys.get(rule.rule) === oldValue;
+    if (renamed || !sameKey) {
+      uniqueReleases.push({ model: source, keyName: givenUniqueKeyName(rule.rule), keyValue: oldValue });
+    }
+  }
+  for (const rule of newRules) {
+    const newValue = newKeys.get(rule.rule) ?? null;
+    if (newValue === null) continue;
+    const sameKey = !renamed && oldKeys.get(rule.rule) === newValue;
+    if (renamed || !sameKey) {
+      uniqueClaims.push({ model: row.targetModel, keyName: givenUniqueKeyName(rule.rule), keyValue: newValue, recordId: row.recordId });
+    }
+  }
+}
+
 async function appendStagedPublish(
   store: StoragePort,
   plan: ValidatedMigrationPlan,
@@ -602,92 +790,13 @@ async function appendStagedPublish(
         `${JSON.stringify(row.recordId)} (evidence changed under us).`,
     );
   }
-  if (row.converted) {
-    history.push({
-      model: row.targetModel,
-      recordId: row.recordId,
-      version: row.version,
-      operation,
-      operationId,
-      actor,
-      at: now,
-      change: 'update',
-      before: live.data,
-      after: row.data,
-    });
-  }
-  const renamed = (source as string) !== target;
-  if (renamed) {
-    // The move's source side: disposed as-is (no version advance — the
-    // target version already records the conversion), with a `remove`
-    // entry chaining the audit trail (pre-rename history stays queryable
-    // under the source model name; it is never rewritten onto the target).
-    dropEntries.push({
-      model: source,
-      recordId: row.recordId,
-      version: live.version,
-      history: {
-        model: source,
-        recordId: row.recordId,
-        version: live.version,
-        operation,
-        operationId,
-        actor,
-        at: now,
-        change: 'remove',
-        before: live.data,
-        after: null,
-      },
-    });
-  }
-  const liveData = live.data as Readonly<Record<string, unknown>>;
-  const stagedData = row.data;
-  for (const key of oldDef.uniqueKeys) {
-    const oldValue = canonicalUniqueRowValue({data: liveData, parent: live.parent ?? null}, key, oldDef);
-    if (oldValue === null) continue;
-    const sameKey = desiredDef.uniqueKeys.includes(key) &&
-      canonicalUniqueRowValue({data: stagedData, parent: row.parent}, key, desiredDef) === oldValue;
-    if (renamed || !sameKey) uniqueReleases.push({model: source, keyName: key, keyValue: oldValue});
-  }
-  for (const key of desiredDef.uniqueKeys) {
-    const newValue = canonicalUniqueRowValue({data: stagedData, parent: row.parent}, key, desiredDef);
-    if (newValue === null) continue;
-    const sameKey = oldDef.uniqueKeys.includes(key) &&
-      canonicalUniqueRowValue({data: liveData, parent: live.parent ?? null}, key, oldDef) === newValue;
-    if (renamed || !sameKey) uniqueClaims.push({model: row.targetModel, keyName: key, keyValue: newValue, recordId: row.recordId});
-  }
-  // BGI-08 repair: computed-claim moves mirror the builtin ones above —
-  // rules match across old/desired by rule identity, each side evaluated
-  // with its own saved export (so changed code nets release + claim),
-  // unchanged keys skip, and renames move across models.
-  const oldRules = oldDef.givenUniqueKeys ?? [];
-  const newRules = desiredDef.givenUniqueKeys ?? [];
-  if (oldRules.length > 0 || newRules.length > 0) {
-    const oldKeys = new Map<string, string | null>();
-    for (const rule of oldRules) {
-      oldKeys.set(rule.rule, canonicalUniqueScopeValue(live, await givenScope.evaluate(rule, liveData[rule.field]), oldDef));
-    }
-    const newKeys = new Map<string, string | null>();
-    for (const rule of newRules) {
-      newKeys.set(rule.rule, canonicalUniqueScopeValue(row, await givenScope.evaluate(rule, stagedData[rule.field]), desiredDef));
-    }
-    for (const rule of oldRules) {
-      const oldValue = oldKeys.get(rule.rule) ?? null;
-      if (oldValue === null) continue;
-      const sameKey = !renamed && newKeys.get(rule.rule) === oldValue;
-      if (renamed || !sameKey) {
-        uniqueReleases.push({ model: source, keyName: givenUniqueKeyName(rule.rule), keyValue: oldValue });
-      }
-    }
-    for (const rule of newRules) {
-      const newValue = newKeys.get(rule.rule) ?? null;
-      if (newValue === null) continue;
-      const sameKey = !renamed && oldKeys.get(rule.rule) === newValue;
-      if (renamed || !sameKey) {
-        uniqueClaims.push({ model: row.targetModel, keyName: givenUniqueKeyName(rule.rule), keyValue: newValue, recordId: row.recordId });
-      }
-    }
-  }
+  const renamed = recordStagedConversion(row, live, source, target, operation, operationId,
+    actor, now, history, dropEntries);
+  const moves: StagedPublishMoves = { liveData: live.data as Readonly<Record<string, unknown>>,
+    stagedData: row.data, renamed };
+  moveStagedUniqueKeys(oldDef, desiredDef, live.parent, moves, row, source, uniqueReleases, uniqueClaims);
+  await moveStagedComputedKeys(oldDef, desiredDef, live, moves, row, source, givenScope,
+    uniqueReleases, uniqueClaims);
 }
 
 /**
@@ -771,6 +880,52 @@ const RETAINED_GIVEN_SCAN_LIMIT = 500;
  * proved the new keys collision-free, and any residual conflict still
  * surfaces at the fenced commit.
  */
+interface RetainedGivenRules {
+  readonly oldRules: NonNullable<InterimModelDef['givenUniqueKeys']>;
+  readonly newRules: NonNullable<InterimModelDef['givenUniqueKeys']>;
+  readonly validations: NonNullable<InterimModelDef['givenFieldValidations']>;
+  readonly oldDef: InterimModelDef;
+  readonly desiredDef: InterimModelDef;
+}
+
+async function diffRetainedGivenRow(
+  row: StoredRow,
+  rules: RetainedGivenRules,
+  givenScope: GivenUniqueKeyScope,
+  claims: UniqueClaim[],
+  releases: UniqueRelease[],
+  model: ModelName,
+): Promise<void> {
+  const { oldRules, newRules, validations, oldDef, desiredDef } = rules;
+  const data = row.data as Readonly<Record<string, unknown>>;
+  await validateGivenFields(validations, data);
+  const oldKeys = new Map<string, string | null>();
+  for (const rule of oldRules) {
+    oldKeys.set(rule.rule, canonicalUniqueScopeValue(row, await givenScope.evaluate(rule, data[rule.field]), oldDef));
+  }
+  const newKeys = new Map<string, string | null>();
+  for (const rule of newRules) {
+    newKeys.set(rule.rule, canonicalUniqueScopeValue(row, await givenScope.evaluate(rule, data[rule.field]), desiredDef));
+  }
+  for (const rule of oldRules) {
+    const oldValue = oldKeys.get(rule.rule) ?? null;
+    if (oldValue === null) continue;
+    if (newKeys.get(rule.rule) === oldValue) continue;
+    releases.push({ model, keyName: givenUniqueKeyName(rule.rule), keyValue: oldValue });
+  }
+  for (const rule of newRules) {
+    const newValue = newKeys.get(rule.rule) ?? null;
+    if (newValue === null) continue;
+    if (oldKeys.get(rule.rule) === newValue) continue;
+    claims.push({
+      model,
+      keyName: givenUniqueKeyName(rule.rule),
+      keyValue: newValue,
+      recordId: row.id,
+    });
+  }
+}
+
 async function diffRetainedGivenKeys(
   store: StoragePort,
   plan: ValidatedMigrationPlan,
@@ -793,10 +948,10 @@ async function diffRetainedGivenKeys(
         `Migration plan and model defs disagree on ${JSON.stringify(source)}.`,
       );
     }
-    const oldRules = oldDef.givenUniqueKeys ?? [];
-    const newRules = desiredDef.givenUniqueKeys ?? [];
-    const validations = desiredDef.givenFieldValidations ?? [];
-    if (oldRules.length === 0 && newRules.length === 0 && validations.length === 0) {
+    const rules: RetainedGivenRules = { oldRules: oldDef.givenUniqueKeys ?? [],
+      newRules: desiredDef.givenUniqueKeys ?? [],
+      validations: desiredDef.givenFieldValidations ?? [], oldDef, desiredDef };
+    if (rules.oldRules.length === 0 && rules.newRules.length === 0 && rules.validations.length === 0) {
       continue;
     }
     let after: string | null = null;
@@ -813,33 +968,7 @@ async function diffRetainedGivenKeys(
         break;
       }
       for (const row of chunk) {
-        const data = row.data as Readonly<Record<string, unknown>>;
-        await validateGivenFields(validations, data);
-        const oldKeys = new Map<string, string | null>();
-        for (const rule of oldRules) {
-          oldKeys.set(rule.rule, canonicalUniqueScopeValue(row, await givenScope.evaluate(rule, data[rule.field]), oldDef));
-        }
-        const newKeys = new Map<string, string | null>();
-        for (const rule of newRules) {
-          newKeys.set(rule.rule, canonicalUniqueScopeValue(row, await givenScope.evaluate(rule, data[rule.field]), desiredDef));
-        }
-        for (const rule of oldRules) {
-          const oldValue = oldKeys.get(rule.rule) ?? null;
-          if (oldValue === null) continue;
-          if (newKeys.get(rule.rule) === oldValue) continue;
-          releases.push({ model: name, keyName: givenUniqueKeyName(rule.rule), keyValue: oldValue });
-        }
-        for (const rule of newRules) {
-          const newValue = newKeys.get(rule.rule) ?? null;
-          if (newValue === null) continue;
-          if (oldKeys.get(rule.rule) === newValue) continue;
-          claims.push({
-            model: mapping.target,
-            keyName: givenUniqueKeyName(rule.rule),
-            keyValue: newValue,
-            recordId: row.id,
-          });
-        }
+        await diffRetainedGivenRow(row, rules, givenScope, claims, releases, mapping.target);
       }
       const last = chunk[chunk.length - 1];
       if (last === undefined || chunk.length < RETAINED_GIVEN_SCAN_LIMIT) {

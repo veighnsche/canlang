@@ -134,6 +134,64 @@ export function same(a: CanValue, b: CanValue): boolean {
   return sameReferences(a, b);
 }
 
+/** Keywise entry comparison for action bindings and invocation args. */
+function sameKeyedEntries(
+  keysLeft: readonly string[],
+  keysRight: readonly string[],
+  getLeft: (key: string) => CanValue | undefined,
+  getRight: (key: string) => CanValue | undefined,
+  sameEntry: (left: CanValue, right: CanValue) => boolean,
+): boolean {
+  if (keysLeft.length !== keysRight.length) {
+    return false;
+  }
+  for (const key of keysLeft) {
+    const entryLeft = getLeft(key);
+    const entryRight = getRight(key);
+    if (entryLeft === undefined || entryRight === undefined) {
+      return false;
+    }
+    if (!sameEntry(entryLeft, entryRight)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function sameActionReferences(
+  left: ActionRef,
+  right: ActionRef,
+  resolveReference: RecordReferenceResolver | undefined,
+): boolean {
+  if (left.target !== right.target) {
+    return false;
+  }
+  return sameKeyedEntries(
+    Object.keys(left.bindings),
+    Object.keys(right.bindings),
+    (key) => left.bindings[key],
+    (key) => right.bindings[key],
+    (entryLeft, entryRight) => sameReferences(entryLeft, entryRight, resolveReference),
+  );
+}
+
+function sameInvocationReferences(
+  left: InvocationRef,
+  right: InvocationRef,
+  resolveReference: RecordReferenceResolver | undefined,
+): boolean {
+  if (left.target !== right.target) {
+    return false;
+  }
+  return sameKeyedEntries(
+    Object.keys(left.args),
+    Object.keys(right.args),
+    (key) => left.args[key],
+    (key) => right.args[key],
+    (argLeft, argRight) => equalNested(argLeft, argRight, resolveReference),
+  );
+}
+
 function sameReferences(a: CanValue, b: CanValue, resolveReference?: RecordReferenceResolver): boolean {
   const kindA = refKindOf(a);
   const kindB = refKindOf(b);
@@ -154,52 +212,10 @@ function sameReferences(a: CanValue, b: CanValue, resolveReference?: RecordRefer
       return (a as FileValue).id === (b as FileValue).id;
     case "delivery":
       return (a as DeliveryRef).id === (b as DeliveryRef).id;
-    case "action": {
-      const left = a as ActionRef;
-      const right = b as ActionRef;
-      if (left.target !== right.target) {
-        return false;
-      }
-      const keysLeft = Object.keys(left.bindings);
-      const keysRight = Object.keys(right.bindings);
-      if (keysLeft.length !== keysRight.length) {
-        return false;
-      }
-      for (const key of keysLeft) {
-        const bindingLeft = left.bindings[key];
-        const bindingRight = right.bindings[key];
-        if (bindingLeft === undefined || bindingRight === undefined) {
-          return false;
-        }
-        if (!sameReferences(bindingLeft, bindingRight, resolveReference)) {
-          return false;
-        }
-      }
-      return true;
-    }
-    case "invocation": {
-      const left = a as InvocationRef;
-      const right = b as InvocationRef;
-      if (left.target !== right.target) {
-        return false;
-      }
-      const keysLeft = Object.keys(left.args);
-      const keysRight = Object.keys(right.args);
-      if (keysLeft.length !== keysRight.length) {
-        return false;
-      }
-      for (const key of keysLeft) {
-        const argLeft = left.args[key];
-        const argRight = right.args[key];
-        if (argLeft === undefined || argRight === undefined) {
-          return false;
-        }
-        if (!equalNested(argLeft, argRight, resolveReference)) {
-          return false;
-        }
-      }
-      return true;
-    }
+    case "action":
+      return sameActionReferences(a as ActionRef, b as ActionRef, resolveReference);
+    case "invocation":
+      return sameInvocationReferences(a as InvocationRef, b as InvocationRef, resolveReference);
   }
 }
 
@@ -216,13 +232,11 @@ function equalNested(a: CanValue, b: CanValue, resolveReference?: RecordReferenc
  * and money currencies are decidable value differences (false); malformed
  * values and mismatched runtime kinds are `invalid-construction`.
  */
-function equalInner(a: CanValue, b: CanValue, resolveReference?: RecordReferenceResolver): boolean {
-  // Resolve only a value demanded by the original recursive comparison. The
-  // host supplies private identity metadata, never row reads or permissions.
-  if (resolveReference !== undefined) {
-    a = resolveReference(a) ?? a;
-    b = resolveReference(b) ?? b;
-  }
+/**
+ * Primitive dispatch (bigint/string/boolean). Returns null when neither
+ * side is primitive; mismatched primitives are `invalid-construction`.
+ */
+function equalPrimitive(a: CanValue, b: CanValue): boolean | null {
   if (typeof a === "bigint" || typeof b === "bigint") {
     if (typeof a === "bigint" && typeof b === "bigint") {
       return a === b;
@@ -244,6 +258,14 @@ function equalInner(a: CanValue, b: CanValue, resolveReference?: RecordReference
     }
     throw new ValueError("invalid-construction", "cannot compare a boolean with a non-boolean value");
   }
+  return null;
+}
+
+/**
+ * Numeric/date dispatch (decimal/money/date/datetime). Returns null when
+ * neither side carries one of these kinds; mismatches throw.
+ */
+function equalNumericDate(a: CanValue, b: CanValue): boolean | null {
   if (isDecimal(a) || isDecimal(b)) {
     if (isDecimal(a) && isDecimal(b)) {
       return compareDecimal(a, b) === 0;
@@ -268,24 +290,72 @@ function equalInner(a: CanValue, b: CanValue, resolveReference?: RecordReference
     }
     throw new ValueError("invalid-construction", "cannot compare a datetime with a non-datetime value");
   }
+  return null;
+}
+
+function equalArrayValues(a: CanValue[], b: CanValue[], resolveReference?: RecordReferenceResolver): boolean {
+  if (a.length !== b.length) {
+    return false;
+  }
+  for (let index = 0; index < a.length; index += 1) {
+    const itemA: CanValue | undefined = a[index] as CanValue | undefined;
+    const itemB: CanValue | undefined = b[index] as CanValue | undefined;
+    if (itemA === undefined || itemB === undefined) {
+      throw new ValueError("invalid-construction", "array elements must be Can values");
+    }
+    if (!equalNested(itemA, itemB, resolveReference)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function equalRecordValues(
+  recordA: Record<string, CanValue>,
+  recordB: Record<string, CanValue>,
+  resolveReference?: RecordReferenceResolver,
+): boolean {
+  const keysA = Object.keys(recordA);
+  const keysB = Object.keys(recordB);
+  if (keysA.length !== keysB.length) {
+    return false;
+  }
+  for (const key of keysA) {
+    if (!Object.hasOwn(recordB, key)) {
+      return false;
+    }
+    const fieldA = recordA[key];
+    const fieldB = recordB[key];
+    if (fieldA === undefined || fieldB === undefined) {
+      throw new ValueError("invalid-construction", "contract fields must be Can values");
+    }
+    if (!equalNested(fieldA, fieldB, resolveReference)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function equalInner(a: CanValue, b: CanValue, resolveReference?: RecordReferenceResolver): boolean {
+  // Resolve only a value demanded by the original recursive comparison. The
+  // host supplies private identity metadata, never row reads or permissions.
+  if (resolveReference !== undefined) {
+    a = resolveReference(a) ?? a;
+    b = resolveReference(b) ?? b;
+  }
+  const primitive = equalPrimitive(a, b);
+  if (primitive !== null) {
+    return primitive;
+  }
+  const numericDate = equalNumericDate(a, b);
+  if (numericDate !== null) {
+    return numericDate;
+  }
   if (Array.isArray(a) || Array.isArray(b)) {
     if (!Array.isArray(a) || !Array.isArray(b)) {
       throw new ValueError("invalid-construction", "cannot compare an array with a non-array value");
     }
-    if (a.length !== b.length) {
-      return false;
-    }
-    for (let index = 0; index < a.length; index += 1) {
-      const itemA: CanValue | undefined = a[index] as CanValue | undefined;
-      const itemB: CanValue | undefined = b[index] as CanValue | undefined;
-      if (itemA === undefined || itemB === undefined) {
-        throw new ValueError("invalid-construction", "array elements must be Can values");
-      }
-      if (!equalNested(itemA, itemB, resolveReference)) {
-        return false;
-      }
-    }
-    return true;
+    return equalArrayValues(a, b, resolveReference);
   }
   if (isUnionValue(a) || isUnionValue(b)) {
     if (!isUnionValue(a) || !isUnionValue(b)) {
@@ -301,6 +371,11 @@ function equalInner(a: CanValue, b: CanValue, resolveReference?: RecordReference
     }
     return sameReferences(a, b, resolveReference);
   }
+  return equalTaggedOrRecord(a, b, resolveReference);
+}
+
+/** Secret/record dispatch for two non-union, non-reference values. */
+function equalTaggedOrRecord(a: CanValue, b: CanValue, resolveReference?: RecordReferenceResolver): boolean {
   if (isSecretValue(a) || isSecretValue(b)) {
     if (!isSecretValue(a) || !isSecretValue(b)) {
       throw new ValueError("invalid-construction", "cannot compare a secret with a non-secret value");
@@ -311,27 +386,7 @@ function equalInner(a: CanValue, b: CanValue, resolveReference?: RecordReference
     if (hasKnownKindTag(a) || hasKnownKindTag(b)) {
       throw new ValueError("invalid-construction", "malformed tagged value");
     }
-    const recordA = a as Record<string, CanValue>;
-    const recordB = b as Record<string, CanValue>;
-    const keysA = Object.keys(recordA);
-    const keysB = Object.keys(recordB);
-    if (keysA.length !== keysB.length) {
-      return false;
-    }
-    for (const key of keysA) {
-      if (!Object.hasOwn(recordB, key)) {
-        return false;
-      }
-      const fieldA = recordA[key];
-      const fieldB = recordB[key];
-      if (fieldA === undefined || fieldB === undefined) {
-        throw new ValueError("invalid-construction", "contract fields must be Can values");
-      }
-      if (!equalNested(fieldA, fieldB, resolveReference)) {
-        return false;
-      }
-    }
-    return true;
+    return equalRecordValues(a as Record<string, CanValue>, b as Record<string, CanValue>, resolveReference);
   }
   throw new ValueError("invalid-construction", "cannot compare these values");
 }
@@ -351,6 +406,87 @@ function equalInner(a: CanValue, b: CanValue, resolveReference?: RecordReference
  * An owning schema identifies declared Contract containers before runtime tags;
  * their fields recurse by declaration, including business kind/id/version keys.
  */
+/** Ordered elementwise recursion for `T[]` values; both sides are arrays. */
+function equalTypedArrays(
+  element: string,
+  a: CanValue[],
+  b: CanValue[],
+  resolveReference: RecordReferenceResolver | undefined,
+  schema: NormalizedSchema | undefined,
+): boolean {
+  if (a.length !== b.length) {
+    return false;
+  }
+  for (let index = 0; index < a.length; index += 1) {
+    const itemA: CanValue | undefined = a[index] as CanValue | undefined;
+    const itemB: CanValue | undefined = b[index] as CanValue | undefined;
+    if (itemA === undefined || itemB === undefined) {
+      throw new ValueError("invalid-construction", "array elements must be Can values");
+    }
+    if (!equalValue(element, itemA, itemB, resolveReference, schema)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/** Fieldwise recursion for declared contract containers. */
+function equalContractFields(
+  base: string,
+  contract: { readonly fields: Record<string, { readonly typeId: string }> },
+  a: Record<string, CanValue>,
+  b: Record<string, CanValue>,
+  resolveReference: RecordReferenceResolver | undefined,
+  schema: NormalizedSchema | undefined,
+): boolean {
+  const keys = Object.keys(a);
+  if (keys.length !== Object.keys(b).length) return false;
+  for (const key of keys) {
+    if (!Object.hasOwn(b, key)) return false;
+    const field = Object.hasOwn(contract.fields, key) ? contract.fields[key] : undefined;
+    if (field === undefined) {
+      throw new ValueError("invalid-construction", `unknown ${base} contract field ${key}`);
+    }
+    const fieldA = a[key];
+    const fieldB = b[key];
+    if (fieldA === undefined || fieldB === undefined) {
+      throw new ValueError("invalid-construction", "contract fields must be Can values");
+    }
+    if (!equalValue(field.typeId, fieldA, fieldB, resolveReference, schema)) return false;
+  }
+  return true;
+}
+
+/** Union dispatch against the declared arms. */
+function equalDeclaredUnion(
+  ast: ReturnType<typeof parseTypeId>,
+  a: CanValue,
+  b: CanValue,
+  resolveReference: RecordReferenceResolver | undefined,
+  schema: NormalizedSchema | undefined,
+): boolean {
+  if (ast.base.kind === "union") {
+    if (!isUnionValue(a) || !isUnionValue(b)) {
+      throw new ValueError("invalid-construction", "cannot compare a union with a non-union value");
+    }
+    if (a.type !== b.type) return false;
+    if (!ast.base.arms.includes(a.type)) {
+      throw new ValueError("invalid-construction", "union discriminator names no declared arm");
+    }
+    return equalValue(a.type, a.value, b.value, resolveReference, schema);
+  }
+  return equalInner(a, b, resolveReference);
+}
+
+/** Strip trailing `?`/`[]` markers into the base id, element id and array depth. */
+function parseEqualValueShape(typeId: string): { base: string; element: string; depth: number } {
+  let base = typeId;
+  while (base.endsWith("?")) {
+    base = base.slice(0, -1);
+  }
+  return { base, element: base, depth: 0 };
+}
+
 export function equalValue(typeId: string, a: CanValue, b: CanValue, resolveReference: RecordReferenceResolver | undefined = undefined, schema: NormalizedSchema | undefined = undefined): boolean {
   if (typeof typeId !== "string") {
     throw new ValueError("invalid-construction", "equalValue needs a canonical type id string");
@@ -358,13 +494,11 @@ export function equalValue(typeId: string, a: CanValue, b: CanValue, resolveRefe
   if (a === null || b === null) {
     return a === b;
   }
-  let base = typeId;
-  while (base.endsWith("?")) {
+  let { base, element, depth } = parseEqualValueShape(typeId);
+  if (schema !== undefined && base.endsWith("[]!")) {
     base = base.slice(0, -1);
+    element = element.slice(0, -1);
   }
-  if (schema !== undefined && base.endsWith("[]!")) base = base.slice(0, -1);
-  let element = base;
-  let depth = 0;
   while (element.endsWith("[]")) {
     element = element.slice(0, -2);
     depth += 1;
@@ -373,20 +507,7 @@ export function equalValue(typeId: string, a: CanValue, b: CanValue, resolveRefe
     if (!Array.isArray(a) || !Array.isArray(b)) {
       throw new ValueError("invalid-construction", `equalValue: ${typeId} expects array values`);
     }
-    if (a.length !== b.length) {
-      return false;
-    }
-    for (let index = 0; index < a.length; index += 1) {
-      const itemA: CanValue | undefined = a[index] as CanValue | undefined;
-      const itemB: CanValue | undefined = b[index] as CanValue | undefined;
-      if (itemA === undefined || itemB === undefined) {
-        throw new ValueError("invalid-construction", "array elements must be Can values");
-      }
-      if (!equalValue(element, itemA, itemB, resolveReference, schema)) {
-        return false;
-      }
-    }
-    return true;
+    return equalTypedArrays(element, a, b, resolveReference, schema);
   }
   if (schema !== undefined && base !== "") {
     const contract = Object.hasOwn(schema.contracts, base) ? schema.contracts[base] : undefined;
@@ -394,36 +515,9 @@ export function equalValue(typeId: string, a: CanValue, b: CanValue, resolveRefe
       if (typeof a !== "object" || typeof b !== "object" || Array.isArray(a) || Array.isArray(b)) {
         throw new ValueError("invalid-construction", `equalValue: ${typeId} expects contract values`);
       }
-      const left = a as Record<string, CanValue>;
-      const right = b as Record<string, CanValue>;
-      const keys = Object.keys(left);
-      if (keys.length !== Object.keys(right).length) return false;
-      for (const key of keys) {
-        if (!Object.hasOwn(right, key)) return false;
-        const field = Object.hasOwn(contract.fields, key) ? contract.fields[key] : undefined;
-        if (field === undefined) {
-          throw new ValueError("invalid-construction", `unknown ${base} contract field ${key}`);
-        }
-        const fieldA = left[key];
-        const fieldB = right[key];
-        if (fieldA === undefined || fieldB === undefined) {
-          throw new ValueError("invalid-construction", "contract fields must be Can values");
-        }
-        if (!equalValue(field.typeId, fieldA, fieldB, resolveReference, schema)) return false;
-      }
-      return true;
+      return equalContractFields(base, contract, a as Record<string, CanValue>, b as Record<string, CanValue>, resolveReference, schema);
     }
-    const ast = parseTypeId(base);
-    if (ast.base.kind === "union") {
-      if (!isUnionValue(a) || !isUnionValue(b)) {
-        throw new ValueError("invalid-construction", "cannot compare a union with a non-union value");
-      }
-      if (a.type !== b.type) return false;
-      if (!ast.base.arms.includes(a.type)) {
-        throw new ValueError("invalid-construction", "union discriminator names no declared arm");
-      }
-      return equalValue(a.type, a.value, b.value, resolveReference, schema);
-    }
+    return equalDeclaredUnion(parseTypeId(base), a, b, resolveReference, schema);
   }
   return equalInner(a, b, resolveReference);
 }

@@ -46,6 +46,27 @@ function validTime(nowMs: number): boolean {
   return Number.isSafeInteger(nowMs) && nowMs >= 0 && Number.isSafeInteger(nowMs + LIFETIME_MS);
 }
 
+type CursorPayload = [string, number, string, number, string, number, number, number];
+
+function parseCursorPayload(payload: Uint8Array): CursorPayload | null {
+  let parsed: unknown, text: string;
+  try {
+    text = new TextDecoder('utf-8', { fatal: true }).decode(payload);
+    parsed = JSON.parse(text) as unknown;
+  } catch { return null; }
+  if (!Array.isArray(parsed) || parsed.length !== 8 || JSON.stringify(parsed) !== text ||
+      parsed[0] !== DOMAIN || parsed[1] !== VERSION ||
+      typeof parsed[2] !== 'string' || !/^[a-f0-9]{64}$/.test(parsed[2]) ||
+      !Number.isSafeInteger(parsed[3]) || parsed[3] < 0 ||
+      typeof parsed[4] !== 'string' || parsed[4] === '' ||
+      !Number.isSafeInteger(parsed[5]) || parsed[5] < 0 ||
+      !validTime(parsed[6]) || parsed[5] > parsed[6] ||
+      !Number.isSafeInteger(parsed[7]) || parsed[7] !== parsed[6] + LIFETIME_MS) {
+    return null;
+  }
+  return parsed as CursorPayload;
+}
+
 /** Construct once at host startup with the configured canonical 32-byte private key. */
 export async function createPageCursorCodec(key: Uint8Array | string): Promise<PageCursorCodec> {
   const keyBytes = typeof key === 'string' ? canonicalBytes(key) : key;
@@ -83,21 +104,8 @@ export async function createPageCursorCodec(key: Uint8Array | string): Promise<P
           !await globalThis.crypto.subtle.verify('HMAC', signingKey, signature.slice(), payload.slice())) {
         return { status: 'invalid' };
       }
-      let parsed: unknown, text: string;
-      try {
-        text = new TextDecoder('utf-8', { fatal: true }).decode(payload);
-        parsed = JSON.parse(text) as unknown;
-      } catch { return { status: 'invalid' }; }
-      if (!Array.isArray(parsed) || parsed.length !== 8 || JSON.stringify(parsed) !== text ||
-          parsed[0] !== DOMAIN || parsed[1] !== VERSION ||
-          typeof parsed[2] !== 'string' || !/^[a-f0-9]{64}$/.test(parsed[2]) ||
-          !Number.isSafeInteger(parsed[3]) || parsed[3] < 0 ||
-          typeof parsed[4] !== 'string' || parsed[4] === '' ||
-          !Number.isSafeInteger(parsed[5]) || parsed[5] < 0 ||
-          !validTime(parsed[6]) || parsed[5] > parsed[6] ||
-          !Number.isSafeInteger(parsed[7]) || parsed[7] !== parsed[6] + LIFETIME_MS) {
-        return { status: 'invalid' };
-      }
+      const parsed = parseCursorPayload(payload);
+      if (parsed === null) return { status: 'invalid' };
       if (parsed[6] > nowMs || parsed[7] <= nowMs) return { status: 'stale' };
       return { status: 'valid', bindingDigest: parsed[2], position: { revision: parsed[3], after: parsed[4], queryTimeMs: parsed[5] } };
     },

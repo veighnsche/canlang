@@ -1,5 +1,5 @@
 /** Typed frozen SEND lexical snapshots; traversal facts never grant live authority. */
-import type { CanTypeId, ModelName, StoredRow } from '@canlang/contracts';
+import type { ArtifactModel, ArtifactModelField, CanonicalFieldDef, CanonicalModelDescriptor, CanTypeId, ModelName, StoredRow } from '@canlang/contracts';
 import { parseTypeId, printTypeId } from '@canlang/values';
 import { StateError } from '../errors.js';
 import { copyScenarioFileData } from '../invocation/scenario-file-assignment.js';
@@ -37,6 +37,28 @@ function integer(value: unknown, minimum = 0): number {
     ? value : refuse('canonical nonnegative integer required.');
 }
 
+function checkSnapshotInventory(
+  canonical: CanonicalModelDescriptor,
+  names: readonly string[],
+): void {
+  if (new Set(names).size !== names.length || names.length !== Object.keys(canonical.fields).length ||
+      names.some(name => !Object.hasOwn(canonical.fields, name))) {
+    return refuse('complete matching owning field inventory required.');
+  }
+}
+
+function compareSnapshotField(declared: CanonicalFieldDef, field: ArtifactModelField): void {
+  for (const key of ['required', 'serverOnly', 'array', 'nullable', 'trim', 'min', 'max', 'default'] as const) {
+    // Artifact defaults retain the separately validated initializer payload;
+    // the canonical field carries only its server-default marker.
+    const sourceValue = key === 'default' && field.default?.kind === 'server' ? { kind: 'server' } : field[key];
+    if (Object.hasOwn(declared, key) !== Object.hasOwn(field, key) ||
+        Object.hasOwn(declared, key) && stableStringify(declared[key]) !== stableStringify(sourceValue)) {
+      return refuse('owning field declarations disagree.');
+    }
+  }
+}
+
 export function bindModelLexicalSnapshotProfile(bound: FileReferenceProfileBound,
   type: CanTypeId): ModelLexicalSnapshotProfile | undefined {
   const ast = parseTypeId(type);
@@ -54,8 +76,7 @@ export function bindModelLexicalSnapshotProfile(bound: FileReferenceProfileBound
   const canonical = copyScenarioFileData(declarations[0]!) as typeof declarations[number];
   const artifact = copyScenarioFileData(original) as typeof original;
   const names = artifact.fields.map(field => field.name);
-  if (new Set(names).size !== names.length || names.length !== Object.keys(canonical.fields).length ||
-      names.some(name => !Object.hasOwn(canonical.fields, name))) return refuse('complete matching owning field inventory required.');
+  checkSnapshotInventory(canonical, names);
   const parent = artifact.parent;
   if (parent !== undefined && (artifact.scope !== undefined || parent === model || !bound.artifactModels.has(parent as ModelName))) {
     return refuse('actual owning containment declaration required.');
@@ -63,16 +84,7 @@ export function bindModelLexicalSnapshotProfile(bound: FileReferenceProfileBound
   if (artifact.deleteMode !== canonical.deleteMode) return refuse('owning model declarations disagree.');
   const fields = new Map<string, FileReferenceProfile | Error>();
   for (const field of artifact.fields) {
-    const declared = canonical.fields[field.name]!;
-    for (const key of ['required', 'serverOnly', 'array', 'nullable', 'trim', 'min', 'max', 'default'] as const) {
-      // Artifact defaults retain the separately validated initializer payload;
-      // the canonical field carries only its server-default marker.
-      const sourceValue = key === 'default' && field.default?.kind === 'server' ? { kind: 'server' } : field[key];
-      if (Object.hasOwn(declared, key) !== Object.hasOwn(field, key) ||
-          Object.hasOwn(declared, key) && stableStringify(declared[key]) !== stableStringify(sourceValue)) {
-        return refuse('owning field declarations disagree.');
-      }
-    }
+    compareSnapshotField(canonical.fields[field.name]!, field);
     if (field.field.kind === 'secret') {
       fields.set(field.name, new StateError('validation', 'Model lexical snapshot: secret field is unavailable.'));
       continue;

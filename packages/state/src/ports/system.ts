@@ -87,57 +87,102 @@ const BOUNDED_WORK_COMMANDS = new Set([
   'work.occurrence.put-receipt', 'work.schedule.put', 'work.schedule.cancel',
   'work.every.advance-slot',
 ]);
+function workArgsInvalid(): never {
+  throw new StateError('validation', 'Work command args must be own finite JSON data.');
+}
+
+function workArgsExcess(): never {
+  throw new StateError('limit', 'Work command args exceed the admission budget.', null, { retryable: false });
+}
+
+interface WorkArgsBudget {
+  visits: number;
+  text: number;
+  readonly active: Set<object>;
+  readonly copies: WeakMap<object, Record<string, unknown> | unknown[]>;
+}
+
+function chargeWorkText(budget: WorkArgsBudget, value: string): void {
+  if (value.length > 2_000_000 - budget.text) workArgsExcess();
+  budget.text += value.length;
+}
+
+function checkWorkShape(value: object, array: boolean, budget: WorkArgsBudget): void {
+  const prototype = Object.getPrototypeOf(value);
+  if (array ? prototype !== Array.prototype : prototype !== Object.prototype && prototype !== null) {
+    return workArgsInvalid();
+  }
+  if (!array) return;
+  const length = Object.getOwnPropertyDescriptor(value, 'length');
+  if (length === undefined || !('value' in length) || !Number.isSafeInteger(length.value) || length.value < 0) {
+    return workArgsInvalid();
+  }
+  if (length.value > 20_000 - budget.visits) workArgsExcess();
+}
+
+function captureWorkEntry(
+  value: object,
+  index: number,
+  array: boolean,
+  keys: readonly (string | symbol)[],
+  result: Record<string, unknown> | unknown[],
+  depth: number,
+  budget: WorkArgsBudget,
+): void {
+  const resolved = array ? String(index) : keys[index];
+  if (typeof resolved !== 'string') return workArgsInvalid();
+  const descriptor = Object.getOwnPropertyDescriptor(value, resolved);
+  if (descriptor === undefined || !descriptor.enumerable || !('value' in descriptor)) return workArgsInvalid();
+  // Work's capture profile counts every captured own key, including
+  // array indices even though canonical JSON omits their names.
+  chargeWorkText(budget, resolved);
+  Object.defineProperty(result, resolved, { value: captureWorkValue(descriptor.value, depth + 1, budget), enumerable: true, writable: true, configurable: true });
+}
+
+function captureWorkEntries(
+  value: object,
+  array: boolean,
+  length: number,
+  keys: readonly (string | symbol)[],
+  depth: number,
+  budget: WorkArgsBudget,
+): unknown {
+  const entries = keys.length - (array ? 1 : 0);
+  if (entries > 20_000 - budget.visits) workArgsExcess();
+  if (array && entries !== length) return workArgsInvalid();
+  budget.active.add(value);
+  try {
+    const result: Record<string, unknown> | unknown[] = array ? [] : {};
+    const previous = budget.copies.get(value);
+    if (previous === undefined) budget.copies.set(value, result);
+    const count = array ? length : keys.length;
+    for (let index = 0; index < count; index++) {
+      captureWorkEntry(value, index, array, keys, result, depth, budget);
+    }
+    // Dense array indices above alone cannot account for symbol/extra keys.
+    if (array && keys.some(key => key !== 'length' &&
+        (typeof key !== 'string' || !/^(0|[1-9][0-9]*)$/.test(key) || Number(key) >= length))) return workArgsInvalid();
+    // Repeated aliases still traverse and consume the expanded budget, while
+    // the subsequent existing clone retains their original shared identity.
+    return previous ?? result;
+  } finally { budget.active.delete(value); }
+}
+
+function captureWorkValue(value: unknown, depth: number, budget: WorkArgsBudget): unknown {
+  if (depth > 32 || ++budget.visits > 20_000) workArgsExcess();
+  if (typeof value === 'string') { chargeWorkText(budget, value); return value; }
+  if (value === null || typeof value === 'boolean') return value;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : workArgsInvalid();
+  if (typeof value !== 'object') return workArgsInvalid();
+  if (budget.active.has(value)) return workArgsInvalid();
+  const array = Array.isArray(value);
+  checkWorkShape(value, array, budget);
+  const length = array ? (Object.getOwnPropertyDescriptor(value, 'length') as { value: number }).value : 0;
+  return captureWorkEntries(value, array, length, Reflect.ownKeys(value), depth, budget);
+}
+
 function captureWorkArgs(args: Record<string, unknown>): Record<string, unknown> {
-  let visits = 0, text = 0;
-  const active = new Set<object>();
-  const copies = new WeakMap<object, Record<string, unknown> | unknown[]>();
-  const invalid = (): never => { throw new StateError('validation', 'Work command args must be own finite JSON data.'); };
-  const excess = (): never => { throw new StateError('limit', 'Work command args exceed the admission budget.', null, { retryable: false }); };
-  const chargeText = (value: string): void => {
-    if (value.length > 2_000_000 - text) excess();
-    text += value.length;
-  };
-  const capture = (value: unknown, depth: number): unknown => {
-    if (depth > 32 || ++visits > 20_000) excess();
-    if (typeof value === 'string') { chargeText(value); return value; }
-    if (value === null || typeof value === 'boolean') return value;
-    if (typeof value === 'number') return Number.isFinite(value) ? value : invalid();
-    if (typeof value !== 'object') return invalid();
-    if (active.has(value)) return invalid();
-    const array = Array.isArray(value);
-    const prototype = Object.getPrototypeOf(value);
-    if (array ? prototype !== Array.prototype : prototype !== Object.prototype && prototype !== null) return invalid();
-    const length = array ? Object.getOwnPropertyDescriptor(value, 'length') : undefined;
-    if (array && (length === undefined || !('value' in length) || !Number.isSafeInteger(length.value) || length.value < 0)) return invalid();
-    if (array && length!.value > 20_000 - visits) excess();
-    const keys = Reflect.ownKeys(value);
-    const entries = keys.length - (array ? 1 : 0);
-    if (entries > 20_000 - visits) excess();
-    if (array && entries !== length!.value) return invalid();
-    active.add(value);
-    try {
-      const result: Record<string, unknown> | unknown[] = array ? [] : {};
-      const previous = copies.get(value);
-      if (previous === undefined) copies.set(value, result);
-      for (let index = 0; index < (array ? length!.value : keys.length); index++) {
-        const key = array ? String(index) : keys[index];
-        if (typeof key !== 'string') return invalid();
-        const descriptor = Object.getOwnPropertyDescriptor(value, key);
-        if (descriptor === undefined || !descriptor.enumerable || !('value' in descriptor)) return invalid();
-        // Work's capture profile counts every captured own key, including
-        // array indices even though canonical JSON omits their names.
-        chargeText(key);
-        Object.defineProperty(result, key, { value: capture(descriptor.value, depth + 1), enumerable: true, writable: true, configurable: true });
-      }
-      // Dense array indices above alone cannot account for symbol/extra keys.
-      if (array && keys.some(key => key !== 'length' &&
-          (typeof key !== 'string' || !/^(0|[1-9][0-9]*)$/.test(key) || Number(key) >= length!.value))) return invalid();
-      // Repeated aliases still traverse and consume the expanded budget, while
-      // the subsequent existing clone retains their original shared identity.
-      return previous ?? result;
-    } finally { active.delete(value); }
-  };
-  return capture(args, 0) as Record<string, unknown>;
+  return captureWorkValue(args, 0, { visits: 0, text: 0, active: new Set<object>(), copies: new WeakMap() }) as Record<string, unknown>;
 }
 function stageFailure(ledger: SystemStageLedger | undefined, message: string): never {
   if (ledger !== undefined) ledger.poisoned = true;
@@ -300,6 +345,39 @@ function issueSystemContext(ctx: SystemRunContext, store: StoragePort, revision:
  * Create the command registry. Duplicate names are programmer bugs
  * (commands are lane-authored and registered once).
  */
+function prepareRunArgs(name: string, args: unknown): Record<string, unknown> {
+  if (typeof args !== 'object' || args === null || Array.isArray(args)) {
+    throw new StateError('validation', 'System command args must be an object.');
+  }
+  const capturedArgs = BOUNDED_WORK_COMMANDS.has(name) ? captureWorkArgs(args as Record<string, unknown>) : args;
+  return jsonClone(capturedArgs as Record<string, unknown>, 'System command args');
+}
+
+function buildRunBatch(
+  staged: SystemStaging,
+  revision: Revision,
+  operationId: string,
+  checkCount: number,
+): { readonly result: unknown; readonly batch: Parameters<StoragePort['commit']>[0] } {
+  const outbox = stageOutboxIntents(staged.outbox ?? [], { operationId });
+  const schedules = stageScheduleOps(staged.schedules ?? []);
+  const outboxAck = checkOutboxAck(staged.outboxAck ?? []);
+  const result = checkCount === 0 ? staged.result ?? null
+    : jsonClone(staged.result ?? null, 'System staging result');
+  // Detach exact staged effects before any retained callback can await or
+  // mutate the producer's output. All existing owning validators still run.
+  const batch = deepFreeze(jsonClone({
+    expectedRevision: revision,
+    writes: checkStagedArray<DomainWrite>(staged.writes ?? [], 'writes'),
+    history: checkStagedArray<HistoryEntry>(staged.history ?? [], 'history'),
+    receipt: null, outbox, schedules,
+    uniqueClaims: checkStagedArray<UniqueClaim>(staged.uniqueClaims ?? [], 'uniqueClaims'),
+    uniqueReleases: checkStagedArray<UniqueRelease>(staged.uniqueReleases ?? [], 'uniqueReleases'),
+    outboxAck,
+  }, 'System staging effects'));
+  return { result, batch };
+}
+
 export function createSystemRegistry(commands: ReadonlyArray<SystemCommandDef>): SystemRegistry {
   const byName = new Map<string, SystemCommandDef>();
   for (const command of commands) {
@@ -343,11 +421,7 @@ export function createSystemRegistry(commands: ReadonlyArray<SystemCommandDef>):
       if (command === undefined) {
         throw new StateError('validation', `Unknown system command ${JSON.stringify(name)}.`);
       }
-      if (typeof args !== 'object' || args === null || Array.isArray(args)) {
-        throw new StateError('validation', 'System command args must be an object.');
-      }
-      const capturedArgs = BOUNDED_WORK_COMMANDS.has(name) ? captureWorkArgs(args as Record<string, unknown>) : args;
-      const clonedArgs = jsonClone(capturedArgs as Record<string, unknown>, 'System command args');
+      const clonedArgs = prepareRunArgs(name, args);
       if (
         typeof ctx.operationId !== 'string' ||
         ctx.operationId === '' ||
@@ -367,22 +441,10 @@ export function createSystemRegistry(commands: ReadonlyArray<SystemCommandDef>):
         if (typeof staged !== 'object' || staged === null || Array.isArray(staged)) {
           throw new StateError('validation', 'System command staging must be an object.');
         }
-        const outbox = stageOutboxIntents(staged.outbox ?? [], { operationId: ctx.operationId });
-        const schedules = stageScheduleOps(staged.schedules ?? []);
-        const outboxAck = checkOutboxAck(staged.outboxAck ?? []);
-        const result = ledger.checks.length === 0 ? staged.result ?? null
-          : jsonClone(staged.result ?? null, 'System staging result');
-        // Detach exact staged effects before any retained callback can await or
-        // mutate the producer's output. All existing owning validators still run.
-        const batch = deepFreeze(jsonClone({
-          expectedRevision: revision,
-          writes: checkStagedArray<DomainWrite>(staged.writes ?? [], 'writes'),
-          history: checkStagedArray<HistoryEntry>(staged.history ?? [], 'history'),
-          receipt: null, outbox, schedules,
-          uniqueClaims: checkStagedArray<UniqueClaim>(staged.uniqueClaims ?? [], 'uniqueClaims'),
-          uniqueReleases: checkStagedArray<UniqueRelease>(staged.uniqueReleases ?? [], 'uniqueReleases'),
-          outboxAck,
-        }, 'System staging effects'));
+        const { result, batch } = buildRunBatch(staged, revision, ctx.operationId, ledger.checks.length);
+        // HEAD's check loop stays inline: synchronous verdicts never
+        // suspend, so the final checks and the commit below share one
+        // continuation; only a thenable verdict awaits.
         for (const check of ledger.checks) {
           stageHealthy(ledger);
           const verdict = check();

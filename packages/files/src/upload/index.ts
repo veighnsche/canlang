@@ -294,6 +294,75 @@ function sweepExpiredIntent(
   deps.intents.put(record);
 }
 
+function isWellFormedIntentRequest(request: UploadIntentRequest): boolean {
+  return (
+    typeof request === 'object' &&
+    request !== null &&
+    typeof request.upload_id === 'string' &&
+    request.upload_id.length > 0 &&
+    typeof request.operation === 'string' &&
+    request.operation.length > 0 &&
+    typeof request.field === 'string' &&
+    typeof request.name === 'string' &&
+    request.name.length > 0 &&
+    typeof request.type === 'string' &&
+    request.type.length > 0 &&
+    typeof request.arguments === 'object' &&
+    request.arguments !== null &&
+    !Array.isArray(request.arguments) &&
+    isCanonicalSize(request.size)
+  );
+}
+
+function isUsableIntentUrlBase(deps: UploadDeps): boolean {
+  return (
+    typeof deps.urlBase === 'string' &&
+    (deps.urlBase.startsWith('https://') || (deps.allowInsecureLoopback === true && isLoopbackOrigin(deps.urlBase))) &&
+    !deps.urlBase.endsWith('/')
+  );
+}
+
+/**
+ * Reject an intent with the ordered teardown the guards share: mark
+ * rejected, zero the count, optionally clear validation, delete staging,
+ * then persist. Callers return their own reason afterwards.
+ */
+function rejectIntent(deps: UploadDeps, record: UploadIntentRecord, clearValidation: boolean, stagingKey?: string): void {
+  record.state = 'rejected';
+  record.receivedBytes = 0;
+  if (clearValidation) {
+    record.bytesDigest = null;
+    record.detectedType = null;
+  }
+  deps.blobs.remove(stagingKey ?? stagingKeyForIntent(record.intentId));
+  deps.intents.put(record);
+}
+
+/**
+ * Decide a range write fully covered by retained staging: a fully
+ * retained matching range acknowledges its end without writing. Gaps and
+ * different bytes conflict; unreadable staging closes.
+ */
+function checkRetainedRange(
+  deps: UploadDeps,
+  record: UploadIntentRecord,
+  stagingKey: string,
+  range: { readonly offset: number },
+  chunk: Uint8Array,
+  end: number,
+): AppendOutcome {
+  const staged = deps.blobs.read(stagingKey) ?? new Uint8Array(0);
+  if (staged.length !== record.receivedBytes) {
+    return { status: 'failed', reason: 'closed' };
+  }
+  for (let index = 0; index < chunk.length; index += 1) {
+    if (staged[range.offset + index] !== chunk[index]) {
+      return { status: 'failed', reason: 'conflict' };
+    }
+  }
+  return { status: 'appended', receivedBytes: end };
+}
+
 function callerOwnsIntent(record: UploadIntentRecord, caller: ReceivingContext): boolean {
   return (
     record.provenance.kind === 'request' &&
@@ -326,33 +395,13 @@ export function createUploadIntent(
   if (provenance === null) {
     return { status: 'rejected', reason: 'invalid-request' };
   }
-  if (
-    typeof request !== 'object' ||
-    request === null ||
-    typeof request.upload_id !== 'string' ||
-    request.upload_id.length === 0 ||
-    typeof request.operation !== 'string' ||
-    request.operation.length === 0 ||
-    typeof request.field !== 'string' ||
-    typeof request.name !== 'string' ||
-    request.name.length === 0 ||
-    typeof request.type !== 'string' ||
-    request.type.length === 0 ||
-    typeof request.arguments !== 'object' ||
-    request.arguments === null ||
-    Array.isArray(request.arguments) ||
-    !isCanonicalSize(request.size)
-  ) {
+  if (!isWellFormedIntentRequest(request)) {
     return { status: 'rejected', reason: 'invalid-request' };
   }
   if (!fileSlotAbsent(request.arguments, request.field)) {
     return { status: 'rejected', reason: 'invalid-request' };
   }
-  if (
-    typeof deps.urlBase !== 'string' ||
-    (!deps.urlBase.startsWith('https://') && !(deps.allowInsecureLoopback === true && isLoopbackOrigin(deps.urlBase))) ||
-    deps.urlBase.endsWith('/')
-  ) {
+  if (!isUsableIntentUrlBase(deps)) {
     return { status: 'rejected', reason: 'invalid-request' };
   }
   const declaredSize = Number(request.size);
@@ -441,15 +490,19 @@ export function appendUploadContentAtOffset(
   return appendContent(deps, intentId, caller, chunk, { offset: expectedOffset });
 }
 
-function appendContent(
+/**
+ * Guard an append against intent lifecycle and range coherence. Returns
+ * the terminal outcome when a guard decides, or the live record plus
+ * write end when the append may proceed.
+ */
+function guardAppendContent(
   deps: UploadDeps,
-  intentId: UploadIntentId,
+  record: UploadIntentRecord,
   caller: ReceivingContext,
   chunk: Uint8Array,
-  range?: { readonly offset: number },
-): AppendOutcome {
-  const record = deps.intents.get(intentId);
-  if (record === null || !callerOwnsIntent(record, caller)) {
+  range: { readonly offset: number } | undefined,
+): AppendOutcome | { record: UploadIntentRecord; end: number } {
+  if (!callerOwnsIntent(record, caller)) {
     return { status: 'failed', reason: 'foreign' };
   }
   if (record.state === 'finalized' || record.state === 'rejected') {
@@ -464,6 +517,22 @@ function appendContent(
   if (record.state !== 'open' && !(range !== undefined && record.state === 'complete')) {
     return { status: 'failed', reason: 'closed' };
   }
+  const ranged = appendRangeEnd(record, chunk, range);
+  if (!('end' in ranged)) {
+    return ranged;
+  }
+  return { record, end: ranged.end };
+}
+
+/**
+ * Check range coherence for a ranged append. Returns the terminal
+ * outcome when a guard decides, else the write end.
+ */
+function appendRangeEnd(
+  record: UploadIntentRecord,
+  chunk: Uint8Array,
+  range: { readonly offset: number } | undefined,
+): AppendOutcome | { end: number } {
   if (range !== undefined && (!Number.isSafeInteger(range.offset) || range.offset < 0)) {
     return { status: 'failed', reason: 'conflict' };
   }
@@ -475,40 +544,58 @@ function appendContent(
   )) {
     return { status: 'failed', reason: 'conflict' };
   }
+  return { end };
+}
+
+/**
+ * Recover a lost completion reply only from unchanged validated
+ * content. A later read must never replace the original digest.
+ */
+function recoverCompleteUpload(deps: UploadDeps, record: UploadIntentRecord): CompleteOutcome {
+  const bytes = deps.blobs.read(stagingKeyForIntent(record.intentId));
+  if (bytes === null || bytes.length !== record.receivedBytes ||
+      record.receivedBytes !== record.declaredSize ||
+      sha256Hex(bytes) !== record.bytesDigest) {
+    return { status: 'failed', reason: 'closed' };
+  }
+  const check = checkContent(deps.policy, record.claimedType, bytes);
+  if (check.verdict !== 'accepted' || check.detectedType !== record.detectedType) {
+    return { status: 'failed', reason: 'closed' };
+  }
+  return { status: 'completed', check };
+}
+
+function appendContent(
+  deps: UploadDeps,
+  intentId: UploadIntentId,
+  caller: ReceivingContext,
+  chunk: Uint8Array,
+  range?: { readonly offset: number },
+): AppendOutcome {
+  const stored = deps.intents.get(intentId);
+  if (stored === null) {
+    return { status: 'failed', reason: 'foreign' };
+  }
+  const guarded = guardAppendContent(deps, stored, caller, chunk, range);
+  if (!('end' in guarded)) {
+    return guarded;
+  }
+  const { record, end } = guarded;
   if (
     end > deps.policy.maxBytes ||
     end > record.declaredSize
   ) {
-    record.state = 'rejected';
-    record.receivedBytes = 0;
-    record.bytesDigest = null;
-    record.detectedType = null;
-    deps.blobs.remove(stagingKeyForIntent(record.intentId));
-    deps.intents.put(record);
+    rejectIntent(deps, record, true);
     return { status: 'failed', reason: 'oversized' };
   }
   const stagingKey = stagingKeyForIntent(record.intentId);
   if ((deps.blobs.sizeOf(stagingKey) ?? 0) !== record.receivedBytes) {
     if (record.state === 'complete') return { status: 'failed', reason: 'closed' };
-    record.state = 'rejected';
-    record.receivedBytes = 0;
-    record.bytesDigest = null;
-    record.detectedType = null;
-    deps.blobs.remove(stagingKey);
-    deps.intents.put(record);
+    rejectIntent(deps, record, true, stagingKey);
     return { status: 'failed', reason: 'closed' };
   }
   if (range !== undefined && end <= record.receivedBytes) {
-    const staged = deps.blobs.read(stagingKey) ?? new Uint8Array(0);
-    if (staged.length !== record.receivedBytes) {
-      return { status: 'failed', reason: 'closed' };
-    }
-    for (let index = 0; index < chunk.length; index += 1) {
-      if (staged[range.offset + index] !== chunk[index]) {
-        return { status: 'failed', reason: 'conflict' };
-      }
-    }
-    return { status: 'appended', receivedBytes: end };
+    return checkRetainedRange(deps, record, stagingKey, range, chunk, end);
   }
   if (chunk.length > 0) {
     deps.blobs.append(stagingKey, chunk);
@@ -543,19 +630,7 @@ export function completeUploadContent(
     return { status: 'failed', reason: 'expired' };
   }
   if (record.state === 'complete') {
-    // Recover a lost completion reply only from unchanged validated
-    // content. A later read must never replace the original digest.
-    const bytes = deps.blobs.read(stagingKeyForIntent(record.intentId));
-    if (bytes === null || bytes.length !== record.receivedBytes ||
-        record.receivedBytes !== record.declaredSize ||
-        sha256Hex(bytes) !== record.bytesDigest) {
-      return { status: 'failed', reason: 'closed' };
-    }
-    const check = checkContent(deps.policy, record.claimedType, bytes);
-    if (check.verdict !== 'accepted' || check.detectedType !== record.detectedType) {
-      return { status: 'failed', reason: 'closed' };
-    }
-    return { status: 'completed', check };
+    return recoverCompleteUpload(deps, record);
   }
   if (record.state !== 'open') {
     return { status: 'failed', reason: 'closed' };
@@ -564,10 +639,7 @@ export function completeUploadContent(
     return { status: 'failed', reason: 'partial' };
   }
   if (record.receivedBytes > deps.policy.maxBytes) {
-    record.state = 'rejected';
-    record.receivedBytes = 0;
-    deps.blobs.remove(stagingKeyForIntent(record.intentId));
-    deps.intents.put(record);
+    rejectIntent(deps, record, false);
     return { status: 'failed', reason: 'oversized' };
   }
   const stored = deps.blobs.read(stagingKeyForIntent(record.intentId));
@@ -581,10 +653,7 @@ export function completeUploadContent(
     return { status: 'failed', reason: 'malformed', check };
   }
   if (bytes.byteLength > record.declaredSize || bytes.byteLength > deps.policy.maxBytes) {
-    record.state = 'rejected';
-    record.receivedBytes = 0;
-    deps.blobs.remove(stagingKeyForIntent(record.intentId));
-    deps.intents.put(record);
+    rejectIntent(deps, record, false);
     return { status: 'failed', reason: 'oversized' };
   }
   if (bytes.byteLength < record.declaredSize) {
@@ -592,12 +661,7 @@ export function completeUploadContent(
   }
   const check = checkContent(deps.policy, record.claimedType, bytes);
   if (check.verdict === 'rejected') {
-    record.state = 'rejected';
-    record.receivedBytes = 0;
-    record.bytesDigest = null;
-    record.detectedType = null;
-    deps.blobs.remove(stagingKeyForIntent(record.intentId));
-    deps.intents.put(record);
+    rejectIntent(deps, record, true);
     // Undetectable bytes are malformed; detected-but-excluded bytes are
     // policy-rejected. Both delete staging and yield no file.
     const reason = check.detectedType === null ? 'malformed' : 'rejected';

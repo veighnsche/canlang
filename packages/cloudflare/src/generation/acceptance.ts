@@ -106,11 +106,115 @@ async function testInputs(appDir: string): Promise<string> {
  * Reuse the actual compiler, platform build, D1 example executor and Playwright.
  * There is deliberately no "no tests" or unavailable-browser success fallback.
  */
-export const runAppAcceptance: AppAcceptanceGate = async input => {
+type AcceptanceExecute = (name: string, command: string, args: string[], timeoutMs: number) => Promise<string>;
+
+async function resolveAcceptanceRoots(input: AppAcceptanceInput) {
   const workspace = resolve(input.workspace ?? process.env.CAN_INSTALL_ROOT ?? process.cwd());
   const candidateRoot = resolve(input.candidateRoot);
   const installed = process.env.CAN_INSTALL_ROOT !== undefined;
   const executionRoot = installed ? candidateRoot : workspace;
+  const reportPath = join(input.reportDir, "report.json");
+  const rel = installed
+    ? relative(await realpath(input.root), await realpath(candidateRoot))
+    : relative(workspace, candidateRoot);
+  if ((installed && rel === "") || rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel)) {
+    throw new Error(installed ? "candidate must be beneath the application root" : "candidate must be inside the installed tooling workspace");
+  }
+  if (input.files.length === 0) throw new Error("acceptance requires an application source");
+  return { workspace, candidateRoot, installed, executionRoot, reportPath };
+}
+
+async function resolveAcceptancePlaywright(installed: boolean, workspace: string) {
+  const development = installed ? browserToolsRoot() : null;
+  if (installed && development === null) {
+    throw new Error('Browser development tools are not installed. Run the separate install-browser-tools.sh supplied with the release; browser acceptance remains required.');
+  }
+  let playwright: string;
+  try { playwright = createRequire(join(development ?? workspace, "package.json")).resolve("@playwright/test/cli"); }
+  catch (error) {
+    if (installed && development === null && (error as NodeJS.ErrnoException).code === 'MODULE_NOT_FOUND') {
+      throw new Error('Browser development tools are not installed. Run the separate install-browser-tools.sh supplied with the release; browser acceptance remains required.');
+    }
+    throw error;
+  }
+  return { development, playwright };
+}
+
+async function locateAcceptancePlaywrightConfig(appDir: string, file: string): Promise<string> {
+  const configurations: string[] = [];
+  for (const ext of ["ts", "mts", "cts", "js", "mjs", "cjs"]) {
+    const path = join(appDir, `playwright.config.${ext}`);
+    if (await exists(path)) configurations.push(path);
+  }
+  if (configurations.length !== 1) throw new Error(`${file} requires exactly one app-local playwright.config file`);
+  return configurations[0]!;
+}
+
+async function runAcceptanceBuildSteps(
+  execute: AcceptanceExecute,
+  compiler: string,
+  artifact: string,
+  platform: string,
+  catalog: string,
+  candidate: string,
+  executionRoot: string,
+  passed: () => void,
+): Promise<void> {
+  const compiled = await execute("compile", compiler, ["compile", "--format=json", "--native-scenario-receipts",
+    `--catalog=${catalog}`, relative(executionRoot, candidate)], 60_000);
+  object(JSON.parse(compiled));
+  await writeFile(artifact, compiled);
+  passed();
+  const build = object(JSON.parse(await execute("build", process.execPath, [platform, "build", "--artifact", artifact], 90_000)));
+  if (build.ok !== true || build.command !== "build") throw new Error("build did not confirm success");
+  passed();
+  const tested = object(JSON.parse(await execute("test", process.execPath, [platform, "test", "--artifact", artifact], 330_000)));
+  if (tested.ok !== true || tested.command !== "test" || typeof tested.executed !== "number" || tested.executed < 1) {
+    throw new Error("app tests must execute at least one example and all must pass");
+  }
+  passed();
+}
+
+async function runAcceptancePlaywright(
+  execute: AcceptanceExecute,
+  output: string,
+  executionRoot: string,
+  candidate: string,
+  installed: boolean,
+  playwright: string,
+  configuration: string,
+): Promise<void> {
+  await rm(join(output, "browser-session.json"), { force: true });
+  await rm(join(output, "playwright.json"), { force: true });
+  try {
+    const moduleHook = installed ? ["--import", join(process.env.CAN_INSTALL_ROOT!, "libexec/module-resolution.mjs")] : [];
+    await execute("playwright", process.execPath, [...moduleHook, playwright, "test", `--config=${configuration}`,
+      "--reporter=json", "--retries=0", "--workers=1", "--global-timeout=300000", `--output=${join(output, "results")}`], 330_000);
+  } finally {
+    // Dev owners are detached from Playwright's process group. Reap the
+    // registered candidate sessions even after a worker crash or timeout.
+    await cleanupAcceptanceBrowsers(output, executionRoot, candidate);
+  }
+}
+
+async function verifyAcceptanceBrowser(output: string, candidate: string, passed: () => void): Promise<void> {
+  const browser = object(JSON.parse(await readFile(join(output, "playwright.json"), "utf8")));
+  const stats = object(browser.stats);
+  if (typeof stats.expected !== "number" || stats.expected < 1 || stats.unexpected !== 0 || stats.flaky !== 0 || stats.skipped !== 0 ||
+      !Array.isArray(browser.errors) || browser.errors.length !== 0) {
+    throw new Error("Playwright must execute tests without failures, skips, flaky results or errors");
+  }
+  const session = object(JSON.parse(await readFile(join(output, "browser-session.json"), "utf8")));
+  if (session.source !== candidate || session.closed !== true ||
+      typeof session.browserNavigations !== "number" || session.browserNavigations < 1 ||
+      typeof session.sourceRevision !== "string" || session.sourceRevision.length === 0 ||
+      typeof session.servingBuild !== "string" || session.servingBuild.length === 0) {
+    throw new Error("Playwright did not verify and close the candidate's real dev-server session");
+  }
+  passed();
+}
+
+export const runAppAcceptance: AppAcceptanceGate = async input => {
   const reportPath = join(input.reportDir, "report.json");
   const checks: { source: string; stage: string; ok: boolean; detail?: string }[] = [];
   let stage = "setup", source = "";
@@ -118,26 +222,9 @@ export const runAppAcceptance: AppAcceptanceGate = async input => {
   const report = async (ok: boolean): Promise<void> => writeFile(reportPath,
     `${JSON.stringify({ version: 1, ok, checks }, null, 2)}\n`);
   try {
-    const rel = installed
-      ? relative(await realpath(input.root), await realpath(candidateRoot))
-      : relative(workspace, candidateRoot);
-    if ((installed && rel === "") || rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel)) {
-      throw new Error(installed ? "candidate must be beneath the application root" : "candidate must be inside the installed tooling workspace");
-    }
-    if (input.files.length === 0) throw new Error("acceptance requires an application source");
+    const { workspace, candidateRoot, installed, executionRoot } = await resolveAcceptanceRoots(input);
     const platform = fileURLToPath(new URL("../cli/platform.js", import.meta.url));
-    const development = installed ? browserToolsRoot() : null;
-    if (installed && development === null) {
-      throw new Error('Browser development tools are not installed. Run the separate install-browser-tools.sh supplied with the release; browser acceptance remains required.');
-    }
-    let playwright: string;
-    try { playwright = createRequire(join(development ?? workspace, "package.json")).resolve("@playwright/test/cli"); }
-    catch (error) {
-      if (installed && development === null && (error as NodeJS.ErrnoException).code === 'MODULE_NOT_FOUND') {
-        throw new Error('Browser development tools are not installed. Run the separate install-browser-tools.sh supplied with the release; browser acceptance remains required.');
-      }
-      throw error;
-    }
+    const { development, playwright } = await resolveAcceptancePlaywright(installed, workspace);
     const catalog = process.env["CAN_CATALOG"] ?? join(workspace, "packages/values/dist/catalog.json");
     for (const [index, file] of [...new Set(input.files)].sort().entries()) {
       stage = "setup";
@@ -145,12 +232,7 @@ export const runAppAcceptance: AppAcceptanceGate = async input => {
       const original = resolve(input.root, file);
       const candidate = resolve(candidateRoot, file);
       const appDir = dirname(original);
-      const configurations = [];
-      for (const ext of ["ts", "mts", "cts", "js", "mjs", "cjs"]) {
-        const path = join(appDir, `playwright.config.${ext}`);
-        if (await exists(path)) configurations.push(path);
-      }
-      if (configurations.length !== 1) throw new Error(`${file} requires exactly one app-local playwright.config file`);
+      const configuration = await locateAcceptancePlaywrightConfig(appDir, file);
       const testsBefore = await testInputs(appDir);
       const output = join(input.reportDir, String(index + 1));
       await mkdir(output, { recursive: true });
@@ -168,44 +250,9 @@ export const runAppAcceptance: AppAcceptanceGate = async input => {
       };
       const passed = (): void => { checks.push({ source, stage, ok: true }); };
       const artifact = join(output, "candidate.artifact.json");
-      const compiled = await execute("compile", input.compiler, ["compile", "--format=json", "--native-scenario-receipts",
-        `--catalog=${catalog}`, relative(executionRoot, candidate)], 60_000);
-      object(JSON.parse(compiled));
-      await writeFile(artifact, compiled);
-      passed();
-      const build = object(JSON.parse(await execute("build", process.execPath, [platform, "build", "--artifact", artifact], 90_000)));
-      if (build.ok !== true || build.command !== "build") throw new Error("build did not confirm success");
-      passed();
-      const tested = object(JSON.parse(await execute("test", process.execPath, [platform, "test", "--artifact", artifact], 330_000)));
-      if (tested.ok !== true || tested.command !== "test" || typeof tested.executed !== "number" || tested.executed < 1) {
-        throw new Error("app tests must execute at least one example and all must pass");
-      }
-      passed();
-      await rm(join(output, "browser-session.json"), { force: true });
-      await rm(join(output, "playwright.json"), { force: true });
-      try {
-        const moduleHook = installed ? ["--import", join(process.env.CAN_INSTALL_ROOT!, "libexec/module-resolution.mjs")] : [];
-        await execute("playwright", process.execPath, [...moduleHook, playwright, "test", `--config=${configurations[0]!}`,
-          "--reporter=json", "--retries=0", "--workers=1", "--global-timeout=300000", `--output=${join(output, "results")}`], 330_000);
-      } finally {
-        // Dev owners are detached from Playwright's process group. Reap the
-        // registered candidate sessions even after a worker crash or timeout.
-        await cleanupAcceptanceBrowsers(output, executionRoot, candidate);
-      }
-      const browser = object(JSON.parse(await readFile(join(output, "playwright.json"), "utf8")));
-      const stats = object(browser.stats);
-      if (typeof stats.expected !== "number" || stats.expected < 1 || stats.unexpected !== 0 || stats.flaky !== 0 || stats.skipped !== 0 ||
-          !Array.isArray(browser.errors) || browser.errors.length !== 0) {
-        throw new Error("Playwright must execute tests without failures, skips, flaky results or errors");
-      }
-      const session = object(JSON.parse(await readFile(join(output, "browser-session.json"), "utf8")));
-      if (session.source !== candidate || session.closed !== true ||
-          typeof session.browserNavigations !== "number" || session.browserNavigations < 1 ||
-          typeof session.sourceRevision !== "string" || session.sourceRevision.length === 0 ||
-          typeof session.servingBuild !== "string" || session.servingBuild.length === 0) {
-        throw new Error("Playwright did not verify and close the candidate's real dev-server session");
-      }
-      passed();
+      await runAcceptanceBuildSteps(execute, input.compiler, artifact, platform, catalog, candidate, executionRoot, passed);
+      await runAcceptancePlaywright(execute, output, executionRoot, candidate, installed, playwright, configuration);
+      await verifyAcceptanceBrowser(output, candidate, passed);
       stage = "inputs";
       if (await testInputs(appDir) !== testsBefore) throw new Error("app test definitions changed during acceptance; rerun against stable inputs");
     }

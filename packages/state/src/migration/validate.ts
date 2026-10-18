@@ -61,7 +61,7 @@ import { collectPredicateFields, evalPredicateForRow } from '../policy/grants.js
 import { StateError, storageToStateError } from '../errors.js';
 import { validateGivenFields, createGivenUniqueKeyScope, type GivenUniqueKeyScope } from '../effects/staging.js';
 import { validateMappedRow } from './mapper.js';
-import type { ValidatedMigrationPlan } from './transition.js';
+import type { ValidatedMigrationPlan, ValidatedModelMapping } from './transition.js';
 
 /** Old-lock evidence for validation, keyed by OLD model name. */
 export type OldLockSet = ReadonlyMap<ModelName, ReadonlyArray<InterimLock>>;
@@ -205,10 +205,21 @@ function mapLockPredicate(
  * Re-running over an already-staged set re-validates (idempotent success
  * path); publishing/active sets reject (activation already underway).
  */
-export async function validateStaged(input: ValidateStagedInput): Promise<MigrationProgress> {
-  const { store, plan, desiredModels, oldLocks, oldModels } = input;
-  assertMigrationUniqueSupported(oldModels, desiredModels);
-  const progress = await store.readMigrationProgress(plan.migrationId);
+interface StagedValidation {
+  readonly store: StoragePort;
+  readonly plan: ValidatedMigrationPlan;
+  readonly desiredModels: ModelTable;
+  readonly oldLocks: OldLockSet;
+  readonly staged: StagedRow[];
+  readonly stagedByTarget: ReadonlyMap<string, StagedRow[]>;
+  readonly liveBySource: ReadonlyMap<string, StoredRow[]>;
+}
+
+async function checkStagedHead(
+  store: StoragePort,
+  migrationId: string,
+): Promise<MigrationProgress> {
+  const progress = await store.readMigrationProgress(migrationId);
   if (progress === null) {
     throw new StateError('validation', 'Migration has no staged state to validate.');
   }
@@ -224,8 +235,14 @@ export async function validateStaged(input: ValidateStagedInput): Promise<Migrat
       `Migration is already ${progress.phase}; staged validation is closed.`,
     );
   }
+  return progress;
+}
 
-  const staged = await scanAllStaged(store, plan.migrationId);
+async function indexStagedRows(
+  plan: ValidatedMigrationPlan,
+  desiredModels: ModelTable,
+  staged: StagedRow[],
+): Promise<Map<string, StagedRow[]>> {
   const stagedByTarget = new Map<string, StagedRow[]>();
   for (const row of staged) {
     const target = row.targetModel as string;
@@ -251,7 +268,14 @@ export async function validateStaged(input: ValidateStagedInput): Promise<Migrat
     }
     bucket.push(row);
   }
+  return stagedByTarget;
+}
 
+async function checkStagedCompleteness(
+  store: StoragePort,
+  plan: ValidatedMigrationPlan,
+  stagedByTarget: ReadonlyMap<string, StagedRow[]>,
+): Promise<Map<string, StoredRow[]>> {
   // Completeness: every live row of every staged model has a staged row
   // (id-set comparison via bounded scans — stronger than counts).
   // Dropped models need no staged rows; pure retains persist live.
@@ -285,12 +309,10 @@ export async function validateStaged(input: ValidateStagedInput): Promise<Migrat
       }
     }
   }
+  return liveBySource;
+}
 
-  // Drop gating runs after completeness (the staged index it consults
-  // is total from here on) and before every other post-state check, so a
-  // blocked drop reports the drop — not a downstream dangling reference.
-  await checkDropGating(store, plan, oldModels, stagedByTarget);
-
+async function checkStagedUniqueness(validation: StagedValidation): Promise<void> {
   // Uniqueness within each staged set, plus desired-key checks over
   // retained-live rows (constraint-only changes gate untouched models).
   // BGI-08 repair: desired computed-key rules join both passes — the
@@ -298,6 +320,7 @@ export async function validateStaged(input: ValidateStagedInput): Promise<Migrat
   // `givenUniqueKeys` exactly like a builtin key, so a colliding
   // activation refuses here (phase stays `staging`, nothing commits)
   // instead of flipping onto a conflicting post-state.
+  const { store, plan, desiredModels, stagedByTarget } = validation;
   const givenScope = createGivenUniqueKeyScope();
   try {
     for (const [target, rows] of stagedByTarget) {
@@ -345,11 +368,14 @@ export async function validateStaged(input: ValidateStagedInput): Promise<Migrat
   } finally {
     givenScope.close();
   }
+}
 
+function checkStagedRefShapes(validation: StagedValidation): void {
   // References resolve to retained/renamed targets: opaque id + model
   // check, never dereferenced. Present values must be `{ id }` (mirroring
   // the pipeline: missing skips, null fails); targets must be staged or
   // retained-live — never dropped, never new-empty.
+  const { plan, desiredModels, staged } = validation;
   for (const row of staged) {
     const desiredDef = desiredModels.get(row.targetModel) as InterimModelDef;
     for (const ref of desiredDef.refs) {
@@ -373,7 +399,14 @@ export async function validateStaged(input: ValidateStagedInput): Promise<Migrat
       checkRefTargetRetained(plan, ref.model as string, ref.field);
     }
   }
+}
 
+interface LiveSynthesis {
+  readonly liveFor: (source: string, id: string) => StoredRow;
+  readonly synthesize: (source: string, row: StagedRow) => StoredRow;
+}
+
+function indexLiveRows(liveBySource: ReadonlyMap<string, StoredRow[]>): LiveSynthesis {
   // Live metadata for post-state synthesis (keyed by source model + id).
   const liveIndex = new Map<string, StoredRow>();
   for (const [source, rows] of liveBySource) {
@@ -400,11 +433,47 @@ export async function validateStaged(input: ValidateStagedInput): Promise<Migrat
       data: row.data,
     };
   };
+  return { liveFor, synthesize };
+}
 
+function checkMappedLock(
+  lock: InterimLock,
+  live: StoredRow,
+  stagedRow: StoredRow,
+  source: string,
+  recordId: unknown,
+  headTarget: (head: string) => string | null,
+): void {
+  if (!evalPredicateForRow(lock.when, live)) {
+    return;
+  }
+  const { mapped, dropped } = mapLockPredicate(lock.when, headTarget);
+  if (dropped.length > 0) {
+    throw new StateError(
+      'validation',
+      `Migration removes still-locked evidence for lock ${JSON.stringify(lock.name)} ` +
+        `on model ${JSON.stringify(source)}.`,
+    );
+  }
+  if (!evalPredicateForRow(mapped, stagedRow)) {
+    throw new StateError(
+      'validation',
+      `Migration backfill unlocks protected row ${JSON.stringify(recordId)} under ` +
+        `lock ${JSON.stringify(lock.name)} on model ${JSON.stringify(source)}.`,
+    );
+  }
+}
+
+function checkOldLocks(
+  validation: StagedValidation,
+  liveFor: (source: string, id: string) => StoredRow,
+  synthesize: (source: string, row: StagedRow) => StoredRow,
+): void {
   // Old locks: every originally-protected retained row still satisfies its
   // MAPPED predicate after backfill. The live match gates the check (rows
   // never protected may stay unlocked or newly lock); mapped evaluation
   // failure — or a lock over removed evidence — blocks with validation.
+  const { plan, oldLocks, stagedByTarget } = validation;
   for (const [name, mapping] of plan.models) {
     const source = name as string;
     if (mapping.target === null) {
@@ -429,34 +498,23 @@ export async function validateStaged(input: ValidateStagedInput): Promise<Migrat
       const live = liveFor(source, row.recordId as string);
       const stagedRow = synthesize(source, row);
       for (const lock of locks) {
-        if (!evalPredicateForRow(lock.when, live)) {
-          continue;
-        }
-        const { mapped, dropped } = mapLockPredicate(lock.when, headTarget);
-        if (dropped.length > 0) {
-          throw new StateError(
-            'validation',
-            `Migration removes still-locked evidence for lock ${JSON.stringify(lock.name)} ` +
-              `on model ${JSON.stringify(source)}.`,
-          );
-        }
-        if (!evalPredicateForRow(mapped, stagedRow)) {
-          throw new StateError(
-            'validation',
-            `Migration backfill unlocks protected row ${JSON.stringify(row.recordId)} under ` +
-              `lock ${JSON.stringify(lock.name)} on model ${JSON.stringify(source)}.`,
-          );
-        }
+        checkMappedLock(lock, live, stagedRow, source, row.recordId, headTarget);
       }
     }
   }
+}
 
+function checkDesiredLocks(
+  validation: StagedValidation,
+  synthesize: (source: string, row: StagedRow) => StoredRow,
+): void {
   // Desired locks: newly locked fields may establish during initialization,
   // then their desired locks apply. Establishment is allowed, never a
   // failure — locks gate future writes (evaluated on pre-state), and this
   // authorized maintenance is the write that establishes them. This pass
   // still evaluates every desired lock over every staged row so malformed
   // predicates fail closed here instead of at first post-migration write.
+  const { plan, desiredModels, staged } = validation;
   for (const row of staged) {
     const desiredDef = desiredModels.get(row.targetModel) as InterimModelDef;
     if (desiredDef.locks.length === 0) {
@@ -474,10 +532,23 @@ export async function validateStaged(input: ValidateStagedInput): Promise<Migrat
       evalPredicateForRow(lock.when, stagedRow);
     }
   }
+}
 
+interface PostStateView {
+  readonly viewRows: ReadonlyMap<string, StoredRow>;
+  readonly view: {
+    get(model: ModelName, id: RecordId): StoredRow | null;
+  };
+}
+
+async function buildPostStateView(
+  validation: StagedValidation,
+  synthesize: (source: string, row: StagedRow) => StoredRow,
+): Promise<PostStateView> {
   // Invariants hold over the complete post-state view: staged-derived
   // rows for staged models, live rows for pure retains, nothing for
   // new/dropped models.
+  const { store, plan, desiredModels, staged } = validation;
   const viewRows = new Map<string, StoredRow>();
   for (const row of staged) {
     const source = plan.targets.get(row.targetModel) as ModelName | undefined;
@@ -515,6 +586,18 @@ export async function validateStaged(input: ValidateStagedInput): Promise<Migrat
       viewRows.set(`${desiredName as string}\0${row.id as string}`, row);
     }
   }
+  const view = {
+    get(model: ModelName, id: RecordId): StoredRow | null {
+      return viewRows.get(`${model as string}\0${id as string}`) ?? null;
+    },
+  };
+  return { viewRows, view };
+}
+
+function checkMachineStates(
+  desiredModels: ModelTable,
+  viewRows: ReadonlyMap<string, StoredRow>,
+): void {
   // A lifecycle declaration can change without a data mapper. Validate
   // retained rows too; adoption never resets an existing row to initial.
   for (const [rowKey, row] of viewRows) {
@@ -526,16 +609,83 @@ export async function validateStaged(input: ValidateStagedInput): Promise<Migrat
       }
     }
   }
-  const view = {
-    get(model: ModelName, id: RecordId): StoredRow | null {
-      return viewRows.get(`${model as string}\0${id as string}`) ?? null;
-    },
-  };
+}
+
+function findLiveRefId(
+  mapping: ValidatedModelMapping | undefined,
+  live: StoredRow,
+  refField: string,
+): string | undefined {
+  // Changed-onto-archived blocks; unchanged legacy refs pass. The old
+  // field is the inverse image of the desired ref field (retains map
+  // to themselves; fields with no old source are new, hence changed).
+  if (mapping === undefined) return undefined;
+  for (const [oldField, handling] of mapping.fields) {
+    const desiredField = handling.kind === 'rename' ? handling.to : oldField;
+    if (handling.kind !== 'drop' && desiredField === refField) {
+      const liveValue = getDataPath(live.data, oldField);
+      if (
+        typeof liveValue === 'object' &&
+        liveValue !== null &&
+        !Array.isArray(liveValue) &&
+        typeof (liveValue as Readonly<Record<string, unknown>>)['id'] === 'string'
+      ) {
+        return (liveValue as Readonly<Record<string, unknown>>)['id'] as string;
+      }
+      break;
+    }
+  }
+  return undefined;
+}
+
+function checkStagedRef(
+  live: StoredRow,
+  mapping: ValidatedModelMapping | undefined,
+  ref: { readonly model: ModelName; readonly field: string },
+  value: unknown,
+  view: { get(model: ModelName, id: RecordId): StoredRow | null },
+): void {
+  // The model-level pass already rejects malformed ref values; shape
+  // is re-proven here (fail closed) before the id is trusted.
+  const targetId =
+    typeof value === 'object' && value !== null && !Array.isArray(value)
+      ? (value as Readonly<Record<string, unknown>>)['id']
+      : undefined;
+  if (typeof targetId !== 'string' || targetId === '') {
+    throw new StateError(
+      'validation',
+      `Invalid reference in field ${JSON.stringify(ref.field)}.`,
+    );
+  }
+  const target = view.get(ref.model, targetId as RecordId);
+  if (target === null) {
+    throw new StateError(
+      'validation',
+      `Migration reference in field ${JSON.stringify(ref.field)} points at missing ` +
+        `${JSON.stringify(ref.model as string)}/${JSON.stringify(targetId)}.`,
+    );
+  }
+  const liveId = findLiveRefId(mapping, live, ref.field);
+  if (liveId !== targetId && target.archivedAt !== null) {
+    throw new StateError(
+      'validation',
+      `Migration reference in field ${JSON.stringify(ref.field)} points at archived ` +
+        `${JSON.stringify(ref.model as string)}/${JSON.stringify(targetId)}.`,
+    );
+  }
+}
+
+function checkStagedRefTargets(
+  validation: StagedValidation,
+  liveFor: (source: string, id: string) => StoredRow,
+  view: { get(model: ModelName, id: RecordId): StoredRow | null },
+): void {
   // Staged references must resolve to post-state rows (model retention was
   // proven earlier; this pass proves id existence): dangling ids block,
   // and refs changed onto archived rows block — mirroring the pipeline,
   // where unchanged legacy refs to since-archived rows pass but new or
   // changed refs to archived rows fail.
+  const { plan, desiredModels, staged } = validation;
   for (const row of staged) {
     const desiredDef = desiredModels.get(row.targetModel) as InterimModelDef;
     if (desiredDef.refs.length === 0) {
@@ -555,56 +705,15 @@ export async function validateStaged(input: ValidateStagedInput): Promise<Migrat
       if (value === undefined) {
         continue;
       }
-      // The model-level pass already rejects malformed ref values; shape
-      // is re-proven here (fail closed) before the id is trusted.
-      const targetId =
-        typeof value === 'object' && value !== null && !Array.isArray(value)
-          ? (value as Readonly<Record<string, unknown>>)['id']
-          : undefined;
-      if (typeof targetId !== 'string' || targetId === '') {
-        throw new StateError(
-          'validation',
-          `Invalid reference in field ${JSON.stringify(ref.field)}.`,
-        );
-      }
-      const target = view.get(ref.model, targetId as RecordId);
-      if (target === null) {
-        throw new StateError(
-          'validation',
-          `Migration reference in field ${JSON.stringify(ref.field)} points at missing ` +
-            `${JSON.stringify(ref.model as string)}/${JSON.stringify(targetId)}.`,
-        );
-      }
-      // Changed-onto-archived blocks; unchanged legacy refs pass. The old
-      // field is the inverse image of the desired ref field (retains map
-      // to themselves; fields with no old source are new, hence changed).
-      let liveId: string | undefined;
-      if (mapping !== undefined) {
-        for (const [oldField, handling] of mapping.fields) {
-          const desiredField = handling.kind === 'rename' ? handling.to : oldField;
-          if (handling.kind !== 'drop' && desiredField === ref.field) {
-            const liveValue = getDataPath(live.data, oldField);
-            if (
-              typeof liveValue === 'object' &&
-              liveValue !== null &&
-              !Array.isArray(liveValue) &&
-              typeof (liveValue as Readonly<Record<string, unknown>>)['id'] === 'string'
-            ) {
-              liveId = (liveValue as Readonly<Record<string, unknown>>)['id'] as string;
-            }
-            break;
-          }
-        }
-      }
-      if (liveId !== targetId && target.archivedAt !== null) {
-        throw new StateError(
-          'validation',
-          `Migration reference in field ${JSON.stringify(ref.field)} points at archived ` +
-            `${JSON.stringify(ref.model as string)}/${JSON.stringify(targetId)}.`,
-        );
-      }
+      checkStagedRef(live, mapping, ref, value, view);
     }
   }
+}
+
+async function checkPostStateInvariants(
+  desiredModels: ModelTable,
+  view: { get(model: ModelName, id: RecordId): StoredRow | null },
+): Promise<void> {
   for (const desiredDef of desiredModels.values()) {
     for (const invariant of desiredDef.invariants) {
       try {
@@ -621,7 +730,13 @@ export async function validateStaged(input: ValidateStagedInput): Promise<Migrat
       }
     }
   }
+}
 
+async function commitStagedProgress(
+  store: StoragePort,
+  plan: ValidatedMigrationPlan,
+  progress: MigrationProgress,
+): Promise<MigrationProgress> {
   // Success: record phase `staged` via an EMPTY staging chunk — the
   // contract upserts progress with no rows, so validation success and its
   // cursor advance commit atomically under the fence.
@@ -646,6 +761,34 @@ export async function validateStaged(input: ValidateStagedInput): Promise<Migrat
   return next;
 }
 
+export async function validateStaged(input: ValidateStagedInput): Promise<MigrationProgress> {
+  const { store, plan, desiredModels, oldLocks, oldModels } = input;
+  assertMigrationUniqueSupported(oldModels, desiredModels);
+  const progress = await checkStagedHead(store, plan.migrationId);
+  const staged = await scanAllStaged(store, plan.migrationId);
+  const stagedByTarget = await indexStagedRows(plan, desiredModels, staged);
+  const liveBySource = await checkStagedCompleteness(store, plan, stagedByTarget);
+
+  // Drop gating runs after completeness (the staged index it consults
+  // is total from here on) and before every other post-state check, so a
+  // blocked drop reports the drop — not a downstream dangling reference.
+  await checkDropGating(store, plan, oldModels, stagedByTarget);
+
+  const validation: StagedValidation = { store, plan, desiredModels, oldLocks, staged, stagedByTarget, liveBySource };
+  await checkStagedUniqueness(validation);
+  checkStagedRefShapes(validation);
+  const { liveFor, synthesize } = indexLiveRows(liveBySource);
+
+  checkOldLocks(validation, liveFor, synthesize);
+  checkDesiredLocks(validation, synthesize);
+
+  const { viewRows, view } = await buildPostStateView(validation, synthesize);
+  checkMachineStates(desiredModels, viewRows);
+  checkStagedRefTargets(validation, liveFor, view);
+  await checkPostStateInvariants(desiredModels, view);
+  return commitStagedProgress(store, plan, progress);
+}
+
 /** True when a stored value is the `{ id }` reference shape for one id. */
 function isRefToId(value: unknown, id: string): boolean {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
@@ -663,21 +806,15 @@ function isRefToId(value: unknown, id: string): boolean {
  * Retained-live referrers always block. Rename disposals are moves
  * (their rows are staged, never drop candidates) and stay ungated.
  */
-async function checkDropGating(
+interface DropCandidates {
+  readonly droppedIds: Map<string, Set<string>>;
+  readonly candidates: Array<{ readonly model: string; readonly row: StoredRow }>;
+}
+
+async function collectDropCandidates(
   store: StoragePort,
-  plan: ValidatedMigrationPlan,
-  oldModels: ModelTable,
-  stagedByTarget: ReadonlyMap<string, StagedRow[]>,
-): Promise<void> {
-  const dropModels: string[] = [];
-  for (const [name, mapping] of plan.models) {
-    if (mapping.kind === 'drop') {
-      dropModels.push(name as string);
-    }
-  }
-  if (dropModels.length === 0) {
-    return;
-  }
+  dropModels: readonly string[],
+): Promise<DropCandidates> {
   // Full candidate enumeration (bounded scans): the planned-drop set
   // doubles as the co-drop masking index for incoming refs.
   const droppedIds = new Map<string, Set<string>>();
@@ -690,15 +827,13 @@ async function checkDropGating(
     }
     droppedIds.set(model, ids);
   }
-  if (candidates.length === 0) {
-    return;
-  }
-  const stagedById = new Map<string, StagedRow>();
-  for (const [target, rows] of stagedByTarget) {
-    for (const row of rows) {
-      stagedById.set(`${target}\0${row.recordId as string}`, row);
-    }
-  }
+  return { droppedIds, candidates };
+}
+
+function checkDropCandidateLocks(
+  oldModels: ModelTable,
+  candidates: ReadonlyArray<{ readonly model: string; readonly row: StoredRow }>,
+): void {
   for (const { model, row } of candidates) {
     const def = oldModels.get(model as ModelName);
     if (def === undefined) {
@@ -719,82 +854,133 @@ async function checkDropGating(
       }
     }
   }
+}
+
+function checkStagedReferrer(
+  mapping: ValidatedModelMapping,
+  stagedById: ReadonlyMap<string, StagedRow>,
+  refModel: string,
+  referrerId: string,
+  ref: { readonly model: ModelName; readonly field: string },
+  targetModel: string,
+  targetId: string,
+): void {
+  const staged = stagedById.get(
+    `${mapping.target as string}\0${referrerId}`,
+  );
+  if (staged === undefined) {
+    // Completeness ran first: every live row of a staged model
+    // has a staged row, so a miss is an internal inconsistency.
+    throw new StateError(
+      'validation',
+      `Migration staged set misses live row ${JSON.stringify(refModel)}/` +
+        `${JSON.stringify(referrerId)}.`,
+    );
+  }
+  const handling = mapping.fields.get(ref.field);
+  if (handling === undefined) {
+    throw new StateError(
+      'validation',
+      `Migration plan and old defs disagree on field ${JSON.stringify(ref.field)} ` +
+        `of model ${JSON.stringify(refModel)}.`,
+    );
+  }
+  if (handling.kind === 'drop') {
+    return;
+  }
+  const stagedField = handling.kind === 'rename' ? handling.to : ref.field;
+  if (isRefToId(getDataPath(staged.data, stagedField), targetId)) {
+    throw new StateError(
+      'validation',
+      `Migration cannot drop ${JSON.stringify(targetModel)}/` +
+        `${JSON.stringify(targetId)}: staged referrer ` +
+        `${JSON.stringify(refModel)}/${JSON.stringify(referrerId)} keeps the reference.`,
+    );
+  }
+}
+
+interface DropReferrerScan {
+  readonly store: StoragePort;
+  readonly plan: ValidatedMigrationPlan;
+  readonly refModel: string;
+  readonly droppedIds: ReadonlyMap<string, Set<string>>;
+  readonly stagedById: ReadonlyMap<string, StagedRow>;
+  readonly refs: ReadonlyArray<{ readonly model: ModelName; readonly field: string }>;
+}
+
+async function scanDropReferrers(scan: DropReferrerScan): Promise<void> {
+  for (const referrer of await scanAllLive(scan.store, scan.refModel)) {
+    const referrerId = referrer.id as string;
+    for (const ref of scan.refs) {
+      const targetModel = ref.model as string;
+      const targetIds = scan.droppedIds.get(targetModel);
+      if (targetIds === undefined) {
+        continue;
+      }
+      const value = getDataPath(referrer.data, ref.field);
+      if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+        continue;
+      }
+      const targetId = (value as Readonly<Record<string, unknown>>)['id'];
+      if (typeof targetId !== 'string' || !targetIds.has(targetId)) {
+        continue;
+      }
+      // A live incoming ref to a drop candidate. Co-dropped referrers
+      // vanish with it; staged referrers answer by their staged data.
+      if (scan.droppedIds.get(scan.refModel)?.has(referrerId) === true) {
+        continue;
+      }
+      const mapping = scan.plan.models.get(scan.refModel as ModelName);
+      if (mapping !== undefined && mapping.needsStaging && mapping.target !== null) {
+        checkStagedReferrer(mapping, scan.stagedById, scan.refModel, referrerId, ref, targetModel, targetId);
+        continue;
+      }
+      throw new StateError(
+        'validation',
+        `Migration cannot drop ${JSON.stringify(targetModel)}/` +
+          `${JSON.stringify(targetId)}: retained referrer ` +
+          `${JSON.stringify(scan.refModel)}/${JSON.stringify(referrerId)}.`,
+      );
+    }
+  }
+}
+
+async function checkDropGating(
+  store: StoragePort,
+  plan: ValidatedMigrationPlan,
+  oldModels: ModelTable,
+  stagedByTarget: ReadonlyMap<string, StagedRow[]>,
+): Promise<void> {
+  const dropModels: string[] = [];
+  for (const [name, mapping] of plan.models) {
+    if (mapping.kind === 'drop') {
+      dropModels.push(name as string);
+    }
+  }
+  if (dropModels.length === 0) {
+    return;
+  }
+  // Full candidate enumeration (bounded scans): the planned-drop set
+  // doubles as the co-drop masking index for incoming refs.
+  const { droppedIds, candidates } = await collectDropCandidates(store, dropModels);
+  if (candidates.length === 0) {
+    return;
+  }
+  const stagedById = new Map<string, StagedRow>();
+  for (const [target, rows] of stagedByTarget) {
+    for (const row of rows) {
+      stagedById.set(`${target}\0${row.recordId as string}`, row);
+    }
+  }
+  checkDropCandidateLocks(oldModels, candidates);
   // Incoming refs: every old model's ref paths, archived included
   // (mirrors the pipeline's disposal scan, plus migration masking).
   for (const [refModelName, refDef] of oldModels) {
     if (refDef.refs.length === 0) {
       continue;
     }
-    const refModel = refModelName as string;
-    const mapping = plan.models.get(refModelName);
-    for (const referrer of await scanAllLive(store, refModel)) {
-      const referrerId = referrer.id as string;
-      for (const ref of refDef.refs) {
-        const targetModel = ref.model as string;
-        const targetIds = droppedIds.get(targetModel);
-        if (targetIds === undefined) {
-          continue;
-        }
-        const value = getDataPath(referrer.data, ref.field);
-        if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-          continue;
-        }
-        const targetId = (value as Readonly<Record<string, unknown>>)['id'];
-        if (typeof targetId !== 'string' || !targetIds.has(targetId)) {
-          continue;
-        }
-        // A live incoming ref to a drop candidate. Co-dropped referrers
-        // vanish with it; staged referrers answer by their staged data.
-        if (droppedIds.get(refModel)?.has(referrerId) === true) {
-          continue;
-        }
-        if (
-          mapping !== undefined &&
-          mapping.needsStaging &&
-          mapping.target !== null
-        ) {
-          const staged = stagedById.get(
-            `${mapping.target as string}\0${referrerId}`,
-          );
-          if (staged === undefined) {
-            // Completeness ran first: every live row of a staged model
-            // has a staged row, so a miss is an internal inconsistency.
-            throw new StateError(
-              'validation',
-              `Migration staged set misses live row ${JSON.stringify(refModel)}/` +
-                `${JSON.stringify(referrerId)}.`,
-            );
-          }
-          const handling = mapping.fields.get(ref.field);
-          if (handling === undefined) {
-            throw new StateError(
-              'validation',
-              `Migration plan and old defs disagree on field ${JSON.stringify(ref.field)} ` +
-                `of model ${JSON.stringify(refModel)}.`,
-            );
-          }
-          if (handling.kind === 'drop') {
-            continue;
-          }
-          const stagedField = handling.kind === 'rename' ? handling.to : ref.field;
-          if (isRefToId(getDataPath(staged.data, stagedField), targetId)) {
-            throw new StateError(
-              'validation',
-              `Migration cannot drop ${JSON.stringify(targetModel)}/` +
-                `${JSON.stringify(targetId)}: staged referrer ` +
-                `${JSON.stringify(refModel)}/${JSON.stringify(referrerId)} keeps the reference.`,
-            );
-          }
-          continue;
-        }
-        throw new StateError(
-          'validation',
-          `Migration cannot drop ${JSON.stringify(targetModel)}/` +
-            `${JSON.stringify(targetId)}: retained referrer ` +
-            `${JSON.stringify(refModel)}/${JSON.stringify(referrerId)}.`,
-        );
-      }
-    }
+    await scanDropReferrers({ store, plan, refModel: refModelName as string,
+      droppedIds, stagedById, refs: refDef.refs });
   }
 }
 

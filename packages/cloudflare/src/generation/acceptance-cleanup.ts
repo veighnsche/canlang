@@ -1,5 +1,6 @@
 /** Reap only dev sessions explicitly owned by this candidate's browser checks. */
 import { execFile } from "node:child_process";
+import type { Dirent } from "node:fs";
 import { readFile, readdir, stat } from "node:fs/promises";
 import { isAbsolute, join, resolve } from "node:path";
 
@@ -51,43 +52,60 @@ export async function cleanupAcceptanceBrowsers(
   const records: { session: string; app: string }[] = [];
   // Validate every record before sending any stop command; never select by app alone.
   for (const entry of owners) {
-    const path = join(output, entry.name);
-    if (!entry.isFile() || (await stat(path)).size > 16 * 1024) {
-      throw new Error("browser cleanup owner record must be a bounded regular file");
-    }
-    let record: Record<string, unknown>;
-    try { record = JSON.parse(await readFile(path, "utf8")) as Record<string, unknown>; }
-    catch { throw new Error("browser cleanup owner record is invalid JSON"); }
-    if (record === null || typeof record !== "object" || Array.isArray(record) || record.owned !== true ||
-        typeof record.workspace !== "string" || !isAbsolute(record.workspace) || resolve(record.workspace) !== resolve(workspace) ||
-        typeof record.source !== "string" || !isAbsolute(record.source) || resolve(record.source) !== resolve(candidateSource) ||
-        typeof record.session !== "string" || !/^[a-f0-9]{48}$/.test(record.session) ||
-        typeof record.app !== "string" || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(record.app)) {
-      throw new Error("browser cleanup owner record does not match this candidate");
-    }
+    const record = await readOwnerRecord(output, entry, workspace, candidateSource);
     if (!records.some(saved => saved.session === record.session && saved.app === record.app)) {
-      records.push({ session: record.session, app: record.app });
+      records.push(record);
     }
   }
   let failures = 0;
   for (const owner of records) {
     try {
-      const flags = ["--root", resolve(workspace), "--session", owner.session, "--app", owner.app, "--profile", "local-d1-identity"];
-      const discovered = await control(["discover", ...flags], workspace);
-      const found = response(discovered, "discover");
-      if (absent(discovered, found)) continue;
-      if (discovered.code !== 0 || found.ok !== true || found.session !== owner.session) {
-        throw new Error("browser cleanup could not discover the owned session");
-      }
-      // The daemon may remove its endpoint before its stop response arrives.
-      // Only discovery of this exact selector can establish successful cleanup.
-      try { await control(["stop", ...flags], workspace); }
-      catch { /* Verify absence below even when stop fails or times out. */ }
-      const verified = await control(["discover", ...flags], workspace);
-      if (!absent(verified, response(verified, "discover"))) {
-        throw new Error("browser cleanup did not verify endpoint absence");
-      }
+      await stopOwnedSession(control, workspace, owner);
     } catch { failures += 1; }
   }
   if (failures > 0) throw new Error(`browser cleanup failed for ${failures} owned session(s); promotion is refused`);
+}
+
+async function readOwnerRecord(
+  output: string, entry: Dirent, workspace: string, candidateSource: string,
+): Promise<{ session: string; app: string }> {
+  const path = join(output, entry.name);
+  if (!entry.isFile() || (await stat(path)).size > 16 * 1024) {
+    throw new Error("browser cleanup owner record must be a bounded regular file");
+  }
+  let record: Record<string, unknown>;
+  try { record = JSON.parse(await readFile(path, "utf8")) as Record<string, unknown>; }
+  catch { throw new Error("browser cleanup owner record is invalid JSON"); }
+  if (!isOwnerRecord(record, workspace, candidateSource)) {
+    throw new Error("browser cleanup owner record does not match this candidate");
+  }
+  return { session: record.session as string, app: record.app as string };
+}
+
+function isOwnerRecord(record: Record<string, unknown>, workspace: string, candidateSource: string): boolean {
+  return record !== null && typeof record === "object" && !Array.isArray(record) && record.owned === true &&
+    typeof record.workspace === "string" && isAbsolute(record.workspace) && resolve(record.workspace) === resolve(workspace) &&
+    typeof record.source === "string" && isAbsolute(record.source) && resolve(record.source) === resolve(candidateSource) &&
+    typeof record.session === "string" && /^[a-f0-9]{48}$/.test(record.session) &&
+    typeof record.app === "string" && /^[A-Za-z_][A-Za-z0-9_]*$/.test(record.app);
+}
+
+async function stopOwnedSession(
+  control: AcceptanceCleanupControl, workspace: string, owner: { session: string; app: string },
+): Promise<void> {
+  const flags = ["--root", resolve(workspace), "--session", owner.session, "--app", owner.app, "--profile", "local-d1-identity"];
+  const discovered = await control(["discover", ...flags], workspace);
+  const found = response(discovered, "discover");
+  if (absent(discovered, found)) return;
+  if (discovered.code !== 0 || found.ok !== true || found.session !== owner.session) {
+    throw new Error("browser cleanup could not discover the owned session");
+  }
+  // The daemon may remove its endpoint before its stop response arrives.
+  // Only discovery of this exact selector can establish successful cleanup.
+  try { await control(["stop", ...flags], workspace); }
+  catch { /* Verify absence below even when stop fails or times out. */ }
+  const verified = await control(["discover", ...flags], workspace);
+  if (!absent(verified, response(verified, "discover"))) {
+    throw new Error("browser cleanup did not verify endpoint absence");
+  }
 }

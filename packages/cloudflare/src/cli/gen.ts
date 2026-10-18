@@ -102,6 +102,110 @@ function echoHeader(text: string): { request_id: string; operation: string } {
 
 
 
+async function describeAdapter(adapter: (typeof ADAPTERS)[number]): Promise<unknown> {
+  const selection = selectedBinaries(adapter.id);
+  const binaries = selection.binaries;
+  let found: { binary: string; path: string } | null = null;
+  for (const binary of binaries) {
+    const path = await findOnPath(binary);
+    if (path !== null) {
+      found = { binary, path };
+      break;
+    }
+  }
+  return {
+    id: adapter.id,
+    label: adapter.label,
+    capabilities: {
+      mcp_attachment: adapter.mcp_attachment,
+      write_restriction: adapter.write_restriction,
+      session_resume: adapter.session_resume,
+      native_options: adapter.native_options,
+    },
+    availability:
+      found === null
+        ? { found: false, binary: null, path: null, tried: [...binaries], ...(selection.error === null ? {} : { error: selection.error }) }
+        : { found: true, binary: found.binary, path: found.path, tried: [...binaries] },
+  };
+}
+
+async function checkRecipeBinary(recipe: { runner: string }): Promise<string[]> {
+  const adapter = adapterCapabilities(recipe.runner);
+  const selection = selectedBinaries(recipe.runner);
+  const binaries = selection.binaries;
+  let binaryFound = false;
+  if (adapter !== undefined) {
+    for (const binary of binaries) {
+      if ((await findOnPath(binary)) !== null) {
+        binaryFound = true;
+        break;
+      }
+    }
+  }
+  const blockers: string[] = [];
+  if (selection.error !== null) blockers.push(selection.error);
+  if (!binaryFound) {
+    blockers.push(`runner \`${recipe.runner}\` has no executable for the selected host path (tried: ${binaries.join(", ")})`);
+  }
+  return blockers;
+}
+
+function resolveDoctorRecipe(loaded: LoadedSettings | null, overrides: RunOverrides): {
+  recipe: ReturnType<typeof resolveRecipe> | null; recipeError: { code: string; message: string } | null;
+} {
+  try {
+    return { recipe: resolveRecipe(loaded, "given", null, overrides), recipeError: null };
+  } catch (error) {
+    if (error instanceof ConfigError) {
+      return { recipe: null, recipeError: { code: error.code, message: `[${error.code}] ${error.detail}` } };
+    }
+    throw error;
+  }
+}
+
+async function collectRecipeBlockers(recipe: ReturnType<typeof resolveRecipe> | null,
+  recipeError: { code: string; message: string } | null): Promise<{ preflight: { ok: boolean; failures: string[] } | null; blockers: string[] }> {
+  const blockers: string[] = [];
+  let preflight: { ok: boolean; failures: string[] } | null = null;
+  if (recipe !== null) {
+    const failures: string[] = [];
+    try {
+      preflightRecipe(recipe);
+    } catch (error) {
+      if (error instanceof PreflightError) {
+        failures.push(`[${error.code}] ${error.detail}`);
+      } else {
+        throw error;
+      }
+    }
+    preflight = { ok: failures.length === 0, failures };
+    if (failures.length === 0) {
+      blockers.push(...await checkRecipeBinary(recipe));
+    } else {
+      blockers.push(...failures);
+    }
+  } else if (recipeError !== null) {
+    blockers.push(recipeError.message);
+  }
+  return { preflight, blockers };
+}
+
+function checkRecipeSelected(params: DoctorParams, loaded: LoadedSettings | null, blockers: string[]): void {
+  const recipeSelected =
+    params.settings !== undefined ||
+    params.profile !== undefined ||
+    params.runner !== undefined ||
+    params.model !== undefined ||
+    (loaded !== null &&
+      (loaded.settings.shared.runner !== null || Object.keys(loaded.settings.profiles).length > 0));
+  if (!recipeSelected) {
+    blockers.length = 0;
+    blockers.push(
+      "no recipe selected: pass settings, a profile, or runner/model overrides to check one recipe",
+    );
+  }
+}
+
 async function runGenDoctor(header: RequestHeader, params: DoctorParams): Promise<string> {
   const root = params.root ?? ".";
   let loaded: LoadedSettings | null;
@@ -124,96 +228,13 @@ async function runGenDoctor(header: RequestHeader, params: DoctorParams): Promis
     ...(params.timeout_seconds === undefined ? {} : { timeout_seconds: params.timeout_seconds }),
     ...(params.native === undefined ? {} : { native: params.native }),
   };
-  let recipe: ReturnType<typeof resolveRecipe> | null = null;
-  let recipeError: { code: string; message: string } | null = null;
-  try {
-    recipe = resolveRecipe(loaded, "given", null, overrides);
-  } catch (error) {
-    if (error instanceof ConfigError) {
-      recipeError = { code: error.code, message: `[${error.code}] ${error.detail}` };
-    } else {
-      throw error;
-    }
-  }
+  const { recipe, recipeError } = resolveDoctorRecipe(loaded, overrides);
   const adapters: unknown[] = [];
   for (const adapter of ADAPTERS) {
-    const selection = selectedBinaries(adapter.id);
-    const binaries = selection.binaries;
-    let found: { binary: string; path: string } | null = null;
-    for (const binary of binaries) {
-      const path = await findOnPath(binary);
-      if (path !== null) {
-        found = { binary, path };
-        break;
-      }
-    }
-    adapters.push({
-      id: adapter.id,
-      label: adapter.label,
-      capabilities: {
-        mcp_attachment: adapter.mcp_attachment,
-        write_restriction: adapter.write_restriction,
-        session_resume: adapter.session_resume,
-        native_options: adapter.native_options,
-      },
-      availability:
-        found === null
-          ? { found: false, binary: null, path: null, tried: [...binaries], ...(selection.error === null ? {} : { error: selection.error }) }
-          : { found: true, binary: found.binary, path: found.path, tried: [...binaries] },
-    });
+    adapters.push(await describeAdapter(adapter));
   }
-  const blockers: string[] = [];
-  let preflight: { ok: boolean; failures: string[] } | null = null;
-  if (recipe !== null) {
-    const failures: string[] = [];
-    try {
-      preflightRecipe(recipe);
-    } catch (error) {
-      if (error instanceof PreflightError) {
-        failures.push(`[${error.code}] ${error.detail}`);
-      } else {
-        throw error;
-      }
-    }
-    preflight = { ok: failures.length === 0, failures };
-    if (failures.length === 0) {
-      const adapter = adapterCapabilities(recipe.runner);
-      const selection = selectedBinaries(recipe.runner);
-      const binaries = selection.binaries;
-      let binaryFound = false;
-      if (adapter !== undefined) {
-        for (const binary of binaries) {
-          if ((await findOnPath(binary)) !== null) {
-            binaryFound = true;
-            break;
-          }
-        }
-      }
-      if (selection.error !== null) blockers.push(selection.error);
-      if (!binaryFound) {
-        blockers.push(
-          `runner \`${recipe.runner}\` has no executable for the selected host path (tried: ${binaries.join(", ")})`,
-        );
-      }
-    } else {
-      blockers.push(...failures);
-    }
-  } else if (recipeError !== null) {
-    blockers.push(recipeError.message);
-  }
-  const recipeSelected =
-    params.settings !== undefined ||
-    params.profile !== undefined ||
-    params.runner !== undefined ||
-    params.model !== undefined ||
-    (loaded !== null &&
-      (loaded.settings.shared.runner !== null || Object.keys(loaded.settings.profiles).length > 0));
-  if (!recipeSelected) {
-    blockers.length = 0;
-    blockers.push(
-      "no recipe selected: pass settings, a profile, or runner/model overrides to check one recipe",
-    );
-  }
+  const { preflight, blockers } = await collectRecipeBlockers(recipe, recipeError);
+  checkRecipeSelected(params, loaded, blockers);
   const verdict = blockers.length === 0 ? "ready" : "blocked";
   const next =
     verdict === "blocked"

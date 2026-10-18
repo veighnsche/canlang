@@ -5,25 +5,39 @@ import type { ByContext } from './grants.js';
 
 const refuse = (message: string): never => { throw new StateError('validation', message); };
 const key = (team: string, user: string) => JSON.stringify([team, user]);
+interface CopyBudget { nodes: number; readonly seen: Set<object>; }
+
+function copyOwnEntry(
+  part: object,
+  name: string | symbol,
+  out: Record<string, unknown> | unknown[],
+  budget: CopyBudget,
+  depth: number,
+): void {
+  if (Array.isArray(part) && name === 'length') return;
+  const member = Object.getOwnPropertyDescriptor(part, name);
+  if (typeof name !== 'string' || member === undefined || !('value' in member) || !member.enumerable ||
+      Array.isArray(part) && !/^(0|[1-9]\d*)$/.test(name)) return refuse('Identity facts require own enumerable data.');
+  Object.defineProperty(out, name, { value: visitCopy(member.value, depth + 1, budget), enumerable: true });
+}
+
+function visitCopy(part: unknown, depth: number, budget: CopyBudget): unknown {
+  if (++budget.nodes > 20_000 || depth > 32) return refuse('Identity facts exceed their finite budget.');
+  if (part === null || typeof part === 'string' || typeof part === 'boolean' || typeof part === 'number' && Number.isFinite(part)) return part;
+  if (typeof part !== 'object' || part === null || budget.seen.has(part) ||
+      ![Object.prototype, null, Array.prototype].includes(Object.getPrototypeOf(part))) return refuse('Identity facts require own JSON data.');
+  budget.seen.add(part);
+  const out: Record<string, unknown> | unknown[] = Array.isArray(part) ? [] : {};
+  for (const name of Reflect.ownKeys(part)) {
+    copyOwnEntry(part, name, out, budget, depth);
+  }
+  if (Array.isArray(part) && Object.keys(out).length !== part.length) return refuse('Identity arrays must preserve every position.');
+  budget.seen.delete(part);
+  return Object.freeze(out);
+}
+
 function copy(value: unknown): unknown {
-  let nodes = 0; const seen = new Set<object>();
-  const visit = (part: unknown, depth: number): unknown => {
-    if (++nodes > 20_000 || depth > 32) return refuse('Identity facts exceed their finite budget.');
-    if (part === null || typeof part === 'string' || typeof part === 'boolean' || typeof part === 'number' && Number.isFinite(part)) return part;
-    if (typeof part !== 'object' || part === null || seen.has(part) ||
-        ![Object.prototype, null, Array.prototype].includes(Object.getPrototypeOf(part))) return refuse('Identity facts require own JSON data.');
-    seen.add(part); const out: Record<string, unknown> | unknown[] = Array.isArray(part) ? [] : {};
-    for (const name of Reflect.ownKeys(part)) {
-      if (Array.isArray(part) && name === 'length') continue;
-      const member = Object.getOwnPropertyDescriptor(part, name);
-      if (typeof name !== 'string' || member === undefined || !('value' in member) || !member.enumerable ||
-          Array.isArray(part) && !/^(0|[1-9]\d*)$/.test(name)) return refuse('Identity facts require own enumerable data.');
-      Object.defineProperty(out, name, { value: visit(member.value, depth + 1), enumerable: true });
-    }
-    if (Array.isArray(part) && Object.keys(out).length !== part.length) return refuse('Identity arrays must preserve every position.');
-    seen.delete(part); return Object.freeze(out);
-  };
-  return visit(value, 0);
+  return visitCopy(value, 0, { nodes: 0, seen: new Set<object>() });
 }
 function object(value: unknown, names: readonly string[]): Record<string, unknown> {
   if (typeof value !== 'object' || value === null || Array.isArray(value) ||

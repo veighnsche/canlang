@@ -196,27 +196,44 @@ async function renderChildren(children: PageChildren): Promise<readonly string[]
   return await Promise.all(list);
 }
 
-export const renderPage: RenderPageFn = async (
+function checkPagePoll(descriptor: PageDescriptor, context: PresentationContext, contextKey: string): string {
+  if (descriptor.poll === undefined) {
+    return '';
+  }
+  if (typeof descriptor.poll !== 'bigint' || descriptor.poll < 1000n || descriptor.poll > 3600000n || descriptor.poll % 1000n !== 0n) {
+    throw new Error('renderPage: poll must be an integer number of seconds between 1s and 1h.');
+  }
+  const href = context.pollUrl ?? context.path;
+  if (!href.startsWith('/') || href.startsWith('//') || /[\\\s\u0000-\u001f\u007f#]/.test(href) ||
+      new URL(href, 'https://can.invalid').origin !== 'https://can.invalid' ||
+      /%(?:2f|5c|0[0-9a-f]|1[0-9a-f]|7f)/i.test(href.split('?')[0]!)) {
+    throw new Error('renderPage: poll requires a same-app page path.');
+  }
+  return ` data-can-poll data-can-poll-url="${escapeAttr(href)}" data-can-poll-interval="${descriptor.poll / 1000n}" data-can-poll-context="${escapeAttr(contextKey)}"`;
+}
+
+function renderNavGroups(shell: ShellData, context: PresentationContext, brand: string): string {
+  return shell.navigation.groups
+    .map((group) => {
+      const caption = escapeHtml(resolveText(group.caption, context));
+      const entries = group.entries
+        .map((entry) => renderEntry(entry, context))
+        .join("");
+      const heading = resolveText(group.caption, context) === brand
+        ? "" : `<div class="menu-title">${caption}</div>`;
+      return `${heading}<ul class="menu">${entries}</ul>`;
+    })
+    .join("");
+}
+
+async function renderPageMain(
   context: PresentationContext,
   descriptor: PageDescriptor,
   children: PageChildren,
-  shell?: ShellData,
-): Promise<string> => {
-  let pollAttrs = '';
-  const contextKey = context.pollContext ?? JSON.stringify([context.pollUrl ?? context.path, context.csrfToken]);
-  const contextAttr = descriptor.poll === undefined ? '' : ` data-can-context="${escapeAttr(contextKey)}"`;
-  if (descriptor.poll !== undefined) {
-    if (typeof descriptor.poll !== 'bigint' || descriptor.poll < 1000n || descriptor.poll > 3600000n || descriptor.poll % 1000n !== 0n) {
-      throw new Error('renderPage: poll must be an integer number of seconds between 1s and 1h.');
-    }
-    const href = context.pollUrl ?? context.path;
-    if (!href.startsWith('/') || href.startsWith('//') || /[\\\s\u0000-\u001f\u007f#]/.test(href) ||
-        new URL(href, 'https://can.invalid').origin !== 'https://can.invalid' ||
-        /%(?:2f|5c|0[0-9a-f]|1[0-9a-f]|7f)/i.test(href.split('?')[0]!)) {
-      throw new Error('renderPage: poll requires a same-app page path.');
-    }
-    pollAttrs = ` data-can-poll data-can-poll-url="${escapeAttr(href)}" data-can-poll-interval="${descriptor.poll / 1000n}" data-can-poll-context="${escapeAttr(contextKey)}"`;
-  }
+  shell: ShellData | undefined,
+  contextAttr: string,
+  pollAttrs: string,
+): Promise<{ main: string; accountHtml: string | undefined }> {
   const style = descriptor.style;
   const styleUnit = style?.unitId, styleUse = style?.useId;
   if (style !== undefined && (typeof styleUnit !== "string" || !/^[a-z0-9][a-z0-9-]*$/.test(styleUnit) ||
@@ -237,6 +254,19 @@ export const renderPage: RenderPageFn = async (
     (descriptor.description === undefined ? "" : `<p>${escapeHtml(resolveText(descriptor.description, context))}</p>`) + `</header>`;
   const mainHtml = `<main id="can-main"${contextAttr}${pollAttrs}>${pageHeading}${body}</main>`;
   const main = styleUnit === undefined || styleUse === undefined ? mainHtml : styledComponent(mainHtml, styleUnit, styleUse);
+  return { main, accountHtml };
+}
+
+export const renderPage: RenderPageFn = async (
+  context: PresentationContext,
+  descriptor: PageDescriptor,
+  children: PageChildren,
+  shell?: ShellData,
+): Promise<string> => {
+  const contextKey = context.pollContext ?? JSON.stringify([context.pollUrl ?? context.path, context.csrfToken]);
+  const contextAttr = descriptor.poll === undefined ? '' : ` data-can-context="${escapeAttr(contextKey)}"`;
+  const pollAttrs = checkPagePoll(descriptor, context, contextKey);
+  const { main, accountHtml } = await renderPageMain(context, descriptor, children, shell, contextAttr, pollAttrs);
   if (context.isPartial) {
     return main;
   }
@@ -258,17 +288,7 @@ export const renderPage: RenderPageFn = async (
       ? ""
       : `<meta name="description" content="${escapeAttr(resolveText(descriptor.description, context))}">`;
 
-  const groups = shell.navigation.groups
-    .map((group) => {
-      const caption = escapeHtml(resolveText(group.caption, context));
-      const entries = group.entries
-        .map((entry) => renderEntry(entry, context))
-        .join("");
-      const heading = resolveText(group.caption, context) === brand
-        ? "" : `<div class="menu-title">${caption}</div>`;
-      return `${heading}<ul class="menu">${entries}</ul>`;
-    })
-    .join("");
+  const groups = renderNavGroups(shell, context, brand);
   const incomplete = shell.navigation.incomplete
     ? `<p role="status">${escapeHtml(resolveText(CHROME.navIncomplete, context))}</p>`
     : "";

@@ -64,6 +64,37 @@ export function normalizeTag(tag: string): string {
  * source/present-variant syntax and every declared usage without converting
  * operand values. With no params, binding waits until formatting.
  */
+function checkMessageVariant(
+  checked: MessageVariantMap,
+  owningLocale: string | undefined,
+  key: string,
+  readValue: () => string | null | undefined,
+): void {
+  const canonical = normalizeTag(key);
+  if (canonical === owningLocale) {
+    throw new RangeError(`source locale duplicates message variant: ${canonical}`);
+  }
+  if (Object.hasOwn(checked, canonical)) {
+    throw new RangeError(`duplicate canonical locale variant: ${canonical}`);
+  }
+  // The value reads only behind both guards, as the original loop did.
+  const value = readValue();
+  if (typeof value !== "string" && value !== null) {
+    throw new TypeError(`variant ${canonical} must be a string or null`);
+  }
+  checked[canonical] = value;
+}
+
+function copyMessageParam(copied: MessageParams, name: string, param: MessageParamValue | undefined): void {
+  if (param === null || typeof param !== "object" || Array.isArray(param)) {
+    throw new TypeError(`message argument "${name}" must be {type, value}`);
+  }
+  Object.defineProperty(copied, name, {
+    value: Object.freeze({ type: param.type, value: param.value }),
+    enumerable: true,
+  });
+}
+
 export const message: MessageFactory = (
   source: string,
   variants: MessageVariantMap = {},
@@ -79,18 +110,7 @@ export const message: MessageFactory = (
   const owningLocale = sourceLocale === undefined ? undefined : normalizeTag(sourceLocale);
   const checked: MessageVariantMap = {};
   for (const key of Object.keys(variants)) {
-    const canonical = normalizeTag(key);
-    if (canonical === owningLocale) {
-      throw new RangeError(`source locale duplicates message variant: ${canonical}`);
-    }
-    if (Object.hasOwn(checked, canonical)) {
-      throw new RangeError(`duplicate canonical locale variant: ${canonical}`);
-    }
-    const value = variants[key];
-    if (typeof value !== "string" && value !== null) {
-      throw new TypeError(`variant ${canonical} must be a string or null`);
-    }
-    checked[canonical] = value;
+    checkMessageVariant(checked, owningLocale, key, () => variants[key]);
   }
   const descriptor: MessageDescriptor = {
     source,
@@ -104,14 +124,7 @@ export const message: MessageFactory = (
     }
     copied = {};
     for (const name of Object.keys(params)) {
-      const param = params[name];
-      if (param === null || typeof param !== "object" || Array.isArray(param)) {
-        throw new TypeError(`message argument "${name}" must be {type, value}`);
-      }
-      Object.defineProperty(copied, name, {
-        value: Object.freeze({ type: param.type, value: param.value }),
-        enumerable: true,
-      });
+      copyMessageParam(copied, name, params[name]);
     }
   }
   const declared = copied;
@@ -338,6 +351,59 @@ function operandKind(name: string, type: string): ScalarOperand["kind"] {
   }
 }
 
+function intOperand(name: string, value: unknown): ScalarOperand {
+  if (typeof value === "bigint") return { kind: "int", value };
+  if (typeof value === "number") {
+    if (!Number.isSafeInteger(value)) fail(name, "int number value must be a safe integer");
+    return { kind: "int", value: BigInt(value) };
+  }
+  if (typeof value === "string" && INT_RE.test(value)) {
+    return { kind: "int", value: BigInt(value) };
+  }
+  return fail(name, "type int needs a bigint, safe number or canonical int string");
+}
+
+function decimalOperand(name: string, type: string, value: unknown): ScalarOperand {
+  const operand = isDecimal(value) ? encodeValue(type, value) : value;
+  if (typeof operand === "bigint") return { kind: "decimal", text: operand.toString(10) };
+  if (typeof operand === "string" && DECIMAL_RE.test(operand)) {
+    return { kind: "decimal", text: decimalKey(operand) };
+  }
+  // Plain numbers are rejected: binary floating point cannot carry exact decimals.
+  return fail(name, "type decimal needs a bigint or canonical decimal string");
+}
+
+function moneyOperand(name: string, value: unknown): ScalarOperand {
+  if (value === null || typeof value !== "object") fail(name, "type money needs {minor,currency}");
+  const money = value as Partial<MoneyValue>;
+  let minor: bigint;
+  if (typeof money.minor === "bigint") minor = money.minor;
+  else if (typeof money.minor === "string" && INT_RE.test(money.minor)) minor = BigInt(money.minor);
+  else fail(name, "money.minor must be a bigint or canonical int string");
+  if (typeof money.currency !== "string" || !CURRENCY_RE.test(money.currency)) {
+    fail(name, "money.currency must be a 3-letter ISO code");
+  }
+  return { kind: "money", minor: minor as bigint, currency: money.currency as string };
+}
+
+function dateOperand(name: string, type: string, value: unknown): ScalarOperand {
+  const operand = isDateValue(value) ? encodeValue(type, value) : value;
+  if (typeof operand !== "string" || !DATE_RE.test(operand) || !isValidDate(operand)) {
+    fail(name, "type date needs a valid YYYY-MM-DD civil date");
+  }
+  return { kind: "date", iso: operand as string };
+}
+
+function datetimeOperand(name: string, type: string, value: unknown): ScalarOperand {
+  // The public guard checks the native shape; the owning codec also
+  // validates its supported range. Conversion stays at the display sink.
+  const operand = isDatetime(value) ? encodeValue(type, value) : value;
+  if (typeof operand !== "string" || !DATETIME_RE.test(operand) || !isValidInstant(operand)) {
+    fail(name, "type datetime needs a canonical RFC3339 UTC instant");
+  }
+  return { kind: "datetime", iso: operand as string };
+}
+
 function toOperand(name: string, param: MessageParamValue): ScalarOperand {
   const { type, value } = param;
   switch (operandKind(name, type)) {
@@ -347,54 +413,16 @@ function toOperand(name: string, param: MessageParamValue): ScalarOperand {
     case "bool":
       if (typeof value !== "boolean") fail(name, "type bool needs a boolean value");
       return { kind: "bool", value: value as boolean };
-    case "int": {
-      if (typeof value === "bigint") return { kind: "int", value };
-      if (typeof value === "number") {
-        if (!Number.isSafeInteger(value)) fail(name, "int number value must be a safe integer");
-        return { kind: "int", value: BigInt(value) };
-      }
-      if (typeof value === "string" && INT_RE.test(value)) {
-        return { kind: "int", value: BigInt(value) };
-      }
-      return fail(name, "type int needs a bigint, safe number or canonical int string");
-    }
-    case "decimal": {
-      const operand = isDecimal(value) ? encodeValue(type, value) : value;
-      if (typeof operand === "bigint") return { kind: "decimal", text: operand.toString(10) };
-      if (typeof operand === "string" && DECIMAL_RE.test(operand)) {
-        return { kind: "decimal", text: decimalKey(operand) };
-      }
-      // Plain numbers are rejected: binary floating point cannot carry exact decimals.
-      return fail(name, "type decimal needs a bigint or canonical decimal string");
-    }
-    case "money": {
-      if (value === null || typeof value !== "object") fail(name, "type money needs {minor,currency}");
-      const money = value as Partial<MoneyValue>;
-      let minor: bigint;
-      if (typeof money.minor === "bigint") minor = money.minor;
-      else if (typeof money.minor === "string" && INT_RE.test(money.minor)) minor = BigInt(money.minor);
-      else fail(name, "money.minor must be a bigint or canonical int string");
-      if (typeof money.currency !== "string" || !CURRENCY_RE.test(money.currency)) {
-        fail(name, "money.currency must be a 3-letter ISO code");
-      }
-      return { kind: "money", minor: minor as bigint, currency: money.currency as string };
-    }
-    case "date": {
-      const operand = isDateValue(value) ? encodeValue(type, value) : value;
-      if (typeof operand !== "string" || !DATE_RE.test(operand) || !isValidDate(operand)) {
-        fail(name, "type date needs a valid YYYY-MM-DD civil date");
-      }
-      return { kind: "date", iso: operand as string };
-    }
-    case "datetime": {
-      // The public guard checks the native shape; the owning codec also
-      // validates its supported range. Conversion stays at the display sink.
-      const operand = isDatetime(value) ? encodeValue(type, value) : value;
-      if (typeof operand !== "string" || !DATETIME_RE.test(operand) || !isValidInstant(operand)) {
-        fail(name, "type datetime needs a canonical RFC3339 UTC instant");
-      }
-      return { kind: "datetime", iso: operand as string };
-    }
+    case "int":
+      return intOperand(name, value);
+    case "decimal":
+      return decimalOperand(name, type, value);
+    case "money":
+      return moneyOperand(name, value);
+    case "date":
+      return dateOperand(name, type, value);
+    case "datetime":
+      return datetimeOperand(name, type, value);
     case "enum":
       // Qualified nominal enum identities (DESIGN §13, e.g.
       // "expense.Expense.status") arrive as dotted type ids. Non-string
@@ -413,83 +441,105 @@ function patternError(pattern: string, offset: number, why: string): Error {
   return new Error(`message pattern error at offset ${offset}: ${why} in ${JSON.stringify(pattern)}`);
 }
 
+function syntaxTypeWhy(
+  pattern: string,
+  diagnostic: MessageSyntaxDiagnostic,
+  token: string | undefined,
+): { offset: number; why: string } {
+  const argumentStart = diagnostic.argumentStart ?? diagnostic.offset;
+  if (pattern[diagnostic.offset] === "}") {
+    return { offset: argumentStart, why: `format ${token ?? ""} needs a style or options` };
+  }
+  if (pattern[diagnostic.offset] === ",") {
+    return { offset: argumentStart, why: `unsupported format ${token ?? ""}` };
+  }
+  return { offset: diagnostic.offset, why: "expected comma or closing brace" };
+}
+
+function syntaxStyleWhy(
+  pattern: string,
+  diagnostic: MessageSyntaxDiagnostic,
+  format: string | undefined,
+  token: string | undefined,
+): string | undefined {
+  // Explicit empty styles are newly refused by the approved grammar.
+  if (token !== undefined && token !== "") {
+    return pattern.slice(diagnostic.offset).trimStart().startsWith("}")
+      ? `unsupported ${format} style ${token}`
+      : `unexpected input in ${format} style`;
+  }
+  if (!pattern.slice(diagnostic.offset).trimStart().startsWith("}")) {
+    return `unexpected input in ${format} style`;
+  }
+  return undefined;
+}
+
+function syntaxPlainWhy(
+  diagnostic: MessageSyntaxDiagnostic,
+  format: string | undefined,
+  token: string | undefined,
+): { offset: number; why: string } {
+  const argumentStart = diagnostic.argumentStart ?? diagnostic.offset;
+  switch (diagnostic.kind) {
+    case "unmatched-close":
+      return { offset: diagnostic.offset, why: "unmatched closing brace" };
+    case "unterminated-branch":
+      return { offset: diagnostic.offset, why: "unterminated option, expected closing brace" };
+    case "expected-name":
+      return { offset: argumentStart, why: "empty argument name" };
+    case "expected-comma":
+      return { offset: diagnostic.offset, why: "expected comma or closing brace" };
+    case "missing-branches":
+      return { offset: argumentStart, why: `format ${format} needs a style or options` };
+    case "expected-style-end":
+      return { offset: argumentStart, why: `unexpected input in ${format} style` };
+    case "unsupported-offset":
+      return { offset: diagnostic.offset, why: "plural offsets are not supported" };
+    case "invalid-exact":
+      return { offset: diagnostic.offset, why: "invalid exact numeric case" };
+    case "duplicate-selector":
+      return { offset: diagnostic.offset, why: `duplicate option ${token}` };
+    case "expected-selector":
+      return { offset: diagnostic.offset, why: "empty option selector" };
+    case "expected-branch":
+      return { offset: diagnostic.offset, why: `expected message for option ${token}` };
+    case "expected-branch-end":
+      return { offset: diagnostic.offset, why: "expected closing brace for option" };
+    case "missing-other":
+      return { offset: argumentStart, why: `format ${format} requires an "other" option` };
+    case "unterminated-options":
+      return { offset: argumentStart, why: "unterminated option list" };
+    default:
+      return { offset: diagnostic.offset, why: diagnostic.message };
+  }
+}
+
 function syntaxError(pattern: string, diagnostic: MessageSyntaxDiagnostic): Error {
   const { kind, format, token } = diagnostic;
-  const argumentStart = diagnostic.argumentStart ?? diagnostic.offset;
   let offset = diagnostic.offset;
   let why = diagnostic.message;
   switch (kind) {
-    case "unmatched-close":
-      why = "unmatched closing brace";
-      break;
-    case "unterminated-branch":
-      why = "unterminated option, expected closing brace";
-      break;
-    case "expected-name":
-      offset = argumentStart;
-      why = "empty argument name";
-      break;
-    case "expected-comma":
-      why = "expected comma or closing brace";
-      break;
     case "expected-type":
-    case "unsupported-type":
-      if (pattern[diagnostic.offset] === "}") {
-        offset = argumentStart;
-        why = `format ${token ?? ""} needs a style or options`;
-      } else if (pattern[diagnostic.offset] === ",") {
-        offset = argumentStart;
-        why = `unsupported format ${token ?? ""}`;
-      } else {
-        why = "expected comma or closing brace";
-      }
+    case "unsupported-type": {
+      const resolved = syntaxTypeWhy(pattern, diagnostic, token);
+      offset = resolved.offset;
+      why = resolved.why;
       break;
-    case "missing-branches":
-      offset = argumentStart;
-      why = `format ${format} needs a style or options`;
-      break;
+    }
     case "expected-style":
-    case "unsupported-style":
-      offset = argumentStart;
+    case "unsupported-style": {
+      offset = diagnostic.argumentStart ?? diagnostic.offset;
+      const styled = syntaxStyleWhy(pattern, diagnostic, format, token);
       // Explicit empty styles are newly refused by the approved grammar.
-      if (token !== undefined && token !== "") {
-        why = pattern.slice(diagnostic.offset).trimStart().startsWith("}")
-          ? `unsupported ${format} style ${token}`
-          : `unexpected input in ${format} style`;
-      } else if (!pattern.slice(diagnostic.offset).trimStart().startsWith("}")) {
-        why = `unexpected input in ${format} style`;
-      }
+      if (styled !== undefined) why = styled;
       break;
-    case "expected-style-end":
-      offset = argumentStart;
-      why = `unexpected input in ${format} style`;
+    }
+    default: {
+      const plain = syntaxPlainWhy(diagnostic, format, token);
+      offset = plain.offset;
+      why = plain.why;
       break;
-    case "unsupported-offset":
-      why = "plural offsets are not supported";
-      break;
-    case "invalid-exact":
-      why = "invalid exact numeric case";
-      break;
-    case "duplicate-selector":
-      why = `duplicate option ${token}`;
-      break;
-    case "expected-selector":
-      why = "empty option selector";
-      break;
-    case "expected-branch":
-      why = `expected message for option ${token}`;
-      break;
-    case "expected-branch-end":
-      why = "expected closing brace for option";
-      break;
-    case "missing-other":
-      offset = argumentStart;
-      why = `format ${format} requires an "other" option`;
-      break;
-    case "unterminated-options":
-      offset = argumentStart;
-      why = "unterminated option list";
-      break;
+    }
   }
   return patternError(pattern, offset, why);
 }
@@ -815,18 +865,28 @@ function checkedPatterns(source: string, variants: MessageVariantMap, lookup?: U
   return parsed;
 }
 
+function numberUsageWhy(usage: "number" | "integer", kind: ScalarOperand["kind"]): string | undefined {
+  if (kind !== "int" && kind !== "decimal") return "number needs int or decimal";
+  if (usage === "integer" && kind !== "int") return "number,integer needs int";
+  return undefined;
+}
+
+function dateUsageWhy(usage: "date" | "time", kind: ScalarOperand["kind"]): string | undefined {
+  if (usage === "time" && kind === "date") return "date-only values have no time";
+  if (kind !== "date" && kind !== "datetime") return `${usage} needs date or datetime`;
+  return undefined;
+}
+
 /** Type-only checks use UI's established rendering error messages and order. */
 function checkUsage(name: string, kind: ScalarOperand["kind"], usage: MessageUsage): void {
   let why: string | undefined;
   switch (usage) {
     case "any": break;
     case "number": case "integer":
-      if (kind !== "int" && kind !== "decimal") why = "number needs int or decimal";
-      else if (usage === "integer" && kind !== "int") why = "number,integer needs int";
+      why = numberUsageWhy(usage, kind);
       break;
     case "date": case "time":
-      if (usage === "time" && kind === "date") why = "date-only values have no time";
-      else if (kind !== "date" && kind !== "datetime") why = `${usage} needs date or datetime`;
+      why = dateUsageWhy(usage, kind);
       break;
     case "cardinal":
       if (kind !== "int" && kind !== "decimal") why = "plural needs int or decimal";
@@ -872,6 +932,99 @@ function renderPound(state: FormatState): string {
     : formatDecimalExact(current.text, state.locale);
 }
 
+function renderNumberArgument(
+  node: Extract<MessageNode, { kind: "number" }>,
+  operand: ScalarOperand,
+  state: FormatState,
+): string {
+  if (operand.kind !== "int" && operand.kind !== "decimal") {
+    throw new Error(`message argument "${node.name}": number needs int or decimal`);
+  }
+  if (node.integerOnly) {
+    if (operand.kind !== "int") {
+      throw new Error(`message argument "${node.name}": number,integer needs int`);
+    }
+    return formatIntExact(operand.value, state.locale);
+  }
+  return operand.kind === "int"
+    ? formatIntExact(operand.value, state.locale)
+    : formatDecimalExact(operand.text, state.locale);
+}
+
+function renderDateArgument(
+  node: Extract<MessageNode, { kind: "date" | "time" }>,
+  operand: ScalarOperand,
+  state: FormatState,
+): string {
+  if (node.kind === "time" && operand.kind === "date") {
+    throw new Error(`message argument "${node.name}": date-only values have no time`);
+  }
+  if (operand.kind !== "date" && operand.kind !== "datetime") {
+    throw new Error(`message argument "${node.name}": ${node.kind} needs date or datetime`);
+  }
+  if (operand.kind === "date") {
+    // Civil dates never shift: format at UTC regardless of viewer zone.
+    return new Intl.DateTimeFormat(state.locale, {
+      dateStyle: node.style,
+      timeZone: "UTC",
+    }).format(new Date(`${operand.iso}T00:00:00Z`));
+  }
+  if (node.kind === "date") {
+    return new Intl.DateTimeFormat(state.locale, {
+      dateStyle: node.style,
+      timeZone: state.timeZone,
+    }).format(new Date(operand.iso));
+  }
+  return new Intl.DateTimeFormat(state.locale, {
+    timeStyle: node.style,
+    timeZone: state.timeZone,
+  }).format(new Date(operand.iso));
+}
+
+function renderPluralArgument(
+  node: Extract<MessageNode, { kind: "plural" }>,
+  operand: ScalarOperand,
+  state: FormatState,
+): string {
+  if (node.ordinal && operand.kind !== "int") {
+    throw new Error(`message argument "${node.name}": selectordinal needs int`);
+  }
+  if (operand.kind !== "int" && operand.kind !== "decimal") {
+    throw new Error(`message argument "${node.name}": plural needs int or decimal`);
+  }
+  const key =
+    operand.kind === "int" ? decimalKey(operand.value.toString(10)) : decimalKey(operand.text);
+  const exact = node.branches.find((branch) => branch.selector === `=${key}`);
+  // Category selection remains lazy: an exact branch must not invoke Intl
+  // or impose UI's category-selection numeric limits on an exact operand.
+  const category = exact === undefined
+    ? selectPluralCategory(operand, state.locale, node.ordinal) : undefined;
+  const match = exact ??
+    node.branches.find((branch) => branch.selector === category) ??
+    node.branches.find((branch) => branch.selector === "other");
+  state.pluralStack.push(operand);
+  try {
+    return renderNodes(match!.nodes, state);
+  } finally {
+    state.pluralStack.pop();
+  }
+}
+
+function renderSelectArgument(
+  node: Extract<MessageNode, { kind: "select" }>,
+  operand: ScalarOperand,
+  state: FormatState,
+): string {
+  let key: string;
+  if (operand.kind === "string" || operand.kind === "enum") key = operand.value;
+  else if (operand.kind === "bool") key = operand.value ? "true" : "false";
+  else throw new Error(`message argument "${node.name}": select needs text, bool or enum`);
+  const match =
+    node.branches.find((branch) => branch.selector === key) ??
+    node.branches.find((branch) => branch.selector === "other");
+  return renderNodes(match!.nodes, state);
+}
+
 function renderArgument(
   node: Exclude<MessageNode, { kind: "text" | "pound" }>,
   state: FormatState,
@@ -880,80 +1033,15 @@ function renderArgument(
   switch (node.kind) {
     case "arg":
       return renderPlain(operand, state);
-    case "number": {
-      if (operand.kind !== "int" && operand.kind !== "decimal") {
-        throw new Error(`message argument "${node.name}": number needs int or decimal`);
-      }
-      if (node.integerOnly) {
-        if (operand.kind !== "int") {
-          throw new Error(`message argument "${node.name}": number,integer needs int`);
-        }
-        return formatIntExact(operand.value, state.locale);
-      }
-      return operand.kind === "int"
-        ? formatIntExact(operand.value, state.locale)
-        : formatDecimalExact(operand.text, state.locale);
-    }
+    case "number":
+      return renderNumberArgument(node, operand, state);
     case "date":
-    case "time": {
-      if (node.kind === "time" && operand.kind === "date") {
-        throw new Error(`message argument "${node.name}": date-only values have no time`);
-      }
-      if (operand.kind !== "date" && operand.kind !== "datetime") {
-        throw new Error(`message argument "${node.name}": ${node.kind} needs date or datetime`);
-      }
-      if (operand.kind === "date") {
-        // Civil dates never shift: format at UTC regardless of viewer zone.
-        return new Intl.DateTimeFormat(state.locale, {
-          dateStyle: node.style,
-          timeZone: "UTC",
-        }).format(new Date(`${operand.iso}T00:00:00Z`));
-      }
-      if (node.kind === "date") {
-        return new Intl.DateTimeFormat(state.locale, {
-          dateStyle: node.style,
-          timeZone: state.timeZone,
-        }).format(new Date(operand.iso));
-      }
-      return new Intl.DateTimeFormat(state.locale, {
-        timeStyle: node.style,
-        timeZone: state.timeZone,
-      }).format(new Date(operand.iso));
-    }
-    case "plural": {
-      if (node.ordinal && operand.kind !== "int") {
-        throw new Error(`message argument "${node.name}": selectordinal needs int`);
-      }
-      if (operand.kind !== "int" && operand.kind !== "decimal") {
-        throw new Error(`message argument "${node.name}": plural needs int or decimal`);
-      }
-      const key =
-        operand.kind === "int" ? decimalKey(operand.value.toString(10)) : decimalKey(operand.text);
-      const exact = node.branches.find((branch) => branch.selector === `=${key}`);
-      // Category selection remains lazy: an exact branch must not invoke Intl
-      // or impose UI's category-selection numeric limits on an exact operand.
-      const category = exact === undefined
-        ? selectPluralCategory(operand, state.locale, node.ordinal) : undefined;
-      const match = exact ??
-        node.branches.find((branch) => branch.selector === category) ??
-        node.branches.find((branch) => branch.selector === "other");
-      state.pluralStack.push(operand);
-      try {
-        return renderNodes(match!.nodes, state);
-      } finally {
-        state.pluralStack.pop();
-      }
-    }
-    case "select": {
-      let key: string;
-      if (operand.kind === "string" || operand.kind === "enum") key = operand.value;
-      else if (operand.kind === "bool") key = operand.value ? "true" : "false";
-      else throw new Error(`message argument "${node.name}": select needs text, bool or enum`);
-      const match =
-        node.branches.find((branch) => branch.selector === key) ??
-        node.branches.find((branch) => branch.selector === "other");
-      return renderNodes(match!.nodes, state);
-    }
+    case "time":
+      return renderDateArgument(node, operand, state);
+    case "plural":
+      return renderPluralArgument(node, operand, state);
+    case "select":
+      return renderSelectArgument(node, operand, state);
   }
 }
 

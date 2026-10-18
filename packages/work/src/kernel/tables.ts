@@ -425,6 +425,18 @@ function checkJsonSafe(value: unknown, what: string): void {
   visit(value, '');
 }
 
+const checkSnapshotArrayShape = (node: unknown[], keys: readonly (string | symbol)[], what: string): void => {
+  if (keys.length !== node.length || keys.some((key, index) => key !== String(index))) {
+    throw new KernelTableError(`${what} must contain dense JSON arrays.`);
+  }
+};
+const readSnapshotEntry = (node: object, key: string | symbol, what: string): unknown => {
+  const descriptor = Object.getOwnPropertyDescriptor(node, key);
+  if (typeof key !== 'string' || descriptor === undefined || !descriptor.enumerable || !('value' in descriptor)) {
+    throw new KernelTableError(`${what} must contain own JSON data properties.`);
+  }
+  return descriptor.value;
+};
 /** Detached immutable JSON facts. Accessors, custom objects and lossy JSON refuse. */
 export function snapshotKernelJsonValue<T>(value: T, what: string): T {
   const ancestors = new Set<object>();
@@ -445,15 +457,9 @@ export function snapshotKernelJsonValue<T>(value: T, what: string): T {
     const copy: Record<string, unknown> | unknown[] = array ? [] : {};
     const keys = Reflect.ownKeys(node).filter(key => !(array && key === 'length'));
     if (keys.length > remaining) throw new KernelTableError(`${what} exceeds the JSON snapshot bound.`);
-    if (array && (keys.length !== node.length || keys.some((key, index) => key !== String(index)))) {
-      throw new KernelTableError(`${what} must contain dense JSON arrays.`);
-    }
+    if (array) checkSnapshotArrayShape(node, keys, what);
     for (const key of keys) {
-      const descriptor = Object.getOwnPropertyDescriptor(node, key);
-      if (typeof key !== 'string' || descriptor === undefined || !descriptor.enumerable || !('value' in descriptor)) {
-        throw new KernelTableError(`${what} must contain own JSON data properties.`);
-      }
-      Object.defineProperty(copy, key, { value: visit(descriptor.value, depth + 1), enumerable: true });
+      Object.defineProperty(copy, key, { value: visit(readSnapshotEntry(node, key, what), depth + 1), enumerable: true });
     }
     ancestors.delete(node);
     return Object.freeze(copy);
@@ -510,6 +516,10 @@ export function readWorkFilePayloadOrigin(
   if (!['delivery-result', 'event-input', 'handler-result', 'source-routing', 'standard-completion', 'send-guard'].includes(checkString(recipe, 'kind', 'filePayloadOrigin.origin'))) {
     throw new KernelTableError('filePayloadOrigin.origin has an unknown kind.');
   }
+  checkOriginFiles(origin);
+  return value as FrameworkFilePayloadOrigin;
+}
+function checkOriginFiles(origin: Record<string, unknown>): void {
   if (!Array.isArray(origin['files'])) throw new KernelTableError('filePayloadOrigin.files must be an array.');
   for (const entry of origin['files']) {
     const fact = closedOriginRecord(entry, ['path', 'file'], 'filePayloadOrigin.files entry');
@@ -519,7 +529,6 @@ export function readWorkFilePayloadOrigin(
     }
     checkRecord(fact['file'], 'filePayloadOrigin.files file');
   }
-  return value as FrameworkFilePayloadOrigin;
 }
 
 /** Supplied metadata must agree on replay; omission preserves legacy replay behavior. */
@@ -539,6 +548,70 @@ export function requireWorkFilePayloadOriginReplay(
   }
 }
 
+function checkSourceGuardOrigin(row: StoredRow, data: Record<string, unknown>,
+  sourceGuard: DispatchSourceGuard, filePayloadOrigin: FrameworkFilePayloadOrigin): void {
+  const origin = filePayloadOrigin.origin;
+  if (origin.kind !== 'send-guard') throw new KernelTableError('work.dispatch requires its original send-guard origin.');
+  closedOriginRecord(origin, ['kind', 'intent', 'declaration', 'inputsDeclarationId'], 'send-guard origin');
+  closedOriginRecord(origin.intent, ['intentId', 'operation', 'operationId', 'target', 'occurrenceIndex', 'dispatchGuard'], 'send-guard intent');
+  closedOriginRecord(origin.declaration, ['rule', 'source', 'owner', 'node', 'binding', 'target', 'inputs'], 'send-guard declaration');
+  const declaration = origin.declaration, intent = origin.intent;
+  closedOriginRecord(declaration.source, ['path', 'sha256', 'module'], 'send-guard source');
+  closedOriginRecord(declaration.node, ['start', 'end'], 'send-guard node');
+  if (!guardIntentAgrees(row, data, intent, declaration, sourceGuard) ||
+      !guardBindingAgrees(origin, declaration, sourceGuard)) {
+    throw new KernelTableError('work.dispatch sourceGuard differs from its original physical intent/declaration.');
+  }
+}
+type SendGuardOrigin = Extract<FrameworkFilePayloadOrigin['origin'], { kind: 'send-guard' }>;
+function guardIntentAgrees(row: StoredRow, data: Record<string, unknown>,
+  intent: SendGuardOrigin['intent'],
+  declaration: SendGuardOrigin['declaration'], sourceGuard: DispatchSourceGuard): boolean {
+  return !(intent.intentId !== row.id || intent.intentId !== data['intentId'] || intent.operationId !== data['operationId'] ||
+    intent.target !== data['source'] || intent.occurrenceIndex !== data['occurrenceIndex'] ||
+    intent.dispatchGuard !== sourceGuard.rule || declaration.rule !== sourceGuard.rule ||
+    intent.operation !== declaration.owner || declaration.owner !== sourceGuard.owner || declaration.target !== intent.target);
+}
+function guardBindingAgrees(origin: SendGuardOrigin,
+  declaration: SendGuardOrigin['declaration'], sourceGuard: DispatchSourceGuard): boolean {
+  return !(typeof declaration.binding !== 'string' || declaration.binding === '' ||
+    typeof origin.inputsDeclarationId !== 'string' || origin.inputsDeclarationId === '' ||
+    declaration.source.path !== sourceGuard.source.path || declaration.source.sha256 !== sourceGuard.source.sha256 ||
+    declaration.source.module !== sourceGuard.source.module ||
+    declaration.node.start !== sourceGuard.node.start || declaration.node.end !== sourceGuard.node.end ||
+    !Array.isArray(declaration.inputs) || declaration.inputs.length !== Object.keys(sourceGuard.inputs).length ||
+    declaration.inputs.some((input, index) => input.name !== Object.keys(sourceGuard.inputs)[index]));
+}
+function checkQueuePublicationOrigin(row: StoredRow, data: Record<string, unknown>,
+  queuePayloadOrigin: FrameworkFilePayloadOrigin): void {
+  const origin = queuePayloadOrigin.origin;
+  if (origin.kind !== 'event-input' || origin.target.kind !== 'queue-publication' || origin.declaration.kind !== 'declared-event' ||
+      origin.occurrenceId !== row.id || origin.sourceOccurrence !== row.id || origin.lineage.kind !== 'source' || origin.lineage.sourceOccurrence !== row.id ||
+      origin.target.intent.intentId !== row.id || origin.target.intent.operationId !== data['operationId'] ||
+      origin.target.intent.target !== data['source'] || origin.target.intent.occurrenceIndex !== data['occurrenceIndex'] ||
+      origin.target.intent.target !== `${origin.declaration.event}.publish`) throw new KernelTableError('work.dispatch queue publication lost its original event/intent.');
+}
+function checkDispatchVerdict(guardVerdict: unknown): boolean | null {
+  if (guardVerdict !== null && typeof guardVerdict !== 'boolean') {
+    throw new KernelTableError('work.dispatch.guardVerdict must be boolean or null.');
+  }
+  return guardVerdict;
+}
+function checkDispatchRetryClass(retryClass: unknown): void {
+  if (retryClass !== null && retryClass !== 'transient' && retryClass !== 'terminal') {
+    throw new KernelTableError(
+      'work.dispatch.retryClass must be transient, terminal or null.',
+    );
+  }
+}
+function checkControlPin(row: StoredRow, data: Record<string, unknown>,
+  correlation: DispatchImageCorrelation | null, controlPin: DispatchImageControlPin | null): void {
+  if (controlPin !== null && (correlation === null ||
+      (typeof data['source'] !== 'string' || dispatchGenerationTargetProfile(data['source'])?.role !== 'control') ||
+      controlPin.originalIntentId === row.id || controlPin.observationStartedAtMs !== row.created)) {
+    throw new KernelTableError('Original generation control pin disagrees with its retained control row.');
+  }
+}
 /** Read one dispatch row's data, failing closed on any shape drift. */
 export function readDispatchRow(row: StoredRow): DispatchRowData {
   const data = checkRecord(row.data, 'work.dispatch data');
@@ -546,64 +619,28 @@ export function readDispatchRow(row: StoredRow): DispatchRowData {
   if (!OUTBOX_STATES.has(state)) {
     throw new KernelTableError(`work.dispatch.state is unknown: ${JSON.stringify(state)}.`);
   }
-  const guardVerdict = data['guardVerdict'];
-  if (guardVerdict !== null && typeof guardVerdict !== 'boolean') {
-    throw new KernelTableError('work.dispatch.guardVerdict must be boolean or null.');
-  }
+  const guardVerdict = checkDispatchVerdict(data['guardVerdict']);
   const retryClass = data['retryClass'];
-  if (retryClass !== null && retryClass !== 'transient' && retryClass !== 'terminal') {
-    throw new KernelTableError(
-      'work.dispatch.retryClass must be transient, terminal or null.',
-    );
-  }
+  checkDispatchRetryClass(retryClass);
   const sourceGuard = readDispatchSourceGuard(data);
   const filePayloadOrigin = readWorkFilePayloadOrigin(data, row, WORK_DISPATCH_MODEL, 'sourceGuard', 'deferred-input');
   if ((sourceGuard === null) !== (filePayloadOrigin === undefined)) {
     throw new KernelTableError('work.dispatch sourceGuard and its original payload header must be present together.');
   }
   if (sourceGuard !== null && filePayloadOrigin !== undefined) {
-    const origin = filePayloadOrigin.origin;
-    if (origin.kind !== 'send-guard') throw new KernelTableError('work.dispatch requires its original send-guard origin.');
-    closedOriginRecord(origin, ['kind', 'intent', 'declaration', 'inputsDeclarationId'], 'send-guard origin');
-    closedOriginRecord(origin.intent, ['intentId', 'operation', 'operationId', 'target', 'occurrenceIndex', 'dispatchGuard'], 'send-guard intent');
-    closedOriginRecord(origin.declaration, ['rule', 'source', 'owner', 'node', 'binding', 'target', 'inputs'], 'send-guard declaration');
-    const declaration = origin.declaration, intent = origin.intent;
-    closedOriginRecord(declaration.source, ['path', 'sha256', 'module'], 'send-guard source');
-    closedOriginRecord(declaration.node, ['start', 'end'], 'send-guard node');
-    if (intent.intentId !== row.id || intent.intentId !== data['intentId'] || intent.operationId !== data['operationId'] ||
-        intent.target !== data['source'] || intent.occurrenceIndex !== data['occurrenceIndex'] ||
-        intent.dispatchGuard !== sourceGuard.rule || declaration.rule !== sourceGuard.rule ||
-        intent.operation !== declaration.owner || declaration.owner !== sourceGuard.owner || declaration.target !== intent.target ||
-        typeof declaration.binding !== 'string' || declaration.binding === '' ||
-        typeof origin.inputsDeclarationId !== 'string' || origin.inputsDeclarationId === '' ||
-        declaration.source.path !== sourceGuard.source.path || declaration.source.sha256 !== sourceGuard.source.sha256 ||
-        declaration.source.module !== sourceGuard.source.module ||
-        declaration.node.start !== sourceGuard.node.start || declaration.node.end !== sourceGuard.node.end ||
-        !Array.isArray(declaration.inputs) || declaration.inputs.length !== Object.keys(sourceGuard.inputs).length ||
-        declaration.inputs.some((input, index) => input.name !== Object.keys(sourceGuard.inputs)[index])) {
-      throw new KernelTableError('work.dispatch sourceGuard differs from its original physical intent/declaration.');
-    }
+    checkSourceGuardOrigin(row, data, sourceGuard, filePayloadOrigin);
   }
   const queuePayloadOrigin = readWorkFilePayloadOrigin(data, row, WORK_DISPATCH_MODEL, 'queuePayload', 'deferred-input', 'queuePayloadOrigin');
   const queuePayload = Object.hasOwn(data, 'queuePayload') ? snapshotKernelJsonValue(checkRecord(data['queuePayload'], 'work.dispatch.queuePayload'), 'work.dispatch.queuePayload') : undefined;
   if ((queuePayload === undefined) !== (queuePayloadOrigin === undefined)) throw new KernelTableError('work.dispatch queue payload and original header must be present together.');
   if (queuePayloadOrigin !== undefined) {
-    const origin = queuePayloadOrigin.origin;
-    if (origin.kind !== 'event-input' || origin.target.kind !== 'queue-publication' || origin.declaration.kind !== 'declared-event' ||
-        origin.occurrenceId !== row.id || origin.sourceOccurrence !== row.id || origin.lineage.kind !== 'source' || origin.lineage.sourceOccurrence !== row.id ||
-        origin.target.intent.intentId !== row.id || origin.target.intent.operationId !== data['operationId'] ||
-        origin.target.intent.target !== data['source'] || origin.target.intent.occurrenceIndex !== data['occurrenceIndex'] ||
-        origin.target.intent.target !== `${origin.declaration.event}.publish`) throw new KernelTableError('work.dispatch queue publication lost its original event/intent.');
+    checkQueuePublicationOrigin(row, data, queuePayloadOrigin);
   }
   const correlation = readDispatchImageCorrelation(data);
   const mailPin = readDispatchMailRecipientPin(data);
   if (mailPin !== null && data['source'] !== 'std.EmailV1.send_user') throw new KernelTableError('Private mail pin requires its original user send.');
   const controlPin = readDispatchImageControlPin(data);
-  if (controlPin !== null && (correlation === null ||
-      (typeof data['source'] !== 'string' || dispatchGenerationTargetProfile(data['source'])?.role !== 'control') ||
-      controlPin.originalIntentId === row.id || controlPin.observationStartedAtMs !== row.created)) {
-    throw new KernelTableError('Original generation control pin disagrees with its retained control row.');
-  }
+  checkControlPin(row, data, correlation, controlPin);
   return {
     ...(correlation ?? {}),
     ...(controlPin ?? {}),

@@ -32,6 +32,23 @@ export interface FrozenJudgmentSource {
 const RESERVED = new Set(['specification_revision', 'model', 'input_tokens', 'output_tokens']);
 const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
+/** Validate one own key/entry below an options container, then recurse. */
+function assertOptionsEntry(
+  value: object,
+  key: string | symbol,
+  array: boolean,
+  ancestors: Set<object>,
+  depth: number,
+): void {
+  if (array && key === 'length') return;
+  if (typeof key !== 'string' || array && (!/^(0|[1-9][0-9]*)$/.test(key) || Number(key) >= (value as unknown[]).length)) {
+    throw new Error('Invalid judgment options key.');
+  }
+  const property = Object.getOwnPropertyDescriptor(value, key);
+  if (!property || !Object.hasOwn(property, 'value') || !property.enumerable) throw new Error('Invalid judgment options accessor.');
+  assertOptionsData(property.value, ancestors, depth + 1);
+}
+
 /** Refuse executable/inherited input before the shared schema reads it. */
 function assertOptionsData(value: unknown, ancestors = new Set<object>(), depth = 0): void {
   if (value === null || typeof value === 'string') return;
@@ -44,83 +61,105 @@ function assertOptionsData(value: unknown, ancestors = new Set<object>(), depth 
   if (array && keys.length !== value.length + 1) throw new Error('Invalid judgment options array.');
   ancestors.add(value);
   for (const key of keys) {
-    if (array && key === 'length') continue;
-    if (typeof key !== 'string' || array && (!/^(0|[1-9][0-9]*)$/.test(key) || Number(key) >= value.length)) {
-      throw new Error('Invalid judgment options key.');
-    }
-    const property = Object.getOwnPropertyDescriptor(value, key);
-    if (!property || !Object.hasOwn(property, 'value') || !property.enumerable) throw new Error('Invalid judgment options accessor.');
-    assertOptionsData(property.value, ancestors, depth + 1);
+    assertOptionsEntry(value, key, array, ancestors, depth);
   }
   ancestors.delete(value);
 }
 
-/** No display locale, provider text or executable message parameter participates in inference. */
-export function freezeJudgmentSource(
+type NormalizedJudgmentTypes = ReturnType<typeof normalizeValueTypes>['valueTypes'];
+type RuntimeChoiceQuestion = Extract<StaticJudgmentQuestion, { runtime: true }>;
+
+/** Check one runtime choice question against the options contract/shape. */
+function validateRuntimeQuestion(
+  declaration: string,
+  question: RuntimeChoiceQuestion,
+  contract: NormalizedJudgmentTypes['contracts'][number],
+  normalized: ReturnType<typeof normalizeValueTypes>,
+  schema: ReturnType<typeof normalizeValueTypes>['valueSchema'],
+  fail: () => never,
+): void {
+  const fixed = question.options ?? [];
+  if (!Array.isArray(fixed) || question.options !== undefined && fixed.length === 0 || fixed.length > 26) fail();
+  const field = contract.fields.find(field => field.name === question.name);
+  const aliasName = `${declaration}.${question.name}.choice`;
+  const alias = normalized.valueTypes.aliases?.find(alias => alias.name === aliasName);
+  const element = normalized.valueTypes.contracts.find(contract => contract.name === `${declaration}.${question.name}.option`);
+  const id = element?.fields.find(field => field.name === 'id');
+  const description = element?.fields.find(field => field.name === 'description');
+  assertRuntimeOptionField(declaration, question, field, fixed, fail);
+  assertRuntimeOptionShape(alias, element, id, description, aliasName, fail);
+  for (const option of fixed) validateValue(schema, aliasName, option.id, 'create');
+}
+
+/** Check the options field arity/exclusions against the fixed ids. */
+function assertRuntimeOptionField(
+  declaration: string,
+  question: RuntimeChoiceQuestion,
+  field: NormalizedJudgmentTypes['contracts'][number]['fields'][number] | undefined,
+  fixed: readonly { readonly id: string; readonly description: MessageValue }[],
+  fail: () => never,
+): void {
+  if (!field || field.type !== `${declaration}.${question.name}.option[]!` ||
+      field.min !== Math.max(0, 2 - fixed.length) || field.max !== 26 - fixed.length ||
+      field.distinctBy !== 'id' || (field.excludedIds ?? []).length !== fixed.length ||
+      !(field.excludedIds ?? []).every((id, index) => id === fixed[index]?.id)) fail();
+}
+
+/** Check the option id alias and option element shape. */
+function assertRuntimeOptionShape(
+  alias: { readonly type: string; readonly min: number; readonly max: number; readonly format: string } | undefined,
+  element: { readonly fields: readonly { readonly name: string; readonly type: string }[] } | undefined,
+  id: { readonly type: string } | undefined,
+  description: NormalizedJudgmentTypes['contracts'][number]['fields'][number] | undefined,
+  aliasName: string,
+  fail: () => never,
+): void {
+  if (!alias || alias.type !== 'text' || alias.min !== 1 || alias.max !== 80 || alias.format !== 'name' ||
+      !element || element.fields.length !== 2 || id?.type !== aliasName ||
+      description?.type !== 'text' || description.min !== 1 || description.max !== 2000) fail();
+}
+
+/** Validate runtime-supplied options against the descriptor's value types. */
+function validateRuntimeOptions(
   declaration: string,
   descriptor: StaticJudgmentDescriptor,
-  language: Bcp47Tag,
-  runtimeOptions?: unknown,
-): FrozenJudgmentSource {
-  const fail = (): never => { throw new Error('Invalid static judgment source.'); };
-  if (typeof declaration !== 'string' || declaration === '' || typeof language !== 'string' || language === '') fail();
-  try { if (Intl.getCanonicalLocales(language)[0] !== language) fail(); } catch { fail(); }
-  if (typeof descriptor?.version !== 'bigint' || descriptor.version < 0n || descriptor.version > 9223372036854775807n ||
-      !Array.isArray(descriptor.questions) || descriptor.questions.length < 1 || descriptor.questions.length > 32) fail();
-  const runtimeQuestions = descriptor.questions.filter((question): question is Extract<StaticJudgmentQuestion, { runtime: true }> =>
-    question.kind === 'choice' && question.runtime === true);
-  let supplied: Readonly<Record<string, unknown>> | undefined;
-  let schema: ReturnType<typeof normalizeValueTypes>['valueSchema'] | undefined;
-  if (runtimeQuestions.length === 0) {
-    if (runtimeOptions !== undefined) fail();
-  } else {
-    if (descriptor.valueTypes === undefined || runtimeOptions === undefined) fail();
-    try {
-      assertOptionsData(runtimeOptions);
-      const normalized = normalizeValueTypes(descriptor.valueTypes);
-      schema = normalized.valueSchema;
-      const contract = normalized.valueTypes.contracts.find(contract => contract.name === `${declaration}.options`);
-      if (!contract || contract.fields.length !== runtimeQuestions.length) fail();
-      for (const question of runtimeQuestions) {
-        const fixed = question.options ?? [];
-        if (!Array.isArray(fixed) || question.options !== undefined && fixed.length === 0 || fixed.length > 26) fail();
-        const field = contract!.fields.find(field => field.name === question.name);
-        const aliasName = `${declaration}.${question.name}.choice`;
-        const alias = normalized.valueTypes.aliases?.find(alias => alias.name === aliasName);
-        const element = normalized.valueTypes.contracts.find(contract => contract.name === `${declaration}.${question.name}.option`);
-        const id = element?.fields.find(field => field.name === 'id');
-        const description = element?.fields.find(field => field.name === 'description');
-        if (!field || field.type !== `${declaration}.${question.name}.option[]!` ||
-            field.min !== Math.max(0, 2 - fixed.length) || field.max !== 26 - fixed.length ||
-            field.distinctBy !== 'id' || (field.excludedIds ?? []).length !== fixed.length ||
-            !(field.excludedIds ?? []).every((id, index) => id === fixed[index]?.id) ||
-            !alias || alias.type !== 'text' || alias.min !== 1 || alias.max !== 80 || alias.format !== 'name' ||
-            !element || element.fields.length !== 2 || id?.type !== aliasName ||
-            description?.type !== 'text' || description.min !== 1 || description.max !== 2000) fail();
-        for (const option of fixed) validateValue(schema, aliasName, option.id, 'create');
-      }
-      supplied = validateValue(schema, `${declaration}.options`, runtimeOptions, 'create') as Readonly<Record<string, unknown>>;
-    } catch { fail(); }
-  }
-  let scalarCount = 0;
-  const caption = (value: MessageValue): string => {
-    const text = typeof value === 'string' ? value : value?.source;
-    if (typeof text !== 'string' || text === '' ||
-        (typeof value === 'object' && value !== null && value.params !== undefined && Object.keys(value.params).length !== 0)) fail();
-    const length = Number(scalarLength(text));
-    scalarCount += length;
-    if (length > 2000 || scalarCount > 24000) fail();
-    return text;
-  };
-  const options = (entries: readonly { readonly id: string; readonly description: MessageValue }[], maximum: number): readonly JudgmentOption[] => {
-    if (!Array.isArray(entries) || entries.length < 2 || entries.length > maximum) fail();
-    const ids = new Set<string>();
-    return Object.freeze(entries.map(entry => {
-      if (typeof entry?.id !== 'string' || !IDENTIFIER.test(entry.id) || ids.has(entry.id)) fail();
-      ids.add(entry.id);
-      return Object.freeze({ id: entry.id, description: caption(entry.description) });
-    }));
-  };
+  runtimeQuestions: readonly RuntimeChoiceQuestion[],
+  runtimeOptions: unknown,
+  fail: () => never,
+): Readonly<Record<string, unknown>> {
+  if (descriptor.valueTypes === undefined || runtimeOptions === undefined) fail();
+  try {
+    assertOptionsData(runtimeOptions);
+    const normalized = normalizeValueTypes(descriptor.valueTypes);
+    const schema = normalized.valueSchema;
+    const contract = normalized.valueTypes.contracts.find(contract => contract.name === `${declaration}.options`);
+    if (!contract || contract.fields.length !== runtimeQuestions.length) fail();
+    for (const question of runtimeQuestions) {
+      validateRuntimeQuestion(declaration, question, contract, normalized, schema, fail);
+    }
+    return validateValue(schema, `${declaration}.options`, runtimeOptions, 'create') as Readonly<Record<string, unknown>>;
+  } catch { fail(); }
+}
+
+interface BuiltJudgmentQuestions {
+  readonly noul: NoulQuestion[];
+  readonly choice: ChoiceQuestion[];
+  readonly score: ScoreQuestion[];
+  readonly order: string[];
+  readonly ordered: unknown[];
+}
+
+/** Lower descriptor questions into grouped retained arrays plus source order. */
+function buildQuestionLists(
+  descriptor: StaticJudgmentDescriptor,
+  caption: (value: MessageValue) => string,
+  options: (
+    entries: readonly { readonly id: string; readonly description: MessageValue }[],
+    maximum: number,
+  ) => readonly JudgmentOption[],
+  supplied: Readonly<Record<string, unknown>> | undefined,
+  fail: () => never,
+): BuiltJudgmentQuestions {
   const noul: NoulQuestion[] = [], choice: ChoiceQuestion[] = [], score: ScoreQuestion[] = [];
   const order: string[] = [];
   const ordered: unknown[] = [];
@@ -152,6 +191,49 @@ export function freezeJudgmentSource(
       default: fail();
     }
   }
+  return { noul, choice, score, order, ordered };
+}
+
+/** No display locale, provider text or executable message parameter participates in inference. */
+export function freezeJudgmentSource(
+  declaration: string,
+  descriptor: StaticJudgmentDescriptor,
+  language: Bcp47Tag,
+  runtimeOptions?: unknown,
+): FrozenJudgmentSource {
+  const fail = (): never => { throw new Error('Invalid static judgment source.'); };
+  if (typeof declaration !== 'string' || declaration === '' || typeof language !== 'string' || language === '') fail();
+  try { if (Intl.getCanonicalLocales(language)[0] !== language) fail(); } catch { fail(); }
+  if (typeof descriptor?.version !== 'bigint' || descriptor.version < 0n || descriptor.version > 9223372036854775807n ||
+      !Array.isArray(descriptor.questions) || descriptor.questions.length < 1 || descriptor.questions.length > 32) fail();
+  const runtimeQuestions = descriptor.questions.filter((question): question is RuntimeChoiceQuestion =>
+    question.kind === 'choice' && question.runtime === true);
+  let supplied: Readonly<Record<string, unknown>> | undefined;
+  if (runtimeQuestions.length === 0) {
+    if (runtimeOptions !== undefined) fail();
+  } else {
+    supplied = validateRuntimeOptions(declaration, descriptor, runtimeQuestions, runtimeOptions, fail);
+  }
+  let scalarCount = 0;
+  const caption = (value: MessageValue): string => {
+    const text = typeof value === 'string' ? value : value?.source;
+    if (typeof text !== 'string' || text === '' ||
+        (typeof value === 'object' && value !== null && value.params !== undefined && Object.keys(value.params).length !== 0)) fail();
+    const length = Number(scalarLength(text));
+    scalarCount += length;
+    if (length > 2000 || scalarCount > 24000) fail();
+    return text;
+  };
+  const options = (entries: readonly { readonly id: string; readonly description: MessageValue }[], maximum: number): readonly JudgmentOption[] => {
+    if (!Array.isArray(entries) || entries.length < 2 || entries.length > maximum) fail();
+    const ids = new Set<string>();
+    return Object.freeze(entries.map(entry => {
+      if (typeof entry?.id !== 'string' || !IDENTIFIER.test(entry.id) || ids.has(entry.id)) fail();
+      ids.add(entry.id);
+      return Object.freeze({ id: entry.id, description: caption(entry.description) });
+    }));
+  };
+  const { noul, choice, score, order, ordered } = buildQuestionLists(descriptor, caption, options, supplied, fail);
   const revision = `sha256:${bytesToHex(sha256(new TextEncoder().encode(JSON.stringify([
     'can-static-judgment-v1', declaration, descriptor.version.toString(), language, ordered,
   ]))))}`;

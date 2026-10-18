@@ -62,7 +62,7 @@ import { PollRegion, submitFetchPollFetch } from "./polling.js";
 import type { VisibilityLike } from "./polling.js";
 import { GeneratedSubmitError, submitGeneratedForm, submitDeleteForm } from "../client.js";
 import type { DomControlLike, GeneratedSubmitResult, SubmitFetch, SubmitFetchInit } from "../client.js";
-import type { DerivedOperationInputs, FormMode } from "@canlang/contracts";
+import type { DerivedOperationInputs, DerivedWritableInput, FormMode } from "@canlang/contracts";
 import type { GeneratedViewMount, GeneratedViewPresentation, RowView } from "@canlang/contracts";
 import { CSRF_FIELD, SOURCE_FORM_BINDING_FIELD, GENERATED_REF_VERSION_SUFFIX, GENERATED_VIEW_ATTR } from "@canlang/contracts";
 import { projectGeneratedInputs, GENERATED_NULL_SUFFIX } from "../forms.js";
@@ -413,25 +413,22 @@ function compatibleNode(current: DomNode, next: DomNode): boolean {
   return true;
 }
 
-function morphNode(current: DomNode, next: DomNode, document: DocumentLike, generatedForm = false, settledForm?: ElementLike, acceptedInputs?: DomNode): void {
-  if (current.nodeType !== 1) { current.nodeValue = next.nodeValue; return; }
-  const generatedUseId = current.getAttribute?.(GENERATED_VIEW_ATTR);
-  if (generatedUseId) {
-    releaseGeneratedViewMount(generatedUseId);
-    generatedViewRebinds.add(current);
+function retainSettledAttrs(attributes: Map<string, string>, current: DomNode, tag: string | undefined): void {
+  for (const name of tag === 'form' ? ['aria-busy', 'data-can-submit-state'] :
+    tag === 'input' && current.getAttribute?.('type') === 'hidden' ? ['value'] : []) {
+    const retained = current.getAttribute?.(name);
+    if (retained != null) attributes.set(name, retained);
+    else attributes.delete(name);
   }
-  const tag = current.tagName?.toLowerCase();
-  // Exact metadata includes the comparison-only binding identity. Keeping the
-  // occurrence retains its nonce/token/CSRF/version set and submit lifecycle.
-  const keepForm = current !== (settledForm as unknown) && (generatedForm || (tag === 'form' && current.getAttribute?.('data-can-generated-form') != null));
-  if (keepForm && current.getAttribute?.('data-can-form-feedback') != null) return;
-  const editable = (tag === 'input' && current.getAttribute?.('type') !== 'hidden') || tag === 'textarea' || tag === 'select';
-  const keepInput = editable && acceptedInputs?.contains?.(current) !== true && (document.activeElement === current as unknown as ElementLike ||
-    (current.files?.length ?? 0) > 0 || dirtyControl(current));
-  const value = current.value;
-  const checked = current.checked;
-  const selected = tag === 'select'
-    ? [...(keepInput ? current : next).querySelectorAll?.('option') ?? []].filter((option) => option.selected).map((option) => option.value) : null;
+}
+
+function morphNodeAttributes(
+  current: DomNode,
+  next: DomNode,
+  tag: string | undefined,
+  keepForm: boolean,
+  settledForm: ElementLike | undefined,
+): void {
   const attributes = new Map([...next.attributes ?? []].map((attribute) => [attribute.name, attribute.value]));
   if (managedDialog(current) && current.open) {
     if (settledForm !== undefined && current.contains?.(settledForm) === true) {
@@ -444,52 +441,59 @@ function morphNode(current: DomNode, next: DomNode, document: DocumentLike, gene
     }
   }
   if (keepForm || (tag === 'form' && current === (settledForm as unknown))) {
-    for (const name of tag === 'form' ? ['aria-busy', 'data-can-submit-state'] :
-      tag === 'input' && current.getAttribute?.('type') === 'hidden' ? ['value'] : []) {
-      const retained = current.getAttribute?.(name);
-      if (retained != null) attributes.set(name, retained);
-      else attributes.delete(name);
-    }
+    retainSettledAttrs(attributes, current, tag);
   }
   for (const attribute of [...current.attributes ?? []]) {
     if (!attributes.has(attribute.name)) current.removeAttribute?.(attribute.name);
   }
   for (const [name, value] of attributes) current.setAttribute?.(name, value);
-  const desired = Array.from(next.childNodes);
-  for (const [index, child] of desired.entries()) {
-    const anchor = current.childNodes[index] ?? null;
-    let matched: DomNode | null = null;
-    const id = child.getAttribute?.('id');
-    if (id !== undefined && id !== null) {
-      matched = Array.from(current.childNodes).find((node) => compatibleNode(node, child)) ?? null;
-    } else if (anchor !== null && compatibleNode(anchor, child)) matched = anchor;
-    if (matched === null) {
-      const draftIdentity = draftFormIdentity(child);
-      const previous = draftIdentity === null ? null : (id != null
-        ? Array.from(current.childNodes).find(node => draftFormIdentity(node) === draftIdentity) ?? null
-        : anchor !== null && draftFormIdentity(anchor) === draftIdentity ? anchor : null);
-      const replacement = child.cloneNode(true);
-      const focus = previous === null ? null : transferFormDraft(previous, replacement, document);
-      current.insertBefore(replacement, anchor);
-      if (previous !== null) {
-        releaseMountsIn(previous);
-        current.removeChild(previous);
-      }
-      focus?.focus?.();
+}
+
+function morphNodeChild(
+  current: DomNode,
+  child: DomNode,
+  index: number,
+  document: DocumentLike,
+  keepForm: boolean,
+  settledForm: ElementLike | undefined,
+  acceptedInputs: DomNode | undefined,
+): void {
+  const anchor = current.childNodes[index] ?? null;
+  let matched: DomNode | null = null;
+  const id = child.getAttribute?.('id');
+  if (id !== undefined && id !== null) {
+    matched = Array.from(current.childNodes).find((node) => compatibleNode(node, child)) ?? null;
+  } else if (anchor !== null && compatibleNode(anchor, child)) matched = anchor;
+  if (matched === null) {
+    const draftIdentity = draftFormIdentity(child);
+    const previous = draftIdentity === null ? null : (id != null
+      ? Array.from(current.childNodes).find(node => draftFormIdentity(node) === draftIdentity) ?? null
+      : anchor !== null && draftFormIdentity(anchor) === draftIdentity ? anchor : null);
+    const replacement = child.cloneNode(true);
+    const focus = previous === null ? null : transferFormDraft(previous, replacement, document);
+    current.insertBefore(replacement, anchor);
+    if (previous !== null) {
+      releaseMountsIn(previous);
+      current.removeChild(previous);
     }
-    else {
-      if (matched !== anchor) current.insertBefore(matched, anchor);
-      morphNode(matched, child, document, keepForm, settledForm, acceptedInputs);
-    }
+    focus?.focus?.();
   }
-  while (current.childNodes.length > desired.length) {
-    const last = current.childNodes[current.childNodes.length - 1];
-    if (last === undefined) {
-      break;
-    }
-    releaseMountsIn(last);
-    current.removeChild(last);
+  else {
+    if (matched !== anchor) current.insertBefore(matched, anchor);
+    morphNode(matched, child, document, keepForm, settledForm, acceptedInputs);
   }
+}
+
+function morphRestoreControl(
+  current: DomNode,
+  next: DomNode,
+  tag: string | undefined,
+  keepInput: boolean,
+  keepForm: boolean,
+  value: string | undefined,
+  checked: boolean | undefined,
+  selected: Array<string | undefined> | null,
+): void {
   if (tag === 'input' || tag === 'textarea' || tag === 'select') {
     if (tag !== 'select' && current.getAttribute?.('type') !== 'file' && value !== undefined) current.value =
       keepInput || (keepForm && current.getAttribute?.('type') === 'hidden') ? value : next.value ?? '';
@@ -500,27 +504,108 @@ function morphNode(current: DomNode, next: DomNode, document: DocumentLike, gene
   }
 }
 
-/** Accept one same-context main partial; a settled form may adopt fresh request authority. */
-export function applyPollResponse(document: DocumentLike, region: ElementLike, body: string, status: number, settledForm?: ElementLike): boolean {
-  if (status === 403) {
-    // The admitted denial withdraws old actions; its body supplies no markup or
-    // authority. Removing forms also detaches pending submission callbacks.
-    const root = region as unknown as DomNode;
-    closeManagedDialogsIn(root);
-    for (const control of root.querySelectorAll?.('form, input, button, select, textarea, [data-can-once], [hx-post], [hx-put], [hx-patch], [hx-delete]') ?? []) {
-      control.parentNode?.removeChild(control);
-    }
-    region.removeAttribute('data-can-poll');
-    return false;
+function morphKeepInput(
+  tag: string | undefined,
+  acceptedInputs: DomNode | undefined,
+  document: DocumentLike,
+  current: DomNode,
+): boolean {
+  const editable = (tag === 'input' && current.getAttribute?.('type') !== 'hidden') || tag === 'textarea' || tag === 'select';
+  return editable && acceptedInputs?.contains?.(current) !== true && (document.activeElement === current as unknown as ElementLike ||
+    (current.files?.length ?? 0) > 0 || dirtyControl(current));
+}
+
+function selectedOptionValues(source: DomNode, next: DomNode, tag: string | undefined, keepInput: boolean): Array<string | undefined> | null {
+  if (tag !== 'select') return null;
+  return [...(keepInput ? source : next).querySelectorAll?.('option') ?? []].filter((option) => option.selected).map((option) => option.value);
+}
+
+function morphNodeHead(
+  current: DomNode,
+  next: DomNode,
+  document: DocumentLike,
+  generatedForm: boolean,
+  settledForm: ElementLike | undefined,
+  acceptedInputs: DomNode | undefined,
+): {
+  tag: string | undefined; keepForm: boolean; keepInput: boolean;
+  value: string | undefined; checked: boolean | undefined; selected: Array<string | undefined> | null;
+} | undefined {
+  if (current.nodeType !== 1) { current.nodeValue = next.nodeValue; return undefined; }
+  const generatedUseId = current.getAttribute?.(GENERATED_VIEW_ATTR);
+  if (generatedUseId) {
+    releaseGeneratedViewMount(generatedUseId);
+    generatedViewRebinds.add(current);
   }
-  if (status < 200 || status >= 300 || /<!doctype|<\/?(?:html|head|body)(?:\s|>)/i.test(body) || document.createElement === undefined) return false;
+  const tag = current.tagName?.toLowerCase();
+  // Exact metadata includes the comparison-only binding identity. Keeping the
+  // occurrence retains its nonce/token/CSRF/version set and submit lifecycle.
+  const keepForm = current !== (settledForm as unknown) && (generatedForm || (tag === 'form' && current.getAttribute?.('data-can-generated-form') != null));
+  if (keepForm && current.getAttribute?.('data-can-form-feedback') != null) return undefined;
+  const keepInput = morphKeepInput(tag, acceptedInputs, document, current);
+  const value = current.value;
+  const checked = current.checked;
+  const selected = selectedOptionValues(current, next, tag, keepInput);
+  return { tag, keepForm, keepInput, value, checked, selected };
+}
+
+function trimNodeChildren(current: DomNode, desired: readonly DomNode[]): void {
+  while (current.childNodes.length > desired.length) {
+    const last = current.childNodes[current.childNodes.length - 1];
+    if (last === undefined) {
+      break;
+    }
+    releaseMountsIn(last);
+    current.removeChild(last);
+  }
+}
+
+function morphNode(current: DomNode, next: DomNode, document: DocumentLike, generatedForm = false, settledForm?: ElementLike, acceptedInputs?: DomNode): void {
+  const head = morphNodeHead(current, next, document, generatedForm, settledForm, acceptedInputs);
+  if (head === undefined) return;
+  const { tag, keepForm, keepInput, value, checked, selected } = head;
+  morphNodeAttributes(current, next, tag, keepForm, settledForm);
+  const desired = Array.from(next.childNodes);
+  for (const [index, child] of desired.entries()) {
+    morphNodeChild(current, child, index, document, keepForm, settledForm, acceptedInputs);
+  }
+  trimNodeChildren(current, desired);
+  morphRestoreControl(current, next, tag, keepInput, keepForm, value, checked, selected);
+}
+
+/** Accept one same-context main partial; a settled form may adopt fresh request authority. */
+function withdrawPollRegion(document: DocumentLike, region: ElementLike): void {
+  // The admitted denial withdraws old actions; its body supplies no markup or
+  // authority. Removing forms also detaches pending submission callbacks.
+  const root = region as unknown as DomNode;
+  closeManagedDialogsIn(root);
+  for (const control of root.querySelectorAll?.('form, input, button, select, textarea, [data-can-once], [hx-post], [hx-put], [hx-patch], [hx-delete]') ?? []) {
+    control.parentNode?.removeChild(control);
+  }
+  region.removeAttribute('data-can-poll');
+}
+
+function checkPollBody(document: DocumentLike, region: ElementLike, body: string): DomNode | null {
+  if (document.createElement === undefined) return null;
   const template = document.createElement('template') as { innerHTML: string; readonly content: DomNode };
   template.innerHTML = body;
   const significant = Array.from(template.content.childNodes).filter((node) => node.nodeType === 1 || (node.nodeValue ?? '').trim() !== '');
   const incoming = significant[0];
   if (significant.length !== 1 || incoming?.tagName?.toLowerCase() !== 'main' || incoming.getAttribute?.('id') !== region.getAttribute('id') ||
       incoming.getAttribute?.('data-can-context') !== region.getAttribute('data-can-context') ||
-      incoming.getAttribute?.('data-can-poll-context') !== region.getAttribute('data-can-poll-context') || incoming.querySelector?.('script') !== null) return false;
+      incoming.getAttribute?.('data-can-poll-context') !== region.getAttribute('data-can-poll-context') || incoming.querySelector?.('script') !== null) return null;
+  return incoming;
+}
+
+/** Accept one same-context main partial; a settled form may adopt fresh request authority. */
+export function applyPollResponse(document: DocumentLike, region: ElementLike, body: string, status: number, settledForm?: ElementLike): boolean {
+  if (status === 403) {
+    withdrawPollRegion(document, region);
+    return false;
+  }
+  if (status < 200 || status >= 300 || /<!doctype|<\/?(?:html|head|body)(?:\s|>)/i.test(body)) return false;
+  const incoming = checkPollBody(document, region, body);
+  if (incoming === null) return false;
   morphNode(region as unknown as DomNode, incoming, document, false, settledForm);
   return true;
 }
@@ -671,17 +756,73 @@ function bindInputChoices(form: ElementLike, internals: ClientInternals, alive: 
       ...(draft[SOURCE_FORM_BINDING_FIELD] === undefined ? {} : { [SOURCE_FORM_BINDING_FIELD]: draft[SOURCE_FORM_BINDING_FIELD] }) });
     return { key: JSON.stringify([body, draft[CSRF_FIELD], form.getAttribute('action')]), body, csrf: draft[CSRF_FIELD] };
   };
+  const choiceBlocked = (entry: typeof entries[number], input: DerivedWritableInput): boolean => {
+    if (input.array || !['ref', 'user', 'string', 'integer', 'decimal', 'duration', 'boolean', 'enum'].includes(input.kind)) return true;
+    if (parents(entry).some(name => {
+      const parent = derived.inputs.find(input => input.name === name);
+      return !parent || parent.array !== undefined || ['file', 'delivery'].includes(parent.kind);
+    })) return true;
+    if (!controls().some(control => control.name === root(input.name))) return true;
+    return input.kind === 'ref' && input.versioned === true &&
+      !controls().some(control => control.name === root(input.name + GENERATED_REF_VERSION_SUFFIX));
+  };
+  const isReferenceChoiceValue = (input: DerivedWritableInput, value: object): boolean => {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+    if (typeof (value as { id?: unknown }).id !== 'string' || (value as { id: string }).id === '') return false;
+    if (Object.keys(value).some(key => key !== 'id' && !(input.versioned && key === 'version'))) return false;
+    return !input.versioned ||
+      (typeof (value as { version?: unknown }).version === 'string' && (value as { version: string }).version !== '');
+  };
+  const choiceValueValid = (input: DerivedWritableInput, value: unknown): boolean => {
+    if (value === null) return input.nullable === true;
+    if (input.kind === 'ref' || input.kind === 'user') return typeof value === 'object' && isReferenceChoiceValue(input, value as object);
+    if (input.kind === 'boolean') return typeof value === 'boolean';
+    return typeof value === 'string';
+  };
+  const checkChoiceCandidate = (input: DerivedWritableInput, candidate: { labels: unknown; value: unknown }): unknown => {
+    if (!candidate || typeof candidate !== 'object' || !Array.isArray(candidate.labels) ||
+        (candidate.labels as unknown[]).some((label: unknown) => typeof label !== 'string')) throw new Error('Invalid choice label.');
+    const value: unknown = candidate.value;
+    if (!choiceValueValid(input, value)) throw new Error('Invalid choice value.');
+    if (value !== null && input.kind === 'enum' && !input.enumValues?.includes(value as string)) throw new Error('Invalid enum choice.');
+    return value;
+  };
+  const appendChoiceCandidate = (entry: typeof entries[number], input: DerivedWritableInput, candidate: { labels: unknown; value: unknown }): void => {
+    const value = checkChoiceCandidate(input, candidate);
+    const option = internals.document.createElement?.('option') as { value: string; textContent: string } | undefined;
+    if (!option) throw new Error('Native option creation is unavailable.');
+    option.value = String(entry.values.length);
+    option.textContent = (candidate as { labels: string[] }).labels.join(' · ');
+    entry.values.push(value);
+    entry.select!.appendChild(option);
+  };
+  const fetchChoiceResponse = async (
+    entry: typeof entries[number],
+    input: DerivedWritableInput,
+    sent: { key: string; body: string; csrf: string },
+    sequence: number,
+    controller: AbortController,
+  ): Promise<Array<{ labels: unknown; value: unknown }> | null> => {
+    const response = await internals.fetchImpl(`${form.getAttribute('action') ?? ''}/choices/${encodeURIComponent(input.name)}`, {
+      method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json', 'x-csrf-token': sent.csrf }, body: sent.body,
+      signal: controller.signal,
+    });
+    const body: unknown = JSON.parse(await response.text());
+    if (!current() || sequence !== entry.sequence || request(entry)?.key !== sent.key) return null;
+    if (response.status < 200 || response.status >= 300 || !body || typeof body !== 'object') throw new Error('Choice lookup failed.');
+    const result = body as { state?: unknown; choices?: unknown };
+    if (!['ready', 'absent'].includes(String(result.state)) || !Array.isArray(result.choices)) throw new Error('Invalid choices response.');
+    if (result.state === 'absent') {
+      if (entry.feedback) entry.feedback.textContent = 'Choose the required values first.';
+      return null;
+    }
+    return result.choices;
+  };
   const lookup = async (entry: typeof entries[number]) => {
     reset(entry);
     const input = entry.input;
     if (!input?.choices || !entry.select) return;
-    if (input.array || !['ref', 'user', 'string', 'integer', 'decimal', 'duration', 'boolean', 'enum'].includes(input.kind) ||
-        parents(entry).some(name => {
-          const parent = derived.inputs.find(input => input.name === name);
-          return !parent || parent.array !== undefined || ['file', 'delivery'].includes(parent.kind);
-        }) ||
-        !controls().some(control => control.name === root(input.name)) ||
-        input.kind === 'ref' && input.versioned && !controls().some(control => control.name === root(input.name + GENERATED_REF_VERSION_SUFFIX))) {
+    if (choiceBlocked(entry, input)) {
       reset(entry, 'Choice assistance is unavailable for this input. Use its value controls.'); return;
     }
     const sequence = entry.sequence;
@@ -697,34 +838,10 @@ function bindInputChoices(form: ElementLike, internals: ClientInternals, alive: 
       entry.inflight = controller;
       entry.select.setAttribute('aria-busy', 'true');
       if (entry.feedback) entry.feedback.textContent = 'Loading choices…';
-      const response = await internals.fetchImpl(`${form.getAttribute('action') ?? ''}/choices/${encodeURIComponent(input.name)}`, {
-        method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json', 'x-csrf-token': sent.csrf }, body: sent.body,
-        signal: controller.signal,
-      });
-      const body: unknown = JSON.parse(await response.text());
-      if (!current() || sequence !== entry.sequence || request(entry)?.key !== sent.key) return;
-      if (response.status < 200 || response.status >= 300 || !body || typeof body !== 'object') throw new Error('Choice lookup failed.');
-      const result = body as { state?: unknown; choices?: unknown };
-      if (!['ready', 'absent'].includes(String(result.state)) || !Array.isArray(result.choices)) throw new Error('Invalid choices response.');
-      if (result.state === 'absent') {
-        if (entry.feedback) entry.feedback.textContent = 'Choose the required values first.';
-        return;
-      }
-      for (const candidate of result.choices) {
-        if (!candidate || typeof candidate !== 'object' || !Array.isArray(candidate.labels) || candidate.labels.some((label: unknown) => typeof label !== 'string')) throw new Error('Invalid choice label.');
-        const value: unknown = candidate.value;
-        if (value === null ? !input.nullable : input.kind === 'ref' || input.kind === 'user' ?
-            !value || typeof value !== 'object' || Array.isArray(value) || typeof (value as { id?: unknown }).id !== 'string' ||
-            (value as { id: string }).id === '' || Object.keys(value).some(key => key !== 'id' && !(input.versioned && key === 'version')) ||
-            (input.versioned && (typeof (value as { version?: unknown }).version !== 'string' || (value as { version: string }).version === '')) :
-            input.kind === 'boolean' ? typeof value !== 'boolean' : typeof value !== 'string') throw new Error('Invalid choice value.');
-        if (value !== null && input.kind === 'enum' && !input.enumValues?.includes(value as string)) throw new Error('Invalid enum choice.');
-        const option = internals.document.createElement?.('option') as { value: string; textContent: string } | undefined;
-        if (!option) throw new Error('Native option creation is unavailable.');
-        option.value = String(entry.values.length);
-        option.textContent = candidate.labels.join(' · ');
-        entry.values.push(value);
-        entry.select.appendChild(option);
+      const choices = await fetchChoiceResponse(entry, input, sent, sequence, controller);
+      if (choices === null) return;
+      for (const candidate of choices) {
+        appendChoiceCandidate(entry, input, candidate);
       }
       if (entry.values.length > 0) entry.select.removeAttribute('disabled');
       if (entry.feedback) entry.feedback.textContent = entry.values.length === 0
@@ -812,6 +929,82 @@ function bindGeneratedForm(form: ElementLike, client: BrowserClient, internals: 
   };
   let restoreSubmitter: (() => void) | undefined;
   let inflight: AbortController | null = null;
+  const parseSubmitMetadata = (): {
+    deletion: { operation?: unknown } | null;
+    metadata: { derived?: DerivedOperationInputs; mode?: FormMode; renderedInputs?: readonly string[] } | null;
+  } => {
+    const deleteMetadata = form.getAttribute('data-can-delete-form');
+    const deletion = deleteMetadata === null ? null : JSON.parse(deleteMetadata) as { operation?: unknown };
+    if (deletion !== null && (typeof deletion.operation !== 'string' || deletion.operation === '')) {
+      throw new GeneratedSubmitError('usage', 'Delete form submit metadata is unavailable.', false);
+    }
+    const metadata = deletion !== null ? null : JSON.parse(form.getAttribute('data-can-generated-form') ?? '') as {
+      derived?: DerivedOperationInputs; mode?: FormMode; renderedInputs?: readonly string[];
+    } | null;
+    if (deletion === null && (metadata?.derived === undefined || typeof metadata.derived.operation !== 'string' ||
+        !Array.isArray(metadata.derived.inputs) ||
+        !['create', 'update', 'scenario'].includes(metadata.mode ?? '') ||
+        (metadata.renderedInputs !== undefined && (!Array.isArray(metadata.renderedInputs) ||
+          metadata.renderedInputs.some(name => typeof name !== 'string'))))) {
+      throw new GeneratedSubmitError('usage', 'Form submit metadata is unavailable.', false);
+    }
+    return { deletion, metadata };
+  };
+  const collectSubmitFlat = (event: EventLike): Record<string, string> => {
+    const FormData = internals.windowRef.FormData;
+    if (FormData === undefined) throw new GeneratedSubmitError('usage', 'Native FormData is unavailable.', false);
+    const controls = (form as ElementLike & { readonly elements: ArrayLike<DomControlLike & {
+      readonly disabled?: boolean; matches?(selector: string): boolean;
+    }> }).elements;
+    for (const control of Array.from(controls)) {
+      if (!control.disabled && control.matches?.(':disabled') !== true && (control.files?.length ?? 0) > 0) {
+        throw new GeneratedSubmitError('usage', 'File submission needs its supplied upload intents route.', false);
+      }
+    }
+    const flat: Record<string, string> = Object.create(null) as Record<string, string>;
+    for (const [name, value] of new FormData(form, event.submitter)) {
+      if (typeof value === 'string') flat[name] = value;
+    }
+    return flat;
+  };
+  const applySubmitRetry = (flat: Record<string, string>, retry: { operation_id: string; form_binding?: string }): void => {
+    type Hidden = ElementLike & { value: string };
+    const oneHidden = (name: string): Hidden => {
+      const matches = [...form.querySelectorAll?.(`input[name="${name}"]`) ?? []];
+      const control = matches[0] as Hidden | undefined;
+      if (matches.length !== 1 || control?.getAttribute('type') !== 'hidden' ||
+          control.value !== flat[name] || control.getAttribute('value') !== flat[name]) {
+        throw new GeneratedSubmitError('contract', 'Submitted form retry metadata changed.', false);
+      }
+      return control;
+    };
+    oneHidden('operation');
+    const nonce = oneHidden('operation_id');
+    const binding = retry.form_binding === undefined ? undefined : oneHidden(SOURCE_FORM_BINDING_FIELD);
+    if (binding === undefined && [...form.querySelectorAll?.(`input[name="${SOURCE_FORM_BINDING_FIELD}"]`) ?? []].length !== 0) {
+      throw new GeneratedSubmitError('contract', 'Submitted form retry metadata changed.', false);
+    }
+    // All response and live-pair checks precede either metadata update.
+    nonce.value = retry.operation_id;
+    nonce.setAttribute('value', retry.operation_id);
+    if (binding !== undefined) {
+      binding.value = retry.form_binding!;
+      binding.setAttribute('value', retry.form_binding!);
+    }
+  };
+  const settleSubmitResult = (flat: Record<string, string>, result: GeneratedSubmitResult): void => {
+    if (result.kind === 'denied' && result.retry !== undefined) {
+      applySubmitRetry(flat, result.retry);
+    }
+    form.setAttribute('data-can-submit-state', result.kind);
+    if (result.kind === 'denied') {
+      feedback(result.error.code, [
+        result.error.message,
+        ...(result.error.fields ?? []).map(field => field.message),
+      ].join('\n'));
+    }
+    internals.onGeneratedFormResult?.(form, result);
+  };
   const onSubmit = (event: EventLike): void => {
     event.preventDefault();
     event.stopPropagation?.();
@@ -824,35 +1017,8 @@ function bindGeneratedForm(form: ElementLike, client: BrowserClient, internals: 
     form.setAttribute('data-can-submit-state', 'pending');
     void (async () => {
       try {
-        const deleteMetadata = form.getAttribute('data-can-delete-form');
-        const deletion = deleteMetadata === null ? null : JSON.parse(deleteMetadata) as { operation?: unknown };
-        if (deletion !== null && (typeof deletion.operation !== 'string' || deletion.operation === '')) {
-          throw new GeneratedSubmitError('usage', 'Delete form submit metadata is unavailable.', false);
-        }
-        const metadata = deletion !== null ? null : JSON.parse(form.getAttribute('data-can-generated-form') ?? '') as {
-          derived?: DerivedOperationInputs; mode?: FormMode; renderedInputs?: readonly string[];
-        } | null;
-        if (deletion === null && (metadata?.derived === undefined || typeof metadata.derived.operation !== 'string' ||
-            !Array.isArray(metadata.derived.inputs) ||
-            !['create', 'update', 'scenario'].includes(metadata.mode ?? '') ||
-            (metadata.renderedInputs !== undefined && (!Array.isArray(metadata.renderedInputs) ||
-              metadata.renderedInputs.some(name => typeof name !== 'string'))))) {
-          throw new GeneratedSubmitError('usage', 'Form submit metadata is unavailable.', false);
-        }
-        const FormData = internals.windowRef.FormData;
-        if (FormData === undefined) throw new GeneratedSubmitError('usage', 'Native FormData is unavailable.', false);
-        const controls = (form as ElementLike & { readonly elements: ArrayLike<DomControlLike & {
-          readonly disabled?: boolean; matches?(selector: string): boolean;
-        }> }).elements;
-        for (const control of Array.from(controls)) {
-          if (!control.disabled && control.matches?.(':disabled') !== true && (control.files?.length ?? 0) > 0) {
-            throw new GeneratedSubmitError('usage', 'File submission needs its supplied upload intents route.', false);
-          }
-        }
-        const flat: Record<string, string> = Object.create(null) as Record<string, string>;
-        for (const [name, value] of new FormData(form, event.submitter)) {
-          if (typeof value === 'string') flat[name] = value;
-        }
+        const { deletion, metadata } = parseSubmitMetadata();
+        const flat = collectSubmitFlat(event);
         const controller = new AbortController();
         inflight = controller;
         // FormData must collect the activated successful control before it is
@@ -883,39 +1049,7 @@ function bindGeneratedForm(form: ElementLike, client: BrowserClient, internals: 
               action: form.getAttribute('action') ?? '', fragment: false, denialFormat: 'json', fetchImpl,
             });
         if (alive()) {
-          if (result.kind === 'denied' && result.retry !== undefined) {
-            type Hidden = ElementLike & { value: string };
-            const oneHidden = (name: string): Hidden => {
-              const matches = [...form.querySelectorAll?.(`input[name="${name}"]`) ?? []];
-              const control = matches[0] as Hidden | undefined;
-              if (matches.length !== 1 || control?.getAttribute('type') !== 'hidden' ||
-                  control.value !== flat[name] || control.getAttribute('value') !== flat[name]) {
-                throw new GeneratedSubmitError('contract', 'Submitted form retry metadata changed.', false);
-              }
-              return control;
-            };
-            oneHidden('operation');
-            const nonce = oneHidden('operation_id');
-            const binding = result.retry.form_binding === undefined ? undefined : oneHidden(SOURCE_FORM_BINDING_FIELD);
-            if (binding === undefined && [...form.querySelectorAll?.(`input[name="${SOURCE_FORM_BINDING_FIELD}"]`) ?? []].length !== 0) {
-              throw new GeneratedSubmitError('contract', 'Submitted form retry metadata changed.', false);
-            }
-            // All response and live-pair checks precede either metadata update.
-            nonce.value = result.retry.operation_id;
-            nonce.setAttribute('value', result.retry.operation_id);
-            if (binding !== undefined) {
-              binding.value = result.retry.form_binding!;
-              binding.setAttribute('value', result.retry.form_binding!);
-            }
-          }
-          form.setAttribute('data-can-submit-state', result.kind);
-          if (result.kind === 'denied') {
-            feedback(result.error.code, [
-              result.error.message,
-              ...(result.error.fields ?? []).map(field => field.message),
-            ].join('\n'));
-          }
-          internals.onGeneratedFormResult?.(form, result);
+          settleSubmitResult(flat, result);
         }
       } catch (error) {
         if (alive()) {
@@ -953,6 +1087,34 @@ function bindGeneratedForm(form: ElementLike, client: BrowserClient, internals: 
   };
 }
 
+function checkPreferenceResponse(
+  document: DocumentLike,
+  incoming: DomNode,
+  main: ElementLike | null,
+  nextMain: (DomNode & { outerHTML: string }) | null,
+  form: ElementLike,
+  field: ElementLike | null,
+  fieldName: string | null | undefined,
+  panel: ElementLike | undefined,
+  sidebar: ElementLike | undefined,
+  nextPanel: DomNode | null | undefined,
+  nextSidebar: DomNode | null | undefined,
+  nextField: DomNode | undefined,
+  status: number,
+): boolean {
+  if (!main || !nextMain || !field || !fieldName || !panel || !sidebar || !nextPanel || !nextSidebar || !nextField ||
+      [...incoming.querySelectorAll?.('#can-main') ?? []].length !== 1 ||
+      nextPanel.querySelector?.('script') !== null || nextSidebar.querySelector?.('script') !== null ||
+      !checkPreferenceForm(form, nextField) ||
+      !applyPollResponse(document, main, nextMain.outerHTML, status)) return false;
+  return true;
+}
+
+function checkPreferenceForm(form: ElementLike, nextField: DomNode): boolean {
+  return [...nextField.querySelectorAll?.('form[data-can-preference-form]') ?? []].some(candidate =>
+    candidate.getAttribute?.('action') === form.getAttribute('action'));
+}
+
 /** A followed native preference POST returns an authorized full page. */
 function applyPreferenceResponse(document: DocumentLike, form: ElementLike, body: string, status: number): boolean {
   if (status < 200 || status >= 300 || document.createElement === undefined) return false;
@@ -969,16 +1131,12 @@ function applyPreferenceResponse(document: DocumentLike, form: ElementLike, body
   const nextSidebar = incoming.querySelector?.('.can-settings-sidebar');
   const nextField = [...nextPanel?.querySelectorAll?.('[data-can-preference-field]') ?? []]
     .find(candidate => candidate.getAttribute?.('data-can-preference-field') === fieldName);
-  if (!main || !nextMain || !field || !fieldName || !panel || !sidebar || !nextPanel || !nextSidebar || !nextField ||
-      [...incoming.querySelectorAll?.('#can-main') ?? []].length !== 1 ||
-      nextPanel.querySelector?.('script') !== null || nextSidebar.querySelector?.('script') !== null ||
-      ![...nextField.querySelectorAll?.('form[data-can-preference-form]') ?? []].some(candidate =>
-        candidate.getAttribute?.('action') === form.getAttribute('action')) ||
-      !applyPollResponse(document, main, nextMain.outerHTML, status)) return false;
+  if (!checkPreferenceResponse(document, incoming, main, nextMain, form, field, fieldName,
+      panel, sidebar, nextPanel, nextSidebar, nextField, status)) return false;
   // Only the settled field adopts server values. Neighboring settings drafts,
   // business inputs and the shell's open Settings checkbox remain in place.
-  morphNode(panel as unknown as DomNode, nextPanel, document, false, undefined, field as unknown as DomNode);
-  morphNode(sidebar as unknown as DomNode, nextSidebar, document);
+  morphNode(panel as unknown as DomNode, nextPanel!, document, false, undefined, field as unknown as DomNode);
+  morphNode(sidebar as unknown as DomNode, nextSidebar!, document);
   return true;
 }
 
@@ -1166,28 +1324,36 @@ const bindSplitCollection: ComponentBinder = (root, _client, internals) => {
   const mobile = (): boolean => (toggle()?.getClientRects?.().length ?? 0) > 0;
   let stopped = false;
   let mobileOpened = false;
-  const sync = (): void => {
-    const checkbox = toggle(), pane = dialog();
-    if (stopped || !root.isConnected || checkbox === null || pane === null ||
-        pane.show === undefined || pane.showModal === undefined || pane.close === undefined) return;
+  // Native dialog methods run on their receiver: the capability guard in
+  // sync() admits them, and each call below keeps its pane receiver.
+  const syncSplitPane = (
+    checkbox: Toggle,
+    pane: Dialog,
+  ): void => {
     const modal = pane.matches?.(':modal') === true;
     if (mobile() && checkbox.checked === true) {
       if (modal) return;
-      if (pane.open) pane.close();
+      if (pane.open) pane.close!();
       pane.setAttribute('closedby', 'any');
       pane.setAttribute('style', 'max-width:90vw;margin:0;position:fixed;inset:0 0 0 auto;min-height:100vh;visibility:visible;transform:none');
       for (const other of internals.document.querySelectorAll('[data-can-split] dialog:modal')) {
         if (other !== pane) (other as Dialog).close?.();
       }
-      pane.showModal();
+      pane.showModal!();
       mobileOpened = true;
     } else {
-      if (modal || (mobile() && pane.open)) pane.close();
+      if (modal || (mobile() && pane.open)) pane.close!();
       pane.setAttribute('closedby', 'none');
       pane.setAttribute('style', 'max-width:90vw;margin:0;position:relative;visibility:visible;transform:none');
       if (!mobile()) mobileOpened = false;
-      if (!mobile() && !pane.open) pane.show();
+      if (!mobile() && !pane.open) pane.show!();
     }
+  };
+  const sync = (): void => {
+    const checkbox = toggle(), pane = dialog();
+    if (stopped || !root.isConnected || checkbox === null || pane === null ||
+        pane.show === undefined || pane.showModal === undefined || pane.close === undefined) return;
+    syncSplitPane(checkbox, pane);
   };
   const close = (): void => {
     const checkbox = toggle(), pane = dialog();
@@ -1319,21 +1485,24 @@ const bindPanel: ComponentBinder = (root, _client, internals) => {
     if (modal) { if (pane?.open) pane.close?.(); }
     else if (target !== null) { target.checked = false; restore(); }
   };
+  const openPanel = (event: EventLike, opener: Native): void => {
+    if (modal && pane?.showModal === undefined) return;
+    event.preventDefault();
+    if (active) return;
+    const menu = opener.closest?.('[data-can-action-menu]');
+    returnTo = menu?.querySelector?.('[data-can-action-menu-trigger]') ?? opener;
+    opener.closest?.('[popover]')?.hidePopover?.();
+    active = true;
+    if (modal) pane?.showModal?.();
+    else if (target !== null) { target.checked = true; pane?.focus(); }
+  };
   const clicked = (event: EventLike) => {
     const origin = event.target as Native | null;
     const opener = origin?.closest?.('[data-can-panel-open]');
     const id = target?.getAttribute('id');
     if (opener !== null && opener !== undefined && id && opener.getAttribute('data-can-panel-open') === id &&
         internals.document.getElementById(id) === target) {
-      if (modal && pane?.showModal === undefined) return;
-      event.preventDefault();
-      if (active) return;
-      const menu = opener.closest?.('[data-can-action-menu]');
-      returnTo = menu?.querySelector?.('[data-can-action-menu-trigger]') ?? opener;
-      opener.closest?.('[popover]')?.hidePopover?.();
-      active = true;
-      if (modal) pane?.showModal?.();
-      else if (target !== null) { target.checked = true; pane?.focus(); }
+      openPanel(event, opener);
       return;
     }
     const control = origin?.closest?.('[data-can-panel-close]');
@@ -1399,6 +1568,85 @@ const BINDER_SELECTORS: ReadonlyArray<readonly [string, string]> = [
 
 /** Live clients by document: starting twice returns the same client. */
 const LIVE_CLIENTS = new WeakMap<object, BrowserClient>();
+
+function dropPollBindings(bound: BoundRegion[]): void {
+  for (let index = bound.length - 1; index >= 0; index -= 1) {
+    const entry = bound[index];
+    if (entry?.binder === 'poll-region') { bound.splice(index, 1); entry.stop(); }
+  }
+}
+
+function elementSignature(client: BrowserClient, element: ElementLike): string {
+  return `${client.contextKey()}|${element.getAttribute('data-can-poll-url') ?? ''}|${element.getAttribute('data-can-poll-interval') ?? ''}|${element.getAttribute('data-can-poll-context') ?? ''}|${element.getAttribute('data-can-generated-form') ?? ''}|${element.getAttribute('data-can-delete-form') ?? ''}|${element.getAttribute('action') ?? ''}|${element.getAttribute('data-can-view') ?? ''}`;
+}
+
+function releaseOldBinding(bound: BoundRegion[], old: BoundRegion, oldIndex: number, element: ElementLike, id: string): void {
+  // Releasing a split binder closes its native modal. Preserve the
+  // current request's selected checkbox for the replacement binder;
+  // cleanup must not erase a selection delivered by the new read.
+  const toggle = id === 'split-collection'
+    ? element.querySelector?.('.drawer-toggle') as (ElementLike & { checked?: boolean }) | null | undefined : null;
+  const selected = toggle?.checked;
+  bound.splice(oldIndex, 1); old.stop();
+  if (toggle?.isConnected && selected !== undefined && element.querySelector?.('.drawer-toggle') === toggle) {
+    toggle.checked = selected;
+  }
+}
+
+function rebindElement(
+  bound: BoundRegion[],
+  element: ElementLike,
+  id: string,
+  binder: ComponentBinder,
+  client: BrowserClient,
+  internals: ClientInternals,
+): void {
+  const signature = elementSignature(client, element);
+  const oldIndex = bound.findIndex((entry) => entry.element === element && entry.binder === id);
+  const old = bound[oldIndex];
+  const changedMount = id === 'generated-view' &&
+    GENERATED_VIEW_MOUNTS.get(generatedViewPresentationOf(element).view) !== generatedViewMountBindings.get(element);
+  if (old !== undefined && old.signature === signature &&
+      !(id === 'generated-view' && (generatedViewRebinds.has(element) || changedMount))) return;
+  if (old !== undefined) {
+    releaseOldBinding(bound, old, oldIndex, element, id);
+  }
+  bound.push({ element, binder: id, signature, stop: binder(element, client, internals) });
+}
+
+function bindingFormStale(entry: BoundRegion): boolean {
+  return (entry.binder === 'poll-region' && !entry.element.hasAttribute('data-can-poll')) ||
+    (entry.binder === 'guarded-form' && !entry.element.hasAttribute('data-can-guard')) ||
+    (entry.binder === 'once-action' && !entry.element.hasAttribute('data-can-once')) ||
+    (entry.binder === 'generated-form' && !entry.element.hasAttribute('data-can-generated-form') && !entry.element.hasAttribute('data-can-delete-form')) ||
+    (entry.binder === 'preference-form' && !entry.element.hasAttribute('data-can-preference-form')) ||
+    (entry.binder === 'preference-cancel' && !entry.element.hasAttribute('data-can-preference-cancel'));
+}
+
+function bindingChromeStale(entry: BoundRegion): boolean {
+  return (entry.binder === 'split-collection' && !entry.element.hasAttribute('data-can-split')) ||
+    (entry.binder === 'gallery' && !entry.element.hasAttribute('data-can-gallery')) ||
+    (entry.binder === 'action-menu' && !entry.element.hasAttribute('data-can-action-menu')) ||
+    (entry.binder === 'menu-dialog' && !entry.element.hasAttribute('data-can-menu-dialog')) ||
+    (entry.binder === 'panel' && !entry.element.hasAttribute('data-can-panel')) ||
+    (entry.binder === 'generated-view' && !entry.element.hasAttribute('data-can-view'));
+}
+
+function bindingStale(entry: BoundRegion): boolean {
+  return !entry.element.isConnected || bindingFormStale(entry) || bindingChromeStale(entry);
+}
+
+function releaseStaleBindings(bound: BoundRegion[]): void {
+  // Release bindings whose elements left the document (swap
+  // replacement owns the new state; stale bindings never linger).
+  for (let index = bound.length - 1; index >= 0; index -= 1) {
+    const entry = bound[index];
+    if (entry !== undefined && bindingStale(entry)) {
+      bound.splice(index, 1);
+      entry.stop();
+    }
+  }
+}
 
 /** Release each owned client resource, then report the first failure verbatim. */
 function releaseClientResources(releases: readonly (() => void)[]): void {
@@ -1501,10 +1749,7 @@ export function startBrowserClient(options: BrowserClientOptions): BrowserClient
         return;
       }
       if (restartPolling) {
-        for (let index = bound.length - 1; index >= 0; index -= 1) {
-          const entry = bound[index];
-          if (entry?.binder === 'poll-region') { bound.splice(index, 1); entry.stop(); }
-        }
+        dropPollBindings(bound);
       }
       const snapshot = new Map(BINDERS);
       for (const [id, selector] of BINDER_SELECTORS) {
@@ -1513,49 +1758,10 @@ export function startBrowserClient(options: BrowserClientOptions): BrowserClient
           continue;
         }
         for (const element of document.querySelectorAll(selector)) {
-          const signature = `${client.contextKey()}|${element.getAttribute('data-can-poll-url') ?? ''}|${element.getAttribute('data-can-poll-interval') ?? ''}|${element.getAttribute('data-can-poll-context') ?? ''}|${element.getAttribute('data-can-generated-form') ?? ''}|${element.getAttribute('data-can-delete-form') ?? ''}|${element.getAttribute('action') ?? ''}|${element.getAttribute('data-can-view') ?? ''}`;
-          const oldIndex = bound.findIndex((entry) => entry.element === element && entry.binder === id);
-          const old = bound[oldIndex];
-          const changedMount = id === 'generated-view' &&
-            GENERATED_VIEW_MOUNTS.get(generatedViewPresentationOf(element).view) !== generatedViewMountBindings.get(element);
-          if (old !== undefined && old.signature === signature &&
-              !(id === 'generated-view' && (generatedViewRebinds.has(element) || changedMount))) continue;
-          if (old !== undefined) {
-            // Releasing a split binder closes its native modal. Preserve the
-            // current request's selected checkbox for the replacement binder;
-            // cleanup must not erase a selection delivered by the new read.
-            const toggle = id === 'split-collection'
-              ? element.querySelector?.('.drawer-toggle') as (ElementLike & { checked?: boolean }) | null | undefined : null;
-            const selected = toggle?.checked;
-            bound.splice(oldIndex, 1); old.stop();
-            if (toggle?.isConnected && selected !== undefined && element.querySelector?.('.drawer-toggle') === toggle) {
-              toggle.checked = selected;
-            }
-          }
-          bound.push({ element, binder: id, signature, stop: binder(element, client, internals) });
+          rebindElement(bound, element, id, binder, client, internals);
         }
       }
-      // Release bindings whose elements left the document (swap
-      // replacement owns the new state; stale bindings never linger).
-      for (let index = bound.length - 1; index >= 0; index -= 1) {
-        const entry = bound[index];
-        if (entry !== undefined && (!entry.element.isConnected ||
-            (entry.binder === 'poll-region' && !entry.element.hasAttribute('data-can-poll')) ||
-            (entry.binder === 'guarded-form' && !entry.element.hasAttribute('data-can-guard')) ||
-            (entry.binder === 'once-action' && !entry.element.hasAttribute('data-can-once')) ||
-            (entry.binder === 'generated-form' && !entry.element.hasAttribute('data-can-generated-form') && !entry.element.hasAttribute('data-can-delete-form')) ||
-            (entry.binder === 'preference-form' && !entry.element.hasAttribute('data-can-preference-form')) ||
-            (entry.binder === 'preference-cancel' && !entry.element.hasAttribute('data-can-preference-cancel')) ||
-            (entry.binder === 'split-collection' && !entry.element.hasAttribute('data-can-split')) ||
-            (entry.binder === 'gallery' && !entry.element.hasAttribute('data-can-gallery')) ||
-            (entry.binder === 'action-menu' && !entry.element.hasAttribute('data-can-action-menu')) ||
-            (entry.binder === 'menu-dialog' && !entry.element.hasAttribute('data-can-menu-dialog')) ||
-            (entry.binder === 'panel' && !entry.element.hasAttribute('data-can-panel')) ||
-            (entry.binder === 'generated-view' && !entry.element.hasAttribute('data-can-view')))) {
-          bound.splice(index, 1);
-          entry.stop();
-        }
-      }
+      releaseStaleBindings(bound);
     },
     stop: () => {
       if (stopped) {

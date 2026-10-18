@@ -790,16 +790,17 @@ export function createMainHandlers(loaders: MainLoaders = {}): MainHandlers {
     // for a deploy whose payload never staged.
     const staged = await getStaged();
     validateStagedDeployment(staged);
-    let formBindings: SourceFormBindings | undefined;
-    if (env["CAN_FORM_BINDING_KEY"] !== undefined) {
+    async function loadFormBindingsForEnv(): Promise<SourceFormBindings | undefined> {
+      if (env["CAN_FORM_BINDING_KEY"] === undefined) return undefined;
       const key = env["CAN_FORM_BINDING_KEY"];
       if (typeof key !== "string" && !(key instanceof Uint8Array)) {
         throw new Error("deploy main: CAN_FORM_BINDING_KEY must be a 32-byte key or its canonical base64url encoding");
       }
       const createFormBindings = await getFormBindingsFactory();
-      try { formBindings = await createFormBindings(key, sourceFormRevision(staged.artifact)); }
+      try { return await createFormBindings(key, sourceFormRevision(staged.artifact)); }
       catch { throw new Error("deploy main: invalid CAN_FORM_BINDING_KEY configuration"); }
     }
+    const formBindings = await loadFormBindingsForEnv();
     const deps = await prodDepsFor(env);
     const deploymentBase = deps.deploymentBase;
     const factory = await getMcpFactory();
@@ -809,34 +810,40 @@ export function createMainHandlers(loaders: MainLoaders = {}): MainHandlers {
     const pageFactory = await getHttpPageFactory();
     const authJoin = await getHttpAuthJoin();
     const permFactory = factory === undefined ? undefined : await getPermsFactory();
-    const derivedInputs =
-      factory === undefined && httpFactory === undefined && csvFactory === undefined && exportFactory === undefined && pageFactory === undefined ? undefined : await getDerivedInputs();
+    async function loadDerivedInputsIfNeeded() {
+      if (factory === undefined && httpFactory === undefined && csvFactory === undefined && exportFactory === undefined && pageFactory === undefined) return undefined;
+      return getDerivedInputs();
+    }
+    const derivedInputs = await loadDerivedInputsIfNeeded();
     const assembleWorker = await getAssemble();
     const browserAssets = staged.browserAssets;
     const cohortRequirement = staged.artifact.requires.find(requirement => requirement.capability === 'state.cohorts');
     if (cohortRequirement !== undefined && cohortRequirement.min_version !== 1) {
       throw new Error('deploy main: installed cohort tick requires exact state.cohorts version 1');
     }
-    if (deps.stateTeam !== undefined && deps.stateTeams !== undefined) {
-      throw new Error('deploy main: selected State has both legacy and multi-owner routes');
-    }
-    if (deps.stateTeams !== undefined) {
-      if (cohortRequirement !== undefined) {
-        throw new Error('deploy main: multi-owner State does not support cohort or scheduled handler scope');
+    async function verifyStateScope(cohort: unknown): Promise<void> {
+      if (deps.stateTeam !== undefined && deps.stateTeams !== undefined) {
+        throw new Error('deploy main: selected State has both legacy and multi-owner routes');
       }
-      const handlers = staged.artifact.callables.filter(callable => callable.kind === 'handler');
-      if (handlers.length > 0) {
-        // Checked CRUD hooks run inside the selected original owner mutation.
-        // They do not require a separately selected scheduled/cohort scope.
-        const check = await loadSiblingFn<typeof import('../runtime/invoke.js').nativeHandlersUseOwnerMutationScope>(
-          '../runtime/invoke.js', 'runtime/invoke.ts', 'nativeHandlersUseOwnerMutationScope');
-        const ownerHooks = await check(staged.modules, staged.artifact);
-        if (!ownerHooks) throw new Error('deploy main: multi-owner State does not support cohort or scheduled handler scope');
+      if (deps.stateTeams !== undefined) {
+        if (cohort !== undefined) {
+          throw new Error('deploy main: multi-owner State does not support cohort or scheduled handler scope');
+        }
+        const handlers = staged.artifact.callables.filter(callable => callable.kind === 'handler');
+        if (handlers.length > 0) {
+          // Checked CRUD hooks run inside the selected original owner mutation.
+          // They do not require a separately selected scheduled/cohort scope.
+          const check = await loadSiblingFn<typeof import('../runtime/invoke.js').nativeHandlersUseOwnerMutationScope>(
+            '../runtime/invoke.js', 'runtime/invoke.ts', 'nativeHandlersUseOwnerMutationScope');
+          const ownerHooks = await check(staged.modules, staged.artifact);
+          if (!ownerHooks) throw new Error('deploy main: multi-owner State does not support cohort or scheduled handler scope');
+        }
+      }
+      if (staged.verdict.active && cohort !== undefined && deps.stateTeam === undefined) {
+        throw new Error('deploy main: installed cohort tick requires explicit CAN_STATE_OWNER and separate STATE_DB');
       }
     }
-    if (staged.verdict.active && cohortRequirement !== undefined && deps.stateTeam === undefined) {
-      throw new Error('deploy main: installed cohort tick requires explicit CAN_STATE_OWNER and separate STATE_DB');
-    }
+    await verifyStateScope(cohortRequirement);
     let ownerStorage: TeamOwnerStorageBoundary | undefined = deps.ownerStorage;
     let pageReads: AssemblyDeps['pageReads'];
     let scope: WorkScope | undefined;
@@ -845,7 +852,8 @@ export function createMainHandlers(loaders: MainLoaders = {}): MainHandlers {
     const rootExecution = rootRuntime?.rootExecutionForEnv(env);
     if (rootExecution === undefined && rootRuntime !== undefined && !Object.isFrozen(deps.store)) rootRuntime.rejectRootModelsInD1(deps.store, staged.artifact);
     let rootBoundary: AssemblyDeps['rootBoundary'];
-    if (rootHost) {
+    async function configureRootBoundary(): Promise<void> {
+      if (!rootHost) return;
       const entry: unknown = await import(staged.modules.entryUrl);
       const definition = isRecord(entry) ? entry['appDefinition'] : undefined;
       if (!isRecord(definition) || typeof definition['id'] !== 'string') throw new Error('Root authority requires its actual declared app.');
@@ -864,7 +872,9 @@ export function createMainHandlers(loaders: MainLoaders = {}): MainHandlers {
         });
       }
     }
-    if (rootExecution === undefined && (deps.stateTeam !== undefined || deps.stateTeams !== undefined)) {
+    await configureRootBoundary();
+    async function configureStateTeamScope(): Promise<void> {
+      if (rootExecution !== undefined || (deps.stateTeam === undefined && deps.stateTeams === undefined)) return;
       const selected = deps.stateTeam;
       const routes = deps.stateTeams ?? (selected === undefined ? [] : [selected]);
       if (routes.length === 0 || routes.length > 16 || new Set(routes.map(route => route.owner)).size !== routes.length ||
@@ -878,6 +888,7 @@ export function createMainHandlers(loaders: MainLoaders = {}): MainHandlers {
         throw new Error('deploy main: selected State requires its actual declared app and owning package');
       }
       const app = definition['id'];
+      const declaredAppOwners = definition['runtimeBindingOwners'];
       const createRouter = await getOwnerRouterFactory();
       const byOwner = new Map(routes.map(route => [route.owner, Object.freeze({ ...route })]));
       const router = createRouter({ resolveBinding: requested => {
@@ -888,7 +899,8 @@ export function createMainHandlers(loaders: MainLoaders = {}): MainHandlers {
       } });
       ownerStorage ??= await (await getOwnerStorageFactory())({ artifact: staged.artifact, asm: staged.modules,
         app, identities: deps.identityStore as IdentityStore, router });
-      if ((staged.artifact.runtimeBindings?.length ?? 0) !== 0) {
+      async function installStateTeamFileStack(storage: TeamOwnerStorageBoundary): Promise<void> {
+        if ((staged.artifact.runtimeBindings?.length ?? 0) === 0) return;
         const [{ d1FileAuthority, runtimeFileReferenceProducers }, { installNativeFileInventory }] = await Promise.all([
           import('../runtime/d1-file-inventory.js'), import('../runtime/file-inventory.js'),
         ]);
@@ -900,7 +912,7 @@ export function createMainHandlers(loaders: MainLoaders = {}): MainHandlers {
         const authorities = new Map<string, import('@canlang/contracts').FileRetirementAuthority>();
         for (const route of routes) {
           // Pin/verify the configured physical team before installing any declaration metadata.
-          await ownerStorage.forTrustedScope({ app, owner: route.owner, ownerPackage: app }, Date.now());
+          await storage.forTrustedScope({ app, owner: route.owner, ownerPackage: app }, Date.now());
           authorities.set(route.owner, await d1FileAuthority(route.db, { app, owner: route.owner, ownerPackage: app }, fileStoreId));
         }
         const fileRouter = createRouter({ resolveBinding: requested => {
@@ -911,7 +923,7 @@ export function createMainHandlers(loaders: MainLoaders = {}): MainHandlers {
         } });
         ownerStorage = await (await getOwnerStorageFactory())({ artifact: staged.artifact, asm: staged.modules,
           app, identities: deps.identityStore as IdentityStore, router: fileRouter });
-        const declaredOwners = definition['runtimeBindingOwners'];
+        const declaredOwners = declaredAppOwners;
         const inventoryOwners = Array.isArray(declaredOwners) ? declaredOwners.filter((owner): owner is string => typeof owner === 'string') : [app];
         for (const route of routes) {
           const boundary = ownerStorage;
@@ -924,35 +936,46 @@ export function createMainHandlers(loaders: MainLoaders = {}): MainHandlers {
           });
         }
       }
-      let cursors: PageCursorCodec | undefined;
-      if (env['CAN_FORM_BINDING_KEY'] !== undefined) {
-        const createCodec = await loadSiblingFn<typeof createPageCursorCodec>(
-          '../runtime/page-cursor.js', 'runtime/page-cursor.ts', 'createPageCursorCodec');
-        // The existing codec owns its distinct cryptographic protocol domain.
-        cursors = await createCodec(env['CAN_FORM_BINDING_KEY'] as Uint8Array | string);
-      }
-      const sourceIdentity = sourceFormRevision(staged.artifact);
-      pageReads = identity => {
-        const owner = identity.team?.team_id;
-        if (owner === undefined || !byOwner.has(owner)) {
-          throw { code: 'forbidden', message: 'Page storage binding is unavailable.', retryable: false };
+      await installStateTeamFileStack(ownerStorage);
+      async function configureStateTeamReads(): Promise<void> {
+        let cursors: PageCursorCodec | undefined;
+        if (env['CAN_FORM_BINDING_KEY'] !== undefined) {
+          const createCodec = await loadSiblingFn<typeof createPageCursorCodec>(
+            '../runtime/page-cursor.js', 'runtime/page-cursor.ts', 'createPageCursorCodec');
+          // The existing codec owns its distinct cryptographic protocol domain.
+          cursors = await createCodec(env['CAN_FORM_BINDING_KEY'] as Uint8Array | string);
         }
-        return Object.freeze({ scope: Object.freeze({ app, owner, ownerPackage: app }), sourceIdentity,
-          ...(cursors === undefined ? {} : { cursors }) });
-      };
-      if (selected !== undefined) scope = { app, owner: selected.owner, ownerPackage: app };
+        const sourceIdentity = sourceFormRevision(staged.artifact);
+        pageReads = identity => {
+          const owner = identity.team?.team_id;
+          if (owner === undefined || !byOwner.has(owner)) {
+            throw { code: 'forbidden', message: 'Page storage binding is unavailable.', retryable: false };
+          }
+          return Object.freeze({ scope: Object.freeze({ app, owner, ownerPackage: app }), sourceIdentity,
+            ...(cursors === undefined ? {} : { cursors }) });
+        };
+        if (selected !== undefined) scope = { app, owner: selected.owner, ownerPackage: app };
+      }
+      await configureStateTeamReads();
     }
+    await configureStateTeamScope();
     let hostStore = rootExecution?.store ?? deps.store;
     const hasDefaultD1Models = (staged.artifact.models ?? []).some(model => rootRuntime?.modelUsesRoot(staged.artifact, model.name) !== true);
-    if (staged.artifact.models?.length === 0 && (staged.artifact.operations?.length ?? 0) !== 0 && ownerStorage === undefined &&
-        (staged.artifact.runtimeBindings?.length ?? 0) !== 0) {
-      throw new Error('Model-free resource applications require an explicitly configured team State owner; global owner routing is unsupported.');
-    }
-    if (rootExecution === undefined && ownerStorage === undefined && (!rootHost || hasDefaultD1Models) && (staged.artifact.runtimeBindings?.length ?? 0) !== 0) {
+    async function loadDefaultD1App(): Promise<{ app: string; owners: unknown } | undefined> {
+      if (staged.artifact.models?.length === 0 && (staged.artifact.operations?.length ?? 0) !== 0 && ownerStorage === undefined &&
+          (staged.artifact.runtimeBindings?.length ?? 0) !== 0) {
+        throw new Error('Model-free resource applications require an explicitly configured team State owner; global owner routing is unsupported.');
+      }
+      if (rootExecution !== undefined || ownerStorage !== undefined || (rootHost && !hasDefaultD1Models) || (staged.artifact.runtimeBindings?.length ?? 0) === 0) return undefined;
       const entry: unknown = await import(staged.modules.entryUrl);
       const definition = isRecord(entry) ? entry['appDefinition'] : undefined;
       if (!isRecord(definition) || typeof definition['id'] !== 'string') throw new Error('State declarations require their actual app.');
-      const app = definition['id'];
+      return { app: definition['id'], owners: definition['runtimeBindingOwners'] };
+    }
+    async function configureDefaultD1Store(): Promise<void> {
+      const loaded = await loadDefaultD1App();
+      if (loaded === undefined) return;
+      const { app, owners } = loaded;
       const [{ d1FileAuthority, runtimeFileReferenceProducers }, { installNativeFileInventory }, { createD1Storage }] = await Promise.all([
         import('../runtime/d1-file-inventory.js'), import('../runtime/file-inventory.js'), import('@canlang/state/storage/d1'),
       ]);
@@ -964,7 +987,6 @@ export function createMainHandlers(loaders: MainLoaders = {}): MainHandlers {
       const authority = await d1FileAuthority(db, selectedScope, fileStoreId);
       const physical = createD1Storage(db, authority, runtimeFileReferenceProducers);
       if (rootRuntime !== undefined) rootRuntime.rejectRootModelsInD1(physical, staged.artifact);
-      const owners = definition['runtimeBindingOwners'];
       for (const ownerPackage of Array.isArray(owners) ? owners as string[] : [app]) await installNativeFileInventory({
         artifact: staged.artifact, asm: staged.modules, scope: { ...selectedScope, ownerPackage },
         store: physical, authority, now: Date.now, verifyOwner: async () => {
@@ -973,27 +995,35 @@ export function createMainHandlers(loaders: MainLoaders = {}): MainHandlers {
       });
       hostStore = physical;
     }
-    const files = deps.files ?? (env['CAN_LOCAL_FILES'] === true
-      ? await (await import('../runtime/worker-files.js')).createWorkerFiles({
-          artifact: staged.artifact, asm: staged.modules, env,
-          store: hostStore, identities: deps.identityStore as IdentityStore,
-          ...(ownerStorage === undefined ? {} : { ownerStorage }),
-          origin: deploymentBase ?? (() => { throw new Error('Local Files require the selected preview origin.'); })(),
-          intentTtlMs: 60 * 60 * 1000,
-          retention: { unattachedHorizonMs: 24 * 60 * 60 * 1000, retentionMs: 24 * 60 * 60 * 1000, retainAttached: true },
-          localLoopback: true,
-        }) : undefined);
-    const queueHandlers = new Set((staged.artifact.runtimeBindings ?? []).flatMap(binding => binding.kind === 'queue' ? binding.handlers : []));
-    const needsTick = cohortRequirement !== undefined || staged.artifact.callables.some(callable => callable.kind === 'handler' && !queueHandlers.has(callable.id));
-    const cohorts = staged.verdict.active && needsTick && ownerStorage !== undefined && scope !== undefined
-      ? await (await getCohortTickFactory())({ artifact: staged.artifact, asm: staged.modules,
-          identities: deps.identityStore as IdentityStore, ownerStorage, scope, now: Date.now,
-          ...(files?.canonical === undefined ? {} : { files: files.canonical }),
-          ...(deploymentBase === undefined ? {} : { deploymentBase }) })
-      : undefined;
-    const resourceBindings = (staged.artifact.runtimeBindings ?? []).filter(binding => binding.kind === 'queue' || binding.kind === 'analytics-engine');
-    const resourceHosts: Awaited<ReturnType<typeof import('../runtime/resource-host.js').createResourceHost>>[] = [];
-    if (resourceBindings.length !== 0) {
+    await configureDefaultD1Store();
+    async function loadWorkerFilesForEnv() {
+      if (deps.files !== undefined) return deps.files;
+      if (env['CAN_LOCAL_FILES'] !== true) return undefined;
+      return (await import('../runtime/worker-files.js')).createWorkerFiles({
+        artifact: staged.artifact, asm: staged.modules, env,
+        store: hostStore, identities: deps.identityStore as IdentityStore,
+        ...(ownerStorage === undefined ? {} : { ownerStorage }),
+        origin: deploymentBase ?? (() => { throw new Error('Local Files require the selected preview origin.'); })(),
+        intentTtlMs: 60 * 60 * 1000,
+        retention: { unattachedHorizonMs: 24 * 60 * 60 * 1000, retentionMs: 24 * 60 * 60 * 1000, retainAttached: true },
+        localLoopback: true,
+      });
+    }
+    const files = await loadWorkerFilesForEnv();
+    async function loadCohortTickers() {
+      const queueHandlers = new Set((staged.artifact.runtimeBindings ?? []).flatMap(binding => binding.kind === 'queue' ? binding.handlers : []));
+      const needsTick = cohortRequirement !== undefined || staged.artifact.callables.some(callable => callable.kind === 'handler' && !queueHandlers.has(callable.id));
+      if (!staged.verdict.active || !needsTick || ownerStorage === undefined || scope === undefined) return undefined;
+      return (await getCohortTickFactory())({ artifact: staged.artifact, asm: staged.modules,
+        identities: deps.identityStore as IdentityStore, ownerStorage, scope, now: Date.now,
+        ...(files?.canonical === undefined ? {} : { files: files.canonical }),
+        ...(deploymentBase === undefined ? {} : { deploymentBase }) });
+    }
+    const cohorts = await loadCohortTickers();
+    async function configureResourceHosts(): Promise<Awaited<ReturnType<typeof import('../runtime/resource-host.js').createResourceHost>>[]> {
+      const resourceBindings = (staged.artifact.runtimeBindings ?? []).filter(binding => binding.kind === 'queue' || binding.kind === 'analytics-engine');
+      const resourceHosts: Awaited<ReturnType<typeof import('../runtime/resource-host.js').createResourceHost>>[] = [];
+      if (resourceBindings.length === 0) return resourceHosts;
       const { createResourceHost } = await import('../runtime/resource-host.js');
       const entry: unknown = await import(staged.modules.entryUrl);
       const definition = isRecord(entry) ? entry['appDefinition'] : undefined;
@@ -1014,50 +1044,59 @@ export function createMainHandlers(loaders: MainLoaders = {}): MainHandlers {
           store: hostStore, identities: deps.identityStore as IdentityStore, scope: { app, owner: 'app', ownerPackage: app },
           ...(files?.canonical === undefined ? {} : { files: files.canonical }) }));
       }
+      return resourceHosts;
     }
+    const resourceHosts = await configureResourceHosts();
     resourceHostsByEnv.set(env, resourceHosts);
-    const assemblyDeps: AssemblyDeps = {
-      ...(files === undefined ? {} : { files }),
-      ...(deploymentBase === undefined ? {} : { deploymentBase }),
-      store: hostStore,
-      ...(rootBoundary === undefined ? {} : { rootBoundary }),
-      ...(staged.artifact.runtimeBindings === undefined ? {} : { runtimeBindings: 1 as const }),
-      ...(rootExecution === undefined ? {} : { allocateRecordId: rootExecution.allocateId }),
-      identityStore: deps.identityStore,
-      ...(ownerStorage === undefined ? {} : { ownerStorage }),
-      ...(pageReads === undefined ? {} : { pageReads }),
-      ...(cohorts === undefined ? {} : { cohorts }),
-      ...(factory === undefined
-        ? null
-        : {
-            mcp: {
-              createHandler: factory,
-              ...(permFactory === undefined
-                ? null
-                : { permissions: permFactory(staged.artifact) }),
-              ...(derivedInputs === undefined ? null : { derivedInputs }),
-            },
+    function buildMcpSection() {
+      if (factory === undefined) return null;
+      return {
+        mcp: {
+          createHandler: factory,
+          ...(permFactory === undefined
+            ? null
+            : { permissions: permFactory(staged.artifact) }),
+          ...(derivedInputs === undefined ? null : { derivedInputs }),
+        },
+      };
+    }
+    function buildHttpSection() {
+      if (httpFactory === undefined && csvFactory === undefined && exportFactory === undefined && pageFactory === undefined && authJoin === undefined && browserAssets === undefined) return null;
+      return {
+        http: {
+          ...(deps.auth === undefined ? {} : { auth: deps.auth }),
+          ...(deps.preferences === undefined ? {} : { preferences: deps.preferences }),
+          ...(deps.exportDownloads === undefined ? {} : { exportDownloads: deps.exportDownloads }),
+          ...(authJoin === undefined ? {} : { authHandler: authJoin }),
+          ...(formBindings === undefined ? {} : { formBindings }),
+          ...(httpFactory === undefined ? {} : { createOperationHandler: httpFactory }),
+          ...(csvFactory === undefined ? {} : { createCsvHandler: csvFactory }),
+          ...(exportFactory === undefined ? {} : { createExportHandler: exportFactory }),
+          ...(pageFactory === undefined ? {} : { createPageHandler: pageFactory }),
+          ...(derivedInputs === undefined ? null : { derivedInputs }),
+          ...(browserAssets === undefined ? {} : {
+            loadBrowserAssets: (pages: readonly PageDescriptor[]) => loadBrowserAssetsHandler(browserAssets, pages),
           }),
-      ...(httpFactory === undefined && csvFactory === undefined && exportFactory === undefined && pageFactory === undefined && authJoin === undefined && browserAssets === undefined
-        ? null
-        : {
-            http: {
-              ...(deps.auth === undefined ? {} : { auth: deps.auth }),
-              ...(deps.preferences === undefined ? {} : { preferences: deps.preferences }),
-              ...(deps.exportDownloads === undefined ? {} : { exportDownloads: deps.exportDownloads }),
-              ...(authJoin === undefined ? {} : { authHandler: authJoin }),
-              ...(formBindings === undefined ? {} : { formBindings }),
-              ...(httpFactory === undefined ? {} : { createOperationHandler: httpFactory }),
-              ...(csvFactory === undefined ? {} : { createCsvHandler: csvFactory }),
-              ...(exportFactory === undefined ? {} : { createExportHandler: exportFactory }),
-              ...(pageFactory === undefined ? {} : { createPageHandler: pageFactory }),
-              ...(derivedInputs === undefined ? null : { derivedInputs }),
-              ...(browserAssets === undefined ? {} : {
-                loadBrowserAssets: (pages: readonly PageDescriptor[]) => loadBrowserAssetsHandler(browserAssets, pages),
-              }),
-            },
-          }),
-    };
+        },
+      };
+    }
+    function buildAssemblyDeps(): AssemblyDeps {
+      return {
+        ...(files === undefined ? {} : { files }),
+        ...(deploymentBase === undefined ? {} : { deploymentBase }),
+        store: hostStore,
+        ...(rootBoundary === undefined ? {} : { rootBoundary }),
+        ...(staged.artifact.runtimeBindings === undefined ? {} : { runtimeBindings: 1 as const }),
+        ...(rootExecution === undefined ? {} : { allocateRecordId: rootExecution.allocateId }),
+        identityStore: deps.identityStore,
+        ...(ownerStorage === undefined ? {} : { ownerStorage }),
+        ...(pageReads === undefined ? {} : { pageReads }),
+        ...(cohorts === undefined ? {} : { cohorts }),
+        ...(buildMcpSection()),
+        ...(buildHttpSection()),
+      };
+    }
+    const assemblyDeps: AssemblyDeps = buildAssemblyDeps();
     try {
       return await assembleWorker(staged.artifact, staged.modules, assemblyDeps, staged.verdict);
     } catch (err) {

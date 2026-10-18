@@ -119,14 +119,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  * values, and disallowed environment/release all fail admission and
  * are never stored as arbitrary context.
  */
-export function admitIntakeReport(
-  binding: IntakeBinding,
-  body: unknown,
-  nowMs: number,
-): AdmittedReport {
-  if (!isRecord(body)) {
-    throw new IdentityError('validation', 'Report must be a JSON object.');
-  }
+function checkIntakeIdentity(body: Record<string, unknown>): string {
   for (const key of Object.keys(body)) {
     if (!ADMITTED_MEMBERS.has(key)) {
       throw new IdentityError('validation', `Unknown report member ${JSON.stringify(key)}.`);
@@ -139,6 +132,10 @@ export function admitIntakeReport(
   if (typeof id !== 'string' || id.length === 0) {
     throw new IdentityError('validation', 'Report needs a non-empty id.');
   }
+  return id;
+}
+
+function checkIntakeOccurred(body: Record<string, unknown>, nowMs: number): string {
   const occurredAt = body['occurred_at'];
   if (typeof occurredAt !== 'string') {
     throw new IdentityError('validation', 'Report needs occurred_at.');
@@ -153,6 +150,10 @@ export function admitIntakeReport(
   if (nowMs - occurredMs > OCCURRENCE_MAX_AGE_MS) {
     throw new IdentityError('validation', 'Report occurred_at is too old.');
   }
+  return occurredAt;
+}
+
+function checkIntakeMessage(body: Record<string, unknown>): string {
   const message = body['message'];
   if (typeof message !== 'string' || message.length === 0) {
     throw new IdentityError('validation', 'Report needs a non-empty message.');
@@ -160,12 +161,14 @@ export function admitIntakeReport(
   if (message.length > INTAKE_MESSAGE_MAX_CHARS) {
     throw new IdentityError('validation', 'Report message is too long.');
   }
-  const report: AdmittedReport = {
-    projectId: binding.projectId,
-    id,
-    occurredAt,
-    message,
-  };
+  return message;
+}
+
+function intakeOptionalFields(
+  binding: IntakeBinding,
+  body: Record<string, unknown>,
+): { stack?: string; environment?: string; release?: string; fingerprint?: string } {
+  const optional: { stack?: string; environment?: string; release?: string; fingerprint?: string } = {};
   const stack = body['stack'];
   if (stack !== undefined) {
     if (typeof stack !== 'string') {
@@ -174,7 +177,7 @@ export function admitIntakeReport(
     if (stack.length > INTAKE_STACK_MAX_CHARS) {
       throw new IdentityError('validation', 'Report stack is too long.');
     }
-    (report as { stack?: string }).stack = stack;
+    optional.stack = stack;
   }
   const environment = body['environment'];
   if (environment !== undefined) {
@@ -184,7 +187,7 @@ export function admitIntakeReport(
     if (binding.environments !== undefined && !binding.environments.includes(environment)) {
       throw new IdentityError('validation', 'Report environment is not allowed for this project.');
     }
-    (report as { environment?: string }).environment = environment;
+    optional.environment = environment;
   }
   const release = body['release'];
   if (release !== undefined) {
@@ -194,16 +197,36 @@ export function admitIntakeReport(
     if (binding.releases !== undefined && !binding.releases.includes(release)) {
       throw new IdentityError('validation', 'Report release is not allowed for this project.');
     }
-    (report as { release?: string }).release = release;
+    optional.release = release;
   }
   const fingerprint = body['fingerprint'];
   if (fingerprint !== undefined) {
     if (typeof fingerprint !== 'string' || fingerprint.length === 0) {
       throw new IdentityError('validation', 'Report fingerprint must be a non-empty string.');
     }
-    (report as { fingerprint?: string }).fingerprint = fingerprint;
+    optional.fingerprint = fingerprint;
   }
-  return report;
+  return optional;
+}
+
+export function admitIntakeReport(
+  binding: IntakeBinding,
+  body: unknown,
+  nowMs: number,
+): AdmittedReport {
+  if (!isRecord(body)) {
+    throw new IdentityError('validation', 'Report must be a JSON object.');
+  }
+  const id = checkIntakeIdentity(body);
+  const occurredAt = checkIntakeOccurred(body, nowMs);
+  const message = checkIntakeMessage(body);
+  return {
+    projectId: binding.projectId,
+    id,
+    occurredAt,
+    message,
+    ...intakeOptionalFields(binding, body),
+  };
 }
 
 /** Authored unknown/method response: `not_found`, never a 405 oracle. */

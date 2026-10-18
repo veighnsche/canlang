@@ -86,6 +86,50 @@ interface LiveRun {
 export function createBoundTextGenerationAdapter(options: BoundTextGenerationOptions): BoundTextGenerationAdapter {
   const expected = Object.freeze({ ...options.binding });
   const runs = new Map<string, LiveRun>();
+  const readTextControlDeclaration = (intent: OutboxIntent, bindingName: string) => {
+    const app = member(options.appDefinition, 'id');
+    const binding = member(member(options.appDefinition, 'bindings'), bindingName);
+    const capability = member(member(options.appDefinition, 'capabilities'), CAPABILITY);
+    const version = member(capability, 'version');
+    const operation = member(member(capability, 'operations'), intent.target.slice(`${CAPABILITY}.`.length));
+    const inputs = member(operation, 'inputs');
+    const contracts = member(options.appDefinition, 'contracts');
+    const enums = member(options.appDefinition, 'enums') ?? {};
+    const leaves = deliveryResultLeaves('TextRun');
+    const fields = member(member(contracts, 'TextRun'), 'fields');
+    return { app, binding, capability, version, operation, inputs, contracts, enums, leaves, fields };
+  };
+  const checkTextControlIdentity = (
+    intent: OutboxIntent, carrierFrom: unknown, reads: ReturnType<typeof readTextControlDeclaration>,
+  ): boolean => {
+    if (typeof reads.app !== 'string' || reads.app === '' ||
+        member(member(options.appDefinition, 'operations'), intent.operation) === undefined ||
+        member(reads.binding, 'capability') !== CAPABILITY || member(reads.binding, 'from') !== carrierFrom ||
+        expected.capability !== CAPABILITY || expected.capabilityVersion !== STD_TEXT_GENERATION_V1_VERSION ||
+        expected.account === '' || expected.deployment === '' ||
+        (reads.version !== STD_TEXT_GENERATION_V1_VERSION && reads.version !== BigInt(STD_TEXT_GENERATION_V1_VERSION))) return false;
+    return true;
+  };
+  const checkTextControlShape = (reads: ReturnType<typeof readTextControlDeclaration>): boolean => {
+    if (member(member(reads.operation, 'result'), 'type') !== 'TextRun' || !record(reads.inputs) ||
+        Object.keys(reads.inputs).length !== 2 || member(member(reads.inputs, 'source'), 'type') !== 'text' ||
+        member(member(reads.inputs, 'revision'), 'type') !== 'int' || !record(reads.contracts) || !record(reads.enums) ||
+        reads.leaves === null || !record(reads.fields) || Object.keys(reads.fields).length !== reads.leaves.length ||
+        !reads.leaves.every(leaf => member(member(reads.fields, leaf.name), 'type') === leaf.type)) return false;
+    return true;
+  };
+  const checkTextControlInstalled = (installed: ReturnType<ResolveInstalledTextGeneration>): boolean => {
+    if (installed === null || installed.binding.deployment !== expected.deployment || installed.binding.account !== expected.account ||
+        installed.binding.capability !== CAPABILITY || installed.binding.capabilityVersion !== expected.capabilityVersion) return false;
+    const profile = installed.profile;
+    if ([profile.name, profile.policyRevision, profile.provider, profile.model].some(value => typeof value !== 'string' || value === '') ||
+        profile.inputTokenization !== 'deployment' || profile.attachments !== 'unsupported' ||
+        !Number.isSafeInteger(profile.maxInputTokens) || profile.maxInputTokens <= 0 ||
+        !Number.isSafeInteger(profile.maxOutputTokens) || profile.maxOutputTokens <= 0 ||
+        !Number.isSafeInteger(profile.maxDurationMs) || profile.maxDurationMs <= 0 ||
+        typeof installed.text.generateStream !== 'function' || typeof installed.text.reconcile !== 'function') return false;
+    return true;
+  };
   const resolveControl = (intent: OutboxIntent) => {
     try {
       if (![`${CAPABILITY}.cancel`, `${CAPABILITY}.reconcile`].includes(intent.target) || intent.intentId === '' ||
@@ -93,99 +137,133 @@ export function createBoundTextGenerationAdapter(options: BoundTextGenerationOpt
       const carrier = intent.arguments;
       if (typeof carrier['binding'] !== 'string' || carrier['from'] !== expected.deployment ||
           !closed(carrier['arguments'], ['source', 'revision'])) return null;
-      const app = member(options.appDefinition, 'id');
-      const binding = member(member(options.appDefinition, 'bindings'), carrier['binding']);
-      const capability = member(member(options.appDefinition, 'capabilities'), CAPABILITY);
-      const version = member(capability, 'version');
-      const operation = member(member(capability, 'operations'), intent.target.slice(`${CAPABILITY}.`.length));
-      const inputs = member(operation, 'inputs');
-      const contracts = member(options.appDefinition, 'contracts');
-      const enums = member(options.appDefinition, 'enums') ?? {};
-      const leaves = deliveryResultLeaves('TextRun');
-      const fields = member(member(contracts, 'TextRun'), 'fields');
-      if (typeof app !== 'string' || app === '' ||
-          member(member(options.appDefinition, 'operations'), intent.operation) === undefined ||
-          member(binding, 'capability') !== CAPABILITY || member(binding, 'from') !== carrier['from'] ||
-          expected.capability !== CAPABILITY || expected.capabilityVersion !== STD_TEXT_GENERATION_V1_VERSION ||
-          expected.account === '' || expected.deployment === '' ||
-          (version !== STD_TEXT_GENERATION_V1_VERSION && version !== BigInt(STD_TEXT_GENERATION_V1_VERSION)) ||
-          member(member(operation, 'result'), 'type') !== 'TextRun' || !record(inputs) ||
-          Object.keys(inputs).length !== 2 || member(member(inputs, 'source'), 'type') !== 'text' ||
-          member(member(inputs, 'revision'), 'type') !== 'int' || !record(contracts) || !record(enums) ||
-          leaves === null || !record(fields) || Object.keys(fields).length !== leaves.length ||
-          !leaves.every(leaf => member(member(fields, leaf.name), 'type') === leaf.type)) return null;
-      const schema = normalizeSchema({ contracts, enums, operations: { [intent.target]: { inputs } } } as SchemaDescriptor);
+      const reads = readTextControlDeclaration(intent, carrier['binding']);
+      if (!checkTextControlIdentity(intent, carrier['from'], reads) || !checkTextControlShape(reads)) return null;
+      // Type narrowing only; all conditions were already rejected above.
+      if (typeof reads.app !== 'string' || reads.leaves === null ||
+          !record(reads.contracts) || !record(reads.inputs)) return null;
+      const schema = normalizeSchema({ contracts: reads.contracts, enums: reads.enums,
+        operations: { [intent.target]: { inputs: reads.inputs } } } as SchemaDescriptor);
       const checked = validateOperationInput(schema, intent.target, carrier['arguments']);
       if (typeof checked['source'] !== 'string' || checked['source'] === '') return null;
       const revision = encodeValue('int', BigInt(safeInt(checked['revision'], 0))) as string;
       const installed = options.resolveInstalledTextGeneration(expected.deployment);
-      if (installed === null || installed.binding.deployment !== expected.deployment || installed.binding.account !== expected.account ||
-          installed.binding.capability !== CAPABILITY || installed.binding.capabilityVersion !== expected.capabilityVersion) return null;
-      const profile = installed.profile;
-      if ([profile.name, profile.policyRevision, profile.provider, profile.model].some(value => typeof value !== 'string' || value === '') ||
-          profile.inputTokenization !== 'deployment' || profile.attachments !== 'unsupported' ||
-          !Number.isSafeInteger(profile.maxInputTokens) || profile.maxInputTokens <= 0 ||
-          !Number.isSafeInteger(profile.maxOutputTokens) || profile.maxOutputTokens <= 0 ||
-          !Number.isSafeInteger(profile.maxDurationMs) || profile.maxDurationMs <= 0 ||
-          typeof installed.text.generateStream !== 'function' || typeof installed.text.reconcile !== 'function') return null;
-      return { app, binding: carrier['binding'], from: carrier['from'], installed,
-        context: Object.freeze({ source: intent.target, declaredResult: Object.freeze({ name: 'TextRun', fields: leaves }),
+      if (!checkTextControlInstalled(installed)) return null;
+      if (installed === null) return null;
+      return { app: reads.app, binding: carrier['binding'], from: carrier['from'], installed,
+        context: Object.freeze({ source: intent.target,
+          declaredResult: Object.freeze({ name: 'TextRun', fields: reads.leaves }),
           request: Object.freeze({ source: checked['source'], revision }) }) satisfies ReceiptResultContext };
     } catch { return null; }
+  };
+  const readTextSubmitBinding = (bindingName: string) =>
+    member(member(options.appDefinition, 'bindings'), bindingName);
+  const checkTextSubmitBinding = (
+    carrierFrom: unknown, declared: ReturnType<typeof readTextSubmitBinding>,
+  ): boolean => {
+    if (member(declared, 'capability') !== CAPABILITY || member(declared, 'from') !== carrierFrom ||
+        expected.capability !== CAPABILITY || expected.capabilityVersion !== STD_TEXT_GENERATION_V1_VERSION ||
+        expected.account === '' || expected.deployment === '') return false;
+    return true;
+  };
+  const readTextSubmitCapability = () => {
+    const capability = member(member(options.appDefinition, 'capabilities'), CAPABILITY);
+    return { capability, version: member(capability, 'version') };
+  };
+  const checkTextSubmitVersion = (reads: ReturnType<typeof readTextSubmitCapability>): boolean =>
+    reads.version === STD_TEXT_GENERATION_V1_VERSION || reads.version === BigInt(STD_TEXT_GENERATION_V1_VERSION);
+  const readTextSubmitResult = (capability: unknown) => {
+    const operation = member(member(capability, 'operations'), 'generate');
+    return { operation, resultType: member(member(operation, 'result'), 'type') };
+  };
+  const checkTextSubmitResult = (reads: ReturnType<typeof readTextSubmitResult>): boolean => reads.resultType === 'TextRun';
+  const readTextSubmitDescriptor = (operation: unknown) => {
+    const inputs = member(operation, 'inputs');
+    const contracts = member(options.appDefinition, 'contracts');
+    const enums = member(options.appDefinition, 'enums') ?? {};
+    const leaves = deliveryResultLeaves('TextRun');
+    const resultFields = member(member(contracts, 'TextRun'), 'fields');
+    return { inputs, contracts, enums, leaves, resultFields };
+  };
+  const checkTextSubmitDescriptor = (reads: ReturnType<typeof readTextSubmitDescriptor>): boolean => {
+    if (!record(reads.inputs) || !record(reads.contracts) || !record(reads.enums)) return false;
+    if (reads.leaves === null || !record(reads.resultFields) || Object.keys(reads.resultFields).length !== reads.leaves.length ||
+        !reads.leaves.every(leaf => member(member(reads.resultFields, leaf.name), 'type') === leaf.type)) return false;
+    return true;
+  };
+  interface CheckedTextValue {
+    readonly source: string;
+    readonly profile: string;
+    readonly policy_revision: string;
+    readonly messages: readonly unknown[];
+    readonly max_duration: bigint;
+    readonly revision: unknown;
+    readonly max_input_tokens: unknown;
+    readonly max_output_tokens: unknown;
+  }
+  const readTextSubmitValue = (
+    carrier: OutboxIntent['arguments'], contracts: Record<string, unknown>, enums: unknown,
+    inputs: Record<string, unknown>,
+  ): CheckedTextValue | null => {
+    const schema = normalizeSchema({ contracts, enums,
+      operations: { [TARGET]: { inputs } } } as SchemaDescriptor);
+    const checked = validateOperationInput(schema, TARGET, carrier['arguments']);
+    const value = checked['value'];
+    if (!record(value) || typeof value['source'] !== 'string' || value['source'] === '' ||
+        typeof value['profile'] !== 'string' || typeof value['policy_revision'] !== 'string' ||
+        !Array.isArray(value['messages']) || value['messages'].length === 0) return null;
+    const duration = value['max_duration'];
+    if (typeof duration !== 'bigint' || duration <= 0n) return null;
+    return value as unknown as CheckedTextValue;
+  };
+  const checkTextMessage = (message: unknown): TextMessage => {
+    if (!record(message) || !['system', 'user', 'assistant'].includes(String(message['role'])) ||
+        typeof message['content'] !== 'string' || !Array.isArray(message['attachments']) || message['attachments'].length !== 0) {
+      throw new Error('Text generation requires supported messages without attachments.');
+    }
+    return { role: message['role'] as TextMessage['role'], content: message['content'], attachments: [] };
+  };
+  const buildTextRequest = (value: CheckedTextValue): TextRequest => {
+    const messages: TextMessage[] = value.messages.map(checkTextMessage);
+    return { source: value.source, revision: safeInt(value.revision, 0),
+      profile: value.profile, policy_revision: value.policy_revision, messages,
+      max_input_tokens: safeInt(value.max_input_tokens, 1), max_output_tokens: safeInt(value.max_output_tokens, 1),
+      max_duration: value.max_duration };
+  };
+  const checkTextSubmitInstalled = (installed: ReturnType<ResolveInstalledTextGeneration>, input: TextRequest): boolean => {
+    if (installed === null || installed.binding.deployment !== expected.deployment || installed.binding.capability !== CAPABILITY ||
+        installed.binding.capabilityVersion !== expected.capabilityVersion || installed.binding.account !== expected.account) return false;
+    const profile = installed.profile;
+    if (profile.name !== input.profile || profile.policyRevision !== input.policy_revision || profile.model === '' || profile.provider === '' ||
+        profile.inputTokenization !== 'deployment' || profile.attachments !== 'unsupported' ||
+        !Number.isSafeInteger(profile.maxInputTokens) || !Number.isSafeInteger(profile.maxOutputTokens) ||
+        !Number.isSafeInteger(profile.maxDurationMs) || input.max_input_tokens > profile.maxInputTokens ||
+        input.max_output_tokens > profile.maxOutputTokens || input.max_duration > BigInt(profile.maxDurationMs) ||
+        typeof installed.text.generateStream !== 'function' || typeof installed.text.reconcile !== 'function') return false;
+    return true;
   };
   const resolve = (intent: OutboxIntent): Resolved | null => {
     try {
       if (intent.target !== TARGET || intent.intentId === '' || !closed(intent.arguments, ['binding', 'from', 'arguments'])) return null;
       const carrier = intent.arguments;
       if (typeof carrier['binding'] !== 'string' || carrier['from'] !== expected.deployment || !record(carrier['arguments'])) return null;
-      const declared = member(member(options.appDefinition, 'bindings'), carrier['binding']);
-      if (member(declared, 'capability') !== CAPABILITY || member(declared, 'from') !== carrier['from'] ||
-          expected.capability !== CAPABILITY || expected.capabilityVersion !== STD_TEXT_GENERATION_V1_VERSION ||
-          expected.account === '' || expected.deployment === '') return null;
-      const capability = member(member(options.appDefinition, 'capabilities'), CAPABILITY);
-      const version = member(capability, 'version');
-      if (version !== STD_TEXT_GENERATION_V1_VERSION && version !== BigInt(STD_TEXT_GENERATION_V1_VERSION)) return null;
-      const operation = member(member(capability, 'operations'), 'generate');
-      if (member(member(operation, 'result'), 'type') !== 'TextRun') return null;
-      const inputs = member(operation, 'inputs');
-      const contracts = member(options.appDefinition, 'contracts');
-      const enums = member(options.appDefinition, 'enums') ?? {};
-      if (!record(inputs) || !record(contracts) || !record(enums)) return null;
-      const leaves = deliveryResultLeaves('TextRun');
-      const resultFields = member(member(contracts, 'TextRun'), 'fields');
-      if (leaves === null || !record(resultFields) || Object.keys(resultFields).length !== leaves.length ||
-          !leaves.every(leaf => member(member(resultFields, leaf.name), 'type') === leaf.type)) return null;
-      const schema = normalizeSchema({ contracts, enums, operations: { [TARGET]: { inputs } } } as SchemaDescriptor);
-      const checked = validateOperationInput(schema, TARGET, carrier['arguments']);
-      const value = checked['value'];
-      if (!record(value) || typeof value['source'] !== 'string' || value['source'] === '' ||
-          typeof value['profile'] !== 'string' || typeof value['policy_revision'] !== 'string' ||
-          !Array.isArray(value['messages']) || value['messages'].length === 0) return null;
-      const messages: TextMessage[] = value['messages'].map(message => {
-        if (!record(message) || !['system', 'user', 'assistant'].includes(String(message['role'])) ||
-            typeof message['content'] !== 'string' || !Array.isArray(message['attachments']) || message['attachments'].length !== 0) {
-          throw new Error('Text generation requires supported messages without attachments.');
-        }
-        return { role: message['role'] as TextMessage['role'], content: message['content'], attachments: [] };
-      });
-      const duration = value['max_duration'];
-      if (typeof duration !== 'bigint' || duration <= 0n) return null;
-      const input: TextRequest = { source: value['source'], revision: safeInt(value['revision'], 0),
-        profile: value['profile'], policy_revision: value['policy_revision'], messages,
-        max_input_tokens: safeInt(value['max_input_tokens'], 1), max_output_tokens: safeInt(value['max_output_tokens'], 1),
-        max_duration: duration };
+      const declared = readTextSubmitBinding(carrier['binding']);
+      if (!checkTextSubmitBinding(carrier['from'], declared)) return null;
+      const capabilityReads = readTextSubmitCapability();
+      if (!checkTextSubmitVersion(capabilityReads)) return null;
+      const resultReads = readTextSubmitResult(capabilityReads.capability);
+      if (!checkTextSubmitResult(resultReads)) return null;
+      const descriptor = readTextSubmitDescriptor(resultReads.operation);
+      if (!checkTextSubmitDescriptor(descriptor)) return null;
+      // Type narrowing only; all conditions were already rejected above.
+      if (!record(descriptor.contracts) || !record(descriptor.inputs) || descriptor.leaves === null || !record(descriptor.resultFields)) return null;
+      const value = readTextSubmitValue(carrier, descriptor.contracts, descriptor.enums, descriptor.inputs);
+      if (value === null) return null;
+      const input = buildTextRequest(value);
       const installed = options.resolveInstalledTextGeneration(expected.deployment);
-      if (installed === null || installed.binding.deployment !== expected.deployment || installed.binding.capability !== CAPABILITY ||
-          installed.binding.capabilityVersion !== expected.capabilityVersion || installed.binding.account !== expected.account) return null;
-      const profile = installed.profile;
-      if (profile.name !== input.profile || profile.policyRevision !== input.policy_revision || profile.model === '' || profile.provider === '' ||
-          profile.inputTokenization !== 'deployment' || profile.attachments !== 'unsupported' ||
-          !Number.isSafeInteger(profile.maxInputTokens) || !Number.isSafeInteger(profile.maxOutputTokens) ||
-          !Number.isSafeInteger(profile.maxDurationMs) || input.max_input_tokens > profile.maxInputTokens ||
-          input.max_output_tokens > profile.maxOutputTokens || duration > BigInt(profile.maxDurationMs) ||
-          typeof installed.text.generateStream !== 'function' || typeof installed.text.reconcile !== 'function') return null;
+      if (installed === null || !checkTextSubmitInstalled(installed, input)) return null;
       const context: ReceiptResultContext = Object.freeze({ source: TARGET,
-        declaredResult: Object.freeze({ name: 'TextRun', fields: leaves }),
+        declaredResult: Object.freeze({ name: 'TextRun', fields: descriptor.leaves }),
         request: Object.freeze({ source: input.source, revision: encodeValue('int', BigInt(input.revision)) as string }) });
       return { installed, input, context };
     } catch { return null; }
@@ -200,6 +278,79 @@ export function createBoundTextGenerationAdapter(options: BoundTextGenerationOpt
       maxInputTokens: resolved.installed.profile.maxInputTokens, maxOutputTokens: resolved.installed.profile.maxOutputTokens,
       maxDurationMs: resolved.installed.profile.maxDurationMs },
   });
+  const checkControlCallShape = (call: BoundTextGenerationControlCallOptions): boolean => {
+    if (!record(call) || !closed(call.observation, ['startedAtMs', 'deadlineMs']) ||
+        !closed(call.originalScope, ['app', 'owner', 'principal']) ||
+        (call.retainedProgress !== null && !record(call.retainedProgress))) return false;
+    return true;
+  };
+  const checkControlPair = (
+    control: OutboxIntent, original: OutboxIntent, call: BoundTextGenerationControlCallOptions,
+    invocation: ReturnType<typeof resolveControl>, resolved: Resolved | null,
+  ): boolean => {
+    if (invocation === null || resolved === null || control.intentId === original.intentId ||
+        call.originalScope.app !== invocation.app || typeof call.originalScope.owner !== 'string' || call.originalScope.owner === '' ||
+        typeof call.originalScope.principal !== 'string' || call.originalScope.principal === '' ||
+        member(member(options.appDefinition, 'operations'), original.operation) === undefined ||
+        invocation.context.request!.source !== resolved.context.request!.source ||
+        invocation.context.request!.revision !== resolved.context.request!.revision ||
+        control.arguments['binding'] !== original.arguments['binding'] || control.arguments['from'] !== original.arguments['from'] ||
+        typeof call.nowMs !== 'function' || typeof call.onProgress !== 'function') return false;
+    return true;
+  };
+  const readControlWindow = (
+    call: BoundTextGenerationControlCallOptions, invocation: NonNullable<ReturnType<typeof resolveControl>>,
+    resolved: Resolved,
+  ) => {
+    const { startedAtMs, deadlineMs } = call.observation;
+    const span = deadlineMs - startedAtMs;
+    let now: number;
+    try { now = call.nowMs(); } catch { return null; }
+    if (!Number.isSafeInteger(startedAtMs) || startedAtMs < 0 || !Number.isSafeInteger(deadlineMs) ||
+        !Number.isSafeInteger(span) || span <= 0 || span > invocation.installed.profile.maxDurationMs ||
+        !Number.isSafeInteger(now) || now < startedAtMs || now >= deadlineMs) return null;
+    const retained = call.retainedProgress;
+    if (retained !== null && !isTextRunReceiptPayload(retained.state === 'queued' || retained.state === 'running' ? 'pending'
+      : retained.state === 'unknown' ? 'unknown' : 'succeeded', retained, null, resolved.context)) return null;
+    return { startedAtMs, deadlineMs, now, retained };
+  };
+  const observeSettledRun = async (
+    isCurrent: () => boolean, run: LiveRun, handle: ModelRunHandle,
+    control: OutboxIntent, original: OutboxIntent, call: BoundTextGenerationControlCallOptions,
+  ): Promise<DispatchProviderOutcome> => {
+    if (handle.deliveryId !== original.intentId) return { kind: 'uncertain' };
+    if (control.target === `${CAPABILITY}.cancel` && call.recovering !== true && !run.settled && !handle.cancelRequested) {
+      await handle.cancel();
+      if (!isCurrent()) return { kind: 'uncertain' };
+    }
+    const outcome = await run.result;
+    if (!isCurrent()) return { kind: 'uncertain' };
+    if (outcome.kind === 'delivered') {
+      await call.onProgress(outcome.result as TextRunWire);
+      if (!isCurrent()) return { kind: 'uncertain' };
+    }
+    return outcome;
+  };
+  const observeLiveRun = async (
+    isCurrent: () => boolean, retained: TextRunWire | null, run: LiveRun | undefined,
+    control: OutboxIntent, original: OutboxIntent, call: BoundTextGenerationControlCallOptions,
+    resolved: Resolved,
+  ): Promise<DispatchProviderOutcome> => {
+    if (!isCurrent()) return { kind: 'uncertain' };
+    if (retained !== null && ['succeeded', 'failed', 'cancelled'].includes(retained.state)) {
+      return { kind: 'delivered', result: retained };
+    }
+    const handle = run?.handle;
+    if (handle !== undefined && handle !== null && run !== undefined) {
+      return observeSettledRun(isCurrent, run, handle, control, original, call);
+    }
+    const completion = await resolved.installed.text.reconcile(original.intentId);
+    if (!isCurrent() || completion.delivery_id !== original.intentId || completion.status !== 'unknown' ||
+        completion.result !== null || completion.error?.code !== 'no_run_resume') return { kind: 'uncertain' };
+    // No-resume is an absence of evidence, not an ordered progress
+    // observation. Preserve the original retained content and usage.
+    return { kind: 'uncertain' };
+  };
   return {
     available: intent => resolve(intent) !== null || resolveControl(intent) !== null,
     resultContext: intent => resolve(intent)?.context ?? resolveControl(intent)?.context ?? null,
@@ -217,28 +368,14 @@ export function createBoundTextGenerationAdapter(options: BoundTextGenerationOpt
         ? Object.freeze({ startedAtMs, deadlineMs }) : null;
     },
     async observeControl(control, original, call) {
-      if (!record(call) || !closed(call.observation, ['startedAtMs', 'deadlineMs']) ||
-          !closed(call.originalScope, ['app', 'owner', 'principal']) ||
-          (call.retainedProgress !== null && !record(call.retainedProgress))) return { kind: 'uncertain' };
+      if (!checkControlCallShape(call)) return { kind: 'uncertain' };
       const invocation = resolveControl(control), resolved = resolve(original);
-      if (invocation === null || resolved === null || control.intentId === original.intentId ||
-          call.originalScope.app !== invocation.app || typeof call.originalScope.owner !== 'string' || call.originalScope.owner === '' ||
-          typeof call.originalScope.principal !== 'string' || call.originalScope.principal === '' ||
-          member(member(options.appDefinition, 'operations'), original.operation) === undefined ||
-          invocation.context.request!.source !== resolved.context.request!.source ||
-          invocation.context.request!.revision !== resolved.context.request!.revision ||
-          control.arguments['binding'] !== original.arguments['binding'] || control.arguments['from'] !== original.arguments['from'] ||
-          typeof call.nowMs !== 'function' || typeof call.onProgress !== 'function') return { kind: 'uncertain' };
-      const { startedAtMs, deadlineMs } = call.observation;
-      const span = deadlineMs - startedAtMs;
-      let now: number;
-      try { now = call.nowMs(); } catch { return { kind: 'uncertain' }; }
-      if (!Number.isSafeInteger(startedAtMs) || startedAtMs < 0 || !Number.isSafeInteger(deadlineMs) ||
-          !Number.isSafeInteger(span) || span <= 0 || span > invocation.installed.profile.maxDurationMs ||
-          !Number.isSafeInteger(now) || now < startedAtMs || now >= deadlineMs) return { kind: 'uncertain' };
-      const retained = call.retainedProgress;
-      if (retained !== null && !isTextRunReceiptPayload(retained.state === 'queued' || retained.state === 'running' ? 'pending'
-        : retained.state === 'unknown' ? 'unknown' : 'succeeded', retained, null, resolved.context)) return { kind: 'uncertain' };
+      if (!checkControlPair(control, original, call, invocation, resolved)) return { kind: 'uncertain' };
+      // Type narrowing only; both conditions were already rejected above.
+      if (invocation === null || resolved === null) return { kind: 'uncertain' };
+      const window = readControlWindow(call, invocation, resolved);
+      if (window === null) return { kind: 'uncertain' };
+      const { startedAtMs, deadlineMs, now, retained } = window;
       const run = runs.get(original.intentId);
       if (run !== undefined && run.identity !== identity(original, resolved)) return { kind: 'uncertain' };
       // This fixed remaining budget includes cancel, the original run's durable
@@ -280,33 +417,8 @@ export function createBoundTextGenerationAdapter(options: BoundTextGenerationOpt
         remainingBudget = Math.min(deadlineMs - now, deadlineMs - timerNow);
         monotonicStart = performance.now();
         arm();
-        const observe = async (): Promise<DispatchProviderOutcome> => {
-          if (!current()) return { kind: 'uncertain' };
-          if (retained !== null && ['succeeded', 'failed', 'cancelled'].includes(retained.state)) {
-            return { kind: 'delivered', result: retained };
-          }
-          const handle = run?.handle;
-          if (handle !== undefined && handle !== null && run !== undefined) {
-            if (handle.deliveryId !== original.intentId) return { kind: 'uncertain' };
-            if (control.target === `${CAPABILITY}.cancel` && call.recovering !== true && !run.settled && !handle.cancelRequested) {
-              await handle.cancel();
-              if (!current()) return { kind: 'uncertain' };
-            }
-            const outcome = await run.result;
-            if (!current()) return { kind: 'uncertain' };
-            if (outcome.kind === 'delivered') {
-              await call.onProgress(outcome.result as TextRunWire);
-              if (!current()) return { kind: 'uncertain' };
-            }
-            return outcome;
-          }
-          const completion = await resolved.installed.text.reconcile(original.intentId);
-          if (!current() || completion.delivery_id !== original.intentId || completion.status !== 'unknown' ||
-              completion.result !== null || completion.error?.code !== 'no_run_resume') return { kind: 'uncertain' };
-          // No-resume is an absence of evidence, not an ordered progress
-          // observation. Preserve the original retained content and usage.
-          return { kind: 'uncertain' };
-        };
+        const observe = (): Promise<DispatchProviderOutcome> =>
+          observeLiveRun(current, retained, run, control, original, call, resolved);
         void observe().then(outcome => done(current() ? outcome : { kind: 'uncertain' }), () => done({ kind: 'uncertain' }));
       });
     },
@@ -371,7 +483,8 @@ export function createBoundTextGenerationAdapter(options: BoundTextGenerationOpt
           await queue;
           if (progressFailure !== undefined) throw progressFailure;
           if (completion.delivery_id !== intent.intentId) return { kind: 'uncertain' };
-          if (completion.status === 'succeeded' && completion.error === null && completion.result !== null) {
+          const deliverSucceededResult = async (): Promise<DispatchProviderOutcome | null> => {
+            if (!(completion.status === 'succeeded' && completion.error === null && completion.result !== null)) return null;
             const reply = completion.result;
             const snapshot = terminal.snapshot;
             if (reply.model !== resolved.installed.profile.model || snapshot === null || snapshot.state !== 'succeeded' || snapshot.content !== reply.content) {
@@ -392,8 +505,9 @@ export function createBoundTextGenerationAdapter(options: BoundTextGenerationOpt
               if (progressFailure !== undefined) throw progressFailure;
             }
             return { kind: 'delivered', result: latest() };
-          }
-          if (completion.status === 'failed' && completion.result === null && completion.error !== null) {
+          };
+          const deliverFailedResult = async (): Promise<DispatchProviderOutcome | null> => {
+            if (!(completion.status === 'failed' && completion.result === null && completion.error !== null)) return null;
             const snapshot = terminal.snapshot;
             if (snapshot !== null && (snapshot.state === 'failed' || snapshot.state === 'cancelled')) {
               emit(snapshot, null, snapshot.state === 'cancelled'
@@ -405,7 +519,11 @@ export function createBoundTextGenerationAdapter(options: BoundTextGenerationOpt
             if (snapshot !== null) return { kind: 'uncertain' };
             return { kind: 'failed', cause: { kind: 'permanent', code: completion.error.code,
               message: 'Installed text generation failed.' } };
-          }
+          };
+          const succeeded = await deliverSucceededResult();
+          if (succeeded !== null) return succeeded;
+          const failed = await deliverFailedResult();
+          if (failed !== null) return failed;
           return { kind: 'uncertain' };
         } catch (error) {
           if (progressFailure !== undefined) throw progressFailure;

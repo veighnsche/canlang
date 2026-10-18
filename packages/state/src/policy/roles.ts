@@ -64,17 +64,34 @@ export async function hasRole(
  * caller forms observe the same current admission state. Row subjects require
  * a context bound by withPolicyRow to the validated owning model policy.
  */
+function evaluateTeamGate(by: 'members' | 'owner', ctx: ByContext): boolean {
+  if (ctx.actorUserId === null || ctx.teamId === null || ctx.membership === null) return false;
+  if (ctx.membership.team_id !== ctx.teamId || ctx.membership.status !== 'active') return false;
+  return by === 'members' || ctx.membership.is_owner;
+}
+
+async function evaluateRoleSubject(
+  by: Extract<ByPredicate, { roleSubject: { role: string; person: unknown } }>,
+  ctx: ByContext,
+): Promise<boolean> {
+  const subject = by.roleSubject.person;
+  const person = typeof subject === 'string' ? subject : resolvePolicyRowSubject(ctx, subject);
+  // A nullable row subject is absent; it never substitutes the caller.
+  if (person === null) return false;
+  return hasRole(
+    { actorUserId: ctx.actorUserId, teamId: ctx.teamId, memberships: ctx.memberships },
+    by.roleSubject.role,
+    person,
+  );
+}
+
 export async function evaluateBy(
   by: ByPredicate,
   ctx: ByContext,
 ): Promise<boolean> {
   if (by === 'public') return true;
   if (by === 'authenticated') return ctx.actorUserId !== null;
-  if (by === 'members' || by === 'owner') {
-    if (ctx.actorUserId === null || ctx.teamId === null || ctx.membership === null) return false;
-    if (ctx.membership.team_id !== ctx.teamId || ctx.membership.status !== 'active') return false;
-    return by === 'members' || ctx.membership.is_owner;
-  }
+  if (by === 'members' || by === 'owner') return evaluateTeamGate(by, ctx);
   if ('and' in by) {
     for (const term of by.and) {
       if (!(await evaluateBy(term, ctx))) return false;
@@ -94,15 +111,7 @@ export async function evaluateBy(
       by.role,
     );
   }
-  const subject = by.roleSubject.person;
-  const person = typeof subject === 'string' ? subject : resolvePolicyRowSubject(ctx, subject);
-  // A nullable row subject is absent; it never substitutes the caller.
-  if (person === null) return false;
-  return hasRole(
-    { actorUserId: ctx.actorUserId, teamId: ctx.teamId, memberships: ctx.memberships },
-    by.roleSubject.role,
-    person,
-  );
+  return evaluateRoleSubject(by, ctx);
 }
 
 /** Classify recursively without evaluating or resolving any subjects. */
@@ -169,45 +178,15 @@ export function validateByPredicate(by: ByPredicate, what: string): void {
   }
   const key = keys[0];
   if (key === 'role') {
-    const role = (by as { role: unknown }).role;
-    if (typeof role !== 'string' || role === '') {
-      throw new Error(`Invalid ${what}: role needs a non-empty role name.`);
-    }
+    checkRoleName(by, what);
     return;
   }
   if (key === 'roleSubject') {
-    const subject = (by as { roleSubject: unknown }).roleSubject;
-    if (typeof subject !== 'object' || subject === null || Array.isArray(subject)) {
-      throw new Error(`Invalid ${what}: roleSubject needs { role, person }.`);
-    }
-    const { role, person } = subject as { role: unknown; person: unknown };
-    if (typeof role !== 'string' || role === '' || person === '') {
-      throw new Error(`Invalid ${what}: roleSubject needs non-empty role and person.`);
-    }
-    if (typeof person === 'string') return;
-    if (typeof person !== 'object' || person === null || Array.isArray(person)) {
-      throw new Error(`Invalid ${what}: roleSubject person needs a static user id or { model, field }.`);
-    }
-    const descriptors = Object.getOwnPropertyDescriptors(person);
-    const model = descriptors['model'];
-    const field = descriptors['field'];
-    if (Reflect.ownKeys(person).length !== 2 || model === undefined || !('value' in model) ||
-      typeof model.value !== 'string' || model.value === '' || field === undefined || !('value' in field) ||
-      typeof field.value !== 'string' || field.value === '' || field.value.includes('.')) {
-      throw new Error(`Invalid ${what}: row subject needs own non-empty model and top-level field data.`);
-    }
+    checkRoleSubject(by, what);
     return;
   }
   if (key === 'and' || key === 'or') {
-    const terms = (by as { and?: unknown; or?: unknown })[key];
-    if (!Array.isArray(terms) || terms.length === 0) {
-      // Empty arrays are rejected (never vacuous): `and: []` would evaluate
-      // to true and silently widen the grant to all callers (fail-open).
-      throw new Error(`Invalid ${what}: ${key} needs a non-empty array of predicates.`);
-    }
-    for (const term of terms) {
-      validateByPredicate(term as ByPredicate, what);
-    }
+    checkJunctionTerms(by, key, what);
     return;
   }
   if (key === 'not') {
@@ -215,4 +194,50 @@ export function validateByPredicate(by: ByPredicate, what: string): void {
     return;
   }
   throw new Error(`Invalid ${what}: unknown by combinator ${JSON.stringify(key)}.`);
+}
+
+function checkRoleName(by: object, what: string): void {
+  const role = (by as { role: unknown }).role;
+  if (typeof role !== 'string' || role === '') {
+    throw new Error(`Invalid ${what}: role needs a non-empty role name.`);
+  }
+}
+
+function checkRowSubjectPerson(person: object, what: string): void {
+  const descriptors = Object.getOwnPropertyDescriptors(person);
+  const model = descriptors['model'];
+  const field = descriptors['field'];
+  if (Reflect.ownKeys(person).length !== 2 || model === undefined || !('value' in model) ||
+    typeof model.value !== 'string' || model.value === '' || field === undefined || !('value' in field) ||
+    typeof field.value !== 'string' || field.value === '' || field.value.includes('.')) {
+    throw new Error(`Invalid ${what}: row subject needs own non-empty model and top-level field data.`);
+  }
+}
+
+function checkRoleSubject(by: object, what: string): void {
+  const subject = (by as { roleSubject: unknown }).roleSubject;
+  if (typeof subject !== 'object' || subject === null || Array.isArray(subject)) {
+    throw new Error(`Invalid ${what}: roleSubject needs { role, person }.`);
+  }
+  const { role, person } = subject as { role: unknown; person: unknown };
+  if (typeof role !== 'string' || role === '' || person === '') {
+    throw new Error(`Invalid ${what}: roleSubject needs non-empty role and person.`);
+  }
+  if (typeof person === 'string') return;
+  if (typeof person !== 'object' || person === null || Array.isArray(person)) {
+    throw new Error(`Invalid ${what}: roleSubject person needs a static user id or { model, field }.`);
+  }
+  checkRowSubjectPerson(person, what);
+}
+
+function checkJunctionTerms(by: object, key: 'and' | 'or', what: string): void {
+  const terms = (by as { and?: unknown; or?: unknown })[key];
+  if (!Array.isArray(terms) || terms.length === 0) {
+    // Empty arrays are rejected (never vacuous): `and: []` would evaluate
+    // to true and silently widen the grant to all callers (fail-open).
+    throw new Error(`Invalid ${what}: ${key} needs a non-empty array of predicates.`);
+  }
+  for (const term of terms) {
+    validateByPredicate(term as ByPredicate, what);
+  }
 }

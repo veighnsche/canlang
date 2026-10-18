@@ -471,6 +471,36 @@ function isHttpUrl(value: string): boolean {
   return parsed.protocol === "http:" || parsed.protocol === "https:";
 }
 
+/** Registry-backed stringlike kinds (locale/timezone/currency). */
+function decodeRegistryStringlike(
+  ctx: DecodeContext,
+  kind: "locale" | "timezone" | "currency",
+  wire: string,
+  path: Path,
+): DecodeOut {
+  switch (kind) {
+    case "locale":
+      try {
+        return canonicalLocale(wire);
+      } catch (err) {
+        if (!(err instanceof ValueError)) {
+          throw err;
+        }
+        return failFormat(ctx, path, "locale", "canonical BCP 47 language tag", wire);
+      }
+    case "timezone":
+      if (!isTimezone(wire)) {
+        return failFormat(ctx, path, "timezone", "a known IANA zone identifier", wire);
+      }
+      return wire;
+    case "currency":
+      if (!isKnownCurrency(wire)) {
+        return failFormat(ctx, path, "currency", "ISO 4217 currency code", wire);
+      }
+      return wire;
+  }
+}
+
 function decodeStringlike(
   ctx: DecodeContext,
   kind: "email" | "url" | "locale" | "timezone" | "currency",
@@ -491,25 +521,8 @@ function decodeStringlike(
         return failFormat(ctx, path, "url", "an http(s) URL", wire);
       }
       return wire;
-    case "locale":
-      try {
-        return canonicalLocale(wire);
-      } catch (err) {
-        if (!(err instanceof ValueError)) {
-          throw err;
-        }
-        return failFormat(ctx, path, "locale", "canonical BCP 47 language tag", wire);
-      }
-    case "timezone":
-      if (!isTimezone(wire)) {
-        return failFormat(ctx, path, "timezone", "a known IANA zone identifier", wire);
-      }
-      return wire;
-    case "currency":
-      if (!isKnownCurrency(wire)) {
-        return failFormat(ctx, path, "currency", "ISO 4217 currency code", wire);
-      }
-      return wire;
+    default:
+      return decodeRegistryStringlike(ctx, kind, wire, path);
   }
 }
 
@@ -573,6 +586,23 @@ function decodeMember(ctx: DecodeContext, wire: unknown, path: Path): DecodeOut 
   if (team === FAIL) {
     ok = false;
   }
+  const memberUser = decodeMemberUser(ctx, wire, path);
+  if (!memberUser.ok) {
+    ok = false;
+  }
+  if (!ok || id === FAIL || team === FAIL || memberUser.user === FAIL) {
+    return FAIL;
+  }
+  return makeMemberRef(id, makeUserRef(memberUser.user), team);
+}
+
+/** Decode the nested `member.user` reference; absent users stay FAIL. */
+function decodeMemberUser(
+  ctx: DecodeContext,
+  wire: Record<string, unknown>,
+  path: Path,
+): { user: string | typeof FAIL; ok: boolean } {
+  let ok = true;
   let user: string | typeof FAIL = FAIL;
   const userRaw = readKey(wire, "user");
   if (userRaw.present) {
@@ -592,10 +622,7 @@ function decodeMember(ctx: DecodeContext, wire: unknown, path: Path): DecodeOut 
       }
     }
   }
-  if (!ok || id === FAIL || team === FAIL || user === FAIL) {
-    return FAIL;
-  }
-  return makeMemberRef(id, makeUserRef(user), team);
+  return { user, ok };
 }
 
 function decodeDelivery(ctx: DecodeContext, operation: string | null, wire: unknown, path: Path): DecodeOut {
@@ -664,11 +691,14 @@ function decodeActionBinding(
   return makeRecordRef(name, id, version);
 }
 
-function decodeAction(ctx: DecodeContext, targets: readonly string[] | null, wire: unknown, path: Path): DecodeOut {
-  if (!isWireObject(wire)) {
-    return failType(ctx, path, "action", "{target, bindings}", wire);
-  }
-  let ok = checkShape(ctx, wire, path, "action {target, bindings}", ["target", "bindings"]);
+/** Decode the action target with its allowlist check. */
+function decodeActionTarget(
+  ctx: DecodeContext,
+  wire: Record<string, unknown>,
+  path: Path,
+  targets: readonly string[] | null,
+): { target: string | typeof FAIL; ok: boolean } {
+  let ok = true;
   const target = decodeIdField(ctx, wire, path, "action", "target");
   if (target === FAIL) {
     ok = false;
@@ -683,6 +713,16 @@ function decodeAction(ctx: DecodeContext, targets: readonly string[] | null, wir
       actualWire(target),
     );
   }
+  return { target, ok };
+}
+
+/** Decode the action bindings map; absent bindings stay empty. */
+function decodeActionBindings(
+  ctx: DecodeContext,
+  wire: Record<string, unknown>,
+  path: Path,
+): { bindings: Record<string, RecordRef>; ok: boolean } {
+  let ok = true;
   const bindings: Record<string, RecordRef> = {};
   const bindingsRaw = readKey(wire, "bindings");
   if (bindingsRaw.present) {
@@ -716,10 +756,26 @@ function decodeAction(ctx: DecodeContext, targets: readonly string[] | null, wir
       }
     }
   }
-  if (!ok || target === FAIL) {
+  return { bindings, ok };
+}
+
+function decodeAction(ctx: DecodeContext, targets: readonly string[] | null, wire: unknown, path: Path): DecodeOut {
+  if (!isWireObject(wire)) {
+    return failType(ctx, path, "action", "{target, bindings}", wire);
+  }
+  let ok = checkShape(ctx, wire, path, "action {target, bindings}", ["target", "bindings"]);
+  const readTarget = decodeActionTarget(ctx, wire, path, targets);
+  if (!readTarget.ok) {
+    ok = false;
+  }
+  const readBindings = decodeActionBindings(ctx, wire, path);
+  if (!readBindings.ok) {
+    ok = false;
+  }
+  if (!ok || readTarget.target === FAIL) {
     return FAIL;
   }
-  return makeActionRef(target, bindings);
+  return makeActionRef(readTarget.target, readBindings.bindings);
 }
 
 function decodeInvocationArg(
@@ -1363,34 +1419,8 @@ function hasKnownKindTag(value: object): boolean {
  */
 type RecordReferenceResolver = (value: CanValue, path: Path) => RecordRef | undefined;
 
-function inferInvocationArgType(value: CanValue, path: Path, resolveReference?: RecordReferenceResolver): string {
-  if (resolveReference !== undefined && typeof value === "object" && value !== null && !Array.isArray(value)) {
-    value = resolveReference(value, path) ?? value;
-  }
-  if (value === null) {
-    return "text?";
-  }
-  if (typeof value === "bigint") {
-    return "int";
-  }
-  if (typeof value === "string") {
-    return "text";
-  }
-  if (typeof value === "boolean") {
-    return "bool";
-  }
-  if (isDecimal(value)) {
-    return "decimal";
-  }
-  if (isMoney(value)) {
-    return "money";
-  }
-  if (isDateValue(value)) {
-    return "date";
-  }
-  if (isDatetime(value)) {
-    return "datetime";
-  }
+/** Reference-kind argument types; null when the value is not a reference. */
+function inferRefArgType(value: CanValue): string | null {
   if (isUserRef(value)) {
     return "user";
   }
@@ -1412,6 +1442,11 @@ function inferInvocationArgType(value: CanValue, path: Path, resolveReference?: 
   if (isFileValue(value)) {
     return "file";
   }
+  return null;
+}
+
+/** Union/array/plain-object argument types for non-scalar values. */
+function inferCompositeArgType(value: CanValue, path: Path, resolveReference?: RecordReferenceResolver): string {
   if (isUnionValue(value)) {
     throw encodeError(
       "invocation contract/union arguments need their schema type (owned by L3 admission)",
@@ -1441,6 +1476,41 @@ function inferInvocationArgType(value: CanValue, path: Path, resolveReference?: 
     );
   }
   throw encodeError(`cannot encode ${actualWire(value)} as an invocation argument`, path);
+}
+
+function inferInvocationArgType(value: CanValue, path: Path, resolveReference?: RecordReferenceResolver): string {
+  if (resolveReference !== undefined && typeof value === "object" && value !== null && !Array.isArray(value)) {
+    value = resolveReference(value, path) ?? value;
+  }
+  if (value === null) {
+    return "text?";
+  }
+  if (typeof value === "bigint") {
+    return "int";
+  }
+  if (typeof value === "string") {
+    return "text";
+  }
+  if (typeof value === "boolean") {
+    return "bool";
+  }
+  if (isDecimal(value)) {
+    return "decimal";
+  }
+  if (isMoney(value)) {
+    return "money";
+  }
+  if (isDateValue(value)) {
+    return "date";
+  }
+  if (isDatetime(value)) {
+    return "datetime";
+  }
+  const refType = inferRefArgType(value);
+  if (refType !== null) {
+    return refType;
+  }
+  return inferCompositeArgType(value, path, resolveReference);
 }
 
 function encodeInvocationValue(value: unknown, targets: readonly string[] | null, path: Path, resolveReference?: RecordReferenceResolver): WireValue {
@@ -1501,28 +1571,11 @@ function encodeJsonValue(value: unknown, path: Path): WireValue {
  * canonical strings, tagged values use their pinned shapes, secrets and
  * message descriptors throw (neither has a wire form).
  */
-function encodeDynamic(value: CanValue, path: Path, resolveReference?: RecordReferenceResolver): WireValue {
-  if (resolveReference !== undefined && typeof value === "object" && value !== null && !Array.isArray(value)) {
-    value = resolveReference(value, path) ?? value;
-  }
-  if (value === null || typeof value === "string" || typeof value === "boolean") {
-    return value;
-  }
-  if (typeof value === "bigint") {
-    return encodeInt64(value, "int", path);
-  }
-  if (isDecimal(value)) {
-    return decimalToString(value);
-  }
-  if (isMoney(value)) {
-    return encodeMoneyValue(value, path);
-  }
-  if (isDateValue(value)) {
-    return encodeDate(value, path);
-  }
-  if (isDatetime(value)) {
-    return encodeDatetime(value, path);
-  }
+/**
+ * Tagged-value dispatch (references, unions, secrets, message
+ * descriptors). Returns null when the value carries no known tag.
+ */
+function encodeTaggedDynamic(value: CanValue, path: Path, resolveReference?: RecordReferenceResolver): WireValue | null {
   if (isUserRef(value)) {
     return encodeUserValue(value, path);
   }
@@ -1556,13 +1609,11 @@ function encodeDynamic(value: CanValue, path: Path, resolveReference?: RecordRef
   if (typeof value === "object" && value !== null && !Array.isArray(value) && kindTagOf(value) === "message") {
     throw encodeError("message descriptors have no wire form", path);
   }
-  if (Array.isArray(value)) {
-    const out: WireValue[] = [];
-    for (let index = 0; index < value.length; index += 1) {
-      out.push(encodeDynamic(value[index] as CanValue, [...path, index], resolveReference));
-    }
-    return freezeArray(out);
-  }
+  return null;
+}
+
+/** Plain-contract encode for tagless objects; anything else throws. */
+function encodePlainContractDynamic(value: CanValue, path: Path, resolveReference?: RecordReferenceResolver): WireValue {
   if (typeof value === "object" && value !== null) {
     if (hasKnownKindTag(value)) {
       throw encodeError(`malformed tagged value (kind ${JSON.stringify(kindTagOf(value))})`, path);
@@ -1580,6 +1631,42 @@ function encodeDynamic(value: CanValue, path: Path, resolveReference?: RecordRef
     return Object.freeze(out);
   }
   throw encodeError(`cannot encode ${actualWire(value)}`, path);
+}
+
+function encodeDynamic(value: CanValue, path: Path, resolveReference?: RecordReferenceResolver): WireValue {
+  if (resolveReference !== undefined && typeof value === "object" && value !== null && !Array.isArray(value)) {
+    value = resolveReference(value, path) ?? value;
+  }
+  if (value === null || typeof value === "string" || typeof value === "boolean") {
+    return value;
+  }
+  if (typeof value === "bigint") {
+    return encodeInt64(value, "int", path);
+  }
+  if (isDecimal(value)) {
+    return decimalToString(value);
+  }
+  if (isMoney(value)) {
+    return encodeMoneyValue(value, path);
+  }
+  if (isDateValue(value)) {
+    return encodeDate(value, path);
+  }
+  if (isDatetime(value)) {
+    return encodeDatetime(value, path);
+  }
+  const tagged = encodeTaggedDynamic(value, path, resolveReference);
+  if (tagged !== null) {
+    return tagged;
+  }
+  if (Array.isArray(value)) {
+    const out: WireValue[] = [];
+    for (let index = 0; index < value.length; index += 1) {
+      out.push(encodeDynamic(value[index] as CanValue, [...path, index], resolveReference));
+    }
+    return freezeArray(out);
+  }
+  return encodePlainContractDynamic(value, path, resolveReference);
 }
 
 function encodeScalar(name: ScalarName, value: CanValue, path: Path): WireValue {
@@ -1649,18 +1736,33 @@ function encodeStringlike(name: StringLikeName, value: CanValue, path: Path): Wi
   }
 }
 
-function encodeNominal(model: string, value: CanValue, path: Path, resolveReference?: RecordReferenceResolver, schema?: NormalizedSchema): WireValue {
-  const contract = schema !== undefined && Object.hasOwn(schema.contracts, model) ? schema.contracts[model] : undefined;
-  if (contract !== undefined) {
-    if (!isWireObject(value)) throw encodeError(`expected a ${model} contract value`, path);
-    const out: Record<string, WireValue> = {};
-    for (const [key, entry] of Object.entries(value)) {
-      const field = Object.hasOwn(contract.fields, key) ? contract.fields[key] : undefined;
-      if (field === undefined) throw encodeError(`unknown ${model} contract field ${JSON.stringify(key)}`, [...path, key]);
-      out[key] = encodeNode(field.type, entry as CanValue, [...path, key], resolveReference, schema);
-    }
-    return Object.freeze(out);
+/** Declared-contract field encode for nominal values. */
+function encodeNominalContract(
+  model: string,
+  contract: { readonly fields: Record<string, { readonly type: unknown }> },
+  value: CanValue,
+  path: Path,
+  resolveReference?: RecordReferenceResolver,
+  schema?: NormalizedSchema,
+): WireValue {
+  if (!isWireObject(value)) throw encodeError(`expected a ${model} contract value`, path);
+  const out: Record<string, WireValue> = {};
+  for (const [key, entry] of Object.entries(value)) {
+    const field = Object.hasOwn(contract.fields, key) ? contract.fields[key] : undefined;
+    if (field === undefined) throw encodeError(`unknown ${model} contract field ${JSON.stringify(key)}`, [...path, key]);
+    out[key] = encodeNode((field as { readonly type: NormalizedType }).type, entry as CanValue, [...path, key], resolveReference, schema);
   }
+  return Object.freeze(out);
+}
+
+/** Alias/ref/dynamic fallback for nominal values without a contract. */
+function encodeNominalFallback(
+  model: string,
+  value: CanValue,
+  path: Path,
+  resolveReference?: RecordReferenceResolver,
+  schema?: NormalizedSchema,
+): WireValue {
   const alias = schema?.aliases !== undefined && Object.hasOwn(schema.aliases, model) ? schema.aliases[model] : undefined;
   if (alias !== undefined) return encodeNode(alias.type, value, path, resolveReference, schema);
   if (typeof value === "string") {
@@ -1682,6 +1784,14 @@ function encodeNominal(model: string, value: CanValue, path: Path, resolveRefere
     return encodeDynamic(value, path, resolveReference);
   }
   throw encodeError(`expected a ${model} value`, path);
+}
+
+function encodeNominal(model: string, value: CanValue, path: Path, resolveReference?: RecordReferenceResolver, schema?: NormalizedSchema): WireValue {
+  const contract = schema !== undefined && Object.hasOwn(schema.contracts, model) ? schema.contracts[model] : undefined;
+  if (contract !== undefined) {
+    return encodeNominalContract(model, contract, value, path, resolveReference, schema);
+  }
+  return encodeNominalFallback(model, value, path, resolveReference, schema);
 }
 
 function encodeUnion(arms: readonly string[], value: CanValue, path: Path, resolveReference?: RecordReferenceResolver, schema?: NormalizedSchema): WireValue {

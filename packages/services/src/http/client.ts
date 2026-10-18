@@ -176,6 +176,78 @@ interface FetchedResponse {
 // (301/302/303 convert POST to GET per fetch semantics; 307/308
 // preserve method and body) up to a hop cap. Shared by the buffered
 // and streaming readers so both enforce the identical policy.
+interface RedirectHop {
+  method: 'GET' | 'POST';
+  body: string | undefined;
+  url: URL;
+  hops: number;
+}
+
+function hopHeaders(
+  config: HttpClientConfig,
+  request: HttpRequest,
+  body: string | undefined,
+): Record<string, string> {
+  const headers: Record<string, string> = {};
+  if (body !== undefined) {
+    headers['content-type'] = 'application/json';
+  }
+  if (request.idempotencyKey !== undefined) {
+    headers['idempotency-key'] = request.idempotencyKey;
+  }
+  if (config.authorization !== undefined) {
+    headers['authorization'] = config.authorization;
+  }
+  return headers;
+}
+
+/** Best-effort drain of a redirect body; limit/timeout/abort still throw. */
+async function drainRedirectBody(
+  response: Response,
+  config: HttpClientConfig,
+  request: HttpRequest,
+  signal: AbortSignal,
+  timedOut: () => boolean,
+): Promise<void> {
+  try {
+    await readBoundedBytes(response, config.maxBodyBytes, response.status, signal);
+  } catch (err) {
+    if (err instanceof HttpBodyLimitError) throw err;
+    if (timedOut()) {
+      throw new HttpTransportError('timeout');
+    }
+    if (request.signal?.aborted === true) {
+      throw err;
+    }
+    // Other drain failures remain best effort; preserve redirect policy.
+  }
+}
+
+/** Resolve the next hop: same-origin check, hop cap, POST-to-GET rewrite. */
+function advanceRedirect(
+  response: Response,
+  hop: RedirectHop,
+  baseOrigin: string,
+  location: string,
+): RedirectHop {
+  const next = new URL(location, hop.url);
+  if (next.origin !== baseOrigin) {
+    throw new HttpRedirectError(baseOrigin, next.origin);
+  }
+  const hops = hop.hops + 1;
+  if (hops > MAX_REDIRECT_HOPS) {
+    throw new HttpTooManyRedirectsError(hops);
+  }
+  if (
+    response.status === 303 ||
+    ((response.status === 301 || response.status === 302) &&
+      hop.method === 'POST')
+  ) {
+    return { method: 'GET', body: undefined, url: next, hops };
+  }
+  return { method: hop.method, body: hop.body, url: next, hops };
+}
+
 async function fetchWithRedirects(
   config: HttpClientConfig,
   request: HttpRequest,
@@ -184,27 +256,15 @@ async function fetchWithRedirects(
   timedOut: () => boolean,
 ): Promise<FetchedResponse> {
   const baseOrigin = baseOriginOf(config.baseUrl);
-  let method: 'GET' | 'POST' = request.method;
-  let body: string | undefined = request.body;
-  let url = startUrl;
-  let hops = 0;
+  let hop: RedirectHop = { method: request.method, body: request.body, url: startUrl, hops: 0 };
   for (;;) {
-    const headers: Record<string, string> = {};
-    if (body !== undefined) {
-      headers['content-type'] = 'application/json';
-    }
-    if (request.idempotencyKey !== undefined) {
-      headers['idempotency-key'] = request.idempotencyKey;
-    }
-    if (config.authorization !== undefined) {
-      headers['authorization'] = config.authorization;
-    }
+    const headers = hopHeaders(config, request, hop.body);
     let response: Response;
     try {
-      response = await fetch(url.href, {
-        method,
+      response = await fetch(hop.url.href, {
+        method: hop.method,
         headers,
-        body,
+        body: hop.body,
         signal,
         redirect: 'manual',
         credentials: 'omit',
@@ -219,46 +279,19 @@ async function fetchWithRedirects(
       throw new HttpTransportError('network-error');
     }
     if (!isRedirect(response.status)) {
-      return { response, url };
+      return { response, url: hop.url };
     }
     const location = response.headers.get('location');
     // Without another hop, the normal bounded status reader owns the body.
-    if (location === null) return { response, url };
-    try {
-      await readBoundedBytes(response, config.maxBodyBytes, response.status, signal);
-    } catch (err) {
-      if (err instanceof HttpBodyLimitError) throw err;
-      if (timedOut()) {
-        throw new HttpTransportError('timeout');
-      }
-      if (request.signal?.aborted === true) {
-        throw err;
-      }
-      // Other drain failures remain best effort; preserve redirect policy.
-    }
+    if (location === null) return { response, url: hop.url };
+    await drainRedirectBody(response, config, request, signal, timedOut);
     if (timedOut()) {
       throw new HttpTransportError('timeout');
     }
     if (request.signal?.aborted === true) {
       throw signal.reason;
     }
-    const next = new URL(location, url);
-    if (next.origin !== baseOrigin) {
-      throw new HttpRedirectError(baseOrigin, next.origin);
-    }
-    hops += 1;
-    if (hops > MAX_REDIRECT_HOPS) {
-      throw new HttpTooManyRedirectsError(hops);
-    }
-    if (
-      response.status === 303 ||
-      ((response.status === 301 || response.status === 302) &&
-        method === 'POST')
-    ) {
-      method = 'GET';
-      body = undefined;
-    }
-    url = next;
+    hop = advanceRedirect(response, hop, baseOrigin, location);
   }
 }
 

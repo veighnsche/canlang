@@ -46,13 +46,37 @@ const equal = (left: unknown, right: unknown): boolean => stableStringify(left) 
 function declarationWire(value: unknown): WireValue {
   let nodes = 0, textBytes = 0;
   const ancestors = new Set<object>();
+  const addTextBytes = (text: string): void => {
+    textBytes += new TextEncoder().encode(text).byteLength;
+    if (textBytes > 2_000_000) throw new Error('File retirement declaration text exceeds its finite bounds.');
+  };
+  const copyArray = (node: object, length: number, depth: number): WireValue => {
+    const output: WireValue[] = [];
+    for (let index = 0; index < length; index++) {
+      const descriptor = Object.getOwnPropertyDescriptor(node, String(index));
+      if (descriptor === undefined || !('value' in descriptor) || !descriptor.enumerable) throw new Error('File retirement requires own declaration array data.');
+      output.push(copy(descriptor.value, depth + 1));
+    }
+    return Object.freeze(output) as unknown as WireValue;
+  };
+  const copyRecord = (node: object, keys: readonly (string | symbol)[], depth: number): WireValue => {
+    const output: Record<string, WireValue> = {};
+    for (const key of keys) {
+      const descriptor = typeof key === 'string' ? Object.getOwnPropertyDescriptor(node, key) : undefined;
+      if (descriptor === undefined || !('value' in descriptor) || !descriptor.enumerable || typeof key !== 'string') {
+        throw new Error('File retirement requires own enumerable declaration data.');
+      }
+      addTextBytes(key);
+      Object.defineProperty(output, key, { value: copy(descriptor.value, depth + 1), enumerable: true });
+    }
+    return Object.freeze(output);
+  };
   const copy = (node: unknown, depth: number): WireValue => {
     if (++nodes > 20_000 || depth > 32) throw new Error('File retirement declaration capture exceeds its finite bounds.');
     if (typeof node === 'bigint') return encodeValue('int', node);
     if (node === null || typeof node === 'boolean') return node;
     if (typeof node === 'string') {
-      textBytes += new TextEncoder().encode(node).byteLength;
-      if (textBytes > 2_000_000) throw new Error('File retirement declaration text exceeds its finite bounds.');
+      addTextBytes(node);
       return node;
     }
     if (typeof node === 'number' && Number.isFinite(node)) return node;
@@ -69,25 +93,9 @@ function declarationWire(value: unknown): WireValue {
         if (typeof length !== 'number' || !Number.isSafeInteger(length) || length > 20_000 || keys.length !== length + 1) {
           throw new Error('File retirement requires dense original declaration arrays.');
         }
-        const output: WireValue[] = [];
-        for (let index = 0; index < length; index++) {
-          const descriptor = Object.getOwnPropertyDescriptor(node, String(index));
-          if (descriptor === undefined || !('value' in descriptor) || !descriptor.enumerable) throw new Error('File retirement requires own declaration array data.');
-          output.push(copy(descriptor.value, depth + 1));
-        }
-        return Object.freeze(output) as unknown as WireValue;
+        return copyArray(node, length, depth);
       }
-      const output: Record<string, WireValue> = {};
-      for (const key of keys) {
-        const descriptor = typeof key === 'string' ? Object.getOwnPropertyDescriptor(node, key) : undefined;
-        if (descriptor === undefined || !('value' in descriptor) || !descriptor.enumerable || typeof key !== 'string') {
-          throw new Error('File retirement requires own enumerable declaration data.');
-        }
-        textBytes += new TextEncoder().encode(key).byteLength;
-        if (textBytes > 2_000_000) throw new Error('File retirement declaration text exceeds its finite bounds.');
-        Object.defineProperty(output, key, { value: copy(descriptor.value, depth + 1), enumerable: true });
-      }
-      return Object.freeze(output);
+      return copyRecord(node, keys, depth);
     } finally { ancestors.delete(node); }
   };
   return copy(value, 0);
@@ -136,6 +144,199 @@ export function nativeCapabilityResultDeclarations(
   return immutable(output);
 }
 
+type CallableSource = Extract<FrameworkOpaqueDeclaration['source'], { kind: 'callable' }>;
+
+interface ModuleCapture {
+  module: string;
+  definition: unknown;
+  invocations: Readonly<Record<string, WireValue>>;
+  events: Readonly<Record<string, WireValue>>;
+  sendGuards: Readonly<Record<string, WireValue>>;
+}
+
+function captureModuleInvocations(artifact: CompileArtifact, modulePath: string, original: unknown, captures: ModuleCapture[]): void {
+  const operations = data(original, 'operations');
+  const invocations: Record<string, WireValue> = {};
+  for (const callable of artifact.callables.filter(item => item.module === modulePath && item.kind === 'handler')) {
+    Object.defineProperty(invocations, callable.id, { value: declarationWire(data(data(operations, callable.id), 'invocation')), enumerable: true });
+  }
+  const sendGuards: Record<string, WireValue> = {};
+  for (const operation of Object.keys(operations as object)) {
+    const declaration = data(operations, operation);
+    if (Object.hasOwn(declaration as object, 'sendGuards')) Object.defineProperty(sendGuards, operation, {
+      value: declarationWire(data(declaration, 'sendGuards')), enumerable: true });
+  }
+  const events = declarationWire(data(original, 'events')) as Readonly<Record<string, WireValue>>;
+  captures.push({ module: modulePath, definition: original, invocations: Object.freeze(invocations), events, sendGuards: Object.freeze(sendGuards) });
+}
+
+function verifyCapturedDeclarations(originalContracts: Readonly<Record<string, WireValue>>,
+  definition: unknown, captures: readonly ModuleCapture[]): void {
+  if (!equal(originalContracts, declarationWire(data(definition, 'contracts')))) throw new Error('File retirement original contracts changed after capture.');
+  for (const captured of captures) {
+    if (!equal(captured.events, declarationWire(data(captured.definition, 'events')))) {
+      throw new Error('File retirement original event declarations changed after capture.');
+    }
+    const operations = data(captured.definition, 'operations');
+    const guarded = Object.keys(operations as object).filter(id => Object.hasOwn(data(operations, id) as object, 'sendGuards'));
+    if (!equal(guarded, Object.keys(captured.sendGuards))) throw new Error('Original SEND declaration inventory changed.');
+    for (const id of guarded) if (!equal(captured.sendGuards[id], declarationWire(data(data(operations, id), 'sendGuards')))) {
+      throw new Error('Original SEND lexical declaration changed after capture.');
+    }
+    for (const id of Object.keys(captured.invocations)) {
+      if (!equal(captured.invocations[id], declarationWire(data(data(operations, id), 'invocation')))) {
+        throw new Error('File retirement original private invocation changed after capture.');
+      }
+    }
+  }
+}
+
+function resolveCallableOperation(artifact: CompileArtifact, captures: readonly ModuleCapture[],
+  loaded: Awaited<ReturnType<typeof loadCanonicalDescriptors>>,
+  callable: CompileArtifact['callables'][number]): { source: CallableSource; operation: ArtifactOperation; canonical: CanonicalOperationDescriptor } {
+  const emitted = artifact.modules.filter(candidate => candidate.path === callable.module);
+  const paths = emitted.length === 1 ? emitted[0]!.map?.sources : undefined;
+  const sources = artifact.sources.filter(source => paths?.includes(source.path));
+  if (sources.length !== 1) throw new Error('File retirement requires one exact original callable source.');
+  const source = { kind: 'callable' as const, source: { ...sources[0]!, module: callable.module }, callable };
+  let operation: ArtifactOperation | undefined, canonical: CanonicalOperationDescriptor;
+  if (callable.kind === 'handler') {
+    const invocation = captures.find(captured => captured.module === callable.module)?.invocations[callable.id];
+    operation = invocation as unknown as ArtifactOperation | undefined;
+    if (operation?.name !== callable.id || operation.kind !== 'scenario') throw new Error('File retirement lacks its original private handler invocation.');
+    const privateLoaded = loaded.producers.registry.loadArtifactDescriptors({ ...artifact, operations: [operation] }, { by: () => 'owner' });
+    canonical = data(privateLoaded.registry.get(callable.id), 'descriptor') as CanonicalOperationDescriptor;
+  } else {
+    const operations = artifact.operations?.filter(candidate => candidate.name === callable.id);
+    if (operations?.length !== 1) throw new Error('File retirement lacks its exact original callable operation.');
+    operation = operations[0]!;
+    canonical = data(loaded.registry.get(callable.id), 'descriptor') as CanonicalOperationDescriptor;
+  }
+  return { source, operation, canonical };
+}
+
+function declareSendGuards(artifact: CompileArtifact, captures: readonly ModuleCapture[],
+  callable: CompileArtifact['callables'][number],
+  source: CallableSource,
+  declarations: FrameworkOpaqueDeclaration[]): void {
+  const originalCapture = captures.find(captured => captured.module === callable.module);
+  const guarded = originalCapture?.sendGuards[callable.id];
+  if (guarded === undefined) return;
+  if (!Array.isArray(guarded) || originalCapture === undefined) throw new Error('Original SEND guard inventory must be complete.');
+  const originalPackages = data(originalCapture.definition, 'packages');
+  const owningPackage = Object.keys(originalPackages as object).filter(name => callable.id.startsWith(`${name}.`))
+    .sort((left, right) => right.length - left.length)[0];
+  if (owningPackage === undefined) throw new Error('Original SEND guard lacks its owning lexical package.');
+  for (const entry of guarded) {
+    assertSendGuard(entry, artifact, callable, source, declarations, owningPackage);
+  }
+}
+
+function assertSendGuard(entry: unknown, artifact: CompileArtifact,
+  callable: CompileArtifact['callables'][number],
+  source: CallableSource,
+  declarations: FrameworkOpaqueDeclaration[], owningPackage: string): void {
+  const guard = entry as unknown as Record<string, unknown>;
+  const profile = data(guard, 'inputDeclaration') as FrameworkOpaqueDeclaration['profile'];
+  const originalSource = data(guard, 'source') as { path: string; sha256: string; module: string };
+  const rule = data(guard, 'rule') as string;
+  const rules = artifact.callables.filter(candidate => candidate.kind === 'rule' && candidate.id === rule &&
+    candidate.module === callable.module && equal(candidate.member, ['sendWhen', rule]));
+  if (Object.keys(guard).sort().join(',') !== 'binding,inputDeclaration,inputs,node,owner,rule,source,sourceBinding,statement,target' ||
+      data(guard, 'owner') !== callable.id || originalSource.path !== source.source.path ||
+      originalSource.sha256 !== source.source.sha256 || originalSource.module !== owningPackage ||
+      rules.length !== 1 || rules[0]!.inputStyle !== undefined || profile.kind !== 'inputs') {
+    throw new Error('Original SEND guard lacks its complete owning Compiler declaration.');
+  }
+  assertSendSlots(guard, profile, rule, callable, source, declarations);
+}
+
+function assertSendSlots(guard: Record<string, unknown>, profile: FrameworkOpaqueDeclaration['profile'], rule: string,
+  callable: CompileArtifact['callables'][number],
+  source: CallableSource,
+  declarations: FrameworkOpaqueDeclaration[]): void {
+  const inputs = data(guard, 'inputs') as readonly { name: string; type: import('@canlang/contracts').CanTypeId }[];
+  if (profile.kind !== 'inputs' || profile.canonical.length !== inputs.length || profile.artifact.length !== inputs.length || inputs.some((input, index) =>
+      profile.canonical[index]?.name !== input.name || profile.artifact[index]?.name !== input.name ||
+      profile.artifact[index]?.valueType !== input.type || profile.canonical[index]?.required !== true ||
+      profile.artifact[index]?.required !== true || ['default', 'computedDefault'].some(key =>
+      Object.hasOwn(profile.canonical[index]!, key) || Object.hasOwn(profile.artifact[index]!, key)))) throw new Error('Original SEND slots must retain their complete required typed declaration.');
+  declarations.push({ id: `${rule}:send-inputs`, source: { kind: 'send-guard', rule,
+    source: source.source, owner: callable.id, node: data(guard, 'node') as { start: number; end: number },
+    binding: data(guard, 'binding') as string, target: data(guard, 'target') as string, inputs }, profile });
+}
+
+function declareCallableResult(
+  callable: CompileArtifact['callables'][number],
+  source: CallableSource,
+  canonical: CanonicalOperationDescriptor, operation: ArtifactOperation,
+  declarations: FrameworkOpaqueDeclaration[]): void {
+  if (canonical.result === undefined && operation.result === undefined) return;
+  if (canonical.result === undefined || operation.result === undefined || !equal(canonical.result, operation.result)) {
+    throw new Error('File retirement original callable results disagree.');
+  }
+  declarations.push({ id: `${callable.id}:result`, source,
+    // Explicit void still retains the Compiler's original disclosure plan.
+    profile: canonical.result.type === 'void' ? { kind: 'void',
+      canonical: { ...canonical.result, type: 'void' }, artifact: { ...operation.result, type: 'void' } } :
+      // The opaque closure binds a result's File profile from its type
+      // alone; the disclosure plan stays with the loaded descriptor and
+      // is not persisted a second time inside this inventory.
+      { kind: 'result', canonical: { type: canonical.result.type },
+        artifact: { type: operation.result.type } } });
+}
+
+function declareCallable(artifact: CompileArtifact, captures: readonly ModuleCapture[],
+  loaded: Awaited<ReturnType<typeof loadCanonicalDescriptors>>,
+  callable: CompileArtifact['callables'][number], declarations: FrameworkOpaqueDeclaration[],
+  models: readonly ArtifactModel[]): void {
+  if (callable.kind !== 'operation' && callable.kind !== 'handler') return;
+  const { source, operation, canonical } = resolveCallableOperation(artifact, captures, loaded, callable);
+  declarations.push({ id: `${callable.id}:inputs`, source,
+    profile: { kind: 'inputs', canonical: canonical.inputs, artifact: operation.inputs.fields } });
+  declareSendGuards(artifact, captures, callable, source, declarations);
+  declarations.push(...nativeCapabilityResultDeclarations(source, loaded.models, models));
+  declareCallableResult(callable, source, canonical, operation, declarations);
+}
+
+function declareModuleEvents(artifact: CompileArtifact, captures: readonly ModuleCapture[],
+  loaded: Awaited<ReturnType<typeof loadCanonicalDescriptors>>, declarations: FrameworkOpaqueDeclaration[]): void {
+  const events = new Set<string>();
+  for (const captured of captures) {
+    for (const event of Object.keys(captured.events)) {
+      assertModuleEvent(artifact, loaded, captured, event, events, declarations);
+    }
+  }
+}
+
+function assertModuleEvent(artifact: CompileArtifact,
+  loaded: Awaited<ReturnType<typeof loadCanonicalDescriptors>>, captured: ModuleCapture,
+  event: string, events: Set<string>, declarations: FrameworkOpaqueDeclaration[]): void {
+  const original = data(captured.events, event);
+  // Owning lifecycle schemas are distinct from original declared events.
+  // The Compiler's positive own inputFields carrier identifies the latter.
+  if (!Object.hasOwn(original as object, 'inputFields')) return;
+  if (events.has(event)) throw new Error('File retirement requires one exact original event module.');
+  events.add(event);
+  const emitted = artifact.modules.filter(candidate => candidate.path === captured.module);
+  const paths = emitted.length === 1 ? emitted[0]!.map?.sources : undefined;
+  const sources = artifact.sources.filter(source => paths?.includes(source.path));
+  if (sources.length !== 1) throw new Error('File retirement requires one exact original event source.');
+  // These are detached bytes captured before subsequent imports/DB awaits;
+  // State owns their canonical field conversion, including File wrappers.
+  data(original, 'inputs');
+  const fields = data(original, 'inputFields');
+  if (!Array.isArray(fields)) throw new Error('File retirement requires complete original event input fields.');
+  const operation: ArtifactOperation = { name: event, kind: 'scenario', description: '',
+    inputs: { fields: fields as ArtifactOperation['inputs']['fields'] } };
+  const eventLoaded = loaded.producers.registry.loadArtifactDescriptors(
+    { ...artifact, operations: [operation] }, { by: () => 'owner' });
+  const canonical = data(eventLoaded.registry.get(event), 'descriptor') as CanonicalOperationDescriptor;
+  declarations.push({ id: `${event}:event-inputs`,
+    source: { kind: 'event', source: { ...sources[0]!, module: captured.module }, event },
+    profile: { kind: 'inputs', canonical: canonical.inputs, artifact: operation.inputs.fields } });
+}
+
 /** Installs once, or verifies the persisted original closure on reopen. */
 export async function installNativeFileInventory(input: NativeFileInventoryInput) {
   const { artifact, asm, store, now, verifyOwner } = input;
@@ -168,42 +369,9 @@ export async function installNativeFileInventory(input: NativeFileInventoryInput
   data(packages, scope.ownerPackage);
   const originalContracts = declarationWire(data(definition, 'contracts')) as Readonly<Record<string, WireValue>>;
   const valueDefaults = originalDefaults(originalContracts);
-  const captures: { module: string; definition: unknown; invocations: Readonly<Record<string, WireValue>>; events: Readonly<Record<string, WireValue>>; sendGuards: Readonly<Record<string, WireValue>> }[] = [];
-  const captureInvocations = (modulePath: string, original: unknown) => {
-    const operations = data(original, 'operations');
-    const invocations: Record<string, WireValue> = {};
-    for (const callable of artifact.callables.filter(item => item.module === modulePath && item.kind === 'handler')) {
-      Object.defineProperty(invocations, callable.id, { value: declarationWire(data(data(operations, callable.id), 'invocation')), enumerable: true });
-    }
-    const sendGuards: Record<string, WireValue> = {};
-    for (const operation of Object.keys(operations as object)) {
-      const declaration = data(operations, operation);
-      if (Object.hasOwn(declaration as object, 'sendGuards')) Object.defineProperty(sendGuards, operation, {
-        value: declarationWire(data(declaration, 'sendGuards')), enumerable: true });
-    }
-    const events = declarationWire(data(original, 'events')) as Readonly<Record<string, WireValue>>;
-    captures.push({ module: modulePath, definition: original, invocations: Object.freeze(invocations), events, sendGuards: Object.freeze(sendGuards) });
-  };
-  captureInvocations(first.path, definition);
-  verifyDeclarations = () => {
-    if (!equal(originalContracts, declarationWire(data(definition, 'contracts')))) throw new Error('File retirement original contracts changed after capture.');
-    for (const captured of captures) {
-      if (!equal(captured.events, declarationWire(data(captured.definition, 'events')))) {
-        throw new Error('File retirement original event declarations changed after capture.');
-      }
-      const operations = data(captured.definition, 'operations');
-      const guarded = Object.keys(operations as object).filter(id => Object.hasOwn(data(operations, id) as object, 'sendGuards'));
-      if (!equal(guarded, Object.keys(captured.sendGuards))) throw new Error('Original SEND declaration inventory changed.');
-      for (const id of guarded) if (!equal(captured.sendGuards[id], declarationWire(data(data(operations, id), 'sendGuards')))) {
-        throw new Error('Original SEND lexical declaration changed after capture.');
-      }
-      for (const id of Object.keys(captured.invocations)) {
-        if (!equal(captured.invocations[id], declarationWire(data(data(operations, id), 'invocation')))) {
-          throw new Error('File retirement original private invocation changed after capture.');
-        }
-      }
-    }
-  };
+  const captures: ModuleCapture[] = [];
+  captureModuleInvocations(artifact, first.path, definition, captures);
+  verifyDeclarations = () => verifyCapturedDeclarations(originalContracts, definition, captures);
   for (const emitted of artifact.modules.slice(1)) {
     const imported = await importVerifiedAssemblyModule(asm, emitted.path, artifact);
     // Composed apps include verified constant-only package facades. They
@@ -218,7 +386,7 @@ export async function installNativeFileInventory(input: NativeFileInventoryInput
       await verifyCurrent();
       continue;
     }
-    captureInvocations(emitted.path, data(imported, 'appDefinition'));
+    captureModuleInvocations(artifact, emitted.path, data(imported, 'appDefinition'), captures);
     await verifyCurrent();
   }
   await verifyCurrent();
@@ -229,103 +397,9 @@ export async function installNativeFileInventory(input: NativeFileInventoryInput
   const inventoryIdentity = Object.freeze({ owner: scope.ownerPackage, snapshotId: `native-file:${digest}`, digest });
   const declarations: FrameworkOpaqueDeclaration[] = [];
   for (const callable of artifact.callables) {
-    if (callable.kind !== 'operation' && callable.kind !== 'handler') continue;
-    const emitted = artifact.modules.filter(candidate => candidate.path === callable.module);
-    const paths = emitted.length === 1 ? emitted[0]!.map?.sources : undefined;
-    const sources = artifact.sources.filter(source => paths?.includes(source.path));
-    if (sources.length !== 1) throw new Error('File retirement requires one exact original callable source.');
-    const source = { kind: 'callable' as const, source: { ...sources[0]!, module: callable.module }, callable };
-    let operation: ArtifactOperation | undefined, canonical: CanonicalOperationDescriptor;
-    if (callable.kind === 'handler') {
-      const invocation = captures.find(captured => captured.module === callable.module)?.invocations[callable.id];
-      operation = invocation as unknown as ArtifactOperation | undefined;
-      if (operation?.name !== callable.id || operation.kind !== 'scenario') throw new Error('File retirement lacks its original private handler invocation.');
-      const privateLoaded = loaded.producers.registry.loadArtifactDescriptors({ ...artifact, operations: [operation] }, { by: () => 'owner' });
-      canonical = data(privateLoaded.registry.get(callable.id), 'descriptor') as CanonicalOperationDescriptor;
-    } else {
-      const operations = artifact.operations?.filter(candidate => candidate.name === callable.id);
-      if (operations?.length !== 1) throw new Error('File retirement lacks its exact original callable operation.');
-      operation = operations[0]!;
-      canonical = data(loaded.registry.get(callable.id), 'descriptor') as CanonicalOperationDescriptor;
-    }
-    declarations.push({ id: `${callable.id}:inputs`, source,
-      profile: { kind: 'inputs', canonical: canonical.inputs, artifact: operation.inputs.fields } });
-    const originalCapture = captures.find(captured => captured.module === callable.module);
-    const guarded = originalCapture?.sendGuards[callable.id];
-    if (guarded !== undefined) {
-      if (!Array.isArray(guarded) || originalCapture === undefined) throw new Error('Original SEND guard inventory must be complete.');
-      const originalPackages = data(originalCapture.definition, 'packages');
-      const owningPackage = Object.keys(originalPackages as object).filter(name => callable.id.startsWith(`${name}.`))
-        .sort((left, right) => right.length - left.length)[0];
-      if (owningPackage === undefined) throw new Error('Original SEND guard lacks its owning lexical package.');
-      for (const entry of guarded) {
-        const guard = entry as unknown as Record<string, unknown>;
-        const profile = data(guard, 'inputDeclaration') as FrameworkOpaqueDeclaration['profile'];
-        const originalSource = data(guard, 'source') as { path: string; sha256: string; module: string };
-        const rule = data(guard, 'rule') as string;
-        const rules = artifact.callables.filter(candidate => candidate.kind === 'rule' && candidate.id === rule &&
-          candidate.module === callable.module && equal(candidate.member, ['sendWhen', rule]));
-        if (Object.keys(guard).sort().join(',') !== 'binding,inputDeclaration,inputs,node,owner,rule,source,sourceBinding,statement,target' ||
-            data(guard, 'owner') !== callable.id || originalSource.path !== source.source.path ||
-            originalSource.sha256 !== source.source.sha256 || originalSource.module !== owningPackage ||
-            rules.length !== 1 || rules[0]!.inputStyle !== undefined || profile.kind !== 'inputs') {
-          throw new Error('Original SEND guard lacks its complete owning Compiler declaration.');
-        }
-        const inputs = data(guard, 'inputs') as readonly { name: string; type: import('@canlang/contracts').CanTypeId }[];
-        if (profile.canonical.length !== inputs.length || profile.artifact.length !== inputs.length || inputs.some((input, index) =>
-            profile.canonical[index]?.name !== input.name || profile.artifact[index]?.name !== input.name ||
-            profile.artifact[index]?.valueType !== input.type || profile.canonical[index]?.required !== true ||
-            profile.artifact[index]?.required !== true || ['default', 'computedDefault'].some(key =>
-            Object.hasOwn(profile.canonical[index]!, key) || Object.hasOwn(profile.artifact[index]!, key)))) throw new Error('Original SEND slots must retain their complete required typed declaration.');
-        declarations.push({ id: `${rule}:send-inputs`, source: { kind: 'send-guard', rule,
-          source: source.source, owner: callable.id, node: data(guard, 'node') as { start: number; end: number },
-          binding: data(guard, 'binding') as string, target: data(guard, 'target') as string, inputs }, profile });
-      }
-    }
-    declarations.push(...nativeCapabilityResultDeclarations(source, loaded.models, artifact.models));
-    if (canonical.result !== undefined || operation.result !== undefined) {
-      if (canonical.result === undefined || operation.result === undefined || !equal(canonical.result, operation.result)) {
-        throw new Error('File retirement original callable results disagree.');
-      }
-      declarations.push({ id: `${callable.id}:result`, source,
-        // Explicit void still retains the Compiler's original disclosure plan.
-        profile: canonical.result.type === 'void' ? { kind: 'void',
-          canonical: { ...canonical.result, type: 'void' }, artifact: { ...operation.result, type: 'void' } } :
-          // The opaque closure binds a result's File profile from its type
-          // alone; the disclosure plan stays with the loaded descriptor and
-          // is not persisted a second time inside this inventory.
-          { kind: 'result', canonical: { type: canonical.result.type },
-            artifact: { type: operation.result.type } } });
-    }
+    declareCallable(artifact, captures, loaded, callable, declarations, artifact.models);
   }
-  const events = new Set<string>();
-  for (const captured of captures) {
-    for (const event of Object.keys(captured.events)) {
-      const original = data(captured.events, event);
-      // Owning lifecycle schemas are distinct from original declared events.
-      // The Compiler's positive own inputFields carrier identifies the latter.
-      if (!Object.hasOwn(original as object, 'inputFields')) continue;
-      if (events.has(event)) throw new Error('File retirement requires one exact original event module.');
-      events.add(event);
-      const emitted = artifact.modules.filter(candidate => candidate.path === captured.module);
-      const paths = emitted.length === 1 ? emitted[0]!.map?.sources : undefined;
-      const sources = artifact.sources.filter(source => paths?.includes(source.path));
-      if (sources.length !== 1) throw new Error('File retirement requires one exact original event source.');
-      // These are detached bytes captured before subsequent imports/DB awaits;
-      // State owns their canonical field conversion, including File wrappers.
-      data(original, 'inputs');
-      const fields = data(original, 'inputFields');
-      if (!Array.isArray(fields)) throw new Error('File retirement requires complete original event input fields.');
-      const operation: ArtifactOperation = { name: event, kind: 'scenario', description: '',
-        inputs: { fields: fields as ArtifactOperation['inputs']['fields'] } };
-      const eventLoaded = loaded.producers.registry.loadArtifactDescriptors(
-        { ...artifact, operations: [operation] }, { by: () => 'owner' });
-      const canonical = data(eventLoaded.registry.get(event), 'descriptor') as CanonicalOperationDescriptor;
-      declarations.push({ id: `${event}:event-inputs`,
-        source: { kind: 'event', source: { ...sources[0]!, module: captured.module }, event },
-        profile: { kind: 'inputs', canonical: canonical.inputs, artifact: operation.inputs.fields } });
-    }
-  }
+  declareModuleEvents(artifact, captures, loaded, declarations);
   const baseInventory = immutable({ ...inventoryIdentity,
     canonicalModels: loaded.models, artifactModels: artifact.models, valueTypes,
     frameworkModels: [...STATE_FILE_REFERENCE_PRODUCER.models, ...WORK_FILE_REFERENCE_PRODUCER.models] });

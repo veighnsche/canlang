@@ -331,6 +331,63 @@ export interface StagedFanoutChildOutcome {
  * an attempts count. Non-terminal states and open causes fail closed;
  * unknown extra keys are dropped by the caller, never passed through.
  */
+type FanoutChildOutcomeInput = {
+  readonly state: string;
+  readonly causeKind: string | null;
+  readonly causeReason: string | null;
+  readonly attempts: number;
+};
+
+/** Completed carries kind completed with no reason. */
+function completedFanoutChildOutcome(input: FanoutChildOutcomeInput,
+  attempts: number): StagedFanoutChildOutcome | undefined {
+  if (input.state !== 'completed') return undefined;
+  if (input.causeKind !== 'completed' || input.causeReason !== null) {
+    throw new StateError(
+      'validation',
+      'Fanout completed outcome must carry kind completed with no reason.',
+    );
+  }
+  return { state: 'completed', causeKind: 'completed', causeReason: null, attempts };
+}
+
+/** Skipped carries a closed deleted/non-applicable reason. */
+function skippedFanoutChildOutcome(input: FanoutChildOutcomeInput,
+  attempts: number): StagedFanoutChildOutcome | undefined {
+  if (input.state !== 'skipped') return undefined;
+  if (
+    input.causeKind !== 'skipped' ||
+    (input.causeReason !== 'deleted' && input.causeReason !== 'non-applicable')
+  ) {
+    throw new StateError(
+      'validation',
+      `Fanout skipped outcome needs a closed reason, got ${JSON.stringify(input.causeReason)}.`,
+    );
+  }
+  return { state: 'skipped', causeKind: 'skipped', causeReason: input.causeReason, attempts };
+}
+
+/** Failed carries a closed failed reason. */
+function failedFanoutChildOutcome(input: FanoutChildOutcomeInput,
+  attempts: number): StagedFanoutChildOutcome | undefined {
+  if (input.state !== 'failed') return undefined;
+  if (
+    input.causeKind !== 'failed' ||
+    (input.causeReason !== 'business-rejection' &&
+      input.causeReason !== 'terminal' &&
+      input.causeReason !== 'exhausted' &&
+      input.causeReason !== 'missing-record' &&
+      input.causeReason !== 'inaccessible-record' &&
+      input.causeReason !== 'infra-read-failure')
+  ) {
+    throw new StateError(
+      'validation',
+      `Fanout failed outcome needs a closed reason, got ${JSON.stringify(input.causeReason)}.`,
+    );
+  }
+  return { state: 'failed', causeKind: 'failed', causeReason: input.causeReason, attempts };
+}
+
 export function stageFanoutChildOutcome(input: {
   readonly state: string;
   readonly causeKind: string | null;
@@ -344,48 +401,16 @@ export function stageFanoutChildOutcome(input: {
   if (!Number.isInteger(attempts) || attempts < 0) {
     throw new StateError('validation', 'Fanout child attempts must be an integer >= 0.');
   }
-  if (input.state === 'completed') {
-    if (input.causeKind !== 'completed' || input.causeReason !== null) {
-      throw new StateError(
-        'validation',
-        'Fanout completed outcome must carry kind completed with no reason.',
-      );
-    }
-    return { state: 'completed', causeKind: 'completed', causeReason: null, attempts };
+  const staged = completedFanoutChildOutcome(input, attempts) ??
+    skippedFanoutChildOutcome(input, attempts) ??
+    failedFanoutChildOutcome(input, attempts);
+  if (staged === undefined) {
+    throw new StateError(
+      'validation',
+      `Fanout child outcome state must be terminal, got ${JSON.stringify(input.state)}.`,
+    );
   }
-  if (input.state === 'skipped') {
-    if (
-      input.causeKind !== 'skipped' ||
-      (input.causeReason !== 'deleted' && input.causeReason !== 'non-applicable')
-    ) {
-      throw new StateError(
-        'validation',
-        `Fanout skipped outcome needs a closed reason, got ${JSON.stringify(input.causeReason)}.`,
-      );
-    }
-    return { state: 'skipped', causeKind: 'skipped', causeReason: input.causeReason, attempts };
-  }
-  if (input.state === 'failed') {
-    if (
-      input.causeKind !== 'failed' ||
-      (input.causeReason !== 'business-rejection' &&
-        input.causeReason !== 'terminal' &&
-        input.causeReason !== 'exhausted' &&
-        input.causeReason !== 'missing-record' &&
-        input.causeReason !== 'inaccessible-record' &&
-        input.causeReason !== 'infra-read-failure')
-    ) {
-      throw new StateError(
-        'validation',
-        `Fanout failed outcome needs a closed reason, got ${JSON.stringify(input.causeReason)}.`,
-      );
-    }
-    return { state: 'failed', causeKind: 'failed', causeReason: input.causeReason, attempts };
-  }
-  throw new StateError(
-    'validation',
-    `Fanout child outcome state must be terminal, got ${JSON.stringify(input.state)}.`,
-  );
+  return staged;
 }
 
 /**

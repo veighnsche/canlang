@@ -177,177 +177,199 @@ export interface ResumeMigrationResult {
  * fail closed. Unexpected (non-`StateError`) leg failures record
  * `failed`; deterministic `StateError` outcomes preserve the phase.
  */
+function checkFileDeclarations(
+  store: ResumeMigrationInput['store'],
+  plan: ResumeMigrationInput['plan'],
+  fileReferenceInventory: ResumeMigrationInput['fileReferenceInventory'],
+): FileReferenceInventory | undefined {
+  // Capture actual owning correspondence before any resumable phase can write.
+  if (fileReferenceInventory === undefined) return undefined;
+  try {
+    const fileDeclarations = checkedFileInventoryForStorage(store, fileReferenceInventory);
+    if (fileDeclarations.owner !== plan.owner || fileDeclarations.snapshotId !== plan.toSnapshotId || fileDeclarations.digest !== plan.toDigest) {
+      throw new StateError('validation', 'Migration File declarations must match the exact target snapshot.');
+    }
+    return fileDeclarations;
+  } catch (error) { throw storageToStateError(error); }
+}
+
+async function recordPhaseFailure(
+  store: ResumeMigrationInput['store'],
+  migrationId: string,
+  phase: 'staging' | 'activation',
+  error: unknown,
+  input: ResumeMigrationInput,
+): Promise<never> {
+  // B3: unexpected failures record `failed` (StateError
+  // passes through unrecorded; the original always rethrows).
+  if (!(error instanceof StateError)) {
+    await noteUnexpectedFailure(store, migrationId, phase, error, readClockBestEffort(input));
+  }
+  throw error;
+}
+
+async function resumeStagingPhase(
+  store: ResumeMigrationInput['store'],
+  plan: ResumeMigrationInput['plan'],
+  input: ResumeMigrationInput,
+): Promise<ResumeMigrationResult> {
+  try {
+    const staged = await stageNextChunk({
+      store,
+      plan,
+      mappers: input.mappers,
+      oldModels: input.oldModels,
+      desiredModels: input.desiredModels,
+      chunkSize: input.chunkSize,
+      ...(input.isExpiredRow === undefined ? {} : { isExpiredRow: input.isExpiredRow }),
+    });
+    if (!staged.done) {
+      return { progress: staged.progress, flip: null };
+    }
+    // The chunk completed the scan, so this same resume advances to
+    // validation (`stageNextChunk` never auto-advances; resume is the
+    // caller that does). Resume-only callers thus reach `staged`
+    // without stalling; activation itself stays explicit (`activate`).
+    const validated = await validateStaged({
+      store,
+      plan,
+      desiredModels: input.desiredModels,
+      oldLocks: input.oldLocks,
+      oldModels: input.oldModels,
+    });
+    return { progress: validated, flip: null };
+  } catch (error) {
+    return recordPhaseFailure(store, plan.migrationId, 'staging', error, input);
+  }
+}
+
+async function resumeStagedPhase(
+  store: ResumeMigrationInput['store'],
+  plan: ResumeMigrationInput['plan'],
+  input: ResumeMigrationInput,
+): Promise<ResumeMigrationResult> {
+  // Re-validated, not assumed: an already-validated set revalidates
+  // idempotently (same staged rows, same checks, cursor-preserving
+  // empty write), so a stale `staged` never sneaks past new evidence.
+  try {
+    const validated = await validateStaged({
+      store,
+      plan,
+      desiredModels: input.desiredModels,
+      oldLocks: input.oldLocks,
+      oldModels: input.oldModels,
+    });
+    return { progress: validated, flip: null };
+  } catch (error) {
+    return recordPhaseFailure(store, plan.migrationId, 'staging', error, input);
+  }
+}
+
+async function resumePublishingPhase(
+  store: ResumeMigrationInput['store'],
+  plan: ResumeMigrationInput['plan'],
+  input: ResumeMigrationInput,
+  fileDeclarations: FileReferenceInventory | undefined,
+): Promise<ResumeMigrationResult> {
+  try {
+    const disposition = await checkActivationInventory(
+      store,
+      plan,
+      input.inventory,
+      input.retained,
+    );
+    const now = input.clock.nowMs();
+    if (typeof now !== 'number' || !Number.isFinite(now) || now < 0) {
+      throw new StateError('validation', 'Migration clock must supply a finite time >= 0.');
+    }
+    const actor = `migration:${plan.toSnapshotId}`;
+    await publishStagedAndDrops(
+      store,
+      plan,
+      input.oldModels,
+      input.desiredModels,
+      input.chunkSize,
+      now,
+      actor,
+      input.isExpiredRow,
+      fileDeclarations,
+    );
+    const flip = await flipToInstalled(store, plan, now, disposition, fileDeclarations);
+    const after = await store.readMigrationProgress(plan.migrationId);
+    if (after?.phase !== 'active') {
+      // Goal-state check (stronger than the flip flag): publish ran and
+      // the flip returned, but this migration is not active — the flip
+      // no-opped (foreign-installed target) or progress was tampered
+      // with. Returning a still-publishing result would livelock the
+      // next resume with silently unrecorded skips/outcomes: fail loud.
+      throw new StateError(
+        'validation',
+        `Migration flip committed nothing for ${JSON.stringify(plan.migrationId)}: ` +
+          `progress is ${JSON.stringify(after?.phase ?? 'missing')} ` +
+          `(another migration owns the installed target?).`,
+      );
+    }
+    return { progress: after, flip };
+  } catch (error) {
+    return recordPhaseFailure(store, plan.migrationId, 'activation', error, input);
+  }
+}
+
+async function resumeFailedPhase(
+  store: ResumeMigrationInput['store'],
+  plan: ResumeMigrationInput['plan'],
+  input: ResumeMigrationInput,
+): Promise<ResumeMigrationResult> {
+  // B3: the operator decision routes a failed migration (absent still
+  // throws, as before). Retry restores the prior phase from the
+  // failure record and continues routing in this same call.
+  const decision = input.failedDecision;
+  if (decision === undefined) {
+    throw new StateError(
+      'validation',
+      'Migration is failed; an operator decision is required before retry.',
+    );
+  }
+  if (
+    typeof decision !== 'object' ||
+    decision === null ||
+    (decision.decision !== 'retry' && decision.decision !== 'abort')
+  ) {
+    throw new StateError(
+      'validation',
+      `Unknown failed decision: ${JSON.stringify((decision as FailedDecision)?.decision)}.`,
+    );
+  }
+  if (decision.decision === 'abort') {
+    await abortMigration(store, plan.migrationId);
+    return { progress: null, flip: null };
+  }
+  await retryFailedMigration(store, plan.migrationId);
+  const { failedDecision: _dropped, ...rest } = input;
+  void _dropped;
+  return resumeMigration(rest);
+}
+
 export async function resumeMigration(
   input: ResumeMigrationInput,
 ): Promise<ResumeMigrationResult> {
   const { store, plan } = input;
-  // Capture actual owning correspondence before any resumable phase can write.
-  let fileDeclarations: FileReferenceInventory | undefined;
-  if (input.fileReferenceInventory !== undefined) {
-    try {
-      fileDeclarations = checkedFileInventoryForStorage(store, input.fileReferenceInventory);
-      if (fileDeclarations.owner !== plan.owner || fileDeclarations.snapshotId !== plan.toSnapshotId || fileDeclarations.digest !== plan.toDigest) {
-        throw new StateError('validation', 'Migration File declarations must match the exact target snapshot.');
-      }
-    } catch (error) { throw storageToStateError(error); }
-  }
+  const fileDeclarations = checkFileDeclarations(store, plan, input.fileReferenceInventory);
   const progress = await store.readMigrationProgress(plan.migrationId);
   if (progress === null) {
     return { progress: null, flip: null };
   }
   switch (progress.phase) {
-    case 'staging': {
-      try {
-        const staged = await stageNextChunk({
-          store,
-          plan,
-          mappers: input.mappers,
-          oldModels: input.oldModels,
-          desiredModels: input.desiredModels,
-          chunkSize: input.chunkSize,
-          ...(input.isExpiredRow === undefined ? {} : { isExpiredRow: input.isExpiredRow }),
-        });
-        if (!staged.done) {
-          return { progress: staged.progress, flip: null };
-        }
-        // The chunk completed the scan, so this same resume advances to
-        // validation (`stageNextChunk` never auto-advances; resume is the
-        // caller that does). Resume-only callers thus reach `staged`
-        // without stalling; activation itself stays explicit (`activate`).
-        const validated = await validateStaged({
-          store,
-          plan,
-          desiredModels: input.desiredModels,
-          oldLocks: input.oldLocks,
-          oldModels: input.oldModels,
-        });
-        return { progress: validated, flip: null };
-      } catch (error) {
-        // B3: unexpected staging failures record `failed` (StateError
-        // passes through unrecorded; the original always rethrows).
-        if (!(error instanceof StateError)) {
-          await noteUnexpectedFailure(
-            store,
-            plan.migrationId,
-            'staging',
-            error,
-            readClockBestEffort(input),
-          );
-        }
-        throw error;
-      }
-    }
-    case 'staged': {
-      // Re-validated, not assumed: an already-validated set revalidates
-      // idempotently (same staged rows, same checks, cursor-preserving
-      // empty write), so a stale `staged` never sneaks past new evidence.
-      try {
-        const validated = await validateStaged({
-          store,
-          plan,
-          desiredModels: input.desiredModels,
-          oldLocks: input.oldLocks,
-          oldModels: input.oldModels,
-        });
-        return { progress: validated, flip: null };
-      } catch (error) {
-        if (!(error instanceof StateError)) {
-          await noteUnexpectedFailure(
-            store,
-            plan.migrationId,
-            'staging',
-            error,
-            readClockBestEffort(input),
-          );
-        }
-        throw error;
-      }
-    }
-    case 'publishing': {
-      try {
-        const disposition = await checkActivationInventory(
-          store,
-          plan,
-          input.inventory,
-          input.retained,
-        );
-        const now = input.clock.nowMs();
-        if (typeof now !== 'number' || !Number.isFinite(now) || now < 0) {
-          throw new StateError('validation', 'Migration clock must supply a finite time >= 0.');
-        }
-        const actor = `migration:${plan.toSnapshotId}`;
-        await publishStagedAndDrops(
-          store,
-          plan,
-          input.oldModels,
-          input.desiredModels,
-          input.chunkSize,
-          now,
-          actor,
-          input.isExpiredRow,
-          fileDeclarations,
-        );
-        const flip = await flipToInstalled(store, plan, now, disposition, fileDeclarations);
-        const after = await store.readMigrationProgress(plan.migrationId);
-        if (after?.phase !== 'active') {
-          // Goal-state check (stronger than the flip flag): publish ran and
-          // the flip returned, but this migration is not active — the flip
-          // no-opped (foreign-installed target) or progress was tampered
-          // with. Returning a still-publishing result would livelock the
-          // next resume with silently unrecorded skips/outcomes: fail loud.
-          throw new StateError(
-            'validation',
-            `Migration flip committed nothing for ${JSON.stringify(plan.migrationId)}: ` +
-              `progress is ${JSON.stringify(after?.phase ?? 'missing')} ` +
-              `(another migration owns the installed target?).`,
-          );
-        }
-        return { progress: after, flip };
-      } catch (error) {
-        if (!(error instanceof StateError)) {
-          await noteUnexpectedFailure(
-            store,
-            plan.migrationId,
-            'activation',
-            error,
-            readClockBestEffort(input),
-          );
-        }
-        throw error;
-      }
-    }
+    case 'staging':
+      return resumeStagingPhase(store, plan, input);
+    case 'staged':
+      return resumeStagedPhase(store, plan, input);
+    case 'publishing':
+      return resumePublishingPhase(store, plan, input, fileDeclarations);
     case 'active':
       return { progress, flip: null };
-    case 'failed': {
-      // B3: the operator decision routes a failed migration (absent still
-      // throws, as before). Retry restores the prior phase from the
-      // failure record and continues routing in this same call.
-      const decision = input.failedDecision;
-      if (decision === undefined) {
-        throw new StateError(
-          'validation',
-          'Migration is failed; an operator decision is required before retry.',
-        );
-      }
-      if (
-        typeof decision !== 'object' ||
-        decision === null ||
-        (decision.decision !== 'retry' && decision.decision !== 'abort')
-      ) {
-        throw new StateError(
-          'validation',
-          `Unknown failed decision: ${JSON.stringify((decision as FailedDecision)?.decision)}.`,
-        );
-      }
-      if (decision.decision === 'abort') {
-        await abortMigration(store, plan.migrationId);
-        return { progress: null, flip: null };
-      }
-      await retryFailedMigration(store, plan.migrationId);
-      const { failedDecision: _dropped, ...rest } = input;
-      void _dropped;
-      return resumeMigration(rest);
-    }
+    case 'failed':
+      return resumeFailedPhase(store, plan, input);
     default: {
       const phase = (progress as MigrationProgress).phase;
       throw new StateError('validation', `Unknown migration phase: ${JSON.stringify(phase)}.`);

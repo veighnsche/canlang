@@ -365,65 +365,88 @@ function isTrivia(code: number): boolean {
   return code === 32 || code === 9 || code === 10 || code === 13 || code === 12 || code === 11;
 }
 
+function blankRange(chars: string[], from: number, to: number): void {
+  for (let i = from; i < to; i += 1) {
+    if (chars[i] !== '\n') chars[i] = ' ';
+  }
+}
+
+function scanLineCommentEnd(chars: string[], i: number): number {
+  while (i < chars.length && chars[i] !== '\n') i += 1;
+  return i;
+}
+
+function scanBlockCommentEnd(chars: string[], i: number): number {
+  i += 2;
+  while (i + 1 < chars.length && !(chars[i] === '*' && chars[i + 1] === '/')) i += 1;
+  return Math.min(i + 2, chars.length);
+}
+
+function scanQuotedEnd(chars: string[], i: number, quote: string): number {
+  i += 1;
+  while (i < chars.length) {
+    if (chars[i] === '\\') i += 2;
+    else if (chars[i] === '\n') break;
+    else if (chars[i] === quote) {
+      i += 1;
+      break;
+    } else i += 1;
+  }
+  return i;
+}
+
+function skipTemplateInterpolation(chars: string[], i: number): number {
+  i += 2;
+  let depth = 1;
+  while (i < chars.length && depth > 0) {
+    if (chars[i] === '{') depth += 1;
+    else if (chars[i] === '}') depth -= 1;
+    i += 1;
+  }
+  return i;
+}
+
+function scanTemplateEnd(chars: string[], i: number): number {
+  chars[i] = ' ';
+  i += 1;
+  while (i < chars.length) {
+    if (chars[i] === '$' && i + 1 < chars.length && chars[i + 1] === '{') {
+      i = skipTemplateInterpolation(chars, i);
+    } else if (chars[i] === '\\') {
+      chars[i] = ' ';
+      if (i + 1 < chars.length && chars[i + 1] !== '\n') chars[i + 1] = ' ';
+      i += 2;
+    } else if (chars[i] === '`') {
+      chars[i] = ' ';
+      i += 1;
+      break;
+    } else {
+      if (chars[i] !== '\n') chars[i] = ' ';
+      i += 1;
+    }
+  }
+  return i;
+}
+
 /** Blank comments and string-literal contents, preserving length and newlines. */
 function blankGivenJsTrivia(js: string): string[] {
   const chars = js.split('');
-  const blank = (from: number, to: number): void => {
-    for (let i = from; i < to; i += 1) {
-      if (chars[i] !== '\n') chars[i] = ' ';
-    }
-  };
   let i = 0;
   while (i < chars.length) {
     const ch = chars[i] as string;
     const next = (i + 1 < chars.length ? chars[i + 1] : '') as string;
+    const from = i;
     if (ch === '/' && next === '/') {
-      const from = i;
-      while (i < chars.length && chars[i] !== '\n') i += 1;
-      blank(from, i);
+      i = scanLineCommentEnd(chars, i);
+      blankRange(chars, from, i);
     } else if (ch === '/' && next === '*') {
-      const from = i;
-      i += 2;
-      while (i + 1 < chars.length && !(chars[i] === '*' && chars[i + 1] === '/')) i += 1;
-      i = Math.min(i + 2, chars.length);
-      blank(from, i);
+      i = scanBlockCommentEnd(chars, i);
+      blankRange(chars, from, i);
     } else if (ch === "'" || ch === '"') {
-      const from = i;
-      i += 1;
-      while (i < chars.length) {
-        if (chars[i] === '\\') i += 2;
-        else if (chars[i] === '\n') break;
-        else if (chars[i] === ch) {
-          i += 1;
-          break;
-        } else i += 1;
-      }
-      blank(from, i);
+      i = scanQuotedEnd(chars, i, ch);
+      blankRange(chars, from, i);
     } else if (ch === '`') {
-      chars[i] = ' ';
-      i += 1;
-      while (i < chars.length) {
-        if (chars[i] === '\\') {
-          chars[i] = ' ';
-          if (i + 1 < chars.length && chars[i + 1] !== '\n') chars[i + 1] = ' ';
-          i += 2;
-        } else if (chars[i] === '`') {
-          chars[i] = ' ';
-          i += 1;
-          break;
-        } else if (chars[i] === '$' && i + 1 < chars.length && chars[i + 1] === '{') {
-          i += 2;
-          let depth = 1;
-          while (i < chars.length && depth > 0) {
-            if (chars[i] === '{') depth += 1;
-            else if (chars[i] === '}') depth -= 1;
-            i += 1;
-          }
-        } else {
-          if (chars[i] !== '\n') chars[i] = ' ';
-          i += 1;
-        }
-      }
+      i = scanTemplateEnd(chars, i);
     } else {
       i += 1;
     }

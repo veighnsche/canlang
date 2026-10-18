@@ -1,5 +1,5 @@
 /** A File census follows owning value declarations, never reference authority. */
-import type { ArtifactModel, CanonicalFieldDef, CanonicalModelDescriptor, CanonicalValueTypes, CanTypeId, ModelName } from '@canlang/contracts';
+import type { ArtifactModel, ArtifactModelField, CanonicalFieldDef, CanonicalModelDescriptor, CanonicalValueTypes, CanTypeId, ModelName } from '@canlang/contracts';
 import { assertSafeBlobKey } from '@canlang/files/ports';
 import { encodeValue, normalizeValueTypes, parseTypeId, printTypeBase, printTypeId, validateValue,
   type NormalizedSchema, type NormalizedType } from '@canlang/values';
@@ -66,33 +66,54 @@ function parsed(type: unknown): NormalizedType {
 
 /** Keep Values' immutable normalized objects, including exact bigint bounds.
  * The tagged fingerprint also checks own data before any schema traversal. */
+interface FingerprintBudget { nodes: number; readonly active: Set<object>; }
+
+function fingerprintScalar(value: unknown): unknown[] | undefined {
+  if (value === null) return ['null'];
+  if (typeof value === 'string' || typeof value === 'boolean' || typeof value === 'bigint') return [typeof value, String(value)];
+  if (typeof value === 'number' && Number.isFinite(value)) return ['number', String(value)];
+  return undefined;
+}
+
+function fingerprintMember(
+  value: object,
+  key: string | symbol,
+  array: boolean,
+  length: number,
+  budget: FingerprintBudget,
+  depth: number,
+  members: unknown[],
+): void {
+  if (array && key === 'length') return;
+  const member = Object.getOwnPropertyDescriptor(value, key);
+  if (typeof key !== 'string' || member === undefined || !('value' in member) || !member.enumerable ||
+      array && (!/^(0|[1-9]\d*)$/.test(key) || Number(key) >= length)) return invalid('own schema data required.');
+  members.push([key, fingerprintValue(member.value, depth + 1, budget)]);
+}
+
+function fingerprintValue(value: unknown, depth: number, budget: FingerprintBudget): unknown {
+  if (++budget.nodes > MAX_NODES || depth > MAX_DEPTH) return invalid('schema exceeds its finite budget.');
+  const scalar = fingerprintScalar(value);
+  if (scalar !== undefined) return scalar;
+  if (typeof value !== 'object' || value === null || budget.active.has(value) || !Object.isFrozen(value) ||
+      ![Object.prototype, null, Array.prototype].includes(Object.getPrototypeOf(value))) {
+    return invalid('immutable own normalized schema required.');
+  }
+  budget.active.add(value);
+  const array = Array.isArray(value), keys = Reflect.ownKeys(value);
+  if (array && keys.length !== value.length + 1) return invalid('dense schema arrays required.');
+  const members: unknown[] = [];
+  for (const key of keys) {
+    fingerprintMember(value, key, array, array ? value.length : 0, budget, depth, members);
+  }
+  if (!array) members.sort((a, b) => (a as [string])[0].localeCompare((b as [string])[0]));
+  budget.active.delete(value);
+  return [array ? 'array' : 'object', members];
+}
+
 function schemaFingerprint(schema: NormalizedSchema): string {
   const existing = schemaFingerprints.get(schema); if (existing !== undefined) return existing;
-  let nodes = 0;
-  const active = new Set<object>();
-  const visit = (value: unknown, depth: number): unknown => {
-    if (++nodes > MAX_NODES || depth > MAX_DEPTH) return invalid('schema exceeds its finite budget.');
-    if (value === null) return ['null'];
-    if (typeof value === 'string' || typeof value === 'boolean' || typeof value === 'bigint') return [typeof value, String(value)];
-    if (typeof value === 'number' && Number.isFinite(value)) return ['number', String(value)];
-    if (typeof value !== 'object' || value === null || active.has(value) || !Object.isFrozen(value) ||
-        ![Object.prototype, null, Array.prototype].includes(Object.getPrototypeOf(value))) return invalid('immutable own normalized schema required.');
-    active.add(value);
-    const array = Array.isArray(value), keys = Reflect.ownKeys(value);
-    if (array && keys.length !== value.length + 1) return invalid('dense schema arrays required.');
-    const members: unknown[] = [];
-    for (const key of keys) {
-      if (array && key === 'length') continue;
-      const member = Object.getOwnPropertyDescriptor(value, key);
-      if (typeof key !== 'string' || member === undefined || !('value' in member) || !member.enumerable ||
-          array && (!/^(0|[1-9]\d*)$/.test(key) || Number(key) >= value.length)) return invalid('own schema data required.');
-      members.push([key, visit(member.value, depth + 1)]);
-    }
-    if (!array) members.sort((a, b) => (a as [string])[0].localeCompare((b as [string])[0]));
-    active.delete(value);
-    return [array ? 'array' : 'object', members];
-  };
-  const fingerprint = JSON.stringify(visit(schema, 0));
+  const fingerprint = JSON.stringify(fingerprintValue(schema, 0, { nodes: 0, active: new Set<object>() }));
   if (schema.kind !== 'normalized-schema' || schema.contracts === undefined || schema.enums === undefined || schema.operations === undefined) {
     return invalid('complete normalized Values schema required.');
   }
@@ -105,13 +126,10 @@ const scalarTags: Readonly<Record<string, string>> = Object.freeze({
   date: 'date', duration: 'duration', file: 'file', user: 'user', member: 'member', json: 'json', secret: 'secret',
 });
 
-/** Shared same-load inventories; schema data does not establish source authority. */
-function boundValueSchema(bound: FileReferenceProfileBound): {
-  readonly canonicalModels: readonly CanonicalModelDescriptor[];
-  readonly names: ReadonlySet<string>;
-  readonly schema: NormalizedSchema;
-} {
-  const canonicalModels = copyScenarioFileData(bound.canonicalModels) as readonly CanonicalModelDescriptor[];
+function checkSameLoadInventory(
+  canonicalModels: readonly CanonicalModelDescriptor[],
+  bound: FileReferenceProfileBound,
+): Set<string> {
   const names = new Set<string>();
   for (const declaration of canonicalModels) {
     const type = parsed(declaration.name);
@@ -120,18 +138,34 @@ function boundValueSchema(bound: FileReferenceProfileBound): {
     names.add(declaration.name);
   }
   if (names.size !== bound.artifactModels.size) return invalid('complete same-load model inventory required.');
-  let normalized: NormalizedSchema | undefined;
-  if (bound.valueTypes !== undefined) {
-    const cohort = JSON.stringify([...names]), prepared = normalizedInventories.get(bound.valueTypes);
-    normalized = prepared?.get(cohort);
-    if (normalized === undefined) {
-      normalized = normalizeValueTypes(copyScenarioFileData(bound.valueTypes), [...names]).valueSchema;
-      if (immutableInventory(bound.valueTypes)) {
-        const entries = prepared ?? new Map<string, NormalizedSchema>();
-        entries.set(cohort, normalized); normalizedInventories.set(bound.valueTypes, entries);
-      }
-    }
+  return names;
+}
+
+function loadNormalizedInventory(
+  bound: FileReferenceProfileBound,
+  names: ReadonlySet<string>,
+): NormalizedSchema | undefined {
+  if (bound.valueTypes === undefined) return undefined;
+  const cohort = JSON.stringify([...names]), prepared = normalizedInventories.get(bound.valueTypes);
+  const cached = prepared?.get(cohort);
+  if (cached !== undefined) return cached;
+  const normalized = normalizeValueTypes(copyScenarioFileData(bound.valueTypes), [...names]).valueSchema;
+  if (immutableInventory(bound.valueTypes)) {
+    const entries = prepared ?? new Map<string, NormalizedSchema>();
+    entries.set(cohort, normalized); normalizedInventories.set(bound.valueTypes, entries);
   }
+  return normalized;
+}
+
+/** Shared same-load inventories; schema data does not establish source authority. */
+function boundValueSchema(bound: FileReferenceProfileBound): {
+  readonly canonicalModels: readonly CanonicalModelDescriptor[];
+  readonly names: ReadonlySet<string>;
+  readonly schema: NormalizedSchema;
+} {
+  const canonicalModels = copyScenarioFileData(bound.canonicalModels) as readonly CanonicalModelDescriptor[];
+  const names = checkSameLoadInventory(canonicalModels, bound);
+  const normalized = loadNormalizedInventory(bound, names);
   const schema = bound.valueSchema ?? normalized ?? normalizeValueTypes({ contracts: [] }, [...names]).valueSchema;
   const fingerprint = schemaFingerprint(schema);
   if (normalized !== undefined && schemaFingerprint(normalized) !== fingerprint) return invalid('loaded Values inventories disagree.');
@@ -209,92 +243,219 @@ function canonicalDefaultSpelling(value: unknown): unknown {
   return value;
 }
 
+interface OwningFieldResolution {
+  readonly names: ReadonlySet<string>;
+  readonly schema: NormalizedSchema;
+  readonly canonical: CanonicalFieldDef;
+  readonly source: ArtifactModelField;
+  readonly tag: Record<string, unknown>;
+}
+
+function resolveOwningField(
+  bound: FileReferenceProfileBound,
+  model: ModelName,
+  field: string,
+): OwningFieldResolution {
+  const { canonicalModels, names, schema } = boundValueSchema(bound);
+  const owners = canonicalModels.filter(candidate => candidate.name === model);
+  const artifact = copyScenarioFileData(bound.artifactModels.get(model)) as ArtifactModel;
+  const authored = artifact?.fields.filter(candidate => candidate.name === field) ?? [];
+  if (owners.length !== 1 || artifact?.name !== model || authored.length !== 1 || !Object.hasOwn(owners[0]!.fields, field)) return invalid('exact owning field required.');
+  const canonical = owners[0]!.fields[field]!, source = authored[0]!, tag = object(source.field);
+  return { names, schema, canonical, source, tag };
+}
+
+function compareOwningField(canonical: CanonicalFieldDef, source: ArtifactModelField): void {
+  for (const key of ['required', 'serverOnly', 'array', 'nullable', 'trim', 'min', 'max', 'default'] as const) {
+    // Compare defaults in their canonical spelling: a server default keeps
+    // only its kind canonically, while its artifact spelling may carry the
+    // T18 init payload (censused separately as a server init).
+    const sourceValue = key === 'default' ? canonicalDefaultSpelling(source[key]) : source[key];
+    if (Object.hasOwn(canonical, key) !== Object.hasOwn(source, key) ||
+        Object.hasOwn(canonical, key) && stableStringify(canonical[key]) !== stableStringify(sourceValue)) return invalid('owning field declarations disagree.');
+  }
+}
+
+function checkDeliveryResultFields(nominal: Record<string, unknown>): void {
+  const fields = nominal['fields'];
+  if (Object.keys(nominal).length !== 2 || typeof nominal['name'] !== 'string' || nominal['name'] === '' ||
+      !Array.isArray(fields)) return invalid('complete delivery result descriptor required.');
+  const resultNames = new Set<string>();
+  for (const raw of fields) {
+    const leaf = object(raw);
+    if (typeof leaf['name'] !== 'string' || leaf['name'] === '' || resultNames.has(leaf['name']) ||
+        typeof leaf['type'] !== 'string') return invalid('complete unique delivery result fields required.');
+    resultNames.add(leaf['name']); parsed(leaf['type']);
+  }
+}
+
+function resolveDeliveryBase(
+  tag: Record<string, unknown>,
+  canonical: CanonicalFieldDef,
+  schema: NormalizedSchema,
+): string | undefined {
+  if (tag['kind'] !== 'delivery') return undefined;
+  const expected = ['kind', 'capability', 'operation', 'version', 'result', ...(Object.hasOwn(tag, 'judgment') ? ['judgment'] : [])];
+  if (Object.keys(tag).length !== expected.length || expected.some(key => !Object.hasOwn(tag, key)) ||
+      typeof tag['capability'] !== 'string' || tag['capability'] === '' ||
+      typeof tag['operation'] !== 'string' || tag['operation'] === '' || canonical.array !== undefined ||
+      canonical.delivery === undefined || stableStringify(canonical.delivery) !== stableStringify(tag)) {
+    return invalid('exact owning delivery identity declaration required.');
+  }
+  if (Object.hasOwn(tag, 'judgment')) {
+    if (tag['judgment'] !== true || tag['operation'] !== 'evaluate' || typeof tag['version'] !== 'string' ||
+        stableStringify(encodeValue('int', validateValue(schema, 'int', tag['version'], 'create'))) !== stableStringify(tag['version'])) {
+      return invalid('exact original Judgment delivery version required.');
+    }
+  } else if (!Number.isSafeInteger(tag['version']) || (tag['version'] as number) < 1) {
+    return invalid('exact original delivery version required.');
+  }
+  checkDeliveryResultFields(object(tag['result']));
+  return `delivery(${tag['capability']}.${tag['operation']})`;
+}
+
+function checkDeliveryTag(
+  tag: Record<string, unknown>,
+  root: NormalizedType,
+  base: string,
+  deliveryBase: string | undefined,
+): void {
+  if (root.base.kind !== 'delivery' || base !== deliveryBase || root.array) {
+    return invalid('exact declared delivery reference required.');
+  }
+}
+
+function checkNominalTag(tag: Record<string, unknown>, root: NormalizedType, names: ReadonlySet<string>): void {
+  if (Object.keys(tag).length !== 2 || root.base.kind !== 'nominal' || tag['name'] !== root.base.path || names.has(root.base.path)) {
+    return invalid('exact nominal source tag required.');
+  }
+}
+
+function checkRefTag(tag: Record<string, unknown>, root: NormalizedType, names: ReadonlySet<string>): void {
+  if (Object.keys(tag).length !== 2 || root.base.kind !== 'nominal' || tag['model'] !== root.base.path || !names.has(root.base.path)) {
+    return invalid('exact same-load model reference tag required.');
+  }
+}
+
+function checkOtherTag(tag: Record<string, unknown>, base: string): void {
+  if (Object.keys(tag).length !== 2 || tag['type'] !== base) return invalid('exact other source type required.');
+}
+
+function checkEnumTag(tag: Record<string, unknown>, root: NormalizedType): void {
+  if (Object.keys(tag).length !== 2 || !(root.base.kind === 'enum' || root.base.kind === 'nominal') ||
+      root.base.kind === 'enum' && stableStringify(tag['values']) !== stableStringify(root.base.cases)) {
+    return invalid('exact enum source tag required.');
+  }
+}
+
+function checkStringTag(tag: Record<string, unknown>, root: NormalizedType, base: string): void {
+  if (Object.keys(tag).length !== 1 || !(base === 'text' || root.base.kind === 'stringlike')) {
+    return invalid('exact checked string source type required.');
+  }
+}
+
+function checkScalarTag(tag: Record<string, unknown>, base: string, inferred: string | undefined): void {
+  if (Object.keys(tag).length !== 1 || inferred === undefined || inferred !== base) {
+    return invalid('known exact source type required.');
+  }
+}
+
+function checkNamedEnumCases(
+  tag: Record<string, unknown>,
+  root: NormalizedType,
+  schema: NormalizedSchema,
+): void {
+  if (tag['kind'] === 'enum' && root.base.kind === 'nominal' &&
+      (!Object.hasOwn(schema.enums, root.base.path) || stableStringify(schema.enums[root.base.path]!.cases) !== stableStringify(tag['values']))) {
+    return invalid('ordered named enum cases disagree with their owning declaration.');
+  }
+}
+
+function checkFieldTag(
+  tag: Record<string, unknown>,
+  root: NormalizedType,
+  base: string,
+  names: ReadonlySet<string>,
+  inferred: string | undefined,
+  deliveryBase: string | undefined,
+  schema: NormalizedSchema,
+): void {
+  switch (tag['kind']) {
+    case 'delivery':
+      checkDeliveryTag(tag, root, base, deliveryBase);
+      break;
+    case 'nominal':
+      checkNominalTag(tag, root, names);
+      break;
+    case 'ref':
+      checkRefTag(tag, root, names);
+      break;
+    case 'other':
+      checkOtherTag(tag, base);
+      break;
+    case 'enum':
+      checkEnumTag(tag, root);
+      break;
+    case 'string':
+      checkStringTag(tag, root, base);
+      break;
+    default:
+      checkScalarTag(tag, base, inferred);
+  }
+  checkNamedEnumCases(tag, root, schema);
+}
+
+function resolveLegacyBase(
+  tag: Record<string, unknown>,
+  deliveryBase: string | undefined,
+  inferred: string | undefined,
+): string | undefined {
+  return deliveryBase ?? inferred ?? (tag['kind'] === 'string' ? 'text' :
+    tag['kind'] === 'enum' && Array.isArray(tag['values']) && tag['values'].length > 0 &&
+      tag['values'].every(value => typeof value === 'string' && value !== '') ? `enum(${tag['values'].join(',')})` : undefined);
+}
+
+function resolveFieldValueType(
+  type: unknown,
+  source: ArtifactModelField,
+  canonical: CanonicalFieldDef,
+  legacyBase: string | undefined,
+): unknown {
+  if (type === undefined && source.valueType === undefined && legacyBase !== undefined) {
+    type = `${legacyBase}${canonical.array === undefined ? '' : canonical.array.required ? '[]!' : '[]'}${canonical.nullable === true ? '?' : ''}`;
+  }
+  if (type === undefined || source.valueType !== undefined && source.valueType !== type ||
+      canonical.valueType === undefined && source.valueType !== undefined) {
+    return invalid('matching owning valueType required.');
+  }
+  return type;
+}
+
+function checkFieldMarkers(canonical: CanonicalFieldDef): void {
+  if (typeof canonical.required !== 'boolean' || typeof canonical.serverOnly !== 'boolean' ||
+      Object.hasOwn(canonical, 'nullable') && typeof canonical.nullable !== 'boolean') return invalid('checked field markers required.');
+  if (canonical.array !== undefined && (Object.keys(canonical.array).length !== 1 || typeof canonical.array.required !== 'boolean')) return invalid('closed array marker required.');
+}
+
 export function bindFileReferenceProfile(bound: FileReferenceProfileBound, model: ModelName, field: string): FileReferenceProfile {
   try {
     if (typeof field !== 'string' || field === '' || field.includes('.') ||
         ['id', 'version', 'created', 'updated', 'createdBy', 'updatedBy', 'archivedAt', 'parent'].includes(field)) return invalid('top-level stored field required.');
-    const { canonicalModels, names, schema } = boundValueSchema(bound);
-    const owners = canonicalModels.filter(candidate => candidate.name === model);
-    const artifact = copyScenarioFileData(bound.artifactModels.get(model)) as ArtifactModel;
-    const authored = artifact?.fields.filter(candidate => candidate.name === field) ?? [];
-    if (owners.length !== 1 || artifact?.name !== model || authored.length !== 1 || !Object.hasOwn(owners[0]!.fields, field)) return invalid('exact owning field required.');
-    const canonical = owners[0]!.fields[field]!, source = authored[0]!, tag = object(source.field);
-    for (const key of ['required', 'serverOnly', 'array', 'nullable', 'trim', 'min', 'max', 'default'] as const) {
-      // Compare defaults in their canonical spelling: a server default keeps
-      // only its kind canonically, while its artifact spelling may carry the
-      // T18 init payload (censused separately as a server init).
-      const sourceValue = key === 'default' ? canonicalDefaultSpelling(source[key]) : source[key];
-      if (Object.hasOwn(canonical, key) !== Object.hasOwn(source, key) ||
-          Object.hasOwn(canonical, key) && stableStringify(canonical[key]) !== stableStringify(sourceValue)) return invalid('owning field declarations disagree.');
-    }
-    if (typeof canonical.required !== 'boolean' || typeof canonical.serverOnly !== 'boolean' ||
-        Object.hasOwn(canonical, 'nullable') && typeof canonical.nullable !== 'boolean') return invalid('checked field markers required.');
-    if (canonical.array !== undefined && (Object.keys(canonical.array).length !== 1 || typeof canonical.array.required !== 'boolean')) return invalid('closed array marker required.');
+    const resolved = resolveOwningField(bound, model, field);
+    const { names, schema, canonical, source, tag } = resolved;
+    compareOwningField(canonical, source);
+    checkFieldMarkers(canonical);
     let type: unknown = canonical.valueType;
     // Legacy uncollapsed scalar tags and actual model-ref tags already define
     // their element type. Collapsed strings/unknown tags still need a claim.
     const inferred = typeof tag['kind'] === 'string' ? scalarTags[tag['kind']] : undefined;
-    let deliveryBase: string | undefined;
-    if (tag['kind'] === 'delivery') {
-      const expected = ['kind', 'capability', 'operation', 'version', 'result', ...(Object.hasOwn(tag, 'judgment') ? ['judgment'] : [])];
-      if (Object.keys(tag).length !== expected.length || expected.some(key => !Object.hasOwn(tag, key)) ||
-          typeof tag['capability'] !== 'string' || tag['capability'] === '' ||
-          typeof tag['operation'] !== 'string' || tag['operation'] === '' || canonical.array !== undefined ||
-          canonical.delivery === undefined || stableStringify(canonical.delivery) !== stableStringify(tag)) return invalid('exact owning delivery identity declaration required.');
-      if (Object.hasOwn(tag, 'judgment')) {
-        if (tag['judgment'] !== true || tag['operation'] !== 'evaluate' || typeof tag['version'] !== 'string' ||
-            stableStringify(encodeValue('int', validateValue(schema, 'int', tag['version'], 'create'))) !== stableStringify(tag['version'])) return invalid('exact original Judgment delivery version required.');
-      } else if (!Number.isSafeInteger(tag['version']) || (tag['version'] as number) < 1) return invalid('exact original delivery version required.');
-      const nominal = object(tag['result']);
-      if (Object.keys(nominal).length !== 2 || typeof nominal['name'] !== 'string' || nominal['name'] === '' ||
-          !Array.isArray(nominal['fields'])) return invalid('complete delivery result descriptor required.');
-      const resultNames = new Set<string>();
-      for (const raw of nominal['fields']) {
-        const leaf = object(raw);
-        if (typeof leaf['name'] !== 'string' || leaf['name'] === '' || resultNames.has(leaf['name']) ||
-            typeof leaf['type'] !== 'string') return invalid('complete unique delivery result fields required.');
-        resultNames.add(leaf['name']); parsed(leaf['type']);
-      }
-      deliveryBase = `delivery(${tag['capability']}.${tag['operation']})`;
-    }
-    const legacyBase = deliveryBase ?? inferred ?? (tag['kind'] === 'string' ? 'text' :
-      tag['kind'] === 'enum' && Array.isArray(tag['values']) && tag['values'].length > 0 &&
-        tag['values'].every(value => typeof value === 'string' && value !== '') ? `enum(${tag['values'].join(',')})` : undefined);
-    if (type === undefined && source.valueType === undefined && legacyBase !== undefined) {
-      type = `${legacyBase}${canonical.array === undefined ? '' : canonical.array.required ? '[]!' : '[]'}${canonical.nullable === true ? '?' : ''}`;
-    }
-    if (type === undefined || source.valueType !== undefined && source.valueType !== type ||
-        canonical.valueType === undefined && source.valueType !== undefined) return invalid('matching owning valueType required.');
+    const deliveryBase = resolveDeliveryBase(tag, canonical, schema);
+    const legacyBase = resolveLegacyBase(tag, deliveryBase, inferred);
+    type = resolveFieldValueType(type, source, canonical, legacyBase);
     const root = parsed(type), base = printTypeBase(root.base);
     if (root.array !== Object.hasOwn(canonical, 'array') || root.requiredArray !== (canonical.array?.required === true) ||
         root.nullable !== (canonical.nullable === true)) return invalid('owning type and container markers disagree.');
-    switch (tag['kind']) {
-      case 'delivery':
-        if (root.base.kind !== 'delivery' || base !== deliveryBase || root.array) return invalid('exact declared delivery reference required.');
-        break;
-      case 'nominal':
-        if (Object.keys(tag).length !== 2 || root.base.kind !== 'nominal' || tag['name'] !== root.base.path || names.has(root.base.path)) return invalid('exact nominal source tag required.');
-        break;
-      case 'ref':
-        if (Object.keys(tag).length !== 2 || root.base.kind !== 'nominal' || tag['model'] !== root.base.path || !names.has(root.base.path)) return invalid('exact same-load model reference tag required.');
-        break;
-      case 'other':
-        if (Object.keys(tag).length !== 2 || tag['type'] !== base) return invalid('exact other source type required.');
-        break;
-      case 'enum':
-        if (Object.keys(tag).length !== 2 || !(root.base.kind === 'enum' || root.base.kind === 'nominal') ||
-            root.base.kind === 'enum' && stableStringify(tag['values']) !== stableStringify(root.base.cases)) return invalid('exact enum source tag required.');
-        break;
-      case 'string':
-        if (Object.keys(tag).length !== 1 || !(base === 'text' || root.base.kind === 'stringlike')) return invalid('exact checked string source type required.');
-        break;
-      default:
-        if (Object.keys(tag).length !== 1 || inferred === undefined || inferred !== base) return invalid('known exact source type required.');
-    }
-    if (tag['kind'] === 'enum' && root.base.kind === 'nominal' &&
-        (!Object.hasOwn(schema.enums, root.base.path) || stableStringify(schema.enums[root.base.path]!.cases) !== stableStringify(tag['values']))) {
-      return invalid('ordered named enum cases disagree with their owning declaration.');
-    }
+    checkFieldTag(tag, root, base, names, inferred, deliveryBase, schema);
     // Reuse the existing exact direct File intake where its finite profile
     // applies; required arrays use the same checked markers and Values below.
     if (root.base.kind === 'file' && !root.requiredArray && source.default?.kind !== 'derived' && source.valueType !== undefined) {

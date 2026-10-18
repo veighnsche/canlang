@@ -88,31 +88,40 @@ export function createBoundJudgmentAdapter(options: BoundJudgmentOptions): Bound
   const { appDefinition, resolveInstalledJudgment } = options;
   const expected = Object.freeze({ ...options.binding });
   const { valueTypes, valueSchema: schema } = normalizeValueTypes(options.valueTypes);
+  const checkedSource = (intent: OutboxIntent) => {
+    const carrier = intent.arguments;
+    if (!closed(carrier, ['binding', 'from', 'arguments', 'judgment']) || typeof carrier.binding !== 'string' ||
+        !closed(carrier.judgment, ['specification', 'order'])) return null;
+    const checked = sourceFor(appDefinition, carrier.binding, intent.target, carrier.arguments, valueTypes, schema);
+    if (checked.declaration !== expected.judgment || checked.from !== expected.deployment || carrier.from !== checked.from ||
+        checked.source.specification.version !== expected.version || typeof expected.version !== 'bigint' ||
+        expected.account === '' || expected.deployment === '') return null;
+    const original = encodeValue('std.JudgmentSpec', checked.source.specification as unknown as CanValue, undefined, schema);
+    if (JSON.stringify(carrier.judgment.specification) !== JSON.stringify(original) ||
+        JSON.stringify(carrier.judgment.order) !== JSON.stringify(checked.source.order)) return null;
+    const leaves = valueTypes.contracts.find(contract => contract.name === checked.declaration)?.fields;
+    if (leaves === undefined || leaves.length === 0) return null;
+    validateValue(schema, 'std.JudgmentSpec', carrier.judgment.specification, 'create');
+    return { checked, leaves };
+  };
+  const installedJudgment = () => {
+    const installed = resolveInstalledJudgment(expected.deployment);
+    if (installed === null || installed.binding.judgment !== expected.judgment || installed.binding.version !== expected.version ||
+        installed.binding.deployment !== expected.deployment || installed.binding.account !== expected.account ||
+        installed.profile.model === '' || installed.profile.provider === '' || installed.profile.inputTokenization !== 'deployment' ||
+        !Number.isSafeInteger(installed.profile.maxInputTokens) || installed.profile.maxInputTokens < 1) return null;
+    return installed;
+  };
   const resolve = (intent: OutboxIntent) => {
     try {
-      const carrier = intent.arguments;
-      if (!closed(carrier, ['binding', 'from', 'arguments', 'judgment']) || typeof carrier.binding !== 'string' ||
-          !closed(carrier.judgment, ['specification', 'order'])) return null;
-      const checked = sourceFor(appDefinition, carrier.binding, intent.target, carrier.arguments, valueTypes, schema);
-      if (checked.declaration !== expected.judgment || checked.from !== expected.deployment || carrier.from !== checked.from ||
-          checked.source.specification.version !== expected.version || typeof expected.version !== 'bigint' ||
-          expected.account === '' || expected.deployment === '') return null;
-      const original = encodeValue('std.JudgmentSpec', checked.source.specification as unknown as CanValue, undefined, schema);
-      if (JSON.stringify(carrier.judgment.specification) !== JSON.stringify(original) ||
-          JSON.stringify(carrier.judgment.order) !== JSON.stringify(checked.source.order)) return null;
-      const leaves = valueTypes.contracts.find(contract => contract.name === checked.declaration)?.fields;
-      if (leaves === undefined) return null;
-      if (leaves.length === 0) return null;
-      validateValue(schema, 'std.JudgmentSpec', carrier.judgment.specification, 'create');
-      const installed = resolveInstalledJudgment(expected.deployment);
-      if (installed === null || installed.binding.judgment !== expected.judgment || installed.binding.version !== expected.version ||
-          installed.binding.deployment !== expected.deployment || installed.binding.account !== expected.account ||
-          installed.profile.model === '' || installed.profile.provider === '' || installed.profile.inputTokenization !== 'deployment' ||
-          !Number.isSafeInteger(installed.profile.maxInputTokens) || installed.profile.maxInputTokens < 1) return null;
+      const source = checkedSource(intent);
+      if (source === null) return null;
+      const installed = installedJudgment();
+      if (installed === null) return null;
       const context = createJudgmentReceiptContext({ kind: 'delivery', judgment: true,
-        capability: checked.declaration, operation: 'evaluate', version: expected.version.toString(),
-        result: { name: checked.declaration, fields: leaves } }, checked.source.specification, valueTypes);
-      return { installed, source: checked.source, state: checked.arguments.state, schema, context };
+        capability: source.checked.declaration, operation: 'evaluate', version: expected.version.toString(),
+        result: { name: source.checked.declaration, fields: source.leaves } }, source.checked.source.specification, valueTypes);
+      return { installed, source: source.checked.source, state: source.checked.arguments.state, schema, context };
     } catch { return null; }
   };
   const completion = (value: unknown, intent: OutboxIntent, resolved: NonNullable<ReturnType<typeof resolve>>): DispatchReconcileEvidence | null => {

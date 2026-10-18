@@ -82,6 +82,19 @@ export async function createSourceFormBindings(key: Uint8Array | string, revisio
     operation: context.derived.operation, schema: await sha256HexText(JSON.stringify(context.derived)),
     nonce: context.operationId,
   });
+  const selectionPayloadValid = (
+    parsed: Record<string, unknown>,
+    expected: Record<string, unknown>,
+    nowMs: number,
+    retained: boolean,
+  ): boolean => {
+    if (Object.entries(expected).some(([name, value]) => parsed[name] !== value)) return false;
+    if (!Number.isSafeInteger(parsed['issued']) || !Number.isSafeInteger(parsed['expires'])) return false;
+    if ((parsed['issued'] as number) < 0 || (parsed['issued'] as number) > nowMs) return false;
+    if (retained ? (parsed['expires'] as number) > nowMs : (parsed['expires'] as number) <= nowMs) return false;
+    if ((parsed['expires'] as number) !== (parsed['issued'] as number) + LIFETIME_MS) return false;
+    return true;
+  };
   const selection = async (context: SourceFormBindingContext, token: string, retained: boolean): Promise<{ bound: ClosedInputs; editable: string[] } | null> => {
     if (!validContext(context) || typeof token !== 'string' || token.length > MAX_TOKEN_CHARS) return null;
     if (retained && !['create', 'update', 'delete', 'scenario'].includes(context.derived.kind)) return null;
@@ -95,11 +108,7 @@ export async function createSourceFormBindings(key: Uint8Array | string, revisio
     catch { return null; }
     if (!record(parsed)) return null;
     const expected = await claims(context);
-    if (Object.entries(expected).some(([name, value]) => parsed[name] !== value) ||
-        !Number.isSafeInteger(parsed['issued']) || !Number.isSafeInteger(parsed['expires']) ||
-        (parsed['issued'] as number) < 0 || (parsed['issued'] as number) > context.nowMs ||
-        (retained ? (parsed['expires'] as number) > context.nowMs : (parsed['expires'] as number) <= context.nowMs) ||
-        (parsed['expires'] as number) !== (parsed['issued'] as number) + LIFETIME_MS ||
+    if (!selectionPayloadValid(parsed, expected, context.nowMs, retained) ||
         !validSelection(context, parsed['bound'], parsed['editable'])) return null;
     return { bound: parsed['bound'], editable: parsed['editable'] as string[] };
   };

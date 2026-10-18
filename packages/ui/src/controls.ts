@@ -898,6 +898,87 @@ async function calendarField(props: CalendarProps & { readonly kind: "field" }):
  * Date-grouped authorized rows retain endpoint text before authored content.
  * Authored bodies receive the same projected row and dispatcher context as lists.
  */
+interface AgendaItem {
+  readonly row: RowView;
+  readonly endpoints: string;
+  body: string;
+}
+
+function checkAgendaColumns(
+  props: CalendarProps & { readonly kind: "agenda" },
+  validationMetadata: ReadonlyMap<string, unknown>,
+  byField: ReadonlyMap<string, ColumnMeta>,
+): ColumnMeta[] {
+  const missing = (props.columns ?? []).filter((field) => !validationMetadata.has(field));
+  if (missing.length > 0) {
+    throw new Error(`calendar agenda "${props.model}": missing columns: ${missing.join(", ")}`);
+  }
+  return (props.columns ?? []).flatMap((field) => {
+    const meta = byField.get(field);
+    return meta === undefined ? [] : [meta];
+  });
+}
+
+function collectAgendaItem(
+  props: CalendarProps & { readonly kind: "agenda" },
+  row: RowView,
+  metas: readonly ColumnMeta[],
+  locale: string,
+  zone: string,
+  items: AgendaItem[],
+  groups: Map<string, AgendaItem[]>,
+): void {
+  assertSourceFilterRow(props, row, "calendar agenda");
+  for (const field of [props.startField, props.endField]) {
+    if (!Object.hasOwn(row.fields, field)) {
+      throw new Error(`calendar agenda: row "${row.id}" is missing projected field "${field}"`);
+    }
+  }
+  const day = agendaDayKey(row.fields[props.startField], row.id, props.startField, zone);
+  const start = escapeHtml(agendaCellText(row.fields[props.startField], props.context, locale, zone));
+  const end = escapeHtml(agendaCellText(row.fields[props.endField], props.context, locale, zone));
+  const lines = metas
+    .map((meta) => {
+      const label = escapeHtml(resolveCaption(meta.label, props.context));
+      return `<p><span>${label}</span> ${renderCell(meta, row.fields[meta.field], props.context)}</p>`;
+    })
+    .join("");
+  const item = { row, endpoints: `<span>${start} – ${end}</span>${lines}`, body: "" };
+  items.push(item);
+  const list = groups.get(day);
+  if (list === undefined) {
+    groups.set(day, [item]);
+  } else {
+    list.push(item);
+  }
+}
+
+async function renderAgendaBodies(
+  props: CalendarProps & { readonly kind: "agenda" },
+  items: AgendaItem[],
+): Promise<void> {
+  for (const item of items) {
+    const children = await props.renderRow!(item.row, props.context);
+    const parts = typeof children === "function" ? await children() : children;
+    item.body = (await Promise.all(parts)).join("");
+  }
+}
+
+function agendaHeadings(model: string, days: readonly string[], locale: string, zone: string): Map<string, string> {
+  const headings = new Map<string, string>();
+  for (const day of days) {
+    try {
+      headings.set(day, escapeHtml(formatScalar({ type: "date", value: day }, { locale, timeZone: zone })));
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      throw new Error(
+        `calendar agenda: model "${model}" cannot render headings in ${JSON.stringify(zone)}: ${reason}`,
+      );
+    }
+  }
+  return headings;
+}
+
 async function calendarAgenda(props: CalendarProps & { readonly kind: "agenda" }): Promise<string> {
   appearanceClasses("calendar", "calendar", pickAppearance(props));
   assertFieldPath(props.startField);
@@ -927,65 +1008,22 @@ async function calendarAgenda(props: CalendarProps & { readonly kind: "agenda" }
   const byField = new Map(result.columns.map(column => [column.field, column]));
   const validationMetadata = result.rows.length === 0 && result.emptyDeclarations !== undefined
     ? new Map(result.emptyDeclarations.map((column) => [column.field, column])) : byField;
-  const missing = (props.columns ?? []).filter((field) => !validationMetadata.has(field));
-  if (missing.length > 0) {
-    throw new Error(`calendar agenda "${props.model}": missing columns: ${missing.join(", ")}`);
-  }
-  const metas = (props.columns ?? []).flatMap((field) => {
-    const meta = byField.get(field);
-    return meta === undefined ? [] : [meta];
-  });
+  const metas = checkAgendaColumns(props, validationMetadata, byField);
   if (result.rows.length === 0) {
     return filterControls + await renderState({ context: props.context, kind: "empty", message: props.empty ?? EMPTY_COLLECTION });
   }
   const locale = pageLocale(props.context);
   const zone = props.timeZone ?? "UTC";
-  const groups = new Map<string, { readonly row: RowView; readonly endpoints: string; body: string }[]>();
-  const items: { readonly row: RowView; readonly endpoints: string; body: string }[] = [];
+  const groups = new Map<string, AgendaItem[]>();
+  const items: AgendaItem[] = [];
   for (const row of result.rows) {
-    assertSourceFilterRow(props, row, "calendar agenda");
-    for (const field of [props.startField, props.endField]) {
-      if (!Object.hasOwn(row.fields, field)) {
-        throw new Error(`calendar agenda: row "${row.id}" is missing projected field "${field}"`);
-      }
-    }
-    const day = agendaDayKey(row.fields[props.startField], row.id, props.startField, zone);
-    const start = escapeHtml(agendaCellText(row.fields[props.startField], props.context, locale, zone));
-    const end = escapeHtml(agendaCellText(row.fields[props.endField], props.context, locale, zone));
-    const lines = metas
-      .map((meta) => {
-        const label = escapeHtml(resolveCaption(meta.label, props.context));
-        return `<p><span>${label}</span> ${renderCell(meta, row.fields[meta.field], props.context)}</p>`;
-      })
-      .join("");
-    const item = { row, endpoints: `<span>${start} – ${end}</span>${lines}`, body: "" };
-    items.push(item);
-    const list = groups.get(day);
-    if (list === undefined) {
-      groups.set(day, [item]);
-    } else {
-      list.push(item);
-    }
+    collectAgendaItem(props, row, metas, locale, zone, items, groups);
   }
   const days = [...groups.keys()].sort();
-  const headings = new Map<string, string>();
-  for (const day of days) {
-    try {
-      headings.set(day, escapeHtml(formatScalar({ type: "date", value: day }, { locale, timeZone: zone })));
-    } catch (error) {
-      const reason = error instanceof Error ? error.message : String(error);
-      throw new Error(
-        `calendar agenda: model "${props.model}" cannot render headings in ${JSON.stringify(zone)}: ${reason}`,
-      );
-    }
-  }
+  const headings = agendaHeadings(props.model, days, locale, zone);
   // Keep source evaluation order even when chronological display regroups rows.
   if (props.renderRow !== undefined) {
-    for (const item of items) {
-      const children = await props.renderRow(item.row, props.context);
-      const parts = typeof children === "function" ? await children() : children;
-      item.body = (await Promise.all(parts)).join("");
-    }
+    await renderAgendaBodies(props, items);
   }
   const sections = days.map(day => `<section><h2>${headings.get(day)}</h2><ul>${
     (groups.get(day) ?? []).map(item => `<li><span>${escapeHtml(item.row.id)}</span> ${item.endpoints}${item.body}</li>`).join("")

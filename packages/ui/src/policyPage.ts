@@ -440,6 +440,73 @@ export function resolveReadableSelector(
  * (A5/S2), and references, arrays, files, secrets, actions, and
  * terminal scalars/leaves all fail closed.
  */
+function opaqueFieldResult(
+  selector: string,
+  current: ReadableFieldSchema,
+  segment: string,
+  last: boolean,
+): ReadableSelectorResult {
+  if (current.kind === "delivery" && DELIVERY_LEAVES.includes(segment) && !last) {
+    return unreadable(
+      selector,
+      `selector ${JSON.stringify(selector)} descends past terminal delivery leaf '${segment}'`,
+    );
+  }
+  return readable(selector, "deferred");
+}
+
+function moneyFieldResult(selector: string, segment: string, last: boolean): ReadableSelectorResult {
+  if (!MONEY_LEAVES.includes(segment)) {
+    return unreadable(
+      selector,
+      `unknown member '${segment}' on money in selector ${JSON.stringify(selector)}`,
+    );
+  }
+  if (!last) {
+    return unreadable(
+      selector,
+      `selector ${JSON.stringify(selector)} descends past terminal money leaf '${segment}'`,
+    );
+  }
+  return readable(selector, "money");
+}
+
+function deliveryFieldResult(
+  selector: string,
+  holder: string,
+  segment: string,
+  last: boolean,
+  context: ReadableSelectorContext,
+): ReadableSelectorResult {
+  if (context === "predicate") {
+    return unreadable(
+      selector,
+      `selector ${JSON.stringify(selector)} addresses delivery '${holder}' in a predicate: ` +
+        `delivery leaves resolve only in projections, never in filter=/search=`,
+    );
+  }
+  if (segment === "progress") {
+    return unreadable(
+      selector,
+      `selector ${JSON.stringify(selector)} addresses delivery progress: ` +
+        `nested progress needs receipt-observation authorization, not a T08 readable leaf`,
+    );
+  }
+  if (!DELIVERY_LEAVES.includes(segment)) {
+    return unreadable(
+      selector,
+      `unknown member '${segment}' on delivery in selector ${JSON.stringify(selector)}`,
+    );
+  }
+  if (!last) {
+    return unreadable(
+      selector,
+      `selector ${JSON.stringify(selector)} descends past terminal delivery leaf '${segment}'`,
+    );
+  }
+  return readable(selector, "delivery");
+}
+
 function resolveFieldPath(
   selector: string,
   root: string,
@@ -460,13 +527,7 @@ function resolveFieldPath(
       // deliveries too (A5-N1: mirrors A's E2013 pin on the Opaque
       // "external delivery target" arm — descent past id/status/
       // error/result fails even when the schema is unavailable).
-      if (current.kind === "delivery" && DELIVERY_LEAVES.includes(segment) && !last) {
-        return unreadable(
-          selector,
-          `selector ${JSON.stringify(selector)} descends past terminal delivery leaf '${segment}'`,
-        );
-      }
-      return readable(selector, "deferred");
+      return opaqueFieldResult(selector, current, segment, last);
     }
     if (current.kind === "contract") {
       const next = current.fields?.[segment];
@@ -482,48 +543,10 @@ function resolveFieldPath(
       continue;
     }
     if (current.kind === "money") {
-      if (!MONEY_LEAVES.includes(segment)) {
-        return unreadable(
-          selector,
-          `unknown member '${segment}' on money in selector ${JSON.stringify(selector)}`,
-        );
-      }
-      if (!last) {
-        return unreadable(
-          selector,
-          `selector ${JSON.stringify(selector)} descends past terminal money leaf '${segment}'`,
-        );
-      }
-      return readable(selector, "money");
+      return moneyFieldResult(selector, segment, last);
     }
     if (current.kind === "delivery") {
-      if (context === "predicate") {
-        return unreadable(
-          selector,
-          `selector ${JSON.stringify(selector)} addresses delivery '${holder}' in a predicate: ` +
-            `delivery leaves resolve only in projections, never in filter=/search=`,
-        );
-      }
-      if (segment === "progress") {
-        return unreadable(
-          selector,
-          `selector ${JSON.stringify(selector)} addresses delivery progress: ` +
-            `nested progress needs receipt-observation authorization, not a T08 readable leaf`,
-        );
-      }
-      if (!DELIVERY_LEAVES.includes(segment)) {
-        return unreadable(
-          selector,
-          `unknown member '${segment}' on delivery in selector ${JSON.stringify(selector)}`,
-        );
-      }
-      if (!last) {
-        return unreadable(
-          selector,
-          `selector ${JSON.stringify(selector)} descends past terminal delivery leaf '${segment}'`,
-        );
-      }
-      return readable(selector, "delivery");
+      return deliveryFieldResult(selector, holder, segment, last, context);
     }
     if (current.kind === "reference") {
       return unreadable(

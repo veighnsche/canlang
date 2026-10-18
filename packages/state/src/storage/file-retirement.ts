@@ -68,30 +68,9 @@ export function checkFileBinding(state: FileGuardState, binding?: FileRetirement
   if (state.authority !== null && binding !== undefined && !fileGuardEqual(state.authority, binding)) return refuse('persisted assignment mismatch');
   if (!Array.isArray(state.opaqueLifetimes) || state.opaqueLifetimes.length > FILE_GUARD_MAX_ROWS) return refuse('bounded durable opaque lifetimes required');
   const lifetimes = new Set<string>();
-  let originalFiles = 0;
+  const files = { count: 0 };
   for (const lifetime of state.opaqueLifetimes) {
-    keys(lifetime, ['binding', 'files']);
-    const original = lifetime.binding;
-    keys(original, ['version', 'inventory', 'declarationSetId', 'slot', 'scope', 'origin']);
-    keys(original.inventory, ['owner', 'snapshotId', 'digest']); identity(original.inventory);
-    keys(original.slot, ['model', 'id', 'created', 'createdBy', 'field', 'role']);
-    keys(original.scope, ['app', 'ownerPackage', 'owner']);
-    if (original.version !== 1 || !text(original.declarationSetId) ||
-        ![original.slot.model, original.slot.id, original.slot.createdBy, original.slot.field].every(text) ||
-        !Number.isFinite(original.slot.created) || !['retained-result', 'deferred-input'].includes(original.slot.role) ||
-        !fileGuardEqual(original.scope, { app: state.authority.app, ownerPackage: original.inventory.owner,
-          owner: state.authority.receiver.owner }) || !Array.isArray(lifetime.files)) return refuse('complete original opaque lifetime required');
-    const key = stableStringify(original.slot);
-    if (lifetimes.has(key)) return refuse('duplicate durable opaque lifetime');
-    lifetimes.add(key);
-    const references = new Set<string>();
-    for (const file of lifetime.files) {
-      if (++originalFiles > FILE_GUARD_MAX_REFERENCES) return refuse('durable original File facts exceed bound');
-      const { retention: _retention, ...physical } = checkRetainedScenarioFile(file);
-      checkedFile(physical, state.authority);
-      if (references.has(file.ref)) return refuse('duplicate original opaque File facts');
-      references.add(file.ref);
-    }
+    checkOpaqueLifetime(state, lifetime, lifetimes, files);
   }
   for (const installed of state.inventories) {
     if (!fileGuardEqual(installed.authority, state.authority)) return refuse('inventory belongs to foreign assignment');
@@ -99,21 +78,70 @@ export function checkFileBinding(state: FileGuardState, binding?: FileRetirement
   }
   const retired = new Set<string>();
   for (const fact of state.retirements) {
-    keys(fact, ['retirementId', 'authority', 'file', 'snapshot', 'censusRevision', 'retiredRevision', 'retiredAtMs', 'disposition', 'retention']);
-    checkedFile(fact.file, state.authority);
-    keys(fact.retention, ['unattachedHorizonMs', 'retentionMs', ...(Object.hasOwn(fact.retention, 'retainAttached') ? ['retainAttached'] : [])]);
-    if (Object.hasOwn(fact.retention, 'retainAttached') && fact.retention.retainAttached !== true) return refuse('invalid attached File retention policy');
-    if (fact.retention.retainAttached === true && fact.disposition === 'expired') return refuse('retained attached Files require explicit orphan retirement');
-    identity(fact.snapshot);
-    if (!fileGuardEqual(fact.authority, state.authority) || !text(fact.retirementId) || retired.has(fact.file.ref) ||
-        !Number.isSafeInteger(fact.censusRevision) || fact.censusRevision < 0 || fact.retiredRevision !== fact.censusRevision + 1 ||
-        !Number.isSafeInteger(fact.retiredRevision) || !Number.isSafeInteger(fact.snapshot.installedRevision) || fact.snapshot.installedRevision < 0 ||
-        fact.snapshot.installedRevision > fact.censusRevision || !Number.isFinite(fact.snapshot.installedAt) ||
-        ![fact.retention.unattachedHorizonMs, fact.retention.retentionMs].every(value => Number.isSafeInteger(value) && value >= 0) ||
-        !Number.isSafeInteger(fact.retiredAtMs) || fact.retiredAtMs < fact.file.finalizedAtMs ||
-        fact.disposition !== 'orphaned' && fact.disposition !== 'expired') return refuse('invalid permanent retirement facts');
-    retired.add(fact.file.ref);
+    checkRetirementFact(state, fact, retired);
   }
+}
+
+/** One durable opaque lifetime: slot scope, uniqueness and File facts. */
+function checkOpaqueLifetime(
+  state: FileGuardState,
+  lifetime: FileGuardState['opaqueLifetimes'][number],
+  lifetimes: Set<string>,
+  files: { count: number },
+): void {
+  keys(lifetime, ['binding', 'files']);
+  const original = lifetime.binding;
+  keys(original, ['version', 'inventory', 'declarationSetId', 'slot', 'scope', 'origin']);
+  keys(original.inventory, ['owner', 'snapshotId', 'digest']); identity(original.inventory);
+  keys(original.slot, ['model', 'id', 'created', 'createdBy', 'field', 'role']);
+  keys(original.scope, ['app', 'ownerPackage', 'owner']);
+  if (original.version !== 1 || !text(original.declarationSetId) ||
+      ![original.slot.model, original.slot.id, original.slot.createdBy, original.slot.field].every(text) ||
+      !Number.isFinite(original.slot.created) || !['retained-result', 'deferred-input'].includes(original.slot.role) ||
+      !fileGuardEqual(original.scope, { app: state.authority!.app, ownerPackage: original.inventory.owner,
+        owner: state.authority!.receiver.owner }) || !Array.isArray(lifetime.files)) return refuse('complete original opaque lifetime required');
+  const key = stableStringify(original.slot);
+  if (lifetimes.has(key)) return refuse('duplicate durable opaque lifetime');
+  lifetimes.add(key);
+  const references = new Set<string>();
+  for (const file of lifetime.files) {
+    if (++files.count > FILE_GUARD_MAX_REFERENCES) return refuse('durable original File facts exceed bound');
+    const { retention: _retention, ...physical } = checkRetainedScenarioFile(file);
+    checkedFile(physical, state.authority!);
+    if (references.has(file.ref)) return refuse('duplicate original opaque File facts');
+    references.add(file.ref);
+  }
+}
+
+/** One permanent retirement fact: retention, identity and revision seal. */
+function checkRetirementFact(
+  state: FileGuardState,
+  fact: FileGuardState['retirements'][number],
+  retired: Set<string>,
+): void {
+  keys(fact, ['retirementId', 'authority', 'file', 'snapshot', 'censusRevision', 'retiredRevision', 'retiredAtMs', 'disposition', 'retention']);
+  checkedFile(fact.file, state.authority!);
+  keys(fact.retention, ['unattachedHorizonMs', 'retentionMs', ...(Object.hasOwn(fact.retention, 'retainAttached') ? ['retainAttached'] : [])]);
+  if (Object.hasOwn(fact.retention, 'retainAttached') && fact.retention.retainAttached !== true) return refuse('invalid attached File retention policy');
+  if (fact.retention.retainAttached === true && fact.disposition === 'expired') return refuse('retained attached Files require explicit orphan retirement');
+  identity(fact.snapshot);
+  checkRetirementFactSeal(state, fact, retired);
+  retired.add(fact.file.ref);
+}
+
+/** Identity, revision and retention seal for one retirement fact. */
+function checkRetirementFactSeal(
+  state: FileGuardState,
+  fact: FileGuardState['retirements'][number],
+  retired: Set<string>,
+): void {
+  if (!fileGuardEqual(fact.authority, state.authority) || !text(fact.retirementId) || retired.has(fact.file.ref) ||
+      !Number.isSafeInteger(fact.censusRevision) || fact.censusRevision < 0 || fact.retiredRevision !== fact.censusRevision + 1 ||
+      !Number.isSafeInteger(fact.retiredRevision) || !Number.isSafeInteger(fact.snapshot.installedRevision) || fact.snapshot.installedRevision < 0 ||
+      fact.snapshot.installedRevision > fact.censusRevision || !Number.isFinite(fact.snapshot.installedAt) ||
+      ![fact.retention.unattachedHorizonMs, fact.retention.retentionMs].every(value => Number.isSafeInteger(value) && value >= 0) ||
+      !Number.isSafeInteger(fact.retiredAtMs) || fact.retiredAtMs < fact.file.finalizedAtMs ||
+      fact.disposition !== 'orphaned' && fact.disposition !== 'expired') return refuse('invalid permanent retirement facts');
 }
 export function checkFileGuardSnapshots(state: FileGuardState, snapshots: readonly InstalledSnapshot[]): void {
   for (const installed of state.inventories) {
@@ -174,6 +202,16 @@ export async function prepareFrameworkFilePayloadOrigin(store: FileReferenceStor
   if (![Object.prototype, null].includes(Object.getPrototypeOf(input)) ||
       Reflect.ownKeys(input).length !== names.length || names.some(name =>
         descriptors[name] === undefined || !('value' in descriptors[name]!) || !descriptors[name]!.enumerable)) return refuse('own original producer inputs required');
+  const files = checkProducerFileObservations(descriptors);
+  const captured = fileGuardCopy(Object.fromEntries(names.filter(name => name !== 'files').map(name =>
+    [name, descriptors[name]!.value]))) as Omit<FrameworkFilePayloadOriginInput, 'files'>;
+  return bindProducerPayloadOrigin(store, captured, files);
+}
+
+/** Dense genuine File observations with retained scenario facts. */
+function checkProducerFileObservations(
+  descriptors: Record<string, PropertyDescriptor>,
+): FrameworkFilePayloadOrigin['files'][number][] {
   const rawFiles = descriptors.files!.value as unknown;
   if (!Array.isArray(rawFiles) || Object.getPrototypeOf(rawFiles) !== Array.prototype ||
       rawFiles.length > FILE_GUARD_MAX_REFERENCES || Reflect.ownKeys(rawFiles).length !== rawFiles.length + 1) return refuse('dense genuine File observations required');
@@ -190,8 +228,15 @@ export async function prepareFrameworkFilePayloadOrigin(store: FileReferenceStor
     if (fact === null) return refuse('actual Files observation required; copied facts are not observations');
     files.push({ path: checkedPath(fileGuardCopy(path.value)), file: checkRetainedScenarioFile(fact) });
   }
-  const captured = fileGuardCopy(Object.fromEntries(names.filter(name => name !== 'files').map(name =>
-    [name, descriptors[name]!.value]))) as Omit<FrameworkFilePayloadOriginInput, 'files'>;
+  return files;
+}
+
+/** Installed opaque slot binding with producer-row and census proof. */
+async function bindProducerPayloadOrigin(
+  store: FileReferenceStoragePort,
+  captured: Omit<FrameworkFilePayloadOriginInput, 'files'>,
+  files: FrameworkFilePayloadOrigin['files'][number][],
+): Promise<FrameworkFilePayloadOrigin> {
   const framework = frameworkAdapters.get(store), bound = framework?.get(captured.model);
   if (framework === undefined || bound === undefined || bound.resolveOpaqueField === undefined ||
       !Number.isSafeInteger(captured.expectedRevision) || captured.expectedRevision < 0 || !text(captured.inventoryOwner)) return refuse('actual registered producer port and original revision required');
@@ -224,25 +269,68 @@ export function bindFileFrameworkProducers(producers: readonly FrameworkFileRefe
   if (!Array.isArray(producers) || producers.length > 200) return refuse('bounded actual framework producers required');
   const bound = new Map<string, BoundFrameworkModel>();
   for (const producer of producers) {
-    const models = Object.getOwnPropertyDescriptor(producer, 'models');
-    const validator = Object.getOwnPropertyDescriptor(producer, 'validateRow');
-    const resolver = Object.getOwnPropertyDescriptor(producer, 'resolveOpaqueField');
-    if (models === undefined || !('value' in models) || validator === undefined || !('value' in validator) ||
-        typeof validator.value !== 'function') return refuse('actual own framework export required');
-    if (resolver !== undefined && (!('value' in resolver) || typeof resolver.value !== 'function') ||
-        resolver === undefined && 'resolveOpaqueField' in producer) return refuse('actual own synchronous opaque resolver required');
-    const declarations = fileGuardCopy(models.value) as readonly FrameworkFileReferenceModel[];
-    if (!Array.isArray(declarations) || declarations.length === 0 || declarations.length > 200) return refuse('complete owning framework family required');
-    const family = Object.freeze(declarations.map(model => model.model as string));
-    for (const declaration of declarations) {
-      checkFrameworkDeclaration(declaration);
-      if (bound.has(declaration.model)) return refuse('duplicate bound framework model');
-      bound.set(declaration.model, { declaration, family, validateRow: validator.value.bind(producer),
-        ...(resolver === undefined ? {} : { resolveOpaqueField: resolver.value.bind(producer) }) });
-    }
+    bindOneFrameworkProducer(bound, producer);
   }
   return bound;
 }
+
+/** One producer's owning family with per-model validator binding. */
+function bindOneFrameworkProducer(bound: Map<string, BoundFrameworkModel>, producer: FrameworkFileReferenceProducer): void {
+  const models = Object.getOwnPropertyDescriptor(producer, 'models');
+  const validator = Object.getOwnPropertyDescriptor(producer, 'validateRow');
+  const resolver = Object.getOwnPropertyDescriptor(producer, 'resolveOpaqueField');
+  if (models === undefined || !('value' in models) || validator === undefined || !('value' in validator) ||
+      typeof validator.value !== 'function') return refuse('actual own framework export required');
+  if (resolver !== undefined && (!('value' in resolver) || typeof resolver.value !== 'function') ||
+      resolver === undefined && 'resolveOpaqueField' in producer) return refuse('actual own synchronous opaque resolver required');
+  const declarations = fileGuardCopy(models.value) as readonly FrameworkFileReferenceModel[];
+  if (!Array.isArray(declarations) || declarations.length === 0 || declarations.length > 200) return refuse('complete owning framework family required');
+  const family = Object.freeze(declarations.map(model => model.model as string));
+  for (const declaration of declarations) {
+    checkFrameworkDeclaration(declaration);
+    if (bound.has(declaration.model)) return refuse('duplicate bound framework model');
+    bound.set(declaration.model, { declaration, family, validateRow: (validator.value as (...args: never[]) => void).bind(producer) as BoundFrameworkModel['validateRow'],
+      ...(resolver === undefined ? {} : { resolveOpaqueField: (resolver.value as (...args: never[]) => unknown).bind(producer) as NonNullable<BoundFrameworkModel['resolveOpaqueField']> }) });
+  }
+}
+/** One framework field: opaque header/role or closed control shape. */
+function checkFrameworkField(declaration: FrameworkFileReferenceModel, name: string, field: unknown): void {
+  if (!text(name)) return refuse('framework field identity required');
+  const value = object(field);
+  if (value.kind === 'opaque') {
+    if (value.role === 'payload-origin') {
+      checkOpaqueHeaderLink(declaration, value);
+    } else {
+      keys(value, ['kind', 'role', ...(Object.hasOwn(value, 'optional') ? ['optional'] : [])]);
+      if (value.role !== 'retained-result' && value.role !== 'deferred-input') return refuse('owning opaque role required');
+      if (Object.hasOwn(value, 'optional') && (value.role !== 'deferred-input' || value.optional !== true)) return refuse('only deferred inputs may be absent');
+    }
+  } else if (value.kind === 'control') {
+    checkFrameworkControl(value);
+  } else return refuse('classified framework field required');
+}
+
+/** Opaque header link against its owning payload field. */
+function checkOpaqueHeaderLink(declaration: FrameworkFileReferenceModel, value: Record<string, unknown>): void {
+  keys(value, ['kind', 'role', 'payloadField', 'optional']);
+  const payload = object(declaration.fields)[value.payloadField as string];
+  if (!text(value.payloadField) || value.optional !== true || payload === undefined ||
+      object(payload).kind !== 'opaque' || !['retained-result', 'deferred-input'].includes(object(payload).role as string)) return refuse('exact owning opaque header link required');
+}
+
+/** Closed control shape with required string children for objects. */
+function checkFrameworkControl(value: Record<string, unknown>): void {
+  keys(value, ['kind', 'value', ...(value.value === 'object' ? ['fields'] : []), ...(Object.hasOwn(value, 'nullable') ? ['nullable'] : []), ...(Object.hasOwn(value, 'optional') ? ['optional'] : [])]);
+  if (!['string', 'number', 'boolean', 'string-array', 'object'].includes(value.value as string) ||
+      Object.hasOwn(value, 'nullable') && value.nullable !== true || Object.hasOwn(value, 'optional') && value.optional !== true) return refuse('closed framework control declaration required');
+  if (value.value === 'object') {
+    for (const [name, child] of Object.entries(object(value.fields))) {
+      keys(child, ['kind', 'value']);
+      if (!text(name) || object(child).kind !== 'control' || object(child).value !== 'string') return refuse('closed required owning string controls required');
+    }
+  }
+}
+
 function checkFrameworkDeclaration(declaration: FrameworkFileReferenceModel): void {
   keys(declaration, ['model', 'source', 'fields']);
   keys(declaration.source, ['package', 'module', 'export']);
@@ -250,30 +338,7 @@ function checkFrameworkDeclaration(declaration: FrameworkFileReferenceModel): vo
   const type = parseTypeId(declaration.model);
   if (type.base.kind !== 'nominal' || type.array || type.nullable || printTypeId(type) !== declaration.model) return refuse('canonical framework model required');
   for (const [name, field] of Object.entries(object(declaration.fields))) {
-    if (!text(name)) return refuse('framework field identity required');
-    const value = object(field);
-    if (value.kind === 'opaque') {
-      if (value.role === 'payload-origin') {
-        keys(value, ['kind', 'role', 'payloadField', 'optional']);
-        const payload = object(declaration.fields)[value.payloadField as string];
-        if (!text(value.payloadField) || value.optional !== true || payload === undefined ||
-            object(payload).kind !== 'opaque' || !['retained-result', 'deferred-input'].includes(object(payload).role as string)) return refuse('exact owning opaque header link required');
-      } else {
-        keys(value, ['kind', 'role', ...(Object.hasOwn(value, 'optional') ? ['optional'] : [])]);
-        if (value.role !== 'retained-result' && value.role !== 'deferred-input') return refuse('owning opaque role required');
-        if (Object.hasOwn(value, 'optional') && (value.role !== 'deferred-input' || value.optional !== true)) return refuse('only deferred inputs may be absent');
-      }
-    } else if (value.kind === 'control') {
-      keys(value, ['kind', 'value', ...(value.value === 'object' ? ['fields'] : []), ...(Object.hasOwn(value, 'nullable') ? ['nullable'] : []), ...(Object.hasOwn(value, 'optional') ? ['optional'] : [])]);
-      if (!['string', 'number', 'boolean', 'string-array', 'object'].includes(value.value as string) ||
-          Object.hasOwn(value, 'nullable') && value.nullable !== true || Object.hasOwn(value, 'optional') && value.optional !== true) return refuse('closed framework control declaration required');
-      if (value.value === 'object') {
-        for (const [name, child] of Object.entries(object(value.fields))) {
-          keys(child, ['kind', 'value']);
-          if (!text(name) || object(child).kind !== 'control' || object(child).value !== 'string') return refuse('closed required owning string controls required');
-        }
-      }
-    } else return refuse('classified framework field required');
+    checkFrameworkField(declaration, name, field);
   }
   const headers = Object.values(declaration.fields).filter(field => field.kind === 'opaque' && field.role === 'payload-origin');
   if (new Set(headers.map(field => field.kind === 'opaque' && field.role === 'payload-origin' ? field.payloadField : '')).size !== headers.length) return refuse('duplicate owning opaque header link');
@@ -283,6 +348,44 @@ interface FrameworkProfile { readonly kind: 'framework'; readonly bound: BoundFr
   readonly inventory: FileReferenceInventory; readonly opaque: ReadonlyMap<string, BoundOpaqueDeclarations>;
   readonly installed?: InstalledFileReferenceInventory }
 type ModelProfile = DomainProfile | FrameworkProfile;
+/** One domain model: unique correspondence with bound field profiles. */
+function bindDomainProfile(
+  inventory: FileReferenceInventory,
+  artifacts: Map<ModelName, FileReferenceInventory['artifactModels'][number]>,
+  valueSchema: ReturnType<typeof normalizeValueTypes>['valueSchema'],
+  result: Map<string, ModelProfile>,
+  model: FileReferenceInventory['canonicalModels'][number],
+): void {
+  const artifact = artifacts.get(model.name);
+  const type = parseTypeId(model.name);
+  if (!text(model.name) || type.base.kind !== 'nominal' || type.array || type.nullable || printTypeId(type) !== model.name ||
+      result.has(model.name) || artifact === undefined || artifact.deleteMode !== model.deleteMode ||
+      artifact.fields.length !== Object.keys(model.fields).length) return refuse('complete unique model correspondence required');
+  const fields = new Map<string, FileReferenceProfile>(), required = new Set<string>();
+  for (const [field, declaration] of Object.entries(model.fields) as [string, CanonicalFieldDef][]) {
+    fields.set(field, bindFileReferenceProfile({ canonicalModels: inventory.canonicalModels, artifactModels: artifacts,
+      valueTypes: inventory.valueTypes, valueSchema }, model.name, field));
+    if (declaration.required) required.add(field);
+  }
+  result.set(model.name, { kind: 'domain', fields, required });
+}
+
+/** One framework model: same-load correspondence with its opaque closure. */
+function bindFrameworkProfile(
+  inventory: FileReferenceInventory,
+  framework: FileFrameworkBinding,
+  opaque: ReadonlyMap<string, BoundOpaqueDeclarations>,
+  declared: ReadonlySet<string>,
+  result: Map<string, ModelProfile>,
+  declaration: FileReferenceInventory['frameworkModels'][number],
+): void {
+  checkFrameworkDeclaration(declaration);
+  const bound = framework.get(declaration.model);
+  if (result.has(declaration.model) || bound === undefined || !fileGuardEqual(bound.declaration, declaration) ||
+      bound.family.some(model => !declared.has(model))) return refuse('complete same-load owning framework correspondence required');
+  result.set(declaration.model, { kind: 'framework', bound, inventory, opaque });
+}
+
 function profiles(input: FileReferenceInventory, framework: FileFrameworkBinding = EMPTY_FRAMEWORK): ReadonlyMap<string, ModelProfile> {
   const inventory = fileGuardCopy(input);
   keys(inventory, ['owner', 'snapshotId', 'digest', 'canonicalModels', 'artifactModels', 'valueTypes', 'frameworkModels',
@@ -301,26 +404,11 @@ function profiles(input: FileReferenceInventory, framework: FileFrameworkBinding
     });
     const valueSchema = normalizeValueTypes(inventory.valueTypes, inventory.canonicalModels.map(model => model.name)).valueSchema;
     for (const model of inventory.canonicalModels) {
-      const artifact = artifacts.get(model.name);
-      const type = parseTypeId(model.name);
-      if (!text(model.name) || type.base.kind !== 'nominal' || type.array || type.nullable || printTypeId(type) !== model.name ||
-          result.has(model.name) || artifact === undefined || artifact.deleteMode !== model.deleteMode ||
-          artifact.fields.length !== Object.keys(model.fields).length) return refuse('complete unique model correspondence required');
-      const fields = new Map<string, FileReferenceProfile>(), required = new Set<string>();
-      for (const [field, declaration] of Object.entries(model.fields) as [string, CanonicalFieldDef][]) {
-        fields.set(field, bindFileReferenceProfile({ canonicalModels: inventory.canonicalModels, artifactModels: artifacts,
-          valueTypes: inventory.valueTypes, valueSchema }, model.name, field));
-        if (declaration.required) required.add(field);
-      }
-      result.set(model.name, { kind: 'domain', fields, required });
+      bindDomainProfile(inventory, artifacts, valueSchema, result, model);
     }
     const declared = new Set(inventory.frameworkModels.map(model => model.model as string));
     for (const declaration of inventory.frameworkModels) {
-      checkFrameworkDeclaration(declaration);
-      const bound = framework.get(declaration.model);
-      if (result.has(declaration.model) || bound === undefined || !fileGuardEqual(bound.declaration, declaration) ||
-          bound.family.some(model => !declared.has(model))) return refuse('complete same-load owning framework correspondence required');
-      result.set(declaration.model, { kind: 'framework', bound, inventory, opaque });
+      bindFrameworkProfile(inventory, framework, opaque, declared, result, declaration);
     }
   } catch (error) {
     if (error instanceof StorageConstraintError) throw error;
@@ -389,15 +477,46 @@ function opaqueOccurrences(state: FileGuardState, model: string, row: StoredRow,
   if (historical === undefined || !fileGuardEqual(binding.inventory, historical.declarationSet.inventory)) return refuse('complete original historical declarations required');
   try { validateOpaqueFileOrigin(historical, binding); }
   catch { return refuse('original opaque source/declaration recipe disagrees'); }
+  const found = collectOpaqueProjections(profile, original, historical, binding, model, row, field, state);
+  const facts = collectOpaqueFacts(binding, state);
+  if (found.length !== facts.size || found.some(reference => facts.get(stableStringify(reference.path)) !== reference.ref)) return refuse('typed File positions and original receiving facts disagree');
+  return found;
+}
+
+/** Installed assignment with the exact synchronous opaque resolution. */
+function checkOpaqueResolution(
+  profile: FrameworkProfile,
+  original: ModelProfile | undefined,
+  historical: BoundOpaqueDeclarations,
+  binding: FrameworkFilePayloadOrigin,
+  model: string,
+  row: StoredRow,
+  field: string,
+): FrameworkOpaqueFieldResolution {
   const backing = profile.installed ?? (original?.kind === 'framework' ? original.installed : undefined);
   if (backing === undefined) return refuse('actual installed framework assignment required');
   const installed = profile.installed ?? { ...backing, inventory: profile.inventory };
   let resolution: FrameworkOpaqueFieldResolution;
   try {
-    resolution = fileGuardCopy(profile.bound.resolveOpaqueField(model as ModelName, row, field, { installed, binding }));
+    resolution = fileGuardCopy(profile.bound.resolveOpaqueField!(model as ModelName, row, field, { installed, binding }));
   } catch { return refuse('actual owning synchronous opaque resolver refused'); }
   keys(resolution, ['binding', 'values']);
   if (!fileGuardEqual(resolution.binding, binding) || !Array.isArray(resolution.values) || resolution.values.length > 20_000) return refuse('exact original opaque resolution required');
+  return resolution;
+}
+
+/** Typed projection occurrences with overlap refusal in path order. */
+function collectOpaqueProjections(
+  profile: FrameworkProfile,
+  original: ModelProfile | undefined,
+  historical: BoundOpaqueDeclarations,
+  binding: FrameworkFilePayloadOrigin,
+  model: string,
+  row: StoredRow,
+  field: string,
+  state: FileGuardState,
+): OpaqueOccurrence[] {
+  const resolution = checkOpaqueResolution(profile, original, historical, binding, model, row, field);
   const paths: (readonly (string | number)[])[] = [];
   const found: OpaqueOccurrence[] = [];
   for (const projection of resolution.values) {
@@ -410,6 +529,14 @@ function opaqueOccurrences(state: FileGuardState, model: string, row: StoredRow,
     catch { return refuse('actual opaque value violates complete original declarations'); }
     for (const reference of references) found.push({ ref: reference.ref, path: [...path, ...checkedPath(reference.path)] });
   }
+  return found;
+}
+
+/** Original receiving File facts keyed by typed path. */
+function collectOpaqueFacts(
+  binding: FrameworkFilePayloadOrigin,
+  state: FileGuardState,
+): Map<string, string> {
   if (!Array.isArray(binding.files) || binding.files.length > FILE_GUARD_MAX_REFERENCES) return refuse('bounded original receiving facts required');
   const facts = new Map<string, string>();
   const byRef = new Map<string, unknown>();
@@ -420,13 +547,12 @@ function opaqueOccurrences(state: FileGuardState, model: string, row: StoredRow,
     try { file = checkRetainedScenarioFile(evidence.file); }
     catch { return refuse('complete immutable original receiving File facts required'); }
     const { retention: _retention, ...physical } = file;
-    checkedFile(physical, state.authority);
+    checkedFile(physical, state.authority!);
     const key = stableStringify(path);
     if (facts.has(key) || byRef.has(file.ref) && !fileGuardEqual(byRef.get(file.ref), file)) return refuse('duplicate or conflicting original File facts');
     facts.set(key, file.ref); byRef.set(file.ref, file);
   }
-  if (found.length !== facts.size || found.some(reference => facts.get(stableStringify(reference.path)) !== reference.ref)) return refuse('typed File positions and original receiving facts disagree');
-  return found;
+  return facts;
 }
 /** Complete live rows include archived data. Missing optional fields are absent;
  * explicit nullable values and every nested/collection position are validated. */
@@ -439,68 +565,117 @@ function census(state: FileGuardState, rows: readonly FileGuardRow[], maxRows: n
   if (published.size !== state.publications.length) return refuse('duplicate published row identity');
   const found: Occurrence[] = [], seen = new Set<string>();
   for (const entry of rows) {
-    const row = fileGuardCopy(entry.row), rowKey = stableStringify([entry.model, row.id]);
-    if (seen.has(rowKey)) return refuse('duplicate live row');
-    seen.add(rowKey);
-    if (!text(row.id) || !Number.isSafeInteger(row.version) || row.version < 1 || !Number.isFinite(row.created) ||
-        !Number.isFinite(row.updated) || !text(row.createdBy) || !text(row.updatedBy) ||
-        row.archivedAt !== null && !Number.isFinite(row.archivedAt)) return refuse('actual stored row required');
-    const migration = published.get(rowKey);
-    const profile = migration === undefined ? installed.get(entry.model) : targets.get(migration)?.get(entry.model);
-    if (profile === undefined) return refuse('unknown or uncovered live model declaration');
-    const data = object(row.data);
-    if (profile.kind === 'framework') {
-      const declaration = profile.bound.declaration;
-      if (Object.keys(data).some(field => !Object.hasOwn(declaration.fields, field))) return refuse('unknown owning framework field');
-      for (const [field, descriptor] of Object.entries(declaration.fields)) {
-        if (!Object.hasOwn(data, field)) {
-          if (descriptor.kind === 'control' && descriptor.optional === true ||
-              descriptor.kind === 'opaque' && (descriptor.role === 'payload-origin' || descriptor.role === 'deferred-input') && descriptor.optional === true) continue;
-          return refuse('required owning framework field absent');
-        }
-        if (descriptor.kind === 'opaque') {
-          if (descriptor.role === 'payload-origin' && !Object.hasOwn(data, descriptor.payloadField)) return refuse('orphan opaque payload origin');
-          continue;
-        }
-        const value = data[field];
-        if (value === null && descriptor.nullable === true) continue;
-        if (descriptor.value === 'object') {
-          keys(value, Object.keys(descriptor.fields));
-          if (Object.values(object(value)).some(member => typeof member !== 'string')) return refuse('closed owning structured controls disagree');
-          continue;
-        }
-        if (descriptor.value === 'string-array' ? !Array.isArray(value) || value.some(item => typeof item !== 'string') :
-            typeof value !== descriptor.value || descriptor.value === 'number' && !Number.isFinite(value)) return refuse('owning framework control shape disagrees');
-      }
-      try { profile.bound.validateRow(entry.model as ModelName, row); }
-      catch { return refuse('actual owning framework validator refused row'); }
-      for (const [field, descriptor] of Object.entries(declaration.fields)) {
-        if (descriptor.kind !== 'opaque' || descriptor.role === 'payload-origin') continue;
-        if (descriptor.role === 'deferred-input' && descriptor.optional === true && !Object.hasOwn(data, field)) continue;
-        const references = opaqueOccurrences(state, entry.model, row, field, descriptor.role, profile,
-          installed.get(entry.model));
-        for (const reference of references) {
-          if (found.length === maxReferences) return refuse('complete File census exceeds bound');
-          found.push({ ref: reference.ref, key: stableStringify([entry.model, row.id, row.created, row.createdBy,
-            field, reference.path, reference.ref]) });
-        }
-      }
-      continue;
-    }
-    for (const required of profile.required) if (!Object.hasOwn(data, required)) return refuse('required stored field absent');
-    for (const [field, wire] of Object.entries(data)) {
-      const fieldProfile = profile.fields.get(field);
-      if (fieldProfile === undefined) return refuse('unknown stored field');
-      let occurrences;
-      try { occurrences = fileReferenceOccurrences(fieldProfile, wire); }
-      catch { return refuse('stored value violates owning declarations'); }
-      for (const occurrence of occurrences) {
-        if (found.length === maxReferences) return refuse('complete File census exceeds bound');
-        found.push({ ref: occurrence.ref, key: stableStringify([entry.model, row.id, row.created, row.createdBy, field, occurrence.path, occurrence.ref]) });
-      }
-    }
+    censusOneRow(state, entry, installed, targets, published, found, seen, maxReferences);
   }
   return found;
+}
+
+/** One live row in census order: identity, then framework or domain fields. */
+function censusOneRow(
+  state: FileGuardState,
+  entry: FileGuardRow,
+  installed: Map<string, ModelProfile>,
+  targets: Map<string, ReadonlyMap<string, ModelProfile>>,
+  published: Map<string, string>,
+  found: Occurrence[],
+  seen: Set<string>,
+  maxReferences: number,
+): void {
+  const row = fileGuardCopy(entry.row), rowKey = stableStringify([entry.model, row.id]);
+  if (seen.has(rowKey)) return refuse('duplicate live row');
+  seen.add(rowKey);
+  if (!text(row.id) || !Number.isSafeInteger(row.version) || row.version < 1 || !Number.isFinite(row.created) ||
+      !Number.isFinite(row.updated) || !text(row.createdBy) || !text(row.updatedBy) ||
+      row.archivedAt !== null && !Number.isFinite(row.archivedAt)) return refuse('actual stored row required');
+  const migration = published.get(rowKey);
+  const profile = migration === undefined ? installed.get(entry.model) : targets.get(migration)?.get(entry.model);
+  if (profile === undefined) return refuse('unknown or uncovered live model declaration');
+  const data = object(row.data);
+  if (profile.kind === 'framework') {
+    censusFrameworkRow(state, entry, row, data, profile, installed, found, maxReferences);
+    return;
+  }
+  censusDomainRow(entry, row, data, profile, found, maxReferences);
+}
+
+/** Framework row: closed fields, validator, then opaque occurrences. */
+function censusFrameworkRow(
+  state: FileGuardState,
+  entry: FileGuardRow,
+  row: StoredRow,
+  data: Record<string, unknown>,
+  profile: FrameworkProfile,
+  installed: Map<string, ModelProfile>,
+  found: Occurrence[],
+  maxReferences: number,
+): void {
+  const declaration = profile.bound.declaration;
+  if (Object.keys(data).some(field => !Object.hasOwn(declaration.fields, field))) return refuse('unknown owning framework field');
+  for (const [field, descriptor] of Object.entries(declaration.fields)) {
+    censusOneFrameworkField(data, field, descriptor);
+  }
+  try { profile.bound.validateRow(entry.model as ModelName, row); }
+  catch { return refuse('actual owning framework validator refused row'); }
+  for (const [field, descriptor] of Object.entries(declaration.fields)) {
+    if (descriptor.kind !== 'opaque' || descriptor.role === 'payload-origin') continue;
+    if (descriptor.role === 'deferred-input' && descriptor.optional === true && !Object.hasOwn(data, field)) continue;
+    const references = opaqueOccurrences(state, entry.model, row, field, descriptor.role, profile,
+      installed.get(entry.model));
+    for (const reference of references) {
+      if (found.length === maxReferences) return refuse('complete File census exceeds bound');
+      found.push({ ref: reference.ref, key: stableStringify([entry.model, row.id, row.created, row.createdBy,
+        field, reference.path, reference.ref]) });
+    }
+  }
+}
+
+/** One owning framework field: presence, opaque link, or control shape. */
+function censusOneFrameworkField(
+  data: Record<string, unknown>,
+  field: string,
+  descriptor: FrameworkFileReferenceModel['fields'][string],
+): void {
+  if (!Object.hasOwn(data, field)) {
+    if (descriptor.kind === 'control' && descriptor.optional === true ||
+        descriptor.kind === 'opaque' && (descriptor.role === 'payload-origin' || descriptor.role === 'deferred-input') && descriptor.optional === true) return;
+    return refuse('required owning framework field absent');
+  }
+  if (descriptor.kind === 'opaque') {
+    if (descriptor.role === 'payload-origin' && !Object.hasOwn(data, descriptor.payloadField)) return refuse('orphan opaque payload origin');
+    return;
+  }
+  const value = data[field];
+  if (value === null && descriptor.nullable === true) return;
+  if (descriptor.value === 'object') {
+    keys(value, Object.keys(descriptor.fields));
+    if (Object.values(object(value)).some(member => typeof member !== 'string')) return refuse('closed owning structured controls disagree');
+    return;
+  }
+  if (descriptor.value === 'string-array' ? !Array.isArray(value) || value.some(item => typeof item !== 'string') :
+      typeof value !== descriptor.value || descriptor.value === 'number' && !Number.isFinite(value)) return refuse('owning framework control shape disagrees');
+}
+
+/** Domain row: required fields, then per-field File occurrences. */
+function censusDomainRow(
+  entry: FileGuardRow,
+  row: StoredRow,
+  data: Record<string, unknown>,
+  profile: DomainProfile,
+  found: Occurrence[],
+  maxReferences: number,
+): void {
+  for (const required of profile.required) if (!Object.hasOwn(data, required)) return refuse('required stored field absent');
+  for (const [field, wire] of Object.entries(data)) {
+    const fieldProfile = profile.fields.get(field);
+    if (fieldProfile === undefined) return refuse('unknown stored field');
+    let occurrences;
+    try { occurrences = fileReferenceOccurrences(fieldProfile, wire); }
+    catch { return refuse('stored value violates owning declarations'); }
+    for (const occurrence of occurrences) {
+      if (found.length === maxReferences) return refuse('complete File census exceeds bound');
+      found.push({ ref: occurrence.ref, key: stableStringify([entry.model, row.id, row.created, row.createdBy, field, occurrence.path, occurrence.ref]) });
+    }
+  }
 }
 function retainOpaqueLifetimes(state: FileGuardState, rows: readonly FileGuardRow[], framework: FileFrameworkBinding): FileGuardState {
   const lifetimes = new Map(state.opaqueLifetimes.map(lifetime => [stableStringify(lifetime.binding.slot), lifetime]));
@@ -536,30 +711,44 @@ function retainOpaqueLifetimes(state: FileGuardState, rows: readonly FileGuardRo
   }
   return changed ? { ...state, opaqueLifetimes: fileGuardCopy([...lifetimes.values()]) } : state;
 }
+/** One surviving row: opaque lifetime bindings stay attached and unrenewed. */
+function checkBarrierEntry(
+  prior: ReadonlyMap<string, StoredRow>,
+  entry: FileGuardRow,
+  framework: FileFrameworkBinding,
+): void {
+  const old = prior.get(stableStringify([entry.model, entry.row.id, entry.row.created, entry.row.createdBy]));
+  if (old === undefined) return;
+  const declaration = framework.get(entry.model)?.declaration;
+  if (declaration === undefined) return;
+  for (const [field, descriptor] of Object.entries(declaration.fields)) {
+    if (descriptor.kind !== 'opaque' || descriptor.role !== 'payload-origin') continue;
+    checkBarrierField(old, entry, field);
+  }
+}
+
+/** One payload-origin field: attach/remove refused, facts never renewed. */
+function checkBarrierField(old: StoredRow, entry: FileGuardRow, field: string): void {
+  const previous = old.data[field], next = entry.row.data[field];
+  if (previous === undefined && next === undefined) return;
+  if (previous === undefined || next === undefined) return refuse('original opaque lifetime binding cannot be attached or removed');
+  const left = fileGuardCopy(previous) as unknown as FrameworkFilePayloadOrigin;
+  const right = fileGuardCopy(next) as unknown as FrameworkFilePayloadOrigin;
+  const { files: oldFiles, ...oldIdentity } = left;
+  const { files: newFiles, ...newIdentity } = right;
+  if (!fileGuardEqual(oldIdentity, newIdentity) || !Array.isArray(oldFiles) || !Array.isArray(newFiles)) return refuse('original opaque lifetime binding cannot be replaced');
+  const retained = new Map(oldFiles.map(evidence => [evidence.file.ref, evidence.file]));
+  for (const evidence of newFiles) if (retained.has(evidence.file.ref) &&
+      !fileGuardEqual(retained.get(evidence.file.ref), evidence.file)) return refuse('original receiving File facts cannot be renewed');
+}
+
 function barrier(state: FileGuardState, before: readonly FileGuardRow[], afterState: FileGuardState, after: readonly FileGuardRow[], framework: FileFrameworkBinding): FileGuardState {
   // Version/phase changes may replace typed values, but cannot replace the
   // original lifetime/source or renew the original facts of a retained File.
   const prior = new Map(before.map(entry => [stableStringify([entry.model, entry.row.id,
     entry.row.created, entry.row.createdBy]), entry.row]));
   for (const entry of after) {
-    const old = prior.get(stableStringify([entry.model, entry.row.id, entry.row.created, entry.row.createdBy]));
-    if (old === undefined) continue;
-    const declaration = framework.get(entry.model)?.declaration;
-    if (declaration === undefined) continue;
-    for (const [field, descriptor] of Object.entries(declaration.fields)) {
-      if (descriptor.kind !== 'opaque' || descriptor.role !== 'payload-origin') continue;
-      const previous = old.data[field], current = entry.row.data[field];
-      if (previous === undefined && current === undefined) continue;
-      if (previous === undefined || current === undefined) return refuse('original opaque lifetime binding cannot be attached or removed');
-      const left = fileGuardCopy(previous) as unknown as FrameworkFilePayloadOrigin;
-      const right = fileGuardCopy(current) as unknown as FrameworkFilePayloadOrigin;
-      const { files: oldFiles, ...oldIdentity } = left;
-      const { files: newFiles, ...newIdentity } = right;
-      if (!fileGuardEqual(oldIdentity, newIdentity) || !Array.isArray(oldFiles) || !Array.isArray(newFiles)) return refuse('original opaque lifetime binding cannot be replaced');
-      const retained = new Map(oldFiles.map(evidence => [evidence.file.ref, evidence.file]));
-      for (const evidence of newFiles) if (retained.has(evidence.file.ref) &&
-          !fileGuardEqual(retained.get(evidence.file.ref), evidence.file)) return refuse('original receiving File facts cannot be renewed');
-    }
+    checkBarrierEntry(prior, entry, framework);
   }
   const old = new Set(census(state, before, FILE_GUARD_MAX_ROWS, FILE_GUARD_MAX_REFERENCES, framework).map(ref => ref.key));
   const retired = new Set(state.retirements.map(fact => fact.file.ref));
@@ -668,12 +857,11 @@ function checkedFile(input: FinalizedFileIdentity, authority: FileRetirementAuth
   } else return refuse('original finalized provenance required');
   return file;
 }
-/** Existing decisions are returned unchanged without reopening admission. */
-export function planFileRetirement(state: FileGuardState, binding: FileRetirementAuthority, input: RetireFinalizedFile,
-  rows: readonly FileGuardRow[], nextRevision: Revision, framework: FileFrameworkBinding = EMPTY_FRAMEWORK): { readonly fact: FinalizedFileRetirement; readonly fresh: boolean } {
-  checkFileBinding(state, binding);
-  checkFileFrameworkBinding(state, framework);
-  if (state.authority === null) return refuse('persisted authoritative assignment required');
+/** Copied retirement request with checked File and retention policy. */
+function checkRetirementRequest(
+  input: RetireFinalizedFile,
+  binding: FileRetirementAuthority,
+): { request: RetireFinalizedFile; file: FinalizedFileIdentity } {
   const request = fileGuardCopy(input), file = checkedFile(request.file, binding);
   keys(request.retention, ['unattachedHorizonMs', 'retentionMs', ...(Object.hasOwn(request.retention, 'retainAttached') ? ['retainAttached'] : [])]);
   if (Object.hasOwn(request.retention, 'retainAttached') && request.retention.retainAttached !== true) return refuse('invalid attached File retention policy');
@@ -681,11 +869,32 @@ export function planFileRetirement(state: FileGuardState, binding: FileRetiremen
   if (![request.retention.unattachedHorizonMs, request.retention.retentionMs, request.atMs].every(value => Number.isSafeInteger(value) && value >= 0) ||
       ![request.maxRows, request.maxReferences].every(value => Number.isSafeInteger(value) && value > 0) ||
       request.disposition !== 'orphaned' && request.disposition !== 'expired') return refuse('finite original retention and complete bounds required');
+  return { request, file };
+}
+
+/** Existing permanent identity must agree before returning it unchanged. */
+function checkRetirementPrevious(
+  previous: FinalizedFileRetirement,
+  file: FinalizedFileIdentity,
+  request: RetireFinalizedFile,
+): void {
+  if (!fileGuardEqual(previous.file, file) || !fileGuardEqual(previous.retention, request.retention) || previous.disposition !== request.disposition ||
+      previous.snapshot.owner !== request.inventory.owner || previous.snapshot.snapshotId !== request.inventory.snapshotId || previous.snapshot.digest !== request.inventory.digest) {
+    return refuse('permanent retirement identity cannot be replaced');
+  }
+}
+
+/** Existing decisions are returned unchanged without reopening admission. */
+export function planFileRetirement(state: FileGuardState, binding: FileRetirementAuthority, input: RetireFinalizedFile,
+  rows: readonly FileGuardRow[], nextRevision: Revision, framework: FileFrameworkBinding = EMPTY_FRAMEWORK): { readonly fact: FinalizedFileRetirement; readonly fresh: boolean } {
+  checkFileBinding(state, binding);
+  checkFileFrameworkBinding(state, framework);
+  if (state.authority === null) return refuse('persisted authoritative assignment required');
+  const { request, file } = checkRetirementRequest(input, binding);
   identity(request.inventory);
   const previous = state.retirements.find(fact => fact.file.ref === file.ref);
   if (previous !== undefined) {
-    if (!fileGuardEqual(previous.file, file) || !fileGuardEqual(previous.retention, request.retention) || previous.disposition !== request.disposition ||
-        previous.snapshot.owner !== request.inventory.owner || previous.snapshot.snapshotId !== request.inventory.snapshotId || previous.snapshot.digest !== request.inventory.digest) return refuse('permanent retirement identity cannot be replaced');
+    checkRetirementPrevious(previous, file, request);
     return { fact: fileGuardCopy(previous), fresh: false };
   }
   if (state.migrations.length > 0 || state.publications.length > 0) return refuse('mixed migration census cannot retire a File');

@@ -193,18 +193,12 @@ function ownDeclarationData(value: unknown, key: string): unknown {
   return descriptor.value;
 }
 
-function validateRowSubjects(
-  by: ByPredicate,
+function validateRoleSubjectPerson(
+  by: Extract<ByPredicate, { roleSubject: { role: string; person: unknown } }>,
   policy: InterimModelPolicy,
   declarations: readonly CanonicalModelDescriptor[],
   fields: Map<string, 'user' | 'user?'>,
 ): void {
-  if (typeof by === 'string' || 'role' in by) return;
-  if ('and' in by || 'or' in by) {
-    for (const term of 'and' in by ? by.and : by.or) validateRowSubjects(term, policy, declarations, fields);
-    return;
-  }
-  if ('not' in by) return validateRowSubjects(by.not, policy, declarations, fields);
   const person = by.roleSubject.person;
   if (typeof person === 'string') return;
   if (person.model !== policy.model || isMetadataPath(person.field) || person.field === 'parent') {
@@ -228,6 +222,21 @@ function validateRowSubjects(
   fields.set(person.field, type);
 }
 
+function validateRowSubjects(
+  by: ByPredicate,
+  policy: InterimModelPolicy,
+  declarations: readonly CanonicalModelDescriptor[],
+  fields: Map<string, 'user' | 'user?'>,
+): void {
+  if (typeof by === 'string' || 'role' in by) return;
+  if ('and' in by || 'or' in by) {
+    for (const term of 'and' in by ? by.and : by.or) validateRowSubjects(term, policy, declarations, fields);
+    return;
+  }
+  if ('not' in by) return validateRowSubjects(by.not, policy, declarations, fields);
+  return validateRoleSubjectPerson(by, policy, declarations, fields);
+}
+
 /** Attach a row using only the field inventory retained by its validated owning policy. */
 export function withPolicyRow(policy: InterimModelPolicy, byCtx: ByContext, row: StoredRow): ByContext {
   return bindPolicyRowContext(policy, byCtx, row);
@@ -240,50 +249,40 @@ export function withPolicyRow(policy: InterimModelPolicy, byCtx: ByContext, row:
  * untraversable paths yield `undefined` (missing); an explicit `null` leaf is
  * returned as `null`.
  */
-export function resolveRowPath(row: StoredRow, path: string, implicitParent = false): unknown {
-  const segments = path.split('.');
-  const head = segments[0];
-  if (head === undefined || head === '') {
-    return undefined;
-  }
-  let current: unknown;
+function resolveParentHead(row: StoredRow, segments: readonly string[], implicitParent: boolean): unknown {
+  // An authored stored field keeps its ordinary data/grant semantics.
+  // Only the exact implicit identity may consume the containing envelope.
+  return Object.hasOwn(row.data, 'parent') ? row.data.parent :
+    implicitParent && segments.length === 1 ? row.parent ?? null : undefined;
+}
+
+function resolveRowHead(row: StoredRow, head: string, segments: readonly string[], implicitParent: boolean): unknown {
   switch (head) {
     case 'id':
-      current = row.id;
-      break;
+      return row.id;
     case 'version':
-      current = row.version;
-      break;
+      return row.version;
     case 'created':
-      current = row.created;
-      break;
+      return row.created;
     case 'updated':
-      current = row.updated;
-      break;
+      return row.updated;
     case 'createdBy':
-      current = row.createdBy;
-      break;
+      return row.createdBy;
     case 'updatedBy':
-      current = row.updatedBy;
-      break;
+      return row.updatedBy;
     case 'archivedAt':
-      current = row.archivedAt;
-      break;
+      return row.archivedAt;
     case 'parent':
-      // An authored stored field keeps its ordinary data/grant semantics.
-      // Only the exact implicit identity may consume the containing envelope.
-      current = Object.hasOwn(row.data, 'parent') ? row.data.parent :
-        implicitParent && segments.length === 1 ? row.parent ?? null : undefined;
-      break;
+      return resolveParentHead(row, segments, implicitParent);
     default: {
       const data = row.data as Readonly<Record<string, unknown>>;
-      if (!Object.hasOwn(data, head)) {
-        return undefined;
-      }
-      current = data[head];
+      return Object.hasOwn(data, head) ? data[head] : undefined;
     }
   }
-  for (const segment of segments.slice(1)) {
+}
+
+function traverseRowSegments(current: unknown, segments: readonly string[]): unknown {
+  for (const segment of segments) {
     if (typeof current !== 'object' || current === null || Array.isArray(current)) {
       return undefined;
     }
@@ -294,6 +293,15 @@ export function resolveRowPath(row: StoredRow, path: string, implicitParent = fa
     current = obj[segment];
   }
   return current;
+}
+
+export function resolveRowPath(row: StoredRow, path: string, implicitParent = false): unknown {
+  const segments = path.split('.');
+  const head = segments[0];
+  if (head === undefined || head === '') {
+    return undefined;
+  }
+  return traverseRowSegments(resolveRowHead(row, head, segments, implicitParent), segments.slice(1));
 }
 
 /** True for server-only secret-kind values, which must never be projected. */
@@ -554,6 +562,72 @@ function isIntWireField(field: string, intFields: ReadonlySet<string> | undefine
  * exact same-type semantics below. Omitted, evaluation is byte-identical
  * to the legacy behavior on all inputs.
  */
+type ComparisonOp = 'eq' | 'ne' | 'lt' | 'lte' | 'gt' | 'gte';
+
+
+/**
+ * Comparison/between evaluation keeps HEAD's exact property-read order:
+ * the predicate flows in whole and `op`/`field`/`value` (`lo`/`hi`) are
+ * re-read at HEAD's sites — field validation precedes the first value
+ * read, and the row getter sits between the repeated reads. Eagerly
+ * decomposing the predicate into arguments would hoist the value getters
+ * above the field check.
+ */
+function evalComparisonPredicate(
+  predicate: Extract<QueryPredicate, { readonly op: ComparisonOp }>,
+  row: StoredRow,
+  intFields: ReadonlySet<string> | undefined,
+  implicitParent: boolean,
+): boolean {
+  checkPredicateField(predicate.op, predicate.field);
+  checkComparisonOperand(predicate.op, predicate.field, predicate.value);
+  const actual = resolveRowPath(row, predicate.field, implicitParent);
+  if (isNullish(actual)) {
+    return false;
+  }
+  const compared = isIntWireField(predicate.field, intFields)
+    ? compareIntWire(actual, predicate.value)
+    : compareScalars(actual, predicate.value);
+  if (compared === null) {
+    return false;
+  }
+  // HEAD re-reads the op for the final dispatch: a getter that turns bogus
+  // after the earlier reads falls through to the trailing unknown-predicate
+  // throw (which reads op again), never to an undefined return.
+  switch (predicate.op) {
+    case 'eq': return compared === 0;
+    case 'ne': return compared !== 0;
+    case 'lt': return compared === -1;
+    case 'lte': return compared <= 0;
+    case 'gt': return compared > 0;
+    case 'gte': return compared >= 0;
+  }
+  const op = predicate.op;
+  throw new StateError('validation', `Unknown query predicate: ${JSON.stringify(op)}.`);
+}
+
+function evalBetweenPredicate(
+  predicate: Extract<QueryPredicate, { readonly op: 'between' }>,
+  row: StoredRow,
+  intFields: ReadonlySet<string> | undefined,
+  implicitParent: boolean,
+): boolean {
+  checkPredicateField(predicate.op, predicate.field);
+  checkBetweenBounds(predicate.field, predicate.lo, predicate.hi);
+  const actual = resolveRowPath(row, predicate.field, implicitParent);
+  if (isNullish(actual)) {
+    return false;
+  }
+  if (isIntWireField(predicate.field, intFields)) {
+    const low = compareIntWire(actual, predicate.lo);
+    const high = compareIntWire(actual, predicate.hi);
+    return low !== null && high !== null && low >= 0 && high <= 0;
+  }
+  const low = compareScalars(actual, predicate.lo);
+  const high = compareScalars(actual, predicate.hi);
+  return low !== null && high !== null && low >= 0 && high <= 0;
+}
+
 export function evalPredicateForRow(
   predicate: QueryPredicate,
   row: StoredRow,
@@ -582,51 +656,10 @@ export function evalPredicateForRow(
     case 'lt':
     case 'lte':
     case 'gt':
-    case 'gte': {
-      checkPredicateField(predicate.op, predicate.field);
-      checkComparisonOperand(predicate.op, predicate.field, predicate.value);
-      const actual = resolveRowPath(row, predicate.field, implicitParent);
-      if (isNullish(actual)) {
-        return false;
-      }
-      const compared = isIntWireField(predicate.field, intFields)
-        ? compareIntWire(actual, predicate.value)
-        : compareScalars(actual, predicate.value);
-      if (compared === null) {
-        return false;
-      }
-      switch (predicate.op) {
-        case 'eq':
-          return compared === 0;
-        case 'ne':
-          return compared !== 0;
-        case 'lt':
-          return compared === -1;
-        case 'lte':
-          return compared <= 0;
-        case 'gt':
-          return compared > 0;
-        case 'gte':
-          return compared >= 0;
-      }
-      break;
-    }
-    case 'between': {
-      checkPredicateField(predicate.op, predicate.field);
-      checkBetweenBounds(predicate.field, predicate.lo, predicate.hi);
-      const actual = resolveRowPath(row, predicate.field, implicitParent);
-      if (isNullish(actual)) {
-        return false;
-      }
-      if (isIntWireField(predicate.field, intFields)) {
-        const lo = compareIntWire(actual, predicate.lo);
-        const hi = compareIntWire(actual, predicate.hi);
-        return lo !== null && hi !== null && lo >= 0 && hi <= 0;
-      }
-      const lo = compareScalars(actual, predicate.lo);
-      const hi = compareScalars(actual, predicate.hi);
-      return lo !== null && hi !== null && lo >= 0 && hi <= 0;
-    }
+    case 'gte':
+      return evalComparisonPredicate(predicate, row, intFields, implicitParent);
+    case 'between':
+      return evalBetweenPredicate(predicate, row, intFields, implicitParent);
     case 'is_null':
       checkPredicateField(predicate.op, predicate.field);
       return isNullish(resolveRowPath(row, predicate.field, implicitParent));

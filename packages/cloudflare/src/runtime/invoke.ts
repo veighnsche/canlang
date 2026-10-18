@@ -416,6 +416,60 @@ async function invokeWith(
   }
 }
 
+function unknownCallableResult(artifact: CompileArtifact, id: string): InvokeResult {
+  const available = artifact.callables.map((entry) => entry.id);
+  return {
+    ok: false,
+    error:
+      `unknown callable ${JSON.stringify(id)} ` +
+      `(available: ${available.length > 0 ? available.join(", ") : "none"})`,
+  };
+}
+
+function resolveCallableMemberValue(start: unknown, segments: string[], id: string, path: string): { resolved: unknown } | { failure: InvokeResult } {
+  let current = start;
+  for (const [index, segment] of segments.entries()) {
+    if (typeof current !== "object" || current === null) {
+      const parent = index === 0 ? "canApp() registry" : `segment ${index - 1} value`;
+      const actual = current === null ? "null" : typeof current;
+      return {
+        failure: {
+          ok: false,
+          error:
+            `callable ${JSON.stringify(id)} member path ${path}: ` +
+            `cannot resolve segment ${index} ${JSON.stringify(segment)} ` +
+            `(${parent} is ${actual}, not an object)`,
+        },
+      };
+    }
+    const next: unknown = (current as Record<string, unknown>)[segment];
+    if (next === undefined) {
+      return {
+        failure: {
+          ok: false,
+          error:
+            `callable ${JSON.stringify(id)} member path ${path}: ` +
+            `missing segment ${index} ${JSON.stringify(segment)}`,
+        },
+      };
+    }
+    const last = index === segments.length - 1;
+    if (last && typeof next !== "function") {
+      const actual = next === null ? "null" : typeof next;
+      return {
+        failure: {
+          ok: false,
+          error:
+            `callable ${JSON.stringify(id)} member path ${path}: ` +
+            `segment ${index} ${JSON.stringify(segment)} is ${actual}, not a function`,
+        },
+      };
+    }
+    current = next;
+  }
+  return { resolved: current };
+}
+
 async function invokeAssembledCallable(
   asm: AssembledModules,
   artifact: CompileArtifact,
@@ -426,15 +480,7 @@ async function invokeAssembledCallable(
   checkedSource: boolean,
 ): Promise<InvokeResult> {
   const callable = artifact.callables.find((entry) => entry.id === id);
-  if (callable === undefined) {
-    const available = artifact.callables.map((entry) => entry.id);
-    return {
-      ok: false,
-      error:
-        `unknown callable ${JSON.stringify(id)} ` +
-        `(available: ${available.length > 0 ? available.join(", ") : "none"})`,
-    };
-  }
+  if (callable === undefined) return unknownCallableResult(artifact, id);
   const moduleUrl = asm.moduleUrls[callable.module];
   if (moduleUrl === undefined) {
     if (checkedSource) throw new AssemblyCorrespondenceError('Verified source callable lost its assembled module URL.');
@@ -496,40 +542,9 @@ async function invokeAssembledCallable(
         `for callable ${JSON.stringify(id)} (member path ${path}): ${message(error)}`,
     };
   }
-  for (const [index, segment] of segments.entries()) {
-    if (typeof current !== "object" || current === null) {
-      const parent = index === 0 ? "canApp() registry" : `segment ${index - 1} value`;
-      const actual = current === null ? "null" : typeof current;
-      return {
-        ok: false,
-        error:
-          `callable ${JSON.stringify(id)} member path ${path}: ` +
-          `cannot resolve segment ${index} ${JSON.stringify(segment)} ` +
-          `(${parent} is ${actual}, not an object)`,
-      };
-    }
-    const next: unknown = (current as Record<string, unknown>)[segment];
-    if (next === undefined) {
-      return {
-        ok: false,
-        error:
-          `callable ${JSON.stringify(id)} member path ${path}: ` +
-          `missing segment ${index} ${JSON.stringify(segment)}`,
-      };
-    }
-    const last = index === segments.length - 1;
-    if (last && typeof next !== "function") {
-      const actual = next === null ? "null" : typeof next;
-      return {
-        ok: false,
-        error:
-          `callable ${JSON.stringify(id)} member path ${path}: ` +
-          `segment ${index} ${JSON.stringify(segment)} is ${actual}, not a function`,
-      };
-    }
-    current = next;
-  }
-  const fn = current as (ctx: HandlerContext, ...args: unknown[]) => unknown;
+  const memberResolution = resolveCallableMemberValue(current, segments, id, path);
+  if ("failure" in memberResolution) return memberResolution.failure;
+  const fn = memberResolution.resolved as (ctx: HandlerContext, ...args: unknown[]) => unknown;
   if (checkedSource) await verifyCheckedAssembly(asm, artifact);
   try {
     const value = await fn(ctx, ...(args ?? []));
@@ -862,12 +877,33 @@ const nativeCrudCandidateBindings = new WeakMap<LoadedCanonicalDescriptors, Read
 const nativeCrudCandidateAssemblies = new WeakMap<CompileArtifact, AssembledModules>();
 
 /** Presence is not authority: join the original checked operation and callback. */
+function ownCrudMember(value: unknown, key: string): unknown {
+  return isUnknownRecord(value) ? readMetadataMember(value, key, 'CRUD candidate admission')?.value : undefined;
+}
+
+function assertCrudCandidateAssociation(operation: PreloadOperation, callableModule: string,
+  models: CompileArtifact["models"], declaration: unknown, claimed: unknown, model: unknown,
+  key: unknown, evaluate: unknown, candidates: CompileArtifact["callables"]): {
+    model: string; key: string; evaluate: NativeCrudCandidateBinding['evaluate'];
+  } {
+  const originalCallable = candidates[0];
+  if (claimed !== true || typeof key !== 'string' || key === '' || typeof model !== 'string' ||
+      operation.name !== `${model}.${operation.kind}` || ownCrudMember(declaration, 'kind') !== operation.kind ||
+      ownCrudMember(declaration, 'handler') !== operation.name ||
+      !models?.some(candidate => candidate.name === model) ||
+      candidates.length !== 1 || originalCallable === undefined || originalCallable.module !== callableModule ||
+      originalCallable.member.length !== 1 || originalCallable.member[0] !== operation.name || typeof evaluate !== 'function') {
+    throw new AssemblyCorrespondenceError('CRUD candidate admission lacks its exact original operation/model/key/callback association.');
+  }
+  // The checks above narrow these locals; the casts restate the admitted shapes.
+  return { model, key, evaluate: evaluate as NativeCrudCandidateBinding['evaluate'] };
+}
+
 async function bindNativeCrudCandidate(asm: AssembledModules, artifact: CompileArtifact,
   operation: PreloadOperation, callable: PreloadCallable, registry: unknown, policy: unknown): Promise<NativeCrudCandidateBinding | undefined> {
   const imported: unknown = requiresVerifiedAssemblyImports(asm, artifact)
     ? await importVerifiedAssemblyModule(asm, callable.module, artifact) : await import(asm.moduleUrls[callable.module]!);
-  const own = (value: unknown, key: string): unknown => isUnknownRecord(value)
-    ? readMetadataMember(value, key, 'CRUD candidate admission')?.value : undefined;
+  const own = ownCrudMember;
   const declaration = own(own(own(imported, 'appDefinition'), 'operations'), operation.name);
   const key = own(declaration, 'when');
   const claimed = own(policy, 'when');
@@ -880,21 +916,12 @@ async function bindNativeCrudCandidate(asm: AssembledModules, artifact: CompileA
   await verifyCheckedAssembly(asm, artifact);
   const model = own(declaration, 'model');
   const callables = artifact.callables.filter(candidate => candidate.id === operation.name);
-  const originalCallable = callables[0];
   const evaluate = own(own(registry, 'crudWhen'), typeof key === 'string' ? key : '');
-  if (claimed !== true || typeof key !== 'string' || key === '' || typeof model !== 'string' ||
-      operation.name !== `${model}.${operation.kind}` || own(declaration, 'kind') !== operation.kind ||
-      own(declaration, 'handler') !== operation.name ||
-      !artifact.models?.some(candidate => candidate.name === model) ||
-      callables.length !== 1 || originalCallable === undefined || originalCallable.module !== callable.module ||
-      originalCallable.member.length !== 1 || originalCallable.member[0] !== operation.name || typeof evaluate !== 'function') {
-    throw new AssemblyCorrespondenceError('CRUD candidate admission lacks its exact original operation/model/key/callback association.');
-  }
+  const admitted = assertCrudCandidateAssociation(operation, callable.module, artifact.models, declaration, claimed, model, key, evaluate, callables);
   const original = nativeCrudCandidateAssemblies.get(artifact);
   if (original !== undefined && original !== asm) throw new AssemblyCorrespondenceError('CRUD candidate admission changed its original assembly.');
   nativeCrudCandidateAssemblies.set(artifact, asm);
-  return Object.freeze({ module: callable.module, model, key,
-    evaluate: evaluate as NativeCrudCandidateBinding['evaluate'] });
+  return Object.freeze({ module: callable.module, model: admitted.model, key: admitted.key, evaluate: admitted.evaluate });
 }
 
 /* ------------------------------------------------------------------ */
@@ -1007,20 +1034,15 @@ function readMetadataStrings(value: unknown, where: string, member: string): str
   return result;
 }
 
-function readPolicyFacts(entry: unknown, where: string): ReadPolicyFacts {
-  if (entry === undefined || entry === null) return {};
-  if (!isUnknownRecord(entry)) throw new Error(`${where}: malformed policy entry (not an object).`);
+function assertKnownPolicyMembers(entry: Record<string, unknown>, where: string): void {
   for (const key of Object.keys(entry)) {
     if (key !== "read" && key !== "public" && key !== "invariants" && key !== "locks") {
       throw new Error(`${where}: unknown policy member ${JSON.stringify(key)}.`);
     }
   }
-  const facts: { read?: string[]; public?: string[]; invariants?: string[]; locks?: string[] } = {};
-  for (const key of ["public", "read", "invariants", "locks"] as const) {
-    const value = readMetadataMember(entry, key, where)?.value;
-    if (value !== undefined) facts[key] = readMetadataStrings(value, where,
-      key === "public" ? "public marks" : key === "read" ? "read rules" : key);
-  }
+}
+
+function assertPublicMarksCovered(facts: { readonly read?: readonly string[]; readonly public?: readonly string[] }, where: string): void {
   const rules = new Set(facts.read ?? []);
   if (rules.size === 0 && (facts.public?.length ?? 0) > 0) {
     throw new Error(`${where}: public marks without read rules (emitter skew?).`);
@@ -1028,17 +1050,24 @@ function readPolicyFacts(entry: unknown, where: string): ReadPolicyFacts {
   for (const id of facts.public ?? []) {
     if (!rules.has(id)) throw new Error(`${where}: public mark ${JSON.stringify(id)} names no emitted rule (emitter skew?).`);
   }
+}
+
+function readPolicyFacts(entry: unknown, where: string): ReadPolicyFacts {
+  if (entry === undefined || entry === null) return {};
+  if (!isUnknownRecord(entry)) throw new Error(`${where}: malformed policy entry (not an object).`);
+  assertKnownPolicyMembers(entry, where);
+  const facts: { read?: string[]; public?: string[]; invariants?: string[]; locks?: string[] } = {};
+  for (const key of ["public", "read", "invariants", "locks"] as const) {
+    const value = readMetadataMember(entry, key, where)?.value;
+    if (value !== undefined) facts[key] = readMetadataStrings(value, where,
+      key === "public" ? "public marks" : key === "read" ? "read rules" : key);
+  }
+  assertPublicMarksCovered(facts, where);
   return facts;
 }
 
-function readSelectorFacts(
-  owningModel: string,
-  policy: ReadPolicyFacts,
-  declaredFields: ReadonlyArray<string>,
-  provenance: ReadPolicyProvenance | undefined,
-  where: string,
-  checkedContainmentParent = false,
-): ReadSelectorFacts | undefined {
+function selectorDeclarationGrantProvenance(policy: ReadPolicyFacts, provenance: ReadPolicyProvenance | undefined,
+  where: string): { declaration: unknown; readRules: unknown } | undefined {
   const declaration = provenance === undefined ? undefined : readMetadataMember(provenance, "declaration", where)?.value;
   const readRules = provenance === undefined ? undefined : readMetadataMember(provenance, "readRules", where)?.value;
   // Older non-public rules have no data-only actor predicates. Preserve
@@ -1049,6 +1078,11 @@ function readSelectorFacts(
     const grants = readMetadataArray(member.value, where, "readGrants declaration");
     if (!grants.some((grant) => isUnknownRecord(grant) && readMetadataMember(grant, "by", where) !== undefined)) return undefined;
   }
+  return { declaration, readRules };
+}
+
+function readSelectorGrantDeclarations(declaration: unknown, readRules: unknown,
+  declaredFields: ReadonlyArray<string>, where: string): { declarations: unknown[]; readRules: Record<string, unknown> } {
   if (!isUnknownRecord(declaration) || !isUnknownRecord(readRules)) {
     throw new Error(`${where}: missing owning read selector provenance.`);
   }
@@ -1061,81 +1095,118 @@ function readSelectorFacts(
   for (const field of declaredFields) {
     if (!Object.hasOwn(fields, field)) throw new Error(`${where}: owning model fields disagree with loaded model (emitter skew?).`);
   }
-  const declarations = readMetadataArray(grantsMember.value, where, "readGrants declaration");
+  return { declarations: readMetadataArray(grantsMember.value, where, "readGrants declaration"), readRules };
+}
+
+function readGrantSelectorFields(grant: Record<string, unknown>, id: string, fieldNames: ReadonlySet<string>,
+  checkedContainmentParent: boolean, where: string): string[] | undefined {
+  const fieldsMember = readMetadataMember(grant, "fields", where);
+  if (fieldsMember === undefined && "fields" in grant) {
+    throw new Error(`${where}: inherited read selector on ${JSON.stringify(id)}.`);
+  }
+  if (fieldsMember === undefined) return undefined;
+  const selected = readMetadataStrings(fieldsMember.value, where, `read selector on ${JSON.stringify(id)}`);
+  if (selected.length === 0) throw new Error(`${where}: malformed empty read selector on ${JSON.stringify(id)}.`);
+  for (const field of selected) {
+    const parts = field.split(".");
+    // `parent` is singular containment metadata, never a domain field
+    // or permission to select arbitrary metadata/dotted parent paths.
+    const declared = parts[0] === 'parent'
+      ? parts.length === 1 && checkedContainmentParent
+      : fieldNames.has(parts[0]!);
+    if (parts.some((part) => part.length === 0) || !declared) {
+      throw new Error(`${where}: malformed or undeclared read selector on ${JSON.stringify(id)}.`);
+    }
+  }
+  return selected;
+}
+
+function readGrantPredicate(grant: Record<string, unknown>, id: string, owningModel: string,
+  fieldNames: ReadonlySet<string>, policy: ReadPolicyFacts, where: string): CanonicalByPredicate | undefined {
+  const by = readMetadataMember(grant, "by", where);
+  if (by === undefined && "by" in grant) {
+    throw new Error(`${where}: inherited read predicate on ${JSON.stringify(id)}.`);
+  }
+  if (by === undefined) return undefined;
+  const terms = readMetadataArray(by.value, where, `read predicate on ${JSON.stringify(id)}`);
+  if (Object.getPrototypeOf(by.value) !== Array.prototype || Reflect.ownKeys(by.value as object).length !== terms.length + 1) {
+    throw new Error(`${where}: read predicate requires a closed dense own-data array.`);
+  }
+  if (terms.length !== 1) throw new Error(`${where}: one checked read predicate is required.`);
+  const term = terms[0];
+  let predicate: CanonicalByPredicate;
+  if (typeof term === 'string' && term !== '') {
+    predicate = mapCrudPolicyToBy(`${where}:${id}`, { by: [term] });
+  } else {
+    const closed = (value: unknown, keys: readonly string[]): Record<string, unknown> => {
+      if (!isUnknownRecord(value) || ![Object.prototype, null].includes(Object.getPrototypeOf(value)) ||
+          Reflect.ownKeys(value).length !== keys.length || keys.some(key => readMetadataMember(value, key, where) === undefined)) {
+        throw new Error(`${where}: malformed own-data row read predicate.`);
+      }
+      return value;
+    };
+    const outer = closed(term, ['roleSubject']);
+    const subject = closed(readMetadataMember(outer, 'roleSubject', where)!.value, ['role', 'person']);
+    const role = readMetadataMember(subject, 'role', where)!.value;
+    const person = closed(readMetadataMember(subject, 'person', where)!.value, ['model', 'field']);
+    const owner = readMetadataMember(person, 'model', where)!.value;
+    const field = readMetadataMember(person, 'field', where)!.value;
+    if (typeof role !== 'string' || role === '' || owner !== owningModel ||
+        typeof field !== 'string' || field === '' || field.includes('.') || !fieldNames.has(field)) {
+      throw new Error(`${where}: row read predicate disagrees with its owning model/field.`);
+    }
+    predicate = Object.freeze({ roleSubject: Object.freeze({ role,
+      person: Object.freeze({ model: owner as ModelName, field }) }) });
+  }
+  if (policy.public?.includes(id) && predicate !== 'public') {
+    throw new Error(`${where}: public mark disagrees with owning read predicate on ${JSON.stringify(id)}.`);
+  }
+  return predicate;
+}
+
+interface SelectorGrantTranscription {
+  readonly rules: ReadonlySet<string>;
+  readonly readRules: Record<string, unknown>;
+  readonly fieldNames: ReadonlySet<string>;
+  readonly checkedContainmentParent: boolean;
+  readonly owningModel: string;
+  readonly policy: ReadPolicyFacts;
+  readonly where: string;
+  readonly selectors: Map<string, ReadonlyArray<string> | undefined>;
+  readonly predicates: Map<string, CanonicalByPredicate>;
+}
+
+function transcribeSelectorGrant(grant: unknown, ctx: SelectorGrantTranscription): void {
+  const id = isUnknownRecord(grant) ? readMetadataMember(grant, "rule", ctx.where)?.value : undefined;
+  if (!isUnknownRecord(grant) || typeof id !== "string" || !ctx.rules.has(id) || ctx.selectors.has(id)) {
+    throw new Error(`${ctx.where}: malformed or skewed readGrants rule identity.`);
+  }
+  if (typeof readMetadataMember(ctx.readRules, id, ctx.where)?.value !== "function") {
+    throw new Error(`${ctx.where}: read rule ${JSON.stringify(id)} has no owning callable.`);
+  }
+  ctx.selectors.set(id, readGrantSelectorFields(grant, id, ctx.fieldNames, ctx.checkedContainmentParent, ctx.where));
+  const predicate = readGrantPredicate(grant, id, ctx.owningModel, ctx.fieldNames, ctx.policy, ctx.where);
+  if (predicate !== undefined) ctx.predicates.set(id, predicate);
+}
+
+function readSelectorFacts(
+  owningModel: string,
+  policy: ReadPolicyFacts,
+  declaredFields: ReadonlyArray<string>,
+  provenance: ReadPolicyProvenance | undefined,
+  where: string,
+  checkedContainmentParent = false,
+): ReadSelectorFacts | undefined {
+  const admitted = selectorDeclarationGrantProvenance(policy, provenance, where);
+  if (admitted === undefined) return undefined;
+  const checked = readSelectorGrantDeclarations(admitted.declaration, admitted.readRules, declaredFields, where);
   const rules = new Set(policy.read ?? []);
   const fieldNames = new Set(declaredFields);
   const selectors = new Map<string, ReadonlyArray<string> | undefined>();
   const predicates = new Map<string, CanonicalByPredicate>();
-  for (const grant of declarations) {
-    const id = isUnknownRecord(grant) ? readMetadataMember(grant, "rule", where)?.value : undefined;
-    if (!isUnknownRecord(grant) || typeof id !== "string" || !rules.has(id) || selectors.has(id)) {
-      throw new Error(`${where}: malformed or skewed readGrants rule identity.`);
-    }
-    if (typeof readMetadataMember(readRules, id, where)?.value !== "function") {
-      throw new Error(`${where}: read rule ${JSON.stringify(id)} has no owning callable.`);
-    }
-    const fieldsMember = readMetadataMember(grant, "fields", where);
-    if (fieldsMember === undefined && "fields" in grant) {
-      throw new Error(`${where}: inherited read selector on ${JSON.stringify(id)}.`);
-    }
-    let selected: string[] | undefined;
-    if (fieldsMember !== undefined) {
-      selected = readMetadataStrings(fieldsMember.value, where, `read selector on ${JSON.stringify(id)}`);
-      if (selected.length === 0) throw new Error(`${where}: malformed empty read selector on ${JSON.stringify(id)}.`);
-      for (const field of selected) {
-        const parts = field.split(".");
-        // `parent` is singular containment metadata, never a domain field
-        // or permission to select arbitrary metadata/dotted parent paths.
-        const declared = parts[0] === 'parent'
-          ? parts.length === 1 && checkedContainmentParent
-          : fieldNames.has(parts[0]!);
-        if (parts.some((part) => part.length === 0) || !declared) {
-          throw new Error(`${where}: malformed or undeclared read selector on ${JSON.stringify(id)}.`);
-        }
-      }
-    }
-    selectors.set(id, selected);
-    const by = readMetadataMember(grant, "by", where);
-    if (by === undefined && "by" in grant) {
-      throw new Error(`${where}: inherited read predicate on ${JSON.stringify(id)}.`);
-    }
-    if (by !== undefined) {
-      const terms = readMetadataArray(by.value, where, `read predicate on ${JSON.stringify(id)}`);
-      if (Object.getPrototypeOf(by.value) !== Array.prototype || Reflect.ownKeys(by.value as object).length !== terms.length + 1) {
-        throw new Error(`${where}: read predicate requires a closed dense own-data array.`);
-      }
-      if (terms.length !== 1) throw new Error(`${where}: one checked read predicate is required.`);
-      const term = terms[0];
-      let predicate: CanonicalByPredicate;
-      if (typeof term === 'string' && term !== '') {
-        predicate = mapCrudPolicyToBy(`${where}:${id}`, { by: [term] });
-      } else {
-        const closed = (value: unknown, keys: readonly string[]): Record<string, unknown> => {
-          if (!isUnknownRecord(value) || ![Object.prototype, null].includes(Object.getPrototypeOf(value)) ||
-              Reflect.ownKeys(value).length !== keys.length || keys.some(key => readMetadataMember(value, key, where) === undefined)) {
-            throw new Error(`${where}: malformed own-data row read predicate.`);
-          }
-          return value;
-        };
-        const outer = closed(term, ['roleSubject']);
-        const subject = closed(readMetadataMember(outer, 'roleSubject', where)!.value, ['role', 'person']);
-        const role = readMetadataMember(subject, 'role', where)!.value;
-        const person = closed(readMetadataMember(subject, 'person', where)!.value, ['model', 'field']);
-        const owner = readMetadataMember(person, 'model', where)!.value;
-        const field = readMetadataMember(person, 'field', where)!.value;
-        if (typeof role !== 'string' || role === '' || owner !== owningModel ||
-            typeof field !== 'string' || field === '' || field.includes('.') || !fieldNames.has(field)) {
-          throw new Error(`${where}: row read predicate disagrees with its owning model/field.`);
-        }
-        predicate = Object.freeze({ roleSubject: Object.freeze({ role,
-          person: Object.freeze({ model: owner as ModelName, field }) }) });
-      }
-      if (policy.public?.includes(id) && predicate !== 'public') {
-        throw new Error(`${where}: public mark disagrees with owning read predicate on ${JSON.stringify(id)}.`);
-      }
-      predicates.set(id, predicate);
-    }
-  }
+  const ctx: SelectorGrantTranscription = { rules, readRules: checked.readRules, fieldNames,
+    checkedContainmentParent, owningModel, policy, where, selectors, predicates };
+  for (const grant of checked.declarations) transcribeSelectorGrant(grant, ctx);
   if (selectors.size !== rules.size) throw new Error(`${where}: readGrants and policy rule identities disagree (emitter skew?).`);
   for (const id of rules) {
     if (!selectors.has(id)) throw new Error(`${where}: readGrants and policy rule identities disagree (emitter skew?).`);
@@ -1660,6 +1731,75 @@ function requireProducerFn(
   return fn as (...args: never[]) => unknown;
 }
 
+// Split into declaration-order halves so the spread sequence below keeps the
+// original member order.
+function scenarioReceiptBindingsHead(scenarioMod: Record<string, unknown>) {
+  return {
+    ...(typeof scenarioMod['readScenarioReceiptStoredReferenceRow'] !== 'function' ? {} : {
+      readScenarioReceiptStoredReferenceRow: scenarioMod['readScenarioReceiptStoredReferenceRow'] as NonNullable<StateInvokeProducer['readScenarioReceiptStoredReferenceRow']>,
+    }),
+    ...(typeof scenarioMod['readScenarioReceiptNullableStoredReferenceRow'] !== 'function' ? {} : {
+      readScenarioReceiptNullableStoredReferenceRow: scenarioMod['readScenarioReceiptNullableStoredReferenceRow'] as NonNullable<StateInvokeProducer['readScenarioReceiptNullableStoredReferenceRow']>,
+    }),
+    ...(typeof scenarioMod['readScenarioReceiptAssociation'] !== 'function' ? {} : {
+      readScenarioReceiptAssociation: scenarioMod['readScenarioReceiptAssociation'] as NonNullable<StateInvokeProducer['readScenarioReceiptAssociation']>,
+    }),
+    ...(typeof scenarioMod['projectScenarioReceipt'] !== 'function' ? {} : {
+      projectScenarioReceipt: scenarioMod['projectScenarioReceipt'] as NonNullable<StateInvokeProducer['projectScenarioReceipt']>,
+    }),
+    ...(typeof scenarioMod['beginScenarioReceiptMutation'] !== 'function' ? {} : {
+      beginScenarioReceiptMutation: scenarioMod['beginScenarioReceiptMutation'] as NonNullable<StateInvokeProducer['beginScenarioReceiptMutation']>,
+    }),
+    ...(typeof scenarioMod['executeScenarioReceiptRequire'] !== 'function' ? {} : {
+      executeScenarioReceiptRequire: scenarioMod['executeScenarioReceiptRequire'] as NonNullable<StateInvokeProducer['executeScenarioReceiptRequire']>,
+    }),
+    ...(typeof scenarioMod['observeScenarioInputComputedDefault'] !== 'function' ? {} : {
+      observeScenarioInputComputedDefault: scenarioMod['observeScenarioInputComputedDefault'] as NonNullable<StateInvokeProducer['observeScenarioInputComputedDefault']>,
+    }),
+    ...(typeof scenarioMod['bindScenarioReceiptFrameworkProducer'] !== 'function' ? {} : {
+      bindScenarioReceiptFrameworkProducer: scenarioMod['bindScenarioReceiptFrameworkProducer'] as NonNullable<StateInvokeProducer['bindScenarioReceiptFrameworkProducer']>,
+    }),
+    ...(typeof scenarioMod['stageScenarioReceiptSend'] !== 'function' ? {} : {
+      stageScenarioReceiptSend: scenarioMod['stageScenarioReceiptSend'] as NonNullable<StateInvokeProducer['stageScenarioReceiptSend']>,
+    }),
+    ...(typeof scenarioMod['bindScenarioReceiptQueryProducer'] !== 'function' ? {} : {
+      bindScenarioReceiptQueryProducer: scenarioMod['bindScenarioReceiptQueryProducer'] as NonNullable<StateInvokeProducer['bindScenarioReceiptQueryProducer']>,
+    }),
+  };
+}
+
+function scenarioReceiptBindingsTail(scenarioMod: Record<string, unknown>) {
+  return {
+    ...(typeof scenarioMod['bindScenarioReceiptReferenceProducer'] !== 'function' ? {} : {
+      bindScenarioReceiptReferenceProducer: scenarioMod['bindScenarioReceiptReferenceProducer'] as NonNullable<StateInvokeProducer['bindScenarioReceiptReferenceProducer']>,
+    }),
+    ...(typeof scenarioMod['bindScenarioReceiptFileProducer'] !== 'function' ? {} : {
+      bindScenarioReceiptFileProducer: scenarioMod['bindScenarioReceiptFileProducer'] as NonNullable<StateInvokeProducer['bindScenarioReceiptFileProducer']>,
+    }),
+    ...(typeof scenarioMod['observeScenarioReceiptFileAssignment'] !== 'function' ? {} : {
+      observeScenarioReceiptFileAssignment: scenarioMod['observeScenarioReceiptFileAssignment'] as NonNullable<StateInvokeProducer['observeScenarioReceiptFileAssignment']>,
+    }),
+    ...(typeof scenarioMod['projectReadScenarioQueryResult'] !== 'function' ? {} : {
+      projectReadScenarioQueryResult: scenarioMod['projectReadScenarioQueryResult'] as NonNullable<StateInvokeProducer['projectReadScenarioQueryResult']>,
+    }),
+    ...(typeof scenarioMod['bindScenarioReceiptCallProducer'] !== 'function' ? {} : {
+      bindScenarioReceiptCallProducer: scenarioMod['bindScenarioReceiptCallProducer'] as NonNullable<StateInvokeProducer['bindScenarioReceiptCallProducer']>,
+    }),
+    ...(typeof scenarioMod['noteDueWorkAdmission'] !== 'function' ? {} : {
+      noteDueWorkAdmission: scenarioMod['noteDueWorkAdmission'] as NonNullable<StateInvokeProducer['noteDueWorkAdmission']>,
+    }),
+    ...(typeof scenarioMod['invokeScenarioReceiptCall'] !== 'function' ? {} : {
+      invokeScenarioReceiptCall: scenarioMod['invokeScenarioReceiptCall'] as NonNullable<StateInvokeProducer['invokeScenarioReceiptCall']>,
+    }),
+    ...(typeof scenarioMod['assertScenarioReceiptCallExecution'] !== 'function' ? {} : {
+      assertScenarioReceiptCallExecution: scenarioMod['assertScenarioReceiptCallExecution'] as NonNullable<StateInvokeProducer['assertScenarioReceiptCallExecution']>,
+    }),
+    ...(typeof scenarioMod['stageScenarioReceiptDelivery'] !== 'function' ? {} : {
+      stageScenarioReceiptDelivery: scenarioMod['stageScenarioReceiptDelivery'] as NonNullable<StateInvokeProducer['stageScenarioReceiptDelivery']>,
+    }),
+  };
+}
+
 /** Load and shape-check the eight state producers (fail loud, never partial). */
 async function loadCanonicalStateProducers(): Promise<CanonicalStateProducers> {
   const registryMod = await loadProducerModule(STATE_REGISTRY_SPECIFIER, "state registry producer");
@@ -1726,63 +1866,8 @@ async function loadCanonicalStateProducers(): Promise<CanonicalStateProducers> {
         invokeRetainedReceiptOnly: invokeMod['invokeRetainedReceiptOnly'] as NonNullable<StateInvokeProducer['invokeRetainedReceiptOnly']>,
       }),
       invokeRead: invokeRead as StateInvokeProducer["invokeRead"],
-      ...(typeof scenarioMod['readScenarioReceiptStoredReferenceRow'] !== 'function' ? {} : {
-        readScenarioReceiptStoredReferenceRow: scenarioMod['readScenarioReceiptStoredReferenceRow'] as NonNullable<StateInvokeProducer['readScenarioReceiptStoredReferenceRow']>,
-      }),
-      ...(typeof scenarioMod['readScenarioReceiptNullableStoredReferenceRow'] !== 'function' ? {} : {
-        readScenarioReceiptNullableStoredReferenceRow: scenarioMod['readScenarioReceiptNullableStoredReferenceRow'] as NonNullable<StateInvokeProducer['readScenarioReceiptNullableStoredReferenceRow']>,
-      }),
-      ...(typeof scenarioMod['readScenarioReceiptAssociation'] !== 'function' ? {} : {
-        readScenarioReceiptAssociation: scenarioMod['readScenarioReceiptAssociation'] as NonNullable<StateInvokeProducer['readScenarioReceiptAssociation']>,
-      }),
-      ...(typeof scenarioMod['projectScenarioReceipt'] !== 'function' ? {} : {
-        projectScenarioReceipt: scenarioMod['projectScenarioReceipt'] as NonNullable<StateInvokeProducer['projectScenarioReceipt']>,
-      }),
-      ...(typeof scenarioMod['beginScenarioReceiptMutation'] !== 'function' ? {} : {
-        beginScenarioReceiptMutation: scenarioMod['beginScenarioReceiptMutation'] as NonNullable<StateInvokeProducer['beginScenarioReceiptMutation']>,
-      }),
-      ...(typeof scenarioMod['executeScenarioReceiptRequire'] !== 'function' ? {} : {
-        executeScenarioReceiptRequire: scenarioMod['executeScenarioReceiptRequire'] as NonNullable<StateInvokeProducer['executeScenarioReceiptRequire']>,
-      }),
-      ...(typeof scenarioMod['observeScenarioInputComputedDefault'] !== 'function' ? {} : {
-        observeScenarioInputComputedDefault: scenarioMod['observeScenarioInputComputedDefault'] as NonNullable<StateInvokeProducer['observeScenarioInputComputedDefault']>,
-      }),
-      ...(typeof scenarioMod['bindScenarioReceiptFrameworkProducer'] !== 'function' ? {} : {
-        bindScenarioReceiptFrameworkProducer: scenarioMod['bindScenarioReceiptFrameworkProducer'] as NonNullable<StateInvokeProducer['bindScenarioReceiptFrameworkProducer']>,
-      }),
-      ...(typeof scenarioMod['stageScenarioReceiptSend'] !== 'function' ? {} : {
-        stageScenarioReceiptSend: scenarioMod['stageScenarioReceiptSend'] as NonNullable<StateInvokeProducer['stageScenarioReceiptSend']>,
-      }),
-      ...(typeof scenarioMod['bindScenarioReceiptQueryProducer'] !== 'function' ? {} : {
-        bindScenarioReceiptQueryProducer: scenarioMod['bindScenarioReceiptQueryProducer'] as NonNullable<StateInvokeProducer['bindScenarioReceiptQueryProducer']>,
-      }),
-      ...(typeof scenarioMod['bindScenarioReceiptReferenceProducer'] !== 'function' ? {} : {
-        bindScenarioReceiptReferenceProducer: scenarioMod['bindScenarioReceiptReferenceProducer'] as NonNullable<StateInvokeProducer['bindScenarioReceiptReferenceProducer']>,
-      }),
-      ...(typeof scenarioMod['bindScenarioReceiptFileProducer'] !== 'function' ? {} : {
-        bindScenarioReceiptFileProducer: scenarioMod['bindScenarioReceiptFileProducer'] as NonNullable<StateInvokeProducer['bindScenarioReceiptFileProducer']>,
-      }),
-      ...(typeof scenarioMod['observeScenarioReceiptFileAssignment'] !== 'function' ? {} : {
-        observeScenarioReceiptFileAssignment: scenarioMod['observeScenarioReceiptFileAssignment'] as NonNullable<StateInvokeProducer['observeScenarioReceiptFileAssignment']>,
-      }),
-      ...(typeof scenarioMod['projectReadScenarioQueryResult'] !== 'function' ? {} : {
-        projectReadScenarioQueryResult: scenarioMod['projectReadScenarioQueryResult'] as NonNullable<StateInvokeProducer['projectReadScenarioQueryResult']>,
-      }),
-      ...(typeof scenarioMod['bindScenarioReceiptCallProducer'] !== 'function' ? {} : {
-        bindScenarioReceiptCallProducer: scenarioMod['bindScenarioReceiptCallProducer'] as NonNullable<StateInvokeProducer['bindScenarioReceiptCallProducer']>,
-      }),
-      ...(typeof scenarioMod['noteDueWorkAdmission'] !== 'function' ? {} : {
-        noteDueWorkAdmission: scenarioMod['noteDueWorkAdmission'] as NonNullable<StateInvokeProducer['noteDueWorkAdmission']>,
-      }),
-      ...(typeof scenarioMod['invokeScenarioReceiptCall'] !== 'function' ? {} : {
-        invokeScenarioReceiptCall: scenarioMod['invokeScenarioReceiptCall'] as NonNullable<StateInvokeProducer['invokeScenarioReceiptCall']>,
-      }),
-      ...(typeof scenarioMod['assertScenarioReceiptCallExecution'] !== 'function' ? {} : {
-        assertScenarioReceiptCallExecution: scenarioMod['assertScenarioReceiptCallExecution'] as NonNullable<StateInvokeProducer['assertScenarioReceiptCallExecution']>,
-      }),
-      ...(typeof scenarioMod['stageScenarioReceiptDelivery'] !== 'function' ? {} : {
-        stageScenarioReceiptDelivery: scenarioMod['stageScenarioReceiptDelivery'] as NonNullable<StateInvokeProducer['stageScenarioReceiptDelivery']>,
-      }),
+      ...scenarioReceiptBindingsHead(scenarioMod),
+      ...scenarioReceiptBindingsTail(scenarioMod),
       ...(typeof invokeMod['projectGeneratedCrudReceipt'] !== 'function' ? {} : {
         projectGeneratedCrudReceipt: invokeMod['projectGeneratedCrudReceipt'] as NonNullable<StateInvokeProducer['projectGeneratedCrudReceipt']>,
       }),
@@ -2204,6 +2289,39 @@ async function assertComputedDefaultsPair(
 }
 
 /** A source read handler pairs all defining channels before it can admit. */
+function readDeclaredMember(value: unknown, key: string, where: string): unknown {
+  return isUnknownRecord(value) ? readMetadataMember(value, key, where)?.value : undefined;
+}
+
+function assertReadByAgreement(where: string, by: unknown, spellings: unknown): void {
+  if (by !== undefined && (!Array.isArray(spellings) || spellings.length !== 1 || spellings[0] !== by)) {
+    throw new Error(`${where}: checked by declaration/policy disagreement.`);
+  }
+  if (by === undefined && spellings !== undefined) {
+    throw new Error(`${where}: policy claims an undeclared by gate.`);
+  }
+}
+
+function assertCheckedResultDeclaration(where: string, declaredResult: unknown, declaredType: unknown, array: unknown, nullable: unknown): void {
+  if (declaredResult !== undefined && (!isUnknownRecord(declaredResult) || typeof declaredType !== 'string' ||
+      (array !== undefined && typeof array !== 'boolean') || (nullable !== undefined && typeof nullable !== 'boolean'))) {
+    throw new Error(`${where}: malformed checked result declaration.`);
+  }
+}
+
+function checkedEnumResultType(where: string, publicType: unknown, declaredCases: unknown, array: unknown, nullable: unknown): string {
+  if (typeof publicType !== 'string' || !Array.isArray(declaredCases)) {
+    throw new Error(`${where}: malformed checked enum result declaration.`);
+  }
+  const parsed = parseTypeId(publicType);
+  if (parsed.base.kind !== 'enum' || parsed.requiredArray || parsed.array !== (array === true) ||
+      parsed.nullable !== (nullable === true) || parsed.base.cases.length !== declaredCases.length ||
+      parsed.base.cases.some((value, index) => declaredCases[index] !== value)) {
+    throw new Error(`${where}: checked enum result cases or wrappers disagree.`);
+  }
+  return printTypeId(parsed);
+}
+
 async function assertReadScenarioPair(
   artifact: CompileArtifact, asm: AssembledModules, op: PreloadOperation,
   callable: PreloadCallable, registry: unknown,
@@ -2211,8 +2329,7 @@ async function assertReadScenarioPair(
   const module: unknown = requiresVerifiedAssemblyImports(asm, artifact)
     ? await importVerifiedAssemblyModule(asm, callable.module, artifact) : await import(asm.moduleUrls[callable.module]!);
   const where = `Read scenario ${JSON.stringify(op.name)}`;
-  const own = (value: unknown, key: string): unknown =>
-    isUnknownRecord(value) ? readMetadataMember(value, key, where)?.value : undefined;
+  const own = (value: unknown, key: string): unknown => readDeclaredMember(value, key, where);
   const definition = own(module, 'appDefinition');
   const declaration = own(own(definition, 'operations'), op.name);
   const descriptor = artifact.operations?.find(candidate => candidate.name === op.name);
@@ -2231,34 +2348,16 @@ async function assertReadScenarioPair(
   }
   const by = own(declaration, 'by');
   const spellings = own(policy, 'by');
-  if (by !== undefined && (!Array.isArray(spellings) || spellings.length !== 1 || spellings[0] !== by)) {
-    throw new Error(`${where}: checked by declaration/policy disagreement.`);
-  }
-  if (by === undefined && spellings !== undefined) {
-    throw new Error(`${where}: policy claims an undeclared by gate.`);
-  }
+  assertReadByAgreement(where, by, spellings);
   const declaredResult = own(declaration, 'result');
   const declaredType = own(declaredResult, 'type');
   const declaredCases = own(declaredResult, 'cases');
   const array = own(declaredResult, 'array');
   const nullable = own(declaredResult, 'nullable');
-  if (declaredResult !== undefined && (!isUnknownRecord(declaredResult) || typeof declaredType !== 'string' ||
-      (array !== undefined && typeof array !== 'boolean') || (nullable !== undefined && typeof nullable !== 'boolean'))) {
-    throw new Error(`${where}: malformed checked result declaration.`);
-  }
+  assertCheckedResultDeclaration(where, declaredResult, declaredType, array, nullable);
   let resultType: string;
   if (declaredType === 'enum') {
-    const publicType = descriptor.result?.type;
-    if (typeof publicType !== 'string' || !Array.isArray(declaredCases)) {
-      throw new Error(`${where}: malformed checked enum result declaration.`);
-    }
-    const parsed = parseTypeId(publicType);
-    if (parsed.base.kind !== 'enum' || parsed.requiredArray || parsed.array !== (array === true) ||
-        parsed.nullable !== (nullable === true) || parsed.base.cases.length !== declaredCases.length ||
-        parsed.base.cases.some((value, index) => declaredCases[index] !== value)) {
-      throw new Error(`${where}: checked enum result cases or wrappers disagree.`);
-    }
-    resultType = printTypeId(parsed);
+    resultType = checkedEnumResultType(where, descriptor.result?.type, declaredCases, array, nullable);
   } else {
     resultType = declaredResult === undefined ? 'void' : normalizeSchema({
     operations: { result: { inputs: { value: {
@@ -2353,6 +2452,30 @@ const emittedSourceClaims = new WeakMap<object, Map<string, { readonly source: s
 /** Nonexecuting presence gate from captured producer source. Parsing a literal
  * property (including escaped/computed literal keys) establishes no grant or
  * Compiler acceptance; State still validates the actual owning metadata. */
+function sourceClaimsProperty(source: string, property: string): boolean {
+  let claimed = false;
+  try {
+    const pending: unknown[] = [parseJavaScript(source, { ecmaVersion: 'latest', sourceType: 'module' })];
+    while (pending.length > 0 && !claimed) {
+      const node = pending.pop();
+      if (node === null || typeof node !== 'object') continue;
+      if (Array.isArray(node)) { for (const entry of node) pending.push(entry); continue; }
+      const value = node as Record<string, unknown>;
+      if (value.type === 'Property' && value.key !== null && typeof value.key === 'object') {
+        const key = value.key as Record<string, unknown>;
+        claimed = key.type === 'Identifier' && key.name === property ||
+          key.type === 'Literal' && key.value === property;
+      }
+      for (const child of Object.values(value)) if (child !== null && typeof child === 'object') pending.push(child);
+    }
+  } catch {
+    // Unsupported/malformed syntax cannot justify importing unchecked
+    // source. Its genuine issuer and exact closure must verify first.
+    claimed = true;
+  }
+  return claimed;
+}
+
 function claimsEmittedSourceProperty(artifact: CompileArtifact, property: string): boolean {
   const where = `${property} source correspondence`;
   try {
@@ -2368,27 +2491,7 @@ function claimsEmittedSourceProperty(artifact: CompileArtifact, property: string
       if (claims === undefined) { claims = new Map(); emittedSourceClaims.set(module, claims); }
       let claim = claims.get(property);
       if (claim?.source !== source) {
-        let claimed = false;
-        try {
-          const pending: unknown[] = [parseJavaScript(source, { ecmaVersion: 'latest', sourceType: 'module' })];
-          while (pending.length > 0 && !claimed) {
-            const node = pending.pop();
-            if (node === null || typeof node !== 'object') continue;
-            if (Array.isArray(node)) { for (const entry of node) pending.push(entry); continue; }
-            const value = node as Record<string, unknown>;
-            if (value.type === 'Property' && value.key !== null && typeof value.key === 'object') {
-              const key = value.key as Record<string, unknown>;
-              claimed = key.type === 'Identifier' && key.name === property ||
-                key.type === 'Literal' && key.value === property;
-            }
-            for (const child of Object.values(value)) if (child !== null && typeof child === 'object') pending.push(child);
-          }
-        } catch {
-          // Unsupported/malformed syntax cannot justify importing unchecked
-          // source. Its genuine issuer and exact closure must verify first.
-          claimed = true;
-        }
-        claim = { source, claimed };
+        claim = { source, claimed: sourceClaimsProperty(source, property) };
         claims.set(property, claim);
       }
       if (claim.claimed) return true;
@@ -2534,6 +2637,179 @@ function assertServableModelRules(where: string, metadata: unknown, verifiedOwne
  * ABSENT (deny) rather than rule-less-public — an empty scan yields
  * no entries and every model transcribes zero grants.
  */
+async function importPolicyModule(asm: AssembledModules, artifact: CompileArtifact,
+  module: string): Promise<{ mod: unknown } | null> {
+  const url: unknown = (asm.moduleUrls as Record<string, unknown>)[module];
+  if (typeof url !== "string" || url.length === 0) return null;
+  try {
+    return { mod: requiresVerifiedAssemblyImports(asm, artifact)
+      ? await importVerifiedAssemblyModule(asm, module, artifact) : await import(url) };
+  } catch (error) {
+    if (error instanceof AssemblyCorrespondenceError) throw error;
+    const reason = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `t17b: module ${JSON.stringify(module)} failed to import while establishing read policy (${reason})`,
+    );
+  }
+}
+
+function invokePolicyCanApp(mod: unknown, module: string,
+  checkedRow: boolean): { app: Record<string, unknown>; registry: Record<string, unknown> } | null {
+  if (!isUnknownRecord(mod) || typeof mod["canApp"] !== "function") {
+    if (checkedRow) throw new Error('Checked row read policy lacks its owning canApp factory.');
+    return null;
+  }
+  let registry: unknown;
+  try {
+    registry = (mod["canApp"] as () => unknown)();
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `t17b: module ${JSON.stringify(module)} canApp() threw while establishing read policy (${reason})`,
+    );
+  }
+  if (!isUnknownRecord(registry)) {
+    throw new Error(
+      `t17b: module ${JSON.stringify(module)} canApp() returned a non-object while establishing read policy`,
+    );
+  }
+  return { app: mod, registry };
+}
+
+async function admitLateRowCarrier(asm: AssembledModules, artifact: CompileArtifact,
+  mod: unknown, onRowPolicy: () => void): Promise<boolean> {
+  if (!hasRowReadCarrier(mod)) return false;
+  await verifyCheckedAssembly(asm, artifact);
+  rowPolicyAssemblies.set(artifact, asm);
+  onRowPolicy();
+  return true;
+}
+
+function assertDeclaredModelRules(declaredModels: unknown, modelFields: ReadonlyMap<string, ReadonlyArray<string>>,
+  verifiedOwnerModels: ReadonlySet<string>, verifiedConditions: WeakSet<object>, moduleWhere: string): void {
+  if (!isUnknownRecord(declaredModels)) return;
+  for (const model of modelFields.keys()) {
+    const declaration = readMetadataMember(declaredModels, model, moduleWhere)?.value;
+    assertServableModelRules(`t17b: model ${JSON.stringify(model)}`, declaration, verifiedOwnerModels.has(model), verifiedConditions);
+  }
+}
+
+function readPolicyModelsMap(registry: Record<string, unknown>, module: string, moduleWhere: string): Record<string, unknown> | null {
+  const policy = readMetadataMember(registry, "policy", moduleWhere)?.value;
+  if (policy === undefined || policy === null) return null;
+  if (!isUnknownRecord(policy)) {
+    throw new Error(
+      `t17b: module ${JSON.stringify(module)} carries a malformed policy member (not an object)`,
+    );
+  }
+  const models = readMetadataMember(policy, "models", moduleWhere)?.value;
+  if (models === undefined || models === null) return null;
+  if (!isUnknownRecord(models)) {
+    throw new Error(
+      `t17b: module ${JSON.stringify(module)} carries a malformed policy.models map (not an object)`,
+    );
+  }
+  return models;
+}
+
+function checkDefinitionPolicyAgreement(checkedRow: boolean, facts: ReadPolicyFacts, definition: unknown,
+  model: string, where: string): void {
+  if (checkedRow || (facts.public?.length ?? 0) > 0) {
+    const definitionPolicy = isUnknownRecord(definition) ? readMetadataMember(definition, "policy", where)?.value : undefined;
+    const definitionModels = isUnknownRecord(definitionPolicy) ? readMetadataMember(definitionPolicy, "models", where)?.value : undefined;
+    const definitionEntry = isUnknownRecord(definitionModels) ? readMetadataMember(definitionModels, model, where) : undefined;
+    if (definitionEntry === undefined || !sameReadPolicies(readPolicyFacts(definitionEntry.value, where), facts)) {
+      throw new Error(`${where} appDefinition/canApp policy disagreement.`);
+    }
+  }
+}
+
+async function resolveContainmentAdmission(asm: AssembledModules, artifact: CompileArtifact,
+  model: string, declaration: unknown, modelFields: ReadonlyMap<string, ReadonlyArray<string>>,
+  containment: LoadedArtifactDescriptors["containment"], where: string, onRowPolicy: () => void): Promise<boolean> {
+  const parent = containment.get(model as ModelName)?.parent;
+  const artifactModels = artifact.models ?? [];
+  const owningModels = artifactModels.filter(value => value.name === model);
+  const parentModels = artifactModels.filter(value => value.name === parent);
+  const emittedParent = isUnknownRecord(declaration) ? readMetadataMember(declaration, 'parent', where)?.value : undefined;
+  const checkedContainmentParent = parent !== undefined && modelFields.has(parent) &&
+    owningModels.length === 1 && owningModels[0]!.parent === parent &&
+    parentModels.length === 1 && emittedParent === parent;
+  const emittedGrants = isUnknownRecord(declaration) ? readMetadataMember(declaration, 'readGrants', where)?.value : undefined;
+  const selectsParent = emittedGrants === undefined ? false : readMetadataArray(emittedGrants, where, 'readGrants declaration').some(grant => {
+    const selected = isUnknownRecord(grant) ? readMetadataMember(grant, 'fields', where)?.value : undefined;
+    return selected !== undefined && readMetadataStrings(selected, where, 'read selector').includes('parent');
+  });
+  if (checkedContainmentParent && selectsParent) {
+    // The exact owning module/artifact closure, not a caller-supplied
+    // provenance shape, establishes this reserved selector vocabulary.
+    await verifyAssemblerModuleCapability(asm, artifact);
+    rowPolicyAssemblies.set(artifact, asm); onRowPolicy();
+  }
+  return checkedContainmentParent;
+}
+
+function collectModelFieldTypes(declaration: unknown, fields: ReadonlyArray<string> | undefined,
+  where: string): Map<string, string> {
+  const declaredFields = isUnknownRecord(declaration) ? declaration["fields"] : undefined;
+  const fieldTypes = new Map<string, string>();
+  if (isUnknownRecord(declaredFields)) {
+    for (const field of fields ?? []) {
+      const fieldDeclaration = readMetadataMember(declaredFields, field, where)?.value;
+      const type = isUnknownRecord(fieldDeclaration) ? readMetadataMember(fieldDeclaration, "type", where)?.value : undefined;
+      if (typeof type === "string" && type !== "") fieldTypes.set(field, type);
+    }
+  }
+  return fieldTypes;
+}
+
+type CollectedModelPolicy = { policy: ReadPolicyFacts; selectors: ReadSelectorFacts | undefined; fieldTypes: ReadonlyMap<string, string> };
+
+function mergeModelPolicy(merged: Map<string, CollectedModelPolicy>, model: string, facts: ReadPolicyFacts,
+  selectors: ReadSelectorFacts | undefined, fieldTypes: ReadonlyMap<string, string>, where: string): void {
+  const previous = merged.get(model);
+  if (previous === undefined) {
+    merged.set(model, { policy: facts, selectors, fieldTypes });
+  } else if (!sameReadPolicies(previous.policy, facts) || !sameReadSelectors(previous.selectors, selectors) || JSON.stringify([...previous.fieldTypes]) !== JSON.stringify([...fieldTypes])) {
+    throw new Error(`${where} carries contradictory read policy across assembled modules (refusing an incoherent set)`);
+  }
+}
+
+interface ModelPolicyTranscription {
+  readonly asm: AssembledModules;
+  readonly artifact: CompileArtifact;
+  readonly modelFields: ReadonlyMap<string, ReadonlyArray<string>>;
+  readonly containment: LoadedArtifactDescriptors["containment"];
+  readonly verifiedOwnerModels: ReadonlySet<string>;
+  readonly registry: Record<string, unknown>;
+  readonly definition: unknown;
+  readonly declaredModels: unknown;
+  readonly models: Record<string, unknown>;
+  readonly checkedRow: boolean;
+  readonly onRowPolicy: () => void;
+  readonly merged: Map<string, CollectedModelPolicy>;
+}
+
+async function transcribeModelPolicy(model: string, ctx: ModelPolicyTranscription): Promise<void> {
+  const where = `t17b: model ${JSON.stringify(model)}`;
+  const entry = readMetadataMember(ctx.models, model, where)?.value;
+  const facts = readPolicyFacts(entry, where);
+  const declaration = isUnknownRecord(ctx.declaredModels) ? readMetadataMember(ctx.declaredModels, model, where)?.value : undefined;
+  // Policy and owning declarations both retain their constraints even
+  // if the other representation is omitted.
+  assertServableModelRules(where, facts, ctx.verifiedOwnerModels.has(model));
+  const readRules = readMetadataMember(ctx.registry, "read", where)?.value;
+  checkDefinitionPolicyAgreement(ctx.checkedRow, facts, ctx.definition, model, where);
+  const fields = ctx.modelFields.get(model);
+  if (fields === undefined && (facts.public?.length ?? 0) > 0) {
+    throw new Error(`${where}: public selector names no loaded model.`);
+  }
+  const checkedContainmentParent = await resolveContainmentAdmission(ctx.asm, ctx.artifact, model,
+    declaration, ctx.modelFields, ctx.containment, where, ctx.onRowPolicy);
+  const selectors = readSelectorFacts(model, facts, fields ?? [], { secretFields: [], declaration, readRules }, where, checkedContainmentParent);
+  mergeModelPolicy(ctx.merged, model, facts, selectors, collectModelFieldTypes(declaration, fields, where), where);
+}
+
 async function collectModelPolicyManifests(
   asm: AssembledModules,
   modelFields: ReadonlyMap<string, ReadonlyArray<string>>,
@@ -2545,19 +2821,9 @@ async function collectModelPolicyManifests(
 ): Promise<Map<string, { policy: ReadPolicyFacts; selectors: ReadSelectorFacts | undefined; fieldTypes: ReadonlyMap<string, string> }>> {
   const merged = new Map<string, { policy: ReadPolicyFacts; selectors: ReadSelectorFacts | undefined; fieldTypes: ReadonlyMap<string, string> }>();
   for (const module of Object.keys(asm.moduleUrls)) {
-    const url: unknown = (asm.moduleUrls as Record<string, unknown>)[module];
-    if (typeof url !== "string" || url.length === 0) continue;
-    let mod: unknown;
-    try {
-      mod = requiresVerifiedAssemblyImports(asm, artifact)
-        ? await importVerifiedAssemblyModule(asm, module, artifact) : await import(url);
-    } catch (error) {
-      if (error instanceof AssemblyCorrespondenceError) throw error;
-      const reason = error instanceof Error ? error.message : String(error);
-      throw new Error(
-        `t17b: module ${JSON.stringify(module)} failed to import while establishing read policy (${reason})`,
-      );
-    }
+    const imported = await importPolicyModule(asm, artifact, module);
+    if (imported === null) continue;
+    let mod = imported.mod;
     // Every import in a row-bearing artifact is checked, but unrelated page
     // and asset modules do not become model policy factories.
     let checkedRow = hasRowReadCarrier(mod);
@@ -2568,111 +2834,21 @@ async function collectModelPolicyManifests(
       onRowPolicy();
     }
     try {
-      if (!isUnknownRecord(mod) || typeof mod["canApp"] !== "function") {
-        if (checkedRow) throw new Error('Checked row read policy lacks its owning canApp factory.');
-        continue;
-      }
-      let registry: unknown;
-      try {
-        registry = (mod["canApp"] as () => unknown)();
-      } catch (error) {
-        const reason = error instanceof Error ? error.message : String(error);
-        throw new Error(
-          `t17b: module ${JSON.stringify(module)} canApp() threw while establishing read policy (${reason})`,
-        );
-      }
-      if (!isUnknownRecord(registry)) {
-        throw new Error(
-          `t17b: module ${JSON.stringify(module)} canApp() returned a non-object while establishing read policy`,
-        );
-      }
+      const invoked = invokePolicyCanApp(mod, module, checkedRow);
+      if (invoked === null) continue;
+      const registry = invoked.registry;
       // A factory cannot introduce an object carrier after the initial
       // presence scan and thereby evade the original-assembly requirement.
-      if (!checkedRow && hasRowReadCarrier(mod)) {
-        await verifyCheckedAssembly(asm, artifact);
-        rowPolicyAssemblies.set(artifact, asm);
-        onRowPolicy(); checkedRow = true;
-      }
+      if (!checkedRow && await admitLateRowCarrier(asm, artifact, mod, onRowPolicy)) checkedRow = true;
       const moduleWhere = `t17b: module ${JSON.stringify(module)}`;
-      const definition = mod["appDefinition"];
+      const definition = invoked.app["appDefinition"];
       const declaredModels = isUnknownRecord(definition) ? readMetadataMember(definition, "models", moduleWhere)?.value : undefined;
-      if (isUnknownRecord(declaredModels)) {
-        for (const model of modelFields.keys()) {
-          const declaration = readMetadataMember(declaredModels, model, moduleWhere)?.value;
-          assertServableModelRules(`t17b: model ${JSON.stringify(model)}`, declaration, verifiedOwnerModels.has(model), verifiedConditions);
-        }
-      }
-      const policy = readMetadataMember(registry, "policy", moduleWhere)?.value;
-      if (policy === undefined || policy === null) continue;
-      if (!isUnknownRecord(policy)) {
-        throw new Error(
-          `t17b: module ${JSON.stringify(module)} carries a malformed policy member (not an object)`,
-        );
-      }
-      const models = readMetadataMember(policy, "models", moduleWhere)?.value;
-      if (models === undefined || models === null) continue;
-      if (!isUnknownRecord(models)) {
-        throw new Error(
-          `t17b: module ${JSON.stringify(module)} carries a malformed policy.models map (not an object)`,
-        );
-      }
-      for (const model of Object.keys(models)) {
-        const where = `t17b: model ${JSON.stringify(model)}`;
-        const entry = readMetadataMember(models, model, where)?.value;
-        const facts = readPolicyFacts(entry, where);
-        const declaration = isUnknownRecord(declaredModels) ? readMetadataMember(declaredModels, model, where)?.value : undefined;
-        // Policy and owning declarations both retain their constraints even
-        // if the other representation is omitted.
-        assertServableModelRules(where, facts, verifiedOwnerModels.has(model));
-        const readRules = readMetadataMember(registry, "read", where)?.value;
-        if (checkedRow || (facts.public?.length ?? 0) > 0) {
-          const definitionPolicy = isUnknownRecord(definition) ? readMetadataMember(definition, "policy", where)?.value : undefined;
-          const definitionModels = isUnknownRecord(definitionPolicy) ? readMetadataMember(definitionPolicy, "models", where)?.value : undefined;
-          const definitionEntry = isUnknownRecord(definitionModels) ? readMetadataMember(definitionModels, model, where) : undefined;
-          if (definitionEntry === undefined || !sameReadPolicies(readPolicyFacts(definitionEntry.value, where), facts)) {
-            throw new Error(`${where} appDefinition/canApp policy disagreement.`);
-          }
-        }
-        const fields = modelFields.get(model);
-        if (fields === undefined && (facts.public?.length ?? 0) > 0) {
-          throw new Error(`${where}: public selector names no loaded model.`);
-        }
-        const parent = containment.get(model as ModelName)?.parent;
-        const artifactModels = artifact.models ?? [];
-        const owningModels = artifactModels.filter(value => value.name === model);
-        const parentModels = artifactModels.filter(value => value.name === parent);
-        const emittedParent = isUnknownRecord(declaration) ? readMetadataMember(declaration, 'parent', where)?.value : undefined;
-        const checkedContainmentParent = parent !== undefined && modelFields.has(parent) &&
-          owningModels.length === 1 && owningModels[0]!.parent === parent &&
-          parentModels.length === 1 && emittedParent === parent;
-        const emittedGrants = isUnknownRecord(declaration) ? readMetadataMember(declaration, 'readGrants', where)?.value : undefined;
-        const selectsParent = emittedGrants === undefined ? false : readMetadataArray(emittedGrants, where, 'readGrants declaration').some(grant => {
-          const selected = isUnknownRecord(grant) ? readMetadataMember(grant, 'fields', where)?.value : undefined;
-          return selected !== undefined && readMetadataStrings(selected, where, 'read selector').includes('parent');
-        });
-        if (checkedContainmentParent && selectsParent) {
-          // The exact owning module/artifact closure, not a caller-supplied
-          // provenance shape, establishes this reserved selector vocabulary.
-          await verifyAssemblerModuleCapability(asm, artifact);
-          rowPolicyAssemblies.set(artifact, asm); onRowPolicy();
-        }
-        const selectors = readSelectorFacts(model, facts, fields ?? [], { secretFields: [], declaration, readRules }, where, checkedContainmentParent);
-        const declaredFields = isUnknownRecord(declaration) ? declaration["fields"] : undefined;
-        const fieldTypes = new Map<string, string>();
-        if (isUnknownRecord(declaredFields)) {
-          for (const field of fields ?? []) {
-            const fieldDeclaration = readMetadataMember(declaredFields, field, where)?.value;
-            const type = isUnknownRecord(fieldDeclaration) ? readMetadataMember(fieldDeclaration, "type", where)?.value : undefined;
-            if (typeof type === "string" && type !== "") fieldTypes.set(field, type);
-          }
-        }
-        const previous = merged.get(model);
-        if (previous === undefined) {
-          merged.set(model, { policy: facts, selectors, fieldTypes });
-        } else if (!sameReadPolicies(previous.policy, facts) || !sameReadSelectors(previous.selectors, selectors) || JSON.stringify([...previous.fieldTypes]) !== JSON.stringify([...fieldTypes])) {
-          throw new Error(`${where} carries contradictory read policy across assembled modules (refusing an incoherent set)`);
-        }
-      }
+      assertDeclaredModelRules(declaredModels, modelFields, verifiedOwnerModels, verifiedConditions, moduleWhere);
+      const models = readPolicyModelsMap(registry, module, moduleWhere);
+      if (models === null) continue;
+      const ctx: ModelPolicyTranscription = { asm, artifact, modelFields, containment,
+        verifiedOwnerModels, registry, definition, declaredModels, models, checkedRow, onRowPolicy, merged };
+      for (const model of Object.keys(models)) await transcribeModelPolicy(model, ctx);
     } finally {
       if (checkedRow) await verifyAssemblerModuleCapability(asm, artifact);
     }
@@ -2706,6 +2882,25 @@ function canonicalModelName(model: unknown, index: number): ModelName {
 /** Join source model-level keys before State builds its one owning table.
  * Artifact `uniqueKeys` intentionally contains only field modifiers; the
  * verified entry appDefinition owns these declarations and predicates. */
+/** One emitted model-rule origin must carry its complete ordinal/kind/source/location association. */
+function assertModelRuleOriginComplete(where: string, site: string, index: number,
+  origin: Record<string, unknown>, source: Record<string, unknown>, at: Record<string, unknown>,
+  hasRegistry: boolean, artifact: CompileArtifact): void {
+  if (origin.ordinal !== index ||
+      typeof origin.kind !== 'string' ||
+      !['policy', 'invariant', 'unique', 'lock', 'retain'].includes(origin.kind) ||
+      typeof origin.model !== 'string' || typeof origin.ownerPackage !== 'string' ||
+      !origin.model.startsWith(`${origin.ownerPackage}.`) ||
+      typeof source.path !== 'string' || typeof source.sha256 !== 'string' ||
+      source.module !== origin.ownerPackage ||
+      artifact.sources.filter(candidate => candidate.path === source.path && candidate.sha256 === source.sha256).length !== 1 ||
+      typeof at.start !== 'number' || !Number.isSafeInteger(at.start) || at.start < 0 ||
+      typeof at.end !== 'number' || !Number.isSafeInteger(at.end) || at.end <= at.start ||
+      hasRegistry && typeof origin.registryId !== 'string') {
+    throw new AssemblyCorrespondenceError(`${where}: malformed complete ${site} association.`);
+  }
+}
+
 async function joinOwningUnconditionalUniques(
   asm: AssembledModules, artifact: CompileArtifact,
   models: ReadonlyArray<CanonicalModelDescriptor>,
@@ -2758,19 +2953,7 @@ async function joinOwningUnconditionalUniques(
         ['path', 'sha256', 'module'], `${site} source`);
       const at = exact(readMetadataMember(origin, 'declaredAt', where)?.value,
         ['start', 'end'], `${site} location`);
-      if (origin.ordinal !== index ||
-          typeof origin.kind !== 'string' ||
-          !['policy', 'invariant', 'unique', 'lock', 'retain'].includes(origin.kind) ||
-          typeof origin.model !== 'string' || typeof origin.ownerPackage !== 'string' ||
-          !origin.model.startsWith(`${origin.ownerPackage}.`) ||
-          typeof source.path !== 'string' || typeof source.sha256 !== 'string' ||
-          source.module !== origin.ownerPackage ||
-          artifact.sources.filter(candidate => candidate.path === source.path && candidate.sha256 === source.sha256).length !== 1 ||
-          typeof at.start !== 'number' || !Number.isSafeInteger(at.start) || at.start < 0 ||
-          typeof at.end !== 'number' || !Number.isSafeInteger(at.end) || at.end <= at.start ||
-          hasRegistry && typeof origin.registryId !== 'string') {
-        throw new AssemblyCorrespondenceError(`${where}: malformed complete ${site} association.`);
-      }
+      assertModelRuleOriginComplete(where, site, index, origin, source, at, hasRegistry, artifact);
       return origin;
     });
   const additions = new Map<ModelName, string[]>();
@@ -3653,14 +3836,42 @@ function nativeScenarioStoredFileInput(def: GeneratedOperationDef,
     field.required === false && field.default?.kind === 'literal' &&
     Array.isArray(field.default.value) && nativeCallArray(field.default.value, 0).length === 0;
 }
-function assertNativeScenarioTarget(loaded: LoadedCanonicalDescriptors, def: GeneratedOperationDef,
-  storedFiles: ReadonlySet<string> = new Set()): void {
+/** A read target is a query only with its complete contract-array disclosure plan. */
+function isNativeScenarioQueryContractArray(loaded: LoadedCanonicalDescriptors, def: GeneratedOperationDef): boolean {
   const result = def.descriptor.result, plan = result?.disclosure;
-  const query = def.kind === 'read' && result !== undefined && result.type.endsWith('[]') &&
+  return def.kind === 'read' && result !== undefined && result.type.endsWith('[]') &&
     loaded.valueSchema !== undefined && Object.hasOwn(loaded.valueSchema.contracts, result.type.slice(0, -2)) &&
     plan !== undefined && (plan.queries?.length ?? 0) > 0 && plan.returns.length > 0 &&
     plan.returns.every(returned => returned.projection?.kind === 'query-contract-array' &&
       plan.queries!.some(occurrence => occurrence.id === returned.projection!.queryId));
+}
+
+/** One native child-call input needs its explicit authored member before State admits it. */
+function isNativeScenarioFieldInadmissible(
+  field: { readonly required?: unknown; readonly default?: { readonly kind?: unknown } | undefined;
+    readonly kind?: unknown; readonly model?: unknown; readonly name: string } & Record<string, unknown>,
+  scalar: unknown,
+  file: unknown,
+  protectedRef: boolean,
+  query: boolean,
+  def: GeneratedOperationDef,
+  loaded: LoadedCanonicalDescriptors,
+  storedFiles: ReadonlySet<string>,
+): boolean {
+  // Metadata may describe a literal default, but both native preparation
+  // paths below still require the explicit authored member before State.
+  const literal = scalar && field.default?.kind === 'literal';
+  return (field.required !== true && !literal && !file &&
+      !(query && field.kind === 'ref' && Object.hasOwn(def.inputArrays, field.name))) ||
+    (field.default !== undefined && !literal && !file) ||
+    ('computedDefault' in field && field.computedDefault === true) ||
+    (field.kind === 'ref' ? !protectedRef && (!query || !loaded.models.some(model => model.name === field.model)) : !scalar && !file);
+}
+
+function assertNativeScenarioTarget(loaded: LoadedCanonicalDescriptors, def: GeneratedOperationDef,
+  storedFiles: ReadonlySet<string> = new Set()): void {
+  const result = def.descriptor.result, plan = result?.disclosure;
+  const query = isNativeScenarioQueryContractArray(loaded, def);
   // Exact equality to the loader-owned model name admits only its singular,
   // nonnullable result. State still owns the source plan and original row binder.
   const model = def.kind === 'scenario' && result !== undefined &&
@@ -3679,14 +3890,7 @@ function assertNativeScenarioTarget(loaded: LoadedCanonicalDescriptors, def: Gen
         const protectedRef = scenario && storedFiles.size !== 0 && field.kind === 'ref' && field.required === true &&
           field.default === undefined && !Object.hasOwn(def.inputArrays, field.name) &&
           !Object.hasOwn(def.inputNullableRefs ?? {}, field.name) && loaded.models.some(model => model.name === field.model);
-        // Metadata may describe a literal default, but both native preparation
-        // paths below still require the explicit authored member before State.
-        const literal = scalar && field.default?.kind === 'literal';
-        return (field.required !== true && !literal && !file &&
-          !(query && field.kind === 'ref' && Object.hasOwn(def.inputArrays, field.name))) ||
-          (field.default !== undefined && !literal && !file) ||
-          ('computedDefault' in field && field.computedDefault === true) ||
-          (field.kind === 'ref' ? !protectedRef && (!query || !loaded.models.some(model => model.name === field.model)) : !scalar && !file);
+        return isNativeScenarioFieldInadmissible(field, scalar, file, protectedRef, query, def, loaded, storedFiles);
       })) {
     throw new loaded.producers.errors('validation', 'Native child calls require a checked scalar or singular model scenario, or complete read query contract-array, with explicitly supplied owning scalar/protected inputs.');
   }
@@ -4091,6 +4295,30 @@ function authenticateNativeScenarioAnyPredicate(def: GeneratedOperationDef, c: H
   return true;
 }
 
+/** A first query must keep its original checked Let, call and owning source correspondence. */
+async function assertCheckedFirstQuery<Query extends { readonly id: unknown; readonly source: unknown }>(
+  metadata: Record<string, unknown>, source: Record<string, unknown>,
+  queryNode: Record<string, unknown>, node: Record<string, unknown>, statement: Record<string, unknown>,
+  guardConsumed: boolean | undefined, presenceConsumed: boolean | undefined,
+  interval: (value: Record<string, unknown>) => boolean,
+  query: Query | undefined, planSource: unknown, artifact: CompileArtifact, defName: string,
+  failure: string,
+): Promise<Query> {
+  if (Object.keys(metadata).length !== 5 + (guardConsumed === undefined ? 0 : 1) + (presenceConsumed === undefined ? 0 : 1) ||
+      guardConsumed === false || presenceConsumed === false ||
+      Object.keys(source).length !== 3 || query === undefined ||
+      stableStringify(captureDispatchPreclaimData(source)) !== stableStringify(query.source) ||
+      stableStringify(query.source) !== stableStringify(planSource) ||
+      !artifact.sources.some(original => original.path === source.path && original.sha256 === source.sha256) ||
+      !interval(queryNode) || !interval(node) || !interval(statement) || (queryNode.start as number) < (node.start as number) || (queryNode.end as number) > (node.end as number) ||
+      await sha256HexText(`scenario-disclosure/v1:query:${source.path}:${source.sha256}:${defName.slice(0, defName.lastIndexOf('.'))}:${queryNode.start}:${queryNode.end}:`) !== query.id ||
+      (node.start as number) < (statement.start as number) ||
+      (node.end as number) > (statement.end as number)) {
+    throw new AssemblyCorrespondenceError(failure);
+  }
+  return query;
+}
+
 /** Query authority comes from the checked source module and actual same-load
  * viewer policy. A claimed descriptor cannot opt into a provisional host read. */
 async function bindNativeScenarioQueries(asm: AssembledModules, artifact: CompileArtifact,
@@ -4120,23 +4348,13 @@ async function bindNativeScenarioQueries(asm: AssembledModules, artifact: Compil
       const statement = localPolicyObject(metadata.statement, ['start', 'end']);
       const interval = (value: Record<string, unknown>) => Object.keys(value).length === 2 &&
         Number.isSafeInteger(value.start) && Number.isSafeInteger(value.end) && (value.start as number) >= 0 && (value.end as number) > (value.start as number);
-      const query = plan.queries!.find(query => query.id === metadata.queryId);
       // DESIGN442: the checked guard/presence-consumed decision marks ride
       // only as exact `true`; any other spelling keeps the refusal.
       const guardConsumed = Object.hasOwn(metadata, 'guardConsumed') ? metadata.guardConsumed === true : undefined;
       const presenceConsumed = Object.hasOwn(metadata, 'presenceConsumed') ? metadata.presenceConsumed === true : undefined;
-      if (Object.keys(metadata).length !== 5 + (guardConsumed === undefined ? 0 : 1) + (presenceConsumed === undefined ? 0 : 1) ||
-          guardConsumed === false || presenceConsumed === false ||
-          Object.keys(source).length !== 3 || query === undefined ||
-          stableStringify(captureDispatchPreclaimData(source)) !== stableStringify(query.source) ||
-          stableStringify(query.source) !== stableStringify(plan.source) ||
-          !artifact.sources.some(original => original.path === source.path && original.sha256 === source.sha256) ||
-          !interval(queryNode) || !interval(node) || !interval(statement) || (queryNode.start as number) < (node.start as number) || (queryNode.end as number) > (node.end as number) ||
-          await sha256HexText(`scenario-disclosure/v1:query:${source.path}:${source.sha256}:${def.name.slice(0, def.name.lastIndexOf('.'))}:${queryNode.start}:${queryNode.end}:`) !== query.id ||
-          (node.start as number) < (statement.start as number) ||
-          (node.end as number) > (statement.end as number)) {
-        throw new AssemblyCorrespondenceError('First query lacks its original checked Let, call and owning source.');
-      }
+      const query = await assertCheckedFirstQuery(metadata, source, queryNode, node, statement,
+        guardConsumed, presenceConsumed, interval, plan.queries!.find(query => query.id === metadata.queryId),
+        plan.source, artifact, def.name, 'First query lacks its original checked Let, call and owning source.');
       return captureDispatchPreclaimData({ queryId: query.id, source: query.source,
         query: { start: queryNode.start as number, end: queryNode.end as number },
         node: { start: node.start as number, end: node.end as number },
@@ -4281,6 +4499,21 @@ async function bindNativeScenarioQueries(asm: AssembledModules, artifact: Compil
 }
 
 /** Only checked model consumers select an invocation-local registry. */
+/** Returned-row dependencies consume their original owning models, including reserved metadata. */
+function addScenarioReturnConsumers(
+  add: (type: string | undefined, singular?: boolean) => void,
+  def: GeneratedOperationDef,
+): void {
+  for (const returned of def.descriptor.result?.disclosure?.returns ?? []) {
+    for (const dependency of returned.dependencies) {
+      add(dependency.type);
+      // Reserved row metadata still consumes its original owning read policy.
+      if ((dependency.field === 'id' && dependency.type === 'text') || dependency.type === 'file[]' ||
+          nativeScenarioNominalFileProfiles.get(def)?.has(dependency.id) === true) add(dependency.model, true);
+    }
+  }
+}
+
 function nativeScenarioModelConsumers(loaded: LoadedCanonicalDescriptors, def: GeneratedOperationDef): readonly string[] {
   const models = new Set<string>();
   const add = (type: string | undefined, singular = false) => {
@@ -4294,14 +4527,7 @@ function nativeScenarioModelConsumers(loaded: LoadedCanonicalDescriptors, def: G
   for (const query of def.descriptor.result?.disclosure?.queries ?? []) {
     add(query.model, true);
   }
-  for (const returned of def.descriptor.result?.disclosure?.returns ?? []) {
-    for (const dependency of returned.dependencies) {
-      add(dependency.type);
-      // Reserved row metadata still consumes its original owning read policy.
-      if ((dependency.field === 'id' && dependency.type === 'text') || dependency.type === 'file[]' ||
-          nativeScenarioNominalFileProfiles.get(def)?.has(dependency.id) === true) add(dependency.model, true);
-    }
-  }
+  addScenarioReturnConsumers(add, def);
   for (const guard of nativeSourceSendGuards.get(def)?.values() ?? []) {
     for (const input of guard.guard.inputs) add(input.type);
   }
@@ -6715,6 +6941,31 @@ function localPolicyContextFacts(context: InvocationContext): string {
 
 /** Decode only the row presently chosen by State. A referenced current row is
  * fetched later, at the original source callback's explicit access point. */
+/** One owner-rule field becomes its loaded value: a native reference, a delivery decode, or a loud refusal. */
+function resolveOwnerRuleFieldValue<
+  Declared extends { readonly valueType?: unknown; readonly nullable?: unknown;
+    readonly delivery?: { readonly kind?: unknown; readonly capability?: unknown; readonly operation?: unknown } },
+>(
+  StateError: StateErrorsProducer,
+  native: NativeRecordScope,
+  model: string,
+  field: string,
+  value: unknown,
+  declared: Declared,
+  target: string | undefined,
+): unknown {
+  if (declared.valueType !== undefined || target !== undefined) {
+    return nativeRecordField(native, model, field, value);
+  }
+  if (declared.delivery?.kind === 'delivery' &&
+      typeof declared.delivery.capability === 'string' && typeof declared.delivery.operation === 'string') {
+    try {
+      return decodeValue(`delivery(${declared.delivery.capability}.${declared.delivery.operation})${declared.nullable === true ? '?' : ''}`, value);
+    } catch (error) { throw new StateError('validation', message(error)); }
+  }
+  throw new StateError('validation', 'Owner rule field lacks an exact loaded type association.');
+}
+
 async function nativeOwnerRuleRecord(native: NativeRecordScope, model: string, row: StoredRow,
   owner: OwnerRuleContext, hydrateParent = false,
   register?: (view: Record<string, unknown>, model: string, row: StoredRow) => void): Promise<Record<string, unknown>> {
@@ -6728,16 +6979,7 @@ async function nativeOwnerRuleRecord(native: NativeRecordScope, model: string, r
     const target = native.refs.get(model)?.find(reference => reference.field === field)?.model;
     if (declared === undefined) throw new StateError('validation', 'Owner rule field lacks its loaded declaration.');
     const value = localPolicyMember(wire, field);
-    if (declared.valueType !== undefined || target !== undefined) {
-      record[field] = nativeRecordField(native, model, field, value);
-    } else if (declared.delivery?.kind === 'delivery' &&
-        typeof declared.delivery.capability === 'string' && typeof declared.delivery.operation === 'string') {
-      try {
-        record[field] = decodeValue(`delivery(${declared.delivery.capability}.${declared.delivery.operation})${declared.nullable === true ? '?' : ''}`, value);
-      } catch (error) { throw new StateError('validation', message(error)); }
-    } else {
-      throw new StateError('validation', 'Owner rule field lacks an exact loaded type association.');
-    }
+    record[field] = resolveOwnerRuleFieldValue(StateError, native, model, field, value, declared, target);
   }
   Object.assign(record, nativeRecordMetadata(row));
   const containment = native.containment.get(model);
@@ -7571,6 +7813,27 @@ export async function materializeCanonicalExampleSnapshots(input: {
 }
 
 /** One admitted CRUD operation borrows only its actual pre-write owner view. */
+/** A CRUD candidate read needs its checked owner-domain shape and owning parent model. */
+function assertCrudCandidateQueryShape(
+  StateError: StateErrorsProducer,
+  loaded: LoadedCanonicalDescriptors,
+  model: string,
+  query: CanonicalReadQuery,
+): ReturnType<typeof nativeRecordReference> {
+  if (!loaded.models.some(candidate => candidate.name === model) ||
+      Object.keys(query).some(key => !['parent', 'where', 'order', 'limit', 'archived', 'authority'].includes(key)) ||
+      query.authority !== undefined && query.authority !== 'owner' ||
+      query.archived !== undefined && !['include', 'exclude'].includes(query.archived)) {
+    throw new StateError('validation', 'CRUD candidate query differs from its checked owner domain.');
+  }
+  const parent = query.parent === undefined ? undefined : nativeRecordReference(query.parent);
+  if (query.parent !== undefined && (parent === undefined || loaded.containment.get(model) === undefined ||
+      (loaded.containment.get(model) as { parent?: string }).parent !== parent.model)) {
+    throw new StateError('validation', 'CRUD candidate query parent lacks its original owning model.');
+  }
+  return parent;
+}
+
 async function createNativeCrudCandidateFrame(input: {
   readonly loaded: LoadedCanonicalDescriptors;
   readonly opts: CanonicalMutationOpts;
@@ -7614,17 +7877,7 @@ async function createNativeCrudCandidateFrame(input: {
   const read = async (model: string, query: CanonicalReadQuery): Promise<readonly ProjectedRecord[]> => {
     try {
       assertLive();
-      if (!loaded.models.some(candidate => candidate.name === model) ||
-          Object.keys(query).some(key => !['parent', 'where', 'order', 'limit', 'archived', 'authority'].includes(key)) ||
-          query.authority !== undefined && query.authority !== 'owner' ||
-          query.archived !== undefined && !['include', 'exclude'].includes(query.archived)) {
-        throw new StateError('validation', 'CRUD candidate query differs from its checked owner domain.');
-      }
-      const parent = query.parent === undefined ? undefined : nativeRecordReference(query.parent);
-      if (query.parent !== undefined && (parent === undefined || loaded.containment.get(model) === undefined ||
-          (loaded.containment.get(model) as { parent?: string }).parent !== parent.model)) {
-        throw new StateError('validation', 'CRUD candidate query parent lacks its original owning model.');
-      }
+      const parent = assertCrudCandidateQueryShape(StateError, loaded, model, query);
       const order: OrderTerm[] | undefined = query.order === undefined ? undefined :
         localPolicyArray(query.order).map(term => {
           if (typeof term !== 'string' || term === '' || term === '-') throw new StateError('validation', 'CRUD candidate query order needs checked field spellings.');
@@ -7751,6 +8004,137 @@ const SCENARIO_RECEIPT_OWNER_BOUNDS = Object.freeze({ maxRows: 200, maxWork: 10_
 interface ScenarioNavigationOwner {
   readonly session: Pick<OwnerMutationSession, 'views' | 'read'>;
   readonly finalizers: Set<{ refresh(): Promise<void>; seal(writes: readonly DomainWrite[]): void }>;
+}
+
+/** One keyed-schedule payload entry becomes engine wire, preserving observed record versions. */
+function encodeDeferredScheduleEntry(
+  member: (value: unknown, key: string) => unknown,
+  inputs: unknown,
+  schema: NormalizedSchema | undefined,
+  recordBindings: ReadonlyMap<Record<string, unknown>, { model: string; id: string; version: number }>,
+  reservedVersions: ReadonlyMap<string, RecordVersion>,
+  name: string,
+  value: unknown,
+): unknown {
+  const field = member(inputs, name) as FieldDescriptor | undefined;
+  // Only proven engine record views become references. Preserve the
+  // observed version, including a reserved version after a staged set.
+  // Due admission independently resolves the current stored row.
+  const binding = typeof value === 'object' && value !== null
+    ? recordBindings.get(value as Record<string, unknown>) : undefined;
+  const reserved = binding === undefined ? undefined : reservedVersions.get(stagedKey(binding.model, binding.id));
+  const native = binding === undefined ? value : makeRecordRef(binding.model, binding.id,
+    reserved === undefined ? (value as Record<string, unknown>)['version'] as bigint : BigInt(reserved));
+  return field === undefined || native === undefined ? native : encodeValue(field.type, native as CanValue,
+    nativeValueReferenceEncoder(field.type, schema, native), schema);
+}
+
+/** A trusted owner query needs its defining finite transport bound. */
+function assertFiniteTransportBound(maxCandidates: unknown): asserts maxCandidates is number {
+  if (typeof maxCandidates !== 'number' || !Number.isSafeInteger(maxCandidates) || maxCandidates < 1 ||
+      maxCandidates >= Number.MAX_SAFE_INTEGER) throw new Error('Trusted owner query has no defining finite transport bound.');
+}
+
+/** Staged snapshots overlay the bounded store candidates; the parent scope still filters. */
+function mergeTrustedOwnerCandidates(
+  StateError: StateErrorsProducer,
+  base: ReadonlyArray<StoredRow>,
+  querySnapshot: ReadonlyMap<string, StoredRow | null>,
+  model: string,
+  parent: { readonly model: string; readonly id: string } | undefined,
+  maxCandidates: number,
+): StoredRow[] {
+  const merged = new Map(base.map(row => [row.id as string, row]));
+  const prefix = `${model}\0`;
+  for (const [key, row] of querySnapshot) {
+    if (!key.startsWith(prefix)) continue;
+    if (row === null) merged.delete(key.slice(prefix.length));
+    else merged.set(row.id, row);
+  }
+  if (merged.size > maxCandidates) throw new StateError('limit', 'Trusted owner query exceeds its candidate budget.');
+  return [...merged.values()].filter(row => parent === undefined ||
+    row.parent?.model === parent.model && row.parent.id === parent.id);
+}
+
+/** A denied delivery observation fails loud; any other outcome projects or stays null. */
+function projectDeliveryOutcome(
+  StateError: StateErrorsProducer,
+  observed: SelectedReceiptServed,
+  selected: readonly ReceiptProperty[],
+  result: CanonicalNominalResult | undefined,
+  refusal: string,
+): Partial<Record<ReceiptProperty, unknown>> | null {
+  if (observed.outcome === 'denied') throw new StateError('forbidden', refusal);
+  if (observed.outcome !== 'observed') return null;
+  return sourceReceiptProjection(observed.projection, selected, result);
+}
+
+/** A judgment receipt carries its defining source specification context when judged. */
+async function resolveJudgmentReceiptContext(
+  StateError: StateErrorsProducer,
+  loaded: LoadedCanonicalDescriptors,
+  asm: AssembledModules,
+  artifact: CompileArtifact,
+  operation: string,
+  field: import('@canlang/contracts').ArtifactDeliveryDescriptor
+    | import('@canlang/contracts').ArtifactJudgmentDeliveryDescriptor,
+): Promise<ReceiptResultContext | undefined> {
+  let declaredContext: ReceiptResultContext | undefined;
+  if ('judgment' in field && field.judgment === true) {
+    if (loaded.valueTypes === undefined) throw new StateError('validation', 'Judgment receipt has no checked value inventory.');
+    const specification = await loadJudgmentSpecificationResolver(asm, artifact, operation, asm.entryUrl);
+    if (specification === undefined) throw new StateError('validation', 'Judgment receipt has no defining source specification.');
+    declaredContext = createJudgmentReceiptContext(field, specification(field.capability), loaded.valueTypes);
+  }
+  return declaredContext;
+}
+
+/** A delivery observation reads its owning singular delivery declaration. */
+function findDeliveryDeclaration(
+  artifact: CompileArtifact, bindingModel: string, field: string,
+) {
+  return artifact.models?.find(model => model.name === bindingModel)?.fields
+    .find(candidate => candidate.name === field);
+}
+
+/** A nullable stored reference getter binds its owner row exactly once; anything else stays a plain value. */
+function bindNullableStoredReference(
+  ownerSession: unknown,
+  scenarioReceiptFrame: ScenarioReceiptFrame | undefined,
+  target: string | undefined,
+  loaded: LoadedCanonicalDescriptors,
+  declaration: { readonly nullable?: unknown; readonly array?: unknown } | undefined,
+  value: unknown,
+  record: Record<string, unknown>,
+  modelName: string,
+  field: string,
+  sourceRow: StoredRow | null | undefined,
+  wire: unknown,
+  refuse: (text: string) => never,
+): boolean {
+  if (ownerSession === undefined || scenarioReceiptFrame === undefined || target === undefined ||
+      !loaded.models.some(candidate => candidate.name === target) ||
+      declaration?.nullable !== true || declaration.array !== undefined ||
+      (value !== null && !isRecordRef(value))) return false;
+  if (sourceRow === null || sourceRow === undefined) {
+    refuse('Nullable getter requires its actual current owner row.');
+  }
+  scenarioReceiptFrame.bindNullableStoredReferenceGetter(record, modelName, field, sourceRow, wire, value);
+  return true;
+}
+
+/** Computed-default slot lookup: the name must report an omitted owning slot, exactly once. */
+function lookupUnobservedComputedSlot<Field extends { name: string }>(
+  StateError: StateErrorsProducer,
+  name: unknown,
+  computedSlots: ReadonlyMap<string, Field>,
+  observedDefaults: ReadonlySet<string>,
+): Field {
+  const field = typeof name === 'string' ? computedSlots.get(name) : undefined;
+  if (field === undefined || observedDefaults.has(field.name)) {
+    throw new StateError('validation', 'Computed default reports require an omitted owning slot, exactly once.');
+  }
+  return field;
 }
 
 async function runScenarioExecution(
@@ -8117,15 +8501,8 @@ async function runScenarioExecution(
             }
           }
         }
-        if (ownerSession !== undefined && scenarioReceiptFrame !== undefined && target !== undefined &&
-            loaded.models.some(candidate => candidate.name === target) &&
-            declaration?.nullable === true && declaration.array === undefined &&
-            (value === null || isRecordRef(value))) {
-          if (sourceRow === null || sourceRow === undefined) {
-            return refuseRecordBinding('Nullable getter requires its actual current owner row.');
-          }
-          scenarioReceiptFrame.bindNullableStoredReferenceGetter(record, modelName, field, sourceRow, wire, value);
-        }
+        bindNullableStoredReference(ownerSession, scenarioReceiptFrame, target, loaded, declaration,
+          value, record, modelName, field, sourceRow, wire, refuseRecordBinding);
         return value;
       },
     });
@@ -8310,8 +8687,7 @@ async function runScenarioExecution(
         const binding = recordBindings.get(locator.record) ??
           ownerNavigation.resolveRecord(locator.record) ?? viewerNavigation.resolveRecord(locator.record);
         if (binding === undefined) throw new StateError('validation', 'Delivery observation needs a bound record.');
-        const declaration = opts.artifact.models?.find(model => model.name === binding.model)?.fields
-          .find(field => field.name === locator.field);
+        const declaration = findDeliveryDeclaration(opts.artifact, binding.model, locator.field);
         if (trustedOwnerReads) {
           if (declaration?.field.kind !== 'delivery' || declaration.array !== undefined ||
               !loaded.deliveryFields.get(binding.model)?.has(locator.field) || call.checkpoint === undefined) {
@@ -8323,14 +8699,8 @@ async function runScenarioExecution(
           const admission = await loadProducerModule(STATE_ADMISSION_SPECIFIER, 'state owner receipt fence producer');
           const openFence = requireProducerFn(admission, 'openFenceScope', 'state owner receipt fence producer') as unknown as
             typeof import('@canlang/state/invocation/admission').openFenceScope;
-          let declaredContext: ReceiptResultContext | undefined;
-          if ('judgment' in declaration.field && declaration.field.judgment === true) {
-            if (loaded.valueTypes === undefined) throw new StateError('validation', 'Judgment receipt has no checked value inventory.');
-            const specification = await loadJudgmentSpecificationResolver(opts.asm, opts.artifact, opts.operation, opts.asm.entryUrl);
-            if (specification === undefined) throw new StateError('validation', 'Judgment receipt has no defining source specification.');
-            declaredContext = createJudgmentReceiptContext(declaration.field,
-              specification(declaration.field.capability), loaded.valueTypes);
-          }
+          const declaredContext = await resolveJudgmentReceiptContext(StateError, loaded, opts.asm,
+            opts.artifact, opts.operation, declaration.field);
           const observed = mapReceiptJoinOutcome(await observeOwner({
             // The structural seam forwards the actual State-owned call object.
             // State checks its private provenance and live execution identity.
@@ -8348,9 +8718,8 @@ async function runScenarioExecution(
               import('@canlang/state/receipt/join').SelectedReceiptObserver,
           }));
           servedReadings.push(observed);
-          if (observed.outcome === 'denied') throw new StateError('forbidden', 'Owner delivery observation is not authorized.');
-          return observed.outcome === 'observed'
-            ? sourceReceiptProjection(observed.projection, selected, declaration.field.result) : null;
+          return projectDeliveryOutcome(StateError, observed, selected, declaration.field.result,
+            'Owner delivery observation is not authorized.');
         }
         const observed = await invokeSelectedReceiptRead({
           asm: opts.asm, artifact: opts.artifact, operation: RECEIPT_READ_OPERATION,
@@ -8359,12 +8728,9 @@ async function runScenarioExecution(
           memberships: opts.memberships, now: () => call.context.now,
           ...(opts.observer === undefined ? {} : { observer: opts.observer }),
         });
-        if (observed.outcome === 'denied') {
-          throw new StateError('forbidden', 'Delivery observation is not authorized.');
-        }
-        if (observed.outcome !== 'observed') return null;
-        return sourceReceiptProjection(observed.projection, selected,
-          declaration?.field.kind === 'delivery' ? declaration.field.result : undefined);
+        return projectDeliveryOutcome(StateError, observed, selected,
+          declaration?.field.kind === 'delivery' ? declaration.field.result : undefined,
+          'Delivery observation is not authorized.');
       } catch (error) {
         recordEngineFailure(error);
         throw error;
@@ -8664,8 +9030,7 @@ async function runScenarioExecution(
             const queryRecords = requireProducerFn(queryModule, 'queryRecords', 'trusted owner query producer') as
               typeof import('@canlang/state/query/engine').queryRecords;
             const maxCandidates = queryModule['VIEWER_PAGE_MAX_CANDIDATES'];
-            if (typeof maxCandidates !== 'number' || !Number.isSafeInteger(maxCandidates) || maxCandidates < 1 ||
-                maxCandidates >= Number.MAX_SAFE_INTEGER) throw new Error('Trusted owner query has no defining finite transport bound.');
+            assertFiniteTransportBound(maxCandidates);
             if (await opts.store.readRevision() !== navigationRevision) {
               throw new StateError('conflict', 'State changed during the trusted owner query.');
             }
@@ -8678,16 +9043,7 @@ async function runScenarioExecution(
               ...(parent === undefined ? {} : { parent }),
               order: [{ field: 'id', direction: 'asc' }], limit: candidateLimit });
             if (base.length > maxCandidates) throw new StateError('limit', 'Trusted owner query exceeds its candidate budget.');
-            const merged = new Map(base.map(row => [row.id as string, row]));
-            const prefix = `${model}\0`;
-            for (const [key, row] of querySnapshot) {
-              if (!key.startsWith(prefix)) continue;
-              if (row === null) merged.delete(key.slice(prefix.length));
-              else merged.set(row.id, row);
-            }
-            if (merged.size > maxCandidates) throw new StateError('limit', 'Trusted owner query exceeds its candidate budget.');
-            const candidates = [...merged.values()].filter(row => parent === undefined ||
-              row.parent?.model === parent.model && row.parent.id === parent.id);
+            const candidates = mergeTrustedOwnerCandidates(StateError, base, querySnapshot, model, parent, maxCandidates);
             const descriptor = loaded.models.find(candidate => candidate.name === model);
             if (descriptor === undefined) throw new StateError('validation', 'Trusted owner query needs its owning declared model.');
             const nativeQuery = (rows: readonly StoredRow[], final: boolean) => queryRecords({
@@ -8877,16 +9233,8 @@ async function runScenarioExecution(
         const schema = { ...operationSchema, ...loaded.valueSchema, operations: operationSchema.operations };
         const wire: Record<string, unknown> = Object.create(null);
         for (const [name, value] of Object.entries(payload)) {
-          const field = selected.member(inputs, name) as FieldDescriptor | undefined;
-          // Only proven engine record views become references. Preserve the
-          // observed version, including a reserved version after a staged set.
-          // Due admission independently resolves the current stored row.
-          const binding = typeof value === 'object' && value !== null
-            ? recordBindings.get(value as Record<string, unknown>) : undefined;
-          const reserved = binding === undefined ? undefined : reservedVersions.get(stagedKey(binding.model, binding.id));
-          const native = binding === undefined ? value : makeRecordRef(binding.model, binding.id,
-            reserved === undefined ? (value as Record<string, unknown>)['version'] as bigint : BigInt(reserved));
-          wire[name] = field === undefined || native === undefined ? native : encodeValue(field.type, native as CanValue, nativeValueReferenceEncoder(field.type, schema, native), schema);
+          wire[name] = encodeDeferredScheduleEntry(selected.member, inputs, schema, recordBindings,
+            reservedVersions, name, value);
         }
         const checked = validateOperationInput(schema, event, wire);
         const arguments_: Record<string, unknown> = Object.create(null);
@@ -9801,10 +10149,7 @@ async function runScenarioExecution(
   const observedDefaults = new Set<string>();
   const observeDefault = (name: unknown, value: unknown): void => {
     try {
-      const field = typeof name === 'string' ? computedSlots.get(name) : undefined;
-      if (field === undefined || observedDefaults.has(field.name)) {
-        throw new StateError('validation', 'Computed default reports require an omitted owning slot, exactly once.');
-      }
+      const field = lookupUnobservedComputedSlot(StateError, name, computedSlots, observedDefaults);
       let wire: unknown;
       if (field.kind === 'ref') {
         const binding = isUnknownRecord(value) ? recordBindings.get(value) : undefined;
@@ -11445,6 +11790,25 @@ async function stagePrivateSourceCohort(opts: CanonicalDueScheduleOpts, loaded: 
 }
 
 /** Consume one exact source head and freeze every cohort handler of that event together. */
+/** Source truth and fanout intent land together or not at all: one join-asserted commit batch. */
+function buildCohortCommitBatch(
+  revision: Revision,
+  writes: DomainWrite[],
+  due: { readonly history?: ReadonlyArray<HistoryEntry>; readonly outbox?: ReadonlyArray<OutboxIntent>;
+    readonly schedules?: ReadonlyArray<ScheduleOp>; readonly uniqueClaims?: ReadonlyArray<UniqueClaim>;
+    readonly uniqueReleases?: ReadonlyArray<UniqueRelease> },
+  terminal: { readonly writes?: ReadonlyArray<DomainWrite>; readonly history?: ReadonlyArray<HistoryEntry>;
+    readonly outbox?: ReadonlyArray<OutboxIntent>; readonly schedules?: ReadonlyArray<ScheduleOp>;
+    readonly uniqueClaims?: ReadonlyArray<UniqueClaim>; readonly uniqueReleases?: ReadonlyArray<UniqueRelease> },
+): CommitBatch {
+  return { expectedRevision: revision,
+    writes: [...writes, ...terminal.writes ?? []], history: [...due.history ?? [], ...terminal.history ?? []],
+    receipt: null, outbox: [...due.outbox ?? [], ...terminal.outbox ?? []],
+    schedules: [...due.schedules ?? [], ...terminal.schedules ?? []],
+    uniqueClaims: [...due.uniqueClaims ?? [], ...terminal.uniqueClaims ?? []],
+    uniqueReleases: [...due.uniqueReleases ?? [], ...terminal.uniqueReleases ?? []] };
+}
+
 async function invokeDueCohortsCanonical(opts: CanonicalDueScheduleOpts, loaded: LoadedCanonicalDescriptors, definition: unknown) {
   assertDeclaredCohortVersion(opts.artifact);
   const now = opts.now();
@@ -11493,42 +11857,18 @@ async function invokeDueCohortsCanonical(opts: CanonicalDueScheduleOpts, loaded:
     typeof import('@canlang/work/kernel/occurrence-staging').workOccurrencePutReceiptCommand.stage;
   const terminal = await stageReceipt({ occurrenceId: opts.due.occurrenceId, status: 'completed', result }, context);
   if ((terminal.outboxAck?.length ?? 0) !== 0) throw new Error('Cohort source cannot acknowledge provider work.');
-  const batch: CommitBatch = { expectedRevision: revision,
-    writes: [...writes, ...terminal.writes ?? []], history: [...due.effects.history ?? [], ...terminal.history ?? []],
-    receipt: null, outbox: [...due.effects.outbox ?? [], ...terminal.outbox ?? []],
-    schedules: [...due.effects.schedules ?? [], ...terminal.schedules ?? []],
-    uniqueClaims: [...due.effects.uniqueClaims ?? [], ...terminal.uniqueClaims ?? []],
-    uniqueReleases: [...due.effects.uniqueReleases ?? [], ...terminal.uniqueReleases ?? []] };
+  const batch: CommitBatch = buildCohortCommitBatch(revision, writes, due.effects, terminal);
   producers.join.assertFanoutChildJoin(batch);
   await resolveDueOwner(opts, now);
   await opts.store.commit(batch);
   return { status: 'completed' as const, occurrenceId: opts.due.occurrenceId, result };
 }
 
-async function checkedPrivateSourceRoutes(opts: Pick<CanonicalDueScheduleOpts, 'artifact' | 'asm' | 'app' | 'identities' | 'now'>,
-  loaded: LoadedCanonicalDescriptors, event: string, scope: import('@canlang/contracts').WorkScope, allowEmpty = false) {
-  if (scope.app !== opts.app) throw new Error('Private source scope disagrees with its deployment.');
-  if (loaded.standardCompletions?.has(event)) {
-    const completion = loaded.standardCompletions.get(event)!;
-    if (completion.ownerPackage !== scope.ownerPackage || completion.app !== scope.app) {
-      throw new AssemblyCorrespondenceError('Completion source differs from its checked declaring app/package.');
-    }
-    if (completion.resultType === null) {
-      throw new AssemblyCorrespondenceError('Native void completion consumption is not joined.');
-    }
-    await installedNativeCompletionSource(opts.asm, opts.artifact, scope, opts.identities).verify(opts.now());
-    return completion.routes;
-  }
-  const committed = loaded.committedChanges.get(event);
-  if (committed !== undefined) {
-    if (committed.ownerPackage !== scope.ownerPackage) throw new Error('Committed source differs from its checked declaring package.');
-    for (const route of committed.routes) {
-      const callable = opts.artifact.callables.find(value => value.kind === 'handler' && value.id === route.handler);
-      if (callable === undefined) throw new AssemblyCorrespondenceError('Committed source lost its handler.');
-      await importVerifiedAssemblyModule(opts.asm, callable.module, opts.artifact);
-    }
-    return committed.routes;
-  }
+/** Every checked assembled handler of one private event, with its exact invocation declaration. */
+async function collectPrivateSourceRoutes(
+  opts: Pick<CanonicalDueScheduleOpts, 'artifact' | 'asm'>,
+  loaded: LoadedCanonicalDescriptors, event: string, scope: import('@canlang/contracts').WorkScope,
+): Promise<Array<{ handler: string; definition: unknown; invocation: Record<string, unknown>; cohort: boolean }>> {
   const definitions = new Map<string, unknown>();
   const routes: Array<{ handler: string; definition: unknown; invocation: Record<string, unknown>; cohort: boolean }> = [];
   let eventInputs: string | undefined;
@@ -11563,6 +11903,34 @@ async function checkedPrivateSourceRoutes(opts: Pick<CanonicalDueScheduleOpts, '
     routes.push({ handler: callable.id, definition, invocation,
       cohort: isUnknownRecord(cohorts) && Object.hasOwn(cohorts, callable.id) });
   }
+  return routes;
+}
+
+async function checkedPrivateSourceRoutes(opts: Pick<CanonicalDueScheduleOpts, 'artifact' | 'asm' | 'app' | 'identities' | 'now'>,
+  loaded: LoadedCanonicalDescriptors, event: string, scope: import('@canlang/contracts').WorkScope, allowEmpty = false) {
+  if (scope.app !== opts.app) throw new Error('Private source scope disagrees with its deployment.');
+  if (loaded.standardCompletions?.has(event)) {
+    const completion = loaded.standardCompletions.get(event)!;
+    if (completion.ownerPackage !== scope.ownerPackage || completion.app !== scope.app) {
+      throw new AssemblyCorrespondenceError('Completion source differs from its checked declaring app/package.');
+    }
+    if (completion.resultType === null) {
+      throw new AssemblyCorrespondenceError('Native void completion consumption is not joined.');
+    }
+    await installedNativeCompletionSource(opts.asm, opts.artifact, scope, opts.identities).verify(opts.now());
+    return completion.routes;
+  }
+  const committed = loaded.committedChanges.get(event);
+  if (committed !== undefined) {
+    if (committed.ownerPackage !== scope.ownerPackage) throw new Error('Committed source differs from its checked declaring package.');
+    for (const route of committed.routes) {
+      const callable = opts.artifact.callables.find(value => value.kind === 'handler' && value.id === route.handler);
+      if (callable === undefined) throw new AssemblyCorrespondenceError('Committed source lost its handler.');
+      await importVerifiedAssemblyModule(opts.asm, callable.module, opts.artifact);
+    }
+    return committed.routes;
+  }
+  const routes = await collectPrivateSourceRoutes(opts, loaded, event, scope);
   if (routes.length === 0 && !allowEmpty) throw new Error('Private source event has no checked assembled handlers.');
   return routes.sort((left, right) => left.handler.localeCompare(right.handler));
 }
@@ -11602,6 +11970,30 @@ function nativeIdentityRemovalSource(asm: AssembledModules, artifact: CompileArt
   return source;
 }
 
+/** A reinstall must keep its original installed association; replacement is never admitted. */
+function assertRemovalAssociationKept(previous: NativeIdentityRemovalSource | undefined,
+  identities: unknown, scope: unknown, request: unknown, envelope: unknown, retainedIngress: unknown): void {
+  if (previous !== undefined && (previous.identities !== identities || stableStringify(previous.scope) !== stableStringify(scope) ||
+      stableStringify(previous.request) !== stableStringify(request) || stableStringify(previous.original) !== stableStringify(envelope) ||
+      stableStringify(previous.ingress ?? null) !== stableStringify(retainedIngress ?? null))) {
+    throw new AssemblyCorrespondenceError('Removal source cannot replace an original installed association.');
+  }
+}
+
+/** Trusted namespace/team/owner/request correspondence for a removal source installation. */
+function assertRemovalTrustedRequest(input: Record<string, unknown>, fields: readonly string[],
+  resolveCaller: unknown, app: string, ownerStorageApp: string,
+  scope: { readonly app: string; readonly owner: string },
+  binding: { readonly namespace: unknown; readonly team: unknown; readonly owner: unknown; readonly adapter: unknown }): void {
+  if (Object.keys(input).length !== fields.length ||
+      fields.some(field => typeof input[field] !== 'string' || input[field] === '') ||
+      typeof resolveCaller !== 'function' || scope.app !== app || ownerStorageApp !== app ||
+      binding.namespace !== input.namespace || binding.team !== input.team_id || binding.owner !== scope.owner ||
+      scope.owner !== input.team_id || typeof binding.adapter !== 'string' || binding.adapter === '') {
+    throw new AssemblyCorrespondenceError('Removal source requires its exact trusted namespace, team, owner and original request.');
+  }
+}
+
 /** The host supplies its installed namespace/owner binding, original request
  * and originating credential resolver. Neither raw ingress JSON nor a saved
  * envelope can install this association. Recovery obtains a genuine original
@@ -11635,12 +12027,7 @@ export async function createCanonicalIdentityRemovalSource(opts: {
   }
   const fields = ['team_id', 'member_user_id', 'removed_by', 'namespace', 'operationId'] as const;
   const input = localPolicyObject(opts.originalRequest, [...fields]);
-  if (Object.keys(input).length !== fields.length || fields.some(field => typeof input[field] !== 'string' || input[field] === '') ||
-      typeof opts.resolveCaller !== 'function' || scope.app !== opts.app || opts.ownerStorage.app !== opts.app ||
-      binding.namespace !== input.namespace || binding.team !== input.team_id || binding.owner !== scope.owner ||
-      scope.owner !== input.team_id || typeof binding.adapter !== 'string' || binding.adapter === '') {
-    throw new AssemblyCorrespondenceError('Removal source requires its exact trusted namespace, team, owner and original request.');
-  }
+  assertRemovalTrustedRequest(input, fields, opts.resolveCaller, opts.app, opts.ownerStorage.app, scope, binding);
   const request = Object.freeze(Object.fromEntries(fields.map(field => [field, input[field]]))) as
     Parameters<NonNullable<IdentityStore['removeMemberWithOccurrence']>>[0];
   const identities = opts.identities;
@@ -11740,11 +12127,7 @@ export async function createCanonicalIdentityRemovalSource(opts: {
     let byOccurrence = byStore.get(store);
     if (byOccurrence === undefined) { byOccurrence = new Map(); byStore.set(store, byOccurrence); }
     const previous = byOccurrence.get(envelope.producerEventId);
-    if (previous !== undefined && (previous.identities !== identities || stableStringify(previous.scope) !== stableStringify(scope) ||
-        stableStringify(previous.request) !== stableStringify(request) || stableStringify(previous.original) !== stableStringify(envelope) ||
-        stableStringify(previous.ingress ?? null) !== stableStringify(retainedIngress ?? null))) {
-      throw new AssemblyCorrespondenceError('Removal source cannot replace an original installed association.');
-    }
+    assertRemovalAssociationKept(previous, identities, scope, request, envelope, retainedIngress);
     const source: NativeIdentityRemovalSource = Object.freeze({ identities, scope, original: envelope, request, routes, verify,
       ...(retainedIngress === undefined ? {} : { ingress: retainedIngress }) });
     const previousInstalled = installedSource, registry = byOccurrence;
@@ -12002,6 +12385,26 @@ async function readNativeIdentityRemovalSource(opts: Pick<CanonicalRetainedHandl
   return { receipt, result, handlers, payload: identityRemovalPayload(source.original) };
 }
 
+/** A committed-source receipt must match its immutable checked routing facts exactly. */
+function assertCommittedSourceReceiptCorrespondence(
+  receipt: { readonly status: unknown; readonly occurrenceId: unknown },
+  result: Record<string, unknown>, change: Record<string, unknown>, payload: Record<string, unknown>,
+  handlers: ReadonlyArray<unknown>,
+  checked: { readonly descriptor: { readonly model: unknown; readonly change: string };
+    readonly routes: ReadonlyArray<{ readonly handler: unknown; readonly cohort: unknown }> },
+  event: string, occurrenceId: string, scope: { readonly owner: unknown },
+): void {
+  const expectedKind = checked.descriptor.change === 'create' ? 'created' : checked.descriptor.change === 'update' ? 'updated' : 'deleted';
+  if (receipt.status !== 'completed' || receipt.occurrenceId !== occurrenceId || result.kind !== 'committed-model-source' ||
+      result.event !== event || stableStringify(result.scope) !== stableStringify(scope) || change.model !== checked.descriptor.model ||
+      change.kind !== expectedKind || change.recordId !== payload.recordId || change.version !== payload.version ||
+      payload.owner !== scope.owner || payload.occurrenceId !== occurrenceId || handlers.length !== checked.routes.length ||
+      handlers.some((value, index) => privateSourceMember(value, 'handler') !== checked.routes[index]!.handler ||
+        privateSourceMember(value, 'kind') !== (checked.routes[index]!.cohort ? 'fanout' : 'ordinary'))) {
+    throw new Error('Committed source receipt differs from its immutable checked routing facts.');
+  }
+}
+
 async function readCheckedCommittedSource(loaded: LoadedCanonicalDescriptors, store: StoragePort,
   occurrenceId: string, event: string, scope: import('@canlang/contracts').WorkScope,
   expectedRevision?: Revision) {
@@ -12020,15 +12423,7 @@ async function readCheckedCommittedSource(loaded: LoadedCanonicalDescriptors, st
   const change = localPolicyObject(localPolicyMember(result, 'change'));
   const payload = localPolicyObject(localPolicyMember(result, 'payload'));
   const handlers = nativeCallArray(localPolicyMember(result, 'handlers'), 200);
-  const expectedKind = checked.descriptor.change === 'create' ? 'created' : checked.descriptor.change === 'update' ? 'updated' : 'deleted';
-  if (receipt.status !== 'completed' || receipt.occurrenceId !== occurrenceId || result.kind !== 'committed-model-source' ||
-      result.event !== event || stableStringify(result.scope) !== stableStringify(scope) || change.model !== checked.descriptor.model ||
-      change.kind !== expectedKind || change.recordId !== payload.recordId || change.version !== payload.version ||
-      payload.owner !== scope.owner || payload.occurrenceId !== occurrenceId || handlers.length !== checked.routes.length ||
-      handlers.some((value, index) => privateSourceMember(value, 'handler') !== checked.routes[index]!.handler ||
-        privateSourceMember(value, 'kind') !== (checked.routes[index]!.cohort ? 'fanout' : 'ordinary'))) {
-    throw new Error('Committed source receipt differs from its immutable checked routing facts.');
-  }
+  assertCommittedSourceReceiptCorrespondence(receipt, result, change, payload, handlers, checked, event, occurrenceId, scope);
   checkedSourceEvent(checked.routes[0]!.definition, event, payload, loaded.valueSchema);
   const bounds = localPolicyObject(localPolicyMember(result, 'bounds'));
   if (!Number.isSafeInteger(bounds.maxMembers) || Number(bounds.maxMembers) < 1 ||
@@ -12056,6 +12451,44 @@ async function checkedDeclaredEventProducer(opts: Pick<CanonicalDueScheduleOpts,
   return true;
 }
 
+/** A declared-event receipt head carries its completed occurrence identity. */
+function isDeclaredEventReceiptHeadValid(
+  receipt: { readonly occurrenceId: unknown; readonly status: unknown },
+  occurrenceId: string,
+): boolean {
+  return receipt.occurrenceId === occurrenceId && receipt.status === 'completed';
+}
+
+/** Saved fanout bounds stay finite positive integers. */
+function areDeclaredEventBoundsValid(bounds: Record<string, unknown>): boolean {
+  return Number.isSafeInteger(bounds.maxMembers) && Number(bounds.maxMembers) >= 1 &&
+    Number.isSafeInteger(bounds.chunkSize) && Number(bounds.chunkSize) >= 1;
+}
+
+/** A declared-event source must match its original owner, payload and complete routes. */
+async function assertDeclaredEventSourceCorrespondence(
+  opts: Pick<CanonicalDueScheduleOpts, 'asm' | 'artifact'>,
+  loaded: LoadedCanonicalDescriptors,
+  receipt: { readonly occurrenceId: unknown; readonly status: unknown; readonly code: unknown; readonly message: unknown },
+  result: Record<string, unknown>, context: Record<string, unknown>,
+  routes: ReadonlyArray<{ readonly handler: unknown; readonly cohort: unknown }>,
+  handlers: ReadonlyArray<unknown>, bounds: Record<string, unknown>,
+  occurrenceId: string, event: string, scope: { readonly app: unknown; readonly owner: unknown },
+  rowCreated: unknown,
+): Promise<void> {
+  if (Object.keys(result).length !== 8 || !isDeclaredEventReceiptHeadValid(receipt, occurrenceId) ||
+      receipt.code !== null || receipt.message !== null || result.kind !== 'declared-event-source' ||
+      result.event !== event || stableStringify(result.scope) !== stableStringify(scope) || context.app !== scope.app ||
+      typeof context.operationId !== 'string' || !await checkedDeclaredEventProducer(opts, loaded, context) ||
+      (privateSourceMember(context.team, 'teamId') ?? context.app) !== scope.owner ||
+      context.now !== rowCreated || !Number.isSafeInteger(result.revision) || Number(result.revision) < 0 ||
+      handlers.length !== routes.length || handlers.some((entry, index) => privateSourceMember(entry, 'handler') !== routes[index]!.handler ||
+        privateSourceMember(entry, 'kind') !== (routes[index]!.cohort ? 'fanout' : 'ordinary')) ||
+      !areDeclaredEventBoundsValid(bounds)) {
+    throw new AssemblyCorrespondenceError('Declared event differs from its original owner, payload or complete routes.');
+  }
+}
+
 async function readCheckedDeclaredEventSource(opts: Pick<CanonicalDueScheduleOpts, 'asm' | 'artifact' | 'identities'>,
   loaded: LoadedCanonicalDescriptors, store: StoragePort, occurrenceId: string, event: string,
   scope: import('@canlang/contracts').WorkScope, expectedRevision?: Revision) {
@@ -12070,20 +12503,26 @@ async function readCheckedDeclaredEventSource(opts: Pick<CanonicalDueScheduleOpt
   const routes = await checkedPrivateSourceRoutes({ ...opts, app: scope.app, now: () => row.created }, loaded, event, scope);
   const payload = localPolicyObject(result.payload), context = localPolicyObject(result.context);
   const handlers = nativeCallArray(result.handlers, 200), bounds = localPolicyObject(result.bounds);
-  if (Object.keys(result).length !== 8 || receipt.occurrenceId !== occurrenceId || receipt.status !== 'completed' ||
-      receipt.code !== null || receipt.message !== null || result.kind !== 'declared-event-source' ||
-      result.event !== event || stableStringify(result.scope) !== stableStringify(scope) || context.app !== scope.app ||
-      typeof context.operationId !== 'string' || !await checkedDeclaredEventProducer(opts, loaded, context) ||
-      (privateSourceMember(context.team, 'teamId') ?? context.app) !== scope.owner ||
-      context.now !== row.created || !Number.isSafeInteger(result.revision) || Number(result.revision) < 0 ||
-      handlers.length !== routes.length || handlers.some((entry, index) => privateSourceMember(entry, 'handler') !== routes[index]!.handler ||
-        privateSourceMember(entry, 'kind') !== (routes[index]!.cohort ? 'fanout' : 'ordinary')) ||
-      !Number.isSafeInteger(bounds.maxMembers) || Number(bounds.maxMembers) < 1 ||
-      !Number.isSafeInteger(bounds.chunkSize) || Number(bounds.chunkSize) < 1) {
-    throw new AssemblyCorrespondenceError('Declared event differs from its original owner, payload or complete routes.');
-  }
+  await assertDeclaredEventSourceCorrespondence(opts, loaded, receipt, result, context, routes, handlers,
+    bounds, occurrenceId, event, scope, row.created);
   for (const route of routes) checkedSourceEvent(route.definition, event, payload, loaded.valueSchema);
   return { receipt, result, payload, handlers, bounds };
+}
+
+/** A completion read must match its selected original occurrence, event and routes. */
+function assertCompletionSourceReceiptCorrespondence(
+  receipt: { readonly status: unknown; readonly occurrenceId: unknown },
+  result: Record<string, unknown>, payload: Record<string, unknown>, handlers: ReadonlyArray<unknown>,
+  occurrenceId: string, event: string, locator: string,
+  source: { readonly routes: ReadonlyArray<{ readonly handler: unknown; readonly cohort: unknown }> },
+): void {
+  if (receipt.status !== 'completed' || receipt.occurrenceId !== occurrenceId ||
+      result.kind !== 'standard-completion-source' || result.event !== event || payload.delivery_id !== locator ||
+      handlers.length !== source.routes.length || handlers.some((route, index) =>
+        privateSourceMember(route, 'handler') !== source.routes[index]!.handler ||
+        privateSourceMember(route, 'kind') !== (source.routes[index]!.cohort ? 'fanout' : 'ordinary'))) {
+    throw new AssemblyCorrespondenceError('Completion read differs from its selected original occurrence/event/routes.');
+  }
 }
 
 async function readCheckedRetainedSource(
@@ -12128,13 +12567,7 @@ async function readCheckedRetainedSource(
   const result = localPolicyObject(receipt.result);
   const payload = localPolicyObject(localPolicyMember(result, 'payload'));
   const handlers = nativeCallArray(localPolicyMember(result, 'handlers'), 200);
-  if (receipt.status !== 'completed' || receipt.occurrenceId !== occurrenceId ||
-      result.kind !== 'standard-completion-source' || result.event !== event || payload.delivery_id !== locator ||
-      handlers.length !== source.routes.length || handlers.some((route, index) =>
-        privateSourceMember(route, 'handler') !== source.routes[index]!.handler ||
-        privateSourceMember(route, 'kind') !== (source.routes[index]!.cohort ? 'fanout' : 'ordinary'))) {
-    throw new AssemblyCorrespondenceError('Completion read differs from its selected original occurrence/event/routes.');
-  }
+  assertCompletionSourceReceiptCorrespondence(receipt, result, payload, handlers, occurrenceId, event, locator, source);
   checkedCompletionPayload(source, payload);
   await installed.verify(now);
   if ((expectedRevision !== undefined && read.revision !== expectedRevision) ||
@@ -12264,12 +12697,7 @@ export async function invokeDueSourceRoutingCanonical(opts: CanonicalDueSchedule
     terminal = await stageReceipt({ ...receiptInput, filePayloadOrigin }, context);
   }
   if ((terminal.outboxAck?.length ?? 0) !== 0) throw new Error('Private source cannot acknowledge provider work.');
-  const batch: CommitBatch = { expectedRevision: revision,
-    writes: [...writes, ...terminal.writes ?? []], history: [...due.effects.history ?? [], ...terminal.history ?? []],
-    receipt: null, outbox: [...due.effects.outbox ?? [], ...terminal.outbox ?? []],
-    schedules: [...due.effects.schedules ?? [], ...terminal.schedules ?? []],
-    uniqueClaims: [...due.effects.uniqueClaims ?? [], ...terminal.uniqueClaims ?? []],
-    uniqueReleases: [...due.effects.uniqueReleases ?? [], ...terminal.uniqueReleases ?? []] };
+  const batch: CommitBatch = buildCohortCommitBatch(revision, writes, due.effects, terminal);
   producers?.join.assertFanoutChildJoin(batch);
   if (opaque !== null) await opaque.revalidateSource(retainedFileSource!, revision, opts.files);
   await resolveDueOwner(opts, now);
@@ -12288,6 +12716,59 @@ export async function createCanonicalCommittedCohortBody(opts: CanonicalCommitte
 export async function createCanonicalDueCohortBody(opts: CanonicalDueScheduleOpts) {
   return createCanonicalSourceCohortBody(opts, opts.due, opts.due);
 }
+/** A private child without an explicit team owner falls back to its admitted source owner. */
+function resolvePrivateChildOwner(
+  teamId: unknown,
+  committed: unknown,
+  completion: boolean,
+  sourceScopeOwner: string,
+  app: string,
+): unknown {
+  return teamId ?? (committed === undefined || completion && sourceScopeOwner === 'app' ? 'app' : app);
+}
+
+/** A private child runs only for its own admitted source, owner and record. */
+function assertPrivateChildAdmission(
+  loaded: LoadedCanonicalDescriptors,
+  call: CanonicalSeamCall | undefined,
+  def: GeneratedOperationDef,
+  attempt: Pick<FanoutSchedulerBodyAttempt, 'occurrenceIds' | 'operationId'>,
+  child: FanoutChildId,
+  handler: string,
+  app: string,
+  trustedSource: string,
+  committed: unknown,
+  completion: boolean,
+  sourceScopeOwner: string,
+  sourceOccurrenceId: string,
+  frozenMembers: ReadonlyArray<string>,
+  declaredRefInput: unknown,
+): { call: CanonicalSeamCall; occurrenceIds: string[] } {
+  if (call === undefined || call.def !== def || attempt.occurrenceIds === undefined ||
+      call.context.operationId !== attempt.operationId || call.context.operation !== handler ||
+      call.context.app !== app || call.context.source !== 'schedule' ||
+      call.context.trustedSource !== trustedSource || call.context.actor !== null ||
+      resolvePrivateChildOwner(call.context.team?.teamId, committed, completion, sourceScopeOwner, call.context.app) !== sourceScopeOwner ||
+      child.parentOccurrence !== sourceOccurrenceId || child.handler !== handler ||
+      !frozenMembers.includes(child.recordId) || !call.recordRefs?.some(ref => ref.param === declaredRefInput && ref.row.id === child.recordId)) {
+    throw new loaded.producers.errors('forbidden', 'Private child cannot borrow another source, owner or admitted record.');
+  }
+  return { call, occurrenceIds: attempt.occurrenceIds };
+}
+
+/** A private child replays its retained source event arguments exactly. */
+function assertPrivateChildArguments(
+  loaded: LoadedCanonicalDescriptors,
+  call: Pick<CanonicalSeamCall, 'inputs'>,
+  admittedInputs: Record<string, unknown>,
+): void {
+  for (const [name, value] of Object.entries(admittedInputs)) {
+    if (JSON.stringify(call.inputs[name]) !== JSON.stringify(value)) {
+      throw new loaded.producers.errors('validation', 'Private child event arguments differ from the retained source.');
+    }
+  }
+}
+
 async function createCanonicalSourceCohortBody(opts: Omit<CanonicalDueScheduleOpts, 'due'>,
   selectedSource: CanonicalCommittedCohortOpts['source'], due?: CanonicalDueScheduleOpts['due']) {
   assertCanonicalStore(opts.store, opts.handler);
@@ -12407,28 +12888,18 @@ async function createCanonicalSourceCohortBody(opts: Omit<CanonicalDueScheduleOp
     }
   };
   const body: FanoutSchedulerBodyPort = async (child, _row, attempt) => {
-    const call = attempt.call;
-    if (call === undefined || call.def !== def || attempt.occurrenceIds === undefined ||
-        call.context.operationId !== attempt.operationId || call.context.operation !== opts.handler ||
-        call.context.app !== opts.app || call.context.source !== 'schedule' ||
-        call.context.trustedSource !== trustedSource || call.context.actor !== null ||
-        (call.context.team?.teamId ?? (committed === undefined || completion && source.scopeOwner === 'app' ? 'app' : call.context.app)) !== source.scopeOwner ||
-        child.parentOccurrence !== source.occurrenceId || child.handler !== opts.handler ||
-        !frozen.members.includes(child.recordId) || !call.recordRefs?.some(ref => ref.param === declared.refInput && ref.row.id === child.recordId)) {
-      throw new loaded.producers.errors('forbidden', 'Private child cannot borrow another source, owner or admitted record.');
-    }
-    for (const [name, value] of Object.entries(admittedInputs)) {
-      if (JSON.stringify(call.inputs[name]) !== JSON.stringify(value)) {
-        throw new loaded.producers.errors('validation', 'Private child event arguments differ from the retained source.');
-      }
-    }
+    const admitted = assertPrivateChildAdmission(loaded, attempt.call, def, attempt, child, opts.handler,
+      opts.app, trustedSource, committed, completion, source.scopeOwner, source.occurrenceId,
+      frozen.members, declared.refInput);
+    const call = admitted.call;
+    assertPrivateChildArguments(loaded, call, admittedInputs);
     await verifySource(call.context.now);
     let effects: CanonicalExecutionEffects;
     try {
       if (declaredSource) nativeDeclaredEventCalls.add(call.context);
       effects = await runScenarioSeam(privateLoaded, { ...opts, operation: opts.handler, operationId: attempt.operationId,
         inputs: call.inputs, identity, memberships: opts.identities, source: 'schedule', now: () => call.context.now },
-      call, attempt.occurrenceIds, undefined, { occurrenceId: source.occurrenceId as OccurrenceId,
+      call, admitted.occurrenceIds, undefined, { occurrenceId: source.occurrenceId as OccurrenceId,
         eventFields: Object.keys(fields), refInput: declared.refInput as string, bind: declared.bind },
       opts.store, committedSourceStage.stageSources);
     } catch (error) {
@@ -12528,23 +12999,13 @@ async function bindPrivateDueHandlerProducers(
     const statement = localPolicyObject(metadata.statement, ['start', 'end']);
     const interval = (value: Record<string, unknown>) => Object.keys(value).length === 2 &&
       Number.isSafeInteger(value.start) && Number.isSafeInteger(value.end) && (value.start as number) >= 0 && (value.end as number) > (value.start as number);
-    const query = plan.queries!.find(query => query.id === metadata.queryId);
     // DESIGN442: the checked guard/presence-consumed decision marks ride
     // only as exact `true`; any other spelling keeps the refusal.
     const guardConsumed = Object.hasOwn(metadata, 'guardConsumed') ? metadata.guardConsumed === true : undefined;
     const presenceConsumed = Object.hasOwn(metadata, 'presenceConsumed') ? metadata.presenceConsumed === true : undefined;
-    if (Object.keys(metadata).length !== 5 + (guardConsumed === undefined ? 0 : 1) + (presenceConsumed === undefined ? 0 : 1) ||
-        guardConsumed === false || presenceConsumed === false ||
-        Object.keys(source).length !== 3 || query === undefined ||
-        stableStringify(captureDispatchPreclaimData(source)) !== stableStringify(query.source) ||
-        stableStringify(query.source) !== stableStringify(plan.source) ||
-        !artifact.sources.some(original => original.path === source.path && original.sha256 === source.sha256) ||
-        !interval(queryNode) || !interval(node) || !interval(statement) || (queryNode.start as number) < (node.start as number) || (queryNode.end as number) > (node.end as number) ||
-        await sha256HexText(`scenario-disclosure/v1:query:${source.path}:${source.sha256}:${privateDef.name.slice(0, privateDef.name.lastIndexOf('.'))}:${queryNode.start}:${queryNode.end}:`) !== query.id ||
-        (node.start as number) < (statement.start as number) ||
-        (node.end as number) > (statement.end as number)) {
-      throw new AssemblyCorrespondenceError('Due handler first query lacks its original checked Let, call and owning source.');
-    }
+    const query = await assertCheckedFirstQuery(metadata, source, queryNode, node, statement,
+      guardConsumed, presenceConsumed, interval, plan.queries!.find(query => query.id === metadata.queryId),
+      plan.source, artifact, privateDef.name, 'Due handler first query lacks its original checked Let, call and owning source.');
     return captureDispatchPreclaimData({ queryId: query.id, source: query.source,
       query: { start: queryNode.start as number, end: queryNode.end as number },
       node: { start: node.start as number, end: node.end as number },
@@ -13711,6 +14172,36 @@ export interface CanonicalFileReadLocator {
   readonly rowVersion?: RecordVersion;
   readonly path?: readonly (string | number)[];
 }
+/** File reads need finite positive census bounds and a finite canonical occurrence path. */
+function assertFileReadBounds(
+  StateError: StateErrorsProducer,
+  bounds: { readonly maxRows: number; readonly maxReferences: number },
+  path: unknown,
+): void {
+  if ([bounds.maxRows, bounds.maxReferences].some(bound => !Number.isSafeInteger(bound) || bound < 1 || bound > 20_000)) {
+    throw new StateError('validation', 'File reads require finite positive census bounds.');
+  }
+  if (path !== undefined && (!Array.isArray(path) || path.length > 32 ||
+      path.some(part => typeof part === 'string' ? part === '' : !Number.isSafeInteger(part) || part < 0))) {
+    throw new StateError('validation', 'File reads require a finite canonical occurrence path.');
+  }
+}
+
+/** A whole-File field read needs its grant target with no secret covering the field. */
+function admitFileGrantTarget(
+  read: import('@canlang/state/query').ViewerSourceReadPolicy | undefined,
+  ordinary: import('@canlang/state/policy/grants').InterimModelPolicy | undefined,
+  under: (left: string, right: string) => boolean,
+  field: string,
+): Extract<import('@canlang/state/query').ViewerSourceReadPolicy, { readonly grants: unknown }>
+  | import('@canlang/state/policy/grants').InterimModelPolicy | null {
+  if (read === undefined || ordinary === undefined) return null;
+  const target = 'grants' in read ? read : ordinary;
+  if (target === undefined || target.secretFields.some(secret =>
+      under(secret, field) || under(field, secret))) return null;
+  return target;
+}
+
 export async function consumeCanonicalFileReference(
   opts: CanonicalPageReadOpts & {
     readonly app: string;
@@ -13725,14 +14216,8 @@ export async function consumeCanonicalFileReference(
   const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact, opts.store);
   const StateError = loaded.producers.errors;
   const bounds = Object.freeze({ ...opts.bounds });
-  if ([bounds.maxRows, bounds.maxReferences].some(bound => !Number.isSafeInteger(bound) || bound < 1 || bound > 20_000)) {
-    throw new StateError('validation', 'File reads require finite positive census bounds.');
-  }
   const path = opts.locator.path;
-  if (path !== undefined && (!Array.isArray(path) || path.length > 32 ||
-      path.some(part => typeof part === 'string' ? part === '' : !Number.isSafeInteger(part) || part < 0))) {
-    throw new StateError('validation', 'File reads require a finite canonical occurrence path.');
-  }
+  assertFileReadBounds(StateError, bounds, path);
   const locator = Object.freeze({ ...opts.locator,
     ...(path === undefined ? {} : { path: Object.freeze([...path]) }) });
   const revision = await opts.store.readRevision(), at = (opts.now ?? Date.now)();
@@ -13801,10 +14286,8 @@ export async function consumeCanonicalFileReference(
       typeof import('@canlang/state/policy/grants').evalPredicateForRow;
     const policy = loaded.policy as import('@canlang/state/policy/grants').PolicyTable;
     const read = readPolicies.get(locator.model as ModelName), ordinary = policy.get(locator.model as ModelName);
-    if (read === undefined || ordinary === undefined) return null;
-    const target = 'grants' in read ? read : ordinary;
-    if (target === undefined || target.secretFields.some(secret =>
-        under(secret, locator.field) || under(locator.field, secret))) return null;
+    const target = admitFileGrantTarget(read, ordinary, under, locator.field);
+    if (target === null) return null;
     result = await project({ model: locator.model as ModelName, id: locator.recordId as RecordId,
       readPolicies, policy, context: { actorUserId: opts.identity.actor?.user_id ?? null,
         teamId: opts.identity.team?.team_id ?? null }, memberships: opts.memberships, store: opts.store,
@@ -14531,6 +15014,24 @@ interface NativePagePredicateScope {
   readonly preferences: HandlerContext['preferences'];
 }
 
+/** A native WHERE must differ from nothing: one unique original source occurrence. */
+function assertOriginalPageWhereOccurrence(
+  value: Record<string, unknown>, source: Record<string, unknown>,
+  node: Record<string, unknown>, statement: Record<string, unknown>,
+  interval: (range: Record<string, unknown>) => boolean,
+  selected: NativePageWhere | undefined, artifact: CompileArtifact,
+): void {
+  if (selected !== undefined || Reflect.ownKeys(value).length !== 4 || Reflect.ownKeys(source).length !== 3 ||
+      typeof value.owner !== 'string' || value.owner === '' || value.owner.length > 4096 ||
+      typeof source.path !== 'string' || typeof source.sha256 !== 'string' ||
+      typeof source.module !== 'string' || source.module === '' || source.module.length > 4096 ||
+      !artifact.sources.some(original => original.path === source.path && original.sha256 === source.sha256) ||
+      !interval(node) || !interval(statement) || (node.start as number) < (statement.start as number) ||
+      (node.end as number) > (statement.end as number)) {
+    throw new AssemblyCorrespondenceError('Native WHERE differs from its unique original source occurrence.');
+  }
+}
+
 /** Only the original getter in the verified emitted module can recognize its
  * original lambda. Public metadata is checked for correspondence afterwards. */
 async function bindOriginalPageWhere(opts: CanonicalPageReadOpts,
@@ -14551,15 +15052,7 @@ async function bindOriginalPageWhere(opts: CanonicalPageReadOpts,
     const interval = (range: Record<string, unknown>): boolean => Reflect.ownKeys(range).length === 2 &&
       Number.isSafeInteger(range.start) && Number.isSafeInteger(range.end) &&
       (range.start as number) >= 0 && (range.end as number) > (range.start as number);
-    if (selected !== undefined || Reflect.ownKeys(value).length !== 4 || Reflect.ownKeys(source).length !== 3 ||
-        typeof value.owner !== 'string' || value.owner === '' || value.owner.length > 4096 ||
-        typeof source.path !== 'string' || typeof source.sha256 !== 'string' ||
-        typeof source.module !== 'string' || source.module === '' || source.module.length > 4096 ||
-        !opts.artifact.sources.some(original => original.path === source.path && original.sha256 === source.sha256) ||
-        !interval(node) || !interval(statement) || (node.start as number) < (statement.start as number) ||
-        (node.end as number) > (statement.end as number)) {
-      throw new AssemblyCorrespondenceError('Native WHERE differs from its unique original source occurrence.');
-    }
+    assertOriginalPageWhereOccurrence(value, source, node, statement, interval, selected, opts.artifact);
     selected = freezeScenarioSnapshot(structuredClone(raw)) as NativePageWhere;
   }
   if (selected === undefined || marker !== undefined && stableStringify(committedSourceData(marker)) !== stableStringify(selected)) {
@@ -14575,6 +15068,20 @@ async function bindOriginalPageWhere(opts: CanonicalPageReadOpts,
 
 /** Capture dispatcher-loaded values before rendering. They supply preference
  * values only; fresh State observations supply every authority fact. */
+function capturePageOwnerPreferences(owner: string, owners: Record<string, unknown>): Record<string, unknown> {
+  const fields = localPolicyObject(owners[owner]);
+  if (!Object.isFrozen(fields) || Object.keys(fields).length > 200) {
+    throw new AssemblyCorrespondenceError('Page preferences require complete frozen owner values.');
+  }
+  const values: Record<string, unknown> = Object.create(null);
+  for (const field of Object.keys(fields)) {
+    const value = localPolicyMember(fields, field);
+    if (typeof value !== 'string' && value !== null) throw new AssemblyCorrespondenceError('Page preference value is not checked data.');
+    Object.defineProperty(values, field, { value, enumerable: true });
+  }
+  return Object.freeze(values);
+}
+
 function capturePagePreferences(opts: CanonicalPageReadOpts): HandlerContext['preferences'] {
   const source = opts.pageSource;
   if (source === undefined) return Object.freeze({});
@@ -14589,17 +15096,7 @@ function capturePagePreferences(opts: CanonicalPageReadOpts): HandlerContext['pr
     throw new AssemblyCorrespondenceError('Page preferences require their frozen admitted source.');
   }
   for (const owner of Object.keys(owners)) {
-    const fields = localPolicyObject(owners[owner]);
-    if (!Object.isFrozen(fields) || Object.keys(fields).length > 200) {
-      throw new AssemblyCorrespondenceError('Page preferences require complete frozen owner values.');
-    }
-    const values: Record<string, unknown> = Object.create(null);
-    for (const field of Object.keys(fields)) {
-      const value = localPolicyMember(fields, field);
-      if (typeof value !== 'string' && value !== null) throw new AssemblyCorrespondenceError('Page preference value is not checked data.');
-      Object.defineProperty(values, field, { value, enumerable: true });
-    }
-    Object.defineProperty(captured, owner, { value: Object.freeze(values), enumerable: true });
+    Object.defineProperty(captured, owner, { value: capturePageOwnerPreferences(owner, owners), enumerable: true });
   }
   return Object.freeze(captured);
 }
@@ -14662,6 +15159,21 @@ async function originalReadBoolean(opts: CanonicalPageReadOpts, fn: Function): P
   return selected;
 }
 
+/** A native boolean read needs its exact route id or admitted model record. */
+function admitNativeReadBooleanRoute(
+  StateError: StateErrorsProducer,
+  original: NativeBooleanSource,
+  subject: unknown,
+  reference: ReturnType<typeof nativeRecordReference>,
+): string {
+  const id = original.kind === 'page-require' && typeof subject === 'string' ? subject : reference?.id;
+  if (typeof id !== 'string' || id.length === 0 || id.length > 4096 ||
+      (original.kind === 'derived-field' && (reference === undefined || reference.model !== original.model || reference.version === undefined))) {
+    throw new StateError('validation', 'Native boolean read requires its exact route or admitted model record.');
+  }
+  return id;
+}
+
 /** Execute one checked bool on one granted row. The private answer is withheld
  * until State has completed its complete row/Identity/revision revalidation;
  * false remains a value and never acts as row visibility. */
@@ -14670,11 +15182,7 @@ async function evaluateNativeReadBoolean(opts: CanonicalPageReadOpts, fn: Functi
   const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact, opts.store);
   const StateError = loaded.producers.errors;
   const reference = nativeRecordReference(subject);
-  const id = original.kind === 'page-require' && typeof subject === 'string' ? subject : reference?.id;
-  if (typeof id !== 'string' || id.length === 0 || id.length > 4096 ||
-      (original.kind === 'derived-field' && (reference === undefined || reference.model !== original.model || reference.version === undefined))) {
-    throw new StateError('validation', 'Native boolean read requires its exact route or admitted model record.');
-  }
+  const id = admitNativeReadBooleanRoute(StateError, original, subject, reference);
   const model = loaded.models.find(model => model.name === original.model);
   const declared = opts.artifact.models?.find(model => model.name === original.model)?.fields.find(field => field.name === original.field);
   if (model === undefined || original.kind === 'derived-field' &&
@@ -15046,6 +15554,32 @@ function sourceReceiptProjection(
   return projection;
 }
 
+/** Only a declared singular File on the actual final row carries an image binding. */
+function admittedFileImageOccurrence(
+  file: FileValue | undefined, occurrence: PageFileOccurrence | undefined,
+): PageFileOccurrence | null {
+  if (occurrence === undefined || file === undefined ||
+      ![Object.prototype, null].includes(Object.getPrototypeOf(file)) || Reflect.ownKeys(file).length !== 2 ||
+      Object.getOwnPropertyDescriptor(file, 'kind')?.value !== 'file' ||
+      Object.getOwnPropertyDescriptor(file, 'id')?.value !== occurrence.ref) return null;
+  return occurrence;
+}
+
+/** A page observer must present its original admitted record; anything else fails loud. */
+function admitPageRecordBinding<Binding>(
+  StateError: StateErrorsProducer,
+  record: unknown,
+  historyViews: WeakMap<object, Binding>,
+  isAdmitted: (binding: Binding) => boolean,
+  failure: string,
+): Binding {
+  const binding = typeof record === 'object' && record !== null ? historyViews.get(record) : undefined;
+  if (binding === undefined || !isAdmitted(binding)) {
+    throw new StateError('validation', failure);
+  }
+  return binding;
+}
+
 /** One page render observes only its admitted rows at one readonly checkpoint. */
 export function createPageReadScopeCanonical(
   opts: CanonicalPageReadOpts,
@@ -15159,11 +15693,8 @@ export function createPageReadScopeCanonical(
           if (admitted === undefined || admitted.model !== input.model) return null;
           // Only a declared singular File on the actual final row has this binding.
           const file = originalFiles.get(input.record)?.get(input.field);
-          const occurrence = file === undefined ? undefined : originalOccurrences.get(file);
-          if (occurrence === undefined || file === undefined ||
-              ![Object.prototype, null].includes(Object.getPrototypeOf(file)) || Reflect.ownKeys(file).length !== 2 ||
-              Object.getOwnPropertyDescriptor(file, 'kind')?.value !== 'file' ||
-              Object.getOwnPropertyDescriptor(file, 'id')?.value !== occurrence.ref) return null;
+          const occurrence = admittedFileImageOccurrence(file, file === undefined ? undefined : originalOccurrences.get(file));
+          if (occurrence === null) return null;
           const read = await resolveFileRead(occurrence);
           if (closed || read === null) return null;
           const files = await loadProducerModule('@canlang/files/upload', 'owning original image content policy');
@@ -15369,11 +15900,8 @@ export function createPageReadScopeCanonical(
     readHistory: async (locator: Parameters<PageHistoryReader>[0]) => {
       const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact, opts.store);
       const StateError = loaded.producers.errors;
-      const binding = typeof locator.record === 'object' && locator.record !== null
-        ? historyViews.get(locator.record) : undefined;
-      if (binding === undefined || binding.model !== locator.model) {
-        throw new StateError('validation', 'History requires the original admitted page record.');
-      }
+      const binding = admitPageRecordBinding(StateError, locator.record, historyViews,
+        candidate => candidate.model === locator.model, 'History requires the original admitted page record.');
       const expectedRevision = await checkpoint();
       assertCanonicalStore(opts.store, `${binding.model}.read`);
       assertCanonicalMemberships(opts.memberships, `${binding.model}.read`);
@@ -15435,11 +15963,9 @@ export function createPageReadScopeCanonical(
       observeGenerationCallbackDiagnostics: async (locator: Parameters<PageGenerationCallbackDiagnosticsObserver>[0]) => {
         const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact, opts.store);
         const StateError = loaded.producers.errors;
-        const binding = typeof locator.record === 'object' && locator.record !== null
-          ? historyViews.get(locator.record) : undefined;
-        if (binding === undefined || locator.field !== 'request') {
-          throw new StateError('validation', 'Callback diagnostics require the original admitted page record and request field.');
-        }
+        const binding = admitPageRecordBinding(StateError, locator.record, historyViews,
+          () => locator.field === 'request',
+          'Callback diagnostics require the original admitted page record and request field.');
         const grants = loaded.callbackReadGrants.get(binding.model)?.filter(grant => grant.field === locator.field);
         const host = opts.pageReads?.scope;
         if (grants === undefined || grants.length === 0 || host === undefined ||
@@ -16885,6 +17411,21 @@ function captureDispatchPreclaimData<T>(value: T): T {
 /** Framework-only host component entry. Work owns eligibility, allocation,
  * phase transfer and the original physical claim/false-ACK fence. This does
  * not activate a native SEND or certify supplied lexical source provenance. */
+/** A preclaim guard fires only for its eligible source, owner checkpoint and original intent. */
+function assertPreclaimEligibility(
+  input: DispatchClaimGuardInput,
+  intent: { readonly intentId: unknown; readonly target: unknown; readonly occurrenceIndex: unknown },
+  triggerRevision: unknown,
+): void {
+  const data = input.data;
+  if (input.row.id !== intent.intentId ||
+      input.row.archivedAt !== null || data.intentId !== intent.intentId || data.source !== intent.target ||
+      data.occurrenceIndex !== intent.occurrenceIndex ||
+      !Number.isSafeInteger(input.revision) || input.revision < 0 || triggerRevision === input.revision) {
+    throw new Error('Preclaim lost its eligible source, owner checkpoint or original intent.');
+  }
+}
+
 export async function driveDispatchIntentWithPreclaim(
   opts: Omit<DriveDispatchIntentOpts, 'registry'>,
   createRegistry: (guard: DispatchClaimGuard, claimIdAllocator: () => ClaimId) => DispatchSystemRegistry,
@@ -16937,12 +17478,7 @@ export async function driveDispatchIntentWithPreclaim(
     try {
       const data = input.data;
       stageRevision = input.revision;
-      if (input.row.id !== intent.intentId ||
-          input.row.archivedAt !== null || data.intentId !== intent.intentId || data.source !== intent.target ||
-          data.occurrenceIndex !== intent.occurrenceIndex ||
-          !Number.isSafeInteger(input.revision) || input.revision < 0 || triggerRevision === input.revision) {
-        throw new Error('Preclaim lost its eligible source, owner checkpoint or original intent.');
-      }
+      assertPreclaimEligibility(input, intent, triggerRevision);
       const retained = captureDispatchPreclaimData(await store.outboxGet(intent.intentId));
       if (retained === null || !['status', 'intent', 'originalCommit'].every(key => Object.hasOwn(retained, key)) ||
           retained.status !== 'pending' || retained.originalCommit === undefined ||
@@ -18594,13 +19130,7 @@ async function classifyFanoutAnchor(
  * Single-shot throughout (T24b precedent): fence conflicts diagnose
  * (NO retry — callers decide); malformed caller input throws.
  */
-export async function stageFanoutTriggerJoin(
-  opts: StageFanoutTriggerJoinOpts,
-): Promise<StageFanoutTriggerJoinOutcome> {
-  const producers = opts.producers ?? (await loadFanoutStateProducers());
-  producers.cohort.checkCutoffSpec(opts.cutoff);
-  const cohortKind = producers.cohort.checkCohortSpec(opts.cohort);
-  checkFanoutRowMeta(opts.meta, "trigger join");
+function checkFanoutTriggerJoinArgs(opts: StageFanoutTriggerJoinOpts): void {
   if (!Number.isInteger(opts.bounds.pageLimit) || opts.bounds.pageLimit < 1) {
     throw new Error("t34-f7: trigger join needs bounds.pageLimit as an integer >= 1.");
   }
@@ -18610,6 +19140,16 @@ export async function stageFanoutTriggerJoin(
   if (typeof opts.owner !== "string" || opts.owner === "") {
     throw new Error("t34-f7: trigger join needs a non-empty operating owner.");
   }
+}
+
+export async function stageFanoutTriggerJoin(
+  opts: StageFanoutTriggerJoinOpts,
+): Promise<StageFanoutTriggerJoinOutcome> {
+  const producers = opts.producers ?? (await loadFanoutStateProducers());
+  producers.cohort.checkCutoffSpec(opts.cutoff);
+  const cohortKind = producers.cohort.checkCohortSpec(opts.cohort);
+  checkFanoutRowMeta(opts.meta, "trigger join");
+  checkFanoutTriggerJoinArgs(opts);
   if (opts.cohort.owner !== opts.owner) {
     return {
       ok: false,
@@ -18812,43 +19352,10 @@ function readEmittedCohortString(value: unknown, what: string, handler: string):
   return value;
 }
 
-export function resolveEmittedFanoutCohort(input: ResolveEmittedFanoutCohortInput): FanoutCohortSpec {
-  if (typeof input.handler !== "string" || input.handler === "") {
-    throw new Error("t34-f7: emitted fanout cohort resolution needs a non-empty handler identity.");
-  }
-  if (typeof input.owner !== "string" || input.owner === "") {
-    throw new Error("t34-f7: emitted fanout cohort resolution needs a non-empty operating owner.");
-  }
-  const cohorts = readEmittedCohortRecord(input.cohorts, "appDefinition.cohorts", input.handler);
-  const raw = cohorts[input.handler];
-  if (raw === undefined) {
-    throw new Error(
-      `t34-f7: handler ${JSON.stringify(input.handler)} names no emitted fanout cohort ` +
-        `(${Object.keys(cohorts).length} emitted cohorts; triggers fire for fanout handlers only).`,
-    );
-  }
-  const descriptor = readEmittedCohortRecord(raw, "cohort descriptor", input.handler);
-  const kind: unknown = descriptor["kind"];
-  if (kind !== "model" && kind !== "anchored-collection") {
-    throw new Error(
-      `t34-f7: emitted fanout cohort for handler ${JSON.stringify(input.handler)} has kind ` +
-        `${JSON.stringify(kind)} (want "model" or "anchored-collection").`,
-    );
-  }
-  const model = readEmittedCohortString(descriptor["model"], "cohort model", input.handler);
-  const bind: unknown = descriptor["bind"];
-  if (typeof bind !== "string" && bind !== null) {
-    throw new Error(
-      `t34-f7: emitted fanout cohort for handler ${JSON.stringify(input.handler)} has a non-string ` +
-        `non-null "as" binding.`,
-    );
-  }
-  if (kind === "model") {
-    return { kind: "model", owner: input.owner, model };
-  }
-  // Anchored: parent id from the trigger event, parent model from
-  // the emitted containment edge. Both are required: freezing over
-  // a mis-specified collection would bless the wrong sweep.
+/** An anchored-collection cohort resolves its parent id through the trigger event path. */
+function resolveAnchoredFanoutCohort(
+  input: ResolveEmittedFanoutCohortInput, model: string, descriptor: Record<string, unknown>,
+): FanoutCohortSpec {
   const parentPath = readEmittedCohortString(descriptor["parent"], "cohort parent path", input.handler);
   const segments = parentPath.split(".");
   if (segments[0] !== "event" || segments.length < 2 || segments.some((segment) => segment === "")) {
@@ -18887,6 +19394,46 @@ export function resolveEmittedFanoutCohort(input: ResolveEmittedFanoutCohortInpu
     );
   }
   return { kind: "anchored-collection", owner: input.owner, model, parent: { model: parentModel, id: current } };
+}
+
+export function resolveEmittedFanoutCohort(input: ResolveEmittedFanoutCohortInput): FanoutCohortSpec {
+  if (typeof input.handler !== "string" || input.handler === "") {
+    throw new Error("t34-f7: emitted fanout cohort resolution needs a non-empty handler identity.");
+  }
+  if (typeof input.owner !== "string" || input.owner === "") {
+    throw new Error("t34-f7: emitted fanout cohort resolution needs a non-empty operating owner.");
+  }
+  const cohorts = readEmittedCohortRecord(input.cohorts, "appDefinition.cohorts", input.handler);
+  const raw = cohorts[input.handler];
+  if (raw === undefined) {
+    throw new Error(
+      `t34-f7: handler ${JSON.stringify(input.handler)} names no emitted fanout cohort ` +
+        `(${Object.keys(cohorts).length} emitted cohorts; triggers fire for fanout handlers only).`,
+    );
+  }
+  const descriptor = readEmittedCohortRecord(raw, "cohort descriptor", input.handler);
+  const kind: unknown = descriptor["kind"];
+  if (kind !== "model" && kind !== "anchored-collection") {
+    throw new Error(
+      `t34-f7: emitted fanout cohort for handler ${JSON.stringify(input.handler)} has kind ` +
+        `${JSON.stringify(kind)} (want "model" or "anchored-collection").`,
+    );
+  }
+  const model = readEmittedCohortString(descriptor["model"], "cohort model", input.handler);
+  const bind: unknown = descriptor["bind"];
+  if (typeof bind !== "string" && bind !== null) {
+    throw new Error(
+      `t34-f7: emitted fanout cohort for handler ${JSON.stringify(input.handler)} has a non-string ` +
+        `non-null "as" binding.`,
+    );
+  }
+  if (kind === "model") {
+    return { kind: "model", owner: input.owner, model };
+  }
+  // Anchored: parent id from the trigger event, parent model from
+  // the emitted containment edge. Both are required: freezing over
+  // a mis-specified collection would bless the wrong sweep.
+  return resolveAnchoredFanoutCohort(input, model, descriptor);
 }
 
 /**
@@ -19465,12 +20012,7 @@ export async function releaseStaleFanoutClaims(opts: ReleaseStaleFanoutClaimsOpt
   return releaseStaleFanoutClaimsWithReads(opts);
 }
 
-async function releaseStaleFanoutClaimsWithReads(
-  opts: ReleaseStaleFanoutClaimsOpts,
-  reads?: PrivateFanoutReads,
-): Promise<ReleaseStaleFanoutClaimsResult> {
-  const producers = opts.producers ?? (await loadFanoutStateProducers());
-  checkFanoutRowMeta(opts.meta, "release");
+function checkStaleFanoutClaimArgs(opts: ReleaseStaleFanoutClaimsOpts): void {
   if (typeof opts.fanoutId !== "string" || opts.fanoutId === "") {
     throw new Error("t34-f7: release needs a non-empty fanout id.");
   }
@@ -19483,6 +20025,15 @@ async function releaseStaleFanoutClaimsWithReads(
   if (!Number.isFinite(opts.maxClaimAgeMs) || opts.maxClaimAgeMs < 0) {
     throw new Error("t34-f7: release needs maxClaimAgeMs as finite ms >= 0.");
   }
+}
+
+async function releaseStaleFanoutClaimsWithReads(
+  opts: ReleaseStaleFanoutClaimsOpts,
+  reads?: PrivateFanoutReads,
+): Promise<ReleaseStaleFanoutClaimsResult> {
+  const producers = opts.producers ?? (await loadFanoutStateProducers());
+  checkFanoutRowMeta(opts.meta, "release");
+  checkStaleFanoutClaimArgs(opts);
   const query = producers.tables.fanoutChildPageQuery(opts.fanoutId, {
     cursor: opts.cursor,
     limit: opts.limit,
@@ -20162,6 +20713,36 @@ async function driveFanoutTurnChild(input: {
  * the cohort: varying it visits identical sets (proven through the
  * real path).
  */
+async function diagnoseUnadmittedFanoutFreeze(
+  producers: FanoutStateProducers,
+  opts: Pick<RunFanoutSchedulerTurnOpts, 'store' | 'fanoutId' | 'bounds' | 'meta'>,
+  freeze: FanoutSchedulerFreeze,
+): Promise<Extract<FanoutSchedulerTurnResult, { status: "diagnosed" }> | null> {
+  const admitted = await producers.membership.freezeFanoutMembership({
+    store: opts.store,
+    cutoff: freeze.cutoff,
+    cohort: freeze.cohort,
+    owner: freeze.owner,
+    bounds: freeze.bounds,
+    meta: opts.meta,
+    ...(freeze.hasModel === undefined ? {} : { hasModel: freeze.hasModel }),
+  });
+  if (!admitted.ok) {
+    let progress: FanoutProgress | null = null;
+    try {
+      progress = await producers.progress.readFanoutProgress({
+        store: opts.store,
+        fanoutId: opts.fanoutId,
+        pageLimit: opts.bounds.pageLimit,
+      });
+    } catch {
+      progress = null;
+    }
+    return { status: "diagnosed", diagnosis: admitted.diagnosis, progress };
+  }
+  return null;
+}
+
 export async function runFanoutSchedulerTurn(
   opts: RunFanoutSchedulerTurnOpts,
 ): Promise<FanoutSchedulerTurnResult> {
@@ -20193,29 +20774,8 @@ export async function runFanoutSchedulerTurn(
     throw new Error("t34-f7: turn needs an operationIdFor function.");
   }
   if (opts.freeze !== undefined) {
-    const freeze = opts.freeze;
-    const admitted = await producers.membership.freezeFanoutMembership({
-      store: opts.store,
-      cutoff: freeze.cutoff,
-      cohort: freeze.cohort,
-      owner: freeze.owner,
-      bounds: freeze.bounds,
-      meta: opts.meta,
-      ...(freeze.hasModel === undefined ? {} : { hasModel: freeze.hasModel }),
-    });
-    if (!admitted.ok) {
-      let progress: FanoutProgress | null = null;
-      try {
-        progress = await producers.progress.readFanoutProgress({
-          store: opts.store,
-          fanoutId: opts.fanoutId,
-          pageLimit: opts.bounds.pageLimit,
-        });
-      } catch {
-        progress = null;
-      }
-      return { status: "diagnosed", diagnosis: admitted.diagnosis, progress };
-    }
+    const diagnosis = await diagnoseUnadmittedFanoutFreeze(producers, opts, opts.freeze);
+    if (diagnosis !== null) return diagnosis;
   }
   const released = await releaseStaleFanoutClaims({
     store: opts.store,

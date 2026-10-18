@@ -1549,6 +1549,57 @@ function scopeDigest(
   return sha256HexText(stableStringify({ files: sortedFiles, revisions: sortedRevisions, units: sortedUnits }));
 }
 
+/** Primary saved filename deciding prepare reuse for one unit kind. */
+function primaryForKind(kind: string): string {
+  if (kind === "named-trait" || kind === "inline-trait") return "contributions.can";
+  if (kind === "keyword" || kind === "view") return "implementation.js";
+  return "style.css";
+}
+
+/**
+ * Validate one capture status entry, throwing on ambiguous, unknown,
+ * or seam-missing units. Returns "skip" for orphaned entries.
+ */
+function checkCaptureEntry(entry: StatusUnit): "skip" | "ok" {
+  if (entry.association === "orphaned") return "skip";
+  if (entry.association === "ambiguous") {
+    const names = entry.candidates.length > 0 ? entry.candidates.join(",") : "(none)";
+    throw new ControlError(
+      EXIT_INVALID,
+      "ambiguous-unit",
+      `scope unit ${entry.owner}/${entry.kind}/${entry.label ?? "-"} is ambiguous (candidates: ${names}); reconcile with an explicit bind`,
+      ["send a bind request to reconcile the unit, then resend"],
+    );
+  }
+  if (entry.association !== "new" && entry.association !== "retained") {
+    throw new Error(`the compiler reported an unknown association ${JSON.stringify(entry.association)}`);
+  }
+  if (entry.path === null || entry.prompt === null || entry.contract === null) {
+    throw new ControlError(
+      EXIT_INVALID,
+      "missing-capture-seam",
+      "the compiler status report carries no prompt/contract seam; rebuild the compiler and resend",
+      ["rebuild the compiler binary, then resend"],
+    );
+  }
+  if (!isUnitKind(entry.kind)) {
+    throw new Error(`the compiler reported an unknown unit kind ${JSON.stringify(entry.kind)}`);
+  }
+  return "ok";
+}
+
+/**
+ * Whether one retained unit's saved output is fresh enough for
+ * prepare to reuse it. Binding reserves identity before generation:
+ * a bare unit.json from an incomplete attempt never reuses.
+ */
+async function isFreshSavedOutput(root: string, unit_id: string, kind: string): Promise<boolean> {
+  const current = await currentGroupMap(root, unit_id);
+  const intake = await readSavedGroup(root, unit_id);
+  const primary = primaryForKind(kind);
+  return current !== null && intake.ok && intake.group.files.some(file => file.relPath === primary);
+}
+
 /**
  * Capture a files scope: status the closure under brief read leases,
  * bind new units through the compiler under the capture sentinel,
@@ -1587,30 +1638,7 @@ async function captureFromFiles(
       const context: ResolvedUnit[] = [];
       const skipped: { unit_id: string; reason: string }[] = [];
       for (const entry of status) {
-        if (entry.association === "orphaned") continue;
-        if (entry.association === "ambiguous") {
-          const names = entry.candidates.length > 0 ? entry.candidates.join(",") : "(none)";
-          throw new ControlError(
-            EXIT_INVALID,
-            "ambiguous-unit",
-            `scope unit ${entry.owner}/${entry.kind}/${entry.label ?? "-"} is ambiguous (candidates: ${names}); reconcile with an explicit bind`,
-            ["send a bind request to reconcile the unit, then resend"],
-          );
-        }
-        if (entry.association !== "new" && entry.association !== "retained") {
-          throw new Error(`the compiler reported an unknown association ${JSON.stringify(entry.association)}`);
-        }
-        if (entry.path === null || entry.prompt === null || entry.contract === null) {
-          throw new ControlError(
-            EXIT_INVALID,
-            "missing-capture-seam",
-            "the compiler status report carries no prompt/contract seam; rebuild the compiler and resend",
-            ["rebuild the compiler binary, then resend"],
-          );
-        }
-        if (!isUnitKind(entry.kind)) {
-          throw new Error(`the compiler reported an unknown unit kind ${JSON.stringify(entry.kind)}`);
-        }
+        if (checkCaptureEntry(entry) === "skip") continue;
         let unit_id = entry.id;
         if (entry.association === "new") {
           if (entry.span === null) {
@@ -1629,28 +1657,27 @@ async function captureFromFiles(
         const promptChanged = entry.prompt_changed ?? true;
         let reused = false;
         if (mode === "prepare" && entry.association === "retained" && !promptChanged) {
-          const current = await currentGroupMap(root, unit_id);
-          const intake = await readSavedGroup(root, unit_id);
-          const primary = entry.kind === "named-trait" || entry.kind === "inline-trait"
-            ? "contributions.can" : entry.kind === "keyword" || entry.kind === "view"
-              ? "implementation.js" : "style.css";
           // Binding reserves identity before generation. A bare unit.json
           // from an incomplete attempt is not a reusable implementation.
-          if (current !== null && intake.ok && intake.group.files.some(file => file.relPath === primary)) {
+          if (await isFreshSavedOutput(root, unit_id, entry.kind)) {
             skipped.push({ unit_id, reason: "saved output is fresh; prepare reuses it" });
             reused = true;
           }
         }
+        const kind = entry.kind as UnitKind;
+        const contract = entry.contract as SeamContract;
+        const prompt = entry.prompt as string;
+        const path = entry.path as string;
         (reused ? context : units).push({
           unit_id,
-          kind: entry.kind,
-          category: categoryFor(entry.kind),
-          agent: entry.contract.profile,
-          prompt: entry.prompt,
-          contract: entry.contract,
+          kind,
+          category: categoryFor(kind),
+          agent: contract.profile,
+          prompt,
+          contract,
           prompt_changed: promptChanged,
           span: entry.span,
-          path: entry.path,
+          path,
           owner: entry.owner,
           label: entry.label,
           current: await currentGroupMap(root, unit_id),
@@ -1709,6 +1736,57 @@ async function bindNewUnit(
   return unit["id"] as string;
 }
 
+/** Read one saved unit record or refuse with its reconciliation action. */
+async function loadUnitRecord(
+  root: string,
+  unit_id: string,
+): Promise<{ record: UnitRecord; recordText: string }> {
+  try {
+    const text = await readFile(join(root, GENERATED_DIR, unit_id, UNIT_FILE), "utf8");
+    return { record: parseUnitRecord(text, unit_id), recordText: text };
+  } catch {
+    throw new ControlError(EXIT_INVALID, "unknown-unit", `no saved unit ${JSON.stringify(unit_id)} under ${root}`, [
+      "send a status request to list saved units",
+    ]);
+  }
+}
+
+/**
+ * Consider one status sibling as reused context for an explicit unit
+ * selection: retained, unchanged, and carrying a fresh saved group.
+ */
+async function considerContextCandidate(
+  root: string,
+  candidate: StatusUnit,
+  unit_ids: string[],
+  context: Map<string, ResolvedUnit>,
+  files: string[],
+  revisions: Record<string, string>,
+): Promise<void> {
+  if (candidate.id === null || unit_ids.includes(candidate.id) || context.has(candidate.id)
+    || candidate.association !== "retained" || candidate.prompt_changed !== false
+    || candidate.path === null || candidate.prompt === null || candidate.contract === null
+    || !isUnitKind(candidate.kind)) return;
+  const id = candidate.id;
+  const intake = await readSavedGroup(root, id);
+  if (!intake.ok || !intake.group.files.some(file => file.relPath === primaryForKind(candidate.kind))) return;
+  const kind = candidate.kind as UnitKind;
+  const contract = candidate.contract as SeamContract;
+  const prompt = candidate.prompt as string;
+  const path = candidate.path as string;
+  context.set(id, {
+    unit_id: id, kind, category: categoryFor(kind),
+    agent: contract.profile, prompt, contract,
+    prompt_changed: false, span: candidate.span, path, owner: candidate.owner,
+    label: candidate.label, current: await currentGroupMap(root, id),
+    record_json: await readRecordText(root, id),
+  });
+  if (!files.includes(path)) {
+    files.push(path);
+    Object.assign(revisions, await hashScopeFiles(root, [path]));
+  }
+}
+
 /**
  * Capture explicitly selected units: resolve each id through its
  * saved record plus a fresh status of the owning source. Explicitly
@@ -1726,22 +1804,7 @@ async function captureUnitsById(
   const revisions: Record<string, string> = {};
   const unleased: string[] = [];
   for (const unit_id of unit_ids) {
-    let record: UnitRecord;
-    let recordText: string | null;
-    try {
-      const text = await readFile(join(root, GENERATED_DIR, unit_id, UNIT_FILE), "utf8");
-      record = parseUnitRecord(text, unit_id);
-      recordText = text;
-    } catch (error) {
-      if (error instanceof RecordError) {
-        throw new ControlError(EXIT_INVALID, "unknown-unit", `no saved unit ${JSON.stringify(unit_id)} under ${root}`, [
-          "send a status request to list saved units",
-        ]);
-      }
-      throw new ControlError(EXIT_INVALID, "unknown-unit", `no saved unit ${JSON.stringify(unit_id)} under ${root}`, [
-        "send a status request to list saved units",
-      ]);
-    }
+    const { record, recordText } = await loadUnitRecord(root, unit_id);
     const rel = leaseRel(root, record.source.path);
     if (rel === null) unleased.push(record.source.path);
     const reads = rel === null ? null : await acquire(root, [rel], "read", `gen-capture:${header.request_id}`);
@@ -1750,25 +1813,7 @@ async function captureUnitsById(
       // A selected ID cannot bypass unresolved siblings in its owning source.
       assertResolvableStatus(status);
       for (const candidate of status) {
-        if (candidate.id === null || unit_ids.includes(candidate.id) || context.has(candidate.id)
-          || candidate.association !== "retained" || candidate.prompt_changed !== false
-          || candidate.path === null || candidate.prompt === null || candidate.contract === null
-          || !isUnitKind(candidate.kind)) continue;
-        const intake = await readSavedGroup(root, candidate.id);
-        const primary = candidate.kind === "named-trait" || candidate.kind === "inline-trait"
-          ? "contributions.can" : candidate.kind === "keyword" || candidate.kind === "view" ? "implementation.js" : "style.css";
-        if (!intake.ok || !intake.group.files.some(file => file.relPath === primary)) continue;
-        context.set(candidate.id, {
-          unit_id: candidate.id, kind: candidate.kind, category: categoryFor(candidate.kind),
-          agent: candidate.contract.profile, prompt: candidate.prompt, contract: candidate.contract,
-          prompt_changed: false, span: candidate.span, path: candidate.path, owner: candidate.owner,
-          label: candidate.label, current: await currentGroupMap(root, candidate.id),
-          record_json: await readRecordText(root, candidate.id),
-        });
-        if (!files.includes(candidate.path)) {
-          files.push(candidate.path);
-          Object.assign(revisions, await hashScopeFiles(root, [candidate.path]));
-        }
+        await considerContextCandidate(root, candidate, unit_ids, context, files, revisions);
       }
       const entry = status.find((candidate) => candidate.id === unit_id && candidate.association === "retained");
       if (entry === undefined || entry.prompt === null || entry.contract === null) {
@@ -1991,31 +2036,22 @@ function overridesOf(params: {
   };
 }
 
-/** Execute every planned job for one captured scope. */
-async function executeCaptured(
-  ctx: ControlContext,
-  header: RequestHeader,
+/** One planned job: its attempt, prompt, handles, and frozen capture. */
+interface PlannedEntry {
+  job: PlannedJob;
+  attempt: string;
+  attemptDir: string;
+  jobUnits: ResolvedUnit[];
+  issued: ReturnType<typeof issueJobHandles>;
+  prompt: string;
+  capture: CaptureRecord;
+}
+
+/** Read every scope source, refusing when one changed after capture. */
+async function readExecutionSources(
   root: string,
   scope: CapturedScope,
-  mode: string,
-  recipeParams: {
-    settings?: string;
-    profile?: string;
-    runner?: string;
-    model?: string;
-    max_attempts?: number;
-    timeout_seconds?: number;
-    native?: Record<string, string | number | boolean>;
-  },
-  refineFiles: { path: string; content: string }[],
-  instruction: string | null,
-): Promise<ExecutedJob[]> {
-  const now = ctx.now ?? Date.now;
-  if (scope.units.length === 0) return [];
-  const loaded = await loadSettings(root, recipeParams.settings);
-  const overrides = overridesOf(recipeParams);
-  const context = (scope.context ?? []).map(contextState);
-  const byId = new Map([...scope.units, ...(scope.context ?? [])].map((unit) => [unit.unit_id, unit]));
+): Promise<{ path: string; content: string }[]> {
   const sources: { path: string; content: string }[] = [];
   for (const file of scope.files) {
     const content = await readFile(scopeAbs(root, file), "utf8");
@@ -2024,42 +2060,29 @@ async function executeCaptured(
     }
     sources.push({ path: relative(root, scopeAbs(root, file)), content });
   }
-  const closure: ActiveClosure = {
-    app_id: root,
-    root,
-    source_digest: scope.digest,
-    units: scope.units.map((unit) => ({
-      unit_id: unit.unit_id,
-      kind: unit.kind,
-      category: unit.category,
-      prompt: unit.prompt,
-      agent: unit.agent,
-    })),
-  };
-  const jobs = buildRetryJobs(closure, (unit: CaptureUnit) => {
-    const resolved = byId.get(unit.unit_id);
-    if (resolved === undefined) {
-      throw new ControlError(EXIT_INVALID, "unknown-unit", `planned unit ${JSON.stringify(unit.unit_id)} left the capture`);
-    }
-    return resolveRecipe(loaded, resolved.category, resolved.agent, overrides);
-  });
-  // The complete required parent set is recorded before any
-  // launch: every job capture carries it, so a gate failure on an
-  // early job still leaves the full sibling set on disk for
-  // inspection, and acceptance can require the whole set.
-  const parentAttempts = jobs.map((job) => attemptFor(header.request_id, job.order));
-  const parentUnits = [...new Set(jobs.flatMap((job) => job.units.map((unit) => unit.unit_id)))].sort();
-  const parentSet: ParentRetrySet = { request_id: header.request_id, attempts: parentAttempts, units: parentUnits };
-  const bridge = ctx.mcpBridge === undefined ? defaultMcpBridge() : ctx.mcpBridge;
-  const planned: {
-    job: PlannedJob;
-    attempt: string;
-    attemptDir: string;
-    jobUnits: ResolvedUnit[];
-    issued: ReturnType<typeof issueJobHandles>;
-    prompt: string;
-    capture: CaptureRecord;
-  }[] = [];
+  return sources;
+}
+
+/**
+ * Freeze every planned job attempt: snapshot sources, snapshot
+ * context, read the fence, write the capture, and index its units.
+ */
+async function planExecutionJobs(
+  root: string,
+  header: RequestHeader,
+  jobs: PlannedJob[],
+  byId: Map<string, ResolvedUnit>,
+  mode: string,
+  refineFiles: { path: string; content: string }[],
+  instruction: string | null,
+  sources: { path: string; content: string }[],
+  scope: CapturedScope,
+  parentSet: ParentRetrySet,
+  context: CaptureUnitState[],
+  now: () => number,
+  ctx: ControlContext,
+): Promise<PlannedEntry[]> {
+  const planned: PlannedEntry[] = [];
   for (const job of jobs) {
     const attempt = attemptFor(header.request_id, job.order);
     const attemptDir = join(root, ATTEMPTS_DIR, attempt);
@@ -2127,6 +2150,174 @@ async function executeCaptured(
     ctx.onEvent?.(`job-${String(job.order)}-planned`, `attempt ${JSON.stringify(attempt)} captures ${String(jobUnits.length)} units`);
     planned.push({ job, attempt, attemptDir, jobUnits, issued, prompt, capture });
   }
+  return planned;
+}
+
+/** Refuse when Given preparation left incomplete candidates behind. */
+function assertGivenJobsComplete(givenJobs: ExecutedJob[]): void {
+  if (givenJobs.some((prior) => !prior.complete || prior.outcome.state !== "candidate")) {
+    const summaries = givenJobs.slice(0, 16).map(prior => {
+      const detail = prior.outcome.detail.replace(/Bearer\s+[^\s"']+/gi, "Bearer [redacted]")
+        .replace(/sk-[A-Za-z0-9_-]+/g, "[redacted]")
+        .replace(/https?:\/\/[^\s"']+/g, "[native endpoint]").slice(0, 1024);
+      return `${prior.attempt}: ${prior.outcome.state}, exit=${prior.outcome.exit}, tries=${prior.outcome.tries}, complete=${prior.complete}; ${detail}`;
+    });
+    throw new ControlError(EXIT_VALIDATION, "given-preparation-incomplete", `Given preparation did not reach complete candidates; dependent frontend jobs remain planned and every current output is preserved.\n${summaries.join("\n")}`, ["inspect the named Given attempts, then resend corrected work with a new request id"]);
+  }
+}
+
+/** Render the validated Given preparation as appended job context. */
+async function buildGivenContextLines(
+  givenScope: PromotionUnit[],
+  givenPreparation: { unit_id: string; fingerprint: string }[],
+): Promise<string> {
+  const lines = ["", "## Checked Given preparation (candidate schema; not promoted)", JSON.stringify(givenPreparation)];
+  for (const prepared of givenScope) {
+    lines.push(`### Unit ${prepared.unit_id} (${prepared.record.source.kind}; ${prepared.record.source.label ?? "inline"})`);
+    if (prepared.replacements.length === 0) {
+      const contribution = join(prepared.attemptDir, SNAPSHOT_DIR, GENERATED_DIR, prepared.unit_id, "contributions.can");
+      if (await fileExists(contribution)) lines.push("```can", await readFile(contribution, "utf8"), "```");
+    }
+    for (const replacement of prepared.replacements) {
+      if (replacement.path === "contributions.can" && replacement.bytes !== null) {
+        lines.push("```can", Buffer.from(replacement.bytes).toString("utf8"), "```");
+      }
+    }
+  }
+  return lines.join("\n");
+}
+
+/**
+ * Validate Given preparation before the first frontend job and share
+ * it with every frontend recipe. Returns null when no Given work
+ * exists; otherwise the preparation plus the current prompt.
+ */
+async function ensureGivenPreparation(
+  ctx: ControlContext,
+  header: RequestHeader,
+  root: string,
+  entry: PlannedEntry,
+  planned: PlannedEntry[],
+  executed: ExecutedJob[],
+  byId: Map<string, ResolvedUnit>,
+  context: CaptureUnitState[],
+): Promise<{ preparation: { unit_id: string; fingerprint: string }[]; prompt: string; scopeSize: number } | null> {
+  const givenJobs = executed.filter((prior) => prior.units.some((id) => byId.get(id)?.category === "given"));
+  const retainedGiven: PromotionUnit[] = [];
+  for (const unit of context.filter(unit => unit.category === "given")) {
+    retainedGiven.push({ unit_id: unit.unit_id, record: parseUnitRecord(unit.record_json!, unit.unit_id), capture: entry.capture, attemptDir: entry.attemptDir, replacements: [], origins: [] });
+  }
+  if (givenJobs.length > 0 || retainedGiven.length > 0) {
+    assertGivenJobsComplete(givenJobs);
+    const givenScope = [...(givenJobs.length === 0 ? [] : await promotionScopeFromAttempts(root, givenJobs.map((prior) => prior.attemptDir))), ...retainedGiven];
+    const preparation = await validateCandidateSet(ctx, header, root, givenScope);
+    const checkedContext = await buildGivenContextLines(givenScope, preparation);
+    // Every frontend recipe consumes the same validated Given output set.
+    // Persist it in the existing capture/MCP instructions before launch.
+    for (const frontend of planned.filter((candidate) => candidate.jobUnits.some((unit) => unit.category === "frontend"))) {
+      frontend.prompt += checkedContext;
+      frontend.capture.instructions = frontend.prompt;
+      await writeFile(join(frontend.attemptDir, CAPTURE_FILE), `${JSON.stringify(frontend.capture, null, 2)}\n`);
+    }
+    ctx.onEvent?.("given-prepared", `${String(givenScope.length)} Given candidate units validated before frontend generation`);
+    return { preparation, prompt: entry.prompt, scopeSize: givenScope.length };
+  }
+  return null;
+}
+
+/** Launch one planned job through its recipe with the control context. */
+async function launchPlannedJob(
+  ctx: ControlContext,
+  header: RequestHeader,
+  root: string,
+  scope: CapturedScope,
+  mode: string,
+  job: PlannedJob,
+  jobUnits: ResolvedUnit[],
+  issued: ReturnType<typeof issueJobHandles>,
+  prompt: string,
+  attemptDir: string,
+  bridge: McpBridge | null,
+  givenPreparation: { unit_id: string; fingerprint: string }[],
+  now: () => number,
+): Promise<RequestOutcome> {
+  return executeJob({
+    request_id: `${header.request_id}.job${String(job.order)}`,
+    input: { operation: header.operation, mode, capture: scope.digest, job: job.order, units: jobUnits.map((unit) => unit.unit_id), given_preparation: givenPreparation },
+    recipe: job.recipe,
+    source_digest: scope.digest,
+    allowed: issued.allowed,
+    prompt,
+    snapshotDir: join(attemptDir, SNAPSHOT_DIR),
+    attemptDir,
+    stateDir: join(root, ".can/gen"),
+    required: issued.required,
+    mcpBridge: bridge,
+    ...(ctx.registry === undefined ? {} : { registry: ctx.registry }),
+    now,
+    ...(ctx.codexHome === undefined ? {} : { codexHome: ctx.codexHome }),
+    ...(ctx.profileName === undefined ? {} : { profileName: ctx.profileName }),
+    ...(ctx.preflight === undefined ? {} : { preflight: ctx.preflight }),
+    ...(ctx.resolveExecutable === undefined ? {} : { resolveExecutable: ctx.resolveExecutable }),
+    onEvent: (phase, detail) => ctx.onEvent?.(`job-${String(job.order)}-${phase}`, detail),
+    ...(ctx.onSession === undefined ? {} : { onSession: ctx.onSession }),
+  });
+}
+
+/** Execute every planned job for one captured scope. */
+async function executeCaptured(
+  ctx: ControlContext,
+  header: RequestHeader,
+  root: string,
+  scope: CapturedScope,
+  mode: string,
+  recipeParams: {
+    settings?: string;
+    profile?: string;
+    runner?: string;
+    model?: string;
+    max_attempts?: number;
+    timeout_seconds?: number;
+    native?: Record<string, string | number | boolean>;
+  },
+  refineFiles: { path: string; content: string }[],
+  instruction: string | null,
+): Promise<ExecutedJob[]> {
+  const now = ctx.now ?? Date.now;
+  if (scope.units.length === 0) return [];
+  const loaded = await loadSettings(root, recipeParams.settings);
+  const overrides = overridesOf(recipeParams);
+  const context = (scope.context ?? []).map(contextState);
+  const byId = new Map([...scope.units, ...(scope.context ?? [])].map((unit) => [unit.unit_id, unit]));
+  const sources = await readExecutionSources(root, scope);
+  const closure: ActiveClosure = {
+    app_id: root,
+    root,
+    source_digest: scope.digest,
+    units: scope.units.map((unit) => ({
+      unit_id: unit.unit_id,
+      kind: unit.kind,
+      category: unit.category,
+      prompt: unit.prompt,
+      agent: unit.agent,
+    })),
+  };
+  const jobs = buildRetryJobs(closure, (unit: CaptureUnit) => {
+    const resolved = byId.get(unit.unit_id);
+    if (resolved === undefined) {
+      throw new ControlError(EXIT_INVALID, "unknown-unit", `planned unit ${JSON.stringify(unit.unit_id)} left the capture`);
+    }
+    return resolveRecipe(loaded, resolved.category, resolved.agent, overrides);
+  });
+  // The complete required parent set is recorded before any
+  // launch: every job capture carries it, so a gate failure on an
+  // early job still leaves the full sibling set on disk for
+  // inspection, and acceptance can require the whole set.
+  const parentAttempts = jobs.map((job) => attemptFor(header.request_id, job.order));
+  const parentUnits = [...new Set(jobs.flatMap((job) => job.units.map((unit) => unit.unit_id)))].sort();
+  const parentSet: ParentRetrySet = { request_id: header.request_id, attempts: parentAttempts, units: parentUnits };
+  const bridge = ctx.mcpBridge === undefined ? defaultMcpBridge() : ctx.mcpBridge;
+  const planned = await planExecutionJobs(root, header, jobs, byId, mode, refineFiles, instruction, sources, scope, parentSet, context, now, ctx);
   const executed: ExecutedJob[] = [];
   let givenPreparation: { unit_id: string; fingerprint: string }[] = [];
   let givenPrepared = false;
@@ -2134,70 +2325,14 @@ async function executeCaptured(
     const { job, attempt, attemptDir, jobUnits, issued, capture } = entry;
     let prompt = entry.prompt;
     if (jobUnits.some((unit) => unit.category === "frontend") && !givenPrepared) {
-      const givenJobs = executed.filter((prior) => prior.units.some((id) => byId.get(id)?.category === "given"));
-      const retainedGiven: PromotionUnit[] = [];
-      for (const unit of context.filter(unit => unit.category === "given")) {
-        retainedGiven.push({ unit_id: unit.unit_id, record: parseUnitRecord(unit.record_json!, unit.unit_id), capture, attemptDir, replacements: [], origins: [] });
-      }
-      if (givenJobs.length > 0 || retainedGiven.length > 0) {
-        if (givenJobs.some((prior) => !prior.complete || prior.outcome.state !== "candidate")) {
-          const summaries = givenJobs.slice(0, 16).map(prior => {
-            const detail = prior.outcome.detail.replace(/Bearer\s+[^\s"']+/gi, "Bearer [redacted]")
-              .replace(/sk-[A-Za-z0-9_-]+/g, "[redacted]")
-              .replace(/https?:\/\/[^\s"']+/g, "[native endpoint]").slice(0, 1024);
-            return `${prior.attempt}: ${prior.outcome.state}, exit=${prior.outcome.exit}, tries=${prior.outcome.tries}, complete=${prior.complete}; ${detail}`;
-          });
-          throw new ControlError(EXIT_VALIDATION, "given-preparation-incomplete", `Given preparation did not reach complete candidates; dependent frontend jobs remain planned and every current output is preserved.\n${summaries.join("\n")}`, ["inspect the named Given attempts, then resend corrected work with a new request id"]);
-        }
-        const givenScope = [...(givenJobs.length === 0 ? [] : await promotionScopeFromAttempts(root, givenJobs.map((prior) => prior.attemptDir))), ...retainedGiven];
-        givenPreparation = await validateCandidateSet(ctx, header, root, givenScope);
-        const lines = ["", "## Checked Given preparation (candidate schema; not promoted)", JSON.stringify(givenPreparation)];
-        for (const prepared of givenScope) {
-          lines.push(`### Unit ${prepared.unit_id} (${prepared.record.source.kind}; ${prepared.record.source.label ?? "inline"})`);
-          if (prepared.replacements.length === 0) {
-            const contribution = join(prepared.attemptDir, SNAPSHOT_DIR, GENERATED_DIR, prepared.unit_id, "contributions.can");
-            if (await fileExists(contribution)) lines.push("```can", await readFile(contribution, "utf8"), "```");
-          }
-          for (const replacement of prepared.replacements) {
-            if (replacement.path === "contributions.can" && replacement.bytes !== null) {
-              lines.push("```can", Buffer.from(replacement.bytes).toString("utf8"), "```");
-            }
-          }
-        }
-        const checkedContext = lines.join("\n");
-        // Every frontend recipe consumes the same validated Given output set.
-        // Persist it in the existing capture/MCP instructions before launch.
-        for (const frontend of planned.filter((candidate) => candidate.jobUnits.some((unit) => unit.category === "frontend"))) {
-          frontend.prompt += checkedContext;
-          frontend.capture.instructions = frontend.prompt;
-          await writeFile(join(frontend.attemptDir, CAPTURE_FILE), `${JSON.stringify(frontend.capture, null, 2)}\n`);
-        }
-        prompt = entry.prompt;
-        ctx.onEvent?.("given-prepared", `${String(givenScope.length)} Given candidate units validated before frontend generation`);
+      const prepared = await ensureGivenPreparation(ctx, header, root, entry, planned, executed, byId, context);
+      if (prepared !== null) {
+        givenPreparation = prepared.preparation;
+        prompt = prepared.prompt;
       }
       givenPrepared = true;
     }
-    const outcome = await executeJob({
-      request_id: `${header.request_id}.job${String(job.order)}`,
-      input: { operation: header.operation, mode, capture: scope.digest, job: job.order, units: jobUnits.map((unit) => unit.unit_id), given_preparation: givenPreparation },
-      recipe: job.recipe,
-      source_digest: scope.digest,
-      allowed: issued.allowed,
-      prompt,
-      snapshotDir: join(attemptDir, SNAPSHOT_DIR),
-      attemptDir,
-      stateDir: join(root, ".can/gen"),
-      required: issued.required,
-      mcpBridge: bridge,
-      ...(ctx.registry === undefined ? {} : { registry: ctx.registry }),
-      now,
-      ...(ctx.codexHome === undefined ? {} : { codexHome: ctx.codexHome }),
-      ...(ctx.profileName === undefined ? {} : { profileName: ctx.profileName }),
-      ...(ctx.preflight === undefined ? {} : { preflight: ctx.preflight }),
-      ...(ctx.resolveExecutable === undefined ? {} : { resolveExecutable: ctx.resolveExecutable }),
-      onEvent: (phase, detail) => ctx.onEvent?.(`job-${String(job.order)}-${phase}`, detail),
-      ...(ctx.onSession === undefined ? {} : { onSession: ctx.onSession }),
-    });
+    const outcome = await launchPlannedJob(ctx, header, root, scope, mode, job, jobUnits, issued, prompt, attemptDir, bridge, givenPreparation, now);
     const inventory = await readCandidateInventory(join(attemptDir, CANDIDATES_DIR));
     const complete = missingHandles(capture, inventory, null).length === 0;
     for (const unit of jobUnits) {
@@ -2623,6 +2758,174 @@ function promotionRecordBytes(
  * bytes plus owning sources, nothing else. Any failure preserves
  * every candidate and current file.
  */
+/** Index every capture snapshot file backing the validation overlay. */
+async function collectSourceSnapshots(
+  root: string,
+  scope: PromotionUnit[],
+): Promise<Map<string, string>> {
+  const sourceSnapshots = new Map<string, string>();
+  for (const entry of scope) {
+    const manifest = await readJsonFile(join(entry.attemptDir, SNAPSHOT_DIR, "manifest.json"));
+    if (!Array.isArray(manifest)) continue; // Older capture shapes retain their existing validation behavior.
+    for (const file of manifest) {
+      if (!isRecord(file) || typeof file["file"] !== "string" || typeof file["stored"] !== "string") continue;
+      const snapshot = resolve(entry.attemptDir, SNAPSHOT_DIR);
+      const stored = resolve(snapshot, file["stored"]);
+      if (relative(snapshot, stored).startsWith("..")) throw new ControlError(EXIT_INVALID, "invalid-path", "captured source leaves its snapshot");
+      sourceSnapshots.set(scopeAbs(root, file["file"]), stored);
+    }
+  }
+  return sourceSnapshots;
+}
+
+/** Copy frozen context groups and capture sources into the scratch overlay. */
+async function copyValidationSources(
+  root: string,
+  scratch: string,
+  scope: PromotionUnit[],
+  sourceSnapshots: Map<string, string>,
+  copied: Set<string>,
+  copiedSources: Set<string>,
+): Promise<void> {
+  for (const entry of scope) {
+    for (const unit of entry.capture.context_units ?? []) {
+      if (copied.has(unit.unit_id)) continue;
+      await cp(join(entry.attemptDir, SNAPSHOT_DIR, GENERATED_DIR, unit.unit_id), join(scratch, GENERATED_DIR, unit.unit_id), { recursive: true });
+      copied.add(unit.unit_id);
+    }
+    for (const file of entry.capture.files) {
+      const sourceAbs = scopeAbs(root, file);
+      const sourceRel = relative(resolve(root), sourceAbs);
+      if (sourceRel.length === 0 || sourceRel.startsWith("..")) continue;
+      if (copiedSources.has(sourceRel)) continue;
+      const bytes = await readFile(sourceSnapshots.get(sourceAbs) ?? sourceAbs);
+      const revision = entry.capture.source_revisions[sourceAbs];
+      if (revision !== undefined && sha256HexBytes(bytes) !== revision) throw new ControlError(EXIT_CONFLICT, "source-changed", `source ${JSON.stringify(file)} differs from its capture; recapture before validation`);
+      await mkdir(dirname(join(scratch, sourceRel)), { recursive: true });
+      await writeFile(join(scratch, sourceRel), bytes);
+      copiedSources.add(sourceRel);
+    }
+  }
+}
+
+/** Materialize current groups plus candidate replacements in the overlay. */
+async function applyValidationReplacements(
+  root: string,
+  scratch: string,
+  scope: PromotionUnit[],
+  copied: Set<string>,
+): Promise<void> {
+  for (const entry of scope) {
+    const groupDir = join(root, GENERATED_DIR, entry.unit_id);
+    const scratchGroup = join(scratch, GENERATED_DIR, entry.unit_id);
+    if (entry.replacements.length === 0 && copied.has(entry.unit_id)) {
+      // Retained Given validation consumes the frozen dependency snapshot.
+    } else if (await fileExists(groupDir)) {
+      await cp(groupDir, scratchGroup, { recursive: true });
+    } else {
+      await mkdir(scratchGroup, { recursive: true });
+    }
+    // Match journal publication: remove only explicitly deleted files before
+    // writing additions, pruning empty parents for file/directory transitions.
+    const orderedReplacements = [...entry.replacements.filter(replacement => replacement.bytes === null),
+      ...entry.replacements.filter(replacement => replacement.bytes !== null)];
+    for (const replacement of orderedReplacements) {
+      const target = join(scratchGroup, ...replacement.path.split("/"));
+      if (relative(scratchGroup, target).startsWith("..")) {
+        throw new ControlError(EXIT_INVALID, "invalid-path", `replacement ${JSON.stringify(replacement.path)} escapes its unit`);
+      }
+      if (replacement.bytes === null) {
+        await rm(target, { force: true });
+        for (let parent = dirname(target); parent !== scratchGroup; parent = dirname(parent)) {
+          try { await rmdir(parent); }
+          catch (error) {
+            const code = (error as NodeJS.ErrnoException).code;
+            if (code === "ENOTEMPTY" || code === "EEXIST" || code === "ENOTDIR") break;
+            if (code !== "ENOENT") throw error;
+          }
+        }
+      } else {
+        await mkdir(dirname(target), { recursive: true });
+        await writeFile(target, replacement.bytes);
+      }
+    }
+    copied.add(entry.unit_id);
+  }
+}
+
+/** Validate every scope unit through the compiler in the scratch overlay. */
+async function validateScratchUnits(
+  ctx: ControlContext,
+  header: RequestHeader,
+  scratch: string,
+  scope: PromotionUnit[],
+): Promise<{ unit_id: string; fingerprint: string }[]> {
+  const validated: { unit_id: string; fingerprint: string }[] = [];
+  const failures: string[] = [];
+  for (const entry of scope) {
+    const result = await compilerRequest(ctx, {
+      version: 1,
+      request_id: `${header.request_id}.validate`,
+      operation: "validate",
+      root: scratch,
+      unit_id: entry.unit_id,
+    });
+    if (result.code !== EXIT_OK || result.body["ok"] !== true) {
+      const failure = compilerFailure("validate", result);
+      failures.push(`${entry.unit_id}: [${failure.code}] ${failure.detail}`);
+      continue;
+    }
+    const fingerprint = result.body["fingerprint"];
+    validated.push({
+      unit_id: entry.unit_id,
+      fingerprint: typeof fingerprint === "string" ? fingerprint : "",
+    });
+  }
+  if (failures.length > 0) {
+    throw new ControlError(
+      EXIT_VALIDATION,
+      "validation-failure",
+      `the candidate set did not validate:\n${failures.join("\n")}\nCandidates and current files are preserved.`,
+      ["inspect the failures, repair or regenerate with a new request id, then resend accept"],
+    );
+  }
+  return validated;
+}
+
+/**
+ * Compile/test the frozen overlay for acceptance, never temporarily
+ * replacing current outputs. Records the checked interface bytes on
+ * the scope for promotion to compare.
+ */
+async function runAcceptanceChecks(
+  ctx: ControlContext,
+  header: RequestHeader,
+  root: string,
+  scratch: string,
+  scope: PromotionUnit[],
+  copied: Set<string>,
+  copiedSources: Set<string>,
+): Promise<void> {
+  // The preparation-only Given pass above deliberately remains static: its
+  // frontend siblings do not exist until the next generation job completes.
+  const before = await candidateInputDigest(scratch, copiedSources);
+  const checkedDeclarations: Record<string, string | null> = {};
+  for (const unit of copied) {
+    const path = join(scratch, GENERATED_DIR, unit, "declaration.json");
+    checkedDeclarations[unit] = await fileExists(path) ? sha256HexBytes(await readFile(path)) : null;
+  }
+  await (ctx.appAcceptance ?? runAppAcceptance)({ root, candidateRoot: scratch,
+    files: [...new Set(scope.map(entry => relative(resolve(root), scopeAbs(root, entry.record.source.path))))],
+    compiler: defaultCompilerPath(), reportDir: join(root, ".can/gen/checks", runFor("run", header.request_id)),
+    ...(ctx.workspace === undefined ? {} : { workspace: ctx.workspace }),
+    ...(ctx.onEvent === undefined ? {} : { onEvent: ctx.onEvent }),
+  });
+  if (await candidateInputDigest(scratch, copiedSources) !== before) {
+    throw new AppAcceptanceError("inputs", "candidate inputs changed during checks; current outputs are unchanged");
+  }
+  if (scope[0] !== undefined) scope[0].checkedDeclarations = checkedDeclarations;
+}
+
 async function validateCandidateSet(
   ctx: ControlContext,
   header: RequestHeader,
@@ -2635,74 +2938,10 @@ async function validateCandidateSet(
   const scratch = await mkdtemp(join(root, VALIDATE_DIR, "set-"));
   try {
     const copied = new Set<string>();
-    const sourceSnapshots = new Map<string, string>();
-    for (const entry of scope) {
-      const manifest = await readJsonFile(join(entry.attemptDir, SNAPSHOT_DIR, "manifest.json"));
-      if (!Array.isArray(manifest)) continue; // Older capture shapes retain their existing validation behavior.
-      for (const file of manifest) {
-        if (!isRecord(file) || typeof file["file"] !== "string" || typeof file["stored"] !== "string") continue;
-        const snapshot = resolve(entry.attemptDir, SNAPSHOT_DIR);
-        const stored = resolve(snapshot, file["stored"]);
-        if (relative(snapshot, stored).startsWith("..")) throw new ControlError(EXIT_INVALID, "invalid-path", "captured source leaves its snapshot");
-        sourceSnapshots.set(scopeAbs(root, file["file"]), stored);
-      }
-    }
+    const sourceSnapshots = await collectSourceSnapshots(root, scope);
     const copiedSources = new Set<string>();
-    for (const entry of scope) {
-      for (const unit of entry.capture.context_units ?? []) {
-        if (copied.has(unit.unit_id)) continue;
-        await cp(join(entry.attemptDir, SNAPSHOT_DIR, GENERATED_DIR, unit.unit_id), join(scratch, GENERATED_DIR, unit.unit_id), { recursive: true });
-        copied.add(unit.unit_id);
-      }
-      for (const file of entry.capture.files) {
-        const sourceAbs = scopeAbs(root, file);
-        const sourceRel = relative(resolve(root), sourceAbs);
-        if (sourceRel.length === 0 || sourceRel.startsWith("..")) continue;
-        if (copiedSources.has(sourceRel)) continue;
-        const bytes = await readFile(sourceSnapshots.get(sourceAbs) ?? sourceAbs);
-        const revision = entry.capture.source_revisions[sourceAbs];
-        if (revision !== undefined && sha256HexBytes(bytes) !== revision) throw new ControlError(EXIT_CONFLICT, "source-changed", `source ${JSON.stringify(file)} differs from its capture; recapture before validation`);
-        await mkdir(dirname(join(scratch, sourceRel)), { recursive: true });
-        await writeFile(join(scratch, sourceRel), bytes);
-        copiedSources.add(sourceRel);
-      }
-    }
-    for (const entry of scope) {
-      const groupDir = join(root, GENERATED_DIR, entry.unit_id);
-      const scratchGroup = join(scratch, GENERATED_DIR, entry.unit_id);
-      if (entry.replacements.length === 0 && copied.has(entry.unit_id)) {
-        // Retained Given validation consumes the frozen dependency snapshot.
-      } else if (await fileExists(groupDir)) {
-        await cp(groupDir, scratchGroup, { recursive: true });
-      } else {
-        await mkdir(scratchGroup, { recursive: true });
-      }
-      // Match journal publication: remove only explicitly deleted files before
-      // writing additions, pruning empty parents for file/directory transitions.
-      const orderedReplacements = [...entry.replacements.filter(replacement => replacement.bytes === null),
-        ...entry.replacements.filter(replacement => replacement.bytes !== null)];
-      for (const replacement of orderedReplacements) {
-        const target = join(scratchGroup, ...replacement.path.split("/"));
-        if (relative(scratchGroup, target).startsWith("..")) {
-          throw new ControlError(EXIT_INVALID, "invalid-path", `replacement ${JSON.stringify(replacement.path)} escapes its unit`);
-        }
-        if (replacement.bytes === null) {
-          await rm(target, { force: true });
-          for (let parent = dirname(target); parent !== scratchGroup; parent = dirname(parent)) {
-            try { await rmdir(parent); }
-            catch (error) {
-              const code = (error as NodeJS.ErrnoException).code;
-              if (code === "ENOTEMPTY" || code === "EEXIST" || code === "ENOTDIR") break;
-              if (code !== "ENOENT") throw error;
-            }
-          }
-        } else {
-          await mkdir(dirname(target), { recursive: true });
-          await writeFile(target, replacement.bytes);
-        }
-      }
-      copied.add(entry.unit_id);
-    }
+    await copyValidationSources(root, scratch, scope, sourceSnapshots, copied, copiedSources);
+    await applyValidationReplacements(root, scratch, scope, copied);
     // Every copied group, including readonly context dependencies, must
     // resolve its owner through the scratch source closure rather than live files.
     for (const unit_id of copied) {
@@ -2715,55 +2954,10 @@ async function validateCandidateSet(
         await writeFile(recordPath, `${JSON.stringify(record, null, 2)}\n`);
       }
     }
-    const validated: { unit_id: string; fingerprint: string }[] = [];
-    const failures: string[] = [];
-    for (const entry of scope) {
-      const result = await compilerRequest(ctx, {
-        version: 1,
-        request_id: `${header.request_id}.validate`,
-        operation: "validate",
-        root: scratch,
-        unit_id: entry.unit_id,
-      });
-      if (result.code !== EXIT_OK || result.body["ok"] !== true) {
-        const failure = compilerFailure("validate", result);
-        failures.push(`${entry.unit_id}: [${failure.code}] ${failure.detail}`);
-        continue;
-      }
-      const fingerprint = result.body["fingerprint"];
-      validated.push({
-        unit_id: entry.unit_id,
-        fingerprint: typeof fingerprint === "string" ? fingerprint : "",
-      });
-    }
-    if (failures.length > 0) {
-      throw new ControlError(
-        EXIT_VALIDATION,
-        "validation-failure",
-        `the candidate set did not validate:\n${failures.join("\n")}\nCandidates and current files are preserved.`,
-        ["inspect the failures, repair or regenerate with a new request id, then resend accept"],
-      );
-    }
+    const validated = await validateScratchUnits(ctx, header, scratch, scope);
     if (acceptance) {
       // Compile/test the frozen overlay, never temporarily replace current outputs.
-      // The preparation-only Given pass above deliberately remains static: its
-      // frontend siblings do not exist until the next generation job completes.
-      const before = await candidateInputDigest(scratch, copiedSources);
-      const checkedDeclarations: Record<string, string | null> = {};
-      for (const unit of copied) {
-        const path = join(scratch, GENERATED_DIR, unit, "declaration.json");
-        checkedDeclarations[unit] = await fileExists(path) ? sha256HexBytes(await readFile(path)) : null;
-      }
-      await (ctx.appAcceptance ?? runAppAcceptance)({ root, candidateRoot: scratch,
-        files: [...new Set(scope.map(entry => relative(resolve(root), scopeAbs(root, entry.record.source.path))))],
-        compiler: defaultCompilerPath(), reportDir: join(root, ".can/gen/checks", runFor("run", header.request_id)),
-        ...(ctx.workspace === undefined ? {} : { workspace: ctx.workspace }),
-        ...(ctx.onEvent === undefined ? {} : { onEvent: ctx.onEvent }),
-      });
-      if (await candidateInputDigest(scratch, copiedSources) !== before) {
-        throw new AppAcceptanceError("inputs", "candidate inputs changed during checks; current outputs are unchanged");
-      }
-      if (scope[0] !== undefined) scope[0].checkedDeclarations = checkedDeclarations;
+      await runAcceptanceChecks(ctx, header, root, scratch, scope, copied, copiedSources);
     }
     return validated;
   } finally {
@@ -2790,22 +2984,8 @@ async function candidateInputDigest(scratch: string, sources: Set<string>): Prom
 /** Acceptance marker inside an attempt dir (explicit, never inferred). */
 export const ACCEPTED_FILE = "accepted.json";
 
-/**
- * Promote one validated scope through one coordinated run journal:
- * refuse overlapping unresolved journals, hold the scope write
- * leases, compare the complete captured source/current/fence
- * closure, stage/commit/apply, then fence the consumed attempts.
- * Conflicts preserve every candidate and current file.
- */
-async function promoteSet(
-  root: string,
-  header: RequestHeader,
-  scope: PromotionUnit[],
-  runId: string,
-  _reason: string,
-  ctx: ControlContext,
-): Promise<{ run: string; files: number }> {
-  const scopeIds = [...new Set(scope.map((entry) => entry.unit_id))].sort();
+/** Refuse when an unresolved run journal overlaps the scope. */
+async function assertNoOverlappingJournal(root: string, scopeIds: string[]): Promise<void> {
   for (const run of await unresolvedJournals(root)) {
     let journal: { scope: string[] };
     try {
@@ -2823,6 +3003,14 @@ async function promoteSet(
       );
     }
   }
+}
+
+/** Collect scope write leases plus readonly context dependencies. */
+async function collectPromoteLeases(
+  root: string,
+  scope: PromotionUnit[],
+  scopeIds: string[],
+): Promise<{ leasePaths: string[]; context: Map<string, CaptureUnitState> }> {
   const leasePaths: string[] = [];
   for (const entry of scope) {
     for (const unit of Object.keys(entry.checkedDeclarations ?? {})) {
@@ -2847,128 +3035,182 @@ async function promoteSet(
     context.set(unit.unit_id, unit);
     for (const path of Object.keys(unit.current ?? {})) leasePaths.push(`${GENERATED_DIR}/${unit.unit_id}/${path}`);
   }
+  return { leasePaths, context };
+}
+
+/**
+ * Fence first: late, cancelled, reset, or already-accepted attempts
+ * refuse before any byte comparison. Declarations reconciled before
+ * validation must not change while app checks run.
+ */
+async function assertPromoteFences(root: string, scope: PromotionUnit[]): Promise<void> {
+  for (const entry of scope) {
+    for (const [unit, checked] of Object.entries(entry.checkedDeclarations ?? {})) {
+      const path = join(root, GENERATED_DIR, unit, "declaration.json");
+      const observed = await fileExists(path) ? sha256HexBytes(await readFile(path)) : null;
+      if (observed !== checked) throw new ControlError(EXIT_CONFLICT, "interface-changed",
+        `saved interface ${JSON.stringify(unit)} changed during app checks; candidates and current files are preserved`);
+    }
+    const live = await readFence(entry.attemptDir);
+    if (live !== entry.capture.fence) {
+      throw new ControlError(
+        EXIT_CONFLICT,
+        "attempt-fenced",
+        `attempt ${JSON.stringify(entry.capture.attempt)} was fenced (${String(entry.capture.fence)} -> ${String(live)}); late results cannot promote`,
+        ["inspect the fenced attempt, then retry or refine with a new request id"],
+      );
+    }
+  }
+}
+
+/**
+ * Compare the complete captured source/current closure: unit bytes,
+ * semantic records, readonly context, and source revisions. Any
+ * participating edit, newer acceptance, or foreign write refuses.
+ */
+async function assertPromoteClosure(
+  root: string,
+  scope: PromotionUnit[],
+  context: Map<string, CaptureUnitState>,
+): Promise<void> {
+  // Current bytes: any participating edit, newer acceptance, or
+  // foreign write since capture refuses. unit.json compares
+  // semantically (association drift conflicts; adopt bookkeeping
+  // is tolerated and overwritten by the promotion record), and
+  // declaration.json is validated in-scratch but never compared
+  // (promotion never overwrites it, so newer declarations survive).
+  for (const entry of scope) {
+    const unitState = entry.capture.units.find((state) => state.unit_id === entry.unit_id);
+    if (unitState === undefined) {
+      throw new ControlError(
+        EXIT_CONFLICT,
+        "current-changed",
+        `unit ${JSON.stringify(entry.unit_id)} left its capture; the candidate is preserved`,
+        ["diff the candidate against the newer current group, then retry or refine with a new request id"],
+      );
+    }
+    const observed = await currentGroupMap(root, entry.unit_id);
+    const mismatch = compareGroupMaps(unitState.current, observed);
+    if (mismatch !== null) {
+      throw new ControlError(
+        EXIT_CONFLICT,
+        "current-changed",
+        `unit ${JSON.stringify(entry.unit_id)} changed since capture (${mismatch}); the candidate is preserved and newer work is untouched`,
+        ["diff the candidate against the newer current group, then retry or refine with a new request id"],
+      );
+    }
+    const recordMismatch = await compareRecordSemantics(root, unitState);
+    if (recordMismatch !== null) {
+      throw new ControlError(
+        EXIT_CONFLICT,
+        "association-changed",
+        `unit ${JSON.stringify(entry.unit_id)} association changed since capture (${recordMismatch}); the candidate is preserved`,
+        ["send a status request to inspect the unit, then bind and resend with a new request id"],
+      );
+    }
+  }
+  for (const unit of context.values()) {
+    const mismatch = compareGroupMaps(unit.current, await currentGroupMap(root, unit.unit_id));
+    if (mismatch !== null || await compareRecordSemantics(root, unit) !== null) {
+      throw new ControlError(EXIT_CONFLICT, "context-changed", `saved dependency ${JSON.stringify(unit.unit_id)} changed since capture; candidates and current files are preserved`, ["recapture with a new request id before accepting"]);
+    }
+  }
+  // Source revisions: any source change since capture refuses.
+  for (const entry of scope) {
+    for (const [file, revision] of Object.entries(entry.capture.source_revisions)) {
+      let current: string;
+      try {
+        current = sha256HexText(await readFile(scopeAbs(root, file), "utf8"));
+      } catch {
+        throw new ControlError(
+          EXIT_CONFLICT,
+          "source-changed",
+          `scope source ${JSON.stringify(file)} is unreadable; the candidate is preserved`,
+          ["restore the source, then retry or refine with a new request id"],
+        );
+      }
+      if (current !== revision) {
+        throw new ControlError(
+          EXIT_CONFLICT,
+          "source-changed",
+          `scope source ${JSON.stringify(file)} changed since capture; the candidate is preserved and newer work is untouched`,
+          ["diff the candidate against the newer current group, then retry or refine with a new request id"],
+        );
+      }
+    }
+  }
+}
+
+/**
+ * Stage/commit one coordinated run journal, then fence the consumed
+ * attempts and mark their index entries accepted.
+ */
+async function commitAndFencePromotion(
+  root: string,
+  scope: PromotionUnit[],
+  scopeIds: string[],
+  runId: string,
+  _reason: string,
+): Promise<{ run: string; files: number }> {
+  const replacements: Replacement[] = scope.flatMap((entry) => entry.replacements);
+  // Submitted handles are patches; they do not declare that omitted
+  // authored interfaces, helper modules or assets should disappear.
+  // Rollback, by contrast, restores the complete historical membership.
+  await stageJournal(root, runId, scopeIds, replacements, _reason === "rollback" ? "replace" : "patch");
+  const committed = await commitJournal(root, runId);
+  if (committed.kind === "conflict") {
+    const files = committed.mismatches.map((entry) => `${entry.unit}:${entry.path}`).join(", ");
+    throw new ControlError(
+      EXIT_CONFLICT,
+      "promotion-conflict",
+      `promotion observed unexpected bytes at ${files}; evidence is retained at ${committed.conflictPath}`,
+      ["send a lease.recover request to recover the run journal, then resend accept with a new request id"],
+    );
+  }
+  const now = Date.now();
+  const attemptDirs = [...new Set(scope.map((entry) => entry.attemptDir))];
+  for (const attemptDir of attemptDirs) {
+    await advanceFence(attemptDir, `accepted ${runId}`, () => now);
+    const units = scope.filter((entry) => entry.attemptDir === attemptDir).map((entry) => entry.unit_id);
+    await writeFile(
+      join(attemptDir, ACCEPTED_FILE),
+      `${JSON.stringify({ run: runId, units, at: new Date(now).toISOString() }, null, 2)}\n`,
+    );
+    for (const unit of units) {
+      const entries = await readUnitIndex(root, unit);
+      for (const index of entries.filter((candidate) => candidate.attempt === basename(attemptDir))) {
+        await writeUnitIndex(root, { ...index, accepted: true });
+      }
+    }
+  }
+  return { run: runId, files: committed.files };
+}
+
+/**
+ * Promote one validated scope through one coordinated run journal:
+ * refuse overlapping unresolved journals, hold the scope write
+ * leases, compare the complete captured source/current/fence
+ * closure, stage/commit/apply, then fence the consumed attempts.
+ * Conflicts preserve every candidate and current file.
+ */
+async function promoteSet(
+  root: string,
+  header: RequestHeader,
+  scope: PromotionUnit[],
+  runId: string,
+  _reason: string,
+  ctx: ControlContext,
+): Promise<{ run: string; files: number }> {
+  const scopeIds = [...new Set(scope.map((entry) => entry.unit_id))].sort();
+  await assertNoOverlappingJournal(root, scopeIds);
+  const { leasePaths, context } = await collectPromoteLeases(root, scope, scopeIds);
   const leases = await acquire(root, leasePaths, "write", `gen-accept:${header.request_id}`);
   try {
     await preflightSavedBindings(ctx, header, root, scope);
-    // Fence first: late, cancelled, reset, or already-accepted
-    // attempts refuse before any byte comparison.
-    for (const entry of scope) {
-      // Declarations may be reconciled before validation, but must not change
-      // while app checks run: otherwise promotion would activate untested code.
-      for (const [unit, checked] of Object.entries(entry.checkedDeclarations ?? {})) {
-        const path = join(root, GENERATED_DIR, unit, "declaration.json");
-        const observed = await fileExists(path) ? sha256HexBytes(await readFile(path)) : null;
-        if (observed !== checked) throw new ControlError(EXIT_CONFLICT, "interface-changed",
-          `saved interface ${JSON.stringify(unit)} changed during app checks; candidates and current files are preserved`);
-      }
-      const live = await readFence(entry.attemptDir);
-      if (live !== entry.capture.fence) {
-        throw new ControlError(
-          EXIT_CONFLICT,
-          "attempt-fenced",
-          `attempt ${JSON.stringify(entry.capture.attempt)} was fenced (${String(entry.capture.fence)} -> ${String(live)}); late results cannot promote`,
-          ["inspect the fenced attempt, then retry or refine with a new request id"],
-        );
-      }
-    }
-    // Current bytes: any participating edit, newer acceptance, or
-    // foreign write since capture refuses. unit.json compares
-    // semantically (association drift conflicts; adopt bookkeeping
-    // is tolerated and overwritten by the promotion record), and
-    // declaration.json is validated in-scratch but never compared
-    // (promotion never overwrites it, so newer declarations survive).
-    for (const entry of scope) {
-      const unitState = entry.capture.units.find((state) => state.unit_id === entry.unit_id);
-      if (unitState === undefined) {
-        throw new ControlError(
-          EXIT_CONFLICT,
-          "current-changed",
-          `unit ${JSON.stringify(entry.unit_id)} left its capture; the candidate is preserved`,
-          ["diff the candidate against the newer current group, then retry or refine with a new request id"],
-        );
-      }
-      const observed = await currentGroupMap(root, entry.unit_id);
-      const mismatch = compareGroupMaps(unitState.current, observed);
-      if (mismatch !== null) {
-        throw new ControlError(
-          EXIT_CONFLICT,
-          "current-changed",
-          `unit ${JSON.stringify(entry.unit_id)} changed since capture (${mismatch}); the candidate is preserved and newer work is untouched`,
-          ["diff the candidate against the newer current group, then retry or refine with a new request id"],
-        );
-      }
-      const recordMismatch = await compareRecordSemantics(root, unitState);
-      if (recordMismatch !== null) {
-        throw new ControlError(
-          EXIT_CONFLICT,
-          "association-changed",
-          `unit ${JSON.stringify(entry.unit_id)} association changed since capture (${recordMismatch}); the candidate is preserved`,
-          ["send a status request to inspect the unit, then bind and resend with a new request id"],
-        );
-      }
-    }
-    for (const unit of context.values()) {
-      const mismatch = compareGroupMaps(unit.current, await currentGroupMap(root, unit.unit_id));
-      if (mismatch !== null || await compareRecordSemantics(root, unit) !== null) {
-        throw new ControlError(EXIT_CONFLICT, "context-changed", `saved dependency ${JSON.stringify(unit.unit_id)} changed since capture; candidates and current files are preserved`, ["recapture with a new request id before accepting"]);
-      }
-    }
-    // Source revisions: any source change since capture refuses.
-    for (const entry of scope) {
-      for (const [file, revision] of Object.entries(entry.capture.source_revisions)) {
-        let current: string;
-        try {
-          current = sha256HexText(await readFile(scopeAbs(root, file), "utf8"));
-        } catch {
-          throw new ControlError(
-            EXIT_CONFLICT,
-            "source-changed",
-            `scope source ${JSON.stringify(file)} is unreadable; the candidate is preserved`,
-            ["restore the source, then retry or refine with a new request id"],
-          );
-        }
-        if (current !== revision) {
-          throw new ControlError(
-            EXIT_CONFLICT,
-            "source-changed",
-            `scope source ${JSON.stringify(file)} changed since capture; the candidate is preserved and newer work is untouched`,
-            ["diff the candidate against the newer current group, then retry or refine with a new request id"],
-          );
-        }
-      }
-    }
-    const replacements: Replacement[] = scope.flatMap((entry) => entry.replacements);
-    // Submitted handles are patches; they do not declare that omitted
-    // authored interfaces, helper modules or assets should disappear.
-    // Rollback, by contrast, restores the complete historical membership.
-    await stageJournal(root, runId, scopeIds, replacements, _reason === "rollback" ? "replace" : "patch");
-    const committed = await commitJournal(root, runId);
-    if (committed.kind === "conflict") {
-      const files = committed.mismatches.map((entry) => `${entry.unit}:${entry.path}`).join(", ");
-      throw new ControlError(
-        EXIT_CONFLICT,
-        "promotion-conflict",
-        `promotion observed unexpected bytes at ${files}; evidence is retained at ${committed.conflictPath}`,
-        ["send a lease.recover request to recover the run journal, then resend accept with a new request id"],
-      );
-    }
-    const now = Date.now();
-    const attemptDirs = [...new Set(scope.map((entry) => entry.attemptDir))];
-    for (const attemptDir of attemptDirs) {
-      await advanceFence(attemptDir, `accepted ${runId}`, () => now);
-      const units = scope.filter((entry) => entry.attemptDir === attemptDir).map((entry) => entry.unit_id);
-      await writeFile(
-        join(attemptDir, ACCEPTED_FILE),
-        `${JSON.stringify({ run: runId, units, at: new Date(now).toISOString() }, null, 2)}\n`,
-      );
-      for (const unit of units) {
-        const entries = await readUnitIndex(root, unit);
-        for (const index of entries.filter((candidate) => candidate.attempt === basename(attemptDir))) {
-          await writeUnitIndex(root, { ...index, accepted: true });
-        }
-      }
-    }
-    return { run: runId, files: committed.files };
+    // Fence first, then the full closure comparison.
+    await assertPromoteFences(root, scope);
+    await assertPromoteClosure(root, scope, context);
+    return await commitAndFencePromotion(root, scope, scopeIds, runId, _reason);
   } finally {
     await release(root, leases);
   }
@@ -3335,30 +3577,20 @@ async function runAdopt(
 }
 
 /**
- * `resume`: continue a specific recorded runner session when the
- * adapter supports it and the capture is still applicable. Changed
- * captures, fenced attempts, and unrecorded sessions refuse.
+ * Refuse when the recorded capture no longer matches live sources
+ * or unit intents. Source revisions refuse before the compiler is
+ * consulted; prompt/contract drift refuses after.
  */
-async function runResume(
-  header: RequestHeader,
-  params: ResumeParams,
+async function assertResumeCaptureApplicable(
   ctx: ControlContext,
-): Promise<ControlResult> {
-  const now = ctx.now ?? Date.now;
-  const attempts = await scanAttempts(params.root);
-  const recorded = attempts.find((attempt) => attempt.record?.session === params.session_id) ?? null;
-  if (recorded === null || recorded.capture === null) {
-    throw new ControlError(EXIT_INVALID, "unknown-session", `no recorded session ${JSON.stringify(params.session_id)}`, [
-      "send a status request to list attempts with candidates",
-    ]);
-  }
-  const capture = recorded.capture;
-  // Applicability first, locally: any source revision drift refuses
-  // before the compiler is even consulted.
+  header: RequestHeader,
+  root: string,
+  capture: CaptureRecord,
+): Promise<void> {
   for (const [file, revision] of Object.entries(capture.source_revisions)) {
     let current: string;
     try {
-      current = sha256HexText(await readFile(scopeAbs(params.root, file), "utf8"));
+      current = sha256HexText(await readFile(scopeAbs(root, file), "utf8"));
     } catch {
       throw new ControlError(
         EXIT_CONFLICT,
@@ -3376,8 +3608,7 @@ async function runResume(
       );
     }
   }
-  // Then the unit intents: any prompt/contract drift refuses.
-  const status = await compilerStatus(ctx, header.request_id, params.root, capture.files);
+  const status = await compilerStatus(ctx, header.request_id, root, capture.files);
   assertResolvableStatus(status);
   const live = new Map(status.filter((entry) => entry.id !== null).map((entry) => [entry.id as string, entry]));
   for (const unit of capture.units) {
@@ -3399,6 +3630,29 @@ async function runResume(
       );
     }
   }
+}
+
+/**
+ * `resume`: continue a specific recorded runner session when the
+ * adapter supports it and the capture is still applicable. Changed
+ * captures, fenced attempts, and unrecorded sessions refuse.
+ */
+async function runResume(
+  header: RequestHeader,
+  params: ResumeParams,
+  ctx: ControlContext,
+): Promise<ControlResult> {
+  const now = ctx.now ?? Date.now;
+  const attempts = await scanAttempts(params.root);
+  const recorded = attempts.find((attempt) => attempt.record?.session === params.session_id) ?? null;
+  if (recorded === null || recorded.capture === null) {
+    throw new ControlError(EXIT_INVALID, "unknown-session", `no recorded session ${JSON.stringify(params.session_id)}`, [
+      "send a status request to list attempts with candidates",
+    ]);
+  }
+  const capture = recorded.capture;
+  // Applicability first, locally, then unit intents through the compiler.
+  await assertResumeCaptureApplicable(ctx, header, params.root, capture);
   const attempt = `${attemptFor(header.request_id, 0)}.rs`;
   const attemptDir = join(params.root, ATTEMPTS_DIR, attempt);
   const allowed: AllowedTarget[] = Object.entries(capture.handles).map(([handle, issued]) => ({
@@ -3949,6 +4203,24 @@ async function runEditBegin(
   };
 }
 
+/** Release one lock file when it carries the edit token; null when it does not. */
+async function releaseEditLockEntry(
+  root: string,
+  name: string,
+  token: string,
+): Promise<{ rel: string; mode: string; holder: string } | null> {
+  if (!safeEntry(name) || !name.endsWith(".lock")) return null;
+  const parsed = await readJsonFile(join(root, LOCKS_DIR, name));
+  if (!isRecord(parsed)) return null;
+  if (parsed["token"] !== token) return null;
+  const rel = typeof parsed["path"] === "string" ? (parsed["path"] as string) : null;
+  const mode = parsed["mode"] === "read" || parsed["mode"] === "write" ? (parsed["mode"] as string) : null;
+  const holder = typeof parsed["holder"] === "string" ? (parsed["holder"] as string) : null;
+  if (rel === null || mode === null || holder === null) return null;
+  await release(root, { holder, token, mode: mode as "read" | "write", paths: [rel] });
+  return { rel, mode, holder };
+}
+
 /**
  * `edit.end`: release every lock held under one token. Unknown
  * tokens refuse; the releasing request id supersedes so a resend
@@ -3984,16 +4256,8 @@ async function runEditEnd(
   }
   const released: { rel: string; mode: string; holder: string }[] = [];
   for (const name of names.sort()) {
-    if (!safeEntry(name) || !name.endsWith(".lock")) continue;
-    const parsed = await readJsonFile(join(root, LOCKS_DIR, name));
-    if (!isRecord(parsed)) continue;
-    if (parsed["token"] !== token) continue;
-    const rel = typeof parsed["path"] === "string" ? (parsed["path"] as string) : null;
-    const mode = parsed["mode"] === "read" || parsed["mode"] === "write" ? (parsed["mode"] as string) : null;
-    const holder = typeof parsed["holder"] === "string" ? (parsed["holder"] as string) : null;
-    if (rel === null || mode === null || holder === null) continue;
-    await release(root, { holder, token, mode: mode as "read" | "write", paths: [rel] });
-    released.push({ rel, mode, holder });
+    const entry = await releaseEditLockEntry(root, name, token);
+    if (entry !== null) released.push(entry);
   }
   if (released.length === 0) {
     throw new ControlError(EXIT_INVALID, "unknown-token", "the token holds no lease", [
@@ -4278,6 +4542,66 @@ function textLines(bytes: Uint8Array): string[] | null {
   return text.split("\n");
 }
 
+/** Decode one hunk file pair; null when either side is binary. */
+function decodeHunkLines(
+  oldBytes: Uint8Array | null,
+  newBytes: Uint8Array,
+): { oldList: string[]; newLines: string[] } | null {
+  const oldLines = oldBytes === null ? [] : textLines(oldBytes);
+  const newLines = textLines(newBytes);
+  if ((oldBytes !== null && oldLines === null) || newLines === null) return null;
+  return { oldList: oldLines ?? [], newLines };
+}
+
+/** Extend one hunk window over near-equal ops with bounded lookahead. */
+function hunkWindowEnd(ops: DiffOp[], index: number, context: number): number {
+  let end = index;
+  while (end < ops.length && (ops[end]?.op !== "equal" || end - index < context * 2 + 1)) {
+    end += 1;
+    if (ops[end]?.op === "equal") {
+      let lookahead = end;
+      while (lookahead < ops.length && ops[lookahead]?.op === "equal" && lookahead - end < context * 2) {
+        lookahead += 1;
+      }
+      if (lookahead - end >= context * 2 || lookahead >= ops.length) {
+        end += context;
+        break;
+      }
+      end = lookahead;
+    }
+  }
+  return Math.min(ops.length, end + context);
+}
+
+/** Render one hunk slice into unified lines plus its counts. */
+function renderHunkSlice(
+  slice: DiffOp[],
+  emitted: number,
+  maxLines: number,
+): { oldStart: number; newStart: number; oldCount: number; newCount: number; lines: string[]; emitted: number } {
+  const oldStart = (slice[0]?.oldIndex ?? 0) + 1;
+  const newStart = (slice[0]?.newIndex ?? 0) + 1;
+  let oldCount = 0;
+  let newCount = 0;
+  const lines: string[] = [];
+  for (const op of slice) {
+    if (emitted >= maxLines) break;
+    if (op.op === "equal") {
+      lines.push(` ${op.text}`);
+      oldCount += 1;
+      newCount += 1;
+    } else if (op.op === "delete") {
+      lines.push(`-${op.text}`);
+      oldCount += 1;
+    } else {
+      lines.push(`+${op.text}`);
+      newCount += 1;
+    }
+    emitted += 1;
+  }
+  return { oldStart, newStart, oldCount, newCount, lines, emitted };
+}
+
 /**
  * Bounded unified hunks for one file pair. Binary pairs report no
  * hunks; large diffs truncate with explicit flags. Line-oriented
@@ -4287,13 +4611,11 @@ export function textHunks(
   oldBytes: Uint8Array | null,
   newBytes: Uint8Array,
 ): { hunks: unknown[]; truncated: boolean; binary: boolean } {
-  const oldLines = oldBytes === null ? [] : textLines(oldBytes);
-  const newLines = textLines(newBytes);
-  if ((oldBytes !== null && oldLines === null) || newLines === null) {
+  const decoded = decodeHunkLines(oldBytes, newBytes);
+  if (decoded === null) {
     return { hunks: [], truncated: false, binary: true };
   }
-  const oldList = oldLines ?? [];
-  const ops = myersDiff(oldList, newLines);
+  const ops = myersDiff(decoded.oldList, decoded.newLines);
   const hunks: unknown[] = [];
   const context = 3;
   const maxHunks = 50;
@@ -4306,44 +4628,10 @@ export function textHunks(
       continue;
     }
     const start = Math.max(0, index - context);
-    let end = index;
-    while (end < ops.length && (ops[end]?.op !== "equal" || end - index < context * 2 + 1)) {
-      end += 1;
-      if (ops[end]?.op === "equal") {
-        let lookahead = end;
-        while (lookahead < ops.length && ops[lookahead]?.op === "equal" && lookahead - end < context * 2) {
-          lookahead += 1;
-        }
-        if (lookahead - end >= context * 2 || lookahead >= ops.length) {
-          end += context;
-          break;
-        }
-        end = lookahead;
-      }
-    }
-    end = Math.min(ops.length, end + context);
-    const slice = ops.slice(start, end);
-    const oldStart = (slice[0]?.oldIndex ?? 0) + 1;
-    const newStart = (slice[0]?.newIndex ?? 0) + 1;
-    let oldCount = 0;
-    let newCount = 0;
-    const lines: string[] = [];
-    for (const op of slice) {
-      if (emitted >= maxLines) break;
-      if (op.op === "equal") {
-        lines.push(` ${op.text}`);
-        oldCount += 1;
-        newCount += 1;
-      } else if (op.op === "delete") {
-        lines.push(`-${op.text}`);
-        oldCount += 1;
-      } else {
-        lines.push(`+${op.text}`);
-        newCount += 1;
-      }
-      emitted += 1;
-    }
-    hunks.push({ old_start: oldStart, old_lines: oldCount, new_start: newStart, new_lines: newCount, lines });
+    const end = hunkWindowEnd(ops, index, context);
+    const rendered = renderHunkSlice(ops.slice(start, end), emitted, maxLines);
+    emitted = rendered.emitted;
+    hunks.push({ old_start: rendered.oldStart, old_lines: rendered.oldCount, new_start: rendered.newStart, new_lines: rendered.newCount, lines: rendered.lines });
     index = end;
   }
   return { hunks, truncated: index < ops.length || emitted >= maxLines, binary: false };
@@ -4354,6 +4642,52 @@ interface DiffOp {
   text: string;
   oldIndex: number;
   newIndex: number;
+}
+
+/** Walk one Myers trace backwards into edit operations. */
+function myersBacktrack(
+  oldLines: string[],
+  newLines: string[],
+  trace: number[][],
+  offset: number,
+  n: number,
+  m: number,
+  found: number | null,
+  max: number,
+): DiffOp[] {
+  const ops: DiffOp[] = [];
+  let x = n;
+  let y = m;
+  for (let d = found ?? max; d > 0; d -= 1) {
+    const prev = trace[d - 1] as number[];
+    const k = x - y;
+    let prevK: number;
+    if (k === -d || (k !== d && (prev[offset + k - 1] as number) < (prev[offset + k + 1] as number))) {
+      prevK = k + 1;
+    } else {
+      prevK = k - 1;
+    }
+    const prevX = prev[offset + prevK] as number;
+    const prevY = prevX - prevK;
+    while (x > prevX && y > prevY) {
+      x -= 1;
+      y -= 1;
+      ops.push({ op: "equal", text: oldLines[x] as string, oldIndex: x, newIndex: y });
+    }
+    if (x === prevX) {
+      y -= 1;
+      ops.push({ op: "insert", text: newLines[y] as string, oldIndex: x, newIndex: y });
+    } else {
+      x -= 1;
+      ops.push({ op: "delete", text: oldLines[x] as string, oldIndex: x, newIndex: y });
+    }
+  }
+  while (x > 0 && y > 0) {
+    x -= 1;
+    y -= 1;
+    ops.push({ op: "equal", text: oldLines[x] as string, oldIndex: x, newIndex: y });
+  }
+  return ops.reverse();
 }
 
 /** Myers O(ND) line diff with a bounded fallback to delete-all/insert-all. */
@@ -4403,39 +4737,7 @@ function myersDiff(oldLines: string[], newLines: string[]): DiffOp[] {
     trace.push([...v]);
     if (found !== null) break;
   }
-  const ops: DiffOp[] = [];
-  let x = n;
-  let y = m;
-  for (let d = found ?? max; d > 0; d -= 1) {
-    const prev = trace[d - 1] as number[];
-    const k = x - y;
-    let prevK: number;
-    if (k === -d || (k !== d && (prev[offset + k - 1] as number) < (prev[offset + k + 1] as number))) {
-      prevK = k + 1;
-    } else {
-      prevK = k - 1;
-    }
-    const prevX = prev[offset + prevK] as number;
-    const prevY = prevX - prevK;
-    while (x > prevX && y > prevY) {
-      x -= 1;
-      y -= 1;
-      ops.push({ op: "equal", text: oldLines[x] as string, oldIndex: x, newIndex: y });
-    }
-    if (x === prevX) {
-      y -= 1;
-      ops.push({ op: "insert", text: newLines[y] as string, oldIndex: x, newIndex: y });
-    } else {
-      x -= 1;
-      ops.push({ op: "delete", text: oldLines[x] as string, oldIndex: x, newIndex: y });
-    }
-  }
-  while (x > 0 && y > 0) {
-    x -= 1;
-    y -= 1;
-    ops.push({ op: "equal", text: oldLines[x] as string, oldIndex: x, newIndex: y });
-  }
-  return ops.reverse();
+  return myersBacktrack(oldLines, newLines, trace, offset, n, m, found, max);
 }
 
 

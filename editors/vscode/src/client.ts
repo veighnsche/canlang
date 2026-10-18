@@ -501,6 +501,55 @@ function isValidPosition(value: unknown): value is LspPosition {
   );
 }
 
+function vsSeverity(severity: Json): vscode.DiagnosticSeverity | undefined {
+  return severity === 1
+    ? vscodeApi.DiagnosticSeverity.Error
+    : severity === 2
+      ? vscodeApi.DiagnosticSeverity.Warning
+      : severity === 3
+        ? vscodeApi.DiagnosticSeverity.Information
+        : severity === 4
+          ? vscodeApi.DiagnosticSeverity.Hint
+          : undefined;
+}
+
+/**
+ * Convert one wire diagnostic item. Returns null to drop the item; reports
+ * a malformed range through `logMalformed` instead of throwing inside the
+ * frame loop.
+ */
+function toVsDiagnostic(
+  item: Json,
+  logMalformed: (range: unknown) => void,
+): vscode.Diagnostic | null {
+  if (!isRecord(item)) {
+    return null;
+  }
+  const range = item['range'] as { start?: unknown; end?: unknown } | undefined;
+  const message = item['message'];
+  if (!range || typeof message !== 'string') {
+    return null;
+  }
+  // Never let a malformed range throw inside the frame loop: drop and
+  // log the item instead.
+  if (!isValidPosition(range.start) || !isValidPosition(range.end)) {
+    logMalformed(item['range']);
+    return null;
+  }
+  const code = item['code'];
+  const source = item['source'];
+  return {
+    range: new vscodeApi.Range(
+      new vscodeApi.Position(range.start.line, range.start.character),
+      new vscodeApi.Position(range.end.line, range.end.character),
+    ),
+    message,
+    severity: vsSeverity(item['severity']),
+    code: typeof code === 'string' || typeof code === 'number' ? code : undefined,
+    source: typeof source === 'string' ? source : undefined,
+  };
+}
+
 /**
  * Take the leading `length` UTF-8 bytes of `text` (a JS string is UTF-16
  * units, so byte counting must walk scalars, not `slice` by length).
@@ -1142,45 +1191,14 @@ export class CanLanguageClient {
     }
     const converted: vscode.Diagnostic[] = [];
     for (const item of list) {
-      if (!isRecord(item)) {
-        continue;
-      }
-      const record = item as unknown as { [key: string]: unknown };
-      const range = record['range'] as { start?: unknown; end?: unknown } | undefined;
-      const message = record['message'];
-      if (!range || typeof message !== 'string') {
-        continue;
-      }
-      // Never let a malformed range throw inside the frame loop: drop and
-      // log the item instead.
-      if (!isValidPosition(range.start) || !isValidPosition(range.end)) {
+      const diagnostic = toVsDiagnostic(item, (range) => {
         this.channel.appendLine(
-          `dropping diagnostic with malformed range: ${JSON.stringify(record['range'])}`,
+          `dropping diagnostic with malformed range: ${JSON.stringify(range)}`,
         );
-        continue;
-      }
-      const severity = record['severity'];
-      const code = record['code'];
-      const source = record['source'];
-      converted.push({
-        range: new vscodeApi.Range(
-          new vscodeApi.Position(range.start.line, range.start.character),
-          new vscodeApi.Position(range.end.line, range.end.character),
-        ),
-        message,
-        severity:
-          severity === 1
-            ? vscodeApi.DiagnosticSeverity.Error
-            : severity === 2
-              ? vscodeApi.DiagnosticSeverity.Warning
-              : severity === 3
-                ? vscodeApi.DiagnosticSeverity.Information
-                : severity === 4
-                  ? vscodeApi.DiagnosticSeverity.Hint
-                  : undefined,
-        code: typeof code === 'string' || typeof code === 'number' ? code : undefined,
-        source: typeof source === 'string' ? source : undefined,
       });
+      if (diagnostic !== null) {
+        converted.push(diagnostic);
+      }
     }
     this.diagnostics.set(vscodeApi.Uri.parse(uri), converted);
   }

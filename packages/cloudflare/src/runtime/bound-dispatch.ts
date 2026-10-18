@@ -1,5 +1,5 @@
 /** Installed provider dispatch over the existing Work lifecycle and State join. */
-import type { ClaimId, OutboxId, OutboxIntent, ReceiptResultContext, StoragePort, RecordId, ModelName, AssociatedReceipt, StoredRow, RetainedOutboxIntent, FileReferenceStoragePort } from '@canlang/contracts';
+import type { ClaimId, OutboxId, OutboxIntent, ReceiptResultContext, StoragePort, RecordId, ModelName, AssociatedReceipt, StoredRow, RetainedOutboxIntent, FileReferenceStoragePort, FrameworkOpaquePayloadOrigin, FrameworkOpaqueDeliveryContext } from '@canlang/contracts';
 import type { DispatchClaimGuard, DispatchClaimGuardInput } from '@canlang/work/kernel/commands';
 import { createReceiptJoinPort, RECEIPT_MODEL, RECEIPT_ASSOCIATION_MODEL, readAssociationRow, withAssociationRowData, readReceiptRow, withReceiptRowData, associationRowId } from '@canlang/state/receipt/tables';
 import { readFinalizedFileObservation } from '@canlang/files/finalize';
@@ -11,7 +11,7 @@ import { enrollSystemCommandCommitCheck, systemCommandStageRevision } from '@can
 import type { SystemCommandDef } from '@canlang/state/ports/system';
 import { dispatchByStateQuery, WORK_DISPATCH_MODEL, readDispatchRow, readDispatchImageCorrelation,
   DISPATCH_IMAGE_CORRELATION_FIELDS, readDispatchImageControlPin, readDispatchMailRecipientPin, dispatchGenerationTargetProfile,
-  type DispatchImageCorrelation, type DispatchRowData } from '@canlang/work/kernel/tables';
+  type DispatchImageCorrelation, type DispatchRowData, type DispatchGenerationTargetProfile } from '@canlang/work/kernel/tables';
 import { deriveOutboxId } from '@canlang/work/intent';
 import { assembleDispatchCommands } from '../worker/assembly.js';
 import type { BoundMailAdapter } from './bound-mail.js';
@@ -62,36 +62,58 @@ async function lookupRetainedGenerationDispatch(input: {
 }): Promise<RetainedImagesDispatchLookup> {
   const requested = readDispatchImageCorrelation(input.correlation as unknown as Readonly<Record<string, unknown>>);
   if (requested === null) return { status: 'invalid' };
-  const pinnedRow = input.originalIntentId === undefined ? null : await input.store.load(WORK_DISPATCH_MODEL, input.originalIntentId as RecordId);
-  const rows = input.originalIntentId === undefined ? await input.store.query({ model: WORK_DISPATCH_MODEL, authority: 'owner',
-    where: { op: 'and', args: [
-      { op: 'eq', field: 'source', value: input.originalSource },
-      ...DISPATCH_IMAGE_CORRELATION_FIELDS.map(field => ({ op: 'eq' as const, field, value: requested[field] })),
-    ] }, order: [{ field: 'id', direction: 'asc' }], limit: 2 }) : pinnedRow === null ? [] : [pinnedRow];
-  if (rows.length === 0) return { status: 'absent' };
-  if (rows.length > 1) return { status: 'ambiguous' };
-  const row = rows[0]!;
-  try {
+  const fetchDispatchRows = async () => {
+    if (input.originalIntentId !== undefined) {
+      const pinnedRow = await input.store.load(WORK_DISPATCH_MODEL, input.originalIntentId as RecordId);
+      return pinnedRow === null ? [] : [pinnedRow];
+    }
+    return input.store.query({ model: WORK_DISPATCH_MODEL, authority: 'owner',
+      where: { op: 'and', args: [
+        { op: 'eq', field: 'source', value: input.originalSource },
+        ...DISPATCH_IMAGE_CORRELATION_FIELDS.map(field => ({ op: 'eq' as const, field, value: requested[field] })),
+      ] }, order: [{ field: 'id', direction: 'asc' }], limit: 2 });
+  };
+  const checkDispatchIdentity = (row: StoredRow) => {
     const dispatch = readDispatchRow(row);
     if ((input.originalIntentId !== undefined && row.id !== input.originalIntentId) || row.id !== dispatch.intentId || dispatch.source !== input.originalSource ||
         DISPATCH_IMAGE_CORRELATION_FIELDS.some(field => dispatch[field] !== requested[field]) ||
         row.archivedAt !== null || typeof row.createdBy !== 'string' || row.createdBy === '' ||
-        !Number.isSafeInteger(row.created) || row.created < 0) return { status: 'invalid' };
-    const retained = await input.store.outboxGet(dispatch.intentId);
-    if (retained === null || !['pending', 'dispatched', 'skipped'].includes(retained.status)) return { status: 'invalid' };
-    const intent = retained.intent;
+        !Number.isSafeInteger(row.created) || row.created < 0) return null;
+    return dispatch;
+  };
+  const checkIntentIdentity = (
+    dispatch: DispatchRowData, intent: OutboxIntent,
+  ): boolean => {
     if (intent.intentId !== dispatch.intentId || intent.target !== dispatch.source ||
         intent.operationId !== dispatch.operationId || intent.occurrenceIndex !== dispatch.occurrenceIndex ||
-        deriveOutboxId(intent.operationId, intent.target, intent.occurrenceIndex) !== intent.intentId) return { status: 'invalid' };
+        deriveOutboxId(intent.operationId, intent.target, intent.occurrenceIndex) !== intent.intentId) return false;
+    return true;
+  };
+  const checkRetainedIntent = async (dispatch: DispatchRowData) => {
+    const retained = await input.store.outboxGet(dispatch.intentId);
+    if (retained === null || !['pending', 'dispatched', 'skipped'].includes(retained.status)) return null;
+    const intent = retained.intent;
+    if (!checkIntentIdentity(dispatch, intent)) return null;
     const carrier = intent.arguments;
     const args = carrier['arguments'];
     if (Object.keys(carrier).length !== 3 || carrier['binding'] !== requested.requestBinding ||
         carrier['from'] !== requested.requestFrom || typeof args !== 'object' || args === null || Array.isArray(args) ||
-        Object.keys(args).length !== 1 || !Object.hasOwn(args, 'value')) return { status: 'invalid' };
+        Object.keys(args).length !== 1 || !Object.hasOwn(args, 'value')) return null;
     const value = (args as Record<string, unknown>)['value'];
     if (typeof value !== 'object' || value === null || Array.isArray(value) ||
         (value as Record<string, unknown>)['source'] !== requested.requestSource ||
-        (value as Record<string, unknown>)['revision'] !== requested.requestRevision) return { status: 'invalid' };
+        (value as Record<string, unknown>)['revision'] !== requested.requestRevision) return null;
+    return retained;
+  };
+  const rows = await fetchDispatchRows();
+  if (rows.length === 0) return { status: 'absent' };
+  if (rows.length > 1) return { status: 'ambiguous' };
+  const row = rows[0]!;
+  try {
+    const dispatch = checkDispatchIdentity(row);
+    if (dispatch === null) return { status: 'invalid' };
+    const retained = await checkRetainedIntent(dispatch);
+    if (retained === null) return { status: 'invalid' };
     return { status: 'resolved', row, dispatch, retained, principal: row.createdBy };
   } catch { return { status: 'invalid' }; }
 }
@@ -257,9 +279,7 @@ async function readCurrentGenerationAssociation(original: ResolvedGenerationOrig
   return row;
 }
 
-async function createInstalledDispatcher(
-  options: InstalledDispatcherOptions,
-): Promise<BoundMailDispatcher> {
+const resolveDispatcherProfile = (options: InstalledDispatcherOptions) => {
   const rich = options.profile === 'text' || options.profile === 'images';
   const textControls = options.profile === 'text' && hasTextControlEntries(options.adapter) ? options.adapter : null;
   const controlAdapter = options.profile === 'images' ? options.adapter : textControls;
@@ -269,6 +289,14 @@ async function createInstalledDispatcher(
     ? readRetainedImageGenerationReceipt : readRetainedTextGenerationReceipt;
   const readRetainedEvidence = options.profile === 'images'
     ? readRetainedImageGenerationEvidence : readRetainedTextGenerationEvidence;
+  return { rich, textControls, controlAdapter, typed, progressed, readRetainedReceipt, readRetainedEvidence };
+};
+
+async function createInstalledDispatcher(
+  options: InstalledDispatcherOptions,
+): Promise<BoundMailDispatcher> {
+  const { rich, textControls, controlAdapter, typed, progressed, readRetainedReceipt, readRetainedEvidence } =
+    resolveDispatcherProfile(options);
   const progressFiles = new Map<string, { readonly json: string;
     readonly files: FrameworkFilePayloadOriginInput['files']; readonly current: () => boolean | Promise<boolean>; consumed: boolean }>();
   const stageRichProgress = async (input: { intent: OutboxIntent; context: ReceiptResultContext; revision: number;
@@ -294,76 +322,102 @@ async function createInstalledDispatcher(
     }
     const physical = options.fileOriginStore, origin = binding.origin;
     const expectedRevision = systemCommandStageRevision(ctx);
-    if (physical === undefined || input.revision !== expectedRevision + 1 ||
-        await physical.readRevision() !== expectedRevision ||
-        stableStringify(await physical.load(RECEIPT_MODEL as ModelName, row.id)) !== stableStringify(row) ||
-        origin.kind !== 'delivery-result' || origin.declaration.kind !== 'generation' ||
-        origin.intent.intentId !== input.intent.intentId || origin.intent.operation !== input.intent.operation ||
-        origin.intent.operationId !== input.intent.operationId || origin.intent.target !== input.intent.target ||
-        origin.intent.occurrenceIndex !== input.intent.occurrenceIndex ||
-        input.intent.arguments['binding'] !== origin.request.binding || input.intent.arguments['from'] !== origin.request.from ||
-        origin.declaration.request.source !== input.context.request?.source ||
-        origin.declaration.request.revision !== input.context.request?.revision) {
-      throw new Error('Images progress requires its same original State/request/source fence.');
-    }
-    const dispatchRow = await ctx.load(WORK_DISPATCH_MODEL, input.intent.intentId as RecordId);
-    if (dispatchRow === null) throw new Error('Images progress lost its original Work request.');
-    const dispatch = readDispatchRow(dispatchRow), correlation = readDispatchImageCorrelation(dispatch);
-    const wanted = { requestSource: origin.declaration.request.source, requestRevision: origin.declaration.request.revision,
-      requestBinding: origin.request.binding, requestFrom: origin.request.from,
-      requestApp: binding.scope.app, requestOwner: binding.scope.owner };
-    if (dispatch.intentId !== input.intent.intentId || dispatch.operationId !== input.intent.operationId ||
-        dispatch.source !== input.intent.target || dispatch.occurrenceIndex !== input.intent.occurrenceIndex ||
-        dispatchRow.createdBy !== row.createdBy || stableStringify(correlation) !== stableStringify(wanted)) {
-      throw new Error('Images progress changed its six-field original correlation.');
-    }
-    const association = await ctx.load(RECEIPT_ASSOCIATION_MODEL as ModelName,
-      associationRowId(origin.association.model, origin.association.recordId, origin.association.field) as RecordId);
-    const owner = await ctx.load(origin.association.model, origin.association.recordId);
-    if (association === null || owner === null || owner.archivedAt !== null ||
-        readAssociationRow(association).deliveryId !== input.intent.intentId) {
-      throw new Error('Images progress original association was superseded.');
-    }
-    const delivery = decodeValue(`delivery(${input.intent.target})`, owner.data[origin.association.field]);
-    if (!isDeliveryRef(delivery) || delivery.id !== input.intent.intentId || delivery.operation !== input.intent.target) {
-      throw new Error('Images progress original owner no longer names this attempt.');
-    }
+    const checkStateRequestFence = async () => {
+      if (physical === undefined || input.revision !== expectedRevision + 1 ||
+          await physical.readRevision() !== expectedRevision ||
+          stableStringify(await physical.load(RECEIPT_MODEL as ModelName, row.id)) !== stableStringify(row) ||
+          origin.kind !== 'delivery-result' || origin.declaration.kind !== 'generation' ||
+          origin.intent.intentId !== input.intent.intentId || origin.intent.operation !== input.intent.operation ||
+          origin.intent.operationId !== input.intent.operationId || origin.intent.target !== input.intent.target ||
+          origin.intent.occurrenceIndex !== input.intent.occurrenceIndex ||
+          input.intent.arguments['binding'] !== origin.request.binding || input.intent.arguments['from'] !== origin.request.from ||
+          origin.declaration.request.source !== input.context.request?.source ||
+          origin.declaration.request.revision !== input.context.request?.revision) {
+        throw new Error('Images progress requires its same original State/request/source fence.');
+      }
+      return { origin: origin as FencedImagesOrigin, physical };
+    };
+    type FencedImagesOrigin = Extract<FrameworkOpaquePayloadOrigin, { kind: 'delivery-result' }> & {
+      declaration: Extract<FrameworkOpaqueDeliveryContext, { kind: 'generation' }>;
+    };
+    type ImagesProgressFence = Awaited<ReturnType<typeof checkStateRequestFence>>;
+    const checkWorkCorrelation = async (fence: ImagesProgressFence): Promise<void> => {
+      const dispatchRow = await ctx.load(WORK_DISPATCH_MODEL, input.intent.intentId as RecordId);
+      if (dispatchRow === null) throw new Error('Images progress lost its original Work request.');
+      const dispatch = readDispatchRow(dispatchRow), correlation = readDispatchImageCorrelation(dispatch);
+      const origin = fence.origin;
+      const wanted = { requestSource: origin.declaration.request.source, requestRevision: origin.declaration.request.revision,
+        requestBinding: origin.request.binding, requestFrom: origin.request.from,
+        requestApp: binding.scope.app, requestOwner: binding.scope.owner };
+      if (dispatch.intentId !== input.intent.intentId || dispatch.operationId !== input.intent.operationId ||
+          dispatch.source !== input.intent.target || dispatch.occurrenceIndex !== input.intent.occurrenceIndex ||
+          dispatchRow.createdBy !== row.createdBy || stableStringify(correlation) !== stableStringify(wanted)) {
+        throw new Error('Images progress changed its six-field original correlation.');
+      }
+    };
+    const checkAssociation = async (fence: ImagesProgressFence): Promise<void> => {
+      const origin = fence.origin;
+      const association = await ctx.load(RECEIPT_ASSOCIATION_MODEL as ModelName,
+        associationRowId(origin.association.model, origin.association.recordId, origin.association.field) as RecordId);
+      const owner = await ctx.load(origin.association.model, origin.association.recordId);
+      if (association === null || owner === null || owner.archivedAt !== null ||
+          readAssociationRow(association).deliveryId !== input.intent.intentId) {
+        throw new Error('Images progress original association was superseded.');
+      }
+      const delivery = decodeValue(`delivery(${input.intent.target})`, owner.data[origin.association.field]);
+      if (!isDeliveryRef(delivery) || delivery.id !== input.intent.intentId || delivery.operation !== input.intent.target) {
+        throw new Error('Images progress original owner no longer names this attempt.');
+      }
+    };
+    const checkProgressFiles = (fence: ImagesProgressFence): void => {
+      const origin = fence.origin;
+      if (files.length !== outputCount) throw new Error('Images progress needs every genuine typed File position.');
+      for (let index = 0; index < files.length; index++) {
+        const entry = files[index]!, file = readFinalizedFileObservation(entry.observation);
+        if (file === null || stableStringify(entry.path) !== stableStringify(['outputs', index, 'image']) ||
+            file.ref !== (input.progress as ImageRunWire).outputs[index]!.image.id ||
+            file.receiver.app !== binding.scope.app || file.receiver.team !== binding.scope.owner ||
+            file.receiver.owner !== binding.scope.owner || file.receiver.principal !== row.createdBy ||
+            file.provenance.kind !== 'request' || file.provenance.deliveryId !== input.intent.intentId ||
+            file.provenance.adapter !== origin.request.from) {
+          throw new Error('Images output changed its original physical receiver/provenance or typed position.');
+        }
+      }
+    };
+    const bindReceiptWrites = async (fence: ImagesProgressFence) => {
+      const physical = fence.physical, origin = fence.origin;
+      const writes = [];
+      for (const write of staged.writes ?? []) {
+        if (write.kind !== 'update' || write.model !== RECEIPT_MODEL || write.id !== row.id) {
+          writes.push(write); continue;
+        }
+        const header = await prepareFrameworkFilePayloadOrigin(physical, {
+          expectedRevision, inventoryOwner: binding.inventory.owner, declarationSetId: binding.declarationSetId,
+          model: RECEIPT_MODEL as ModelName, row: write.row, field: 'result', scope: binding.scope,
+          origin, files,
+        });
+        const receipt = readReceiptRow(write.row, input.context);
+        writes.push({ ...write, row: withReceiptRowData(row, { ...receipt.receipt,
+          contentRef: receipt.contentRef, resultExpiresAtMs: receipt.resultExpiresAtMs, filePayloadOrigin: header },
+          { actor: ctx.actor, nowMs: ctx.now }, input.context) });
+      }
+      return writes;
+    };
+    const fence = await checkStateRequestFence();
+    await checkWorkCorrelation(fence);
+    await checkAssociation(fence);
     if ((staged.writes?.length ?? 0) === 0) return staged;
-    if (files.length !== outputCount) throw new Error('Images progress needs every genuine typed File position.');
-    for (let index = 0; index < files.length; index++) {
-      const entry = files[index]!, file = readFinalizedFileObservation(entry.observation);
-      if (file === null || stableStringify(entry.path) !== stableStringify(['outputs', index, 'image']) ||
-          file.ref !== (input.progress as ImageRunWire).outputs[index]!.image.id ||
-          file.receiver.app !== binding.scope.app || file.receiver.team !== binding.scope.owner ||
-          file.receiver.owner !== binding.scope.owner || file.receiver.principal !== row.createdBy ||
-          file.provenance.kind !== 'request' || file.provenance.deliveryId !== input.intent.intentId ||
-          file.provenance.adapter !== origin.request.from) {
-        throw new Error('Images output changed its original physical receiver/provenance or typed position.');
-      }
-    }
-    const writes = [];
-    for (const write of staged.writes ?? []) {
-      if (write.kind !== 'update' || write.model !== RECEIPT_MODEL || write.id !== row.id) {
-        writes.push(write); continue;
-      }
-      const header = await prepareFrameworkFilePayloadOrigin(physical, {
-        expectedRevision, inventoryOwner: binding.inventory.owner, declarationSetId: binding.declarationSetId,
-        model: RECEIPT_MODEL as ModelName, row: write.row, field: 'result', scope: binding.scope,
-        origin, files,
-      });
-      const receipt = readReceiptRow(write.row, input.context);
-      writes.push({ ...write, row: withReceiptRowData(row, { ...receipt.receipt,
-        contentRef: receipt.contentRef, resultExpiresAtMs: receipt.resultExpiresAtMs, filePayloadOrigin: header },
-        { actor: ctx.actor, nowMs: ctx.now }, input.context) });
-    }
+    checkProgressFiles(fence);
+    const writes = await bindReceiptWrites(fence);
     const revalidate = options.adapter.revalidateOutput;
+    const fencePhysical = fence.physical;
     enrollSystemCommandCommitCheck(ctx, async () => {
-      if (options.adapter.revalidateOutput !== revalidate || await physical.readRevision() !== expectedRevision ||
-          stableStringify(await physical.load(RECEIPT_MODEL as ModelName, row.id)) !== stableStringify(row)) return false;
+      if (options.adapter.revalidateOutput !== revalidate || await fencePhysical.readRevision() !== expectedRevision ||
+          stableStringify(await fencePhysical.load(RECEIPT_MODEL as ModelName, row.id)) !== stableStringify(row)) return false;
       for (const entry of files) {
         if (revalidate === undefined || !await revalidate.call(options.adapter, entry.observation)) return false;
       }
-      return options.adapter.revalidateOutput === revalidate && await physical.readRevision() === expectedRevision;
+      return options.adapter.revalidateOutput === revalidate && await fencePhysical.readRevision() === expectedRevision;
     });
     return { ...staged, writes };
   };
@@ -404,6 +458,46 @@ async function createInstalledDispatcher(
   const completions = new Map<string, { intent: OutboxIntent; outcome: DispatchProviderOutcome;
     owner: string;
     progressCommitted?: boolean; retainedEvidence?: DispatchReconcileEvidence; control?: GenerationControlObservation }>();
+  const stageControlCompletion = async (
+    completion: NonNullable<ReturnType<typeof completions.get>>,
+    staged: Awaited<ReturnType<SystemCommandDef['stage']>>, ctx: SystemCommandContext,
+  ) => {
+    const acknowledging = staged.outboxAck?.includes(completion.intent.intentId) === true;
+    if (acknowledging && completion.intent.target.endsWith('.reconcile')) {
+      const admission = completion.control!.admission;
+      enrollSystemCommandCommitCheck(ctx, () => admission.fence.revalidateAuthority());
+    }
+    const extra = await stageGenerationControl(completion.intent, completion.control!, ctx,
+      (await options.store.readRevision()) + 1, acknowledging);
+    return mergeStaging(staged, extra);
+  };
+  const selectRecordedOutcome = (
+    completion: NonNullable<ReturnType<typeof completions.get>>, outcome: Record<string, unknown>,
+  ) => {
+    if (completion.outcome.kind === 'delivered' && outcome['state'] === 'delivered') {
+      return { kind: 'delivered' as const, result: completion.outcome.result };
+    }
+    if (completion.outcome.kind === 'failed' && outcome['state'] === 'failed' &&
+        outcome['retryClass'] === 'terminal' && typeof outcome['errorCode'] === 'string' &&
+        typeof outcome['errorMessage'] === 'string') {
+      return { kind: 'failed' as const, error: { code: outcome['errorCode'], message: outcome['errorMessage'] } };
+    }
+    return null;
+  };
+  const stageCompletionReceipt = async (
+    completion: NonNullable<ReturnType<typeof completions.get>>,
+    selected: NonNullable<ReturnType<typeof selectRecordedOutcome>>, ctx: SystemCommandContext,
+  ) => {
+    const revision = (await options.store.readRevision()) + 1;
+    const receipt = !rich
+      ? await stageReceiptProgress({ intent: completion.intent, outcome: selected, revision,
+        ...(options.profile === 'judgment' ? { context: requireResultContext(completion.intent.intentId) } : {}) }, ctx)
+      : await stageRichProgress({ intent: completion.intent,
+        context: requireResultContext(completion.intent.intentId), revision,
+        ...(progressed === undefined ? {} : { progressed: { producer: progressed, owner: completion.owner } }),
+        ...(selected.kind === 'delivered' ? { progress: selected.result as RichRunWire } : { outcome: selected }) }, ctx);
+    return receipt;
+  };
   const record: SystemCommandDef = {
     name: originalRecord.name,
     async stage(args, ctx) {
@@ -412,14 +506,7 @@ async function createInstalledDispatcher(
       const outcome = args['outcome'];
       if (completion === undefined || typeof outcome !== 'object' || outcome === null) return staged;
       if (completion.control !== undefined) {
-        const acknowledging = staged.outboxAck?.includes(completion.intent.intentId) === true;
-        if (acknowledging && completion.intent.target.endsWith('.reconcile')) {
-          const admission = completion.control.admission;
-          enrollSystemCommandCommitCheck(ctx, () => admission.fence.revalidateAuthority());
-        }
-        const extra = await stageGenerationControl(completion.intent, completion.control, ctx,
-          (await options.store.readRevision()) + 1, acknowledging);
-        return mergeStaging(staged, extra);
+        return stageControlCompletion(completion, staged, ctx);
       }
       if (!staged.outboxAck?.includes(completion.intent.intentId)) return staged;
       if (completion.retainedEvidence !== undefined) {
@@ -433,23 +520,9 @@ async function createInstalledDispatcher(
       // commit. Recording its attempt only acknowledges the same original
       // intent; it must not create a second checkpoint for that sequence.
       if (completion.progressCommitted === true) return staged;
-      const recorded = outcome as Record<string, unknown>;
-      const selected = completion.outcome.kind === 'delivered' && recorded['state'] === 'delivered'
-        ? { kind: 'delivered' as const, result: completion.outcome.result }
-        : completion.outcome.kind === 'failed' && recorded['state'] === 'failed' &&
-          recorded['retryClass'] === 'terminal' && typeof recorded['errorCode'] === 'string' &&
-          typeof recorded['errorMessage'] === 'string'
-        ? { kind: 'failed' as const, error: { code: recorded['errorCode'], message: recorded['errorMessage'] } }
-        : null;
+      const selected = selectRecordedOutcome(completion, outcome as Record<string, unknown>);
       if (selected === null) return staged;
-      const revision = (await options.store.readRevision()) + 1;
-      const receipt = !rich
-        ? await stageReceiptProgress({ intent: completion.intent, outcome: selected, revision,
-          ...(options.profile === 'judgment' ? { context: requireResultContext(completion.intent.intentId) } : {}) }, ctx)
-        : await stageRichProgress({ intent: completion.intent,
-          context: requireResultContext(completion.intent.intentId), revision,
-          ...(progressed === undefined ? {} : { progressed: { producer: progressed, owner: completion.owner } }),
-          ...(selected.kind === 'delivered' ? { progress: selected.result as RichRunWire } : { outcome: selected }) }, ctx);
+      const receipt = await stageCompletionReceipt(completion, selected, ctx);
       return { ...staged, writes: [...(staged.writes ?? []), ...(receipt.writes ?? [])],
         schedules: [...staged.schedules ?? [], ...receipt.schedules ?? []] };
     },
@@ -558,6 +631,46 @@ async function createInstalledDispatcher(
       }
     }
   };
+  const checkControlDurableCorrelation = (
+    control: OutboxIntent, correlation: DispatchImageCorrelation, controlRow: StoredRow,
+  ) => {
+    const controlData = readDispatchRow(controlRow);
+    if (controlData.intentId !== control.intentId || controlData.source !== control.target ||
+        controlData.operationId !== control.operationId || controlData.occurrenceIndex !== control.occurrenceIndex ||
+        deriveOutboxId(control.operationId, control.target, control.occurrenceIndex) !== control.intentId ||
+        typeof controlRow.createdBy !== 'string' || controlRow.createdBy === '' ||
+        !Number.isSafeInteger(controlRow.created) || controlRow.created < 0 ||
+        DISPATCH_IMAGE_CORRELATION_FIELDS.some(field => controlData[field] !== correlation[field])) {
+      throw new Error('Generation control durable correlation disagrees with its admitted request.');
+    }
+    return controlData;
+  };
+  type ResolvedGenerationOriginal = Extract<Awaited<ReturnType<typeof lookupRetainedGenerationDispatch>>, { status: 'resolved' }>;
+  const resolveControlOriginal = async (
+    correlation: DispatchImageCorrelation, pin: ReturnType<typeof readDispatchImageControlPin>,
+    originalSource: DispatchGenerationTargetProfile['originalSource'], pinnedOriginal: string | undefined,
+  ): Promise<ResolvedGenerationOriginal> => {
+    const original = await lookupRetainedGenerationDispatch({ store, correlation, originalSource,
+      ...(pin === null ? {} : { originalIntentId: pin.originalIntentId }) });
+    if (original.status !== 'resolved' || !controlAdapter!.available(original.retained.intent)) {
+      throw new Error(`Generation control original is ${original.status}.`);
+    }
+    if (pinnedOriginal !== undefined && original.retained.intent.intentId !== pinnedOriginal) {
+      throw new Error('Generation control selected original changed before pinning.');
+    }
+    return original;
+  };
+  const readControlReceipt = async (
+    original: ResolvedGenerationOriginal, ctx: SystemCommandContext,
+  ) => {
+    const context = controlAdapter!.resultContext(original.retained.intent);
+    if (context === null) throw new Error('Generation control lost the original request declaration.');
+    resultContexts.set(original.retained.intent.intentId, context);
+    const receipt = await readRetainedReceipt({ intent: original.retained.intent, context }, ctx);
+    if (receipt === null) throw new Error('Generation control original receipt is absent.');
+    await readCurrentGenerationAssociation(original, receipt, ctx);
+    return { receipt, context };
+  };
   const qualifyGenerationControlOnce = async (control: OutboxIntent, admission: GenerationControlAdmission,
     ctx: SystemCommandContext, pinnedOriginal?: string): Promise<GenerationControlObservation> => {
     const profile = dispatchGenerationTargetProfile(control.target);
@@ -574,34 +687,14 @@ async function createInstalledDispatcher(
     if (correlation === null || controlRow === null || controlRow.archivedAt !== null) {
       throw new Error('Generation control lost its checked durable correlation.');
     }
-    const controlData = readDispatchRow(controlRow);
-    if (controlData.intentId !== control.intentId || controlData.source !== control.target ||
-        controlData.operationId !== control.operationId || controlData.occurrenceIndex !== control.occurrenceIndex ||
-        deriveOutboxId(control.operationId, control.target, control.occurrenceIndex) !== control.intentId ||
-        typeof controlRow.createdBy !== 'string' || controlRow.createdBy === '' ||
-        !Number.isSafeInteger(controlRow.created) || controlRow.created < 0 ||
-        DISPATCH_IMAGE_CORRELATION_FIELDS.some(field => controlData[field] !== correlation[field])) {
-      throw new Error('Generation control durable correlation disagrees with its admitted request.');
-    }
+    const controlData = checkControlDurableCorrelation(control, correlation, controlRow);
     const pin = readDispatchImageControlPin(controlData);
     if (pin !== null && pin.observationStartedAtMs !== controlRow.created) throw new Error('Generation control pin lost its original creation time.');
     if (pinnedOriginal !== undefined && pin !== null && pin.originalIntentId !== pinnedOriginal) {
       throw new Error('Generation control original pin changed.');
     }
-    const original = await lookupRetainedGenerationDispatch({ store, correlation, originalSource: profile.originalSource,
-      ...(pin === null ? {} : { originalIntentId: pin.originalIntentId }) });
-    if (original.status !== 'resolved' || !controlAdapter.available(original.retained.intent)) {
-      throw new Error(`Generation control original is ${original.status}.`);
-    }
-    if (pinnedOriginal !== undefined && original.retained.intent.intentId !== pinnedOriginal) {
-      throw new Error('Generation control selected original changed before pinning.');
-    }
-    const context = controlAdapter.resultContext(original.retained.intent);
-    if (context === null) throw new Error('Generation control lost the original request declaration.');
-    resultContexts.set(original.retained.intent.intentId, context);
-    const receipt = await readRetainedReceipt({ intent: original.retained.intent, context }, ctx);
-    if (receipt === null) throw new Error('Generation control original receipt is absent.');
-    await readCurrentGenerationAssociation(original, receipt, ctx);
+    const original = await resolveControlOriginal(correlation, pin, profile.originalSource, pinnedOriginal);
+    const { receipt, context } = await readControlReceipt(original, ctx);
     if (await admission.fence.revalidateAuthority() !== true) throw new Error('Generation cleanup authority was revoked.');
     if (await store.readRevision() !== revision) throw new GenerationControlCheckpointMoved();
     return { original, correlation, receipt, admission, originalContext: context };
@@ -617,6 +710,58 @@ async function createInstalledDispatcher(
     sequence: '0', state: 'cancelled', detail: 'Stopped before provider transport.',
     ...(options.profile === 'images' ? { outputs: [], charged_jobs: null } : { content: '', used_tokens: null }),
   } as RichRunWire);
+  const stopPendingOriginal = async (
+    current: GenerationControlObservation, observed: GenerationControlObservation,
+    original: OutboxIntent, ctx: SystemCommandContext, revision: number,
+  ): Promise<{ staged: SystemStaging; progress: RichRunWire }> => {
+    const stopped = await stopOriginal!.stage({ intentId: original.intentId, correlation: observed.correlation, revision }, ctx);
+    const answer = stopped.result as { stopped?: boolean; reason?: string };
+    if (answer.stopped !== true && answer.reason !== 'already-stopped') throw new Error('Original generation attempt crossed the pending-stop boundary.');
+    let staged: SystemStaging = stopped;
+    if (answer.stopped === true) {
+      const row = await readCurrentGenerationAssociation(current.original, current.receipt, ctx);
+      const association = readAssociationRow(row);
+      staged = mergeStaging(staged, { writes: [{ kind: 'update', model: RECEIPT_ASSOCIATION_MODEL as ModelName,
+        id: row.id, expectedVersion: row.version, row: withAssociationRowData(row, {
+          recordModel: row.data['recordModel'] as string, recordId: association.locator.recordId,
+          field: association.locator.field, deliveryId: association.deliveryId, source: association.source, revision,
+        }, { actor: ctx.actor, nowMs: ctx.now }) }] });
+      if (progressed !== undefined) staged = mergeStaging(staged,
+        await stageCheckedDeliveryProgress(progressed, original, observed.admission.fence.owner, ctx));
+    }
+    return { staged, progress: stoppedProgress(observed.correlation) };
+  };
+  const refreshOriginalProgress = async (
+    current: GenerationControlObservation, observed: GenerationControlObservation,
+    original: OutboxIntent, originalContext: ReceiptResultContext, progress: RichRunWire,
+    ctx: SystemCommandContext, revision: number,
+  ): Promise<SystemStaging | null> => {
+    if (['succeeded', 'failed', 'skipped'].includes(current.receipt.status) ||
+        (current.receipt.result !== null && sameRetainedEvidence({ kind: 'delivered', result: current.receipt.result },
+          { kind: 'delivered', result: progress }, originalContext, options.profile === 'images' ? 'images' : 'text'))) {
+      return null;
+    }
+    return mergeStaging({}, await stageRichProgress({ intent: original, context: originalContext,
+      revision, progress, ...(progressed === undefined ? {} : { progressed: { producer: progressed, owner: observed.admission.fence.owner } }) }, ctx));
+  };
+  const acknowledgeReconcileDelivery = async (
+    current: GenerationControlObservation, observed: GenerationControlObservation,
+    original: OutboxIntent, originalContext: ReceiptResultContext, progress: RichRunWire,
+    ctx: SystemCommandContext,
+  ): Promise<SystemStaging | null> => {
+    if (current.receipt.status !== 'succeeded' || current.receipt.result === null ||
+        !['succeeded', 'failed', 'cancelled'].includes(progress.state) ||
+        !sameRetainedEvidence({ kind: 'delivered', result: current.receipt.result },
+          { kind: 'delivered', result: progress }, originalContext, options.profile === 'images' ? 'images' : 'text')) {
+      return null;
+    }
+    // A fresh acknowledged reconcile is a new source occurrence, while the
+    // immutable original provider snapshot keeps its receipt and sequence.
+    // The holding claim/recovery row and this one physical fence prevent the
+    // same control acknowledgement from publishing it twice.
+    return mergeStaging({},
+      await stageCheckedDeliveryProgress(progressed!, original, observed.admission.fence.owner, ctx));
+  };
   const stageGenerationControl = async (control: OutboxIntent, observed: GenerationControlObservation,
     ctx: SystemCommandContext, revision: number, acknowledging: boolean): Promise<SystemStaging> => {
     const current = await qualifyGenerationControl(control, observed.admission, ctx, observed.original.retained.intent.intentId);
@@ -628,38 +773,17 @@ async function createInstalledDispatcher(
     let staged: SystemStaging = {};
     let progress = observed.progress;
     if (observed.stopPending === true) {
-      const stopped = await stopOriginal!.stage({ intentId: original.intentId, correlation: observed.correlation, revision }, ctx);
-      const answer = stopped.result as { stopped?: boolean; reason?: string };
-      if (answer.stopped !== true && answer.reason !== 'already-stopped') throw new Error('Original generation attempt crossed the pending-stop boundary.');
-      staged = stopped;
-      if (answer.stopped === true) {
-        const row = await readCurrentGenerationAssociation(current.original, current.receipt, ctx);
-        const association = readAssociationRow(row);
-        staged = mergeStaging(staged, { writes: [{ kind: 'update', model: RECEIPT_ASSOCIATION_MODEL as ModelName,
-          id: row.id, expectedVersion: row.version, row: withAssociationRowData(row, {
-            recordModel: row.data['recordModel'] as string, recordId: association.locator.recordId,
-            field: association.locator.field, deliveryId: association.deliveryId, source: association.source, revision,
-          }, { actor: ctx.actor, nowMs: ctx.now }) }] });
-        if (progressed !== undefined) staged = mergeStaging(staged,
-          await stageCheckedDeliveryProgress(progressed, original, observed.admission.fence.owner, ctx));
+      const stopped = await stopPendingOriginal(current, observed, original, ctx, revision);
+      staged = stopped.staged;
+      progress = stopped.progress;
+    } else if (progress !== undefined) {
+      const refreshed = await refreshOriginalProgress(current, observed, original, originalContext, progress, ctx, revision);
+      if (refreshed !== null) {
+        staged = mergeStaging(staged, refreshed);
+      } else if (acknowledging && control.target.endsWith('.reconcile') && progressed !== undefined) {
+        const acknowledged = await acknowledgeReconcileDelivery(current, observed, original, originalContext, progress, ctx);
+        if (acknowledged !== null) staged = mergeStaging(staged, acknowledged);
       }
-      progress = stoppedProgress(observed.correlation);
-    } else if (progress !== undefined && !['succeeded', 'failed', 'skipped'].includes(current.receipt.status) &&
-        (current.receipt.result === null || !sameRetainedEvidence({ kind: 'delivered', result: current.receipt.result },
-          { kind: 'delivered', result: progress }, originalContext, options.profile === 'images' ? 'images' : 'text'))) {
-      staged = mergeStaging(staged, await stageRichProgress({ intent: original, context: originalContext,
-        revision, progress, ...(progressed === undefined ? {} : { progressed: { producer: progressed, owner: observed.admission.fence.owner } }) }, ctx));
-    } else if (acknowledging && control.target.endsWith('.reconcile') && progressed !== undefined &&
-        progress !== undefined && current.receipt.status === 'succeeded' && current.receipt.result !== null &&
-        ['succeeded', 'failed', 'cancelled'].includes(progress.state) &&
-        sameRetainedEvidence({ kind: 'delivered', result: current.receipt.result },
-          { kind: 'delivered', result: progress }, originalContext, options.profile === 'images' ? 'images' : 'text')) {
-      // A fresh acknowledged reconcile is a new source occurrence, while the
-      // immutable original provider snapshot keeps its receipt and sequence.
-      // The holding claim/recovery row and this one physical fence prevent the
-      // same control acknowledgement from publishing it twice.
-      staged = mergeStaging(staged,
-        await stageCheckedDeliveryProgress(progressed, original, observed.admission.fence.owner, ctx));
     }
     if (progress !== undefined) staged = mergeStaging(staged, await stageRichProgress({ intent: control,
       context: requireResultContext(control.intentId), revision, progress }, ctx));
@@ -688,7 +812,7 @@ async function createInstalledDispatcher(
     const common = { observation: { startedAtMs: pin.observationStartedAtMs, deadlineMs: pin.observationDeadlineMs }, recovering,
       originalScope: { app: observed.correlation.requestApp, owner: observed.correlation.requestOwner,
         principal: observed.original.principal } };
-    if (options.profile === 'text') {
+    const observeTextControl = async (): Promise<{ observation: GenerationControlObservation; answer: DispatchProviderOutcome }> => {
       if (textControls === null) throw new Error('Text controls need their positively installed adapter entries.');
       const answer = await textControls.observeControl(control, original, { ...common,
         nowMs,
@@ -708,15 +832,19 @@ async function createInstalledDispatcher(
         return { observation: current, answer: { kind: 'uncertain' } };
       }
       return { observation: { ...current, ...(progress === undefined ? {} : { progress }) }, answer };
-    }
-    const answer = await (options as BoundImagesDispatcherOptions).adapter.observeControl(control, original, {
-      ...common,
-      stagedAtMs: observed.original.row.created,
-      ...(observed.receipt.result === null ? {} : { sequence: (observed.receipt.result as unknown as ImageRunWire).sequence }),
-      onQueued: async () => { throw new Error('Images control cannot submit a replacement.'); },
-      onProgress: async value => { progress = value; },
-    });
-    return { observation: { ...observed, ...(progress === undefined ? {} : { progress }) }, answer };
+    };
+    const observeImagesControl = async (): Promise<{ observation: GenerationControlObservation; answer: DispatchProviderOutcome }> => {
+      const answer = await (options as BoundImagesDispatcherOptions).adapter.observeControl(control, original, {
+        ...common,
+        stagedAtMs: observed.original.row.created,
+        ...(observed.receipt.result === null ? {} : { sequence: (observed.receipt.result as unknown as ImageRunWire).sequence }),
+        onQueued: async () => { throw new Error('Images control cannot submit a replacement.'); },
+        onProgress: async value => { progress = value; },
+      });
+      return { observation: { ...observed, ...(progress === undefined ? {} : { progress }) }, answer };
+    };
+    if (options.profile === 'text') return observeTextControl();
+    return observeImagesControl();
   };
   return {
     async drive(supplied) {
@@ -764,14 +892,14 @@ async function createInstalledDispatcher(
             const context = !rich ? null : requireResultContext(selected.intentId);
             const scope = { actor: input.actor, now: input.nowMs(), operation: input.operation,
               load: store.load.bind(store), query: store.query.bind(store) };
-            if (controlAdapter !== null && isGenerationControl(selected)) {
+            const driveGenerationControl = async (): Promise<DispatchProviderOutcome> => {
               const admission = { fence: input.fence, evaluateGuard: input.evaluateGuard, readStateSnapshot: input.readStateSnapshot };
               const original = await qualifyGenerationControl(selected, admission, scope);
               originalContexts.push(retainControlContext(original));
               const row = await store.load(WORK_DISPATCH_MODEL, selected.intentId as RecordId);
               if (row === null) throw new Error('Generation control lost its held dispatch.');
               const saved = readDispatchImageControlPin(readDispatchRow(row));
-              const observation = saved === null ? controlAdapter.controlObservation(selected, row.created)
+              const observation = saved === null ? controlAdapter!.controlObservation(selected, row.created)
                 : { startedAtMs: saved.observationStartedAtMs, deadlineMs: saved.observationDeadlineMs };
               if (observation === null || observation === undefined) throw new Error('Generation control observation policy is unavailable.');
               pinAdmissions.set(heldKey, { intent: selected, admission });
@@ -782,23 +910,31 @@ async function createInstalledDispatcher(
               const controlled = await observeGenerationControl(selected, admission, scope, saved !== null, () => input.nowMs());
               completions.set(heldKey, { intent: selected, outcome: controlled.answer, owner: input.fence.owner, control: controlled.observation });
               return controlled.answer;
+            };
+            if (controlAdapter !== null && isGenerationControl(selected)) {
+              return driveGenerationControl();
             }
             const retained = context === null ? null
               : await readRetainedReceipt({ intent: selected, context }, scope);
             if (context !== null && retained === null) {
               throw new Error('Generation needs its original durable receipt before transport.');
             }
-            if (context !== null && retained !== null && (retained.result !== null || retained.status !== 'pending')) {
+            const settleDurableReceipt = async (): Promise<DispatchProviderOutcome | null> => {
+              if (context === null || retained === null || (retained.result === null && retained.status === 'pending')) return null;
               // A reclaimed claim never restarts a run which already crossed
               // the durable pre-transport queue boundary. Only confirmed
               // original terminal evidence can settle that uncertain attempt.
               const definitive = await readRetainedEvidence({ intent: selected, context }, scope);
               retainedCommitted = definitive !== null;
               retainedEvidence = definitive ?? undefined;
-              answer = definitive?.kind === 'delivered' ? definitive
+              return definitive?.kind === 'delivered' ? definitive
                 : definitive?.kind === 'failed' ? { kind: 'failed', cause: { kind: 'permanent',
                     code: definitive.code, message: definitive.message } }
                 : { kind: 'uncertain' };
+            };
+            const settled = await settleDurableReceipt();
+            if (settled !== null) {
+              answer = settled;
             } else {
               const originalFence = input.fence, revalidateAuthority = originalFence.revalidateAuthority;
               const current = (): boolean | Promise<boolean> => input.fence === originalFence &&
@@ -818,39 +954,34 @@ async function createInstalledDispatcher(
                   committedProgress = progress;
                 } finally { progressFiles.delete(heldKey); }
               };
-              if (options.profile === 'mail' && selected.target === 'std.EmailV1.send_user') {
-                const adapter = options.adapter, recipient = adapter.userRecipient(selected);
+              const driveMailTransport = async (adapter: BoundMailAdapter): Promise<DispatchProviderOutcome> => {
+                const recipient = adapter.userRecipient(selected);
                 const refused = (): DispatchProviderOutcome => ({ kind: 'failed', cause: {
                   kind: 'permanent', code: 'recipient_unavailable', message: 'Mail recipient unavailable.' } });
-                if (recipient === null || recipient.team !== input.fence.owner || !await adapter.recipientActive(selected)) answer = refused();
-                else {
-                  const row = await store.load(WORK_DISPATCH_MODEL, selected.intentId as RecordId);
-                  if (row === null) throw new Error('Private mail recipient lost its original dispatch.');
-                  const saved = readDispatchMailRecipientPin(readDispatchRow(row));
-                  if (saved !== null && (saved.mailRecipientUser !== recipient.user || saved.mailRecipientTeam !== recipient.team)) {
-                    throw new Error('Private mail recipient differs from its original intent.');
-                  }
-                  const email = saved?.mailRecipientEmail ?? await adapter.resolveRecipient(selected);
-                  if (email === null) answer = refused();
-                  else {
-                    const recipientCurrent = async () => Boolean(await current()) && await adapter.recipientActive(selected);
-                    mailPins.set(heldKey, { intent: selected, current: recipientCurrent, email });
-                    try {
-                      await registry.run(mailPinCommand.name, { intentId: selected.intentId, claimId: held.claimId,
-                        mailRecipientUser: recipient.user, mailRecipientTeam: recipient.team, mailRecipientEmail: email },
-                        { actor: input.actor, now: input.nowMs(), operation: input.operation,
-                          operationId: `${held.claimId}:mail-recipient-pin` }, { store });
-                      // The exact persisted pin must survive the commit before transport.
-                      const pinned = await store.load(WORK_DISPATCH_MODEL, selected.intentId as RecordId);
-                      const pin = pinned === null ? null : readDispatchMailRecipientPin(readDispatchRow(pinned));
-                      if (pin === null || pin.mailRecipientEmail !== email) throw new Error('Private mail recipient pin unavailable.');
-                      answer = await recipientCurrent() ? await adapter.callProvider(selected, pin.mailRecipientEmail) : refused();
-                    } finally { mailPins.delete(heldKey); }
-                  }
+                if (recipient === null || recipient.team !== input.fence.owner || !await adapter.recipientActive(selected)) return refused();
+                const row = await store.load(WORK_DISPATCH_MODEL, selected.intentId as RecordId);
+                if (row === null) throw new Error('Private mail recipient lost its original dispatch.');
+                const saved = readDispatchMailRecipientPin(readDispatchRow(row));
+                if (saved !== null && (saved.mailRecipientUser !== recipient.user || saved.mailRecipientTeam !== recipient.team)) {
+                  throw new Error('Private mail recipient differs from its original intent.');
                 }
-              } else if (options.profile === 'mail' || options.profile === 'judgment') answer = await options.adapter.callProvider(selected);
-              else if (options.profile === 'text') answer = await options.adapter.callProvider(selected, { onProgress: commitProgress });
-              else {
+                const email = saved?.mailRecipientEmail ?? await adapter.resolveRecipient(selected);
+                if (email === null) return refused();
+                const recipientCurrent = async () => Boolean(await current()) && await adapter.recipientActive(selected);
+                mailPins.set(heldKey, { intent: selected, current: recipientCurrent, email });
+                try {
+                  await registry.run(mailPinCommand.name, { intentId: selected.intentId, claimId: held.claimId,
+                    mailRecipientUser: recipient.user, mailRecipientTeam: recipient.team, mailRecipientEmail: email },
+                    { actor: input.actor, now: input.nowMs(), operation: input.operation,
+                      operationId: `${held.claimId}:mail-recipient-pin` }, { store });
+                  // The exact persisted pin must survive the commit before transport.
+                  const pinned = await store.load(WORK_DISPATCH_MODEL, selected.intentId as RecordId);
+                  const pin = pinned === null ? null : readDispatchMailRecipientPin(readDispatchRow(pinned));
+                  if (pin === null || pin.mailRecipientEmail !== email) throw new Error('Private mail recipient pin unavailable.');
+                  return await recipientCurrent() ? await adapter.callProvider(selected, pin.mailRecipientEmail) : refused();
+                } finally { mailPins.delete(heldKey); }
+              };
+              const driveImagesTransport = async (adapter: BoundImagesAdapter): Promise<DispatchProviderOutcome> => {
                 const original = await store.load(WORK_DISPATCH_MODEL, selected.intentId as RecordId);
                 if (original === null) throw new Error('Images transport lost its original staged attempt.');
                 const execution = readDispatchExecutionRow(original);
@@ -859,11 +990,16 @@ async function createInstalledDispatcher(
                 }
                 const receiptRow = await store.load(RECEIPT_MODEL as ModelName, selected.intentId as RecordId);
                 const originalHeader = receiptRow === null ? undefined : readReceiptRow(receiptRow, context!).filePayloadOrigin;
-                answer = await options.adapter.callProvider(selected, { stagedAtMs: original.created,
+                return adapter.callProvider(selected, { stagedAtMs: original.created,
                   ...(originalHeader === undefined ? {} : { originalScope: { app: originalHeader.scope.app,
                     owner: originalHeader.scope.owner, principal: receiptRow!.createdBy } }),
                   onQueued: commitProgress, onProgress: commitProgress });
-              }
+              };
+              if (options.profile === 'mail' && selected.target === 'std.EmailV1.send_user') {
+                answer = await driveMailTransport(options.adapter);
+              } else if (options.profile === 'mail' || options.profile === 'judgment') answer = await options.adapter.callProvider(selected);
+              else if (options.profile === 'text') answer = await options.adapter.callProvider(selected, { onProgress: commitProgress });
+              else answer = await driveImagesTransport(options.adapter);
             }
             const key = `${selected.intentId}\0${held.claimId}`;
             completions.set(key, { intent: selected, outcome: answer, owner: input.fence.owner,
@@ -891,22 +1027,28 @@ async function createInstalledDispatcher(
               // This is the unchanged row/context supplied by the actual Work
               // guard. An old held claim or attempted provider work cannot be
               // converted to a new empty skipped receipt.
-              if (eligible === undefined || eligible.context !== ctx || eligible.row.id !== intent.intentId ||
-                  (result as Record<string, unknown>)['intentId'] !== intent.intentId ||
-                  eligible.data.state !== 'pending' || eligible.data.attempts !== 0 ||
-                  eligible.data.claimId !== null || eligible.data.claimedAtMs !== null) {
-                throw new Error('Skipped receipt requires the actual untouched eligible preclaim.');
-              }
-              const actual = staged.writes?.filter(write => write.kind === 'update' &&
-                write.model === WORK_DISPATCH_MODEL && write.id === intent.intentId);
-              if (actual?.length !== 1 || actual[0]!.kind !== 'update') {
-                throw new Error('Skipped receipt lost its genuine guard-false dispatch write.');
-              }
-              const dispatch = readDispatchRow(actual[0]!.row);
-              if (dispatch.intentId !== intent.intentId || dispatch.guardVerdict !== false || dispatch.attempts !== 0 ||
-                  dispatch.state !== 'pending' || dispatch.claimId !== null || dispatch.claimedAtMs !== null) {
-                throw new Error('Skipped receipt disagrees with its actual guard-false dispatch.');
-              }
+              const checkSkippedPreclaim = (): void => {
+                if (eligible === undefined || eligible.context !== ctx || eligible.row.id !== intent.intentId ||
+                    (result as Record<string, unknown>)['intentId'] !== intent.intentId ||
+                    eligible.data.state !== 'pending' || eligible.data.attempts !== 0 ||
+                    eligible.data.claimId !== null || eligible.data.claimedAtMs !== null) {
+                  throw new Error('Skipped receipt requires the actual untouched eligible preclaim.');
+                }
+              };
+              const checkSkippedDispatchWrite = (): void => {
+                const actual = staged.writes?.filter(write => write.kind === 'update' &&
+                  write.model === WORK_DISPATCH_MODEL && write.id === intent.intentId);
+                if (actual?.length !== 1 || actual[0]!.kind !== 'update') {
+                  throw new Error('Skipped receipt lost its genuine guard-false dispatch write.');
+                }
+                const dispatch = readDispatchRow(actual[0]!.row);
+                if (dispatch.intentId !== intent.intentId || dispatch.guardVerdict !== false || dispatch.attempts !== 0 ||
+                    dispatch.state !== 'pending' || dispatch.claimId !== null || dispatch.claimedAtMs !== null) {
+                  throw new Error('Skipped receipt disagrees with its actual guard-false dispatch.');
+                }
+              };
+              checkSkippedPreclaim();
+              checkSkippedDispatchWrite();
               const receipt = await stageReceiptProgress({ intent, outcome: { kind: 'skipped' },
                 revision: systemCommandStageRevision(ctx) + 1,
                 ...(options.profile === 'mail' ? {} : { context: requireResultContext(intent.intentId) }) }, ctx);
@@ -973,6 +1115,83 @@ async function createInstalledDispatcher(
       const retainedContext = { actor: input.actor, now: input.nowMs(), operation: input.operation,
         load: store.load.bind(store), query: store.query.bind(store) };
       const originalContexts: string[] = [];
+      const recoverControlRow = async (intent: OutboxIntent, row: StoredRow): Promise<void> => {
+        const admission = input.admission!;
+        const checked = await qualifyGenerationControl(intent, admission, retainedContext);
+        originalContexts.push(retainControlContext(checked));
+        const pin = readDispatchImageControlPin(readDispatchRow(row));
+        if (pin === null || pin.originalIntentId !== checked.original.retained.intent.intentId) return;
+        const definitive = await readRetainedEvidence({ intent, context: requireResultContext(intent.intentId) }, retainedContext);
+        if (definitive !== null) {
+          retainedEvidence.add(intent.intentId); evidence.set(intent.intentId, definitive);
+          return;
+        }
+        const originalId = checked.original.retained.intent.intentId;
+        const originalDefinitive = await readRetainedEvidence({ intent: checked.original.retained.intent,
+          context: checked.originalContext }, retainedContext);
+        const retainedStop = checked.receipt.status === 'skipped' && checked.receipt.result === null;
+        // Recovery observes its page before committing each outcome. Two
+        // fresh observations of one original would share an old receipt
+        // checkpoint; the first join would invalidate the second. Retained
+        // terminal/stop evidence needs no new original write or transport.
+        if (originalDefinitive === null && !retainedStop) {
+          if (observedControlOriginals.has(originalId)) return;
+          observedControlOriginals.add(originalId);
+        }
+        const controlled = await observeGenerationControl(intent, admission, retainedContext, true, () => input.nowMs());
+        if (controlled.answer.kind === 'delivered') {
+          controlObservations.set(intent.intentId, controlled.observation);
+          evidence.set(intent.intentId, { kind: 'delivered', result: controlled.answer.result });
+        } else if (controlled.observation.failure !== undefined) {
+          controlObservations.set(intent.intentId, controlled.observation);
+          evidence.set(intent.intentId, { kind: 'failed', ...controlled.observation.failure });
+        }
+      };
+      const recoverOriginalRow = async (intent: OutboxIntent, row: StoredRow): Promise<void> => {
+        const retained = !rich ? null
+          : await readRetainedEvidence({ intent,
+            context: requireResultContext(intent.intentId) }, retainedContext);
+        let answer = retained;
+        if (answer === null) {
+          if (options.profile !== 'images') answer = await options.adapter.reconcile(intent);
+          else {
+            const receipt = await readRetainedReceipt({ intent,
+              context: requireResultContext(intent.intentId) }, retainedContext);
+            if (receipt === null) throw new Error('Images recovery lost its original durable receipt.');
+            const sequence = receipt.result === null ? undefined
+              : (receipt.result as unknown as ImageRunWire).sequence;
+            let observed: ImageRunWire | undefined;
+            let observedFiles: FrameworkFilePayloadOriginInput['files'] = [];
+            const receiptRow = await store.load(RECEIPT_MODEL as ModelName, intent.intentId as RecordId);
+            const header = receiptRow === null ? undefined : readReceiptRow(receiptRow,
+              requireResultContext(intent.intentId)).filePayloadOrigin;
+            answer = await options.adapter.reconcile(intent, {
+              ...(header === undefined ? {} : { originalScope: { app: header.scope.app,
+                owner: header.scope.owner, principal: receiptRow!.createdBy } }),
+              stagedAtMs: row.created, ...(sequence === undefined ? {} : { sequence }),
+              onQueued: async () => { throw new Error('Images recovery cannot submit a new job.'); },
+              // Reconciliation only observes the original installed job. Its
+              // confirmed terminal evidence is staged in the existing recovery
+              // batch below; nonterminal observations never authorize ack.
+              onProgress: async (progress, files = []) => {
+                observed = progress;
+                observedFiles = Object.freeze(files.map(entry => Object.freeze({
+                  path: Object.freeze([...entry.path]), observation: entry.observation })));
+              },
+            });
+            if (answer?.kind === 'delivered') {
+              const checkedContext = requireResultContext(intent.intentId);
+              if (observed === undefined || !['succeeded', 'failed', 'cancelled'].includes(observed.state) ||
+                  !sameRetainedEvidence(answer, { kind: 'delivered', result: observed }, checkedContext, 'images')) {
+                throw new Error('Images recovery needs its actual confirmed terminal observation.');
+              }
+              imageObservations.set(intent.intentId, { receipt, progress: observed, files: observedFiles });
+            }
+          }
+        }
+        if (retained !== null) retainedEvidence.add(intent.intentId);
+        if (answer !== null) evidence.set(intent.intentId, answer);
+      };
       try {
         // The existing recovery planner selects its bounded page by intent ID.
         // Fetch that same page, rather than D1's default creation-time order.
@@ -998,81 +1217,10 @@ async function createInstalledDispatcher(
               await readRetainedEvidence({ intent, context: requireResultContext(intent.intentId) }, retainedContext) === null) continue;
           if (options.profile === 'images' || rich && isGenerationControl(intent)) await admitGenerationRecovery(intent);
           if (controlAdapter !== null && isGenerationControl(intent)) {
-            const admission = input.admission!;
-            const checked = await qualifyGenerationControl(intent, admission, retainedContext);
-            originalContexts.push(retainControlContext(checked));
-            const pin = readDispatchImageControlPin(readDispatchRow(row));
-            if (pin === null || pin.originalIntentId !== checked.original.retained.intent.intentId) continue;
-            const definitive = await readRetainedEvidence({ intent, context: requireResultContext(intent.intentId) }, retainedContext);
-            if (definitive !== null) {
-              retainedEvidence.add(intent.intentId); evidence.set(intent.intentId, definitive);
-            } else {
-              const originalId = checked.original.retained.intent.intentId;
-              const originalDefinitive = await readRetainedEvidence({ intent: checked.original.retained.intent,
-                context: checked.originalContext }, retainedContext);
-              const retainedStop = checked.receipt.status === 'skipped' && checked.receipt.result === null;
-              // Recovery observes its page before committing each outcome. Two
-              // fresh observations of one original would share an old receipt
-              // checkpoint; the first join would invalidate the second. Retained
-              // terminal/stop evidence needs no new original write or transport.
-              if (originalDefinitive === null && !retainedStop) {
-                if (observedControlOriginals.has(originalId)) continue;
-                observedControlOriginals.add(originalId);
-              }
-              const controlled = await observeGenerationControl(intent, admission, retainedContext, true, () => input.nowMs());
-              if (controlled.answer.kind === 'delivered') {
-                controlObservations.set(intent.intentId, controlled.observation);
-                evidence.set(intent.intentId, { kind: 'delivered', result: controlled.answer.result });
-              } else if (controlled.observation.failure !== undefined) {
-                controlObservations.set(intent.intentId, controlled.observation);
-                evidence.set(intent.intentId, { kind: 'failed', ...controlled.observation.failure });
-              }
-            }
+            await recoverControlRow(intent, row);
             continue;
           }
-          const retained = !rich ? null
-            : await readRetainedEvidence({ intent,
-              context: requireResultContext(intent.intentId) }, retainedContext);
-          let answer = retained;
-          if (answer === null) {
-            if (options.profile !== 'images') answer = await options.adapter.reconcile(intent);
-            else {
-              const receipt = await readRetainedReceipt({ intent,
-                context: requireResultContext(intent.intentId) }, retainedContext);
-              if (receipt === null) throw new Error('Images recovery lost its original durable receipt.');
-              const sequence = receipt.result === null ? undefined
-                : (receipt.result as unknown as ImageRunWire).sequence;
-              let observed: ImageRunWire | undefined;
-              let observedFiles: FrameworkFilePayloadOriginInput['files'] = [];
-              const receiptRow = await store.load(RECEIPT_MODEL as ModelName, intent.intentId as RecordId);
-              const header = receiptRow === null ? undefined : readReceiptRow(receiptRow,
-                requireResultContext(intent.intentId)).filePayloadOrigin;
-              answer = await options.adapter.reconcile(intent, {
-                ...(header === undefined ? {} : { originalScope: { app: header.scope.app,
-                  owner: header.scope.owner, principal: receiptRow!.createdBy } }),
-                stagedAtMs: row.created, ...(sequence === undefined ? {} : { sequence }),
-                onQueued: async () => { throw new Error('Images recovery cannot submit a new job.'); },
-                // Reconciliation only observes the original installed job. Its
-                // confirmed terminal evidence is staged in the existing recovery
-                // batch below; nonterminal observations never authorize ack.
-                onProgress: async (progress, files = []) => {
-                  observed = progress;
-                  observedFiles = Object.freeze(files.map(entry => Object.freeze({
-                    path: Object.freeze([...entry.path]), observation: entry.observation })));
-                },
-              });
-              if (answer?.kind === 'delivered') {
-                const checkedContext = requireResultContext(intent.intentId);
-                if (observed === undefined || !['succeeded', 'failed', 'cancelled'].includes(observed.state) ||
-                    !sameRetainedEvidence(answer, { kind: 'delivered', result: observed }, checkedContext, 'images')) {
-                  throw new Error('Images recovery needs its actual confirmed terminal observation.');
-                }
-                imageObservations.set(intent.intentId, { receipt, progress: observed, files: observedFiles });
-              }
-            }
-          }
-          if (retained !== null) retainedEvidence.add(intent.intentId);
-          if (answer !== null) evidence.set(intent.intentId, answer);
+          await recoverOriginalRow(intent, row);
         }
         const outcome = await runRecoverySweep({ ...input, registry, store, joinPort,
           readEvidence: id => evidence.get(id) ?? null,
@@ -1090,18 +1238,17 @@ async function createInstalledDispatcher(
             }
           } }),
           stageReconciledReceipt: async ({ intentId, evidence: answer, revision, context }) => {
-            const intent = pending.get(intentId);
-            if (intent === undefined || !options.adapter.available(intent)) {
-              throw new Error('Reconciled mail lost its installed original intent.');
-            }
-            const admitted = options.profile === 'images' || rich && isGenerationControl(intent)
-              ? await admitGenerationRecovery(intent, revision - 1) : undefined;
-            const control = controlObservations.get(intentId);
-            if (control !== undefined) return stageGenerationControl(intent, control, context, revision, true);
-            if (rich && isGenerationControl(intent)) {
-              await qualifyGenerationControl(intent, input.admission!, context);
-            }
-            if (retainedEvidence.has(intentId)) {
+            const admitReconciledIntent = async () => {
+              const intent = pending.get(intentId);
+              if (intent === undefined || !options.adapter.available(intent)) {
+                throw new Error('Reconciled mail lost its installed original intent.');
+              }
+              const admitted = options.profile === 'images' || rich && isGenerationControl(intent)
+                ? await admitGenerationRecovery(intent, revision - 1) : undefined;
+              return { intent, admitted };
+            };
+            const acknowledgeRetainedEvidence = async (intent: OutboxIntent): Promise<never[] | null> => {
+              if (!retainedEvidence.has(intentId)) return null;
               // Re-read the original terminal receipt in the recovery batch's
               // scope. Its progress was already committed: only acknowledge the
               // intent, without giving that same sequence a new checkpoint.
@@ -1111,9 +1258,10 @@ async function createInstalledDispatcher(
                 throw new Error('Retained generation outcome changed before acknowledgement.');
               }
               return [];
-            }
-            const observation = imageObservations.get(intentId);
-            if (observation !== undefined) {
+            };
+            const checkImageObservation = async (intent: OutboxIntent): Promise<void> => {
+              const observation = imageObservations.get(intentId);
+              if (observation === undefined) return;
               const checkedContext = requireResultContext(intentId);
               const current = await readRetainedReceipt({ intent, context: checkedContext }, context);
               const previous = observation.receipt;
@@ -1128,7 +1276,16 @@ async function createInstalledDispatcher(
                   !sameRetainedEvidence(answer, { kind: 'delivered', result: observation.progress }, checkedContext, 'images')) {
                 throw new Error('Images receipt changed before recovery acknowledgement.');
               }
+            };
+            const { intent, admitted } = await admitReconciledIntent();
+            const control = controlObservations.get(intentId);
+            if (control !== undefined) return stageGenerationControl(intent, control, context, revision, true);
+            if (rich && isGenerationControl(intent)) {
+              await qualifyGenerationControl(intent, input.admission!, context);
             }
+            const retainedAck = await acknowledgeRetainedEvidence(intent);
+            if (retainedAck !== null) return retainedAck;
+            await checkImageObservation(intent);
             const outcome = answer.kind === 'delivered'
               ? { kind: 'delivered' as const, result: answer.result }
               : { kind: 'failed' as const, error: { code: answer.code, message: answer.message } };

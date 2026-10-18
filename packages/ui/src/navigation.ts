@@ -369,14 +369,22 @@ export async function breadcrumbs(props: BreadcrumbsProps): Promise<string> {
  * -- the owning form's submit label and the panel declaration's caption are
  * supplied by the caller as `caption`, and omission throws.
  */
-export async function button(props: ButtonProps): Promise<string> {
-  const modifiers = appearanceClasses("button", "btn", pickAppearance(props));
-  const cls = escapeAttr(joinClasses("btn", modifiers));
+function buttonTargetState(
+  props: ButtonProps,
+  bindings: {
+    readonly action: ButtonProps["action"] | undefined;
+    readonly submit: ButtonProps["submit"] | undefined;
+    readonly target: ButtonProps["target"] | undefined;
+    readonly opens: ButtonProps["opens"] | undefined;
+  },
+): boolean {
   // Null placeholders remain absent beside an active binding. Only an
   // explicitly configured sole target may represent an unavailable File.
-  const { action, submit, target, opens } = props;
+  // Values come from the caller's single capture; only presence probes
+  // (which never invoke getters) still read the original props.
+  const { action, submit, target, opens } = bindings;
   const unavailableTarget = target === null && Object.hasOwn(props, "target") &&
-    ["action", "submit", "opens"].every(key => !Object.hasOwn(props, key));
+    (["action", "submit", "opens"] as const).every(key => !Object.hasOwn(props, key));
   const bound = [action, submit, target, opens].filter(
     (binding) => binding !== undefined && binding !== null,
   ).length;
@@ -386,32 +394,69 @@ export async function button(props: ButtonProps): Promise<string> {
   if (bound > 1) {
     throw new Error("button accepts exactly one of action, submit, target or opens");
   }
+  return unavailableTarget;
+}
+
+function actionButtonHtml(
+  props: ButtonProps,
+  binding: NonNullable<ButtonProps["action"]>,
+  cls: string,
+  override: string | undefined,
+): string {
+  requireText("button", "action postTo", binding.postTo);
+  requireText("button", "action operation", binding.operation);
+  requireText("button", "action operationId", binding.operationId);
+  const text = override ?? escapeHtml(resolveCaption(binding.label, props.context));
+  let args = "";
+  if (binding.inputs !== undefined) {
+    for (const key of Object.keys(binding.inputs)) {
+      assertFieldPath(key);
+      args += hidden(`inputs[${key}]`, serializeActionScalar(key, binding.inputs[key]));
+    }
+  }
+  return (
+    formOpen(binding.postTo) +
+    hidden("operation", binding.operation) +
+    hidden("operation_id", binding.operationId) +
+    hidden(CSRF_FIELD, props.context.csrfToken) +
+    args +
+    `<button type="submit" class="${cls}">${text}</button></form>`
+  );
+}
+
+async function targetButtonHtml(
+  props: ButtonProps,
+  target: NonNullable<ButtonProps["target"]>,
+  cls: string,
+  override: string | undefined,
+  unavailable: () => string,
+): Promise<string> {
+  if (typeof target === "string") {
+    requireText("button", "target", target);
+    const text = override ?? escapeHtml(target);
+    return `<a class="${cls}" href="${escapeAttr(safeHref(target))}">${text}</a>`;
+  }
+  const file = checkedFile(target, "button");
+  const present = props.context.presentFile;
+  if (typeof present !== "function") throw new Error("button File presentation requires a source-bound presenter");
+  const view = await present(file);
+  if (view === null) return unavailable();
+  const link = checkedFileLink(view, props.context, "button");
+  return `<a class="${cls}" href="${escapeAttr(link.href)}">${override ?? escapeHtml(link.caption)}</a>`;
+}
+
+export async function button(props: ButtonProps): Promise<string> {
+  const modifiers = appearanceClasses("button", "btn", pickAppearance(props));
+  const cls = escapeAttr(joinClasses("btn", modifiers));
+  const { action, submit, target, opens } = props;
+  const unavailableTarget = buttonTargetState(props, { action, submit, target, opens });
   const override =
     props.caption === undefined ? undefined : escapeHtml(resolveCaption(props.caption, props.context));
   const unavailable = () => `<button type="button" class="${cls}" disabled aria-disabled="true">${
     override ?? escapeHtml(resolveCaption(OPEN_FILE, props.context))}</button>`;
   if (unavailableTarget) return unavailable();
   if (action !== undefined && action !== null) {
-    const binding = action;
-    requireText("button", "action postTo", binding.postTo);
-    requireText("button", "action operation", binding.operation);
-    requireText("button", "action operationId", binding.operationId);
-    const text = override ?? escapeHtml(resolveCaption(binding.label, props.context));
-    let args = "";
-    if (binding.inputs !== undefined) {
-      for (const key of Object.keys(binding.inputs)) {
-        assertFieldPath(key);
-        args += hidden(`inputs[${key}]`, serializeActionScalar(key, binding.inputs[key]));
-      }
-    }
-    return (
-      formOpen(binding.postTo) +
-      hidden("operation", binding.operation) +
-      hidden("operation_id", binding.operationId) +
-      hidden(CSRF_FIELD, props.context.csrfToken) +
-      args +
-      `<button type="submit" class="${cls}">${text}</button></form>`
-    );
+    return actionButtonHtml(props, action, cls, override);
   }
   if (submit !== undefined && submit !== null) {
     if (submit !== true) {
@@ -423,18 +468,7 @@ export async function button(props: ButtonProps): Promise<string> {
     return `<button type="submit" class="${cls}">${override}</button>`;
   }
   if (target !== undefined && target !== null) {
-    if (typeof target === "string") {
-      requireText("button", "target", target);
-      const text = override ?? escapeHtml(target);
-      return `<a class="${cls}" href="${escapeAttr(safeHref(target))}">${text}</a>`;
-    }
-    const file = checkedFile(target, "button");
-    const present = props.context.presentFile;
-    if (typeof present !== "function") throw new Error("button File presentation requires a source-bound presenter");
-    const view = await present(file);
-    if (view === null) return unavailable();
-    const link = checkedFileLink(view, props.context, "button");
-    return `<a class="${cls}" href="${escapeAttr(link.href)}">${override ?? escapeHtml(link.caption)}</a>`;
+    return targetButtonHtml(props, target, cls, override, unavailable);
   }
   // Explicit string check first: RE.test(null) coerces to "null", which
   // matches, so a null opens would slip past the pattern alone.
@@ -569,10 +603,7 @@ export async function megamenu(props: MegamenuProps): Promise<string> {
  * the current page with ellipsis gaps. Out-of-range pages, non-integer
  * counts and windows below 5 throw.
  */
-export async function pagination(props: PaginationProps): Promise<string> {
-  // pagination admits no appearance matrix: any runtime appearance key
-  // throws via the membership check below.
-  appearanceClasses("pagination", "join", pickAppearance(props));
+function checkPaginationRange(props: PaginationProps): number {
   if (typeof props.hrefForPage !== "function") {
     throw new TypeError("pagination hrefForPage must be a function");
   }
@@ -588,6 +619,35 @@ export async function pagination(props: PaginationProps): Promise<string> {
   if (!Number.isSafeInteger(width) || width < MIN_PAGE_WINDOW) {
     throw new RangeError(`pagination needs window >= ${String(MIN_PAGE_WINDOW)}, got ${String(width)}`);
   }
+  return width;
+}
+
+function paginationShown(pages: number, page: number, width: number): number[] {
+  const shown: number[] = [];
+  if (pages <= width) {
+    for (let current = 1; current <= pages; current += 1) {
+      shown.push(current);
+    }
+  } else {
+    const inner = width - 2;
+    const start = Math.min(
+      Math.max(page - Math.floor(inner / 2), 2),
+      pages - inner,
+    );
+    shown.push(1);
+    for (let current = start; current < start + inner; current += 1) {
+      shown.push(current);
+    }
+    shown.push(pages);
+  }
+  return shown;
+}
+
+export async function pagination(props: PaginationProps): Promise<string> {
+  // pagination admits no appearance matrix: any runtime appearance key
+  // throws via the membership check below.
+  appearanceClasses("pagination", "join", pickAppearance(props));
+  const width = checkPaginationRange(props);
   const hrefFor = (page: number): string => {
     const href = (props.hrefForPage as (page: number) => string)(page);
     if (typeof href !== "string") {
@@ -595,23 +655,7 @@ export async function pagination(props: PaginationProps): Promise<string> {
     }
     return escapeAttr(safeHref(href));
   };
-  const shown: number[] = [];
-  if (props.pages <= width) {
-    for (let page = 1; page <= props.pages; page += 1) {
-      shown.push(page);
-    }
-  } else {
-    const inner = width - 2;
-    const start = Math.min(
-      Math.max(props.page - Math.floor(inner / 2), 2),
-      props.pages - inner,
-    );
-    shown.push(1);
-    for (let page = start; page < start + inner; page += 1) {
-      shown.push(page);
-    }
-    shown.push(props.pages);
-  }
+  const shown = paginationShown(props.pages, props.page, width);
   const numbers: string[] = [];
   let previous = 0;
   for (const page of shown) {

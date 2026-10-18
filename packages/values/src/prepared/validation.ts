@@ -55,23 +55,14 @@ function isObjectLike(value: unknown): value is Record<string | symbol, unknown>
  * accessor descriptors compare by getter/setter identity, prototypes must
  * match, own-key order is significant. Cycles resolve by visited pair.
  */
-export function traceEqual(a: unknown, b: unknown, seen?: WeakMap<object, WeakSet<object>>): boolean {
-  if (Object.is(a, b)) return true;
-  // Distinct functions are never structurally equal (identity only).
-  if (typeof a === "function" || typeof b === "function") return false;
-  if (!isObjectLike(a) || !isObjectLike(b)) return false;
-  const pairs = seen ?? new WeakMap<object, WeakSet<object>>();
-  let inner = pairs.get(a);
-  if (inner !== undefined && inner.has(b)) return true;
-  if (inner === undefined) {
-    inner = new WeakSet<object>();
-    pairs.set(a, inner);
-  }
-  inner.add(b);
-  if (Object.getPrototypeOf(a) !== Object.getPrototypeOf(b)) return false;
-  const aKeys = Reflect.ownKeys(a);
-  const bKeys = Reflect.ownKeys(b);
-  if (aKeys.length !== bKeys.length) return false;
+/** Key-order plus per-descriptor comparison for two objects. */
+function traceEntriesEqual(
+  a: Record<string | symbol, unknown>,
+  b: Record<string | symbol, unknown>,
+  aKeys: readonly (string | symbol)[],
+  bKeys: readonly (string | symbol)[],
+  pairs: WeakMap<object, WeakSet<object>>,
+): boolean {
   for (let i = 0; i < aKeys.length; i++) {
     if (!Object.is(aKeys[i], bKeys[i])) return false;
   }
@@ -91,6 +82,26 @@ export function traceEqual(a: unknown, b: unknown, seen?: WeakMap<object, WeakSe
   return true;
 }
 
+export function traceEqual(a: unknown, b: unknown, seen?: WeakMap<object, WeakSet<object>>): boolean {
+  if (Object.is(a, b)) return true;
+  // Distinct functions are never structurally equal (identity only).
+  if (typeof a === "function" || typeof b === "function") return false;
+  if (!isObjectLike(a) || !isObjectLike(b)) return false;
+  const pairs = seen ?? new WeakMap<object, WeakSet<object>>();
+  let inner = pairs.get(a);
+  if (inner !== undefined && inner.has(b)) return true;
+  if (inner === undefined) {
+    inner = new WeakSet<object>();
+    pairs.set(a, inner);
+  }
+  inner.add(b);
+  if (Object.getPrototypeOf(a) !== Object.getPrototypeOf(b)) return false;
+  const aKeys = Reflect.ownKeys(a);
+  const bKeys = Reflect.ownKeys(b);
+  if (aKeys.length !== bKeys.length) return false;
+  return traceEntriesEqual(a, b, aKeys, bKeys, pairs);
+}
+
 // ---------------------------------------------------------------------------
 // Getter-safe JSON-able snapshots for comparison traces.
 // ---------------------------------------------------------------------------
@@ -105,6 +116,40 @@ function defineSnapshotKey(out: Record<string, unknown>, key: string, value: unk
     writable: true,
     configurable: true,
   });
+}
+
+/** Snapshot one object key without invoking accessors. */
+function snapshotObjectKey(
+  out: Record<string, unknown>,
+  value: object,
+  key: string | symbol,
+  seen: WeakSet<object>,
+): void {
+  const desc = Object.getOwnPropertyDescriptor(value, key);
+  if (desc === undefined) return;
+  const label = typeof key === "symbol" ? `$symbolKey:${key.description ?? ""}` : key;
+  if (typeof desc.get === "function" || typeof desc.set === "function") {
+    defineSnapshotKey(out, label, {
+      $getter: true,
+      setter: typeof desc.set === "function",
+    });
+  } else {
+    defineSnapshotKey(out, label, snapshotDataDescriptor(desc.value, seen));
+  }
+}
+
+/** Snapshot a non-array object: plain props bare, instances tagged. */
+function snapshotObjectValue(value: object, seen: WeakSet<object>): TraceSnapshot {
+  const proto = Object.getPrototypeOf(value);
+  const plain = proto === Object.prototype || proto === null;
+  const out: Record<string, unknown> = {};
+  for (const key of Reflect.ownKeys(value)) {
+    snapshotObjectKey(out, value, key, seen);
+  }
+  if (plain) return out;
+  const ctor = (proto as { constructor?: { name?: unknown } } | null)?.constructor;
+  const name = typeof ctor?.name === "string" && ctor.name !== "" ? ctor.name : null;
+  return { $instance: name, props: out };
 }
 
 function snapshotDataDescriptor(value: unknown, seen: WeakSet<object>): TraceSnapshot {
@@ -123,26 +168,7 @@ function snapshotDataDescriptor(value: unknown, seen: WeakSet<object>): TraceSna
   if (seen.has(value)) return { $cycle: true };
   seen.add(value);
   if (Array.isArray(value)) return snapshotArray(value, seen);
-  const proto = Object.getPrototypeOf(value);
-  const plain = proto === Object.prototype || proto === null;
-  const out: Record<string, unknown> = {};
-  for (const key of Reflect.ownKeys(value)) {
-    const desc = Object.getOwnPropertyDescriptor(value, key);
-    if (desc === undefined) continue;
-    const label = typeof key === "symbol" ? `$symbolKey:${key.description ?? ""}` : key;
-    if (typeof desc.get === "function" || typeof desc.set === "function") {
-      defineSnapshotKey(out, label, {
-        $getter: true,
-        setter: typeof desc.set === "function",
-      });
-    } else {
-      defineSnapshotKey(out, label, snapshotDataDescriptor(desc.value, seen));
-    }
-  }
-  if (plain) return out;
-  const ctor = (proto as { constructor?: { name?: unknown } } | null)?.constructor;
-  const name = typeof ctor?.name === "string" && ctor.name !== "" ? ctor.name : null;
-  return { $instance: name, props: out };
+  return snapshotObjectValue(value, seen);
 }
 
 function isArrayIndexKey(value: readonly unknown[], key: string | symbol): boolean {
@@ -243,14 +269,12 @@ function sameStringList(a: readonly string[], b: readonly string[]): boolean {
   return true;
 }
 
-function fieldMatches(
-  owner: unknown,
+/** Scalar field-plan cross-checks; throws the schema/plan mismatch. */
+function matchFieldScalars(
   planField: PreparedFieldPlan,
   schemaField: Record<string, unknown>,
-  where: string,
+  mismatch: (detail: string) => PlanError,
 ): void {
-  const mismatch = (detail: string): PlanError =>
-    new PlanError("unknown-plan", `validatePreparedValue abstains: schema/plan mismatch at ${where} (${detail})`);
   if (["format", "distinctBy", "excludedIds"].some(key => Object.hasOwn(schemaField, key))) throw mismatch("unsupported field constraints");
   if (schemaField["typeId"] !== planField.typeId) throw mismatch("typeId");
   if (schemaField["required"] !== planField.required) throw mismatch("required");
@@ -266,6 +290,14 @@ function fieldMatches(
   if ((schemaField["defaultOrigin"] ?? undefined) !== (planField.defaultOrigin ?? undefined)) {
     throw mismatch("defaultOrigin");
   }
+}
+
+/** Type-AST cross-check; throws the schema/plan mismatch. */
+function matchFieldType(
+  planField: PreparedFieldPlan,
+  schemaField: Record<string, unknown>,
+  mismatch: (detail: string) => PlanError,
+): void {
   const schemaType = schemaField["type"];
   if (!isRecord(schemaType)) throw mismatch("type shape");
   let sameAst = false;
@@ -275,6 +307,14 @@ function fieldMatches(
     sameAst = false;
   }
   if (!sameAst) throw mismatch("type AST");
+}
+
+/** valueMin/valueMax cross-checks; throws the schema/plan mismatch. */
+function matchFieldBounds(
+  planField: PreparedFieldPlan,
+  schemaField: Record<string, unknown>,
+  mismatch: (detail: string) => PlanError,
+): void {
   const minDefined = schemaField["valueMin"] !== undefined;
   const planMinDefined = planField.valueMin !== undefined;
   if (minDefined !== planMinDefined) throw mismatch("valueMin presence");
@@ -295,6 +335,19 @@ function fieldMatches(
   ) {
     throw mismatch("valueMax");
   }
+}
+
+function fieldMatches(
+  owner: unknown,
+  planField: PreparedFieldPlan,
+  schemaField: Record<string, unknown>,
+  where: string,
+): void {
+  const mismatch = (detail: string): PlanError =>
+    new PlanError("unknown-plan", `validatePreparedValue abstains: schema/plan mismatch at ${where} (${detail})`);
+  matchFieldScalars(planField, schemaField, mismatch);
+  matchFieldType(planField, schemaField, mismatch);
+  matchFieldBounds(planField, schemaField, mismatch);
   if (planField.hasDefault) {
     const ref: DefaultRef | undefined = planField.defaultRef;
     const schemaDefault = schemaField["default"];

@@ -424,7 +424,12 @@ function fieldPlan(
  *   accepted legacy schemas fail here and stay on `validateValue`.
  * @returns The issuer-assigned generation-tagged `PlanId`.
  */
-export function registerValidationPlan(owner: unknown, profileVersion: unknown, schema: unknown): PlanId {
+/** Provenance/shape/profile gate for plan registration. */
+function checkPlanRegistrationShape(
+  owner: unknown,
+  profileVersion: unknown,
+  schema: unknown,
+): { state: OwnerState; candidate: Partial<NormalizedSchema>; profileVersion: string } {
   const state = ownerStateOf(owner, "registerValidationPlan");
   if (typeof profileVersion !== "string" || profileVersion.length === 0) {
     throw new PlanError("invalid-profile", "profile version must be a non-empty string");
@@ -462,9 +467,15 @@ export function registerValidationPlan(owner: unknown, profileVersion: unknown, 
   if (Object.hasOwn(candidate, "aliases")) {
     throw new PlanError("malformed-schema", "text aliases are outside the prepared validation profile");
   }
+  checkPlanFieldConstraints(candidate);
+  return { state, candidate, profileVersion };
+}
+
+/** Refuse NAME/keyed-array constraints anywhere in the candidate shape. */
+function checkPlanFieldConstraints(candidate: Partial<NormalizedSchema>): void {
   for (const fields of [
-    ...Object.values(candidate.contracts).map(contract => contract.fields),
-    ...Object.values(candidate.operations).map(operation => operation.inputs),
+    ...Object.values(candidate.contracts ?? {}).map(contract => contract.fields),
+    ...Object.values(candidate.operations ?? {}).map(operation => operation.inputs),
   ]) {
     for (const field of Object.values(fields)) {
       if (["format", "distinctBy", "excludedIds"].some(key => Object.hasOwn(field, key))) {
@@ -472,6 +483,94 @@ export function registerValidationPlan(owner: unknown, profileVersion: unknown, 
       }
     }
   }
+}
+
+/**
+ * Stage one field collection (contract fields or operation inputs).
+ * `label` names the owner the way diagnostics do (`field C` / `input O`).
+ */
+function stageFieldPlans(
+  fields: Record<string, NormalizedField>,
+  keyPrefix: string,
+  label: string,
+  rejectKind: string,
+  rejectReservedName: (where: string, name: string) => void,
+  registerDefault: (key: string, value: CanValue) => void,
+): { plans: PreparedFieldPlan[]; allowed: string[]; required: string[] } {
+  const plans: PreparedFieldPlan[] = [];
+  const allowed: string[] = [];
+  const required: string[] = [];
+  for (const [name, field] of Object.entries(fields)) {
+    rejectReservedName(rejectKind, name);
+    const key = `${keyPrefix}.${name}`;
+    if (field.hasDefault) {
+      if (field.default === undefined) {
+        throw new PlanError("malformed-schema", `${label}.${name} claims a default it lacks`);
+      }
+      registerDefault(key, field.default);
+    }
+    plans.push(fieldPlan(name, field, field.hasDefault ? key : undefined));
+    allowed.push(name);
+    if (field.required) required.push(name);
+  }
+  return { plans, allowed, required };
+}
+
+/** Stage contract plans with their field defaults. */
+function stageContractPlans(
+  contracts: Record<string, { readonly fields: Record<string, NormalizedField> }>,
+  sequence: number,
+  rejectReservedName: (where: string, name: string) => void,
+  registerDefault: (key: string, value: CanValue) => void,
+): { contracts: Record<string, PreparedContractPlan>; contractOrder: string[] } {
+  const staged: Record<string, PreparedContractPlan> = {};
+  const contractOrder: string[] = [];
+  for (const [contractName, contract] of Object.entries(contracts)) {
+    rejectReservedName("contract", contractName);
+    const { plans, allowed, required } = stageFieldPlans(
+      contract.fields, `${sequence}:contracts.${contractName}.fields`, `field ${contractName}`, "field", rejectReservedName, registerDefault,
+    );
+    staged[contractName] = Object.freeze({
+      name: contractName,
+      fields: Object.freeze(plans),
+      allowed: Object.freeze(allowed),
+      required: Object.freeze(required),
+    });
+    contractOrder.push(contractName);
+  }
+  return { contracts: staged, contractOrder };
+}
+
+/** Stage operation plans with their input defaults. */
+function stageOperationPlans(
+  operations: Record<string, { readonly inputs: Record<string, NormalizedField>; readonly mutation: boolean }>,
+  sequence: number,
+  rejectReservedName: (where: string, name: string) => void,
+  registerDefault: (key: string, value: CanValue) => void,
+): { operations: Record<string, PreparedOperationPlan>; operationOrder: string[] } {
+  const staged: Record<string, PreparedOperationPlan> = {};
+  const operationOrder: string[] = [];
+  for (const [opName, op] of Object.entries(operations)) {
+    rejectReservedName("operation", opName);
+    const { plans, allowed, required } = stageFieldPlans(
+      op.inputs, `${sequence}:operations.${opName}.inputs`, `input ${opName}`, "input", rejectReservedName, registerDefault,
+    );
+    staged[opName] = Object.freeze({
+      name: opName,
+      inputs: Object.freeze(plans),
+      allowed: Object.freeze(allowed),
+      required: Object.freeze(required),
+      mutation: op.mutation,
+    });
+    operationOrder.push(opName);
+  }
+  return { operations: staged, operationOrder };
+}
+
+export function registerValidationPlan(owner: unknown, profileVersion: unknown, schema: unknown): PlanId {
+  const checked = checkPlanRegistrationShape(owner, profileVersion, schema);
+  const { state, candidate } = checked;
+  const version: string = checked.profileVersion;
   const sequence = state.nextSequence++;
   const id = planIdFor(state, sequence);
   const rejectReservedName = (where: string, name: string): void => {
@@ -488,77 +587,32 @@ export function registerValidationPlan(owner: unknown, profileVersion: unknown, 
     stagedDefaults.set(key, copyFrozenValue(value));
   };
 
-  const contracts: Record<string, PreparedContractPlan> = {};
-  const contractOrder: string[] = [];
-  for (const [contractName, contract] of Object.entries(candidate.contracts)) {
-    rejectReservedName("contract", contractName);
-    const fields: PreparedFieldPlan[] = [];
-    const allowed: string[] = [];
-    const required: string[] = [];
-    for (const [fieldName, field] of Object.entries(contract.fields)) {
-      rejectReservedName("field", fieldName);
-      const key = `${sequence}:contracts.${contractName}.fields.${fieldName}`;
-      if (field.hasDefault) {
-        if (field.default === undefined) {
-          throw new PlanError("malformed-schema", `field ${contractName}.${fieldName} claims a default it lacks`);
-        }
-        registerDefault(key, field.default);
-      }
-      fields.push(fieldPlan(fieldName, field, field.hasDefault ? key : undefined));
-      allowed.push(fieldName);
-      if (field.required) required.push(fieldName);
-    }
-    contracts[contractName] = Object.freeze({
-      name: contractName,
-      fields: Object.freeze(fields),
-      allowed: Object.freeze(allowed),
-      required: Object.freeze(required),
-    });
-    contractOrder.push(contractName);
-  }
+  const stagedContracts = stageContractPlans(
+    candidate.contracts as Record<string, { readonly fields: Record<string, NormalizedField> }>,
+    sequence, rejectReservedName, registerDefault,
+  );
+  const contracts = stagedContracts.contracts;
+  const contractOrder = stagedContracts.contractOrder;
 
   const enums: Record<string, PreparedEnumPlan> = {};
   const enumOrder: string[] = [];
-  for (const [enumName, enumDef] of Object.entries(candidate.enums)) {
+  for (const [enumName, enumDef] of Object.entries(candidate.enums ?? {})) {
     rejectReservedName("enum", enumName);
     enums[enumName] = Object.freeze({ name: enumName, cases: Object.freeze([...enumDef.cases]) });
     enumOrder.push(enumName);
   }
 
-  const operations: Record<string, PreparedOperationPlan> = {};
-  const operationOrder: string[] = [];
-  for (const [opName, op] of Object.entries(candidate.operations)) {
-    rejectReservedName("operation", opName);
-    const inputs: PreparedFieldPlan[] = [];
-    const allowed: string[] = [];
-    const required: string[] = [];
-    for (const [inputName, field] of Object.entries(op.inputs)) {
-      rejectReservedName("input", inputName);
-      const key = `${sequence}:operations.${opName}.inputs.${inputName}`;
-      if (field.hasDefault) {
-        if (field.default === undefined) {
-          throw new PlanError("malformed-schema", `input ${opName}.${inputName} claims a default it lacks`);
-        }
-        registerDefault(key, field.default);
-      }
-      inputs.push(fieldPlan(inputName, field, field.hasDefault ? key : undefined));
-      allowed.push(inputName);
-      if (field.required) required.push(inputName);
-    }
-    operations[opName] = Object.freeze({
-      name: opName,
-      inputs: Object.freeze(inputs),
-      allowed: Object.freeze(allowed),
-      required: Object.freeze(required),
-      mutation: op.mutation,
-    });
-    operationOrder.push(opName);
-  }
+  const stagedOperations = stageOperationPlans(
+    candidate.operations as Record<string, { readonly inputs: Record<string, NormalizedField>; readonly mutation: boolean }>,
+    sequence, rejectReservedName, registerDefault,
+  );
+  const operations = stagedOperations.operations;
+  const operationOrder = stagedOperations.operationOrder;
 
   const plan: PreparedValidationPlan = Object.freeze({
     id,
-    profileVersion,
-    errorProjection: profileVersion,
+    profileVersion: version,
+    errorProjection: version,
     contracts: Object.freeze(contracts),
     contractOrder: Object.freeze(contractOrder),
     enums: Object.freeze(enums),

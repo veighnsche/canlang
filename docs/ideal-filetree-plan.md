@@ -1,5 +1,15 @@
 # Living ideal file-tree plan for Canlang
 
+**TypeScript complexity wind-down merge, 2026-10-18:** account incrementally for
+the released branch through3ac71ab6e. Existing Compiler/State/Work/Cloudflare,
+Interfaces/UI, Values, Files, Services, Testkit and editor owners retain private
+helper extractions. Native development retirement supersedes twenty deleted
+legacy dev files; six conflicting runtime/State refactors keep the newer owning
+implementations as recorded in DECISIONS. Preserve both source histories and
+all accepted finite results; branch metric reductions are not combined-tree
+qualification. Rust changes remain separately unreleased, the complete historical
+checkpoint remains unchanged, and no new issue intake is authorized.
+
 **Wind-down source preservation, 2026-10-18:** account for all nineteen remaining
 compiler/runtime/State source, fixture and test paths. Existing owners retain hook
 staging and nullable inputs, source predicate/receipt authority and SEND reference

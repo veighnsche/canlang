@@ -54,6 +54,79 @@ function closed(value: unknown, keys: readonly string[]): Record<string, unknown
   return value as Record<string, unknown>;
 }
 
+type QueryAnyQuery = NonNullable<ScenarioResultDisclosurePlan['queries']>[number];
+type QueryAnyControl = QueryAnyQuery['dependencies'][number];
+/** Stored-bool queries carry their exact admitted-reference parent edge. */
+type AdmittedParentQuery = QueryAnyQuery & { readonly parent: NonNullable<QueryAnyQuery['parent']> & {
+  readonly origin: Extract<NonNullable<QueryAnyQuery['parent']>['origin'], { readonly kind: 'admitted-reference' }> } };
+
+/** Exact unbounded admitted-parent domain with its one stored bool CONTROL. */
+function checkQueryAnyDomain(
+  plan: ScenarioResultDisclosurePlan,
+  input: Record<string, unknown>,
+): { query: AdmittedParentQuery; control: QueryAnyControl } {
+  const queries = plan.queries?.filter(query => query.id === input.queryId);
+  const query = queries?.[0];
+  if (queries?.length !== 1 || query === undefined || query.dependencies.length !== 1 || query.order.length !== 0 ||
+      query.limit !== null || query.archived !== 'exclude' || query.parent?.origin.kind !== 'admitted-reference' ||
+      !same(query.source, plan.source) || !same(query.parent.source, query.source) || !query.parent.origin.parameter) return fail('exact unbounded admitted-parent domain required.');
+  const control = query.dependencies[0]!;
+  checkQueryAnyControl(query as AdmittedParentQuery, control, input);
+  return { query: query as AdmittedParentQuery, control };
+}
+
+/** One direct stored bool CONTROL against its owning occurrence identity. */
+function checkQueryAnyControl(
+  query: AdmittedParentQuery,
+  control: QueryAnyControl,
+  input: Record<string, unknown>,
+): void {
+  if (control.id !== input.dependencyId || control.role !== 'control' || control.type !== 'bool' ||
+      !same(control.source, query.source) || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(control.field) ||
+      ['id', 'parent', 'version', 'created', 'updated', 'createdBy', 'updatedBy', 'archivedAt'].includes(control.field)) return fail('one direct stored bool CONTROL required.');
+}
+
+/** Exact owning nonnullable stored boolean declaration with agreeing markers. */
+function checkQueryAnyBoolDeclaration(bound: Bound, query: AdmittedParentQuery, control: QueryAnyControl): void {
+  if (!(bound.artifactModels instanceof Map) || Object.getPrototypeOf(bound.artifactModels) !== Map.prototype || Reflect.ownKeys(bound.artifactModels).length !== 0) return fail('own model inventory required.');
+  const model = copyScenarioFileData(Map.prototype.get.call(bound.artifactModels, query.model)) as ArtifactModel;
+  const parent = copyScenarioFileData(Map.prototype.get.call(bound.artifactModels, query.parent.model)) as ArtifactModel;
+  const canonical = copyScenarioFileData(bound.canonicalModels) as readonly CanonicalModelDescriptor[];
+  const found = findQueryAnyBoolField(query, control, model, parent, canonical);
+  checkQueryAnyBoolKind(found.field, found.checked);
+  for (const marker of ['required', 'serverOnly', 'nullable', 'array', 'trim', 'min', 'max'] as const) {
+    if (Object.hasOwn(found.field, marker) !== Object.hasOwn(found.checked, marker) || Object.hasOwn(found.field, marker) && !same(found.field[marker], found.checked[marker])) return fail('owning field markers disagree.');
+  }
+}
+
+/** Owning boolean field pair: detached artifact field and canonical check. */
+function findQueryAnyBoolField(
+  query: AdmittedParentQuery,
+  control: QueryAnyControl,
+  model: ArtifactModel,
+  parent: ArtifactModel,
+  canonical: readonly CanonicalModelDescriptor[],
+): { field: ArtifactModel['fields'][number]; checked: CanonicalModelDescriptor['fields'][string] } {
+  const owners = canonical.filter(value => value.name === query.model), parents = canonical.filter(value => value.name === query.parent!.model);
+  const fields = model.fields.filter(field => field.name === control.field), field = fields[0], checked = owners[0]?.fields[control.field];
+  if (model.name !== query.model || model.parent !== query.parent.model || parent.name !== query.parent.model ||
+      owners.length !== 1 || parents.length !== 1 || fields.length !== 1 || field === undefined || checked === undefined) {
+    return fail('exact owning nonnullable stored boolean declaration required.');
+  }
+  return { field, checked };
+}
+
+/** Nonnullable stored boolean kind with static required markers. */
+function checkQueryAnyBoolKind(
+  field: ArtifactModel['fields'][number],
+  checked: CanonicalModelDescriptor['fields'][string],
+): void {
+  if (field.field.kind !== 'boolean' || field.valueType !== 'bool' || checked.valueType !== 'bool' ||
+      typeof field.required !== 'boolean' || typeof checked.required !== 'boolean' || field.nullable === true || checked.nullable === true ||
+      field.array !== undefined || checked.array !== undefined || field.machine !== undefined || checked.machine !== undefined ||
+      checked.delivery !== undefined || field.default?.kind === 'derived' || checked.default?.kind === 'derived') return fail('exact owning nonnullable stored boolean declaration required.');
+}
+
 /** Root additionally checks the admitted parameter's required versioned input.
  * Compiler/Dev owns exact builtin/lambda/getter source correspondence. */
 export function bindScenarioQueryAny(bound: Bound, metadata: Extract<ScenarioQueryAnyMetadata, { dependencyId: string }>, sources?: ScenarioPredicateAnySources): StoredBoolAnyProfile;
@@ -66,30 +139,8 @@ export function bindScenarioQueryAny(bound: Bound, metadata: ScenarioQueryAnyMet
     const input = closed(copied, ['queryId', 'dependencyId']);
     if (typeof input.queryId !== 'string' || !input.queryId || typeof input.dependencyId !== 'string' || !input.dependencyId) return fail('owning occurrence identities required.');
     const plan = copyScenarioFileData(bound.plan) as ScenarioResultDisclosurePlan;
-    const queries = plan.queries?.filter(query => query.id === input.queryId);
-    const query = queries?.[0];
-    if (queries?.length !== 1 || query === undefined || query.dependencies.length !== 1 || query.order.length !== 0 ||
-        query.limit !== null || query.archived !== 'exclude' || query.parent?.origin.kind !== 'admitted-reference' ||
-        !same(query.source, plan.source) || !same(query.parent.source, query.source) || !query.parent.origin.parameter) return fail('exact unbounded admitted-parent domain required.');
-    const control = query.dependencies[0]!;
-    if (control.id !== input.dependencyId || control.role !== 'control' || control.type !== 'bool' ||
-        !same(control.source, query.source) || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(control.field) ||
-        ['id', 'parent', 'version', 'created', 'updated', 'createdBy', 'updatedBy', 'archivedAt'].includes(control.field)) return fail('one direct stored bool CONTROL required.');
-    if (!(bound.artifactModels instanceof Map) || Object.getPrototypeOf(bound.artifactModels) !== Map.prototype || Reflect.ownKeys(bound.artifactModels).length !== 0) return fail('own model inventory required.');
-    const model = copyScenarioFileData(Map.prototype.get.call(bound.artifactModels, query.model)) as ArtifactModel;
-    const parent = copyScenarioFileData(Map.prototype.get.call(bound.artifactModels, query.parent.model)) as ArtifactModel;
-    const canonical = copyScenarioFileData(bound.canonicalModels) as readonly CanonicalModelDescriptor[];
-    const owners = canonical.filter(value => value.name === query.model), parents = canonical.filter(value => value.name === query.parent!.model);
-    const fields = model.fields.filter(field => field.name === control.field), field = fields[0], checked = owners[0]?.fields[control.field];
-    if (model.name !== query.model || model.parent !== query.parent.model || parent.name !== query.parent.model ||
-        owners.length !== 1 || parents.length !== 1 || fields.length !== 1 || field === undefined || checked === undefined ||
-        field.field.kind !== 'boolean' || field.valueType !== 'bool' || checked.valueType !== 'bool' ||
-        typeof field.required !== 'boolean' || typeof checked.required !== 'boolean' || field.nullable === true || checked.nullable === true ||
-        field.array !== undefined || checked.array !== undefined || field.machine !== undefined || checked.machine !== undefined ||
-        checked.delivery !== undefined || field.default?.kind === 'derived' || checked.default?.kind === 'derived') return fail('exact owning nonnullable stored boolean declaration required.');
-    for (const marker of ['required', 'serverOnly', 'nullable', 'array', 'trim', 'min', 'max'] as const) {
-      if (Object.hasOwn(field, marker) !== Object.hasOwn(checked, marker) || Object.hasOwn(field, marker) && !same(field[marker], checked[marker])) return fail('owning field markers disagree.');
-    }
+    const { query, control } = checkQueryAnyDomain(plan, input);
+    checkQueryAnyBoolDeclaration(bound, query, control);
     const consumers = plan.returns.filter(returned => returned.influences.some(influence => influence.queryId === query.id));
     if (consumers.length === 0 || plan.returns.some(returned => returned.projection?.queryId === query.id) ||
         consumers.some(returned => returned.dependencies.some(dependency => dependency.queryId === query.id && dependency.role === 'data'))) return fail('actual CONTROL query influence without projection required.');
@@ -102,8 +153,16 @@ export function bindScenarioQueryAny(bound: Bound, metadata: ScenarioQueryAnyMet
 /** The installed producer, not this transport profile, authenticates the
  * executable source/capture. Imported helper chains additionally require the actual private owner
  * census; executable Query/Lambda correspondence remains with that producer. */
-function bindPredicateAny(bound: Bound, metadata: Extract<ScenarioQueryAnyMetadata, { kind: 'predicate' }>,
-  sources?: ScenarioPredicateAnySources): PredicateAnyProfile {
+type PredicateAnyQuery = NonNullable<Bound['plan']['queries']>[number];
+
+/** Predicate census head: query, parent edge and owning call association. */
+function checkPredicateAnyHead(
+  bound: Bound,
+  metadata: Extract<ScenarioQueryAnyMetadata, { kind: 'predicate' }>,
+  sources?: ScenarioPredicateAnySources,
+): { query: PredicateAnyQuery; navigated: boolean;
+  parentOrigin: NonNullable<PredicateAnyQuery['parent']>['origin'] | undefined;
+  ownerRequire: boolean } {
   const input = closed(copyScenarioFileData(metadata), ['kind', 'queryId', 'dependencyIds',
     ...(Object.hasOwn(metadata, 'sourceCall') ? ['sourceCall'] : []),
     ...(Object.hasOwn(metadata, 'direct') ? ['direct'] : []),
@@ -118,6 +177,18 @@ function bindPredicateAny(bound: Bound, metadata: Extract<ScenarioQueryAnyMetada
   const parentOrigin = navigated ? query.parent!.origin : undefined;
   if (parentOrigin !== undefined && (parentOrigin.kind !== 'admitted-reference' || !parentOrigin.parameter ||
       !same(query.parent!.source, query.source))) return fail('navigated predicate requires its exact admitted parent edge.');
+  const ownerRequire = checkPredicateAnyAssociation(bound, query, input, sources, navigated);
+  return { query, navigated, parentOrigin, ownerRequire };
+}
+
+/** Owning call association: helper census, direct record, or legacy root. */
+function checkPredicateAnyAssociation(
+  bound: Bound,
+  query: PredicateAnyQuery,
+  input: Record<string, unknown>,
+  sources: ScenarioPredicateAnySources | undefined,
+  navigated: boolean,
+): boolean {
   const ownerRequire = Object.hasOwn(input, 'sourceCall');
   const direct = Object.hasOwn(input, 'direct') && (input as { direct?: unknown }).direct === true;
   const hasCall = Object.hasOwn(input, 'call');
@@ -136,50 +207,94 @@ function bindPredicateAny(bound: Bound, metadata: Extract<ScenarioQueryAnyMetada
   } else if (ownerRequire) return fail('actual owner source-call indices required.');
   else if (!same(query.source, bound.plan.source)) return fail('imported predicate requires its actual owner source-call association.');
   if (navigated && !associated) return fail('navigated predicate requires its exact owning call association.');
+  return ownerRequire;
+}
+
+/** Declared query model (plus navigated parent) for one predicate. */
+function findPredicateAnyModels(
+  bound: Bound,
+  query: PredicateAnyQuery,
+  navigated: boolean,
+): { model: ArtifactModel; canonical: CanonicalModelDescriptor } {
   const model = bound.artifactModels.get(query.model), canonical = bound.canonicalModels.find(model => model.name === query.model);
   if (model === undefined || canonical === undefined) return fail('declared query model required.');
   if (!navigated && model.parent !== undefined) return fail('declared root query model required.');
   if (navigated) {
-    const parent = bound.artifactModels.get(query.parent.model),
+    const parent = bound.artifactModels.get(query.parent!.model),
       canonicalParent = bound.canonicalModels.find(model => model.name === query.parent!.model);
-    if (parent === undefined || canonicalParent === undefined || model.parent !== query.parent.model ||
-        parent.name !== query.parent.model) return fail('declared navigated parent model required.');
+    if (parent === undefined || canonicalParent === undefined || model.parent !== query.parent!.model ||
+        parent.name !== query.parent!.model) return fail('declared navigated parent model required.');
   }
+  return { model, canonical };
+}
+
+/** Declared type for one predicate field, honoring native User/enum tags. */
+function resolvePredicateDeclaredType(
+  field: ArtifactModel['fields'][number] | undefined,
+): { nativeUser: boolean; nativeEnum: string | undefined; declaredType: unknown } {
+  // The existing compiler User tag is already exact; its redundant valueType
+  // claim may be absent. Registry still supplies the exact canonical type.
+  const nativeUser = field !== undefined && field.field.kind === 'user' && Reflect.ownKeys(field.field).length === 1 &&
+    field.array === undefined && field.nullable !== true;
+  // Inline enum descriptors carry exact values without a redundant
+  // valueType claim, mirroring the nativeUser precedent above; the exact
+  // `enum(a,b)` spelling must equal the checked dependency type.
+  const enumValues = field !== undefined && field.field.kind === 'enum' &&
+    Array.isArray((field.field as { values?: unknown }).values) ?
+    (field.field as { values: unknown[] }).values : undefined;
+  const nativeEnum = enumValues !== undefined && enumValues.length !== 0 &&
+    enumValues.every(value => typeof value === 'string') ?
+    `enum(${(enumValues as string[]).join(',')})` : undefined;
+  const declaredType = field !== undefined && !Object.hasOwn(field, 'valueType') &&
+    (nativeUser ? 'user' : nativeEnum) ? (nativeUser ? 'user' : nativeEnum as string) : field?.valueType;
+  return { nativeUser, nativeEnum, declaredType };
+}
+
+/** One predicate CONTROL dependency in query order: declaration, kind, markers. */
+function checkOnePredicateAnyDependency(
+  bound: Bound,
+  model: ArtifactModel,
+  canonical: CanonicalModelDescriptor,
+  query: PredicateAnyQuery,
+  dependency: PredicateAnyQuery['dependencies'][number],
+): void {
+  const fields = model.fields.filter(field => field.name === dependency.field);
+  const field = fields[0] === undefined ? undefined : copyScenarioFileData(fields[0]) as typeof fields[0];
+  const checked = canonical.fields[dependency.field];
+  const { nativeUser, nativeEnum, declaredType } = resolvePredicateDeclaredType(field);
+  if (dependency.role !== 'control' || !same(dependency.source, query.source) || fields.length !== 1 ||
+      field === undefined || checked === undefined || declaredType !== dependency.type || (checked.valueType ?? nativeEnum) !== dependency.type ||
+      dependency.type === 'user' && !nativeUser ||
+      field.default?.kind === 'derived' || checked.default?.kind === 'derived') return fail('exact stored CONTROL field declaration required.');
+  checkPredicateAnyFieldKind(bound, dependency, parseTypeId(dependency.type));
+  for (const marker of ['required', 'serverOnly', 'nullable', 'array', 'trim', 'min', 'max'] as const) {
+    if (Object.hasOwn(field, marker) !== Object.hasOwn(checked, marker) || Object.hasOwn(field, marker) && !same(field[marker], checked[marker])) return fail('owning predicate field markers disagree.');
+  }
+}
+
+/** Predicate CONTROL kind: bool, User, declared Model reference or enum. */
+function checkPredicateAnyFieldKind(
+  bound: Bound,
+  dependency: PredicateAnyQuery['dependencies'][number],
+  type: ReturnType<typeof parseTypeId>,
+): void {
+  const modelReference = type.base.kind === 'nominal' && bound.artifactModels.has(type.base.path as ModelName) &&
+    bound.valueSchema !== undefined && !Object.hasOwn(bound.valueSchema.contracts, type.base.path) &&
+    !Object.hasOwn(bound.valueSchema.enums, type.base.path) && !Object.hasOwn(bound.valueSchema.aliases ?? {}, type.base.path);
+  // Nominal model-field enums carry their exact case list in the type id;
+  // declaration string equality above already pins the precise cases.
+  const fieldEnum = type.base.kind === 'enum' && Array.isArray(type.base.cases) &&
+    type.base.cases.length !== 0 && type.base.cases.every(name => typeof name === 'string');
+  if (type.nullable || type.requiredArray || !(dependency.type === 'bool' || dependency.type === 'user' || modelReference || fieldEnum)) return fail('predicate requires bool, User, declared Model reference or exact enum CONTROL fields.');
+}
+
+function bindPredicateAny(bound: Bound, metadata: Extract<ScenarioQueryAnyMetadata, { kind: 'predicate' }>,
+  sources?: ScenarioPredicateAnySources): PredicateAnyProfile {
+  const head = checkPredicateAnyHead(bound, metadata, sources);
+  const { query, navigated, parentOrigin, ownerRequire } = head;
+  const { model, canonical } = findPredicateAnyModels(bound, query, navigated);
   for (const dependency of query.dependencies) {
-    const fields = model.fields.filter(field => field.name === dependency.field);
-    const field = fields[0] === undefined ? undefined : copyScenarioFileData(fields[0]) as typeof fields[0];
-    const checked = canonical.fields[dependency.field];
-    // The existing compiler User tag is already exact; its redundant valueType
-    // claim may be absent. Registry still supplies the exact canonical type.
-    const nativeUser = field !== undefined && field.field.kind === 'user' && Reflect.ownKeys(field.field).length === 1 &&
-      field.array === undefined && field.nullable !== true;
-    // Inline enum descriptors carry exact values without a redundant
-    // valueType claim, mirroring the nativeUser precedent above; the exact
-    // `enum(a,b)` spelling must equal the checked dependency type.
-    const enumValues = field !== undefined && field.field.kind === 'enum' &&
-      Array.isArray((field.field as { values?: unknown }).values) ?
-      (field.field as { values: unknown[] }).values : undefined;
-    const nativeEnum = enumValues !== undefined && enumValues.length !== 0 &&
-      enumValues.every(value => typeof value === 'string') ?
-      `enum(${(enumValues as string[]).join(',')})` : undefined;
-    const declaredType = field !== undefined && !Object.hasOwn(field, 'valueType') &&
-      (nativeUser ? 'user' : nativeEnum) ? (nativeUser ? 'user' : nativeEnum as string) : field?.valueType;
-    if (dependency.role !== 'control' || !same(dependency.source, query.source) || fields.length !== 1 ||
-        field === undefined || checked === undefined || declaredType !== dependency.type || (checked.valueType ?? nativeEnum) !== dependency.type ||
-        dependency.type === 'user' && !nativeUser ||
-        field.default?.kind === 'derived' || checked.default?.kind === 'derived') return fail('exact stored CONTROL field declaration required.');
-    const type = parseTypeId(dependency.type);
-    const modelReference = type.base.kind === 'nominal' && bound.artifactModels.has(type.base.path as ModelName) &&
-      bound.valueSchema !== undefined && !Object.hasOwn(bound.valueSchema.contracts, type.base.path) &&
-      !Object.hasOwn(bound.valueSchema.enums, type.base.path) && !Object.hasOwn(bound.valueSchema.aliases ?? {}, type.base.path);
-    // Nominal model-field enums carry their exact case list in the type id;
-    // declaration string equality above already pins the precise cases.
-    const fieldEnum = type.base.kind === 'enum' && Array.isArray(type.base.cases) &&
-      type.base.cases.length !== 0 && type.base.cases.every(name => typeof name === 'string');
-    if (type.nullable || type.requiredArray || !(dependency.type === 'bool' || dependency.type === 'user' || modelReference || fieldEnum)) return fail('predicate requires bool, User, declared Model reference or exact enum CONTROL fields.');
-    for (const marker of ['required', 'serverOnly', 'nullable', 'array', 'trim', 'min', 'max'] as const) {
-      if (Object.hasOwn(field, marker) !== Object.hasOwn(checked, marker) || Object.hasOwn(field, marker) && !same(field[marker], checked[marker])) return fail('owning predicate field markers disagree.');
-    }
+    checkOnePredicateAnyDependency(bound, model, canonical, query, dependency);
   }
   const consumers = bound.plan.returns.filter(returned => returned.influences.some(influence => influence.queryId === query.id));
   // A verified owning Require consumes execution authority independently of
@@ -196,21 +311,29 @@ function bindPredicateAny(bound: Bound, metadata: Extract<ScenarioQueryAnyMetada
 /** Source grammar is checked against the already authenticated owner census.
  * Query/Lambda node -> queryId correspondence remains Compiler/CF's private
  * callback attestation; the query plan has no source-node intervals. */
-function checkPredicateSourceCall(bound: Bound, query: ScenarioReceiptQueryPlan, selector: unknown,
-  sources: ScenarioPredicateAnySources | undefined): void {
-  const selected = closed(selector, ['siteIndex', 'callIndex']);
-  if (!Number.isSafeInteger(selected.siteIndex) || (selected.siteIndex as number) < 0 ||
-      !Number.isSafeInteger(selected.callIndex) || (selected.callIndex as number) < 0 || sources === undefined) return fail('actual owner source-call indices required.');
-  const actual = closed(copyScenarioFileData(sources), ['owner', 'source', 'sites']) as unknown as ScenarioPredicateAnySources;
-  const sites = checkScenarioReceiptMembershipSites(actual.sites), site = sites[selected.siteIndex as number];
-  const call = site?.calls[selected.callIndex as number];
-  if (site === undefined || call === undefined || site.owner !== actual.owner ||
+/** Owning Require collection call with its helper source and argument slots. */
+function checkPredicateSourceCallSeal(
+  bound: Bound,
+  query: ScenarioReceiptQueryPlan,
+  actual: ScenarioPredicateAnySources,
+  site: ScenarioReceiptMembershipSite,
+  call: ScenarioReceiptMembershipSite['calls'][number],
+): void {
+  if (site.owner !== actual.owner ||
       !same(site.source, actual.source) || !['leading-require', 'body-require'].includes(site.stage) ||
       actual.source.path !== bound.plan.source.path || actual.source.sha256 !== bound.plan.source.sha256 ||
       call.target.kind !== 'builtin' || call.target.id !== 'any' || call.target.overload !== 0 ||
       call.source.path !== query.source.path || call.source.sha256 !== query.source.sha256 ||
       query.source.module !== bound.plan.source.module || call.arguments.length !== 2 || call.slots.length !== 2 ||
       call.slots[0] === null || call.slots[1] === null || call.defaults.length !== 0) return fail('exact owning Require collection call and helper source required.');
+}
+
+/** Original Model domain, predicate slots and the helper caller chain. */
+function checkPredicateSourceCallChain(
+  query: ScenarioReceiptQueryPlan,
+  site: ScenarioReceiptMembershipSite,
+  call: ScenarioReceiptMembershipSite['calls'][number],
+): void {
   const domain = call.arguments[call.slots[0]!], predicate = call.arguments[call.slots[1]!];
   const inside = (node: { readonly start: number; readonly end: number }) => node.start >= call.node.start && node.end <= call.node.end;
   if (domain?.type !== `${query.model}[]` || predicate?.type !== 'bool' || !inside(domain.node) || !inside(predicate.node) ||
@@ -223,14 +346,33 @@ function checkPredicateSourceCall(bound: Bound, query: ScenarioReceiptQueryPlan,
   }
 }
 
+function checkPredicateSourceCall(bound: Bound, query: ScenarioReceiptQueryPlan, selector: unknown,
+  sources: ScenarioPredicateAnySources | undefined): void {
+  const selected = closed(selector, ['siteIndex', 'callIndex']);
+  if (!Number.isSafeInteger(selected.siteIndex) || (selected.siteIndex as number) < 0 ||
+      !Number.isSafeInteger(selected.callIndex) || (selected.callIndex as number) < 0 || sources === undefined) return fail('actual owner source-call indices required.');
+  const actual = closed(copyScenarioFileData(sources), ['owner', 'source', 'sites']) as unknown as ScenarioPredicateAnySources;
+  const sites = checkScenarioReceiptMembershipSites(actual.sites), site = sites[selected.siteIndex as number];
+  const call = site?.calls[selected.callIndex as number];
+  if (site === undefined || call === undefined) return fail('exact owning Require collection call and helper source required.');
+  checkPredicateSourceCallSeal(bound, query, actual, site, call);
+  checkPredicateSourceCallChain(query, site, call);
+}
+
 /** Verify a direct leading-any guard's exact checked call record against
  * the installed owner/source producer. The `direct` bit never exempts
  * this check: owner, LeadingRequire stage, builtin `any`, source/model
  * argument slots, empty chain and bounded indices are each sealed. The
  * query producer gate runs this before the predicate bind; the bind still
  * requires the source-call selector and the record to be present. */
-export function checkDirectPredicateCall(owner: string, planSource: ScenarioReceiptQueryPlan['source'],
-  query: ScenarioReceiptQueryPlan, selector: unknown, call: unknown): void {
+/** Installed owner, LeadingRequire stage, checked indices and owning source. */
+function checkDirectPredicateRecord(
+  owner: string,
+  planSource: ScenarioReceiptQueryPlan['source'],
+  query: ScenarioReceiptQueryPlan,
+  selector: unknown,
+  call: unknown,
+): { record: ScenarioQueryAnyDirectCall; node: Record<string, unknown> } {
   if (typeof owner !== 'string' || owner === '') return fail('direct predicate requires its exact installed owner.');
   const selected = closed(selector, ['siteIndex', 'callIndex']);
   if (!Number.isSafeInteger(selected.siteIndex) || (selected.siteIndex as number) < 0 ||
@@ -243,11 +385,25 @@ export function checkDirectPredicateCall(owner: string, planSource: ScenarioRece
       (selected.callIndex as number) !== (record.callIndex as number)) return fail('direct predicate requires its exact checked call indices.');
   if (!same(record.source, planSource) || !same(record.source, query.source) ||
       query.source.module !== planSource.module) return fail('direct predicate requires its exact owning query source.');
+  return { record, node: checkDirectPredicateNode(record) };
+}
+
+/** Exact call interval with the builtin collection-call target seal. */
+function checkDirectPredicateNode(record: ScenarioQueryAnyDirectCall): Record<string, unknown> {
   const node = closed(record.node, ['start', 'end']);
   if (!Number.isSafeInteger(node.start) || !Number.isSafeInteger(node.end) ||
       (node.start as number) < 0 || (node.end as number) <= (node.start as number)) return fail('direct predicate requires its exact call interval.');
   const target = closed(record.target, ['kind', 'id', 'overload']);
   if (target.kind !== 'builtin' || target.id !== 'any' || target.overload !== 0) return fail('direct predicate requires its exact builtin collection call.');
+  return node;
+}
+
+/** Exact source/model argument slots with empty chain and bounded intervals. */
+function checkDirectPredicateSlots(
+  query: ScenarioReceiptQueryPlan,
+  record: ScenarioQueryAnyDirectCall,
+  node: Record<string, unknown>,
+): void {
   if (!Array.isArray(record.arguments) || record.arguments.length !== 2 ||
       !Array.isArray(record.slots) || record.slots.length !== 2 ||
       (record.slots as readonly unknown[])[0] !== 0 || (record.slots as readonly unknown[])[1] !== 1 ||
@@ -262,42 +418,82 @@ export function checkDirectPredicateCall(owner: string, planSource: ScenarioRece
       !inside(domainNode) || !inside(predicateNode)) return fail('direct predicate requires its exact Model domain and predicate slots.');
 }
 
+export function checkDirectPredicateCall(owner: string, planSource: ScenarioReceiptQueryPlan['source'],
+  query: ScenarioReceiptQueryPlan, selector: unknown, call: unknown): void {
+  const { record, node } = checkDirectPredicateRecord(owner, planSource, query, selector, call);
+  checkDirectPredicateSlots(query, record, node);
+}
+
 /** Validate the retained lazy prefix; suffix rows were not predicate reads.
  * General row/lifetime/parent structural checks remain with receipt parsing. */
+type SavedAnyCandidate = ScenarioReceiptQueryObservation['candidates'][number];
+
+/** Exact saved ANY domain: identity, revision, parent and bounded selection. */
+function checkSavedAnyDomain(profile: ScenarioQueryAnyProfile, saved: ScenarioReceiptQueryObservation): void {
+  if (saved.queryId !== profile.queryId || !Number.isSafeInteger(saved.revision) || saved.revision < 0 ||
+      (profile.kind === 'predicate' && profile.parentModel === undefined ? saved.parent !== undefined :
+        saved.parent?.model !== profile.parentModel) || !Array.isArray(saved.candidates) || !Array.isArray(saved.selectedIndices) ||
+      saved.selectedIndices.length > 1) return fail('exact saved ANY domain required.');
+}
+
+/** Saved ANY parent correspondence: true when the census must refuse. */
+function savedAnyCandidateParentInvalid(
+  profile: ScenarioQueryAnyProfile,
+  saved: ScenarioReceiptQueryObservation,
+  candidate: SavedAnyCandidate,
+): boolean {
+  if (profile.kind === 'predicate' && profile.parentModel === undefined) return candidate.row.parent != null;
+  const rowParent = candidate.row.parent;
+  return rowParent?.model !== profile.parentModel || rowParent!.id !== saved.parent!.row.id;
+}
+
+/** Genuine contained candidate census with default created/id order. */
+function checkSavedAnyCandidateShape(
+  profile: ScenarioQueryAnyProfile,
+  saved: ScenarioReceiptQueryObservation,
+  candidate: SavedAnyCandidate,
+  index: number,
+  identities: Set<string>,
+): void {
+  if (typeof candidate.row.id !== 'string' || identities.has(candidate.row.id) || !Number.isSafeInteger(candidate.row.created) ||
+      candidate.row.archivedAt !== null || savedAnyCandidateParentInvalid(profile, saved, candidate) ||
+      typeof candidate.matched !== 'boolean' || !Array.isArray(candidate.dependencies)) return fail('complete genuine contained candidate census required.');
+  identities.add(candidate.row.id);
+  const previous = saved.candidates[index - 1];
+  if (previous !== undefined && (previous.row.created > candidate.row.created ||
+      previous.row.created === candidate.row.created && previous.row.id >= candidate.row.id)) return fail('default created/id candidate order required.');
+}
+
+/** Visited verdict: predicate CONTROL closure or exact bool marker. */
+function checkSavedAnyVerdict(profile: ScenarioQueryAnyProfile, candidate: SavedAnyCandidate): void {
+  if (profile.kind === 'predicate') {
+    if (candidate.dependencies.length === 0 || candidate.dependencies[0] !== profile.dependencyIds[0] ||
+        new Set(candidate.dependencies).size !== candidate.dependencies.length ||
+        candidate.dependencies.some((id: string) => !profile.dependencyIds.includes(id))) return fail('visited predicate requires its declared first CONTROL and executed closure.');
+    for (const id of candidate.dependencies) {
+      const dependency = profile.query.dependencies.find(dependency => dependency.id === id)!;
+      if (!Object.hasOwn(candidate.record.data, dependency.field) ||
+          !same(candidate.record.data[dependency.field], candidate.row.data[dependency.field])) return fail('predicate CONTROL must retain its exact projected field.');
+    }
+  } else if (candidate.dependencies.length !== 1 || candidate.dependencies[0] !== profile.dependencyId ||
+      typeof candidate.record.data[profile.field] !== 'boolean' || candidate.record.data[profile.field] !== candidate.row.data[profile.field] ||
+      candidate.matched !== candidate.record.data[profile.field]) return fail('every visited bool verdict requires its exact CONTROL marker.');
+}
+
 export function checkSavedScenarioQueryAny(profile: ScenarioQueryAnyProfile, observation: ScenarioReceiptQueryObservation): boolean {
   if (!profiles.has(profile)) return fail('authentic private ANY profile required.');
   try {
     const saved = copyScenarioFileData(observation) as ScenarioReceiptQueryObservation;
-    if (saved.queryId !== profile.queryId || !Number.isSafeInteger(saved.revision) || saved.revision < 0 ||
-        (profile.kind === 'predicate' && profile.parentModel === undefined ? saved.parent !== undefined :
-          saved.parent?.model !== profile.parentModel) || !Array.isArray(saved.candidates) || !Array.isArray(saved.selectedIndices) ||
-        saved.selectedIndices.length > 1) return fail('exact saved ANY domain required.');
+    checkSavedAnyDomain(profile, saved);
     const identities = new Set<string>(); let firstTrue = -1;
     for (let index = 0; index < saved.candidates.length; index++) {
       const candidate = saved.candidates[index]!;
-      if (typeof candidate.row.id !== 'string' || identities.has(candidate.row.id) || !Number.isSafeInteger(candidate.row.created) ||
-          candidate.row.archivedAt !== null || (profile.kind === 'predicate' && profile.parentModel === undefined ? candidate.row.parent != null :
-          candidate.row.parent?.model !== profile.parentModel || candidate.row.parent.id !== saved.parent!.row.id) || typeof candidate.matched !== 'boolean' || !Array.isArray(candidate.dependencies)) return fail('complete genuine contained candidate census required.');
-      identities.add(candidate.row.id);
-      const previous = saved.candidates[index - 1];
-      if (previous !== undefined && (previous.row.created > candidate.row.created ||
-          previous.row.created === candidate.row.created && previous.row.id >= candidate.row.id)) return fail('default created/id candidate order required.');
+      checkSavedAnyCandidateShape(profile, saved, candidate, index, identities);
       if (firstTrue >= 0) {
         if (candidate.matched || candidate.dependencies.length !== 0) return fail('ANY suffix must be unvisited.');
         continue;
       }
-      if (profile.kind === 'predicate') {
-        if (candidate.dependencies.length === 0 || candidate.dependencies[0] !== profile.dependencyIds[0] ||
-            new Set(candidate.dependencies).size !== candidate.dependencies.length ||
-            candidate.dependencies.some((id: string) => !profile.dependencyIds.includes(id))) return fail('visited predicate requires its declared first CONTROL and executed closure.');
-        for (const id of candidate.dependencies) {
-          const dependency = profile.query.dependencies.find(dependency => dependency.id === id)!;
-          if (!Object.hasOwn(candidate.record.data, dependency.field) ||
-              !same(candidate.record.data[dependency.field], candidate.row.data[dependency.field])) return fail('predicate CONTROL must retain its exact projected field.');
-        }
-      } else if (candidate.dependencies.length !== 1 || candidate.dependencies[0] !== profile.dependencyId ||
-          typeof candidate.record.data[profile.field] !== 'boolean' || candidate.record.data[profile.field] !== candidate.row.data[profile.field] ||
-          candidate.matched !== candidate.record.data[profile.field]) return fail('every visited bool verdict requires its exact CONTROL marker.');
+      checkSavedAnyVerdict(profile, candidate);
       if (candidate.matched) firstTrue = index;
     }
     if (!same(saved.selectedIndices, firstTrue < 0 ? [] : [firstTrue])) return fail('ANY selects exactly its first true verdict.');

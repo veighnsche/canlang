@@ -43,12 +43,23 @@ export function preflightSodaDeployment(artifact: CompileArtifact, descriptor: C
   if (descriptor.identity.artifactDigest !== createHash('sha256').update(JSON.stringify(artifact)).digest('hex')) {
     failures.push('Soda descriptor does not identify the exact compiled artifact');
   }
+  checkSodaRequires(artifact, failures);
+  checkSodaBindings(artifact, descriptor, failures);
+  checkSodaOrigin(artifact, environment, failures);
+  if (artifact.callables.some(item => item.kind === 'migration')) failures.push('Soda migrations require a qualified upgrade procedure');
+  if (failures.length !== 0) throw new Error(failures.join('\n'));
+}
+
+function checkSodaRequires(artifact: CompileArtifact, failures: string[]): void {
   for (const required of artifact.requires) {
     const version = required.capability === 'canlang.builtins' ? 0 : 1;
     if (!(SODA_CAPABILITIES as readonly string[]).includes(required.capability) || required.min_version !== version) {
       failures.push(`Soda lacks qualified producer ${required.capability}@${required.min_version}`);
     }
   }
+}
+
+function checkSodaBindings(artifact: CompileArtifact, descriptor: CompatibilityDescriptor, failures: string[]): void {
   for (const binding of artifact.runtimeBindings ?? []) {
     if (binding.kind !== 'r2' || binding.implicit !== true || binding.binding !== 'FILES') {
       failures.push(`Soda does not support source ${binding.kind} binding ${binding.binding}`);
@@ -65,6 +76,9 @@ export function preflightSodaDeployment(artifact: CompileArtifact, descriptor: C
     failures.push('Soda requires declared separate State D1 binding STATE_DB');
   }
   if (artifact.models?.some(model => model.scope === 'app')) failures.push('Soda currently supports a single bootstrapped team; app-global and mixed owner storage are not qualified');
+}
+
+function checkSodaOrigin(artifact: CompileArtifact, environment: EnvironmentSelection, failures: string[]): void {
   const origin = environment.vars.CAN_AUTH_ORIGIN;
   try {
     if (typeof origin !== 'string' || !['http:', 'https:'].includes(new URL(origin).protocol) || new URL(origin).origin !== origin) {
@@ -73,8 +87,6 @@ export function preflightSodaDeployment(artifact: CompileArtifact, descriptor: C
       failures.push('Soda File receivers require an HTTPS application origin');
     }
   } catch { failures.push('Soda requires a canonical explicit CAN_AUTH_ORIGIN'); }
-  if (artifact.callables.some(item => item.kind === 'migration')) failures.push('Soda migrations require a qualified upgrade procedure');
-  if (failures.length !== 0) throw new Error(failures.join('\n'));
 }
 
 export interface SodaBundle {

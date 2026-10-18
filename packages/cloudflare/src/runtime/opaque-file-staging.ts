@@ -2,10 +2,12 @@
 import type {
   ArtifactOperation, CanonicalModelDescriptor, CanonicalOperationDescriptor, CanonicalValueTypes,
   CompileArtifact, FileReferenceStoragePort, FrameworkFilePayloadOrigin, FrameworkOpaqueCallable,
-  FrameworkOpaqueDeclarationSet, FrameworkOpaqueEventDeclaration, FrameworkOpaqueValueProjection,
+  FrameworkOpaqueDeclaration, FrameworkOpaqueDeclarationSet, FrameworkOpaqueEventDeclaration, FrameworkOpaqueValueProjection,
   FrameworkOpaqueDeliveryContext, FrameworkOpaqueSendGuardDeclaration,
   ModelName, ResolvedIdentity, RetainedFinalizedFile, Revision, StoredRow, WorkScope,
 } from '@canlang/contracts';
+
+type CallableDeclarationSource = Extract<FrameworkOpaqueDeclaration['source'], { kind: 'callable' }>;
 import { bindOpaqueFileDeclarations, prepareFrameworkFilePayloadOrigin, resolveOpaqueFileProjection, validateOpaqueFileOrigin } from '@canlang/state/storage';
 import { observeRetainedCanonicalFile, type CanonicalFileBinding } from './file-staging.js';
 import { WORK_FILE_REFERENCE_PRODUCER } from '@canlang/work';
@@ -150,7 +152,13 @@ export async function loadOpaqueFileStaging(input: OpaqueFileStagingInput) {
     return Object.freeze({ kind: 'declared-event', source: matches[0]!.source.source,
       event: name, inputsDeclarationId: matches[0]!.id });
   };
-  const callable = (id: string): FrameworkOpaqueCallable => {
+  const checkedCallable = (id: string): {
+    actual: CompileArtifact['callables'][number];
+    operation: NonNullable<ReturnType<typeof operations.get>>;
+    inputs: FrameworkOpaqueDeclaration;
+    result: FrameworkOpaqueDeclaration;
+    source: CallableDeclarationSource;
+  } => {
     const actual = artifact.callables.filter(candidate => candidate.id === id);
     const operation = operations.get(id);
     const inputs = set.declarations.find(declaration => declaration.id === `${id}:inputs`);
@@ -164,6 +172,10 @@ export async function loadOpaqueFileStaging(input: OpaqueFileStagingInput) {
         !equal(result.profile.artifact, result.profile.kind === 'result' ? resultDeclaration(operation.artifact.result) : operation.artifact.result)) {
       refuse('callable lacks its complete genuine input/result declaration');
     }
+    return { actual: actual[0]!, operation, inputs, result, source: inputs.source as CallableDeclarationSource };
+  };
+  const callable = (id: string): FrameworkOpaqueCallable => {
+    const { actual, operation, result, source } = checkedCallable(id);
     // This nongrant header must match the installed File declaration exactly.
     // The full execution descriptors remain in the independently checked
     // operation snapshot; explicit void retains its original full declaration.
@@ -174,7 +186,7 @@ export async function loadOpaqueFileStaging(input: OpaqueFileStagingInput) {
       result: resultDeclaration(operation.canonical.result!) }) : operation.canonical;
     const descriptor = result.profile.kind === 'result' ? Object.freeze({ ...operation.artifact,
       result: resultDeclaration(operation.artifact.result!) }) : operation.artifact;
-    return Object.freeze({ source: inputs.source.source, callable: actual[0]!, canonical,
+    return Object.freeze({ source: source.source, callable: actual, canonical,
       artifact: descriptor, resultDeclarationId: result.id });
   };
   const sendGuard = (guard: ScenarioReceiptSendGuard, profile?: Extract<FrameworkOpaqueDeclarationSet['declarations'][number]['profile'], { kind: 'inputs' }>): {
@@ -188,11 +200,7 @@ export async function loadOpaqueFileStaging(input: OpaqueFileStagingInput) {
     const { kind: _kind, ...declaration } = matches[0]!.source;
     return Object.freeze({ declaration: Object.freeze(declaration), inputsDeclarationId: matches[0]!.id });
   };
-  const delivery = (model: string, field: string, send: ScenarioReceiptDeliveryOriginFrame['send']): {
-    readonly declaration: FrameworkOpaqueDeliveryContext; readonly resultDeclarationId: string;
-  } => {
-    const original = captureData(send);
-    const caller = callable(original.operation);
+  const checkDeliveryTarget = (model: string, field: string, original: ScenarioReceiptDeliveryOriginFrame['send']) => {
     const models = artifact.models?.filter(candidate => candidate.name === model);
     const canonical = canonicalModels.filter(candidate => candidate.name === model);
     const fields = models?.length === 1 ? models[0]!.fields.filter(candidate => candidate.name === field) : [];
@@ -200,7 +208,11 @@ export async function loadOpaqueFileStaging(input: OpaqueFileStagingInput) {
     const checked = canonical.length === 1 ? canonical[0]!.fields[field]?.delivery : undefined;
     if (authored?.kind !== 'delivery' || checked === undefined || !equal(authored, checked) ||
         original.target !== `${checked.capability}.${checked.operation}`) refuse('delivery lacks its exact original model/field/target declaration');
-    const generation = dispatchGenerationTargetProfile(original.target);
+    return { checked, authored };
+  };
+  const findDeliveryDeclaration = (caller: FrameworkOpaqueCallable,
+    target: ReturnType<typeof checkDeliveryTarget>) => {
+    const { checked, authored } = target;
     const matches = set.declarations.filter(candidate => candidate.source.kind === 'delivery' &&
       // Multiple original callables share this emitted module/source pair.
       // Keep the installed result declaration issued for THIS exact caller.
@@ -209,20 +221,27 @@ export async function loadOpaqueFileStaging(input: OpaqueFileStagingInput) {
       equal(candidate.source.context.canonical, checked) && equal(candidate.source.context.artifact, authored) &&
       equal(candidate.profile.canonical, checked.result) && equal(candidate.profile.artifact, authored.result));
     if (matches.length !== 1 || matches[0]!.source.kind !== 'delivery') refuse('delivery lacks its complete installed original provider result declaration');
-    const profile = matches[0]!.source.context;
-    let declaration: FrameworkOpaqueDeliveryContext;
-    if (profile.kind === 'generation-profile') {
-      if (generation?.role !== 'original') refuse('static Generation profile requires its original Work target');
-      // State supplies the actual SEND/frame request. Its receipt producer
-      // verifies this instance against that original binding/target and owner.
-      const request = 'intentId' in original ? original.arguments : own(original, 'request');
-      const value = own(own(request, 'arguments'), 'value');
-      const source = own(value, 'source'), revision = own(value, 'revision');
-      if (typeof source !== 'string' || source === '' || typeof revision !== 'string' ||
-          !/^(0|[1-9][0-9]*)$/.test(revision)) refuse('actual original Generation request identity required');
-      declaration = captureData({ kind: 'generation', canonical: profile.canonical,
-        artifact: profile.artifact, request: { source, revision } });
-    } else declaration = profile;
+    return { match: matches[0]!, profile: matches[0]!.source.context };
+  };
+  const buildDeliveryDeclaration = (profile: ReturnType<typeof findDeliveryDeclaration>['profile'],
+    original: ScenarioReceiptDeliveryOriginFrame['send'],
+    generation: ReturnType<typeof dispatchGenerationTargetProfile>): FrameworkOpaqueDeliveryContext => {
+    if (profile.kind !== 'generation-profile') return profile;
+    if (generation?.role !== 'original') refuse('static Generation profile requires its original Work target');
+    // State supplies the actual SEND/frame request. Its receipt producer
+    // verifies this instance against that original binding/target and owner.
+    const request = 'intentId' in original ? original.arguments : own(original, 'request');
+    const value = own(own(request, 'arguments'), 'value');
+    const source = own(value, 'source'), revision = own(value, 'revision');
+    if (typeof source !== 'string' || source === '' || typeof revision !== 'string' ||
+        !/^(0|[1-9][0-9]*)$/.test(revision)) refuse('actual original Generation request identity required');
+    return captureData({ kind: 'generation', canonical: profile.canonical,
+      artifact: profile.artifact, request: { source, revision } });
+  };
+  const assertDeclarationCorrelation = (declaration: FrameworkOpaqueDeliveryContext,
+    checked: ReturnType<typeof checkDeliveryTarget>['checked'],
+    original: ScenarioReceiptDeliveryOriginFrame['send'],
+    generation: ReturnType<typeof dispatchGenerationTargetProfile>): void => {
     if ('judgment' in checked ? declaration.kind !== 'judgment' :
         generation !== null ? declaration.kind !== 'generation' : declaration.kind !== 'capability') {
       refuse('delivery lacks its owning original context variant');
@@ -240,7 +259,18 @@ export async function loadOpaqueFileStaging(input: OpaqueFileStagingInput) {
         refuse('delivery Judgment differs from its original frozen specification');
       }
     }
-    return Object.freeze({ declaration, resultDeclarationId: matches[0]!.id });
+  };
+  const delivery = (model: string, field: string, send: ScenarioReceiptDeliveryOriginFrame['send']): {
+    readonly declaration: FrameworkOpaqueDeliveryContext; readonly resultDeclarationId: string;
+  } => {
+    const original = captureData(send);
+    const caller = callable(original.operation);
+    const target = checkDeliveryTarget(model, field, original);
+    const generation = dispatchGenerationTargetProfile(original.target);
+    const { match, profile } = findDeliveryDeclaration(caller, target);
+    const declaration = buildDeliveryDeclaration(profile, original, generation);
+    assertDeclarationCorrelation(declaration, target.checked, original, generation);
+    return Object.freeze({ declaration, resultDeclarationId: match.id });
   };
   const occurrences = (projection: FrameworkOpaqueValueProjection, value: unknown, binding?: FrameworkFilePayloadOrigin) =>
     resolveOpaqueFileProjection(bound, projection, value, binding);
@@ -250,20 +280,22 @@ export async function loadOpaqueFileStaging(input: OpaqueFileStagingInput) {
     if (property === undefined || !('value' in property)) refuse('original stored own field required');
     return property.value;
   };
-  const checkSource = async (source: RetainedOpaqueFileSource, revision: Revision): Promise<readonly RetainedFinalizedFile[]> => {
-    await current(revision);
-    const loadedRow = await store.load(source.model, source.row.id);
-    const row = loadedRow === null ? null : captureData(loadedRow);
-    await current(revision);
+  const assertSourceRow = (source: RetainedOpaqueFileSource, row: StoredRow | null): StoredRow => {
     if (row === null || !equal(row, source.row) || !equal(own(row.data, source.field === 'queuePayload' ? 'queuePayloadOrigin' : 'filePayloadOrigin'), source.binding)) {
       refuse('retained source is not its exact current physical row/header');
     }
-    const header = source.binding;
+    return row;
+  };
+  const assertSourceHeader = (source: RetainedOpaqueFileSource, row: StoredRow,
+    header: RetainedOpaqueFileSource['binding']): void => {
     if (header.slot.model !== source.model || header.slot.id !== row.id || header.slot.created !== row.created ||
         header.slot.createdBy !== row.createdBy || header.slot.field !== source.field ||
         !equal(header.scope, scope) || header.declarationSetId !== selectedId || !equal(header.inventory, set.inventory)) {
       refuse('retained source differs from its original slot/lifetime/scope');
     }
+  };
+  const collectSourceFiles = async (source: RetainedOpaqueFileSource, row: StoredRow,
+    header: RetainedOpaqueFileSource['binding']): Promise<readonly RetainedFinalizedFile[]> => {
     validateOpaqueFileOrigin(bound, header);
     const resolve = WORK_FILE_REFERENCE_PRODUCER.resolveOpaqueField;
     if (typeof resolve !== 'function') refuse('owning Work opaque resolver is absent');
@@ -288,6 +320,16 @@ export async function loadOpaqueFileStaging(input: OpaqueFileStagingInput) {
     }
     return header.files.map(item => item.file);
   };
+  const checkSource = async (source: RetainedOpaqueFileSource, revision: Revision): Promise<readonly RetainedFinalizedFile[]> => {
+    await current(revision);
+    const loadedRow = await store.load(source.model, source.row.id);
+    const captured = loadedRow === null ? null : captureData(loadedRow);
+    await current(revision);
+    const row = assertSourceRow(source, captured);
+    const header = source.binding;
+    assertSourceHeader(source, row, header);
+    return collectSourceFiles(source, row, header);
+  };
   const revalidateSource = async (source: RetainedOpaqueFileSource, revision: Revision,
     files?: CanonicalFileBinding): Promise<void> => {
     source = captureSource(source);
@@ -299,29 +341,17 @@ export async function loadOpaqueFileStaging(input: OpaqueFileStagingInput) {
       if (observation === null) refuse('retained source File is no longer available under its original receiver');
     }
   };
-  const prepare = async (request: {
-    readonly expectedRevision: Revision; readonly model: ModelName; readonly row: StoredRow; readonly field: string;
-    readonly scope: FrameworkFilePayloadOrigin['scope']; readonly origin: FrameworkFilePayloadOrigin['origin'];
-    readonly projection: FrameworkOpaqueValueProjection; readonly value: unknown;
-    readonly additional?: ReadonlyArray<{ readonly projection: FrameworkOpaqueValueProjection; readonly value: unknown; readonly retainedSource?: RetainedOpaqueFileSource }>;
-    readonly identity: ResolvedIdentity; readonly files?: CanonicalFileBinding;
-    readonly retainedSource?: RetainedOpaqueFileSource;
-  }): Promise<FrameworkFilePayloadOrigin> => {
+  const capturePrepareRequest = (request: PrepareFileRequest): PrepareFileRequest => {
     // Pin only persisted metadata; binding/identity and observations keep their actual issuers.
     const captured = captureData({ expectedRevision: request.expectedRevision, model: request.model,
       row: request.row, field: request.field, scope: request.scope, origin: request.origin,
       projection: request.projection, value: request.value, ...(request.additional === undefined ? {} : { additional: request.additional }) });
     const retainedSource = request.retainedSource === undefined ? undefined : captureSource(request.retainedSource);
-    request = { ...captured, identity: request.identity, ...(request.files === undefined ? {} : { files: request.files }),
+    return { ...captured, identity: request.identity, ...(request.files === undefined ? {} : { files: request.files }),
       ...(retainedSource === undefined ? {} : { retainedSource }) };
-    if (request.scope.app !== scope.app || request.scope.owner !== scope.owner || request.scope.ownerPackage !== scope.ownerPackage) {
-      refuse('payload differs from the original source scope');
-    }
-    // Static Generation projections borrow only the verified original source
-    // header. Fresh request/result File enrollment needs its owning producer;
-    // an absent original header continues to refuse rather than be fabricated.
-    if ((request.additional?.length ?? 0) > 3) refuse('payload exceeds its bounded typed projection join');
-    const found = [{ projection: request.projection, value: request.value }, ...request.additional ?? []].flatMap(entry => {
+  };
+  const collectPrepareOccurrences = (request: PrepareFileRequest) => {
+    return [{ projection: request.projection, value: request.value }, ...request.additional ?? []].flatMap(entry => {
       const original = ('retainedSource' in entry ? entry.retainedSource : undefined) ?? request.retainedSource;
       const transferredGuard = entry.projection.kind === 'inputs' && original?.binding.origin.kind === 'send-guard' &&
         original.field === 'sourceGuard' && entry.projection.declarationId === original.binding.origin.inputsDeclarationId &&
@@ -330,16 +360,11 @@ export async function loadOpaqueFileStaging(input: OpaqueFileStagingInput) {
       const projection = transferredGuard ? { ...entry.projection, path: ['inputs'] } : entry.projection;
       return occurrences(projection, entry.value, original?.binding).map(occurrence => ({ ...occurrence, path: [...entry.projection.path, ...occurrence.path], source: original }));
     });
-    const files = request.files, observe = found.length === 0 ? undefined : files?.observe;
-    if (found.length !== 0 && (files === undefined || found.some(occurrence => occurrence.source === undefined) &&
-        (typeof observe !== 'function' || request.identity.actor === null))) {
-      refuse('typed File payload requires its genuine authenticated observer');
-    }
-    await current(request.expectedRevision);
-    const sources = new Map<RetainedOpaqueFileSource, readonly RetainedFinalizedFile[]>();
-    for (const source of [request.retainedSource, ...found.map(occurrence => occurrence.source)]) {
-      if (source !== undefined && !sources.has(source)) sources.set(source, await checkSource(source, request.expectedRevision));
-    }
+  };
+  const observePrepareFiles = async (found: PrepareOccurrence[],
+    sources: Map<RetainedOpaqueFileSource, readonly RetainedFinalizedFile[]>,
+    files: CanonicalFileBinding | undefined, observe: CanonicalFileBinding['observe'] | undefined,
+    request: PrepareFileRequest): Promise<{ path: readonly (string | number)[]; observation: unknown }[]> => {
     const observations: { path: readonly (string | number)[]; observation: unknown }[] = [];
     for (const occurrence of found) {
       const retained = occurrence.source === undefined ? undefined : sources.get(occurrence.source);
@@ -361,6 +386,36 @@ export async function loadOpaqueFileStaging(input: OpaqueFileStagingInput) {
       if (retained === undefined && files!.observe !== observe || observation === null) refuse('original File observation refused or changed');
       observations.push({ path: occurrence.path, observation });
     }
+    return observations;
+  };
+  const prepare = async (request: {
+    readonly expectedRevision: Revision; readonly model: ModelName; readonly row: StoredRow; readonly field: string;
+    readonly scope: FrameworkFilePayloadOrigin['scope']; readonly origin: FrameworkFilePayloadOrigin['origin'];
+    readonly projection: FrameworkOpaqueValueProjection; readonly value: unknown;
+    readonly additional?: ReadonlyArray<{ readonly projection: FrameworkOpaqueValueProjection; readonly value: unknown; readonly retainedSource?: RetainedOpaqueFileSource }>;
+    readonly identity: ResolvedIdentity; readonly files?: CanonicalFileBinding;
+    readonly retainedSource?: RetainedOpaqueFileSource;
+  }): Promise<FrameworkFilePayloadOrigin> => {
+    request = capturePrepareRequest(request);
+    if (request.scope.app !== scope.app || request.scope.owner !== scope.owner || request.scope.ownerPackage !== scope.ownerPackage) {
+      refuse('payload differs from the original source scope');
+    }
+    // Static Generation projections borrow only the verified original source
+    // header. Fresh request/result File enrollment needs its owning producer;
+    // an absent original header continues to refuse rather than be fabricated.
+    if ((request.additional?.length ?? 0) > 3) refuse('payload exceeds its bounded typed projection join');
+    const found = collectPrepareOccurrences(request);
+    const files = request.files, observe = found.length === 0 ? undefined : files?.observe;
+    if (found.length !== 0 && (files === undefined || found.some(occurrence => occurrence.source === undefined) &&
+        (typeof observe !== 'function' || request.identity.actor === null))) {
+      refuse('typed File payload requires its genuine authenticated observer');
+    }
+    await current(request.expectedRevision);
+    const sources = new Map<RetainedOpaqueFileSource, readonly RetainedFinalizedFile[]>();
+    for (const source of [request.retainedSource, ...found.map(occurrence => occurrence.source)]) {
+      if (source !== undefined && !sources.has(source)) sources.set(source, await checkSource(source, request.expectedRevision));
+    }
+    const observations = await observePrepareFiles(found, sources, files, observe, request);
     const origin = await prepareFrameworkFilePayloadOrigin(store, {
       expectedRevision: request.expectedRevision, inventoryOwner, declarationSetId: selectedId,
       model: request.model, row: request.row, field: request.field, scope: request.scope, origin: request.origin,
@@ -370,6 +425,8 @@ export async function loadOpaqueFileStaging(input: OpaqueFileStagingInput) {
     for (const source of sources.keys()) await checkSource(source, request.expectedRevision);
     return origin;
   };
+  type PrepareFileRequest = Parameters<typeof prepare>[0];
+  type PrepareOccurrence = ReturnType<typeof collectPrepareOccurrences>[number];
   const prepareControl = async (request: {
     readonly expectedRevision: Revision; readonly model: ModelName; readonly row: StoredRow;
     readonly field: string; readonly scope: FrameworkFilePayloadOrigin['scope']; readonly origin: FrameworkFilePayloadOrigin['origin'];

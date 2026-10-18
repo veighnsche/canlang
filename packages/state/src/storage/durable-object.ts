@@ -332,6 +332,14 @@ function planCommit(batch: CommitBatch, next: number, at: number, operation: str
       bindings: [next, FENCE_ROW_ID],
     },
   ];
+  planCommitWrites(statements, batch);
+  planCommitClaims(statements, batch);
+  planCommitEvents(statements, batch, at, next);
+  return statements;
+}
+
+/** Record insert/update/remove statements for one commit transaction. */
+function planCommitWrites(statements: PlannedStatement[], batch: CommitBatch): void {
   for (const write of batch.writes) {
     if (write.kind === 'insert') {
       statements.push({
@@ -385,6 +393,10 @@ function planCommit(batch: CommitBatch, next: number, at: number, operation: str
       });
     }
   }
+}
+
+/** Unique-claim releases/claims plus history rows for one transaction. */
+function planCommitClaims(statements: PlannedStatement[], batch: CommitBatch): void {
   // Releases run before claims so a key can move between records (or be
   // re-claimed) within one batch without a transient PK collision.
   for (const release of batch.uniqueReleases) {
@@ -426,6 +438,10 @@ function planCommit(batch: CommitBatch, next: number, at: number, operation: str
       ],
     });
   }
+}
+
+/** Receipt, outbox, acks and schedules for one commit transaction. */
+function planCommitEvents(statements: PlannedStatement[], batch: CommitBatch, at: number, next: number): void {
   if (batch.receipt !== null) {
     const receipt = batch.receipt;
     statements.push({
@@ -495,7 +511,6 @@ function planCommit(batch: CommitBatch, next: number, at: number, operation: str
       });
     }
   }
-  return statements;
 }
 
 /**
@@ -569,6 +584,30 @@ function planPublish(
       bindings: [next, FENCE_ROW_ID],
     },
   ];
+  planPublishRecords(statements, input, existing);
+  planPublishDrops(statements, input);
+  planPublishClaims(statements, input);
+  statements.push({
+    sql:
+      'INSERT OR REPLACE INTO migration_progress(migration_id, phase, staged_cursor, ' +
+      'publish_cursor, updated_revision) VALUES (?, ?, ?, ?, ?)',
+    bindings: [
+      input.migrationId,
+      input.progress.phase,
+      input.progress.stagedCursor === null ? null : JSON.stringify(input.progress.stagedCursor),
+      input.progress.publishCursor === null ? null : JSON.stringify(input.progress.publishCursor),
+      input.progress.updatedRevision as number,
+    ],
+  });
+  return statements;
+}
+
+/** Published record upserts plus staged history rows for one publish. */
+function planPublishRecords(
+  statements: PlannedStatement[],
+  input: PublishMigrationChunk,
+  existing: ReadonlyMap<string, RecordRow | null>,
+): void {
   for (const row of input.rows) {
     const key = `${row.targetModel as string}\0${row.recordId as string}`;
     const merged = mergePublishedColumns(row, existing.get(key) ?? null, input.history);
@@ -613,6 +652,10 @@ function planPublish(
       ],
     });
   }
+}
+
+/** Drop deletes with their drop-history rows for one publish. */
+function planPublishDrops(statements: PlannedStatement[], input: PublishMigrationChunk): void {
   for (const drop of input.drops) {
     statements.push({
       sql: 'DELETE FROM records WHERE model = ? AND id = ?',
@@ -637,6 +680,10 @@ function planPublish(
       ],
     });
   }
+}
+
+/** Claim moves for one publish: releases before claims, mirroring commit. */
+function planPublishClaims(statements: PlannedStatement[], input: PublishMigrationChunk): void {
   // Claim moves ride the same transaction: releases before claims, mirroring
   // commit, so a model rename moves keys between models atomically.
   for (const release of input.uniqueReleases ?? []) {
@@ -658,19 +705,6 @@ function planPublish(
       ],
     });
   }
-  statements.push({
-    sql:
-      'INSERT OR REPLACE INTO migration_progress(migration_id, phase, staged_cursor, ' +
-      'publish_cursor, updated_revision) VALUES (?, ?, ?, ?, ?)',
-    bindings: [
-      input.migrationId,
-      input.progress.phase,
-      input.progress.stagedCursor === null ? null : JSON.stringify(input.progress.stagedCursor),
-      input.progress.publishCursor === null ? null : JSON.stringify(input.progress.publishCursor),
-      input.progress.updatedRevision as number,
-    ],
-  });
-  return statements;
 }
 
 /**

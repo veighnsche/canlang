@@ -136,13 +136,7 @@ function fail(where: string): Error {
  * malformed bodies (contract violation — host-fatal). Results stay
  * unknown-valued until render armor truncates and escapes them.
  */
-export function parseCommitPayload(value: unknown): CsvCommitOutcomeModel {
-  if (!isRecord(value)) throw fail("body");
-  const operation = value["operation"];
-  const review_id = value["review_id"];
-  if (typeof operation !== "string" || operation === "") throw fail("operation");
-  if (typeof review_id !== "string" || review_id === "") throw fail("review_id");
-  const principal = value["principal"];
+function parseCommitPrincipal(principal: unknown): CsvFrozenPrincipal {
   if (!isRecord(principal)) throw fail("principal");
   const userId = principal["user_id"];
   const teamId = principal["team_id"];
@@ -150,45 +144,54 @@ export function parseCommitPayload(value: unknown): CsvCommitOutcomeModel {
   if (typeof userId !== "string" || userId === "") throw fail("principal.user_id");
   if (teamId !== null && typeof teamId !== "string") throw fail("principal.team_id");
   if (typeof admittedAt !== "string" || admittedAt === "") throw fail("principal.admitted_at");
+  return { user_id: userId, team_id: teamId, admitted_at: admittedAt };
+}
+
+function parseCommitRow(entry: unknown): CsvCommitRowOutcome {
+  if (!isRecord(entry)) throw fail("rows[]");
+  const index = entry["index"];
+  const operationId = entry["operation_id"];
+  const status = entry["status"];
+  if (!isSafeIndex(index)) throw fail("rows[].index");
+  if (typeof operationId !== "string" || operationId === "") throw fail("rows[].operation_id");
+  if (status !== "committed" && status !== "failed" && status !== "invalid" && status !== "duplicate") {
+    throw fail("rows[].status");
+  }
+  const row: {
+    index: number;
+    operation_id: string;
+    status: CsvCommitRowStatus;
+    result?: unknown;
+    error?: CsvBusinessError;
+    duplicate_of?: number;
+  } = { index, operation_id: operationId, status };
+  if (entry["result"] !== undefined) row.result = entry["result"];
+  if (entry["error"] !== undefined) {
+    const error = digestBusinessError(entry["error"]);
+    if (error === null) throw fail("rows[].error");
+    row.error = error;
+  }
+  if (entry["duplicate_of"] !== undefined) {
+    if (!isSafeIndex(entry["duplicate_of"])) throw fail("rows[].duplicate_of");
+    row.duplicate_of = entry["duplicate_of"];
+  }
+  return row;
+}
+
+export function parseCommitPayload(value: unknown): CsvCommitOutcomeModel {
+  if (!isRecord(value)) throw fail("body");
+  const operation = value["operation"];
+  const review_id = value["review_id"];
+  if (typeof operation !== "string" || operation === "") throw fail("operation");
+  if (typeof review_id !== "string" || review_id === "") throw fail("review_id");
+  const principal = parseCommitPrincipal(value["principal"]);
   const rawRows = value["rows"];
   if (!Array.isArray(rawRows)) throw fail("rows");
   const rows: CsvCommitRowOutcome[] = [];
   for (const entry of rawRows) {
-    if (!isRecord(entry)) throw fail("rows[]");
-    const index = entry["index"];
-    const operationId = entry["operation_id"];
-    const status = entry["status"];
-    if (!isSafeIndex(index)) throw fail("rows[].index");
-    if (typeof operationId !== "string" || operationId === "") throw fail("rows[].operation_id");
-    if (status !== "committed" && status !== "failed" && status !== "invalid" && status !== "duplicate") {
-      throw fail("rows[].status");
-    }
-    const row: {
-      index: number;
-      operation_id: string;
-      status: CsvCommitRowStatus;
-      result?: unknown;
-      error?: CsvBusinessError;
-      duplicate_of?: number;
-    } = { index, operation_id: operationId, status };
-    if (entry["result"] !== undefined) row.result = entry["result"];
-    if (entry["error"] !== undefined) {
-      const error = digestBusinessError(entry["error"]);
-      if (error === null) throw fail("rows[].error");
-      row.error = error;
-    }
-    if (entry["duplicate_of"] !== undefined) {
-      if (!isSafeIndex(entry["duplicate_of"])) throw fail("rows[].duplicate_of");
-      row.duplicate_of = entry["duplicate_of"];
-    }
-    rows.push(row);
+    rows.push(parseCommitRow(entry));
   }
-  return {
-    operation,
-    review_id,
-    principal: { user_id: userId, team_id: teamId, admitted_at: admittedAt },
-    rows,
-  };
+  return { operation, review_id, principal, rows };
 }
 
 const SELECTED_KEY = /^rows\[(\d+)\]\.selected$/;

@@ -150,30 +150,33 @@ function nominalSchema(name: string, inventory: CanonicalValueTypes): Record<str
   const models = new Set(modelNames);
   const definitions: Record<string, unknown> = Object.create(null);
   const visited = new Set<string>();
-  const shape = (parsed: ReturnType<typeof parseTypeId>, type: string, descriptor?: NormalizedField): Record<string, unknown> => {
+  const shapeElement = (parsed: ReturnType<typeof parseTypeId>, type: string): Record<string, unknown> => {
     const base = parsed.base;
-    let element: Record<string, unknown>;
     if (base.kind === 'nominal') {
       if (models.has(base.path)) {
         // The declared model selects identity; its row fields are never an
         // embedded contract. The codec preserves an optional exact version.
-        element = { type: 'object', properties: {
+        return { type: 'object', properties: {
           id: { type: 'string', minLength: 1 }, version: { type: 'string' },
         }, required: ['id'], additionalProperties: false };
-      } else {
-        visit(base.path);
-        element = { $ref: `#/$defs/${base.path.replaceAll('~', '~0').replaceAll('/', '~1')}` };
       }
-    } else if (base.kind === 'scalar') {
+      visit(base.path);
+      return { $ref: `#/$defs/${base.path.replaceAll('~', '~0').replaceAll('/', '~1')}` };
+    }
+    if (base.kind === 'scalar') {
       if (!['text', 'bool', 'int', 'decimal', 'money', 'date', 'datetime', 'duration', 'email', 'url'].includes(base.name)) {
         failDescriptor('malformed_descriptor', `Unsupported nominal schema scalar ${JSON.stringify(base.name)}.`);
       }
-      element = base.name === 'bool' ? { type: 'boolean' }
+      return base.name === 'bool' ? { type: 'boolean' }
         : base.name === 'money' ? fieldSchema({ kind: 'money' }) : { type: 'string' };
-    } else if (base.kind === 'stringlike') element = { type: 'string' };
-    else if (base.kind === 'user' || base.kind === 'file') element = fieldSchema({ kind: base.kind });
-    else if (base.kind === 'enum') element = { type: 'string', enum: [...base.cases] };
-    else failDescriptor('malformed_descriptor', `Unsupported nominal schema type ${JSON.stringify(type)}.`);
+    }
+    if (base.kind === 'stringlike') return { type: 'string' };
+    if (base.kind === 'user' || base.kind === 'file') return fieldSchema({ kind: base.kind });
+    if (base.kind === 'enum') return { type: 'string', enum: [...base.cases] };
+    return failDescriptor('malformed_descriptor', `Unsupported nominal schema type ${JSON.stringify(type)}.`);
+  };
+  const shape = (parsed: ReturnType<typeof parseTypeId>, type: string, descriptor?: NormalizedField): Record<string, unknown> => {
+    const element = shapeElement(parsed, type);
     let array: Record<string, unknown> = parsed.array ? { type: 'array', items: element } : element;
     if (descriptor !== undefined) {
       const min = parsed.array ? 'minItems' : 'minLength';
@@ -605,44 +608,55 @@ function checkMoneyLiteral(value: unknown): string | null {
  * reject `malformed_descriptor` (an incomplete result is not a real
  * emission). Anything failing rejects the whole descriptor.
  */
-function checkArtifactDeliveryDescriptor(value: unknown, what: string, inventory?: CanonicalValueTypes): DerivedDeliveryBinding {
-  if (!isDescriptorRecord(value)) {
-    failDescriptor('malformed_descriptor', `Invalid ${what}: delivery inputs carry a descriptor object.`);
-  }
-  if ('judgment' in value) {
-    const required = ['kind', 'judgment', 'capability', 'operation', 'version', 'result'];
-    if (Object.keys(value).length !== required.length || required.some(key => {
-      const descriptor = Object.getOwnPropertyDescriptor(value, key);
-      return descriptor === undefined || !Object.hasOwn(descriptor, 'value');
-    })) failDescriptor('malformed_descriptor', `Invalid ${what}: judgment descriptor must be closed own data.`);
-  }
-  const capability = value['capability'];
-  const operation = value['operation'];
-  if ('judgment' in value) {
-    if (value['judgment'] !== true || typeof capability !== 'string' || capability === '' || operation !== 'evaluate' ||
-        typeof value['version'] !== 'string' || inventory === undefined) {
-      failDescriptor('malformed_descriptor', `Invalid ${what}: judgment delivery requires its checked nominal inventory and exact string version.`);
+function checkJudgmentLeaves(
+  rawLeaves: unknown[],
+  declared: readonly { readonly name: string; readonly type: string }[],
+  what: string,
+): { readonly name: string; readonly type: string }[] {
+  return declared.map((field, index) => {
+    const leaf = rawLeaves[index];
+    if (!isDescriptorRecord(leaf) || leaf['name'] !== field.name || leaf['type'] !== field.type) {
+      failDescriptor('undeclared_leaf', `Invalid ${what}: judgment result leaves disagree with the checked inventory.`);
     }
-    try {
-      const decoded = decodeValue('int', value['version']);
-      if (typeof decoded !== 'bigint' || decoded < 0n || decoded.toString() !== value['version']) throw new Error('version');
-    }
-    catch { failDescriptor('version_mismatch', `Invalid ${what}: canonical judgment version required.`); }
-    const declared = inventory.contracts.find(contract => contract.name === capability);
-    const result = value['result'];
-    const rawLeaves = isDescriptorRecord(result) ? result['fields'] : undefined;
-    if (declared === undefined || !isDescriptorRecord(result) || result['name'] !== capability || !Array.isArray(rawLeaves) ||
-        rawLeaves.length !== declared.fields.length) failDescriptor('undeclared_result', `Invalid ${what}: undeclared judgment result.`);
-    const leaves = declared.fields.map((field, index) => {
-      const leaf = rawLeaves[index];
-      if (!isDescriptorRecord(leaf) || leaf['name'] !== field.name || leaf['type'] !== field.type) {
-        failDescriptor('undeclared_leaf', `Invalid ${what}: judgment result leaves disagree with the checked inventory.`);
-      }
-      return Object.freeze({ name: field.name, type: field.type });
-    });
-    return Object.freeze({ judgment: true as const, capability, operation: 'evaluate' as const, version: value['version'],
-      result: Object.freeze({ name: capability, leaves: Object.freeze(leaves) }), recipe: `delivery:${capability}.evaluate` });
+    return Object.freeze({ name: field.name, type: field.type });
+  });
+}
+
+function checkJudgmentDelivery(
+  value: Record<string, unknown>,
+  what: string,
+  capability: unknown,
+  operation: unknown,
+  inventory: CanonicalValueTypes | undefined,
+): DerivedDeliveryBinding {
+  // Closed own-data validation runs in the caller before capability and
+  // operation are read; this helper continues from those checked values.
+  if (value['judgment'] !== true || typeof capability !== 'string' || capability === '' || operation !== 'evaluate' ||
+      typeof value['version'] !== 'string' || inventory === undefined) {
+    failDescriptor('malformed_descriptor', `Invalid ${what}: judgment delivery requires its checked nominal inventory and exact string version.`);
   }
+  try {
+    const decoded = decodeValue('int', value['version']);
+    if (typeof decoded !== 'bigint' || decoded < 0n || decoded.toString() !== value['version']) throw new Error('version');
+  }
+  catch { failDescriptor('version_mismatch', `Invalid ${what}: canonical judgment version required.`); }
+  const declared = inventory.contracts.find(contract => contract.name === capability);
+  const result = value['result'];
+  const rawLeaves = isDescriptorRecord(result) ? result['fields'] : undefined;
+  if (declared === undefined || !isDescriptorRecord(result) || result['name'] !== capability || !Array.isArray(rawLeaves) ||
+      rawLeaves.length !== declared.fields.length) failDescriptor('undeclared_result', `Invalid ${what}: undeclared judgment result.`);
+  const leaves = checkJudgmentLeaves(rawLeaves, declared.fields, what);
+  return Object.freeze({ judgment: true as const, capability, operation: 'evaluate' as const, version: value['version'],
+    result: Object.freeze({ name: capability, leaves: Object.freeze(leaves) }), recipe: `delivery:${capability}.evaluate` });
+}
+
+function checkDeliveryTarget(
+  value: Record<string, unknown>,
+  what: string,
+  capability: unknown,
+  operation: unknown,
+): { target: NonNullable<ReturnType<typeof CAPABILITY_TARGETS.get>>; declaredResult: string; version: number;
+  capability: string; operation: string } {
   if (typeof capability !== 'string' || capability === '' || typeof operation !== 'string' || operation === '') {
     failDescriptor(
       'malformed_descriptor',
@@ -680,6 +694,92 @@ function checkArtifactDeliveryDescriptor(value: unknown, what: string, inventory
         `the frozen ${capability} contract version ${target.version}.`,
     );
   }
+  return { target, declaredResult, version, capability, operation };
+}
+
+function checkDeliveryLeafEntry(
+  entry: Record<string, unknown>,
+  nominal: string,
+  declared: readonly { readonly name: string; readonly type: string }[],
+  seen: Set<string>,
+  what: string,
+): { readonly name: string; readonly type: string } {
+  if (typeof entry['name'] !== 'string' || entry['name'] === '') {
+    failDescriptor('malformed_descriptor', `Invalid ${what}: delivery leaves need non-empty names.`);
+  }
+  if (typeof entry['type'] !== 'string' || entry['type'] === '') {
+    failDescriptor(
+      'malformed_descriptor',
+      `Invalid ${what}: delivery leaf ${JSON.stringify(entry['name'])} carries its verbatim type text.`,
+    );
+  }
+  if (seen.has(entry['name'])) {
+    failDescriptor(
+      'duplicate_name',
+      `Duplicate delivery leaf ${JSON.stringify(entry['name'])} for ${what}.`,
+    );
+  }
+  seen.add(entry['name']);
+  const declaredLeaf = declared.find((leaf) => leaf.name === entry['name']);
+  if (declaredLeaf === undefined || declaredLeaf.type !== entry['type']) {
+    failDescriptor(
+      'undeclared_leaf',
+      declaredLeaf === undefined
+        ? `Invalid ${what}: leaf ${JSON.stringify(entry['name'])} is not declared on ${JSON.stringify(nominal)}.`
+        : `Invalid ${what}: leaf ${JSON.stringify(entry['name'])} declares type ${JSON.stringify(declaredLeaf.type)} ` +
+          `(got ${JSON.stringify(entry['type'])}).`,
+    );
+  }
+  return { name: entry['name'], type: entry['type'] };
+}
+
+function checkDeliveryLeaves(
+  result: Record<string, unknown>,
+  nominal: string,
+  declared: readonly { readonly name: string; readonly type: string }[],
+  what: string,
+): { readonly name: string; readonly type: string }[] {
+  const rawFields: unknown = result['fields'];
+  if (!Array.isArray(rawFields)) {
+    failDescriptor('malformed_descriptor', `Invalid ${what}: delivery result fields must be an array.`);
+  }
+  const seen = new Set<string>();
+  const leaves: { readonly name: string; readonly type: string }[] = [];
+  for (const entry of rawFields) {
+    if (!isDescriptorRecord(entry)) {
+      failDescriptor('malformed_descriptor', `Invalid ${what}: delivery leaves need non-empty names.`);
+    }
+    leaves.push(checkDeliveryLeafEntry(entry, nominal, declared, seen, what));
+  }
+  if (leaves.length !== declared.length) {
+    const missing = declared.filter((leaf) => !seen.has(leaf.name)).map((leaf) => leaf.name);
+    failDescriptor(
+      'malformed_descriptor',
+      `Invalid ${what}: result ${JSON.stringify(nominal)} declares ${declared.length} leaves; ` +
+        `the descriptor carries ${leaves.length} (missing: ${missing.map((name) => JSON.stringify(name)).join(', ')}).`,
+    );
+  }
+  return leaves;
+}
+
+function checkArtifactDeliveryDescriptor(value: unknown, what: string, inventory?: CanonicalValueTypes): DerivedDeliveryBinding {
+  if (!isDescriptorRecord(value)) {
+    failDescriptor('malformed_descriptor', `Invalid ${what}: delivery inputs carry a descriptor object.`);
+  }
+  if ('judgment' in value) {
+    const required = ['kind', 'judgment', 'capability', 'operation', 'version', 'result'];
+    if (Object.keys(value).length !== required.length || required.some(key => {
+      const descriptor = Object.getOwnPropertyDescriptor(value, key);
+      return descriptor === undefined || !Object.hasOwn(descriptor, 'value');
+    })) failDescriptor('malformed_descriptor', `Invalid ${what}: judgment descriptor must be closed own data.`);
+  }
+  const capability = value['capability'];
+  const operation = value['operation'];
+  if ('judgment' in value) {
+    return checkJudgmentDelivery(value, what, capability, operation, inventory);
+  }
+  const { declaredResult, version, capability: checkedCapability, operation: checkedOperation } =
+    checkDeliveryTarget(value, what, capability, operation);
   const result = value['result'];
   if (!isDescriptorRecord(result) || typeof result['name'] !== 'string' || result['name'] === '') {
     failDescriptor('malformed_descriptor', `Invalid ${what}: delivery results name a non-empty nominal.`);
@@ -688,7 +788,7 @@ function checkArtifactDeliveryDescriptor(value: unknown, what: string, inventory
   if (nominal !== declaredResult) {
     failDescriptor(
       'undeclared_result',
-      `Invalid ${what}: result ${JSON.stringify(nominal)} is not declared for ${capability}.${operation} ` +
+      `Invalid ${what}: result ${JSON.stringify(nominal)} is not declared for ${checkedCapability}.${checkedOperation} ` +
         `(declared: ${JSON.stringify(declaredResult)}).`,
     );
   }
@@ -702,57 +802,15 @@ function checkArtifactDeliveryDescriptor(value: unknown, what: string, inventory
       `Invalid ${what}: result ${JSON.stringify(nominal)} declares no leaves.`,
     );
   }
-  const rawFields: unknown = result['fields'];
-  if (!Array.isArray(rawFields)) {
-    failDescriptor('malformed_descriptor', `Invalid ${what}: delivery result fields must be an array.`);
-  }
-  const seen = new Set<string>();
-  const leaves: { readonly name: string; readonly type: string }[] = [];
-  for (const entry of rawFields) {
-    if (!isDescriptorRecord(entry) || typeof entry['name'] !== 'string' || entry['name'] === '') {
-      failDescriptor('malformed_descriptor', `Invalid ${what}: delivery leaves need non-empty names.`);
-    }
-    if (typeof entry['type'] !== 'string' || entry['type'] === '') {
-      failDescriptor(
-        'malformed_descriptor',
-        `Invalid ${what}: delivery leaf ${JSON.stringify(entry['name'])} carries its verbatim type text.`,
-      );
-    }
-    if (seen.has(entry['name'])) {
-      failDescriptor(
-        'duplicate_name',
-        `Duplicate delivery leaf ${JSON.stringify(entry['name'])} for ${what}.`,
-      );
-    }
-    seen.add(entry['name']);
-    const declaredLeaf = declared.find((leaf) => leaf.name === entry['name']);
-    if (declaredLeaf === undefined || declaredLeaf.type !== entry['type']) {
-      failDescriptor(
-        'undeclared_leaf',
-        declaredLeaf === undefined
-          ? `Invalid ${what}: leaf ${JSON.stringify(entry['name'])} is not declared on ${JSON.stringify(nominal)}.`
-          : `Invalid ${what}: leaf ${JSON.stringify(entry['name'])} declares type ${JSON.stringify(declaredLeaf.type)} ` +
-            `(got ${JSON.stringify(entry['type'])}).`,
-      );
-    }
-    leaves.push({ name: entry['name'], type: entry['type'] });
-  }
-  if (leaves.length !== declared.length) {
-    const missing = declared.filter((leaf) => !seen.has(leaf.name)).map((leaf) => leaf.name);
-    failDescriptor(
-      'malformed_descriptor',
-      `Invalid ${what}: result ${JSON.stringify(nominal)} declares ${declared.length} leaves; ` +
-        `the descriptor carries ${leaves.length} (missing: ${missing.map((name) => JSON.stringify(name)).join(', ')}).`,
-    );
-  }
+  const leaves = checkDeliveryLeaves(result, nominal, declared, what);
   const frozenLeaves = Object.freeze(leaves);
   const frozenResult: DerivedDeliveryResult = Object.freeze({ name: nominal, leaves: frozenLeaves });
   return Object.freeze({
-    capability,
-    operation,
+    capability: checkedCapability,
+    operation: checkedOperation,
     version,
     result: frozenResult,
-    recipe: `delivery:${capability}.${operation}`,
+    recipe: `delivery:${checkedCapability}.${checkedOperation}`,
   });
 }
 
@@ -779,6 +837,34 @@ function checkDescriptorDotPath(path: string, what: string): void {
  * malformed spellings, and out-of-range values reject the descriptor
  * instead of failing later at admission.
  */
+function checkLiteralDefault(
+  literal: unknown,
+  what: string,
+  fieldKind: string,
+  valueType: string,
+): { readonly kind: 'literal'; readonly value: unknown } {
+  if (fieldKind === 'duration' || fieldKind === 'user') {
+    try {
+      decodeValue(valueType, literal);
+    } catch (err) {
+      if (!(err instanceof SchemaError)) throw err;
+      failDescriptor('malformed_descriptor', `Invalid literal default for ${what}: ${err.message}.`);
+    }
+  }
+  if (fieldKind === 'integer' || fieldKind === 'decimal' || fieldKind === 'money') {
+    const detail =
+      fieldKind === 'integer'
+        ? checkIntegerLiteral(literal)
+        : fieldKind === 'decimal'
+          ? checkDecimalLiteral(literal)
+          : checkMoneyLiteral(literal);
+    if (detail !== null) {
+      failDescriptor('malformed_descriptor', `Invalid literal default for ${what}: ${detail}.`);
+    }
+  }
+  return { kind: 'literal', value: literal };
+}
+
 function checkArtifactDefault(
   value: unknown,
   what: string,
@@ -792,27 +878,7 @@ function checkArtifactDefault(
   const kind = choiceMember(value, 'kind', what);
   if (typeof kind !== 'string') failDescriptor('malformed_descriptor', `Invalid default for ${what}: a default object needs a kind.`);
   if (kind === 'literal') {
-    const literal = value['value'];
-    if (fieldKind === 'duration' || fieldKind === 'user') {
-      try {
-        decodeValue(valueType, literal);
-      } catch (err) {
-        if (!(err instanceof SchemaError)) throw err;
-        failDescriptor('malformed_descriptor', `Invalid literal default for ${what}: ${err.message}.`);
-      }
-    }
-    if (fieldKind === 'integer' || fieldKind === 'decimal' || fieldKind === 'money') {
-      const detail =
-        fieldKind === 'integer'
-          ? checkIntegerLiteral(literal)
-          : fieldKind === 'decimal'
-            ? checkDecimalLiteral(literal)
-            : checkMoneyLiteral(literal);
-      if (detail !== null) {
-        failDescriptor('malformed_descriptor', `Invalid literal default for ${what}: ${detail}.`);
-      }
-    }
-    return { kind: 'literal', value: literal };
+    return checkLiteralDefault(value['value'], what, fieldKind, valueType);
   }
   if (kind === 'context') {
     const fallback = choiceObject(value, ['kind', 'value'], what);
@@ -841,6 +907,40 @@ function checkArtifactDefault(
   );
 }
 
+function checkNominalFieldTag(value: Record<string, unknown>, what: string, inventory?: CanonicalValueTypes): McpSchemaField {
+  if (['kind', 'name'].some(key => {
+    const descriptor = Object.getOwnPropertyDescriptor(value, key);
+    return descriptor === undefined || !Object.hasOwn(descriptor, 'value');
+  })) failDescriptor('malformed_descriptor', `Invalid ${what}: nominal claims must be own data.`);
+  const name = value['name'];
+  if (typeof name !== 'string' || inventory === undefined ||
+      ![...inventory.contracts, ...(inventory.enums ?? []), ...(inventory.aliases ?? [])].some(declaration => declaration.name === name)) {
+    failDescriptor('malformed_descriptor', `Invalid ${what}: nominal inputs require the full checked valueTypes inventory.`);
+  }
+  return { kind: 'nominal', name, valueTypes: inventory };
+}
+
+function checkRefFieldTag(value: Record<string, unknown>, what: string): McpSchemaField {
+  if (typeof value['model'] !== 'string' || value['model'] === '') {
+    failDescriptor('malformed_descriptor', `Invalid ${what}: ref inputs name a non-empty model.`);
+  }
+  if (typeof value['requireVersion'] !== 'boolean') {
+    failDescriptor('malformed_descriptor', `Invalid ${what}: requireVersion must be a boolean.`);
+  }
+  return { kind: 'ref', model: value['model'], requireVersion: value['requireVersion'] };
+}
+
+function checkEnumFieldTag(value: Record<string, unknown>, what: string): McpSchemaField {
+  const values: unknown = value['values'];
+  if (!Array.isArray(values) || values.some((entry) => typeof entry !== 'string' || entry === '')) {
+    failDescriptor(
+      'malformed_descriptor',
+      `Invalid ${what}: enum inputs carry values as an array of non-empty strings.`,
+    );
+  }
+  return { kind: 'enum', values: [...values] };
+}
+
 /** Check one input element tag against the closed T04a pilot vocabulary. */
 function checkArtifactFieldTag(value: unknown, what: string, inventory?: CanonicalValueTypes): McpSchemaField {
   if (!isDescriptorRecord(value) || typeof value['kind'] !== 'string') {
@@ -848,16 +948,7 @@ function checkArtifactFieldTag(value: unknown, what: string, inventory?: Canonic
   }
   const kind = value['kind'];
   if (kind === 'nominal') {
-    if (['kind', 'name'].some(key => {
-      const descriptor = Object.getOwnPropertyDescriptor(value, key);
-      return descriptor === undefined || !Object.hasOwn(descriptor, 'value');
-    })) failDescriptor('malformed_descriptor', `Invalid ${what}: nominal claims must be own data.`);
-    const name = value['name'];
-    if (typeof name !== 'string' || inventory === undefined ||
-        ![...inventory.contracts, ...(inventory.enums ?? []), ...(inventory.aliases ?? [])].some(declaration => declaration.name === name)) {
-      failDescriptor('malformed_descriptor', `Invalid ${what}: nominal inputs require the full checked valueTypes inventory.`);
-    }
-    return { kind: 'nominal', name, valueTypes: inventory };
+    return checkNominalFieldTag(value, what, inventory);
   }
   if (!CHECKED_INPUT_KINDS.has(kind)) {
     failDescriptor(
@@ -867,23 +958,10 @@ function checkArtifactFieldTag(value: unknown, what: string, inventory?: Canonic
     );
   }
   if (kind === 'ref') {
-    if (typeof value['model'] !== 'string' || value['model'] === '') {
-      failDescriptor('malformed_descriptor', `Invalid ${what}: ref inputs name a non-empty model.`);
-    }
-    if (typeof value['requireVersion'] !== 'boolean') {
-      failDescriptor('malformed_descriptor', `Invalid ${what}: requireVersion must be a boolean.`);
-    }
-    return { kind: 'ref', model: value['model'], requireVersion: value['requireVersion'] };
+    return checkRefFieldTag(value, what);
   }
   if (kind === 'enum') {
-    const values: unknown = value['values'];
-    if (!Array.isArray(values) || values.some((entry) => typeof entry !== 'string' || entry === '')) {
-      failDescriptor(
-        'malformed_descriptor',
-        `Invalid ${what}: enum inputs carry values as an array of non-empty strings.`,
-      );
-    }
-    return { kind: 'enum', values: [...values] };
+    return checkEnumFieldTag(value, what);
   }
   switch (kind) {
     case 'string':
@@ -923,6 +1001,103 @@ interface CheckedInputChannels {
   readonly description?: string;
 }
 
+function checkChannelBounds(
+  value: Record<string, unknown>,
+  what: string,
+  array: { readonly required: boolean } | undefined,
+): { min?: number; max?: number } {
+  const bounds: { min?: number; max?: number } = {};
+  for (const key of ['min', 'max'] as const) {
+    const bound = choiceMember(value, key, what);
+    if (!Object.hasOwn(value, key)) continue;
+    if (array === undefined || typeof bound !== 'number' || !Number.isSafeInteger(bound) || bound < 0) {
+      failDescriptor('malformed_descriptor', `Invalid ${what}: ${key} must be a safe nonnegative array length.`);
+    }
+    bounds[key] = bound;
+  }
+  if (bounds.min !== undefined && bounds.max !== undefined && bounds.min > bounds.max) {
+    failDescriptor('malformed_descriptor', `Invalid ${what}: array min exceeds max.`);
+  }
+  return bounds;
+}
+
+function parseClaimedType(value: Record<string, unknown>, what: string): {
+  rawType: string; type: ReturnType<typeof parseTypeId>;
+} {
+  const rawType = value['valueType'];
+  if (typeof rawType !== 'string') {
+    failDescriptor('malformed_descriptor', `Invalid ${what}: valueType must declare a supported scalar profile.`);
+  }
+  let type: ReturnType<typeof parseTypeId>;
+  try {
+    type = parseTypeId(rawType);
+  } catch (err) {
+    if (!(err instanceof ValueError)) throw err;
+    failDescriptor('malformed_descriptor', `Invalid ${what}: valueType must declare a supported scalar profile.`);
+  }
+  return { rawType, type };
+}
+
+function claimedBaseKind(type: ReturnType<typeof parseTypeId>, nominalName?: string): string | undefined {
+  return type.base.kind === 'nominal' && nominalName === type.base.path ? 'nominal'
+    : type.base.kind === 'scalar' ? type.base.name
+    : type.base.kind === 'stringlike' && (type.base.name === 'email' || type.base.name === 'timezone') ? type.base.name
+    : type.base.kind === 'user' || type.base.kind === 'file' || type.base.kind === 'enum' ? type.base.kind : undefined;
+}
+
+function expectedInputKind(base: string): string {
+  return base === 'int' ? 'integer' : base === 'bool' ? 'boolean'
+    : base === 'text' || base === 'date' || base === 'email' || base === 'timezone' ? 'string' : base;
+}
+
+function checkClaimedAgreement(
+  value: Record<string, unknown>,
+  what: string,
+  fieldKind: string,
+  enumValues: readonly string[] | undefined,
+  array: { readonly required: boolean } | undefined,
+  rawType: string,
+  type: ReturnType<typeof parseTypeId>,
+  nominalName?: string,
+): string {
+  const base = claimedBaseKind(type, nominalName);
+  if (base === undefined || (type.requiredArray && fieldKind !== 'nominal' && fieldKind !== 'file')) {
+    failDescriptor('malformed_descriptor', `Invalid ${what}: valueType must declare a supported scalar profile.`);
+  }
+  if (expectedInputKind(base) !== fieldKind) {
+    failDescriptor('malformed_descriptor', `Invalid ${what}: valueType disagrees with input kind.`);
+  }
+  if (type.base.kind === 'enum' && (enumValues === undefined ||
+      type.base.cases.length !== enumValues.length ||
+      type.base.cases.some((entry, index) => entry !== enumValues[index]))) {
+    failDescriptor('malformed_descriptor', `Invalid ${what}: valueType disagrees with enum cases.`);
+  }
+  if (type.array !== (array !== undefined)) {
+    failDescriptor('malformed_descriptor', `Invalid ${what}: valueType disagrees with array marker.`);
+  }
+  if ((fieldKind === 'nominal' || fieldKind === 'file') && type.requiredArray !== (array?.required === true)) {
+    failDescriptor('malformed_descriptor', `Invalid ${what}: valueType disagrees with required array marker.`);
+  }
+  if ((Object.hasOwn(value, 'nullable') && typeof value['nullable'] !== 'boolean') ||
+      type.nullable !== (value['nullable'] === true)) {
+    failDescriptor('malformed_descriptor', `Invalid ${what}: valueType disagrees with nullable marker.`);
+  }
+  return rawType;
+}
+
+function checkClaimedValueType(
+  value: Record<string, unknown>,
+  what: string,
+  fieldKind: string,
+  nominalName: string | undefined,
+  enumValues: readonly string[] | undefined,
+  array: { readonly required: boolean } | undefined,
+): string | undefined {
+  if (!Object.hasOwn(value, 'valueType')) return undefined;
+  const { rawType, type } = parseClaimedType(value, what);
+  return checkClaimedAgreement(value, what, fieldKind, enumValues, array, rawType, type, nominalName);
+}
+
 /** Check the additive channels (required, default, array, description, nullability). */
 function checkArtifactInputChannels(
   value: Record<string, unknown>,
@@ -952,18 +1127,7 @@ function checkArtifactInputChannels(
   if (Object.hasOwn(value, 'nullable') && typeof nullable !== 'boolean') {
     failDescriptor('malformed_descriptor', `Invalid ${what}: nullable must be a boolean.`);
   }
-  const bounds: { min?: number; max?: number } = {};
-  for (const key of ['min', 'max'] as const) {
-    const bound = choiceMember(value, key, what);
-    if (!Object.hasOwn(value, key)) continue;
-    if (array === undefined || typeof bound !== 'number' || !Number.isSafeInteger(bound) || bound < 0) {
-      failDescriptor('malformed_descriptor', `Invalid ${what}: ${key} must be a safe nonnegative array length.`);
-    }
-    bounds[key] = bound;
-  }
-  if (bounds.min !== undefined && bounds.max !== undefined && bounds.min > bounds.max) {
-    failDescriptor('malformed_descriptor', `Invalid ${what}: array min exceeds max.`);
-  }
+  const bounds = checkChannelBounds(value, what, array);
   const rawDescription: unknown = value['description'];
   let description: string | undefined;
   if (rawDescription !== undefined) {
@@ -972,48 +1136,7 @@ function checkArtifactInputChannels(
     }
     description = rawDescription;
   }
-  let claimedType: string | undefined;
-  if (Object.hasOwn(value, 'valueType')) {
-    const rawType = value['valueType'];
-    if (typeof rawType !== 'string') {
-      failDescriptor('malformed_descriptor', `Invalid ${what}: valueType must declare a supported scalar profile.`);
-    }
-    let type: ReturnType<typeof parseTypeId>;
-    try {
-      type = parseTypeId(rawType);
-    } catch (err) {
-      if (!(err instanceof ValueError)) throw err;
-      failDescriptor('malformed_descriptor', `Invalid ${what}: valueType must declare a supported scalar profile.`);
-    }
-    const base = type.base.kind === 'nominal' && nominalName === type.base.path ? 'nominal'
-      : type.base.kind === 'scalar' ? type.base.name
-      : type.base.kind === 'stringlike' && (type.base.name === 'email' || type.base.name === 'timezone') ? type.base.name
-      : type.base.kind === 'user' || type.base.kind === 'file' || type.base.kind === 'enum' ? type.base.kind : undefined;
-    if (base === undefined || (type.requiredArray && fieldKind !== 'nominal' && fieldKind !== 'file')) {
-      failDescriptor('malformed_descriptor', `Invalid ${what}: valueType must declare a supported scalar profile.`);
-    }
-    const expectedKind = base === 'int' ? 'integer' : base === 'bool' ? 'boolean'
-      : base === 'text' || base === 'date' || base === 'email' || base === 'timezone' ? 'string' : base;
-    if (expectedKind !== fieldKind) {
-      failDescriptor('malformed_descriptor', `Invalid ${what}: valueType disagrees with input kind.`);
-    }
-    if (type.base.kind === 'enum' && (enumValues === undefined ||
-        type.base.cases.length !== enumValues.length ||
-        type.base.cases.some((entry, index) => entry !== enumValues[index]))) {
-      failDescriptor('malformed_descriptor', `Invalid ${what}: valueType disagrees with enum cases.`);
-    }
-    if (type.array !== (array !== undefined)) {
-      failDescriptor('malformed_descriptor', `Invalid ${what}: valueType disagrees with array marker.`);
-    }
-    if ((fieldKind === 'nominal' || fieldKind === 'file') && type.requiredArray !== (array?.required === true)) {
-      failDescriptor('malformed_descriptor', `Invalid ${what}: valueType disagrees with required array marker.`);
-    }
-    if ((Object.hasOwn(value, 'nullable') && typeof value['nullable'] !== 'boolean') ||
-        type.nullable !== (value['nullable'] === true)) {
-      failDescriptor('malformed_descriptor', `Invalid ${what}: valueType disagrees with nullable marker.`);
-    }
-    claimedType = rawType;
-  }
+  const claimedType = checkClaimedValueType(value, what, fieldKind, nominalName, enumValues, array);
   return {
     required: value['required'],
     ...(claimedType === undefined ? {} : { valueType: claimedType }),
@@ -1181,6 +1304,36 @@ function inputChoiceType(field: CheckedArtifactInput, what: string): ChoiceType 
     array: field.array !== undefined, nullable: field.nullable === true };
 }
 
+function readModelEnumValues(tag: unknown, kind: string, what: string): string[] | undefined {
+  if (kind !== 'enum') return undefined;
+  return choiceArray(choiceMember(tag, 'values', what), what).map(value => {
+    if (typeof value !== 'string' || value === '') failDescriptor('malformed_descriptor', `Invalid ${what}: expected an enum case.`);
+    return value;
+  });
+}
+
+function checkModelClaimedType(
+  field: Record<string, unknown>,
+  normalized: string,
+  array: unknown,
+  nullable: unknown,
+  what: string,
+): string | undefined {
+  const claimed = choiceMember(field, 'valueType', what);
+  if (claimed === undefined) return undefined;
+  if (typeof claimed !== 'string') failDescriptor('malformed_descriptor', `Invalid ${what}: invalid checked type.`);
+  let type: ReturnType<typeof parseTypeId>;
+  try { type = parseTypeId(claimed); }
+  catch { failDescriptor('malformed_descriptor', `Invalid ${what}: invalid checked type.`); }
+  const base = type.base.kind === 'scalar' ? type.base.name
+    : type.base.kind === 'stringlike' && (type.base.name === 'email' || type.base.name === 'timezone') ? type.base.name : type.base.kind;
+  const expected = base === 'int' ? 'integer' : base === 'bool' ? 'boolean' : base === 'text' || base === 'date' || base === 'email' || base === 'timezone' ? 'string' : base;
+  if (expected !== normalized || type.array !== (array !== undefined) || type.nullable !== (nullable === true) || type.requiredArray) {
+    failDescriptor('malformed_descriptor', `Invalid ${what}: checked type disagrees with owning field.`);
+  }
+  return claimed;
+}
+
 function modelChoiceType(field: Record<string, unknown>, what: string): ChoiceType {
   const tag = choiceMember(field, 'field', what);
   const kind = choiceMember(tag, 'kind', what);
@@ -1191,11 +1344,7 @@ function modelChoiceType(field: Record<string, unknown>, what: string): ChoiceTy
   }
   const model = kind === 'ref' ? choiceMember(tag, 'model', what) : undefined;
   if (kind === 'ref' && (typeof model !== 'string' || model === '')) failDescriptor('malformed_descriptor', `Invalid ${what}: expected a referenced model.`);
-  const enumValues = kind === 'enum' ? choiceArray(choiceMember(tag, 'values', what), what).map(value => {
-    if (typeof value !== 'string' || value === '') failDescriptor('malformed_descriptor', `Invalid ${what}: expected an enum case.`);
-    return value;
-  }) : undefined;
-  const claimed = choiceMember(field, 'valueType', what);
+  const enumValues = readModelEnumValues(tag, kind, what);
   const array = choiceMember(field, 'array', what);
   const nullable = choiceMember(field, 'nullable', what);
   if (nullable !== undefined && typeof nullable !== 'boolean') failDescriptor('malformed_descriptor', `Invalid ${what}: invalid nullable marker.`);
@@ -1203,18 +1352,7 @@ function modelChoiceType(field: Record<string, unknown>, what: string): ChoiceTy
     const marker = choiceObject(array, ['required'], what);
     if (typeof marker['required'] !== 'boolean') failDescriptor('malformed_descriptor', `Invalid ${what}: invalid array marker.`);
   }
-  if (claimed !== undefined) {
-    if (typeof claimed !== 'string') failDescriptor('malformed_descriptor', `Invalid ${what}: invalid checked type.`);
-    let type: ReturnType<typeof parseTypeId>;
-    try { type = parseTypeId(claimed); }
-    catch { failDescriptor('malformed_descriptor', `Invalid ${what}: invalid checked type.`); }
-    const base = type.base.kind === 'scalar' ? type.base.name
-      : type.base.kind === 'stringlike' && (type.base.name === 'email' || type.base.name === 'timezone') ? type.base.name : type.base.kind;
-    const expected = base === 'int' ? 'integer' : base === 'bool' ? 'boolean' : base === 'text' || base === 'date' || base === 'email' || base === 'timezone' ? 'string' : base;
-    if (expected !== normalized || type.array !== (array !== undefined) || type.nullable !== (nullable === true) || type.requiredArray) {
-      failDescriptor('malformed_descriptor', `Invalid ${what}: checked type disagrees with owning field.`);
-    }
-  }
+  const claimed = checkModelClaimedType(field, normalized, array, nullable, what);
   return { kind: normalized, ...(typeof model === 'string' ? { model } : {}), ...(enumValues === undefined ? {} : { enumValues }),
     ...(typeof claimed === 'string' ? { scalar: claimed.replace(/\[\]\??$|\?$/, '') } : kind === 'date' ? { scalar: 'date' } : {}),
     array: array !== undefined, nullable: nullable === true };
@@ -1230,7 +1368,7 @@ function compatibleChoiceType(from: ChoiceType, to: ChoiceType, what: string, pr
   }
 }
 
-function attachInputChoices(raw: readonly unknown[], checked: CheckedArtifactOperation[], rawModels: unknown): CheckedArtifactOperation[] {
+function readChoiceModels(rawModels: unknown): Map<string, ChoiceModel> {
   const models = new Map<string, ChoiceModel>();
   for (const model of choiceArray(rawModels, 'choices model slice')) {
     const name = choiceMember(model, 'name', 'choices model');
@@ -1245,6 +1383,131 @@ function attachInputChoices(raw: readonly unknown[], checked: CheckedArtifactOpe
     if (parent !== undefined && (typeof parent !== 'string' || parent === '')) failDescriptor('malformed_descriptor', `Invalid parent model for ${name}.`);
     models.set(name, { fields, ...(typeof parent === 'string' ? { parent } : {}) });
   }
+  return models;
+}
+
+function checkChoiceTarget(
+  operations: Map<string, { checked: CheckedArtifactOperation; raw: unknown }>,
+  models: Map<string, ChoiceModel>,
+  binding: Record<string, unknown>,
+  what: string,
+): { target: { checked: CheckedArtifactOperation; raw: unknown }; candidateName: string; candidate: ChoiceModel } {
+  const target = typeof binding['readOperation'] === 'string' ? operations.get(binding['readOperation']) : undefined;
+  if (target === undefined || target.checked.kind !== 'read' || target.checked.name.startsWith('std.')) {
+    failDescriptor('malformed_descriptor', `Invalid ${what}: choices require a declared readonly business operation.`);
+  }
+  const resultType = choiceMember(choiceMember(target.raw, 'result', what), 'type', what);
+  if (typeof resultType !== 'string' || !resultType.endsWith('[]') || !models.has(resultType.slice(0, -2))) {
+    failDescriptor('undeclared_result', `Invalid ${what}: read result must be a declared singular model array.`);
+  }
+  const candidateName = resultType.slice(0, -2);
+  const candidate = models.get(candidateName)!;
+  return { target, candidateName, candidate };
+}
+
+function resolveChoicePathSegment(
+  sourceType: ChoiceType,
+  segment: string,
+  models: Map<string, ChoiceModel>,
+  what: string,
+): ChoiceType {
+  if (sourceType.array || sourceType.kind !== 'ref' || sourceType.model === undefined) {
+    failDescriptor('malformed_descriptor', `Invalid ${what}: unsupported non-record path.`);
+  }
+  const owner = models.get(sourceType.model);
+  const leaf = owner?.fields.get(segment);
+  if (leaf !== undefined) return modelChoiceType(leaf, what);
+  if (segment === 'parent' && owner?.parent !== undefined && models.has(owner.parent)) {
+    return { kind: 'ref', model: owner.parent, array: false, nullable: false };
+  }
+  failDescriptor('malformed_descriptor', `Invalid ${what}: unknown model path ${segment}.`);
+}
+
+function checkChoiceArguments(
+  models: Map<string, ChoiceModel>,
+  operation: CheckedArtifactOperation,
+  target: { checked: CheckedArtifactOperation; raw: unknown },
+  argumentsRaw: unknown,
+  what: string,
+): {
+  argumentsChecked: Record<string, { readonly input: string; readonly path: readonly string[] }>;
+  dependencies: Set<string>;
+} {
+  if (!isDescriptorRecord(argumentsRaw) || (Object.getPrototypeOf(argumentsRaw) !== Object.prototype && Object.getPrototypeOf(argumentsRaw) !== null)) {
+    failDescriptor('malformed_descriptor', `Invalid ${what}: expected own argument mappings.`);
+  }
+  const argumentsChecked: Record<string, { readonly input: string; readonly path: readonly string[] }> = Object.create(null);
+  const dependencies = new Set<string>();
+  for (const param of Reflect.ownKeys(argumentsRaw)) {
+    if (typeof param !== 'string') failDescriptor('malformed_descriptor', `Invalid ${what}: invalid argument name.`);
+    const readParam = target.checked.fields.find(entry => entry.name === param);
+    if (readParam === undefined) failDescriptor('malformed_descriptor', `Invalid ${what}: unknown read parameter ${param}.`);
+    const mapping = choiceObject(choiceMember(argumentsRaw, param, what), ['input', 'path'], what);
+    const input = choiceName(mapping['input'], what);
+    const sourceField = operation.fields.find(entry => entry.name === input);
+    if (sourceField === undefined) failDescriptor('malformed_descriptor', `Invalid ${what}: unknown owning input ${input}.`);
+    let sourceType = inputChoiceType(sourceField, what);
+    const path = choiceArray(mapping['path'], what).map(value => choiceName(value, what));
+    for (const segment of path) {
+      sourceType = resolveChoicePathSegment(sourceType, segment, models, what);
+    }
+    const readType = inputChoiceType(readParam, what);
+    if ((sourceType.model !== undefined && !models.has(sourceType.model)) ||
+        (readType.model !== undefined && !models.has(readType.model))) failDescriptor('malformed_descriptor', `Invalid ${what}: unknown argument model.`);
+    // Absent/null prerequisites suppress lookup; the mapped value is
+    // checked against the required read parameter only when present.
+    compatibleChoiceType(sourceType, readType, what, true);
+    argumentsChecked[param] = Object.freeze({ input, path: Object.freeze(path) });
+    dependencies.add(`${operation.name}:${input}`);
+  }
+  return { argumentsChecked, dependencies };
+}
+
+function checkChoiceValue(
+  binding: Record<string, unknown>,
+  candidate: ChoiceModel,
+  assisted: ChoiceType,
+  candidateName: string,
+  what: string,
+): InputChoiceBinding['value'] {
+  const value = binding['value'];
+  const valueKind = choiceMember(value, 'kind', what);
+  if (valueKind === 'record') {
+    choiceObject(value, ['kind'], what);
+    compatibleChoiceType({ kind: 'ref', model: candidateName, array: false, nullable: false }, assisted, what);
+    return Object.freeze({ kind: 'record' });
+  }
+  if (valueKind === 'field') {
+    const valueObject = choiceObject(value, ['kind', 'field'], what);
+    const name = choiceName(valueObject['field'], what);
+    const leaf = candidate.fields.get(name);
+    if (leaf === undefined) failDescriptor('undeclared_leaf', `Invalid ${what}: unknown value field ${name}.`);
+    compatibleChoiceType(modelChoiceType(leaf, what), assisted, what);
+    return Object.freeze({ kind: 'field', field: name });
+  }
+  return failDescriptor('malformed_descriptor', `Invalid ${what}: unsupported value selector.`);
+}
+
+function checkChoiceLabels(
+  binding: Record<string, unknown>,
+  candidate: ChoiceModel,
+  what: string,
+): readonly string[] {
+  const labels = choiceArray(binding['labels'], what).map(value => choiceName(value, what));
+  if (new Set(labels).size !== labels.length) failDescriptor('duplicate_name', `Invalid ${what}: duplicate label fields.`);
+  for (const label of labels) {
+    const leaf = candidate.fields.get(label);
+    if (leaf === undefined) failDescriptor('undeclared_leaf', `Invalid ${what}: unknown label field ${label}.`);
+    const type = modelChoiceType(leaf, what);
+    if (type.array || ['file', 'delivery'].includes(type.kind)) {
+      failDescriptor('malformed_descriptor', `Invalid ${what}: labels require singular scalar/reference/user leaves.`);
+    }
+  }
+  return labels;
+}
+
+function attachInputChoices(raw: readonly unknown[], checked: CheckedArtifactOperation[], rawModels: unknown): CheckedArtifactOperation[] {
+  const models = readChoiceModels(rawModels);
   const operations = new Map(checked.map((operation, index) => [operation.name, { checked: operation, raw: raw[index] }]));
   const edges = new Map<string, Set<string>>();
   const result = checked.map(operation => {
@@ -1258,79 +1521,15 @@ function attachInputChoices(raw: readonly unknown[], checked: CheckedArtifactOpe
       if (assisted.model !== undefined && !models.has(assisted.model)) failDescriptor('malformed_descriptor', `Invalid ${what}: unknown assisted model.`);
       const binding = choiceObject(choiceMember(claim, 'choices', what), ['version', 'readOperation', 'arguments', 'value', 'labels'], what);
       if (binding['version'] !== 1) failDescriptor('version_mismatch', `Invalid ${what}: unsupported choices version.`);
-      const target = typeof binding['readOperation'] === 'string' ? operations.get(binding['readOperation']) : undefined;
-      if (target === undefined || target.checked.kind !== 'read' || target.checked.name.startsWith('std.')) {
-        failDescriptor('malformed_descriptor', `Invalid ${what}: choices require a declared readonly business operation.`);
-      }
-      const resultType = choiceMember(choiceMember(target.raw, 'result', what), 'type', what);
-      if (typeof resultType !== 'string' || !resultType.endsWith('[]') || !models.has(resultType.slice(0, -2))) {
-        failDescriptor('undeclared_result', `Invalid ${what}: read result must be a declared singular model array.`);
-      }
-      const candidateName = resultType.slice(0, -2);
-      const candidate = models.get(candidateName)!;
-      const argumentsRaw = binding['arguments'];
-      if (!isDescriptorRecord(argumentsRaw) || (Object.getPrototypeOf(argumentsRaw) !== Object.prototype && Object.getPrototypeOf(argumentsRaw) !== null)) {
-        failDescriptor('malformed_descriptor', `Invalid ${what}: expected own argument mappings.`);
-      }
-      const argumentsChecked: Record<string, { readonly input: string; readonly path: readonly string[] }> = Object.create(null);
-      const dependencies = new Set<string>();
-      for (const param of Reflect.ownKeys(argumentsRaw)) {
-        if (typeof param !== 'string') failDescriptor('malformed_descriptor', `Invalid ${what}: invalid argument name.`);
-        const readParam = target.checked.fields.find(entry => entry.name === param);
-        if (readParam === undefined) failDescriptor('malformed_descriptor', `Invalid ${what}: unknown read parameter ${param}.`);
-        const mapping = choiceObject(choiceMember(argumentsRaw, param, what), ['input', 'path'], what);
-        const input = choiceName(mapping['input'], what);
-        const sourceField = operation.fields.find(entry => entry.name === input);
-        if (sourceField === undefined) failDescriptor('malformed_descriptor', `Invalid ${what}: unknown owning input ${input}.`);
-        let sourceType = inputChoiceType(sourceField, what);
-        const path = choiceArray(mapping['path'], what).map(value => choiceName(value, what));
-        for (const segment of path) {
-          if (sourceType.array || sourceType.kind !== 'ref' || sourceType.model === undefined) failDescriptor('malformed_descriptor', `Invalid ${what}: unsupported non-record path.`);
-          const owner = models.get(sourceType.model);
-          const leaf = owner?.fields.get(segment);
-          if (leaf !== undefined) sourceType = modelChoiceType(leaf, what);
-          else if (segment === 'parent' && owner?.parent !== undefined && models.has(owner.parent)) sourceType = { kind: 'ref', model: owner.parent, array: false, nullable: false };
-          else failDescriptor('malformed_descriptor', `Invalid ${what}: unknown model path ${segment}.`);
-        }
-        const readType = inputChoiceType(readParam, what);
-        if ((sourceType.model !== undefined && !models.has(sourceType.model)) ||
-            (readType.model !== undefined && !models.has(readType.model))) failDescriptor('malformed_descriptor', `Invalid ${what}: unknown argument model.`);
-        // Absent/null prerequisites suppress lookup; the mapped value is
-        // checked against the required read parameter only when present.
-        compatibleChoiceType(sourceType, readType, what, true);
-        argumentsChecked[param] = Object.freeze({ input, path: Object.freeze(path) });
-        dependencies.add(`${operation.name}:${input}`);
-      }
+      const { target, candidateName, candidate } = checkChoiceTarget(operations, models, binding, what);
+      const { argumentsChecked, dependencies } = checkChoiceArguments(models, operation, target, binding['arguments'], what);
       for (const param of target.checked.fields) {
         if (isDeliveryField(param) || (param.required && !Object.hasOwn(argumentsChecked, param.name))) {
           failDescriptor('malformed_descriptor', `Invalid ${what}: required read parameter ${param.name} has no mapping.`);
         }
       }
-      const value = binding['value'];
-      const valueKind = choiceMember(value, 'kind', what);
-      let checkedValue: InputChoiceBinding['value'];
-      if (valueKind === 'record') {
-        choiceObject(value, ['kind'], what);
-        compatibleChoiceType({ kind: 'ref', model: candidateName, array: false, nullable: false }, assisted, what);
-        checkedValue = Object.freeze({ kind: 'record' });
-      } else if (valueKind === 'field') {
-        const valueObject = choiceObject(value, ['kind', 'field'], what);
-        const name = choiceName(valueObject['field'], what);
-        const leaf = candidate.fields.get(name);
-        if (leaf === undefined) failDescriptor('undeclared_leaf', `Invalid ${what}: unknown value field ${name}.`);
-        compatibleChoiceType(modelChoiceType(leaf, what), assisted, what);
-        checkedValue = Object.freeze({ kind: 'field', field: name });
-      } else failDescriptor('malformed_descriptor', `Invalid ${what}: unsupported value selector.`);
-      const labels = choiceArray(binding['labels'], what).map(value => choiceName(value, what));
-      if (new Set(labels).size !== labels.length) failDescriptor('duplicate_name', `Invalid ${what}: duplicate label fields.`);
-      for (const label of labels) {
-        const leaf = candidate.fields.get(label);
-        if (leaf === undefined) failDescriptor('undeclared_leaf', `Invalid ${what}: unknown label field ${label}.`);
-        const type = modelChoiceType(leaf, what);
-        if (type.array || ['file', 'delivery'].includes(type.kind)) {
-          failDescriptor('malformed_descriptor', `Invalid ${what}: labels require singular scalar/reference/user leaves.`);
-        }
-      }
+      const checkedValue = checkChoiceValue(binding, candidate, assisted, candidateName, what);
+      const labels = checkChoiceLabels(binding, candidate, what);
       edges.set(`${operation.name}:${field.name}`, dependencies);
       const choices: InputChoiceBinding = Object.freeze({ version: 1, readOperation: target.checked.name,
         arguments: Object.freeze(argumentsChecked), value: checkedValue, labels: Object.freeze(labels) });
@@ -1566,6 +1765,49 @@ function checkBoundRef(input: DerivedWritableInput, value: unknown, path: string
   return null;
 }
 
+function checkBoundScalarLiteral(input: DerivedWritableInput, value: unknown, path: string): BusinessError | null {
+  const detail =
+    input.kind === 'integer'
+      ? checkIntegerLiteral(value)
+      : input.kind === 'decimal'
+        ? checkDecimalLiteral(value)
+        : checkMoneyLiteral(value);
+  return detail === null
+    ? null
+    : bindingError(path, `Invalid value for input ${JSON.stringify(input.name)}: ${detail}.`);
+}
+
+function checkBoundCodecValue(input: DerivedWritableInput, value: unknown, path: string): BusinessError | null {
+  // Values owns these wire shapes; full wrappers are checked at entry.
+  try {
+    decodeValue(input.kind, value);
+  } catch (err) {
+    if (!(err instanceof SchemaError)) throw err;
+    return bindingError(path, `Invalid value for input ${JSON.stringify(input.name)}: ${err.message}.`);
+  }
+  return null;
+}
+
+function checkBoundDatetime(input: DerivedWritableInput, value: unknown, path: string): BusinessError | null {
+  // E2b/F-R4 join: the dispatcher applies the canonical values-wire
+  // decode — L3 admission judges presence only and will not catch a
+  // non-conforming string (lane B relay). Millis-pinned RFC 3339 UTC
+  // binds; anything else mismatches. Not a parallel engine: the
+  // canonical decoder owns the verdict; only its outcome is projected.
+  try {
+    decodeValue('datetime', value);
+  } catch (err) {
+    if (!(err instanceof SchemaError)) throw err;
+    return bindingError(
+      path,
+      `Invalid value for input ${JSON.stringify(input.name)}: ` +
+        'datetime values are RFC 3339 UTC instants with millis ' +
+        `(got ${JSON.stringify(value) ?? 'undefined'}).`,
+    );
+  }
+  return null;
+}
+
 /** Bind one non-null array element or singular value to its declared kind. */
 function checkBoundElement(
   input: DerivedWritableInput,
@@ -1597,48 +1839,14 @@ function checkBoundElement(
     }
     case 'integer':
     case 'decimal':
-    case 'money': {
-      const detail =
-        input.kind === 'integer'
-          ? checkIntegerLiteral(value)
-          : input.kind === 'decimal'
-            ? checkDecimalLiteral(value)
-            : checkMoneyLiteral(value);
-      return detail === null
-        ? null
-        : bindingError(path, `Invalid value for input ${JSON.stringify(input.name)}: ${detail}.`);
-    }
+    case 'money':
+      return checkBoundScalarLiteral(input, value, path);
     case 'user':
     case 'file':
-    case 'duration': {
-      // Values owns these wire shapes; full wrappers are checked at entry.
-      try {
-        decodeValue(input.kind, value);
-      } catch (err) {
-        if (!(err instanceof SchemaError)) throw err;
-        return bindingError(path, `Invalid value for input ${JSON.stringify(input.name)}: ${err.message}.`);
-      }
-      return null;
-    }
-    case 'datetime': {
-      // E2b/F-R4 join: the dispatcher applies the canonical values-wire
-      // decode — L3 admission judges presence only and will not catch a
-      // non-conforming string (lane B relay). Millis-pinned RFC 3339 UTC
-      // binds; anything else mismatches. Not a parallel engine: the
-      // canonical decoder owns the verdict; only its outcome is projected.
-      try {
-        decodeValue('datetime', value);
-      } catch (err) {
-        if (!(err instanceof SchemaError)) throw err;
-        return bindingError(
-          path,
-          `Invalid value for input ${JSON.stringify(input.name)}: ` +
-            'datetime values are RFC 3339 UTC instants with millis ' +
-            `(got ${JSON.stringify(value) ?? 'undefined'}).`,
-        );
-      }
-      return null;
-    }
+    case 'duration':
+      return checkBoundCodecValue(input, value, path);
+    case 'datetime':
+      return checkBoundDatetime(input, value, path);
     case 'string':
     case 'boolean':
       // No declared set to bind: L3 admission owns these values.
@@ -1654,35 +1862,69 @@ function checkBoundElement(
  * singular values bind by kind. Presence and closedness are framing
  * concerns, never checked here.
  */
-export function checkBoundArgument(input: DerivedWritableInput, value: unknown): BusinessError | null {
+function checkBoundArrayLength(input: DerivedWritableInput, value: unknown): BusinessError | null {
   if (input.array !== undefined && Array.isArray(value) &&
       ((input.min !== undefined && value.length < input.min) || (input.max !== undefined && value.length > input.max))) {
     return bindingError(`/${input.name}`, `Input ${JSON.stringify(input.name)} violates its declared array length bounds.`);
   }
+  return null;
+}
+
+function checkBoundNominalValue(input: DerivedWritableInput, value: unknown): BusinessError | null {
+  if (input.valueTypes === undefined || input.valueType === undefined) {
+    return bindingError(`/${input.name}`, 'Nominal input lacks its checked owning inventory.');
+  }
+  try {
+    validateValue(normalizeValueTypes(input.valueTypes, nominalModelNames(input.valueTypes)).valueSchema, input.valueType, value, 'create');
+    return null;
+  }
+  catch (error) { return bindingError(`/${input.name}`, error instanceof Error ? error.message : 'Invalid nominal value.'); }
+}
+
+function checkBoundProfileValue(
+  input: DerivedWritableInput,
+  value: unknown,
+  path: string,
+  stringProfile: string | undefined,
+): BusinessError | null {
+  // The owning codec validates the complete profile, including array element nulls.
+  const array = input.array === undefined ? '' : input.kind === 'file' && input.array.required ? '[]!' : '[]';
+  const type = stringProfile ?? `${input.kind}${array}${input.nullable === true ? '?' : ''}`;
+  try {
+    decodeValue(type, value);
+  } catch (err) {
+    if (!(err instanceof SchemaError)) throw err;
+    const violation = err.violations[0];
+    const suffix = violation?.path.map((part) => String(part).replace(/~/g, '~0').replace(/\//g, '~1')).join('/');
+    return bindingError(
+      suffix ? `${path}/${suffix}` : path,
+      `Invalid value for input ${JSON.stringify(input.name)}: ${violation?.message ?? err.message}.`,
+    );
+  }
+  return null;
+}
+
+function checkBoundElements(input: DerivedWritableInput, value: unknown[], path: string): BusinessError | null {
+  for (let index = 0; index < value.length; index += 1) {
+    const element: unknown = value[index];
+    if (element === null) continue;
+    const failure = checkBoundElement(input, element, `${path}/${index}`);
+    if (failure !== null) return failure;
+  }
+  return null;
+}
+
+export function checkBoundArgument(input: DerivedWritableInput, value: unknown): BusinessError | null {
+  const lengthViolation = checkBoundArrayLength(input, value);
+  if (lengthViolation !== null) return lengthViolation;
   if (input.kind === 'nominal') {
-    if (input.valueTypes === undefined || input.valueType === undefined) return bindingError(`/${input.name}`, 'Nominal input lacks its checked owning inventory.');
-    try { validateValue(normalizeValueTypes(input.valueTypes, nominalModelNames(input.valueTypes)).valueSchema, input.valueType, value, 'create'); return null; }
-    catch (error) { return bindingError(`/${input.name}`, error instanceof Error ? error.message : 'Invalid nominal value.'); }
+    return checkBoundNominalValue(input, value);
   }
   const path = `/${input.name}`;
   const stringProfile = input.kind === 'string' && typeof input.valueType === 'string' &&
     /^(email|timezone)(\[\])?\??$/.test(input.valueType) ? input.valueType : undefined;
   if (input.kind === 'user' || input.kind === 'file' || stringProfile !== undefined) {
-    // The owning codec validates the complete profile, including array element nulls.
-    const array = input.array === undefined ? '' : input.kind === 'file' && input.array.required ? '[]!' : '[]';
-    const type = stringProfile ?? `${input.kind}${array}${input.nullable === true ? '?' : ''}`;
-    try {
-      decodeValue(type, value);
-    } catch (err) {
-      if (!(err instanceof SchemaError)) throw err;
-      const violation = err.violations[0];
-      const suffix = violation?.path.map((part) => String(part).replace(/~/g, '~0').replace(/\//g, '~1')).join('/');
-      return bindingError(
-        suffix ? `${path}/${suffix}` : path,
-        `Invalid value for input ${JSON.stringify(input.name)}: ${violation?.message ?? err.message}.`,
-      );
-    }
-    return null;
+    return checkBoundProfileValue(input, value, path, stringProfile);
   }
   if (value === null) {
     return input.nullable === true
@@ -1697,13 +1939,7 @@ export function checkBoundArgument(input: DerivedWritableInput, value: unknown):
           `(got ${JSON.stringify(value) ?? 'undefined'}).`,
       );
     }
-    for (let index = 0; index < value.length; index += 1) {
-      const element: unknown = value[index];
-      if (element === null) continue;
-      const failure = checkBoundElement(input, element, `${path}/${index}`);
-      if (failure !== null) return failure;
-    }
-    return null;
+    return checkBoundElements(input, value, path);
   }
   return checkBoundElement(input, value, path);
 }

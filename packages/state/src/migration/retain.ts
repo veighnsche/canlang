@@ -68,15 +68,10 @@ export interface CarryoverResult {
  * accepted/uncertain items block. Pure (no I/O): the caller supplies the
  * pending outbox it read.
  */
-export function computeRetainedCarryover(input: CarryoverInput): CarryoverResult {
-  const { plan, inventory, pending } = input;
-  if (!Array.isArray(inventory)) {
-    throw new StateError('validation', 'Migration inventory must be an array.');
-  }
+function indexPendingIntents(pending: CarryoverInput['pending']): Map<string, OutboxIntent> {
   if (!Array.isArray(pending)) {
     throw new StateError('validation', 'Migration pending outbox must be an array.');
   }
-  const pinned = new Set(plan.invalidates);
   const pendingById = new Map<string, OutboxIntent>();
   for (const intent of pending) {
     if (typeof intent !== 'object' || intent === null || Array.isArray(intent)) {
@@ -87,62 +82,96 @@ export function computeRetainedCarryover(input: CarryoverInput): CarryoverResult
     }
     pendingById.set(intent.intentId, intent);
   }
-  const blocked: string[] = [];
-  const retained: RetainedIntent[] = [];
-  const invalidated: Array<{ intentId: string; handlerContract: string }> = [];
-  const seen = new Set<string>();
-  for (const item of inventory) {
-    if (typeof item !== 'object' || item === null || Array.isArray(item)) {
-      throw new StateError('validation', 'Migration inventory items must be objects.');
-    }
-    const intentId = item.intentId;
-    const handlerContract = item.handlerContract;
-    const state = item.state;
-    if (typeof intentId !== 'string' || intentId === '') {
-      throw new StateError('validation', 'Migration inventory intent ids must be non-empty.');
-    }
-    if (typeof handlerContract !== 'string' || handlerContract === '') {
-      throw new StateError('validation', 'Migration inventory handler contracts must be non-empty.');
-    }
-    if (state !== 'undispatched' && state !== 'inflight' && state !== 'accepted' && state !== 'uncertain') {
-      throw new StateError(
-        'validation',
-        `Migration inventory item ${JSON.stringify(intentId)} has unknown state.`,
-      );
-    }
-    if (state === 'accepted' || state === 'uncertain') {
-      blocked.push(intentId);
-      continue;
-    }
-    const stored = pendingById.get(intentId) ?? null;
-    if (stored === null) {
-      throw new StateError(
-        'validation',
-        `Migration carry-over evidence changed under us (not pending): ${JSON.stringify(intentId)}.`,
-      );
-    }
-    // Re-pin: a stored contract overrules attestation on mismatch.
-    if (stored.handlerContract !== undefined && stored.handlerContract !== handlerContract) {
-      throw new StateError(
-        'validation',
-        `Migration inventory contract mismatch for ${JSON.stringify(intentId)}: ` +
-          `attested ${JSON.stringify(handlerContract)} but the outbox stores ` +
-          `${JSON.stringify(stored.handlerContract)}.`,
-      );
-    }
-    const effective = stored.handlerContract ?? handlerContract;
+  return pendingById;
+}
+
+interface CarryoverFold {
+  readonly blocked: string[];
+  readonly retained: RetainedIntent[];
+  readonly invalidated: Array<{ intentId: string; handlerContract: string }>;
+  readonly seen: Set<string>;
+}
+
+function checkCarryoverContract(
+  stored: OutboxIntent,
+  intentId: string,
+  handlerContract: string,
+): string {
+  // Re-pin: a stored contract overrules attestation on mismatch.
+  if (stored.handlerContract !== undefined && stored.handlerContract !== handlerContract) {
+    throw new StateError(
+      'validation',
+      `Migration inventory contract mismatch for ${JSON.stringify(intentId)}: ` +
+        `attested ${JSON.stringify(handlerContract)} but the outbox stores ` +
+        `${JSON.stringify(stored.handlerContract)}.`,
+    );
+  }
+  return stored.handlerContract ?? handlerContract;
+}
+
+function foldCarryoverItem(
+  item: CarryoverInput['inventory'][number],
+  pinned: ReadonlySet<string>,
+  pendingById: ReadonlyMap<string, OutboxIntent>,
+  fold: CarryoverFold,
+): void {
+  if (typeof item !== 'object' || item === null || Array.isArray(item)) {
+    throw new StateError('validation', 'Migration inventory items must be objects.');
+  }
+  const intentId = item.intentId;
+  const handlerContract = item.handlerContract;
+  const state = item.state;
+  if (typeof intentId !== 'string' || intentId === '') {
+    throw new StateError('validation', 'Migration inventory intent ids must be non-empty.');
+  }
+  if (typeof handlerContract !== 'string' || handlerContract === '') {
+    throw new StateError('validation', 'Migration inventory handler contracts must be non-empty.');
+  }
+  if (state !== 'undispatched' && state !== 'inflight' && state !== 'accepted' && state !== 'uncertain') {
+    throw new StateError(
+      'validation',
+      `Migration inventory item ${JSON.stringify(intentId)} has unknown state.`,
+    );
+  }
+  if (state === 'accepted' || state === 'uncertain') {
+    fold.blocked.push(intentId);
+    return;
+  }
+  const stored = pendingById.get(intentId) ?? null;
+  if (stored === null) {
+    throw new StateError(
+      'validation',
+      `Migration carry-over evidence changed under us (not pending): ${JSON.stringify(intentId)}.`,
+    );
+  }
+  const effective = checkCarryoverContract(stored, intentId, handlerContract);
+  if (!fold.seen.has(intentId)) {
+    fold.seen.add(intentId);
     if (state === 'undispatched' && pinned.has(effective)) {
-      if (!seen.has(intentId)) {
-        seen.add(intentId);
-        invalidated.push({ intentId, handlerContract: effective });
-      }
-      continue;
-    }
-    if (!seen.has(intentId)) {
-      seen.add(intentId);
-      retained.push({ intentId, handlerContract: effective, state });
+      fold.invalidated.push({ intentId, handlerContract: effective });
+    } else {
+      fold.retained.push({ intentId, handlerContract: effective, state });
     }
   }
+}
+
+export function computeRetainedCarryover(input: CarryoverInput): CarryoverResult {
+  const { plan, inventory, pending } = input;
+  if (!Array.isArray(inventory)) {
+    throw new StateError('validation', 'Migration inventory must be an array.');
+  }
+  // HEAD rejects a bad pending outbox before reading the plan's
+  // invalidates getter; pinned construction still precedes indexing.
+  if (!Array.isArray(pending)) {
+    throw new StateError('validation', 'Migration pending outbox must be an array.');
+  }
+  const pinned = new Set(plan.invalidates);
+  const pendingById = indexPendingIntents(pending);
+  const fold: CarryoverFold = { blocked: [], retained: [], invalidated: [], seen: new Set<string>() };
+  for (const item of inventory) {
+    foldCarryoverItem(item, pinned, pendingById, fold);
+  }
+  const { blocked, retained, invalidated } = fold;
   if (blocked.length > 0) {
     blocked.sort();
     throw new StateError(

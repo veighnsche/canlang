@@ -12,44 +12,65 @@ import { modelFieldConstraintSchema } from '../mutation/models.js';
 const invalid = (message: string): never => { throw new StateError('validation', `Saved scenario File: ${message}`); };
 const MAX_REFS = 200;
 
+/** Shared finite-copy budget (one top-level detach). */
+interface OwnDataBudget {
+  nodes: number;
+  readonly active: Set<object>;
+}
+
+/** One entry in descriptor order: dense-array or own-enumerable-object member. */
+function copyOwnDataEntries(
+  out: unknown[] | Record<string, unknown>,
+  part: object,
+  keys: readonly (string | symbol)[],
+  array: boolean,
+  length: number,
+  depth: number,
+  budget: OwnDataBudget,
+): void {
+  for (const key of keys) {
+    if (array && key === 'length') continue;
+    const descriptor = Object.getOwnPropertyDescriptor(part, key);
+    if (typeof key !== 'string' || descriptor === undefined || !('value' in descriptor) || !descriptor.enumerable ||
+        array && (!/^(0|[1-9]\d*)$/.test(key) || Number(key) >= length)) return invalid('own enumerable data required.');
+    Object.defineProperty(out, key, { value: copyOwnDataPart(descriptor.value, depth + 1, budget), enumerable: true, writable: true, configurable: true });
+  }
+}
+
+/** Dense finite array length for one detached node. */
+function ownDataArrayLength(part: object, keys: readonly (string | symbol)[]): number {
+  const descriptor = Object.getOwnPropertyDescriptor(part, 'length');
+  if (descriptor === undefined || !('value' in descriptor) || !Number.isSafeInteger(descriptor.value) ||
+      descriptor.value < 0 || descriptor.value > 20_000 || keys.length !== descriptor.value + 1) {
+    return invalid('dense finite arrays required.');
+  }
+  return descriptor.value as number;
+}
+
+/** One detached node: primitives pass through, plain objects/arrays recurse. */
+function copyOwnDataPart(part: unknown, depth: number, budget: OwnDataBudget): unknown {
+  if (++budget.nodes > 20_000 || depth > 32) return invalid('data exceeds its finite budget.');
+  if (part === null || typeof part === 'string' || typeof part === 'boolean') return part;
+  if (typeof part === 'number' && Number.isFinite(part)) return part;
+  if (typeof part !== 'object' || part === null || budget.active.has(part)) return invalid('own JSON data required.');
+  const array = Array.isArray(part);
+  const prototype = Object.getPrototypeOf(part);
+  if (array ? prototype !== Array.prototype : prototype !== Object.prototype && prototype !== null) {
+    return invalid('own JSON data required.');
+  }
+  budget.active.add(part);
+  const keys = Reflect.ownKeys(part);
+  if (keys.length > 20_000 - budget.nodes) return invalid('data exceeds its finite budget.');
+  const out: unknown[] | Record<string, unknown> = array ? [] : {};
+  const length = array ? ownDataArrayLength(part, keys) : 0;
+  copyOwnDataEntries(out, part, keys, array, length, depth, budget);
+  budget.active.delete(part);
+  return out;
+}
+
 /** Inspect descriptors before reading values, and detach the entire finite JSON tree. */
 function copyData(value: unknown): unknown {
-  let nodes = 0;
-  const active = new Set<object>();
-  const copy = (part: unknown, depth: number): unknown => {
-    if (++nodes > 20_000 || depth > 32) return invalid('data exceeds its finite budget.');
-    if (part === null || typeof part === 'string' || typeof part === 'boolean') return part;
-    if (typeof part === 'number' && Number.isFinite(part)) return part;
-    if (typeof part !== 'object' || part === null || active.has(part)) return invalid('own JSON data required.');
-    const array = Array.isArray(part);
-    const prototype = Object.getPrototypeOf(part);
-    if (array ? prototype !== Array.prototype : prototype !== Object.prototype && prototype !== null) {
-      return invalid('own JSON data required.');
-    }
-    active.add(part);
-    const keys = Reflect.ownKeys(part);
-    if (keys.length > 20_000 - nodes) return invalid('data exceeds its finite budget.');
-    const out: unknown[] | Record<string, unknown> = array ? [] : {};
-    let length = 0;
-    if (array) {
-      const descriptor = Object.getOwnPropertyDescriptor(part, 'length');
-      if (descriptor === undefined || !('value' in descriptor) || !Number.isSafeInteger(descriptor.value) ||
-          descriptor.value < 0 || descriptor.value > 20_000 || keys.length !== descriptor.value + 1) {
-        return invalid('dense finite arrays required.');
-      }
-      length = descriptor.value as number;
-    }
-    for (const key of keys) {
-      if (array && key === 'length') continue;
-      const descriptor = Object.getOwnPropertyDescriptor(part, key);
-      if (typeof key !== 'string' || descriptor === undefined || !('value' in descriptor) || !descriptor.enumerable ||
-          array && (!/^(0|[1-9]\d*)$/.test(key) || Number(key) >= length)) return invalid('own enumerable data required.');
-      Object.defineProperty(out, key, { value: copy(descriptor.value, depth + 1), enumerable: true, writable: true, configurable: true });
-    }
-    active.delete(part);
-    return out;
-  };
-  try { return copy(value, 0); }
+  try { return copyOwnDataPart(value, 0, { nodes: 0, active: new Set<object>() }); }
   catch (error) { if (error instanceof StateError) throw error; return invalid('own JSON data required.'); }
 }
 
@@ -129,12 +150,13 @@ export interface ScenarioFileFieldProfile {
 }
 const constraints = new WeakMap<ScenarioFileFieldProfile, ReturnType<typeof modelFieldConstraintSchema>>();
 
-export function scenarioFileField(inventory: { readonly artifactModels: ReadonlyMap<ModelName, ArtifactModel>;
-  readonly canonicalModels: readonly CanonicalModelDescriptor[] }, model: ModelName, field: string): ScenarioFileFieldProfile {
-  if (typeof field !== 'string' || field.length === 0 || field.includes('.') ||
-      ['id', 'version', 'created', 'updated', 'createdBy', 'updatedBy', 'archivedAt', 'parent'].includes(field)) {
-    return invalid('declared stored File field required.');
-  }
+/** Owning File declaration pair: detached canonical and authored descriptors. */
+function findScenarioFileDeclaration(
+  inventory: { readonly artifactModels: ReadonlyMap<ModelName, ArtifactModel>;
+    readonly canonicalModels: readonly CanonicalModelDescriptor[] },
+  model: ModelName,
+  field: string,
+): { canonical: CanonicalModelDescriptor['fields'][string]; authored: ArtifactModel['fields'][number] } {
   const declarations = inventory.canonicalModels.filter(candidate => candidate.name === model);
   const artifact = inventory.artifactModels.get(model);
   const candidates = artifact?.fields.filter(candidate => candidate.name === field) ?? [];
@@ -145,30 +167,57 @@ export function scenarioFileField(inventory: { readonly artifactModels: Readonly
   const authored = copyData(candidates[0]) as ArtifactModel['fields'][number];
   if (typeof canonical !== 'object' || canonical === null || Array.isArray(canonical) ||
       typeof authored !== 'object' || authored === null || Array.isArray(authored)) return invalid('owning File descriptors required.');
+  checkScenarioFileTag(authored, canonical);
+  return { canonical, authored };
+}
+
+/** File tag with matching non-derived value type on both descriptors. */
+function checkScenarioFileTag(
+  authored: ArtifactModel['fields'][number],
+  canonical: CanonicalModelDescriptor['fields'][string],
+): void {
   const tag = object(authored.field, ['kind']);
   if (tag['kind'] !== 'file' || canonical.default?.kind === 'derived' || authored.default?.kind === 'derived' ||
       canonical.valueType === undefined || authored.valueType !== canonical.valueType) return invalid('checked stored File profile required.');
+}
+
+/** File type agreement with owning markers (parse, kind, array, nullability). */
+function checkScenarioFileType(
+  canonical: CanonicalModelDescriptor['fields'][string],
+  authored: ArtifactModel['fields'][number],
+): { type: CanTypeId; array: boolean; nullable: boolean } {
+  const type = canonical.valueType as CanTypeId;
+  const parsed = parseTypeId(type);
+  if (parsed.base.kind !== 'file' || parsed.requiredArray || printTypeId(parsed) !== type ||
+      parsed.array !== Object.hasOwn(canonical, 'array') || parsed.array !== Object.hasOwn(authored, 'array') ||
+      parsed.nullable !== (canonical.nullable === true) || parsed.nullable !== (authored.nullable === true)) {
+    return invalid('File type disagrees with owning markers.');
+  }
+  if (typeof canonical.required !== 'boolean' || typeof canonical.serverOnly !== 'boolean') return invalid('checked stored field markers required.');
+  for (const key of ['required', 'serverOnly', 'nullable', 'array', 'trim', 'min', 'max'] as const) {
+    if (Object.hasOwn(canonical, key) !== Object.hasOwn(authored, key) || JSON.stringify(canonical[key]) !== JSON.stringify(authored[key])) {
+      return invalid('File declarations disagree with owning markers or constraints.');
+    }
+  }
+  if (canonical.array !== undefined) {
+    const marker = object(canonical.array, ['required']);
+    if (typeof marker['required'] !== 'boolean') return invalid('checked array marker required.');
+  }
+  if (Object.hasOwn(canonical, 'nullable') && typeof canonical.nullable !== 'boolean') return invalid('checked nullable marker required.');
+  return { type, array: parsed.array, nullable: parsed.nullable };
+}
+
+export function scenarioFileField(inventory: { readonly artifactModels: ReadonlyMap<ModelName, ArtifactModel>;
+  readonly canonicalModels: readonly CanonicalModelDescriptor[] }, model: ModelName, field: string): ScenarioFileFieldProfile {
+  if (typeof field !== 'string' || field.length === 0 || field.includes('.') ||
+      ['id', 'version', 'created', 'updated', 'createdBy', 'updatedBy', 'archivedAt', 'parent'].includes(field)) {
+    return invalid('declared stored File field required.');
+  }
+  const found = findScenarioFileDeclaration(inventory, model, field);
   try {
-    const type = canonical.valueType;
-    const parsed = parseTypeId(type);
-    if (parsed.base.kind !== 'file' || parsed.requiredArray || printTypeId(parsed) !== type ||
-        parsed.array !== Object.hasOwn(canonical, 'array') || parsed.array !== Object.hasOwn(authored, 'array') ||
-        parsed.nullable !== (canonical.nullable === true) || parsed.nullable !== (authored.nullable === true)) {
-      return invalid('File type disagrees with owning markers.');
-    }
-    if (typeof canonical.required !== 'boolean' || typeof canonical.serverOnly !== 'boolean') return invalid('checked stored field markers required.');
-    for (const key of ['required', 'serverOnly', 'nullable', 'array', 'trim', 'min', 'max'] as const) {
-      if (Object.hasOwn(canonical, key) !== Object.hasOwn(authored, key) || JSON.stringify(canonical[key]) !== JSON.stringify(authored[key])) {
-        return invalid('File declarations disagree with owning markers or constraints.');
-      }
-    }
-    if (canonical.array !== undefined) {
-      const marker = object(canonical.array, ['required']);
-      if (typeof marker['required'] !== 'boolean') return invalid('checked array marker required.');
-    }
-    if (Object.hasOwn(canonical, 'nullable') && typeof canonical.nullable !== 'boolean') return invalid('checked nullable marker required.');
-    const constraint = modelFieldConstraintSchema(canonical);
-    const profile = Object.freeze({ type, array: parsed.array, nullable: parsed.nullable });
+    const { type, array, nullable } = checkScenarioFileType(found.canonical, found.authored);
+    const constraint = modelFieldConstraintSchema(found.canonical);
+    const profile = Object.freeze({ type, array, nullable });
     constraints.set(profile, constraint);
     return profile;
   } catch (error) { if (error instanceof StateError) throw error; return invalid('invalid owning File profile or constraint.'); }

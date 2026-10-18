@@ -112,6 +112,23 @@ function parseOriginalImports(js: string): readonly ImportSpecifier[] {
   });
 }
 
+function importKind(js: string, item: ImportSpecifier, phase: string | undefined): ModuleImport["kind"] {
+  const dynamic = item.d >= 0;
+  const meta = item.t === 3;
+  if (meta) return "import-meta";
+  if (phase !== undefined) return "unsupported-phase";
+  if (dynamic) return item.n === undefined ? "computed-dynamic" : "literal-dynamic";
+  if (js.slice(item.ss, item.ss + 6) === "export") return "reexport";
+  return "evaluation-static";
+}
+
+function importGroup(item: ImportSpecifier, sideEffect: boolean): ModuleImport["group"] {
+  if (item.t === 3) return "meta";
+  if (item.d >= 0) return "dynamic";
+  if (sideEffect) return "side-effect";
+  return "from";
+}
+
 function normalizedImport(js: string, modulePath: string, item: ImportSpecifier): ModuleImport {
   const dynamic = item.d >= 0;
   const meta = item.t === 3;
@@ -127,8 +144,8 @@ function normalizedImport(js: string, modulePath: string, item: ImportSpecifier)
   return {
     modulePath,
     lexerKind: item.t,
-    kind: meta ? "import-meta" : phase !== undefined ? "unsupported-phase" : dynamic ? item.n === undefined ? "computed-dynamic" : "literal-dynamic" : reexport ? "reexport" : "evaluation-static",
-    group: meta ? "meta" : dynamic ? "dynamic" : sideEffect ? "side-effect" : "from",
+    kind: importKind(js, item, phase),
+    group: importGroup(item, sideEffect),
     statement: { start: item.ss, end: item.se },
     argument: { start: item.s, end: item.e },
     ...(literal === undefined ? {} : { literal, content: content!, delimiter: quote as "'" | '"' | "`", rawSpecifier: js.slice(content!.start, content!.end), specifier: item.n! }),
@@ -255,6 +272,16 @@ export function rewriteModuleImports(
   const prefix = options.prefix ?? "deploy bundle";
   const records = scanModuleImports(js, modulePath, prefix);
   if (options.profile !== "trusted-producer") for (const record of records) assertArtifactKind(record, prefix);
+  const edits = collectImportEdits(records, mapSpecifier);
+  if (edits.length === 0) return { modulePath, js, changed: false, records, edits };
+  const applied = applyImportEdits(js, edits, options);
+  return { modulePath, js: applied.js, changed: true, records, edits, map: applied.map };
+}
+
+function collectImportEdits(
+  records: readonly ModuleImport[],
+  mapSpecifier: (specifier: string, record: ModuleImport) => string,
+): ImportEdit[] {
   const edits: ImportEdit[] = [];
   for (const record of records) {
     if (record.specifier === undefined) continue;
@@ -263,7 +290,10 @@ export function rewriteModuleImports(
     edits.push({ start: record.content!.start, end: record.content!.end, replacement: escapeSpecifier(mapped, record.delimiter!), specifier: record.specifier, mappedSpecifier: mapped });
   }
   edits.sort((a, b) => a.start - b.start || a.end - b.end);
-  if (edits.length === 0) return { modulePath, js, changed: false, records, edits };
+  return edits;
+}
+
+function applyImportEdits(js: string, edits: readonly ImportEdit[], options: ImportRewriteOptions): { js: string; map: ImportTransformMap } {
   const editor = new MagicString(js);
   // MagicString counts LF only. This equal-length map view represents all JS
   // line terminators, without changing emitted text or original UTF-16 spans.
@@ -291,5 +321,5 @@ export function rewriteModuleImports(
     names: generated.names,
     mappings: generated.mappings,
   };
-  return { modulePath, js: editor.toString(), changed: true, records, edits, map };
+  return { js: editor.toString(), map };
 }

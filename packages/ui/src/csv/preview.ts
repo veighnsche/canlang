@@ -92,13 +92,7 @@ function fail(where: string): Error {
  * through: errors digest, inputs stay unknown-valued until render
  * armor (`csvFormulaProtect` + escape + isolate per cell).
  */
-export function parseReviewPayload(value: unknown): CsvReviewModel {
-  if (!isRecord(value)) throw fail("body");
-  const operation = value["operation"];
-  const review_id = value["review_id"];
-  if (typeof operation !== "string" || operation === "") throw fail("operation");
-  if (typeof review_id !== "string" || review_id === "") throw fail("review_id");
-  const consent = value["consent"];
+function parseReviewConsent(consent: unknown): CsvConsentModel {
   if (!isRecord(consent)) throw fail("consent");
   const reviewId = consent["review_id"];
   const reviewToken = consent["review_token"];
@@ -112,38 +106,46 @@ export function parseReviewPayload(value: unknown): CsvReviewModel {
   if (typeof principal !== "string" || principal === "") throw fail("consent.principal");
   if (typeof digest !== "string" || digest === "") throw fail("consent.candidates_digest");
   if (!isSafeIndex(count)) throw fail("consent.candidate_count");
-  const rawRows = value["rows"];
-  if (!Array.isArray(rawRows)) throw fail("rows");
-  const rows: CsvPreviewRow[] = [];
-  for (const entry of rawRows) {
-    if (!isRecord(entry)) throw fail("rows[]");
-    const index = entry["index"];
-    const status = entry["status"];
-    const inputs = entry["inputs"];
-    if (!isSafeIndex(index)) throw fail("rows[].index");
-    if (status !== "valid" && status !== "invalid" && status !== "duplicate") {
-      throw fail("rows[].status");
-    }
-    if (!isRecord(inputs)) throw fail("rows[].inputs");
-    const row: {
-      index: number;
-      status: CsvRowStatus;
-      inputs: Record<string, unknown>;
-      error?: CsvBusinessError;
-      duplicate_of?: number;
-    } = { index, status, inputs: { ...inputs } };
-    if (entry["error"] !== undefined) {
-      const error = digestBusinessError(entry["error"]);
-      if (error === null) throw fail("rows[].error");
-      row.error = error;
-    }
-    if (entry["duplicate_of"] !== undefined) {
-      if (!isSafeIndex(entry["duplicate_of"])) throw fail("rows[].duplicate_of");
-      row.duplicate_of = entry["duplicate_of"];
-    }
-    rows.push(row);
+  return {
+    review_id: reviewId,
+    review_token: reviewToken,
+    operation: consentOp,
+    principal,
+    candidates_digest: digest,
+    candidate_count: count,
+  };
+}
+
+function parseReviewRow(entry: unknown): CsvPreviewRow {
+  if (!isRecord(entry)) throw fail("rows[]");
+  const index = entry["index"];
+  const status = entry["status"];
+  const inputs = entry["inputs"];
+  if (!isSafeIndex(index)) throw fail("rows[].index");
+  if (status !== "valid" && status !== "invalid" && status !== "duplicate") {
+    throw fail("rows[].status");
   }
-  const counts = value["counts"];
+  if (!isRecord(inputs)) throw fail("rows[].inputs");
+  const row: {
+    index: number;
+    status: CsvRowStatus;
+    inputs: Record<string, unknown>;
+    error?: CsvBusinessError;
+    duplicate_of?: number;
+  } = { index, status, inputs: { ...inputs } };
+  if (entry["error"] !== undefined) {
+    const error = digestBusinessError(entry["error"]);
+    if (error === null) throw fail("rows[].error");
+    row.error = error;
+  }
+  if (entry["duplicate_of"] !== undefined) {
+    if (!isSafeIndex(entry["duplicate_of"])) throw fail("rows[].duplicate_of");
+    row.duplicate_of = entry["duplicate_of"];
+  }
+  return row;
+}
+
+function parseReviewCounts(counts: unknown): CsvReviewModel["counts"] {
   if (!isRecord(counts)) throw fail("counts");
   const total = counts["total"];
   const valid = counts["valid"];
@@ -152,20 +154,24 @@ export function parseReviewPayload(value: unknown): CsvReviewModel {
   if (!isSafeIndex(total) || !isSafeIndex(valid) || !isSafeIndex(invalid) || !isSafeIndex(duplicate)) {
     throw fail("counts.*");
   }
-  return {
-    operation,
-    review_id,
-    consent: {
-      review_id: reviewId,
-      review_token: reviewToken,
-      operation: consentOp,
-      principal,
-      candidates_digest: digest,
-      candidate_count: count,
-    },
-    rows,
-    counts: { total, valid, invalid, duplicate },
-  };
+  return { total, valid, invalid, duplicate };
+}
+
+export function parseReviewPayload(value: unknown): CsvReviewModel {
+  if (!isRecord(value)) throw fail("body");
+  const operation = value["operation"];
+  const review_id = value["review_id"];
+  if (typeof operation !== "string" || operation === "") throw fail("operation");
+  if (typeof review_id !== "string" || review_id === "") throw fail("review_id");
+  const consent = parseReviewConsent(value["consent"]);
+  const rawRows = value["rows"];
+  if (!Array.isArray(rawRows)) throw fail("rows");
+  const rows: CsvPreviewRow[] = [];
+  for (const entry of rawRows) {
+    rows.push(parseReviewRow(entry));
+  }
+  const counts = parseReviewCounts(value["counts"]);
+  return { operation, review_id, consent, rows, counts };
 }
 
 const PREVIEW_HEADING = message("CSV review", { nl: "CSV-beoordeling" });

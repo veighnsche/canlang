@@ -144,6 +144,77 @@ export function createBoundFileReadResolver(opts: BoundFileHandlerOpts) {
   }
   const retention = Object.freeze({ ...opts.retention });
   const bounds = Object.freeze({ ...(opts.fileReferenceBounds ?? { maxRows: 10_000, maxReferences: 20_000 }) });
+  const authorized = async (locator: BoundFileReadLocator, identity: ResolvedIdentity) => {
+    const { model, recordId: id, field, ref: requestedRef } = locator;
+    await verifyAssemblerModuleCapability(opts.asm, opts.artifact);
+    const store = opts.ownerStorage === undefined ? opts.store : await opts.ownerStorage.forIdentity(identity);
+    const result = await invokeReadCanonical({
+      artifact: opts.artifact, asm: opts.asm, store, memberships: opts.memberships,
+      identity, operation: `${model}.read`, inputs: {},
+      selection: { where: { op: 'eq', field: 'id', value: id }, limit: 1 },
+    });
+    await verifyAssemblerModuleCapability(opts.asm, opts.artifact);
+    if (!('records' in result)) throw new Error('File model read returned no records.');
+    const row = result.records.find(candidate => candidate.id === id);
+    if (row === undefined || !Object.hasOwn(row.data, field) || row.data[field] === null) return null;
+    // An explicit reference selects within the complete current field. State's
+    // owning profile proves File membership, including nested/array positions.
+    const ref = requestedRef ?? (decodeValue('file', row.data[field]) as { id: string }).id;
+    if (locator.rowVersion !== undefined && row.version !== locator.rowVersion) return null;
+    return { id: ref, revision: result.revision, version: row.version, store };
+  };
+  type AuthorizedRead = NonNullable<Awaited<ReturnType<typeof authorized>>>;
+  interface SlotScope {
+    readonly app: string;
+    readonly team: string;
+    readonly owner: string;
+  }
+  interface PhysicalCheckpoint {
+    facts: RetainedFinalizedFile | null;
+    checkpoint: string | null;
+  }
+  type SlotReader = Parameters<typeof consumeCanonicalFileReference>[1];
+  const makeSlotReader = (scope: SlotScope, physical: PhysicalCheckpoint): SlotReader => async slot => {
+    const stored = await opts.physicalFiles.get(slot.ref);
+    if (stored?.file.id !== slot.ref || stored.owner.app !== scope.app ||
+        stored.owner.team !== scope.team || stored.owner.owner !== scope.owner) return null;
+    const checkpoint = physicalCheckpoint(stored);
+    // The actual original receiver selects physical bytes. State grants
+    // the current reader independently, including another current member.
+    const receiver = Object.freeze({ ...stored.owner });
+    const snapshot = await opts.upload.kernel.readCurrentSnapshot(slot.ref, receiver, retention);
+    if (snapshot === null || snapshot.facts.ref !== slot.ref || snapshot.bytes.byteLength !== snapshot.facts.sizeBytes ||
+        (['app', 'team', 'owner', 'principal'] as const).some(key => snapshot.facts.receiver[key] !== receiver[key])) return null;
+    // Refuse physical metadata drift across the asynchronous host seam.
+    // This checkpoint is neither a cross-store lock nor a deletion fence.
+    const latestPhysical = await opts.physicalFiles.get(slot.ref);
+    if (latestPhysical === null || physicalCheckpoint(latestPhysical) !== checkpoint) return null;
+    physical.facts = snapshot.facts;
+    physical.checkpoint = checkpoint;
+    return snapshot.bytes;
+  };
+  const revalidateDisclosed = async (
+    bytes: Uint8Array,
+    first: AuthorizedRead,
+    identity: ResolvedIdentity,
+    resolveCaller: () => Promise<ResolvedIdentity>,
+    locator: BoundFileReadLocator,
+    physical: PhysicalCheckpoint,
+  ): Promise<BoundFileReadResult | null> => {
+    const metadata = physical.facts;
+    if (metadata === null) return null;
+    // Bytes cross the response boundary only after current credentials and grants
+    // are checked again; a changed model revision cannot authorize the old file.
+    const latestIdentity = await resolveCaller();
+    if (latestIdentity.actor?.user_id !== identity.actor?.user_id ||
+        latestIdentity.team?.team_id !== identity.team?.team_id) return null;
+    const latest = await authorized(locator, latestIdentity);
+    if (latest === null || latest.id !== first.id || latest.version !== first.version ||
+        latest.revision !== first.revision) return null;
+    const disclosedPhysical = await opts.physicalFiles.get(first.id);
+    if (disclosedPhysical === null || physicalCheckpoint(disclosedPhysical) !== physical.checkpoint) return null;
+    return Object.freeze({ bytes, metadata });
+  };
   return Object.freeze({ async read(locator: BoundFileReadLocator,
     resolveCaller: () => Promise<ResolvedIdentity>): Promise<BoundFileReadResult | null> {
     const { model, recordId: id, field, ref: requestedRef } = locator;
@@ -151,66 +222,19 @@ export function createBoundFileReadResolver(opts: BoundFileHandlerOpts) {
     const selected = declaration?.fields.find(candidate => candidate.name === field);
     if (selected === undefined || requestedRef === undefined &&
         (selected.field.kind !== 'file' || selected.array !== undefined)) return null;
-    const authorized = async (identity: ResolvedIdentity) => {
-      await verifyAssemblerModuleCapability(opts.asm, opts.artifact);
-      const store = opts.ownerStorage === undefined ? opts.store : await opts.ownerStorage.forIdentity(identity);
-      const result = await invokeReadCanonical({
-        artifact: opts.artifact, asm: opts.asm, store, memberships: opts.memberships,
-        identity, operation: `${model}.read`, inputs: {},
-        selection: { where: { op: 'eq', field: 'id', value: id }, limit: 1 },
-      });
-      await verifyAssemblerModuleCapability(opts.asm, opts.artifact);
-      if (!('records' in result)) throw new Error('File model read returned no records.');
-      const row = result.records.find(candidate => candidate.id === id);
-      if (row === undefined || !Object.hasOwn(row.data, field) || row.data[field] === null) return null;
-      // An explicit reference selects within the complete current field. State's
-      // owning profile proves File membership, including nested/array positions.
-      const ref = requestedRef ?? (decodeValue('file', row.data[field]) as { id: string }).id;
-      if (locator.rowVersion !== undefined && row.version !== locator.rowVersion) return null;
-      return { id: ref, revision: result.revision, version: row.version, store };
-    };
-      const identity = await resolveCaller();
-      const first = await authorized(identity);
-      if (first === null) return null;
-      const caller = receiverFromIdentity(opts.upload.app.appId, identity);
-      const scope = { app: caller.app, team: caller.team, owner: caller.owner };
-      const physical: { facts: RetainedFinalizedFile | null; checkpoint: string | null } = { facts: null, checkpoint: null };
-      const bytes = await consumeCanonicalFileReference({ artifact: opts.artifact, asm: opts.asm,
-        store: first.store, identity, memberships: opts.memberships, now: () => opts.clock.nowMs(),
-        app: caller.app, bounds, locator: { model, recordId: id, field, ref: first.id,
-          rowVersion: first.version, ...(locator.path === undefined ? {} : { path: locator.path }) } },
-        async slot => {
-          const stored = await opts.physicalFiles.get(slot.ref);
-          if (stored?.file.id !== slot.ref || stored.owner.app !== scope.app ||
-              stored.owner.team !== scope.team || stored.owner.owner !== scope.owner) return null;
-          const checkpoint = physicalCheckpoint(stored);
-          // The actual original receiver selects physical bytes. State grants
-          // the current reader independently, including another current member.
-          const receiver = Object.freeze({ ...stored.owner });
-          const snapshot = await opts.upload.kernel.readCurrentSnapshot(slot.ref, receiver, retention);
-          if (snapshot === null || snapshot.facts.ref !== slot.ref || snapshot.bytes.byteLength !== snapshot.facts.sizeBytes ||
-              (['app', 'team', 'owner', 'principal'] as const).some(key => snapshot.facts.receiver[key] !== receiver[key])) return null;
-          // Refuse physical metadata drift across the asynchronous host seam.
-          // This checkpoint is neither a cross-store lock nor a deletion fence.
-          const latestPhysical = await opts.physicalFiles.get(slot.ref);
-          if (latestPhysical === null || physicalCheckpoint(latestPhysical) !== checkpoint) return null;
-          physical.facts = snapshot.facts;
-          physical.checkpoint = checkpoint;
-          return snapshot.bytes;
-        });
-      const metadata = physical.facts;
-      if (metadata === null || bytes === null) return null;
-      // Bytes cross the response boundary only after current credentials and grants
-      // are checked again; a changed model revision cannot authorize the old file.
-      const latestIdentity = await resolveCaller();
-      if (latestIdentity.actor?.user_id !== identity.actor?.user_id ||
-          latestIdentity.team?.team_id !== identity.team?.team_id) return null;
-      const latest = await authorized(latestIdentity);
-      if (latest === null || latest.id !== first.id || latest.version !== first.version ||
-          latest.revision !== first.revision) return null;
-      const disclosedPhysical = await opts.physicalFiles.get(first.id);
-      if (disclosedPhysical === null || physicalCheckpoint(disclosedPhysical) !== physical.checkpoint) return null;
-      return Object.freeze({ bytes, metadata });
+    const identity = await resolveCaller();
+    const first = await authorized(locator, identity);
+    if (first === null) return null;
+    const caller = receiverFromIdentity(opts.upload.app.appId, identity);
+    const scope = { app: caller.app, team: caller.team, owner: caller.owner };
+    const physical: PhysicalCheckpoint = { facts: null, checkpoint: null };
+    const bytes = await consumeCanonicalFileReference({ artifact: opts.artifact, asm: opts.asm,
+      store: first.store, identity, memberships: opts.memberships, now: () => opts.clock.nowMs(),
+      app: caller.app, bounds, locator: { model, recordId: id, field, ref: first.id,
+        rowVersion: first.version, ...(locator.path === undefined ? {} : { path: locator.path }) } },
+      makeSlotReader(scope, physical));
+    if (bytes === null) return null;
+    return revalidateDisclosed(bytes, first, identity, resolveCaller, locator, physical);
   } });
 }
 

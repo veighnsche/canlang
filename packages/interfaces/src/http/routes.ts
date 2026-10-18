@@ -121,6 +121,45 @@ function decodeOperation(remainder: string): string | null {
  * Any other method+path answers `not_found`; unexpected throws answer the
  * generic internal envelope after an incident-logged journal entry.
  */
+async function dispatchApiPrefix(
+  sub: HttpSubHandlers,
+  request: Request,
+  pathname: string,
+  method: string,
+): Promise<Response | null> {
+  if (pathname.startsWith(OPERATIONS_PREFIX)) {
+    if (method !== 'POST') return notFoundResponse();
+    const op = decodeOperation(pathname.slice(OPERATIONS_PREFIX.length));
+    if (op === null || op.length === 0) return notFoundResponse();
+    return await sub.operations(request, op);
+  }
+  if (pathname.startsWith('/auth/')) {
+    return await sub.auth(request);
+  }
+  if (pathname.startsWith(UPLOADS_PREFIX)) {
+    return await sub.uploads(request);
+  }
+  if (pathname.startsWith(INGRESS_PREFIX)) {
+    return await sub.ingress(request);
+  }
+  if (pathname.startsWith(OAUTH_PREFIX) || pathname.startsWith(WELL_KNOWN_PREFIX)) {
+    return await sub.oauth(request);
+  }
+  if (pathname.startsWith(CSV_PREFIX)) {
+    if (sub.csv === undefined) return notFoundResponse();
+    return await sub.csv(request);
+  }
+  if (pathname === EXPORTS_PREFIX || pathname.startsWith(`${EXPORTS_PREFIX}/`)) {
+    if (sub.exports === undefined) return notFoundResponse();
+    return await sub.exports(request);
+  }
+  if (pathname.startsWith(PRINT_PREFIX)) {
+    if (sub.print === undefined) return notFoundResponse();
+    return await sub.print(request);
+  }
+  return null;
+}
+
 export function createHttpHandler(
   deps: HttpDeps,
   sub: HttpSubHandlers,
@@ -129,36 +168,8 @@ export function createHttpHandler(
     try {
       const pathname = requestPath(request.url);
       const method = request.method.toUpperCase();
-      if (pathname.startsWith(OPERATIONS_PREFIX)) {
-        if (method !== 'POST') return notFoundResponse();
-        const op = decodeOperation(pathname.slice(OPERATIONS_PREFIX.length));
-        if (op === null || op.length === 0) return notFoundResponse();
-        return await sub.operations(request, op);
-      }
-      if (pathname.startsWith('/auth/')) {
-        return await sub.auth(request);
-      }
-      if (pathname.startsWith(UPLOADS_PREFIX)) {
-        return await sub.uploads(request);
-      }
-      if (pathname.startsWith(INGRESS_PREFIX)) {
-        return await sub.ingress(request);
-      }
-      if (pathname.startsWith(OAUTH_PREFIX) || pathname.startsWith(WELL_KNOWN_PREFIX)) {
-        return await sub.oauth(request);
-      }
-      if (pathname.startsWith(CSV_PREFIX)) {
-        if (sub.csv === undefined) return notFoundResponse();
-        return await sub.csv(request);
-      }
-      if (pathname === EXPORTS_PREFIX || pathname.startsWith(`${EXPORTS_PREFIX}/`)) {
-        if (sub.exports === undefined) return notFoundResponse();
-        return await sub.exports(request);
-      }
-      if (pathname.startsWith(PRINT_PREFIX)) {
-        if (sub.print === undefined) return notFoundResponse();
-        return await sub.print(request);
-      }
+      const apiResponse = await dispatchApiPrefix(sub, request, pathname, method);
+      if (apiResponse !== null) return apiResponse;
       if (method === 'POST') return await handlePagePreferencePost(deps, request);
       if (method !== 'GET' && method !== 'HEAD') return notFoundResponse();
       return await handlePageRequest(deps, request);

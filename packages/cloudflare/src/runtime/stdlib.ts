@@ -294,6 +294,64 @@ export async function deleteRecord(
  * client slice would mis-serve), `archived: 'include'` (reads exclude),
  * and `authority: 'owner'` (engine-internal bypass).
  */
+type RecordsOrder = Exclude<RecordsQuery['order'], ReadonlyArray<OrderTerm> | undefined>;
+
+function checkRecordsOrder(query: RecordsQuery): RecordsOrder | undefined {
+  const order = query.order !== undefined && !Array.isArray(query.order)
+    ? query.order as RecordsOrder : undefined;
+  if (order !== undefined && (order === null || typeof order !== 'object' || typeof order.by !== 'function' || typeof order.compare !== 'function' ||
+      !['asc', 'desc'].includes(order.direction) || Object.keys(order).some(key => !['by', 'compare', 'direction'].includes(key)))) {
+    throw new StateError('validation', 'Expression query order requires its typed key and comparator.');
+  }
+  return order;
+}
+
+function coerceRecordsLimit(query: RecordsQuery): unknown {
+  const rawLimit: unknown = query.limit;
+  return typeof rawLimit === 'bigint' && rawLimit >= 0n && rawLimit <= BigInt(Number.MAX_SAFE_INTEGER)
+    ? Number(rawLimit) : rawLimit;
+}
+
+function buildRecordsSelection(query: RecordsQuery, order: RecordsOrder | undefined): Record<string, unknown> {
+  return {
+    ...(query.parent === undefined ? {} : { parent: query.parent }),
+    ...(query.where === undefined ? {} : { where: query.where }),
+    ...(query.order === undefined || order !== undefined ? {} : { order: query.order as ReadonlyArray<OrderTerm> }),
+    ...(query.limit === undefined || order !== undefined ? {} : { limit: query.limit }),
+    ...(query.archived === undefined ? {} : { archived: query.archived }),
+    ...(query.authority === undefined ? {} : { authority: query.authority }),
+  };
+}
+
+interface KeyedRow {
+  row: ProjectedRecord | Record<string, unknown>;
+  key: unknown;
+}
+
+function compareKeyed(order: RecordsOrder, left: KeyedRow, right: KeyedRow): number {
+  const a = left.key, b = right.key;
+  const compared = a == null ? b == null ? 0 : -1 : b == null ? 1 : order.compare(a, b);
+  if (!Number.isFinite(compared)) throw new StateError('validation', 'Expression query comparator returned an invalid result.');
+  return compared === 0 ? compareScalar(left.row.id as string, right.row.id as string)
+    : order.direction === 'desc' ? -compared : compared;
+}
+
+async function applyExpressionOrder(
+  rows: ReadonlyArray<ProjectedRecord | Record<string, unknown>>,
+  order: RecordsOrder,
+  limit: unknown,
+): Promise<ReadonlyArray<ProjectedRecord | Record<string, unknown>>> {
+  // Permissions, complete-domain bounds and row observers belong to the same
+  // canonical read. Evaluate each key once, in that issued order, before sort
+  // and projection. A key failure stops later keys and all projection.
+  const keyed = [];
+  for (const row of rows) keyed.push({ row, key: await order.by(row) });
+  keyed.sort((left, right) => compareKeyed(order, left, right));
+  if (limit !== undefined && rows.length > (limit as number)) throw new StateError('validation',
+    `Query matched ${rows.length} rows, over the limit of ${limit}. Narrow the query instead of truncating.`);
+  return keyed.map(entry => entry.row);
+}
+
 export async function records(
   c: HandlerContext,
   model: string,
@@ -303,45 +361,17 @@ export async function records(
   if (typeof model !== 'string' || model === '') {
     throw new Error('t17: stdlib records() needs a non-empty string model.');
   }
-  const order = query.order !== undefined && !Array.isArray(query.order)
-    ? query.order as Exclude<RecordsQuery['order'], ReadonlyArray<OrderTerm> | undefined> : undefined;
-  if (order !== undefined && (order === null || typeof order !== 'object' || typeof order.by !== 'function' || typeof order.compare !== 'function' ||
-      !['asc', 'desc'].includes(order.direction) || Object.keys(order).some(key => !['by', 'compare', 'direction'].includes(key)))) {
-    throw new StateError('validation', 'Expression query order requires its typed key and comparator.');
-  }
-  const rawLimit: unknown = query.limit;
-  const limit = typeof rawLimit === 'bigint' && rawLimit >= 0n && rawLimit <= BigInt(Number.MAX_SAFE_INTEGER)
-    ? Number(rawLimit) : rawLimit;
+  const order = checkRecordsOrder(query);
+  const limit = coerceRecordsLimit(query);
   if (order !== undefined && limit !== undefined && (typeof limit !== 'number' || !Number.isSafeInteger(limit) || limit < 0)) {
     throw new StateError('validation', 'Expression query limit requires a non-negative safe integer.');
   }
-  const selection = {
-    ...(query.parent === undefined ? {} : { parent: query.parent }),
-    ...(query.where === undefined ? {} : { where: query.where }),
-    ...(query.order === undefined || order !== undefined ? {} : { order: query.order as ReadonlyArray<OrderTerm> }),
-    ...(query.limit === undefined || order !== undefined ? {} : { limit: query.limit }),
-    ...(query.archived === undefined ? {} : { archived: query.archived }),
-    ...(query.authority === undefined ? {} : { authority: query.authority }),
-  };
+  const selection = buildRecordsSelection(query, order);
   const rows = await (scope.readRecords === undefined
     ? scope.readModel(model, selection)
     : scope.readRecords(model, selection));
   if (order === undefined) return rows;
-  // Permissions, complete-domain bounds and row observers belong to the same
-  // canonical read. Evaluate each key once, in that issued order, before sort
-  // and projection. A key failure stops later keys and all projection.
-  const keyed = [];
-  for (const row of rows) keyed.push({ row, key: await order.by(row) });
-  keyed.sort((left, right) => {
-    const a = left.key, b = right.key;
-    const compared = a == null ? b == null ? 0 : -1 : b == null ? 1 : order.compare(a, b);
-    if (!Number.isFinite(compared)) throw new StateError('validation', 'Expression query comparator returned an invalid result.');
-    return compared === 0 ? compareScalar(left.row.id as string, right.row.id as string)
-      : order.direction === 'desc' ? -compared : compared;
-  });
-  if (limit !== undefined && rows.length > (limit as number)) throw new StateError('validation',
-    `Query matched ${rows.length} rows, over the limit of ${limit}. Narrow the query instead of truncating.`);
-  return keyed.map(entry => entry.row);
+  return applyExpressionOrder(rows, order, limit);
 }
 
 /** Stub helper: every unimplemented data-plane name throws loudly. */
@@ -350,33 +380,35 @@ function unsupported(name: string, reason: string): never {
 }
 
 /** Bound sends stage in the admitted scenario's single canonical commit. */
+function checkSendWhen(options: { readonly binding?: string; readonly when?: NativeSendWhen }): NativeSendWhen | undefined {
+  const whenProperty = Object.getOwnPropertyDescriptor(options, 'when');
+  if (!('when' in options)) return undefined;
+  const value: unknown = whenProperty !== undefined && 'value' in whenProperty ? whenProperty.value : undefined;
+  if (typeof value !== 'object' || value === null || Array.isArray(value) ||
+      ![Object.prototype, null].includes(Object.getPrototypeOf(value)) ||
+      Reflect.ownKeys(value).length !== 2 ||
+      ['rule', 'inputs'].some(key => {
+        const property = Object.getOwnPropertyDescriptor(value, key);
+        return property === undefined || !('value' in property) || !property.enumerable;
+      })) {
+    return unsupported('send', 'dispatch guards require their original emitted rule and lexical inputs.');
+  }
+  const rule: unknown = Object.getOwnPropertyDescriptor(value, 'rule')!.value;
+  const inputs: unknown = Object.getOwnPropertyDescriptor(value, 'inputs')!.value;
+  if (typeof rule !== 'string' || rule === '' || rule.length > 4096 || typeof inputs !== 'object' ||
+      inputs === null || Array.isArray(inputs) || ![Object.prototype, null].includes(Object.getPrototypeOf(inputs))) {
+    return unsupported('send', 'dispatch guards require their original emitted rule and lexical inputs.');
+  }
+  return Object.freeze({ rule, inputs: inputs as Readonly<Record<string, unknown>> });
+}
+
 export async function send(
   c: HandlerContext,
   operation: string,
   request: unknown,
   options: { readonly binding?: string; readonly when?: NativeSendWhen } = {},
 ) {
-  const whenProperty = Object.getOwnPropertyDescriptor(options, 'when');
-  let when: NativeSendWhen | undefined;
-  if ('when' in options) {
-    const value: unknown = whenProperty !== undefined && 'value' in whenProperty ? whenProperty.value : undefined;
-    if (typeof value !== 'object' || value === null || Array.isArray(value) ||
-        ![Object.prototype, null].includes(Object.getPrototypeOf(value)) ||
-        Reflect.ownKeys(value).length !== 2 ||
-        ['rule', 'inputs'].some(key => {
-          const property = Object.getOwnPropertyDescriptor(value, key);
-          return property === undefined || !('value' in property) || !property.enumerable;
-        })) {
-      return unsupported('send', 'dispatch guards require their original emitted rule and lexical inputs.');
-    }
-    const rule: unknown = Object.getOwnPropertyDescriptor(value, 'rule')!.value;
-    const inputs: unknown = Object.getOwnPropertyDescriptor(value, 'inputs')!.value;
-    if (typeof rule !== 'string' || rule === '' || rule.length > 4096 || typeof inputs !== 'object' ||
-        inputs === null || Array.isArray(inputs) || ![Object.prototype, null].includes(Object.getPrototypeOf(inputs))) {
-      return unsupported('send', 'dispatch guards require their original emitted rule and lexical inputs.');
-    }
-    when = Object.freeze({ rule, inputs: inputs as Readonly<Record<string, unknown>> });
-  }
+  const when = checkSendWhen(options);
   if (c.canonical === undefined || c.sendDeferred === undefined) {
     return unsupported('send', 'bound send staging requires canonical execution.');
   }

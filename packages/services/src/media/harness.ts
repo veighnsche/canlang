@@ -93,6 +93,104 @@ export function startControlledComfyServer(
         ? (scenario.files ?? {})
         : {};
 
+    const logRequest = (
+      req: http.IncomingMessage,
+      method: string,
+      path: string,
+      bodyText: string,
+    ): void => {
+      requests.push({
+        method,
+        path,
+        bodyText,
+        hadAuth: req.headers['authorization'] !== undefined,
+      });
+    };
+
+    const handlePromptPost = async (
+      req: http.IncomingMessage,
+      res: http.ServerResponse,
+      rawPath: string,
+    ): Promise<void> => {
+      const bodyText = await readTextBody(req);
+      logRequest(req, 'POST', rawPath, bodyText);
+      if (scenario.kind === 'reject-prompt') {
+        sendJson(res, scenario.status, scenario.body);
+        return;
+      }
+      let promptId = `server_${prompts.length + 1}`;
+      try {
+        const parsed = JSON.parse(bodyText) as Record<string, unknown>;
+        if (
+          typeof parsed['prompt_id'] === 'string' &&
+          parsed['prompt_id'].length > 0
+        ) {
+          promptId = parsed['prompt_id'];
+        }
+      } catch {
+        // Unparseable bodies are logged raw; the adapter is under test.
+      }
+      prompts.push(promptId);
+      if (scenario.kind === 'hang-submit') {
+        return; // Recorded, but the response is lost.
+      }
+      if (scenario.kind === 'accept' && scenario.promptBody !== undefined) {
+        sendJson(res, 200, scenario.promptBody);
+        return;
+      }
+      sendJson(res, 200, { prompt_id: promptId, number: prompts.length });
+    };
+
+    const handleHistoryGet = (
+      req: http.IncomingMessage,
+      res: http.ServerResponse,
+      rawPath: string,
+    ): void => {
+      logRequest(req, 'GET', rawPath, '');
+      const id = decodeURIComponent(rawPath.slice('/history/'.length));
+      const entry = history[id];
+      if (entry === undefined) {
+        sendJson(res, 200, {});
+        return;
+      }
+      sendJson(res, 200, { [id]: entry });
+    };
+
+    const handleViewGet = (
+      req: http.IncomingMessage,
+      res: http.ServerResponse,
+      rawUrl: string,
+    ): void => {
+      logRequest(req, 'GET', rawUrl, '');
+      const params = new URL(rawUrl, 'http://localhost').searchParams;
+      const filename = params.get('filename') ?? '';
+      const bytes = files[filename];
+      if (bytes === undefined) {
+        sendJson(res, 404, { error: 'no such file' });
+        return;
+      }
+      res.writeHead(200, {
+        'content-type': 'image/png',
+        'content-length': bytes.length,
+      });
+      res.end(Buffer.from(bytes));
+    };
+
+    const handleCancelPost = async (
+      req: http.IncomingMessage,
+      res: http.ServerResponse,
+      rawPath: string,
+    ): Promise<void> => {
+      const bodyText = await readTextBody(req);
+      logRequest(req, 'POST', rawPath, bodyText);
+      const status = opts?.cancelStatus ?? 200;
+      if (status === 404) {
+        sendJson(res, 404, { error: 'no such route' });
+        return;
+      }
+      sendJson(res, status, { cancelled: status === 200 });
+    };
+
     const handle = async (
       req: http.IncomingMessage,
       res: http.ServerResponse,
@@ -104,75 +202,15 @@ export function startControlledComfyServer(
         return; // Never respond to anything.
       }
       if (method === 'POST' && rawPath === '/prompt') {
-        const bodyText = await readTextBody(req);
-        requests.push({
-          method,
-          path: rawPath,
-          bodyText,
-          hadAuth: req.headers['authorization'] !== undefined,
-        });
-        if (scenario.kind === 'reject-prompt') {
-          sendJson(res, scenario.status, scenario.body);
-          return;
-        }
-        let promptId = `server_${prompts.length + 1}`;
-        try {
-          const parsed = JSON.parse(bodyText) as Record<string, unknown>;
-          if (
-            typeof parsed['prompt_id'] === 'string' &&
-            parsed['prompt_id'].length > 0
-          ) {
-            promptId = parsed['prompt_id'];
-          }
-        } catch {
-          // Unparseable bodies are logged raw; the adapter is under test.
-        }
-        prompts.push(promptId);
-        if (scenario.kind === 'hang-submit') {
-          return; // Recorded, but the response is lost.
-        }
-        if (scenario.kind === 'accept' && scenario.promptBody !== undefined) {
-          sendJson(res, 200, scenario.promptBody);
-          return;
-        }
-        sendJson(res, 200, { prompt_id: promptId, number: prompts.length });
+        await handlePromptPost(req, res, rawPath);
         return;
       }
       if (method === 'GET' && rawPath.startsWith('/history/')) {
-        requests.push({
-          method,
-          path: rawPath,
-          bodyText: '',
-          hadAuth: req.headers['authorization'] !== undefined,
-        });
-        const id = decodeURIComponent(rawPath.slice('/history/'.length));
-        const entry = history[id];
-        if (entry === undefined) {
-          sendJson(res, 200, {});
-          return;
-        }
-        sendJson(res, 200, { [id]: entry });
+        handleHistoryGet(req, res, rawPath);
         return;
       }
       if (method === 'GET' && rawPath === '/view') {
-        requests.push({
-          method,
-          path: rawUrl,
-          bodyText: '',
-          hadAuth: req.headers['authorization'] !== undefined,
-        });
-        const params = new URL(rawUrl, 'http://localhost').searchParams;
-        const filename = params.get('filename') ?? '';
-        const bytes = files[filename];
-        if (bytes === undefined) {
-          sendJson(res, 404, { error: 'no such file' });
-          return;
-        }
-        res.writeHead(200, {
-          'content-type': 'image/png',
-          'content-length': bytes.length,
-        });
-        res.end(Buffer.from(bytes));
+        handleViewGet(req, res, rawUrl);
         return;
       }
       if (
@@ -180,19 +218,7 @@ export function startControlledComfyServer(
         rawPath.startsWith('/api/jobs/') &&
         rawPath.endsWith('/cancel')
       ) {
-        const bodyText = await readTextBody(req);
-        requests.push({
-          method,
-          path: rawPath,
-          bodyText,
-          hadAuth: req.headers['authorization'] !== undefined,
-        });
-        const status = opts?.cancelStatus ?? 200;
-        if (status === 404) {
-          sendJson(res, 404, { error: 'no such route' });
-          return;
-        }
-        sendJson(res, status, { cancelled: status === 200 });
+        await handleCancelPost(req, res, rawPath);
         return;
       }
       sendJson(res, 404, { error: 'not found' });

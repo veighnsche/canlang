@@ -196,6 +196,51 @@ function stringMember(value: unknown, what: string): string {
  * named file control carrying bytes fails closed (bytes need the S7
  * picker flow, never a flat text member).
  */
+// Empty slots stay synchronous: the original loop awaited only while file
+// bytes were actually read, so later controls were collected without a yield.
+function collectFileSlot(files: FileLike[], control: DomControlLike, slot: string): Promise<void> | undefined {
+  const picked = control.files?.[0] ?? null;
+  if (picked === null || picked === undefined) return undefined;
+  if (!Number.isSafeInteger(picked.size) || picked.size < 0) {
+    throw new GeneratedSubmitError(
+      "usage",
+      `collectFormValues: picked file for ${JSON.stringify(slot)} needs a safe nonnegative size`,
+      false,
+    );
+  }
+  return (async (): Promise<void> => {
+    files.push({
+      field: slot,
+      name: stringMember(picked.name, `picked file name for ${JSON.stringify(slot)}`),
+      type: stringMember(picked.type, `picked file type for ${JSON.stringify(slot)}`),
+      size: picked.size,
+      bytes: new Uint8Array(await picked.arrayBuffer()),
+    });
+  })();
+}
+
+function collectNamedControl(flat: Record<string, string>, control: DomControlLike, name: string, type: string): void {
+  if (type === "checkbox" || type === "radio") {
+    if (control.checked === true) {
+      Object.defineProperty(flat, name, { value: stringMember(control.value ?? "on", `control ${JSON.stringify(name)}`),
+        enumerable: true, writable: true, configurable: true });
+    }
+    return;
+  }
+  if (type === "file") {
+    if ((control.files?.length ?? 0) > 0) {
+      throw new GeneratedSubmitError(
+        "usage",
+        `collectFormValues: named file control ${JSON.stringify(name)} needs the S7 picker flow (data-can-file)`,
+        false,
+      );
+    }
+    return;
+  }
+  Object.defineProperty(flat, name, { value: stringMember(control.value, `control ${JSON.stringify(name)}`),
+    enumerable: true, writable: true, configurable: true });
+}
+
 export async function collectFormValues(form: DomFormLike): Promise<CollectedForm> {
   const flat: Record<string, string> = {};
   const files: FileLike[] = [];
@@ -210,23 +255,8 @@ export async function collectFormValues(form: DomFormLike): Promise<CollectedFor
         ? control.getAttribute("data-can-file")
         : null;
     if (slot !== null && slot !== "") {
-      const picked = control.files?.[0] ?? null;
-      if (picked !== null && picked !== undefined) {
-        if (!Number.isSafeInteger(picked.size) || picked.size < 0) {
-          throw new GeneratedSubmitError(
-            "usage",
-            `collectFormValues: picked file for ${JSON.stringify(slot)} needs a safe nonnegative size`,
-            false,
-          );
-        }
-        files.push({
-          field: slot,
-          name: stringMember(picked.name, `picked file name for ${JSON.stringify(slot)}`),
-          type: stringMember(picked.type, `picked file type for ${JSON.stringify(slot)}`),
-          size: picked.size,
-          bytes: new Uint8Array(await picked.arrayBuffer()),
-        });
-      }
+      const pending = collectFileSlot(files, control, slot);
+      if (pending !== undefined) await pending;
       continue;
     }
     const name = control.name;
@@ -234,25 +264,7 @@ export async function collectFormValues(form: DomFormLike): Promise<CollectedFor
       continue;
     }
     const type = (control.type ?? "").toLowerCase();
-    if (type === "checkbox" || type === "radio") {
-      if (control.checked === true) {
-        Object.defineProperty(flat, name, { value: stringMember(control.value ?? "on", `control ${JSON.stringify(name)}`),
-          enumerable: true, writable: true, configurable: true });
-      }
-      continue;
-    }
-    if (type === "file") {
-      if ((control.files?.length ?? 0) > 0) {
-        throw new GeneratedSubmitError(
-          "usage",
-          `collectFormValues: named file control ${JSON.stringify(name)} needs the S7 picker flow (data-can-file)`,
-          false,
-        );
-      }
-      continue;
-    }
-    Object.defineProperty(flat, name, { value: stringMember(control.value, `control ${JSON.stringify(name)}`),
-      enumerable: true, writable: true, configurable: true });
+    collectNamedControl(flat, control, name, type);
   }
   return { flat, files };
 }
@@ -551,7 +563,18 @@ function checkedBusinessError(body: string, status: number, operation: string,
     ...(typeof details["retryable"] === "boolean" ? { retryable: details["retryable"] } : {}),
   };
   if (!Object.hasOwn(envelope, "retry")) return { error };
-  const retry = envelope["retry"];
+  return { error, retry: checkedBusinessRetry(fail, error, envelope["retry"], wrapped, flat) };
+}
+
+/** Validate the retry binding against the rendered flat map; invalid retries fail closed. */
+function checkedBusinessRetry(
+  fail: () => GeneratedSubmitError,
+  error: BusinessError,
+  value: unknown,
+  wrapped: boolean,
+  flat: Record<string, string>,
+): FormRetry {
+  const retry = value;
   const bound = Object.hasOwn(flat, SOURCE_FORM_BINDING_FIELD);
   if (!wrapped || !isRecord(retry) || error.operation_id !== flat["operation_id"] ||
       Object.keys(retry).some(key => key !== "operation_id" && key !== SOURCE_FORM_BINDING_FIELD) ||
@@ -562,8 +585,8 @@ function checkedBusinessError(body: string, status: number, operation: string,
       bound && (typeof retry[SOURCE_FORM_BINDING_FIELD] !== "string" || retry[SOURCE_FORM_BINDING_FIELD] === "")) {
     throw fail();
   }
-  return { error, retry: { operation_id: retry["operation_id"],
-    ...(bound ? { form_binding: retry[SOURCE_FORM_BINDING_FIELD] as string } : {}) } };
+  return { operation_id: retry["operation_id"],
+    ...(bound ? { form_binding: retry[SOURCE_FORM_BINDING_FIELD] as string } : {}) };
 }
 
 /**
@@ -576,9 +599,7 @@ function checkedBusinessError(body: string, status: number, operation: string,
  * mints one), and the projected inputs; CSRF travels as a header.
  * Fragment submits carry HX-Request and receive fragment denials.
  */
-export async function submitGeneratedForm(
-  input: SubmitGeneratedFormInput,
-): Promise<GeneratedSubmitResult> {
+function checkSubmitEnvelope(input: SubmitGeneratedFormInput): { action: string; csrf: string } {
   if (typeof input.action !== "string" || input.action === "") {
     throw new GeneratedSubmitError(
       "usage",
@@ -617,9 +638,10 @@ export async function submitGeneratedForm(
       false,
     );
   }
-  const fetchImpl = input.fetchImpl ?? defaultFetch();
-  const files: FileLike[] = [];
-  for (const file of input.files ?? []) files.push(captureFileLike(file));
+  return { action, csrf };
+}
+
+function checkSubmitFileFields(derived: DerivedOperationInputs, files: readonly FileLike[]): Map<string, FileLike> {
   const byField = new Map<string, FileLike>();
   for (const file of files) {
     if (byField.has(file.field)) {
@@ -631,7 +653,7 @@ export async function submitGeneratedForm(
     }
     byField.set(file.field, file);
   }
-  const byName = new Map(input.derived.inputs.map((entry) => [entry.name, entry] as const));
+  const byName = new Map(derived.inputs.map((entry) => [entry.name, entry] as const));
   for (const field of byField.keys()) {
     const target = byName.get(field);
     if (target === undefined) {
@@ -649,6 +671,17 @@ export async function submitGeneratedForm(
       );
     }
   }
+  return byField;
+}
+
+export async function submitGeneratedForm(
+  input: SubmitGeneratedFormInput,
+): Promise<GeneratedSubmitResult> {
+  const { action, csrf } = checkSubmitEnvelope(input);
+  const fetchImpl = input.fetchImpl ?? defaultFetch();
+  const files: FileLike[] = [];
+  for (const file of input.files ?? []) files.push(captureFileLike(file));
+  const byField = checkSubmitFileFields(input.derived, files);
   const ordered = input.derived.inputs.filter((entry) => byField.has(entry.name) &&
     (input.renderedInputs === undefined || input.renderedInputs.includes(entry.name)));
   const uploadsUrl = ordered.length === 0 ? undefined : mustUploadsUrl(input.intentsUrl);
@@ -665,70 +698,8 @@ export async function submitGeneratedForm(
   const completed: Record<string, unknown> = {};
   const mint = input.mintUploadId ?? defaultMintUploadId;
   for (const target of ordered) {
-    const file = byField.get(target.name);
-    if (file === undefined) {
-      throw new GeneratedSubmitError(
-        "usage",
-        `submitGeneratedForm: upload for ${JSON.stringify(target.name)} lost its bytes`,
-        false,
-      );
-    }
-    const intentArgs: Record<string, unknown> = { ...args };
-    for (const pending of ordered) {
-      delete intentArgs[pending.name];
-    }
-    Object.assign(intentArgs, completed);
-    // Canonical operation inputs are flat; changes is only DOM control notation.
-    const pointer = `/${target.name}`;
-    const uploadId = mint();
-    if (typeof uploadId !== "string" || uploadId === "") {
-      throw new GeneratedSubmitError(
-        "usage",
-        "submitGeneratedForm: mintUploadId must mint a nonempty upload_id",
-        false,
-      );
-    }
-    const uploadsTarget = uploadsUrl;
-    if (uploadsTarget === undefined) {
-      throw new GeneratedSubmitError(
-        "usage",
-        `submitGeneratedForm: upload for ${JSON.stringify(target.name)} lost its intents URL`,
-        false,
-      );
-    }
-    const intent = checkedIntent(
-      await postJson(
-        fetchImpl,
-        uploadsTarget,
-        csrf,
-        {
-          upload_id: uploadId,
-          operation: input.derived.operation,
-          field: pointer,
-          arguments: intentArgs,
-          name: file.name,
-          type: file.type,
-          size: String(file.size),
-        },
-        target.name,
-        "intent",
-      ),
-      target.name,
-    );
-    await putBytes(fetchImpl, intent.content, csrf, file.bytes, target.name);
-    const digest = await globalThis.crypto.subtle.digest("SHA-256", new Uint8Array(file.bytes).buffer);
-    const bytesDigest = "sha256:" + Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, "0")).join("");
-    const finalized = await postJson(fetchImpl, intent.finalize, csrf,
-      { upload_id: uploadId, bytes_digest: bytesDigest }, target.name, "finalize");
-    if (!isRecord(finalized) || typeof finalized["file"] !== "string" || finalized["file"] === "") {
-      throw new GeneratedSubmitError(
-        "contract",
-        `finalize for ${JSON.stringify(target.name)} must answer its opaque file id`,
-        false,
-      );
-    }
-    completed[target.name] = { id: finalized["file"] };
-    working[root(target.name)] = finalized["file"];
+    await uploadSubmitFile(target, byField, ordered, fetchImpl, csrf, uploadsUrl,
+      args, input.derived.operation, mint, root, working, completed);
   }
 
   let inputs: ClosedInputs;
@@ -738,6 +709,86 @@ export async function submitGeneratedForm(
     throw projectionError(error);
   }
   return submitMutationRequest(input.derived.operation, input.flat, action, inputs, fetchImpl, input.fragment, input.denialFormat);
+}
+
+async function uploadSubmitFile(
+  target: { readonly name: string },
+  byField: Map<string, FileLike>,
+  ordered: readonly { readonly name: string }[],
+  fetchImpl: SubmitFetch,
+  csrf: string,
+  uploadsUrl: string | undefined,
+  args: ClosedInputs,
+  operation: string,
+  mint: () => string,
+  root: (name: string) => string,
+  working: Record<string, string>,
+  completed: Record<string, unknown>,
+): Promise<void> {
+  const file = byField.get(target.name);
+  if (file === undefined) {
+    throw new GeneratedSubmitError(
+      "usage",
+      `submitGeneratedForm: upload for ${JSON.stringify(target.name)} lost its bytes`,
+      false,
+    );
+  }
+  const intentArgs: Record<string, unknown> = { ...args };
+  for (const pending of ordered) {
+    delete intentArgs[pending.name];
+  }
+  Object.assign(intentArgs, completed);
+  // Canonical operation inputs are flat; changes is only DOM control notation.
+  const pointer = `/${target.name}`;
+  const uploadId = mint();
+  if (typeof uploadId !== "string" || uploadId === "") {
+    throw new GeneratedSubmitError(
+      "usage",
+      "submitGeneratedForm: mintUploadId must mint a nonempty upload_id",
+      false,
+    );
+  }
+  const uploadsTarget = uploadsUrl;
+  if (uploadsTarget === undefined) {
+    throw new GeneratedSubmitError(
+      "usage",
+      `submitGeneratedForm: upload for ${JSON.stringify(target.name)} lost its intents URL`,
+      false,
+    );
+  }
+  const intent = checkedIntent(
+    await postJson(
+      fetchImpl,
+      uploadsTarget,
+      csrf,
+      {
+        upload_id: uploadId,
+        operation,
+        field: pointer,
+        arguments: intentArgs,
+        name: file.name,
+        type: file.type,
+        size: String(file.size),
+      },
+      target.name,
+      "intent",
+    ),
+    target.name,
+  );
+  await putBytes(fetchImpl, intent.content, csrf, file.bytes, target.name);
+  const digest = await globalThis.crypto.subtle.digest("SHA-256", new Uint8Array(file.bytes).buffer);
+  const bytesDigest = "sha256:" + Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, "0")).join("");
+  const finalized = await postJson(fetchImpl, intent.finalize, csrf,
+    { upload_id: uploadId, bytes_digest: bytesDigest }, target.name, "finalize");
+  if (!isRecord(finalized) || typeof finalized["file"] !== "string" || finalized["file"] === "") {
+    throw new GeneratedSubmitError(
+      "contract",
+      `finalize for ${JSON.stringify(target.name)} must answer its opaque file id`,
+      false,
+    );
+  }
+  completed[target.name] = { id: finalized["file"] };
+  working[root(target.name)] = finalized["file"];
 }
 
 /** Submit the canonical delete card using its existing native URL-encoded fields. */

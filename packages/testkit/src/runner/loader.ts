@@ -362,68 +362,115 @@ export async function loadExampleSuite(
   const invoke = hooks.invokeCall;
   const observeScope = hooks.observeScope;
   const prepare = hooks.prepareFixtures;
-
   const rows: Array<TableRowSpec<RowScope>> = [];
   let rowIndex = 0;
   for (const [exampleIndex, example] of examples.entries()) {
-    if (typeof example !== "object" || example === null || Array.isArray(example)) {
-      fail(moduleUrl, `example at index ${exampleIndex} is not an object`);
-    }
-    const record = example as Record<string, unknown>;
-    const dependencies: unknown = record["dependencies"] ?? [];
-    if (!Array.isArray(dependencies)) {
-      fail(moduleUrl, `example at index ${exampleIndex} has dependencies that are not an array`);
-    }
-    const sequenceRaw: unknown = record["sequence"];
-    const tableRows: unknown = record["rows"];
-    if (sequenceRaw !== undefined && tableRows !== undefined) {
-      fail(moduleUrl, `example at index ${exampleIndex} has both sequence and rows`);
-    }
-    if (sequenceRaw !== undefined) {
-      if (!Array.isArray(sequenceRaw)) {
-        fail(moduleUrl, `example at index ${exampleIndex} has sequence that is not an array`);
-      }
-      rows.push(await mapSequenceRow(moduleUrl, bindings, suite, adjacency, values, exampleIndex, rowIndex, record, sequenceRaw, invoke, prepare));
-      rowIndex += 1;
-      continue;
-    }
-    if (tableRows === undefined) {
-      rows.push(mapLegacyRow(bindings, suite, adjacency, values, exampleIndex, rowIndex, dependencies, prepare));
-      rowIndex += 1;
-      continue;
-    }
-    if (!Array.isArray(tableRows)) {
-      fail(moduleUrl, `example at index ${exampleIndex} has rows that are not an array`);
-    }
-    const operation: unknown = record["operation"];
-    if (typeof operation !== "string" || operation.length === 0) {
-      fail(moduleUrl, `example at index ${exampleIndex} has no operation identity`);
-    }
-    const inputsFn: unknown = record["inputs"];
-    if (typeof inputsFn !== "function") {
-      fail(moduleUrl, `example at index ${exampleIndex} has inputs that are not a function`);
-    }
-    const where = `example at index ${exampleIndex}`;
-    const selectors = readSelectors(record["selectors"] ?? [], where);
-    const selectorChannels = readSelectorChannels(record, selectors, where);
-    const observationsRaw: unknown = record["observations"] ?? [];
-    if (!Array.isArray(observationsRaw) || observationsRaw.some((o) => typeof o !== "function")) {
-      fail(moduleUrl, `example at index ${exampleIndex} has observations that are not functions`);
-    }
-    const observations = observationsRaw as Array<(...args: readonly unknown[]) => unknown>;
-    for (const [position, row] of tableRows.entries()) {
-      const mapped = readEmittedRow(row, exampleIndex, position, dependencies, suite);
-      rows.push(
-        await mapTableRow(
-          bindings, suite, adjacency, values, callerRecipes, exampleIndex, rowIndex, position,
-          operation, inputsFn as (...args: readonly unknown[]) => unknown,
-          selectors, selectorChannels, observations, mapped, invoke, observeScope, prepare, hooks.prepareRowCells,
-        ),
-      );
-      rowIndex += 1;
-    }
+    const mapped = await mapEmittedExample(
+      moduleUrl, bindings, suite, adjacency, values, callerRecipes,
+      exampleIndex, rowIndex, example, hooks, invoke, observeScope, prepare,
+    );
+    for (const spec of mapped.specs) rows.push(spec);
+    rowIndex = mapped.nextRowIndex;
   }
   return { rows, userFixtures: users };
+}
+
+async function mapEmittedExample(
+  moduleUrl: string,
+  bindings: FixtureBindings,
+  suite: Parameters<typeof normalizeDependencies>[1],
+  adjacency: Parameters<typeof resolveFixtureOrder>[1],
+  values: ReadonlyMap<string, unknown>,
+  callerRecipes: ReadonlyMap<string, unknown>,
+  exampleIndex: number,
+  rowIndex: number,
+  example: unknown,
+  hooks: ExampleHooks,
+  invoke: ExampleHooks["invokeCall"],
+  observeScope: ExampleHooks["observeScope"],
+  prepare: ExampleHooks["prepareFixtures"],
+): Promise<{ specs: Array<TableRowSpec<RowScope>>; nextRowIndex: number }> {
+  if (typeof example !== "object" || example === null || Array.isArray(example)) {
+    fail(moduleUrl, `example at index ${exampleIndex} is not an object`);
+  }
+  const record = example as Record<string, unknown>;
+  const dependencies: unknown = record["dependencies"] ?? [];
+  if (!Array.isArray(dependencies)) {
+    fail(moduleUrl, `example at index ${exampleIndex} has dependencies that are not an array`);
+  }
+  const sequenceRaw: unknown = record["sequence"];
+  const tableRows: unknown = record["rows"];
+  if (sequenceRaw !== undefined && tableRows !== undefined) {
+    fail(moduleUrl, `example at index ${exampleIndex} has both sequence and rows`);
+  }
+  if (sequenceRaw !== undefined) {
+    if (!Array.isArray(sequenceRaw)) {
+      fail(moduleUrl, `example at index ${exampleIndex} has sequence that is not an array`);
+    }
+    const spec = await mapSequenceRow(moduleUrl, bindings, suite, adjacency, values,
+      exampleIndex, rowIndex, record, sequenceRaw, invoke, prepare);
+    return { specs: [spec], nextRowIndex: rowIndex + 1 };
+  }
+  if (tableRows === undefined) {
+    const spec = mapLegacyRow(bindings, suite, adjacency, values,
+      exampleIndex, rowIndex, dependencies, prepare);
+    return { specs: [spec], nextRowIndex: rowIndex + 1 };
+  }
+  return mapEmittedTableRows(moduleUrl, bindings, suite, adjacency, values, callerRecipes,
+    exampleIndex, rowIndex, record, dependencies, tableRows, hooks, invoke, observeScope, prepare);
+}
+
+async function mapEmittedTableRows(
+  moduleUrl: string,
+  bindings: FixtureBindings,
+  suite: Parameters<typeof normalizeDependencies>[1],
+  adjacency: Parameters<typeof resolveFixtureOrder>[1],
+  values: ReadonlyMap<string, unknown>,
+  callerRecipes: ReadonlyMap<string, unknown>,
+  exampleIndex: number,
+  rowIndex: number,
+  record: Record<string, unknown>,
+  dependencies: readonly unknown[],
+  tableRows: unknown,
+  hooks: ExampleHooks,
+  invoke: ExampleHooks["invokeCall"],
+  observeScope: ExampleHooks["observeScope"],
+  prepare: ExampleHooks["prepareFixtures"],
+): Promise<{ specs: Array<TableRowSpec<RowScope>>; nextRowIndex: number }> {
+  if (!Array.isArray(tableRows)) {
+    fail(moduleUrl, `example at index ${exampleIndex} has rows that are not an array`);
+  }
+  const operation: unknown = record["operation"];
+  if (typeof operation !== "string" || operation.length === 0) {
+    fail(moduleUrl, `example at index ${exampleIndex} has no operation identity`);
+  }
+  const inputsFn: unknown = record["inputs"];
+  if (typeof inputsFn !== "function") {
+    fail(moduleUrl, `example at index ${exampleIndex} has inputs that are not a function`);
+  }
+  const where = `example at index ${exampleIndex}`;
+  const selectors = readSelectors(record["selectors"] ?? [], where);
+  const selectorChannels = readSelectorChannels(record, selectors, where);
+  const observationsRaw: unknown = record["observations"] ?? [];
+  if (!Array.isArray(observationsRaw) || observationsRaw.some((o) => typeof o !== "function")) {
+    fail(moduleUrl, `example at index ${exampleIndex} has observations that are not functions`);
+  }
+  const observations = observationsRaw as Array<(...args: readonly unknown[]) => unknown>;
+  const specs: Array<TableRowSpec<RowScope>> = [];
+  let nextRowIndex = rowIndex;
+  for (const [position, row] of tableRows.entries()) {
+    const mapped = readEmittedRow(row, exampleIndex, position, dependencies, suite);
+    specs.push(
+      await mapTableRow(
+        bindings, suite, adjacency, values, callerRecipes, exampleIndex, nextRowIndex, position,
+        operation, inputsFn as (...args: readonly unknown[]) => unknown,
+        selectors, selectorChannels, observations, mapped,
+        invoke, observeScope, prepare, hooks.prepareRowCells,
+      ),
+    );
+    nextRowIndex += 1;
+  }
+  return { specs, nextRowIndex };
 }
 
 function mapLegacyRow(

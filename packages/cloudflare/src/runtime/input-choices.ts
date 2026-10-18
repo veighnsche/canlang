@@ -27,26 +27,35 @@ export async function lookupInputChoicesCanonical(opts: InputChoicesCanonicalOpt
   const assisted = derived.inputs.find(field => field.name === input);
   const binding = assisted?.choices;
   if (assisted === undefined || binding === undefined) throw new StateError('validation', 'Unknown input assistance.');
-  const allowed = new Set(derived.inputs.filter(field => field.kind !== 'delivery').map(field => field.name));
-  if (Object.keys(inputs).some(name => !allowed.has(name))) throw new StateError('validation', 'Unknown draft input.');
-  // Unfinished draft prerequisites perform no canonical or domain read.
-  for (const mapping of Object.values(binding.arguments)) {
-    if (!Object.hasOwn(inputs, mapping.input) || absent(inputs[mapping.input])) return { state: 'absent', choices: [] };
-  }
-  const draftError = checkBoundArguments(derived, inputs);
-  if (draftError !== null) throw new StateError('validation', draftError.message);
+  const requireDraftInputs = () => {
+    const allowed = new Set(derived.inputs.filter(field => field.kind !== 'delivery').map(field => field.name));
+    if (Object.keys(inputs).some(name => !allowed.has(name))) throw new StateError('validation', 'Unknown draft input.');
+    // Unfinished draft prerequisites perform no canonical or domain read.
+    for (const mapping of Object.values(binding.arguments)) {
+      if (!Object.hasOwn(inputs, mapping.input) || absent(inputs[mapping.input])) return null;
+    }
+    const draftError = checkBoundArguments(derived, inputs);
+    if (draftError !== null) throw new StateError('validation', draftError.message);
+    return { assisted, binding };
+  };
+  const draft = requireDraftInputs();
+  if (draft === null) return { state: 'absent', choices: [] };
   const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact, opts.store);
-  const declared = opts.artifact.operations?.find(operation => operation.name === binding.readOperation);
-  const candidateModel = loaded.models.find(model => `${model.name}[]` === declared?.result?.type);
-  const def = loaded.registry.get(binding.readOperation) as {
-    readonly generated?: unknown; readonly descriptor?: { readonly kind?: unknown; readonly result?: { readonly type?: unknown } };
-  } | undefined;
-  if (declared?.kind !== 'read' || candidateModel === undefined || def?.generated !== true ||
-      def.descriptor?.kind !== 'read' || def.descriptor.result?.type !== `${candidateModel.name}[]`) {
-    throw new StateError('validation', 'Input assistance requires a checked nonnullable model-array read.');
-  }
-  const candidateDeclaration = opts.artifact.models?.find(model => model.name === candidateModel.name);
-  if (candidateDeclaration === undefined) throw new StateError('validation', 'Unknown candidate model.');
+  const requireCandidateRead = () => {
+    const declared = opts.artifact.operations?.find(operation => operation.name === binding.readOperation);
+    const candidateModel = loaded.models.find(model => `${model.name}[]` === declared?.result?.type);
+    const def = loaded.registry.get(binding.readOperation) as {
+      readonly generated?: unknown; readonly descriptor?: { readonly kind?: unknown; readonly result?: { readonly type?: unknown } };
+    } | undefined;
+    if (declared?.kind !== 'read' || candidateModel === undefined || def?.generated !== true ||
+        def.descriptor?.kind !== 'read' || def.descriptor.result?.type !== `${candidateModel.name}[]`) {
+      throw new StateError('validation', 'Input assistance requires a checked nonnullable model-array read.');
+    }
+    const candidateDeclaration = opts.artifact.models?.find(model => model.name === candidateModel.name);
+    if (candidateDeclaration === undefined) throw new StateError('validation', 'Unknown candidate model.');
+    return { candidateModel, candidateDeclaration };
+  };
+  const { candidateModel, candidateDeclaration } = requireCandidateRead();
   const revision = await opts.store.readRevision();
   const identitySnapshot = JSON.stringify(opts.identity);
   const actor = opts.identity.actor?.user_id;
@@ -93,39 +102,52 @@ export async function lookupInputChoicesCanonical(opts: InputChoicesCanonicalOpt
     const row = await resolveRef(model, wire);
     return versioned ? { id: row.id, version: String(row.version) } : { id: row.id };
   };
-  const readDerived = catalogFromArtifactOperations(opts.artifact).derivedFor(binding.readOperation);
-  if (readDerived === null || readDerived === undefined) throw new StateError('validation', 'Unknown candidate read.');
-  const argumentsWire: ClosedInputs = Object.create(null);
-  for (const [parameter, mapping] of Object.entries(binding.arguments)) {
-    const source = derived.inputs.find(field => field.name === mapping.input)!;
-    const target = readDerived.inputs.find(field => field.name === parameter);
-    if (target === undefined) throw new StateError('validation', 'Unknown mapped read argument.');
-    let value: unknown = inputs[mapping.input];
-    let model = source.kind === 'ref' ? source.model : undefined;
-    for (const segment of mapping.path) {
-      if (absent(value)) return finish({ state: 'absent', choices: [] });
-      if (model === undefined) throw new StateError('validation', 'Input paths require declared singular references.');
-      const row = await resolveRef(model, value);
-      const owner = opts.artifact.models?.find(entry => entry.name === model);
-      const field = owner?.fields.find(entry => entry.name === segment);
-      if (field !== undefined) {
-        if (!Object.hasOwn(row.data, segment)) throw new StateError('forbidden', 'Input path leaf is not granted.');
-        value = row.data[segment];
-        model = field.field.kind === 'ref' && field.array === undefined ? field.field.model : undefined;
-      } else if (segment === 'parent' && owner?.parent !== undefined) {
-        if (row.parent === null || row.parent.model !== owner.parent) throw new StateError('not_found', 'Input path parent not found.');
-        value = { id: row.parent.id }; model = owner.parent;
-      } else throw new StateError('validation', 'Unknown declared input path.');
+  const stepInputPath = async (model: string, value: unknown, segment: string) => {
+    const row = await resolveRef(model, value);
+    const owner = opts.artifact.models?.find(entry => entry.name === model);
+    const field = owner?.fields.find(entry => entry.name === segment);
+    if (field !== undefined) {
+      if (!Object.hasOwn(row.data, segment)) throw new StateError('forbidden', 'Input path leaf is not granted.');
+      return {
+        value: row.data[segment] as unknown,
+        model: field.field.kind === 'ref' && field.array === undefined ? field.field.model : undefined,
+      };
     }
-    if (absent(value)) return finish({ state: 'absent', choices: [] });
-    if (target.kind === 'ref') {
-      if (model !== target.model || target.model === undefined) throw new StateError('validation', 'Mapped reference model disagreement.');
-      value = await currentRefWire(target.model, value, target.versioned === true);
+    if (segment === 'parent' && owner?.parent !== undefined) {
+      if (row.parent === null || row.parent.model !== owner.parent) throw new StateError('not_found', 'Input path parent not found.');
+      return { value: { id: row.parent.id } as unknown, model: owner.parent as string | undefined };
     }
-    const error = checkBoundArgument(target, value);
-    if (error !== null) throw new StateError('validation', error.message);
-    argumentsWire[parameter] = value;
-  }
+    throw new StateError('validation', 'Unknown declared input path.');
+  };
+  const buildArgumentsWire = async () => {
+    const readDerived = catalogFromArtifactOperations(opts.artifact).derivedFor(binding.readOperation);
+    if (readDerived === null || readDerived === undefined) throw new StateError('validation', 'Unknown candidate read.');
+    const argumentsWire: ClosedInputs = Object.create(null);
+    for (const [parameter, mapping] of Object.entries(binding.arguments)) {
+      const source = derived.inputs.find(field => field.name === mapping.input)!;
+      const target = readDerived.inputs.find(field => field.name === parameter);
+      if (target === undefined) throw new StateError('validation', 'Unknown mapped read argument.');
+      let value: unknown = inputs[mapping.input];
+      let model = source.kind === 'ref' ? source.model : undefined;
+      for (const segment of mapping.path) {
+        if (absent(value)) return null;
+        if (model === undefined) throw new StateError('validation', 'Input paths require declared singular references.');
+        const stepped = await stepInputPath(model, value, segment);
+        value = stepped.value; model = stepped.model;
+      }
+      if (absent(value)) return null;
+      if (target.kind === 'ref') {
+        if (model !== target.model || target.model === undefined) throw new StateError('validation', 'Mapped reference model disagreement.');
+        value = await currentRefWire(target.model, value, target.versioned === true);
+      }
+      const error = checkBoundArgument(target, value);
+      if (error !== null) throw new StateError('validation', error.message);
+      argumentsWire[parameter] = value;
+    }
+    return argumentsWire;
+  };
+  const argumentsWire = await buildArgumentsWire();
+  if (argumentsWire === null) return finish({ state: 'absent', choices: [] });
   await checkpoint();
   const served = await invokeReadCanonical({ ...readOpts, operation: binding.readOperation, inputs: argumentsWire });
   if (!('result' in served) || served.revision !== revision || !Array.isArray(served.result) || served.result.length > COLLECTION_MAX_LIMIT) {
@@ -160,28 +182,31 @@ export async function lookupInputChoicesCanonical(opts: InputChoicesCanonicalOpt
     if (typeof text !== 'string') throw new StateError('validation', 'Invalid candidate label value.');
     return text;
   };
-  const choices: { value: unknown; labels: string[] }[] = [];
-  for (const reference of references) {
-    const row = candidates.find(candidate => candidate.id === reference.id);
-    if (row === undefined) throw new StateError('not_found', 'Candidate record not found.');
-    if (reference.version !== undefined && reference.version !== BigInt(row.version)) throw new StateError('conflict', 'Candidate record version changed.');
-    let value: unknown;
-    if (binding.value.kind === 'record') {
-      value = assisted.versioned === true ? { id: row.id, version: String(row.version) } : { id: row.id };
-    } else {
-      const leaf = grantedField(row, binding.value.field);
-      value = leaf.wire;
-      if (leaf.declaration.field.kind === 'ref' && value !== null) {
-        const ref = decodeValue(leaf.declaration.field.model, value);
-        if (!isRecordRef(ref)) throw new StateError('validation', 'Invalid candidate reference value.');
-        // An opaque granted ID gains no related-row fields. A required current
-        // version additionally needs that related model's own viewer read.
-        if (assisted.versioned === true) value = await currentRefWire(leaf.declaration.field.model, value, true);
+  const buildChoices = async () => {
+    const choices: { value: unknown; labels: string[] }[] = [];
+    for (const reference of references) {
+      const row = candidates.find(candidate => candidate.id === reference.id);
+      if (row === undefined) throw new StateError('not_found', 'Candidate record not found.');
+      if (reference.version !== undefined && reference.version !== BigInt(row.version)) throw new StateError('conflict', 'Candidate record version changed.');
+      let value: unknown;
+      if (binding.value.kind === 'record') {
+        value = assisted.versioned === true ? { id: row.id, version: String(row.version) } : { id: row.id };
+      } else {
+        const leaf = grantedField(row, binding.value.field);
+        value = leaf.wire;
+        if (leaf.declaration.field.kind === 'ref' && value !== null) {
+          const ref = decodeValue(leaf.declaration.field.model, value);
+          if (!isRecordRef(ref)) throw new StateError('validation', 'Invalid candidate reference value.');
+          // An opaque granted ID gains no related-row fields. A required current
+          // version additionally needs that related model's own viewer read.
+          if (assisted.versioned === true) value = await currentRefWire(leaf.declaration.field.model, value, true);
+        }
       }
+      const error = checkBoundArgument(assisted, value);
+      if (error !== null) throw new StateError('validation', error.message);
+      choices.push({ value, labels: binding.labels.map(name => label(row, name)) });
     }
-    const error = checkBoundArgument(assisted, value);
-    if (error !== null) throw new StateError('validation', error.message);
-    choices.push({ value, labels: binding.labels.map(name => label(row, name)) });
-  }
-  return finish({ state: 'ready', choices });
+    return choices;
+  };
+  return finish({ state: 'ready', choices: await buildChoices() });
 }

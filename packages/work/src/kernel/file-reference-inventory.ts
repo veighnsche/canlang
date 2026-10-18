@@ -76,6 +76,24 @@ const models: readonly FrameworkFileReferenceModel[] = Object.freeze([
 function invalid(message: string): never { throw new KernelTableError(`Work File inventory: ${message}`); }
 
 /** Detached bounded JSON data only; inspect descriptors before reading values. */
+function copyJsonEntry(node: object, array: boolean, keys: readonly (string | symbol)[],
+  child: (value: unknown, depth: number) => unknown, depth: number): unknown {
+  const out: Record<string, unknown> | unknown[] = array ? [] : {};
+  for (const key of keys) {
+    if (array && key === 'length') continue;
+    const descriptor = Object.getOwnPropertyDescriptor(node, key);
+    if (typeof key !== 'string' || descriptor === undefined || !('value' in descriptor) ||
+        !descriptor.enumerable || array && (!/^(0|[1-9]\d*)$/.test(key) || Number(key) >= (node as unknown[]).length)) {
+      return invalid('enumerable own data properties required.');
+    }
+    // StoredRow's pre-S5 parent omission/undefined means no parent.
+    const member = depth === 0 && key === 'parent' && descriptor.value === undefined ? null :
+      child(descriptor.value, depth + 1);
+    Object.defineProperty(out, key, { value: member,
+      enumerable: true, writable: true, configurable: true });
+  }
+  return out;
+}
 function copyJson(value: unknown): unknown {
   const active = new Set<object>();
   let nodes = 0;
@@ -89,64 +107,47 @@ function copyJson(value: unknown): unknown {
     const keys = Reflect.ownKeys(node);
     if (array && keys.length !== node.length + 1) return invalid('dense arrays required.');
     active.add(node);
-    const out: Record<string, unknown> | unknown[] = array ? [] : {};
-    for (const key of keys) {
-      if (array && key === 'length') continue;
-      const descriptor = Object.getOwnPropertyDescriptor(node, key);
-      if (typeof key !== 'string' || descriptor === undefined || !('value' in descriptor) ||
-          !descriptor.enumerable || array && (!/^(0|[1-9]\d*)$/.test(key) || Number(key) >= node.length)) {
-        return invalid('enumerable own data properties required.');
-      }
-      // StoredRow's pre-S5 parent omission/undefined means no parent.
-      const member = depth === 0 && key === 'parent' && descriptor.value === undefined ? null :
-        copy(descriptor.value, depth + 1);
-      Object.defineProperty(out, key, { value: member,
-        enumerable: true, writable: true, configurable: true });
-    }
+    const out = copyJsonEntry(node, array, keys, (child, childDepth) => copy(child, childDepth), depth);
     active.delete(node);
     return out;
   };
   return copy(value, 0);
 }
 
+function checkInventoryField(data: Record<string, unknown>, key: string, field: Field): void {
+  if (!Object.hasOwn(data, key)) {
+    if (field.kind === 'control' && field.optional === true || field.kind === 'opaque' &&
+        (field.role === 'payload-origin' || field.role === 'deferred-input') && field.optional) return;
+    return invalid(`missing ${key}.`);
+  }
+  const member = data[key];
+  if (field.kind === 'opaque') return;
+  if (member === null && field.nullable === true) return;
+  if (field.value === 'object') {
+    closed(member, field.fields);
+    return;
+  }
+  if (field.value === 'string-array' ? !Array.isArray(member) || member.some(item => typeof item !== 'string') :
+      typeof member !== field.value || field.value === 'number' && !Number.isFinite(member)) return invalid(`invalid ${key}.`);
+}
 function closed(value: unknown, fields: Readonly<Record<string, Field>>): Record<string, unknown> {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return invalid('object required.');
   const data = value as Record<string, unknown>;
   if (Object.keys(data).some(key => !Object.hasOwn(fields, key))) return invalid('unknown field.');
   for (const [key, field] of Object.entries(fields)) {
-    if (!Object.hasOwn(data, key)) {
-      if (field.kind === 'control' && field.optional === true || field.kind === 'opaque' &&
-          (field.role === 'payload-origin' || field.role === 'deferred-input') && field.optional) continue;
-      return invalid(`missing ${key}.`);
-    }
-    const member = data[key];
-    if (field.kind === 'opaque') continue;
-    if (member === null && field.nullable === true) continue;
-    if (field.value === 'object') {
-      closed(member, field.fields);
-      continue;
-    }
-    if (field.value === 'string-array' ? !Array.isArray(member) || member.some(item => typeof item !== 'string') :
-        typeof member !== field.value || field.value === 'number' && !Number.isFinite(member)) return invalid(`invalid ${key}.`);
+    checkInventoryField(data, key, field);
   }
   return data;
 }
 
-/** Shape validation only: opaque positions retain their payload role and grant no File authority. */
-function validateRow(model: ModelName, value: StoredRow): void {
-  const declaration = models.find(candidate => candidate.model === model);
-  if (declaration === undefined) return invalid('unknown exact model.');
-  const copied = copyJson(value) as Record<string, unknown>;
-  if (typeof copied === 'object' && copied !== null && !Object.hasOwn(copied, 'parent')) copied.parent = null;
-  const row = closed(copied, { id: string, version: number, created: number, updated: number,
-    createdBy: string, updatedBy: string, archivedAt: nullableNumber,
-    parent: deferred, data: deferred });
+function checkRowMetadata(row: Record<string, unknown>): void {
   if (row.id === '' || row.createdBy === '' || row.updatedBy === '' ||
       !Number.isInteger(row.version) || (row.version as number) < 1 ||
       (row.created as number) < 0 || (row.updated as number) < 0 ||
       row.archivedAt !== null && (row.archivedAt as number) < 0) return invalid('invalid row metadata.');
   if (row.parent !== null) closed(row.parent, { model: string, id: string });
-  const data = closed(row.data, declaration.fields), stored = row as unknown as StoredRow;
+}
+function checkModelIdentity(model: ModelName, stored: StoredRow, row: Record<string, unknown>, data: Record<string, unknown>): void {
   switch (model) {
     case WORK_DISPATCH_MODEL: readDispatchRow(stored); if (row.id !== data.intentId) return invalid('dispatch identity.'); break;
     case WORK_OCCURRENCE_MODEL: readOccurrenceRow(stored); if (row.id !== data.occurrenceId) return invalid('occurrence identity.'); break;
@@ -162,6 +163,19 @@ function validateRow(model: ModelName, value: StoredRow): void {
     case WORK_FANOUT_CHILD_MODEL: readFanoutChildRow(stored); break;
     case WORK_HANDLER_OCCURRENCE_MODEL: readHandlerOccurrenceRow(stored); break;
   }
+}
+/** Shape validation only: opaque positions retain their payload role and grant no File authority. */
+function validateRow(model: ModelName, value: StoredRow): void {
+  const declaration = models.find(candidate => candidate.model === model);
+  if (declaration === undefined) return invalid('unknown exact model.');
+  const copied = copyJson(value) as Record<string, unknown>;
+  if (typeof copied === 'object' && copied !== null && !Object.hasOwn(copied, 'parent')) copied.parent = null;
+  const row = closed(copied, { id: string, version: number, created: number, updated: number,
+    createdBy: string, updatedBy: string, archivedAt: nullableNumber,
+    parent: deferred, data: deferred });
+  checkRowMetadata(row);
+  const data = closed(row.data, declaration.fields), stored = row as unknown as StoredRow;
+  checkModelIdentity(model, stored, row, data);
 }
 
 const resolveOpaqueField: NonNullable<FrameworkFileReferenceProducer['resolveOpaqueField']> = (model, value, field, context) => {

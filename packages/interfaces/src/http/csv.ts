@@ -57,6 +57,7 @@ import type {
   ClosedInputs,
   DerivedOperationInputs,
   MutationEnvelope,
+  ResolvedIdentity,
 } from '@canlang/contracts';
 import { parseObjectBody } from '../internal/input-admission.js';
 import { IdentityError, assertAuthorityLive, sha256HexText } from '@canlang/identity';
@@ -401,7 +402,7 @@ function parseSelections(value: unknown): { selections: CsvCommitSelection[]; er
  * Dispatch one CSV review/commit request. See the module doc for the
  * cell mapping, consent, authority, and outcome rules.
  */
-export async function handleCsvRequest(deps: HttpDeps, request: Request): Promise<Response> {
+function csvRouteKind(deps: HttpDeps, request: Request): { kind: 'review' | 'commit'; pathname: string } | Response {
   const pathname = requestPath(request.url);
   const method = request.method.toUpperCase();
   const kind = pathname === REVIEW_PATH && method === 'POST'
@@ -412,59 +413,235 @@ export async function handleCsvRequest(deps: HttpDeps, request: Request): Promis
   if (kind === null) {
     return deny(deps, buildBusinessError('not_found', 'Not found.'), pathname);
   }
+  return { kind, pathname };
+}
+
+type LiveIdentity = ResolvedIdentity & { actor: NonNullable<ResolvedIdentity['actor']> };
+
+async function admitCsvCaller(deps: HttpDeps, request: Request, pathname: string): Promise<{
+  identity: LiveIdentity; sessionToken: string; body: Record<string, unknown>;
+} | Response> {
+  let caller = await resolveRequestIdentity(
+    deps.identity.store,
+    request,
+    { clock: deps.clock },
+  );
+  if (caller.sessionToken === null || caller.identity.actor === null) {
+    return deny(deps, buildBusinessError('forbidden', 'Authentication required.'), pathname);
+  }
+  const body = await parseObjectBody(request, { maxDepth: CSV_REQUEST_MAX_DEPTH });
+  await assertPostCsrf({
+    sessionToken: caller.sessionToken,
+    headerValue: request.headers.get(CSRF_HEADER),
+    fieldValue: body[CSRF_FIELD],
+  });
+
+  // Body acquisition may suspend while credentials or selected team change.
+  caller = await resolveRequestIdentity(deps.identity.store, request, { clock: deps.clock });
+  const actor = caller.identity.actor;
+  if (caller.sessionToken === null || actor === null) {
+    return deny(deps, buildBusinessError('forbidden', 'Authentication required.'), pathname);
+  }
+  return { identity: { ...caller.identity, actor }, sessionToken: caller.sessionToken, body };
+}
+
+function checkCsvOperation(deps: HttpDeps, body: Record<string, unknown>, pathname: string): {
+  operation: string; shape: OperationInputShape; derived: DerivedOperationInputs; csv: string;
+} | Response {
+  const operation = body['operation'];
+  if (typeof operation !== 'string' || operation === '') {
+    return deny(deps, buildBusinessError('validation', 'Missing operation.'), pathname);
+  }
+  if (!OPERATION_NAME_PATTERN.test(operation)) {
+    return deny(deps, buildBusinessError('not_found', 'Unknown operation.'), operation);
+  }
+  const shape = deps.catalog.shapeFor(operation);
+  if (shape === null) {
+    return deny(deps, buildBusinessError('not_found', 'Unknown operation.'), operation);
+  }
+  const derived = deps.catalog.derivedFor?.(operation) ?? null;
+  if (derived === null) {
+    return deny(deps, buildBusinessError('validation', 'CSV review is unavailable for this operation.'), operation);
+  }
+  const csv = body['csv'];
+  if (typeof csv !== 'string' || csv === '') {
+    return deny(deps, buildBusinessError('validation', 'Missing CSV text.'), operation);
+  }
+  return { operation, shape, derived, csv };
+}
+
+async function parseCsvReviewBody(
+  deps: HttpDeps,
+  csv: string,
+  derived: DerivedOperationInputs,
+  allowed: readonly string[],
+  operation: string,
+): Promise<{ header: string[]; rows: CsvDataRow[] } | Response> {
   try {
-    let { identity, sessionToken } = await resolveRequestIdentity(
-      deps.identity.store,
-      request,
-      { clock: deps.clock },
+    return parseCsvText(csv, resourceLimits(derived, allowed));
+  } catch (err) {
+    if (err instanceof CsvResourceLimitError) {
+      return deny(deps, buildBusinessError('limit', err.message), operation);
+    }
+    if (err instanceof CsvParseError) {
+      return deny(deps, buildBusinessError('validation', err.message), operation);
+    }
+    throw err;
+  }
+}
+
+type CsvReviewResult = Awaited<ReturnType<typeof reviewCsvCandidates>>;
+
+async function checkCsvConsent(
+  deps: HttpDeps,
+  body: Record<string, unknown>,
+  operation: string,
+  review: CsvReviewResult,
+  principalId: string,
+  verify: (token: string) => Promise<number | null>,
+): Promise<number | Response> {
+  const consent = body['consent'];
+  if (!isCsvConsent(consent)) {
+    return deny(deps, buildBusinessError('validation', 'Invalid consent.'), operation);
+  }
+  if (
+    consent.operation !== operation ||
+    consent.review_id !== review.review_id ||
+    consent.candidates_digest !== review.consent.candidates_digest ||
+    consent.candidate_count !== review.consent.candidate_count
+  ) {
+    return deny(
+      deps,
+      buildBusinessError('conflict', 'Candidates changed since review; renewed consent required.'),
+      operation,
     );
-    if (sessionToken === null || identity.actor === null) {
-      return deny(deps, buildBusinessError('forbidden', 'Authentication required.'), pathname);
-    }
-    const body = await parseObjectBody(request, { maxDepth: CSV_REQUEST_MAX_DEPTH });
-    await assertPostCsrf({
-      sessionToken,
-      headerValue: request.headers.get(CSRF_HEADER),
-      fieldValue: body[CSRF_FIELD],
-    });
+  }
+  if (consent.principal !== principalId) {
+    return deny(deps, buildBusinessError('forbidden', 'Consent was issued to a different principal.'), operation);
+  }
+  const reviewExpiresAt = await verify(consent.review_token);
+  if (reviewExpiresAt === null) {
+    return deny(deps, buildBusinessError('conflict', 'Review context changed or expired; renewed consent required.'), operation);
+  }
+  return reviewExpiresAt;
+}
 
-    // Body acquisition may suspend while credentials or selected team change.
-    ({ identity, sessionToken } = await resolveRequestIdentity(deps.identity.store, request, { clock: deps.clock }));
-    if (sessionToken === null || identity.actor === null) {
-      return deny(deps, buildBusinessError('forbidden', 'Authentication required.'), pathname);
+function parseCsvSelections(
+  deps: HttpDeps,
+  rows: unknown,
+  review: CsvReviewResult,
+  operation: string,
+): CsvCommitSelection[] | Response {
+  const { selections, error: selectionError } = parseSelections(rows);
+  if (selectionError !== null) {
+    return deny(deps, selectionError, operation);
+  }
+  for (const selection of selections) {
+    if (selection.index >= review.rows.length) {
+      return deny(deps, buildBusinessError('validation', `Unknown row index ${selection.index}.`), operation);
     }
+  }
+  return selections;
+}
 
-    const operation = body['operation'];
-    if (typeof operation !== 'string' || operation === '') {
-      return deny(deps, buildBusinessError('validation', 'Missing operation.'), pathname);
+async function resolveRowIdentity(
+  deps: HttpDeps,
+  request: Request,
+  sessionToken: string,
+  frozen: { user_id: string; team_id: string | null },
+): Promise<{ identity: ResolvedIdentity } | { error: BusinessError }> {
+  try {
+    const current = await resolveRequestIdentity(deps.identity.store, request, { clock: deps.clock });
+    if (current.sessionToken !== sessionToken || current.identity.actor?.user_id !== frozen.user_id ||
+        (current.identity.team?.team_id ?? null) !== frozen.team_id) {
+      return { error: buildBusinessError('forbidden', 'Review principal context changed.') };
     }
-    if (!OPERATION_NAME_PATTERN.test(operation)) {
-      return deny(deps, buildBusinessError('not_found', 'Unknown operation.'), operation);
+    if (frozen.team_id !== null) {
+      await assertAuthorityLive(deps.identity.store, { teamId: frozen.team_id, userId: frozen.user_id });
     }
-    const shape = deps.catalog.shapeFor(operation);
-    if (shape === null) {
-      return deny(deps, buildBusinessError('not_found', 'Unknown operation.'), operation);
-    }
-    const derived = deps.catalog.derivedFor?.(operation) ?? null;
-    if (derived === null) {
-      return deny(deps, buildBusinessError('validation', 'CSV review is unavailable for this operation.'), operation);
-    }
-    const csv = body['csv'];
-    if (typeof csv !== 'string' || csv === '') {
-      return deny(deps, buildBusinessError('validation', 'Missing CSV text.'), operation);
-    }
-    let parsed: { header: string[]; rows: CsvDataRow[] };
-    try {
-      parsed = parseCsvText(csv, resourceLimits(derived, shape.allowed));
-    } catch (err) {
-      if (err instanceof CsvResourceLimitError) {
-        return deny(deps, buildBusinessError('limit', err.message), operation);
-      }
-      if (err instanceof CsvParseError) {
-        return deny(deps, buildBusinessError('validation', err.message), operation);
-      }
-      throw err;
-    }
+    return { identity: current.identity };
+  } catch (err) {
+    if (!(err instanceof IdentityError)) throw err;
+    return { error: caughtToBusinessError(err) };
+  }
+}
+
+async function commitCsvRow(
+  deps: HttpDeps,
+  request: Request,
+  operation: string,
+  derived: DerivedOperationInputs,
+  verdict: CsvReviewResult['rows'][number],
+  selection: CsvCommitSelection,
+  sessionToken: string,
+  frozen: { user_id: string; team_id: string | null },
+  reviewExpiresAt: number,
+): Promise<CsvCommitRow> {
+  const failed = (error: BusinessError): CsvCommitRow => ({
+    index: selection.index, operation_id: selection.operation_id, status: 'failed', error,
+  });
+  if (verdict.status === 'invalid') {
+    return {
+      index: selection.index,
+      operation_id: selection.operation_id,
+      status: 'invalid',
+      ...(verdict.error === undefined ? {} : { error: verdict.error }),
+    };
+  }
+  if (verdict.status === 'duplicate') {
+    return {
+      index: selection.index,
+      operation_id: selection.operation_id,
+      status: 'duplicate',
+      ...(verdict.duplicate_of === undefined ? {} : { duplicate_of: verdict.duplicate_of }),
+    };
+  }
+  const idError = validateOperationId(selection.operation_id, deps.clock);
+  // Expired checked scenarios require the dedicated current-authority
+  // receipt path; checked CRUD retains its existing canonical age join.
+  const retainedScenario = idError?.message === 'Expired operation_id.' && derived.kind === 'scenario' &&
+    typeof deps.invoker.invokeRetainedMutation === 'function';
+  if (idError !== null && (validateOperationIdShape(selection.operation_id) !== null ||
+      (!retainedScenario && derived.kind !== 'create' && derived.kind !== 'update' && derived.kind !== 'delete'))) {
+    return failed(idError);
+  }
+  // Current scope is a row admission fact, never granted by the review.
+  // A mid-batch revocation preserves prior outcomes and refuses this row.
+  const resolved = await resolveRowIdentity(deps, request, sessionToken, frozen);
+  if ('error' in resolved) return failed(resolved.error);
+  const rowIdentity = resolved.identity;
+  if (deps.clock.nowMs() >= reviewExpiresAt) {
+    return failed(buildBusinessError('conflict', 'Review context expired; renewed consent required.'));
+  }
+  const envelope: MutationEnvelope = {
+    operation,
+    operation_id: selection.operation_id,
+    inputs: verdict.inputs,
+  };
+  const outcome = retainedScenario
+    ? await deps.invoker.invokeRetainedMutation!(envelope, rowIdentity)
+    : await deps.invoker.invokeMutation(envelope, rowIdentity);
+  if ('error' in outcome) {
+    return { index: selection.index, operation_id: selection.operation_id, status: 'failed', error: outcome.error };
+  }
+  return { index: selection.index, operation_id: selection.operation_id, status: 'committed', result: outcome.result };
+}
+
+export async function handleCsvRequest(deps: HttpDeps, request: Request): Promise<Response> {
+  const routed = csvRouteKind(deps, request);
+  if (routed instanceof Response) return routed;
+  const { kind, pathname } = routed;
+  try {
+    const admitted = await admitCsvCaller(deps, request, pathname);
+    if (admitted instanceof Response) return admitted;
+    const { identity, sessionToken, body } = admitted;
+
+    const checked = checkCsvOperation(deps, body, pathname);
+    if (checked instanceof Response) return checked;
+    const { operation, shape, derived } = checked;
+    const parsedResult = await parseCsvReviewBody(deps, checked.csv, derived, shape.allowed, operation);
+    if (parsedResult instanceof Response) return parsedResult;
+    const parsed = parsedResult;
     const headerError = checkCsvHeader(parsed.header, derived, shape.allowed);
     if (headerError !== null) {
       return deny(deps, headerError, operation);
@@ -494,38 +671,13 @@ export async function handleCsvRequest(deps: HttpDeps, request: Request): Promis
     }
 
     /* Commit: consent + selection validation, then T32 BEFORE any invocation. */
-    const consent = body['consent'];
-    if (!isCsvConsent(consent)) {
-      return deny(deps, buildBusinessError('validation', 'Invalid consent.'), operation);
-    }
-    if (
-      consent.operation !== operation ||
-      consent.review_id !== review.review_id ||
-      consent.candidates_digest !== review.consent.candidates_digest ||
-      consent.candidate_count !== review.consent.candidate_count
-    ) {
-      return deny(
-        deps,
-        buildBusinessError('conflict', 'Candidates changed since review; renewed consent required.'),
-        operation,
-      );
-    }
-    if (consent.principal !== identity.actor.user_id) {
-      return deny(deps, buildBusinessError('forbidden', 'Consent was issued to a different principal.'), operation);
-    }
-    const reviewExpiresAt = await reviewBindings.verify(bindingContext, consent.review_token);
-    if (reviewExpiresAt === null) {
-      return deny(deps, buildBusinessError('conflict', 'Review context changed or expired; renewed consent required.'), operation);
-    }
-    const { selections, error: selectionError } = parseSelections(body['rows']);
-    if (selectionError !== null) {
-      return deny(deps, selectionError, operation);
-    }
-    for (const selection of selections) {
-      if (selection.index >= review.rows.length) {
-        return deny(deps, buildBusinessError('validation', `Unknown row index ${selection.index}.`), operation);
-      }
-    }
+    const consentResult = await checkCsvConsent(deps, body, operation, review, identity.actor.user_id,
+      (token) => reviewBindings.verify(bindingContext, token));
+    if (consentResult instanceof Response) return consentResult;
+    const selectionsResult = parseCsvSelections(deps, body['rows'], review, operation);
+    if (selectionsResult instanceof Response) return selectionsResult;
+    const selections = selectionsResult;
+    const reviewExpiresAt = consentResult;
     /* T32 commit-time authority liveness: team scope re-reads the live
      * membership (revoked mid-flight voids the commit); teamless callers
      * are live by the session resolution above, at commit time. */
@@ -553,73 +705,8 @@ export async function handleCsvRequest(deps: HttpDeps, request: Request): Promis
     for (const verdict of review.rows) {
       const selection = selectionsByIndex.get(verdict.index);
       if (selection === undefined) continue;
-      if (verdict.status === 'invalid') {
-        rows.push({
-          index: selection.index,
-          operation_id: selection.operation_id,
-          status: 'invalid',
-          ...(verdict.error === undefined ? {} : { error: verdict.error }),
-        });
-        continue;
-      }
-      if (verdict.status === 'duplicate') {
-        rows.push({
-          index: selection.index,
-          operation_id: selection.operation_id,
-          status: 'duplicate',
-          ...(verdict.duplicate_of === undefined ? {} : { duplicate_of: verdict.duplicate_of }),
-        });
-        continue;
-      }
-      const idError = validateOperationId(selection.operation_id, deps.clock);
-      // Expired checked scenarios require the dedicated current-authority
-      // receipt path; checked CRUD retains its existing canonical age join.
-      const retainedScenario = idError?.message === 'Expired operation_id.' && derived.kind === 'scenario' &&
-        typeof deps.invoker.invokeRetainedMutation === 'function';
-      if (idError !== null && (validateOperationIdShape(selection.operation_id) !== null ||
-          (!retainedScenario && derived.kind !== 'create' && derived.kind !== 'update' && derived.kind !== 'delete'))) {
-        rows.push({ index: selection.index, operation_id: selection.operation_id, status: 'failed', error: idError });
-        continue;
-      }
-      // Current scope is a row admission fact, never granted by the review.
-      // A mid-batch revocation preserves prior outcomes and refuses this row.
-      let rowIdentity: typeof identity;
-      try {
-        const current = await resolveRequestIdentity(deps.identity.store, request, { clock: deps.clock });
-        if (current.sessionToken !== sessionToken || current.identity.actor?.user_id !== frozen.user_id ||
-            (current.identity.team?.team_id ?? null) !== frozen.team_id) {
-          rows.push({ index: selection.index, operation_id: selection.operation_id, status: 'failed',
-            error: buildBusinessError('forbidden', 'Review principal context changed.') });
-          continue;
-        }
-        rowIdentity = current.identity;
-        if (frozen.team_id !== null) {
-          await assertAuthorityLive(deps.identity.store, { teamId: frozen.team_id, userId: frozen.user_id });
-        }
-      } catch (err) {
-        if (!(err instanceof IdentityError)) throw err;
-        rows.push({ index: selection.index, operation_id: selection.operation_id, status: 'failed',
-          error: caughtToBusinessError(err) });
-        continue;
-      }
-      if (deps.clock.nowMs() >= reviewExpiresAt) {
-        rows.push({ index: selection.index, operation_id: selection.operation_id, status: 'failed',
-          error: buildBusinessError('conflict', 'Review context expired; renewed consent required.') });
-        continue;
-      }
-      const envelope: MutationEnvelope = {
-        operation,
-        operation_id: selection.operation_id,
-        inputs: verdict.inputs,
-      };
-      const outcome = retainedScenario
-        ? await deps.invoker.invokeRetainedMutation!(envelope, rowIdentity)
-        : await deps.invoker.invokeMutation(envelope, rowIdentity);
-      if ('error' in outcome) {
-        rows.push({ index: selection.index, operation_id: selection.operation_id, status: 'failed', error: outcome.error });
-      } else {
-        rows.push({ index: selection.index, operation_id: selection.operation_id, status: 'committed', result: outcome.result });
-      }
+      rows.push(await commitCsvRow(deps, request, operation, derived, verdict, selection,
+        sessionToken, frozen, reviewExpiresAt));
     }
     const outcome: CsvCommitOutcome = { operation, review_id: review.review_id, principal: frozen, rows };
     return jsonOk(outcome);

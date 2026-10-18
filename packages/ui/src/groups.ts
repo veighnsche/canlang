@@ -480,18 +480,22 @@ function timelineMoreNote(props: Pick<TimelineProps, "context" | "page" | "occur
   return `<p class="can-more" data-cursor="${escapeAttr(nextCursor)}">${caption}</p>`;
 }
 
-async function timelineCollection(props: TimelineProps): Promise<string> {
-  const model = props.model as string;
-  if (model.trim() === "") throw new Error("timeline: model must be a nonempty model name");
-  if (props.items !== undefined) throw new Error("timeline: items and model must not be combined");
-  const renderRow = props.renderRow;
-  if (renderRow === undefined) throw new Error("timeline: a bound sequence needs renderRow");
+function checkTimelineLimit(props: TimelineProps): void {
   if (
     props.limit !== undefined &&
     (!Number.isInteger(props.limit) || props.limit < 1 || props.limit > TIMELINE_MAX_LIMIT)
   ) {
     throw new Error(`timeline: limit must be an integer 1..${String(TIMELINE_MAX_LIMIT)}`);
   }
+}
+
+async function timelineCollection(props: TimelineProps): Promise<string> {
+  const model = props.model as string;
+  if (model.trim() === "") throw new Error("timeline: model must be a nonempty model name");
+  if (props.items !== undefined) throw new Error("timeline: items and model must not be combined");
+  const renderRow = props.renderRow;
+  if (renderRow === undefined) throw new Error("timeline: a bound sequence needs renderRow");
+  checkTimelineLimit(props);
   const cursor = timelineCursor(props);
   const result = await props.context.query(props.context.invocation, model, {
     ...(props.parent === undefined ? {} : { parent: props.parent }),

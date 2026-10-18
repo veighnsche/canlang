@@ -19751,3 +19751,179 @@ actual compiled-Can SEND bound consumer passes1/1 after the helper relocation.
 The dev owner released final Linux23/23 (seven affected, sixteen unchanged),
 native133 and public41 results. This closes the listed packaging/qualification
 merge prerequisites; integrated timing remains with that existing owner.
+## 2026-10-18 — extract bounded Given JavaScript trivia scanners
+
+Accepted implementation: split `blankGivenJsTrivia` into private comment, quoted-string,
+template and range helpers instead of changing the complexity rule or its allowances.
+The owning declaration and scanner behavior stay intact, including newline/length
+preservation and the existing template interpolation treatment. Independent diff
+review accepted the released extraction; the recorded 5,020-case old/new differential
+found no mismatches. Existing source-AST complexity validation applies to every new
+helper. This closes one original above-20 function; the remaining finite cleanup
+is separate, and broader JavaScript grammar support is not proposed here.
+
+
+## 2026-10-18 — extract State history, uniqueness and fanout validators
+
+Accepted implementation: retain the existing history-chain, checked unique-tuple
+and terminal fanout contracts, splitting their validation into private helpers.
+Independent diff review checked short-circuit/access order, error ownership, the
+table-owned frozen tuple profiles and exact chain/fanout conditions. Reused focused
+results: query fences 8/8, uniqueness 25/25 and old/new differential cases 20/19/21.
+Four original above-20 functions are reduced without threshold or allowance changes.
+Full-package typecheck remains limited by missing worktree dependency types; the
+released changed files had no reported type errors. No wider State behavior changes.
+
+
+## 2026-10-18 — preserve grant-route boundaries during extraction
+
+Accepted implementation: split production MCP grant handling into private actor,
+JSON-body, CSRF, client-id and issuance helpers. Keep membership reads outside the
+identity-resolution catch and defer IdentityStore access until its original position
+inside resolution/issuance catches; independent review found and repaired both
+boundary regressions before acceptance. Existing route tests 7/7 and four new
+getter/error-order probes passed; repaired probe typing passes targeted strict
+NodeNext checking. The original above-20 handler is reduced without changing
+permissions, responses, body limits or complexity configuration.
+
+
+## 2026-10-18 — extract retained dispatch, cohort and input-choice phases
+
+Accepted implementation: split the existing runtime phases into private helpers,
+keeping authorization/revalidation, stage order and error mapping in their owners.
+Independent review accepted cohort/input-choice motion and repaired dispatch
+`retained.intent` single capture plus reuse of the originally decoded control row;
+no additional behavior changes are intended. The three files close 13 original
+above-20 functions. Scoped type/complexity checks and direct before/after getter
+probes support this release. The joined emitted consumer check passed 3/4 cases;
+the remaining generation admission failure also appeared in the reported HEAD
+comparison, so full consumer qualification is not claimed for that case. Image/text
+adapters are also accepted after restoring binding, version and result guards before
+the reads each guard gates, and reusing the once-validated finalized file. Six focused
+adapter ordering probes pass with targeted typing clean; independent repair review
+confirmed the original result-getter mutation now rejects in both adapters. This
+closes eight further original above-20 bodies; full failed-consumer qualification
+remains outside the accepted result above.
+
+
+## 2026-10-18 — extract interface request and schema phases
+
+Accepted implementation: split HTTP/auth/form/page, upload, ingress and MCP schema
+phases into private helpers, reducing all 30 original above-20 interface bodies.
+Preserve the original page scope through awaited rendering, native form drafts
+through projection failures, descriptor own-data guards before reads, operation
+lookup order, and complete User/File array/nullability profiles. Independent
+review found and repaired these five boundary regressions before acceptance.
+The released 15-source batch typechecks with exit 0; all changed owners score
+within 20. Existing interface suites pass 12/14, including page presentation
+37/37. The remaining metadata-rejection assertion (t19b-depth 23/24) and saved
+preference rule_failed/422 also reproduce in the isolated HEAD comparison.
+Those failures remain validation limits; full consumer qualification is not claimed.
+No complexity rules, allowances, permissions or public interfaces change.
+
+
+## 2026-10-18 — extract model and policy checks
+
+Accepted implementation: split model declarations, canonical defaults, identity
+fact copies and row predicates into private phases, closing ten original above-20
+bodies. Keep default values captured once, original scalar/predicate accessor reads,
+validation precedence, and unknown-predicate error fallthrough. Independent review
+found and repaired these boundary changes before accepting the four released sources.
+Covering role/query suites pass 169/169 with exit 0; focused default, scalar, guard
+and predicate probes match the retained prior behavior. Changed sources have clean
+scoped typing and score within 20. Full State typing and durable-suite qualification
+remain limited by unavailable environment dependencies; no full-package pass is claimed.
+
+
+## 2026-10-18 — extract UI rendering and browser phases
+
+Accepted source implementation: split rendering, input collection and browser
+lifecycle phases into private helpers, closing 50 original above-20 bodies across
+20 released sources. Independent review repaired dialog receivers/short-circuit
+reads, synchronous empty-file collection, validation/error order, polling guards,
+and the original query, button, history, tab, variant and appearance read sites.
+Scoped typing and browser build exit 0; focused validation reports 111/111 probes
+and 20/20 appearance/theme tests. Full UI results are 1184/1190 with six failures
+also seen in the comparison using shared dependencies. Full consumer qualification
+remains held: package resolution reached another checkout's live output, so an
+owned immutable dependency closure is still required. The baseline's extra ICU
+corpus failure is a missing fixture, not an implementation improvement. No behavior
+correction, test weakening or complexity configuration change is accepted here.
+
+
+## 2026-10-18 — extract file finalization and upload phases
+
+Accepted implementation: split finalization validation and upload staging into
+private helpers, closing five original above-20 bodies. Preserve lazy caller reads
+on the prior-row branch and the originally captured staging key during cleanup
+after size inspection. Independent diff and repair review accepted both sources;
+focused getter/cleanup probes preserve prior behavior. The ten owned file-consumer
+suites pass 157/157 with raw exit 0, and package no-emit typing exits 0 using the
+existing pinned hash dependency. All changed bodies score within 20. Provider-output
+and scenario-wide qualification remain unrun; no full-package pass is claimed.
+
+
+## 2026-10-18 — extract scenario suite loading phases
+
+Accepted implementation: split suite and scenario loading into private phases,
+closing one original above-20 body. Capture invoke, observation and fixture hooks
+once per suite at their original read sites, and append mapped specifications by
+iteration to avoid argument-count limits. Independent diff and repair review plus
+exact-source hook probes accept the behavior; existing loader/fixture tests pass
+31/31 and package no-emit typing exits 0. All changed bodies score within 20.
+
+
+## 2026-10-18 — extract provider transport and installation phases
+
+Accepted implementation: split redirect handling, image-history interpretation,
+image preparation and text-generation installation into private helpers, closing
+seven original above-20 bodies. Independent diff and repair review restored the
+original HTTP catch boundary, single installation captures and deadline read sites.
+History images append iteratively, preserving node order without argument limits;
+the final extraction scores 18 with its iteration helper at 5. Existing focused
+HTTP/image/model suites report 92 passes; retained exact-source getter probes and
+the affected 200,000-image Node probe pass. Services no-emit typing exits 0 after
+the final helper change, reusing the existing pinned hash dependency read-only.
+All changed bodies score within 20. Full workspace consumer qualification remains
+held where package aliases resolve another checkout's live output.
+
+
+## 2026-10-18 — finish the released TypeScript complexity batch
+
+Accepted implementation: retain the current private-helper extractions in 135
+remaining TypeScript owners across State, Cloudflare, Values, Work, Work-kernel,
+provider/file/identity/testkit adapters and the editor. Preserve original authority,
+error/skip distinctions, callback receivers, lazy getter reads, staged effects and
+recovery order. Independent review repaired recovery clocks/evidence/receivers,
+Values type/default demand, diagnostic rank precedence, generation progress/clock
+capture, State declaration/retirement reads and ANY overloads. The source metric
+now closes 468 of the 630 original TypeScript diagnostics (338 in this batch);
+162 remaining TypeScript identities are deferred by the user's wind-down. No
+threshold, allowance, public protocol or test weakening is introduced.
+
+Validation: owned-source Bun tests report 2858 pass, 191 fail and 64 environment/
+initialization errors across 3050 cases. An in-memory HEAD comparison reproduces
+the same runtime failure identities and error scopes; no new runtime failure was
+identified. This is not a clean full-suite claim: missing emitted/workerd fixtures
+and provider dependencies remain, and a separate frozen-corpus Node child refuses
+the changed source hash before semantic qualification. State package no-emit typing
+passes after the extracted D1 statement return type repair; Work with its owning
+Work-kernel source and Values typing pass. Focused retained getter/receiver probes
+pass. Large released helpers received targeted semantic review, not exhaustive
+branch qualification. Rust validation and final integration remain separate.
+
+
+### Complexity wind-down integration with newer owning implementations (2026-10-18)
+
+Integrate released TypeScript batch3ac71ab6e and its retained owner review/checks.
+Retire twenty conflicting old `cloudflare/src/dev` refactors with the already
+qualified native dev owner; their source remains in the merged history. Keep the
+newer complete implementations of runtime bound-mail, example-bindings,
+file-retirement, native-value-schema and State receipt/join and
+storage/opaque-file-declarations: these six own already-reviewed business fixes
+or native substitutions and supersede conflicting helper extractions from the
+older base. Do not reintroduce deleted orchestration or remove source authority,
+mail slot restrictions, native reference checks and original schema support.
+Other disjoint extractions integrate normally. Metric counts from the branch
+are historical, not a claim about this combined tree. Rust closeout remains
+separate and active; no new cleanup work is started.

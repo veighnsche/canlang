@@ -88,95 +88,148 @@ export async function createR2FileBindings(input: R2FileOptions) {
     const json = await row('can_files_finalized', ref);
     return json === null ? null : decodeFile(json);
   } });
+  const loadBlobContent = async (key: string, pointers: Map<string, Pointer | null>, bytes: Map<string, Uint8Array | null>): Promise<void> => {
+    const json = await row('can_files_blobs', key), pointer = json === null ? null : JSON.parse(json) as Pointer;
+    pointers.set(key, pointer);
+    if (pointer === null) { bytes.set(key, null); return; }
+    if (!pointer.objectKey.startsWith(prefix) || !Number.isSafeInteger(pointer.bytes) || pointer.bytes < 0 || pointer.bytes > policy.maxBytes) throw new Error('Files byte pointer exceeds its owning scope or policy.');
+    const object = await bucket.get(pointer.objectKey);
+    if (object === null || object.size !== pointer.bytes) throw new Error('Files metadata points at unavailable bytes.');
+    const content = new Uint8Array(await object.arrayBuffer());
+    if (content.length !== pointer.bytes || sha256Hex(content) !== pointer.digest) throw new Error('Files stored bytes differ from their immutable pointer.');
+    bytes.set(key, content);
+  };
+  const publishBlobWrites = async (blobWrites: Map<string, Uint8Array | null>, pointers: Map<string, Pointer | null>,
+    token: string, now: number): Promise<Map<string, Pointer | null>> => {
+    const published = new Map<string, Pointer | null>(), objects: string[] = [], retired: string[] = [];
+    for (const [key, value] of blobWrites) {
+      const previous = pointers.get(key);
+      if (previous != null) retired.push(previous.objectKey);
+      if (value === null) { published.set(key, null); continue; }
+      const pointer = { objectKey: `${prefix}${token}/${encodeURIComponent(key)}`, bytes: value.length, digest: sha256Hex(value) };
+      objects.push(pointer.objectKey); published.set(key, pointer);
+    }
+    await db.prepare("INSERT INTO can_files_publications(ns,id,created,state,objects,retired) VALUES (?,?,?,'prepared',?,?)").bind(namespace, token, now, JSON.stringify(objects), JSON.stringify(retired)).run();
+    for (const [key, value] of blobWrites) {
+      if (value === null) continue;
+      await bucket.put(published.get(key)!.objectKey, value);
+    }
+    return published;
+  };
+  const commitPublished = async (revision: number, token: string,
+    intentWrite: UploadIntentRecord | undefined, fileWrite: StoredFileRecord | undefined,
+    published: Map<string, Pointer | null>): Promise<boolean> => {
+    const condition = 'EXISTS(SELECT 1 FROM can_files_roots WHERE ns=? AND token=?)';
+    const batch = [db.prepare("UPDATE can_files_roots SET revision=revision+1,token=? WHERE ns=? AND revision=? AND EXISTS(SELECT 1 FROM can_files_publications WHERE ns=? AND id=? AND state='prepared')").bind(token, namespace, revision, namespace, token)];
+    if (intentWrite !== undefined) batch.push(db.prepare(`INSERT INTO can_files_intents(ns,id,retry_id,json) SELECT ?,?,?,? WHERE ${condition} ON CONFLICT(ns,id) DO UPDATE SET retry_id=excluded.retry_id,json=excluded.json`).bind(namespace, intentWrite.intentId, intentWrite.retryId, JSON.stringify(intentWrite), namespace, token));
+    if (fileWrite !== undefined) batch.push(db.prepare(`INSERT INTO can_files_finalized(ns,id,json) SELECT ?,?,? WHERE ${condition} ON CONFLICT(ns,id) DO UPDATE SET json=excluded.json`).bind(namespace, fileWrite.file.id, encodeFile(fileWrite), namespace, token));
+    for (const [key, pointer] of published) batch.push(pointer === null
+      ? db.prepare(`DELETE FROM can_files_blobs WHERE ns=? AND id=? AND ${condition}`).bind(namespace, key, namespace, token)
+      : db.prepare(`INSERT INTO can_files_blobs(ns,id,json) SELECT ?,?,? WHERE ${condition} ON CONFLICT(ns,id) DO UPDATE SET json=excluded.json`).bind(namespace, key, JSON.stringify(pointer), namespace, token));
+    batch.push(db.prepare(`UPDATE can_files_publications SET state='committed' WHERE ns=? AND id=? AND ${condition}`).bind(namespace, token, namespace, token));
+    // D1 owns this entire conditional batch. A lost response is resolved through its durable journal.
+    try { await db.batch(batch); } catch (error) {
+      const saved = await db.prepare('SELECT state FROM can_files_publications WHERE ns=? AND id=?').bind(namespace, token).first<{ state: string }>();
+      if (saved?.state === 'committed') return true;
+      throw error;
+    }
+    const saved = await db.prepare('SELECT state FROM can_files_publications WHERE ns=? AND id=?').bind(namespace, token).first<{ state: string }>();
+    if (saved?.state === 'committed') return true;
+    await db.prepare("UPDATE can_files_publications SET state='aborted' WHERE ns=? AND id=? AND state='prepared'").bind(namespace, token).run();
+    return false;
+  };
+  const sweepJournalEntry = async (entry: Journal, beforeMs: number): Promise<number> => {
+    if (entry.created > beforeMs) return 0;
+    if (entry.state === 'prepared') await db.prepare("UPDATE can_files_publications SET state='aborted' WHERE ns=? AND id=? AND state='prepared'").bind(namespace, entry.id).run();
+    const current = await db.prepare('SELECT state FROM can_files_publications WHERE ns=? AND id=?').bind(namespace, entry.id).first<{ state: string }>();
+    const keys = JSON.parse(current?.state === 'committed' ? entry.retired : entry.objects) as string[];
+    if (!Array.isArray(keys) || keys.length > 3 || keys.some(key => typeof key !== 'string' || !key.startsWith(prefix))) throw new Error('Files cleanup journal lost its private object census.');
+    let removed = 0;
+    for (const key of keys) {
+      const live = await db.prepare("SELECT id FROM can_files_blobs WHERE ns=? AND json_extract(json,'$.objectKey')=? LIMIT 1").bind(namespace, key).first();
+      if (live !== null) continue;
+      await bucket.delete(key); removed++;
+    }
+    return removed;
+  };
+  interface AttemptState {
+    revision: number;
+    intent: UploadIntentRecord | null;
+    ref: string | undefined;
+    stored: StoredFileRecord | null;
+    intentKeys: Set<string>;
+    fileKeys: Set<string>;
+    blobKeys: Set<string>;
+  }
+  const loadAttemptState = async (select: { intentId?: string; retryId?: string; ref?: string },
+    mintedIntent: string, mintedFile: string): Promise<AttemptState> => {
+    const revision = await root();
+    const intentJson = select.intentId !== undefined ? await row('can_files_intents', select.intentId)
+      : select.retryId === undefined ? null : (await db.prepare('SELECT json FROM can_files_intents WHERE ns=? AND retry_id=?').bind(namespace, select.retryId).first<{ json: string }>())?.json ?? null;
+    const intent = intentJson === null ? null : JSON.parse(intentJson) as UploadIntentRecord;
+    const ref = select.ref ?? intent?.finalizedRef ?? intent?.pendingFinalization?.ref;
+    const storedJson = ref == null ? null : await row('can_files_finalized', ref);
+    const stored = storedJson === null ? null : decodeFile(storedJson);
+    const intentKeys = new Set([mintedIntent, ...(select.intentId === undefined ? [] : [select.intentId]), ...(intent === null ? [] : [intent.intentId])]);
+    const fileKeys = new Set([mintedFile, ...(ref == null ? [] : [ref])]);
+    const blobKeys = new Set([blobKeyForFile(mintedFile), ...(ref == null ? [] : [blobKeyForFile(ref)]), ...(intent === null ? [] : [stagingKeyForIntent(intent.intentId)])]);
+    return { revision, intent, ref, stored, intentKeys, fileKeys, blobKeys };
+  };
+  interface AttemptWrites {
+    intentWrite: UploadIntentRecord | undefined;
+    fileWrite: StoredFileRecord | undefined;
+    blobWrites: Map<string, Uint8Array | null>;
+  }
+  const makeAttemptStores = (select: { intentId?: string; retryId?: string; ref?: string }, loaded: AttemptState,
+    bytes: Map<string, Uint8Array | null>, writes: AttemptWrites): { intents: IntentStorePort; files: FinalizedStorePort; blobs: BlobStorePort } => {
+    const { intent, stored, intentKeys, fileKeys, blobKeys } = loaded;
+    const check = (keys: Set<string>, key: string) => { assertSafeBlobKey(key); if (!keys.has(key)) throw new Error('Files kernel exceeded its selected bounded working set.'); };
+    const intents: IntentStorePort = {
+      get(id) { check(intentKeys, id); return intent !== null && intent.intentId === id ? copy(intent) : null; },
+      getByRetryId(id) { if (id !== select.retryId) throw new Error('Files kernel exceeded its selected retry identity.'); return intent === null ? null : copy(intent); },
+      put(record) { check(intentKeys, record.intentId); writes.intentWrite = copy(record); },
+      listAll() { throw new Error('Files host requires explicitly bounded traversal.'); },
+    };
+    const files: FinalizedStorePort = {
+      get(id) { check(fileKeys, id); return writes.fileWrite?.file.id === id ? copy(writes.fileWrite) : stored?.file.id === id ? copy(stored) : null; },
+      put(record) { check(fileKeys, record.file.id); writes.fileWrite = copy(record); },
+      listAll() { throw new Error('Files host requires explicitly bounded traversal.'); },
+    };
+    const blobs: BlobStorePort = {
+      read(key) { check(blobKeys, key); const current = writes.blobWrites.has(key) ? writes.blobWrites.get(key) : bytes.get(key); return current == null ? null : new Uint8Array(current); },
+      write(key, value) { check(blobKeys, key); if (value.length > policy.maxBytes) throw new Error('Files byte write exceeds its receiving policy.'); writes.blobWrites.set(key, new Uint8Array(value)); },
+      append(key, chunk) { const current = blobs.read(key) ?? new Uint8Array(); const result = new Uint8Array(current.length + chunk.length); result.set(current); result.set(chunk, current.length); blobs.write(key, result); },
+      remove(key) { check(blobKeys, key); writes.blobWrites.set(key, null); },
+      sizeOf(key) { return blobs.read(key)?.length ?? null; },
+    };
+    return { intents, files, blobs };
+  };
   async function run<T>(select: { intentId?: string; retryId?: string; ref?: string }, body: (upload: UploadDeps, final: FinalizeDeps) => T): Promise<T> {
     // These minted identities belong to this actual call and survive its CAS retries.
     const mintedIntent = crypto.randomUUID(), mintedFile = crypto.randomUUID();
     const now = clock.nowMs();
     for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-      const revision = await root();
-      const intentJson = select.intentId !== undefined ? await row('can_files_intents', select.intentId)
-        : select.retryId === undefined ? null : (await db.prepare('SELECT json FROM can_files_intents WHERE ns=? AND retry_id=?').bind(namespace, select.retryId).first<{ json: string }>())?.json ?? null;
-      const intent = intentJson === null ? null : JSON.parse(intentJson) as UploadIntentRecord;
-      const ref = select.ref ?? intent?.finalizedRef ?? intent?.pendingFinalization?.ref;
-      const storedJson = ref == null ? null : await row('can_files_finalized', ref);
-      const stored = storedJson === null ? null : decodeFile(storedJson);
-      const intentKeys = new Set([mintedIntent, ...(select.intentId === undefined ? [] : [select.intentId]), ...(intent === null ? [] : [intent.intentId])]);
-      const fileKeys = new Set([mintedFile, ...(ref == null ? [] : [ref])]);
-      const blobKeys = new Set([blobKeyForFile(mintedFile), ...(ref == null ? [] : [blobKeyForFile(ref)]), ...(intent === null ? [] : [stagingKeyForIntent(intent.intentId)])]);
+      const loaded = await loadAttemptState(select, mintedIntent, mintedFile);
       const pointers = new Map<string, Pointer | null>(), bytes = new Map<string, Uint8Array | null>();
-      for (const key of blobKeys) {
-        const json = await row('can_files_blobs', key), pointer = json === null ? null : JSON.parse(json) as Pointer;
-        pointers.set(key, pointer);
-        if (pointer === null) { bytes.set(key, null); continue; }
-        if (!pointer.objectKey.startsWith(prefix) || !Number.isSafeInteger(pointer.bytes) || pointer.bytes < 0 || pointer.bytes > policy.maxBytes) throw new Error('Files byte pointer exceeds its owning scope or policy.');
-        const object = await bucket.get(pointer.objectKey);
-        if (object === null || object.size !== pointer.bytes) throw new Error('Files metadata points at unavailable bytes.');
-        const content = new Uint8Array(await object.arrayBuffer());
-        if (content.length !== pointer.bytes || sha256Hex(content) !== pointer.digest) throw new Error('Files stored bytes differ from their immutable pointer.');
-        bytes.set(key, content);
+      for (const key of loaded.blobKeys) {
+        await loadBlobContent(key, pointers, bytes);
       }
-      if (await root() !== revision) continue;
-      let intentWrite: UploadIntentRecord | undefined, fileWrite: StoredFileRecord | undefined;
-      const blobWrites = new Map<string, Uint8Array | null>();
-      const check = (keys: Set<string>, key: string) => { assertSafeBlobKey(key); if (!keys.has(key)) throw new Error('Files kernel exceeded its selected bounded working set.'); };
-      const intents: IntentStorePort = {
-        get(id) { check(intentKeys, id); return intent !== null && intent.intentId === id ? copy(intent) : null; },
-        getByRetryId(id) { if (id !== select.retryId) throw new Error('Files kernel exceeded its selected retry identity.'); return intent === null ? null : copy(intent); },
-        put(record) { check(intentKeys, record.intentId); intentWrite = copy(record); },
-        listAll() { throw new Error('Files host requires explicitly bounded traversal.'); },
-      };
-      const files: FinalizedStorePort = {
-        get(id) { check(fileKeys, id); return fileWrite?.file.id === id ? copy(fileWrite) : stored?.file.id === id ? copy(stored) : null; },
-        put(record) { check(fileKeys, record.file.id); fileWrite = copy(record); },
-        listAll() { throw new Error('Files host requires explicitly bounded traversal.'); },
-      };
-      const blobs: BlobStorePort = {
-        read(key) { check(blobKeys, key); const current = blobWrites.has(key) ? blobWrites.get(key) : bytes.get(key); return current == null ? null : new Uint8Array(current); },
-        write(key, value) { check(blobKeys, key); if (value.length > policy.maxBytes) throw new Error('Files byte write exceeds its receiving policy.'); blobWrites.set(key, new Uint8Array(value)); },
-        append(key, chunk) { const current = blobs.read(key) ?? new Uint8Array(); const result = new Uint8Array(current.length + chunk.length); result.set(current); result.set(chunk, current.length); blobs.write(key, result); },
-        remove(key) { check(blobKeys, key); blobWrites.set(key, null); },
-        sizeOf(key) { return blobs.read(key)?.length ?? null; },
-      };
+      if (await root() !== loaded.revision) continue;
+      const writes: AttemptWrites = { intentWrite: undefined, fileWrite: undefined, blobWrites: new Map<string, Uint8Array | null>() };
+      const { intents, files, blobs } = makeAttemptStores(select, loaded, bytes, writes);
       const callClock = { nowMs: () => now };
       const upload: UploadDeps = { clock: callClock, policy, intentTtlMs: options.intentTtlMs, urlBase: options.urlBase,
         intentIds: { nextIntentId: () => mintedIntent }, intents, blobs,
         ...(options.allowInsecureLoopback === true ? { allowInsecureLoopback: true as const } : {}) };
       const final: FinalizeDeps = { clock: callClock, fileIds: { nextFileId: () => mintedFile }, intents, files, blobs };
       const result = body(upload, final);
-      if (intentWrite === undefined && fileWrite === undefined && blobWrites.size === 0) {
-        if (await root() === revision) return result;
+      if (writes.intentWrite === undefined && writes.fileWrite === undefined && writes.blobWrites.size === 0) {
+        if (await root() === loaded.revision) return result;
         continue;
       }
-      const token = crypto.randomUUID(), published = new Map<string, Pointer | null>(), objects: string[] = [], retired: string[] = [];
-      for (const [key, value] of blobWrites) {
-        const previous = pointers.get(key);
-        if (previous != null) retired.push(previous.objectKey);
-        if (value === null) { published.set(key, null); continue; }
-        const pointer = { objectKey: `${prefix}${token}/${encodeURIComponent(key)}`, bytes: value.length, digest: sha256Hex(value) };
-        objects.push(pointer.objectKey); published.set(key, pointer);
-      }
-      await db.prepare("INSERT INTO can_files_publications(ns,id,created,state,objects,retired) VALUES (?,?,?,'prepared',?,?)").bind(namespace, token, now, JSON.stringify(objects), JSON.stringify(retired)).run();
-      for (const [key, value] of blobWrites) {
-        if (value === null) continue;
-        await bucket.put(published.get(key)!.objectKey, value);
-      }
-      const condition = 'EXISTS(SELECT 1 FROM can_files_roots WHERE ns=? AND token=?)';
-      const batch = [db.prepare("UPDATE can_files_roots SET revision=revision+1,token=? WHERE ns=? AND revision=? AND EXISTS(SELECT 1 FROM can_files_publications WHERE ns=? AND id=? AND state='prepared')").bind(token, namespace, revision, namespace, token)];
-      if (intentWrite !== undefined) batch.push(db.prepare(`INSERT INTO can_files_intents(ns,id,retry_id,json) SELECT ?,?,?,? WHERE ${condition} ON CONFLICT(ns,id) DO UPDATE SET retry_id=excluded.retry_id,json=excluded.json`).bind(namespace, intentWrite.intentId, intentWrite.retryId, JSON.stringify(intentWrite), namespace, token));
-      if (fileWrite !== undefined) batch.push(db.prepare(`INSERT INTO can_files_finalized(ns,id,json) SELECT ?,?,? WHERE ${condition} ON CONFLICT(ns,id) DO UPDATE SET json=excluded.json`).bind(namespace, fileWrite.file.id, encodeFile(fileWrite), namespace, token));
-      for (const [key, pointer] of published) batch.push(pointer === null
-        ? db.prepare(`DELETE FROM can_files_blobs WHERE ns=? AND id=? AND ${condition}`).bind(namespace, key, namespace, token)
-        : db.prepare(`INSERT INTO can_files_blobs(ns,id,json) SELECT ?,?,? WHERE ${condition} ON CONFLICT(ns,id) DO UPDATE SET json=excluded.json`).bind(namespace, key, JSON.stringify(pointer), namespace, token));
-      batch.push(db.prepare(`UPDATE can_files_publications SET state='committed' WHERE ns=? AND id=? AND ${condition}`).bind(namespace, token, namespace, token));
-      // D1 owns this entire conditional batch. A lost response is resolved through its durable journal.
-      try { await db.batch(batch); } catch (error) {
-        const saved = await db.prepare('SELECT state FROM can_files_publications WHERE ns=? AND id=?').bind(namespace, token).first<{ state: string }>();
-        if (saved?.state === 'committed') return result;
-        throw error;
-      }
-      const saved = await db.prepare('SELECT state FROM can_files_publications WHERE ns=? AND id=?').bind(namespace, token).first<{ state: string }>();
-      if (saved?.state === 'committed') return result;
-      await db.prepare("UPDATE can_files_publications SET state='aborted' WHERE ns=? AND id=? AND state='prepared'").bind(namespace, token).run();
+      const token = crypto.randomUUID();
+      const published = await publishBlobWrites(writes.blobWrites, pointers, token, now);
+      if (await commitPublished(loaded.revision, token, writes.intentWrite, writes.fileWrite, published)) return result;
     }
     throw new Error('Concurrent Files changes require retry.');
   }
@@ -207,16 +260,7 @@ export async function createR2FileBindings(input: R2FileOptions) {
       const page = await db.prepare('SELECT id,created,state,objects,retired FROM can_files_publications WHERE ns=? AND id>? ORDER BY id LIMIT ?').bind(namespace, after ?? '', limit).all<Journal>();
       let removed = 0;
       for (const entry of page.results) {
-        if (entry.created > beforeMs) continue;
-        if (entry.state === 'prepared') await db.prepare("UPDATE can_files_publications SET state='aborted' WHERE ns=? AND id=? AND state='prepared'").bind(namespace, entry.id).run();
-        const current = await db.prepare('SELECT state FROM can_files_publications WHERE ns=? AND id=?').bind(namespace, entry.id).first<{ state: string }>();
-        const keys = JSON.parse(current?.state === 'committed' ? entry.retired : entry.objects) as string[];
-        if (!Array.isArray(keys) || keys.length > 3 || keys.some(key => typeof key !== 'string' || !key.startsWith(prefix))) throw new Error('Files cleanup journal lost its private object census.');
-        for (const key of keys) {
-          const live = await db.prepare("SELECT id FROM can_files_blobs WHERE ns=? AND json_extract(json,'$.objectKey')=? LIMIT 1").bind(namespace, key).first();
-          if (live !== null) continue;
-          await bucket.delete(key); removed++;
-        }
+        removed += await sweepJournalEntry(entry, beforeMs);
       }
       const next = page.results.length === limit ? page.results.at(-1)!.id : null;
       if (cursor === undefined) await db.prepare('UPDATE can_files_roots SET cleanup_cursor=? WHERE ns=?').bind(next, namespace).run();

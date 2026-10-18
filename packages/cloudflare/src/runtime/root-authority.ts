@@ -103,6 +103,12 @@ export async function resolveRootAuthority(artifact: CompileArtifact, invocation
   const published = (operation as unknown as { rootAuthority?: { binding: string; model: string; createsRoot?: true } }).rootAuthority;
   const target = direct === undefined ? published === undefined ? null : bindingsOf(artifact).find(binding => binding.binding === published.binding && binding.key === published.model) ?? null
     : ownerForModel(artifact, direct.name);
+  const { selected, hasDefaultReference } = selectRootReference(operation, invocation, artifact);
+  return resolveRootOutcome(auth, direct, operation, published, target, selected, hasDefaultReference, invocation);
+}
+
+function selectRootReference(operation: NonNullable<CompileArtifact['operations']>[number], invocation: RootInvocation,
+  artifact: CompileArtifact): { selected: { binding: RootBinding; rootId: string } | null; hasDefaultReference: boolean } {
   let selected: { binding: RootBinding; rootId: string } | null = null;
   let hasDefaultReference = false;
   for (const input of operation.inputs.fields) {
@@ -117,6 +123,14 @@ export async function resolveRootAuthority(artifact: CompileArtifact, invocation
       selected = { binding, rootId };
     }
   }
+  return { selected, hasDefaultReference };
+}
+
+async function resolveRootOutcome(auth: RootIdentity, direct: RootModel | undefined,
+  operation: NonNullable<CompileArtifact['operations']>[number],
+  published: { binding: string; model: string; createsRoot?: true } | undefined,
+  target: RootBinding | null, selected: { binding: RootBinding; rootId: string } | null,
+  hasDefaultReference: boolean, invocation: RootInvocation): Promise<RootRoute | null> {
   if (target !== null && selected !== null && target.binding !== selected.binding.binding) return fail('The operation and its references require different root authorities.');
   if ((target !== null || selected !== null) && hasDefaultReference) return fail('Root business decisions cannot read a second D1 authority.');
   if (target !== null && (direct !== undefined && operation.kind === 'create' && direct.name === target.key || published?.createsRoot === true)) {
@@ -271,18 +285,36 @@ export async function rootFileRequest(original: Request, file: unknown, scope: P
     body: JSON.stringify({ kind: 'can-root-file/v1', file, locator: scope, request: await originalRequestWire(original) }) });
 }
 
-async function unwrapInvocation(request: Request): Promise<{ request: Request; invocation?: RootInvocation; file?: unknown } | null> {
-  const kind = request.headers.get('content-type');
-  if (kind !== 'application/x-can-root-invocation+json' && kind !== 'application/x-can-root-file+json') return null;
-  const value: unknown = await request.json();
+type CheckedInvocationTransport = {
+  readonly request: { readonly url: string; readonly method: string; readonly headers: unknown; readonly body: string };
+  readonly locator: { readonly binding: string; readonly rootId: string };
+  readonly invocation: unknown; readonly file: unknown;
+};
+
+function checkInvocationTransport(value: unknown, kind: string): CheckedInvocationTransport {
   if (!plain(value) || (kind === 'application/x-can-root-invocation+json' ? value.kind !== 'can-root-invocation/v1' || !plain(value.invocation) : value.kind !== 'can-root-file/v1' || !plain(value.file)) || !plain(value.request) || !plain(value.locator) ||
       typeof value.request.url !== 'string' || typeof value.request.method !== 'string' || !Array.isArray(value.request.headers) || typeof value.request.body !== 'string' ||
       typeof value.locator.binding !== 'string' || typeof value.locator.rootId !== 'string' || kind === 'application/x-can-root-invocation+json' && (!plain(value.invocation) || typeof value.invocation.operation !== 'string' || !plain(value.invocation.inputs))) return fail('Invalid internal root invocation transport.');
+  return value as CheckedInvocationTransport;
+}
+
+async function unwrapInvocation(request: Request): Promise<{ request: Request; invocation?: RootInvocation; file?: unknown } | null> {
+  const kind = request.headers.get('content-type');
+  if (kind !== 'application/x-can-root-invocation+json' && kind !== 'application/x-can-root-file+json') return null;
+  const value = checkInvocationTransport(await request.json(), kind);
   const bytes = Uint8Array.from(atob(value.request.body), char => char.charCodeAt(0));
   const headers = new Headers(value.request.headers as [string, string][]); headers.delete('content-length');
   const original = new Request(value.request.url, { method: value.request.method, headers,
     ...(['GET', 'HEAD'].includes(value.request.method) ? {} : { body: bytes }) });
   return { request: rootAuthorityRequest(original, { binding: value.locator.binding, rootId: value.locator.rootId }), ...(kind === 'application/x-can-root-invocation+json' ? { invocation: value.invocation as unknown as RootInvocation } : { file: value.file }) };
+}
+
+async function resolveBrowseScope(scope: RootBrowse, request: Request): Promise<RootScope> {
+  let hint: unknown;
+  try { hint = JSON.parse(request.headers.get('x-can-root-route') ?? 'null'); } catch { return fail('Root read has an invalid routing locator.'); }
+  if (!plain(hint) || hint.binding !== scope.binding || typeof hint.rootId !== 'string' || rootIdOfRecord(hint.rootId) !== hint.rootId) return fail('Root browsing requires a directly located owner.');
+  return Object.freeze({ app: scope.app, owner: scope.owner, principal: scope.principal, binding: scope.binding,
+    model: scope.model, rootId: hint.rootId, creating: false });
 }
 
 /** Production actor surface is a complete original request, never arbitrary StoragePort methods. */
@@ -358,20 +390,18 @@ export function createRootAuthorityClass(options: RootAuthorityOptions): new (
     private async invoke(request: Request): Promise<Response> {
       const transport = await unwrapInvocation(request);
       request = transport?.request ?? request;
-      const file = transport?.file === undefined ? undefined : options.locateFile?.(request) ?? undefined;
-      if (transport?.file !== undefined && (file == null || stableStringify(file) !== stableStringify(transport.file))) return fail('The original protected File request changed.');
-      const invocation = file == null ? transport?.invocation ?? await options.invocation?.(request.clone(), this.env) : { operation: `${file.locator.model}.read`, inputs: {} };
+      const loadInvocation = async () => {
+        const file = transport?.file === undefined ? undefined : options.locateFile?.(request) ?? undefined;
+        if (transport?.file !== undefined && (file == null || stableStringify(file) !== stableStringify(transport.file))) return fail('The original protected File request changed.');
+        const invocation = file == null ? transport?.invocation ?? await options.invocation?.(request.clone(), this.env) : { operation: `${file.locator.model}.read`, inputs: {} };
+        return { file, invocation };
+      };
+      const { file, invocation } = await loadInvocation();
       if (invocation === undefined) return fail('A root actor accepts only the internal original-request transport.');
       const authenticated = identity(await options.authenticate(request.clone(), this.env, invocation));
       let scope = file == null ? await resolveRootAuthority(options.artifact, invocation, authenticated)
         : rootAuthorityForRecord(options.artifact, file.locator.model, file.locator.recordId, authenticated);
-      if (scope !== null && 'browse' in scope) {
-        let hint: unknown;
-        try { hint = JSON.parse(request.headers.get('x-can-root-route') ?? 'null'); } catch { return fail('Root read has an invalid routing locator.'); }
-        if (!plain(hint) || hint.binding !== scope.binding || typeof hint.rootId !== 'string' || rootIdOfRecord(hint.rootId) !== hint.rootId) return fail('Root browsing requires a directly located owner.');
-        scope = Object.freeze({ app: scope.app, owner: scope.owner, principal: scope.principal, binding: scope.binding,
-          model: scope.model, rootId: hint.rootId, creating: false });
-      }
+      if (scope !== null && 'browse' in scope) scope = await resolveBrowseScope(scope, request);
       if (scope === null) return fail('A root actor requires one directly selected authority.');
       const namespace = this.env[scope.binding] as DurableObjectNamespace | undefined;
       if (namespace === undefined || !namespace.idFromName(scope.rootId).equals(this.state.id)) return fail('The request reached a different physical root authority.');
@@ -399,7 +429,7 @@ export function createRootAuthorityClass(options: RootAuthorityOptions): new (
         },
         captureOutcome(outcome: unknown) { captured = outcome; },
       }));
-      try {
+      const runExecution = async (): Promise<Response> => {
         const wakeAt = Date.now() + 1_000;
         const existingAlarm = await this.state.storage.getAlarm();
         if (existingAlarm === null || existingAlarm > wakeAt) await this.state.storage.setAlarm(wakeAt);
@@ -410,6 +440,9 @@ export function createRootAuthorityClass(options: RootAuthorityOptions): new (
         }));
         return transport?.invocation !== undefined && captured !== undefined
           ? Response.json(captured, { headers: { 'x-can-root-outcome': 'v1' } }) : response;
+      };
+      try {
+        return await runExecution();
       } finally { executions.delete(env); }
     }
   };
