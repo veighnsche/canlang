@@ -3369,6 +3369,69 @@ pub(crate) fn checked_query_rule_fields(
             self.bindings.pop()?;
             Some(())
         }
+        /// Pure derive-function calls in native rules lower to the emitted
+        /// module-scope derive (`await name(c, ...)`), so the rule profile
+        /// admits the call by profiling the callee body with the declared
+        /// parameter types bound — the same binding context checking used.
+        /// Transitive fields, queries and changed-model dependencies record
+        /// exactly as if written inline, so rule re-evaluation stays
+        /// subscribed. Unresolvable, ambiguous, bodyless, arity-mismatched
+        /// or recursive calls keep the refusal; bound (partial) calls stay
+        /// out.
+        fn visit_derive_fn_call(
+            &mut self,
+            value: &TypedExpr,
+            canonical: &str,
+            args: &[TypedExpr],
+            depth: usize,
+        ) -> Option<()> {
+            let mut callees = self.program.items.iter().filter(|item| {
+                item.canonical == canonical && matches!(&item.kind, IrItemKind::DeriveFn { .. })
+            });
+            let callee = callees.next()?;
+            if callees.next().is_some() {
+                return None;
+            }
+            let IrItemKind::DeriveFn {
+                params,
+                result: IrType::Known(result),
+                expr: Some(body),
+            } = &callee.kind
+            else {
+                return None;
+            };
+            if result != &value.ty || params.len() != args.len() {
+                return None;
+            }
+            let mut bound = Vec::with_capacity(params.len());
+            for param_id in params {
+                let param = self.program.items.get(param_id.0 as usize)?;
+                if param.id != *param_id {
+                    return None;
+                }
+                let IrItemKind::Param {
+                    ty: IrType::Known(ty),
+                    ..
+                } = &param.kind
+                else {
+                    return None;
+                };
+                bound.push((param.name.clone(), ty.clone()));
+            }
+            for arg in args {
+                self.expr(arg, depth + 1)?;
+            }
+            if !self.derives.insert(callee.id) {
+                return None;
+            }
+            let previous_len = self.bindings.len();
+            self.bindings.extend(bound);
+            let body = body.clone();
+            let admitted = self.expr(&body, depth + 1);
+            self.bindings.truncate(previous_len);
+            self.derives.remove(&callee.id);
+            admitted
+        }
         fn visit_call(
             &mut self,
             value: &TypedExpr,
@@ -3376,10 +3439,17 @@ pub(crate) fn checked_query_rule_fields(
             args: &[TypedExpr],
             depth: usize,
         ) -> Option<bool> {
+            if let IrCallTarget::DeriveFn(canonical) = target {
+                if !matches!(&value.expr, IrExpr::Call { .. }) {
+                    return Some(false);
+                }
+                self.visit_derive_fn_call(value, canonical, args, depth)?;
+                return Some(true);
+            }
             let IrCallTarget::Builtin { id, awaited: false } = target else {
                 return Some(false);
             };
-            if !matches!(id.as_str(), "any" | "all" | "sum" | "count" | "money" | "trim" | "local_instant" | "add_days" | "date") {
+            if !matches!(id.as_str(), "any" | "all" | "sum" | "count" | "money" | "trim" | "local_instant" | "add_days" | "date" | "overlaps") {
                 return None;
             }
             let formal = self.call_arguments(value, id, args)?;
@@ -3938,6 +4008,45 @@ When
    return true
 Then
 "#;
+    #[test]
+    fn derive_fn_call_in_invariant_keeps_transitive_query_models() {
+        let source = r#"app DeriveRule
+Given
+ Site {name:text,active:bool=true,mark:datetime}
+ Slot in Site {start:datetime,end:datetime}
+ derive site_open(site:Site,from:datetime,until:datetime):bool = site.active and not any(site.Slot as slot,overlaps(from,until,slot.start,slot.end))
+ invariant Site: site_open(row,row.mark,row.mark)
+When
+ scenario ping()->bool by=members
+  do
+   return true
+Then
+"#;
+        let (db, program, ir, catalog) = checked(source);
+        let slot = ir
+            .items
+            .iter()
+            .find(|item| item.canonical == "DeriveRule.Slot")
+            .unwrap()
+            .id;
+        let policies = model_policies::collect_checked_policies(
+            &program,
+            &ir,
+            &db,
+            Some(&catalog),
+            &js::module_path("DeriveRule"),
+        )
+        .expect("pure derive call with a transitive query stays natively admitted");
+        let binding = policies
+            .bindings
+            .iter()
+            .find(|binding| binding.kind == IrModelRuleKind::Invariant)
+            .expect("one invariant binding");
+        assert!(
+            binding.query_models.contains(&slot),
+            "the inlined derive query root stays subscribed"
+        );
+    }
     fn checked(source: &str) -> (SourceDb, CheckedProgram, IrProgram, Catalog) {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
         let mut db = SourceDb::new();

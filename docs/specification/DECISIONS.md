@@ -20265,3 +20265,20 @@ membership enforcement is the authority. Providers are hashed into the
 capture, watched by freshness, covered by the source revision, and passed as
 sorted operands. Single-file behavior is unchanged (`provider_snapshot`
 absent end to end).
+
+### Native rule derive-call admission (2026-10-18)
+
+Pure derive-function calls are admitted in native invariant/lock rule
+profiles: the profiler checks args plus the callee body under declared
+parameter types (fail-closed on unresolvable/ambiguous/bodyless/
+arity-mismatched/recursive calls; bound partial calls stay out), so
+transitive fields, queries and changed-model dependencies record as if
+inline and rule re-evaluation stays subscribed. Emission is unchanged
+(the rule awaits the already-emitted module-scope derive), so no new
+execution semantics were decided and no JEV call was needed. The pure
+catalog `overlaps` builtin is admitted alongside (purity enforced via
+catalog effects as with the existing builtins). Context: the CanTable
+closure's 33 hook/emit diags traced to one Booking invariant calling
+`available()`, not to hook bodies — all 9 maintain hooks were already
+natively supported. No cascade design was needed (hook-created rows
+trigger no hooks).
