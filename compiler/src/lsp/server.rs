@@ -64,7 +64,7 @@ pub struct CompletionItem {
 /// `Text`=1 through `TypeParameter`=25). Unknown names map to `None`
 /// and are omitted from the response, keeping the serializer path
 /// protocol-valid once a real backend returns items.
-fn completion_kind(name: &str) -> Option<lsp::CompletionItemKind> {
+fn completion_kind_head(name: &str) -> Option<lsp::CompletionItemKind> {
     Some(match name {
         "Text" => lsp::CompletionItemKind::TEXT,
         "Method" => lsp::CompletionItemKind::METHOD,
@@ -80,6 +80,15 @@ fn completion_kind(name: &str) -> Option<lsp::CompletionItemKind> {
         "Value" => lsp::CompletionItemKind::VALUE,
         "Enum" => lsp::CompletionItemKind::ENUM,
         "Keyword" => lsp::CompletionItemKind::KEYWORD,
+        _ => return None,
+    })
+}
+
+fn completion_kind(name: &str) -> Option<lsp::CompletionItemKind> {
+    if let Some(kind) = completion_kind_head(name) {
+        return Some(kind);
+    }
+    Some(match name {
         "Snippet" => lsp::CompletionItemKind::SNIPPET,
         "Color" => lsp::CompletionItemKind::COLOR,
         "File" => lsp::CompletionItemKind::FILE,
@@ -1206,28 +1215,277 @@ impl<A: LanguageAnalysis> Server<A> {
         out
     }
 
+    fn respond_initialize(&mut self, id: &Json, params: Option<&Json>) -> Vec<String> {
+        if !valid_params("initialize", params) {
+            return vec![t::response_err(
+                Some(id),
+                t::error_code::INVALID_PARAMS,
+                "bad initialize parameters",
+            )];
+        }
+        self.document_changes = params
+            .and_then(|p| p.get("capabilities"))
+            .and_then(|p| p.get("workspace"))
+            .and_then(|p| p.get("workspaceEdit"))
+            .and_then(|p| p.get("documentChanges"))
+            == Some(&Json::Bool(true));
+        self.roots = initialize_roots(params.expect("validated initialize"));
+        self.refresh_workspace();
+        self.lifecycle = Lifecycle::Ready;
+        vec![output::response(id, capabilities())]
+    }
+
+    fn check_server_ready(
+        &self,
+        id: &Json,
+        method: &str,
+        params: Option<&Json>,
+    ) -> Option<Vec<String>> {
+        if self.lifecycle == Lifecycle::PreInit {
+            return Some(vec![t::response_err(
+                Some(id),
+                t::error_code::SERVER_NOT_INITIALIZED,
+                "initialize first",
+            )]);
+        }
+        if self.lifecycle == Lifecycle::Shutdown {
+            return Some(vec![t::response_err(
+                Some(id),
+                t::error_code::INVALID_REQUEST,
+                "server is shut down",
+            )]);
+        }
+        if known_request(method) && !valid_params(method, params) {
+            return Some(vec![t::response_err(
+                Some(id),
+                t::error_code::INVALID_PARAMS,
+                "bad method parameters",
+            )]);
+        }
+        None
+    }
+
+    fn respond_definition(&self, id: &Json, params: &Json) -> String {
+        let target = parse_pos_request(params)
+            .and_then(|(uri, pos)| self.doc_id(&uri).map(|doc| (uri, doc, pos)));
+        match target {
+            Some((uri, doc_id, pos)) => {
+                let locations: Vec<_> = self
+                    .analysis
+                    .definition(&self.db, doc_id, &uri, pos)
+                    .into_iter()
+                    .map(|mut location| {
+                        if let Some(uri) = self.open_uri(&location.uri) {
+                            location.uri = uri.to_string();
+                        }
+                        output::location(location)
+                    })
+                    .collect();
+                output::response(id, locations)
+            }
+            None => t::response_err(
+                Some(id),
+                t::error_code::INVALID_PARAMS,
+                "unknown document or bad position",
+            ),
+        }
+    }
+
+    fn respond_references(&self, id: &Json, params: &Json) -> String {
+        let target = parse_pos_request(params)
+            .and_then(|(uri, pos)| self.doc_id(&uri).map(|doc| (uri, doc, pos)));
+        match target {
+            Some((uri, doc_id, pos)) => {
+                let mut references = self.analysis.references(&self.db, doc_id, &uri, pos);
+                if params
+                    .get("context")
+                    .and_then(|c| c.get("includeDeclaration"))
+                    == Some(&Json::Bool(false))
+                {
+                    let declarations = self.analysis.definition(&self.db, doc_id, &uri, pos);
+                    references.retain(|reference| {
+                        !declarations.iter().any(|declaration| {
+                            declaration.uri == reference.uri
+                                && declaration.range == reference.range
+                        })
+                    });
+                }
+                let locations: Vec<_> = references.into_iter().map(output::location).collect();
+                output::response(id, locations)
+            }
+            None => t::response_err(
+                Some(id),
+                t::error_code::INVALID_PARAMS,
+                "unknown document or bad position",
+            ),
+        }
+    }
+
+    fn rename_refused(&self, uri: &str, doc_id: SourceId, edits: &[FileEdit]) -> bool {
+        // Closed sources have no LSP version guard. The editor opens
+        // reference targets before requesting rename; refuse atomically
+        // if that preflight missed any target or the client cannot guard.
+        edits.is_empty()
+            || self
+                .db
+                .get(doc_id)
+                .and_then(|source| owning_root(&self.roots, Path::new(&source.path)))
+                .is_some_and(|owner| self.intake_errors.contains_key(&self.roots[owner]))
+            || (edits.iter().any(|edit| self.open_uri(&edit.uri).is_none()))
+            || (edits
+                .iter()
+                .any(|edit| self.open_uri(&edit.uri) != Some(uri))
+                && !self.document_changes)
+    }
+
+    fn respond_rename(&self, id: &Json, params: &Json) -> String {
+        let target = parse_pos_request(params).and_then(|(uri, pos)| {
+            let doc = self.docs.get(&uri)?;
+            let name = params.get("newName")?.as_str()?;
+            Some((uri, doc.id, doc.version, pos, name))
+        });
+        match target {
+            Some((uri, doc_id, _version, pos, name)) => {
+                let edits = self.analysis.rename_files(&self.db, doc_id, &uri, pos, name);
+                if self.rename_refused(&uri, doc_id, &edits) {
+                    t::response_ok(id, Json::Null)
+                } else {
+                    output::response(
+                        id,
+                        output::rename_files(
+                            edits
+                                .into_iter()
+                                .map(|mut edit| {
+                                    edit.uri = self
+                                        .open_uri(&edit.uri)
+                                        .expect("checked rename target")
+                                        .to_string();
+                                    edit
+                                })
+                                .collect(),
+                            |uri| self.docs.get(uri).map(|doc| doc.version),
+                            self.document_changes,
+                        ),
+                    )
+                }
+            }
+            None => t::response_ok(id, Json::Null),
+        }
+    }
+
+    fn respond_doc_method(&self, id: &Json, method: &str, params: &Json) -> String {
+        match method {
+            "textDocument/foldingRange" => {
+                match doc_of(params).and_then(|uri| self.doc_id(&uri)) {
+                    Some(doc_id) => {
+                        output::response(id, self.analysis.folding_ranges(&self.db, doc_id))
+                    }
+                    None => t::response_err(
+                        Some(id),
+                        t::error_code::INVALID_PARAMS,
+                        "unknown document",
+                    ),
+                }
+            }
+            "textDocument/selectionRange" => {
+                match doc_of(params).and_then(|uri| self.doc_id(&uri)) {
+                    Some(doc_id) => output::response(
+                        id,
+                        self.analysis.selection_ranges(
+                            &self.db,
+                            doc_id,
+                            &parse_selection_positions(params)
+                                .expect("validated selection positions"),
+                        ),
+                    ),
+                    None => t::response_err(
+                        Some(id),
+                        t::error_code::INVALID_PARAMS,
+                        "unknown document",
+                    ),
+                }
+            }
+            "textDocument/documentSymbol" => {
+                match doc_of(params).and_then(|uri| self.doc_id(&uri)) {
+                    Some(doc_id) => {
+                        output::response(id, self.analysis.document_symbols(&self.db, doc_id))
+                    }
+                    None => t::response_err(
+                        Some(id),
+                        t::error_code::INVALID_PARAMS,
+                        "unknown document",
+                    ),
+                }
+            }
+            "textDocument/formatting" => {
+                match doc_of(params).and_then(|uri| self.doc_id(&uri)) {
+                    Some(doc_id) => {
+                        let edits: Vec<_> = self
+                            .analysis
+                            .formatting(&self.db, doc_id)
+                            .into_iter()
+                            .map(|edit| lsp::TextEdit {
+                                range: output::range(edit.range),
+                                new_text: edit.new_text,
+                            })
+                            .collect();
+                        output::response(id, edits)
+                    }
+                    None => t::response_err(
+                        Some(id),
+                        t::error_code::INVALID_PARAMS,
+                        "unknown document",
+                    ),
+                }
+            }
+            "textDocument/semanticTokens/full" => {
+                match doc_of(params).and_then(|uri| self.doc_id(&uri)) {
+                    Some(doc_id) => output::response(
+                        id,
+                        output::SemanticTokens {
+                            data: self.analysis.semantic_tokens(&self.db, doc_id),
+                        },
+                    ),
+                    None => t::response_err(
+                        Some(id),
+                        t::error_code::INVALID_PARAMS,
+                        "unknown document",
+                    ),
+                }
+            }
+            _ => match doc_of(params).and_then(|uri| {
+                let doc_id = self.doc_id(&uri)?;
+                let range = params.get("range").and_then(parse_range)?;
+                Some((uri, doc_id, range))
+            }) {
+                Some((uri, doc_id, range)) => {
+                    let actions: Vec<_> = self
+                        .analysis
+                        .code_actions(&self.db, doc_id, &uri, range)
+                        .into_iter()
+                        .map(|action| {
+                            output::action(
+                                action,
+                                |uri| self.docs.get(uri).map(|doc| doc.version),
+                                self.document_changes,
+                            )
+                        })
+                        .collect();
+                    output::response(id, actions)
+                }
+                None => t::response_err(
+                    Some(id),
+                    t::error_code::INVALID_PARAMS,
+                    "unknown document or bad range",
+                ),
+            },
+        }
+    }
+
     fn handle_request(&mut self, id: &Json, method: &str, params: Option<&Json>) -> Vec<String> {
         if method == "initialize" {
             return match self.lifecycle {
-                Lifecycle::PreInit => {
-                    if !valid_params(method, params) {
-                        return vec![t::response_err(
-                            Some(id),
-                            t::error_code::INVALID_PARAMS,
-                            "bad initialize parameters",
-                        )];
-                    }
-                    self.document_changes = params
-                        .and_then(|p| p.get("capabilities"))
-                        .and_then(|p| p.get("workspace"))
-                        .and_then(|p| p.get("workspaceEdit"))
-                        .and_then(|p| p.get("documentChanges"))
-                        == Some(&Json::Bool(true));
-                    self.roots = initialize_roots(params.expect("validated initialize"));
-                    self.refresh_workspace();
-                    self.lifecycle = Lifecycle::Ready;
-                    vec![output::response(id, capabilities())]
-                }
+                Lifecycle::PreInit => self.respond_initialize(id, params),
                 _ => vec![t::response_err(
                     Some(id),
                     t::error_code::INVALID_REQUEST,
@@ -1235,26 +1493,8 @@ impl<A: LanguageAnalysis> Server<A> {
                 )],
             };
         }
-        if self.lifecycle == Lifecycle::PreInit {
-            return vec![t::response_err(
-                Some(id),
-                t::error_code::SERVER_NOT_INITIALIZED,
-                "initialize first",
-            )];
-        }
-        if self.lifecycle == Lifecycle::Shutdown {
-            return vec![t::response_err(
-                Some(id),
-                t::error_code::INVALID_REQUEST,
-                "server is shut down",
-            )];
-        }
-        if known_request(method) && !valid_params(method, params) {
-            return vec![t::response_err(
-                Some(id),
-                t::error_code::INVALID_PARAMS,
-                "bad method parameters",
-            )];
+        if let Some(early) = self.check_server_ready(id, method, params) {
+            return early;
         }
         let absent = Json::Null;
         let params = params.unwrap_or(&absent);
@@ -1289,203 +1529,15 @@ impl<A: LanguageAnalysis> Server<A> {
                     })
                     .collect::<Vec<_>>()
             }),
-            "textDocument/definition" => {
-                let target = parse_pos_request(params)
-                    .and_then(|(uri, pos)| self.doc_id(&uri).map(|doc| (uri, doc, pos)));
-                match target {
-                    Some((uri, doc_id, pos)) => {
-                        let locations: Vec<_> = self
-                            .analysis
-                            .definition(&self.db, doc_id, &uri, pos)
-                            .into_iter()
-                            .map(|mut location| {
-                                if let Some(uri) = self.open_uri(&location.uri) {
-                                    location.uri = uri.to_string();
-                                }
-                                output::location(location)
-                            })
-                            .collect();
-                        output::response(id, locations)
-                    }
-                    None => t::response_err(
-                        Some(id),
-                        t::error_code::INVALID_PARAMS,
-                        "unknown document or bad position",
-                    ),
-                }
-            }
-            "textDocument/references" => {
-                let target = parse_pos_request(params)
-                    .and_then(|(uri, pos)| self.doc_id(&uri).map(|doc| (uri, doc, pos)));
-                match target {
-                    Some((uri, doc_id, pos)) => {
-                        let mut references = self.analysis.references(&self.db, doc_id, &uri, pos);
-                        if params
-                            .get("context")
-                            .and_then(|c| c.get("includeDeclaration"))
-                            == Some(&Json::Bool(false))
-                        {
-                            let declarations =
-                                self.analysis.definition(&self.db, doc_id, &uri, pos);
-                            references.retain(|reference| {
-                                !declarations.iter().any(|declaration| {
-                                    declaration.uri == reference.uri
-                                        && declaration.range == reference.range
-                                })
-                            });
-                        }
-                        let locations: Vec<_> =
-                            references.into_iter().map(output::location).collect();
-                        output::response(id, locations)
-                    }
-                    None => t::response_err(
-                        Some(id),
-                        t::error_code::INVALID_PARAMS,
-                        "unknown document or bad position",
-                    ),
-                }
-            }
-            "textDocument/rename" => {
-                let target = parse_pos_request(params).and_then(|(uri, pos)| {
-                    let doc = self.docs.get(&uri)?;
-                    let name = params.get("newName")?.as_str()?;
-                    Some((uri, doc.id, doc.version, pos, name))
-                });
-                match target {
-                    Some((uri, doc_id, _version, pos, name)) => {
-                        let edits = self
-                            .analysis
-                            .rename_files(&self.db, doc_id, &uri, pos, name);
-                        // Closed sources have no LSP version guard. The editor opens
-                        // reference targets before requesting rename; refuse atomically
-                        // if that preflight missed any target or the client cannot guard.
-                        if edits.is_empty()
-                            || self
-                                .db
-                                .get(doc_id)
-                                .and_then(|source| {
-                                    owning_root(&self.roots, Path::new(&source.path))
-                                })
-                                .is_some_and(|owner| {
-                                    self.intake_errors.contains_key(&self.roots[owner])
-                                })
-                            || (edits.iter().any(|edit| self.open_uri(&edit.uri).is_none()))
-                            || (edits
-                                .iter()
-                                .any(|edit| self.open_uri(&edit.uri) != Some(uri.as_str()))
-                                && !self.document_changes)
-                        {
-                            t::response_ok(id, Json::Null)
-                        } else {
-                            output::response(
-                                id,
-                                output::rename_files(
-                                    edits
-                                        .into_iter()
-                                        .map(|mut edit| {
-                                            edit.uri = self
-                                                .open_uri(&edit.uri)
-                                                .expect("checked rename target")
-                                                .to_string();
-                                            edit
-                                        })
-                                        .collect(),
-                                    |uri| self.docs.get(uri).map(|doc| doc.version),
-                                    self.document_changes,
-                                ),
-                            )
-                        }
-                    }
-                    None => t::response_ok(id, Json::Null),
-                }
-            }
-            "textDocument/foldingRange" => match doc_of(params).and_then(|uri| self.doc_id(&uri)) {
-                Some(doc_id) => {
-                    output::response(id, self.analysis.folding_ranges(&self.db, doc_id))
-                }
-                None => {
-                    t::response_err(Some(id), t::error_code::INVALID_PARAMS, "unknown document")
-                }
-            },
-            "textDocument/selectionRange" => {
-                match doc_of(params).and_then(|uri| self.doc_id(&uri)) {
-                    Some(doc_id) => output::response(
-                        id,
-                        self.analysis.selection_ranges(
-                            &self.db,
-                            doc_id,
-                            &parse_selection_positions(params)
-                                .expect("validated selection positions"),
-                        ),
-                    ),
-                    None => {
-                        t::response_err(Some(id), t::error_code::INVALID_PARAMS, "unknown document")
-                    }
-                }
-            }
-            "textDocument/documentSymbol" | "textDocument/formatting" => {
-                match doc_of(params).and_then(|uri| self.doc_id(&uri)) {
-                    Some(doc_id) if method == "textDocument/documentSymbol" => {
-                        output::response(id, self.analysis.document_symbols(&self.db, doc_id))
-                    }
-                    Some(doc_id) => {
-                        let edits: Vec<_> = self
-                            .analysis
-                            .formatting(&self.db, doc_id)
-                            .into_iter()
-                            .map(|edit| lsp::TextEdit {
-                                range: output::range(edit.range),
-                                new_text: edit.new_text,
-                            })
-                            .collect();
-                        output::response(id, edits)
-                    }
-                    None => {
-                        t::response_err(Some(id), t::error_code::INVALID_PARAMS, "unknown document")
-                    }
-                }
-            }
-            "textDocument/semanticTokens/full" => {
-                match doc_of(params).and_then(|uri| self.doc_id(&uri)) {
-                    Some(doc_id) => output::response(
-                        id,
-                        output::SemanticTokens {
-                            data: self.analysis.semantic_tokens(&self.db, doc_id),
-                        },
-                    ),
-                    None => {
-                        t::response_err(Some(id), t::error_code::INVALID_PARAMS, "unknown document")
-                    }
-                }
-            }
-            "textDocument/codeAction" => {
-                match doc_of(params).and_then(|uri| {
-                    let doc_id = self.doc_id(&uri)?;
-                    let range = params.get("range").and_then(parse_range)?;
-                    Some((uri, doc_id, range))
-                }) {
-                    Some((uri, doc_id, range)) => {
-                        let actions: Vec<_> = self
-                            .analysis
-                            .code_actions(&self.db, doc_id, &uri, range)
-                            .into_iter()
-                            .map(|action| {
-                                output::action(
-                                    action,
-                                    |uri| self.docs.get(uri).map(|doc| doc.version),
-                                    self.document_changes,
-                                )
-                            })
-                            .collect();
-                        output::response(id, actions)
-                    }
-                    None => t::response_err(
-                        Some(id),
-                        t::error_code::INVALID_PARAMS,
-                        "unknown document or bad range",
-                    ),
-                }
-            }
+            "textDocument/definition" => self.respond_definition(id, params),
+            "textDocument/references" => self.respond_references(id, params),
+            "textDocument/rename" => self.respond_rename(id, params),
+            "textDocument/foldingRange"
+            | "textDocument/selectionRange"
+            | "textDocument/documentSymbol"
+            | "textDocument/formatting"
+            | "textDocument/semanticTokens/full"
+            | "textDocument/codeAction" => self.respond_doc_method(id, method, params),
             _ => t::response_err(
                 Some(id),
                 t::error_code::METHOD_NOT_FOUND,
@@ -1602,6 +1654,151 @@ impl<A: LanguageAnalysis> Server<A> {
         );
     }
 
+    fn apply_workspace_folders(&mut self, params: &Json) {
+        let Some(event) = params.get("event") else {
+            return;
+        };
+        for root in folder_paths(event.get("removed")) {
+            self.roots.retain(|candidate| candidate != &root);
+        }
+        for root in folder_paths(event.get("added")) {
+            if !self.roots.contains(&root) {
+                self.roots.push(root);
+            }
+        }
+        self.refresh_workspace();
+    }
+
+    fn apply_did_open(&mut self, params: &Json) -> Option<Vec<String>> {
+        let doc = params.get("textDocument")?;
+        let (Some(uri), Some(version), Some(text)) = (
+            doc.get("uri").and_then(Json::as_str),
+            doc.get("version").and_then(t::integer_value),
+            doc.get("text").and_then(Json::as_str),
+        ) else {
+            return Some(Vec::new());
+        };
+        // No-op open (same text already tracked): reuse the live
+        // SourceId instead of appending a duplicate snapshot.
+        let changed = self.docs.get(uri).is_none_or(|open| open.text != text);
+        let id = match self.docs.get(uri) {
+            Some(open) if open.text == text => open.id,
+            _ => match self.db.try_add(uri_to_path(uri), text.to_string()) {
+                Ok(id) => id,
+                Err(error) => {
+                    return Some(vec![output::notification(
+                        "window/logMessage",
+                        lsp::LogMessageParams {
+                            typ: lsp::MessageType::ERROR,
+                            message: error.to_string(),
+                        },
+                    )]);
+                }
+            },
+        };
+        self.docs.insert(
+            uri.to_string(),
+            OpenDoc {
+                version,
+                text: text.to_string(),
+                id,
+            },
+        );
+        self.pending.push_back((uri.to_string(), version, id));
+        if changed {
+            self.retain_live_sources();
+            self.queue_workspace_diagnostics();
+        }
+        None
+    }
+
+    fn apply_did_change(&mut self, params: &Json) -> Option<Vec<String>> {
+        let (Some(selector), Some(version)) = (
+            params.get("textDocument"),
+            params
+                .get("textDocument")
+                .and_then(|d| d.get("version"))
+                .and_then(t::integer_value),
+        ) else {
+            return Some(Vec::new());
+        };
+        let Some(uri) = selector.get("uri").and_then(Json::as_str) else {
+            return Some(Vec::new());
+        };
+        let Some(open) = self.docs.get(uri) else {
+            return Some(Vec::new());
+        };
+        // Full-text sync only: last change without a `range` wins.
+        // Incremental edits are ignored (documented limitation).
+        let mut full: Option<&str> = None;
+        if let Some(changes) = params.get("contentChanges").and_then(Json::as_arr) {
+            for change in changes {
+                if change.get("range").is_none()
+                    && let Some(text) = change.get("text").and_then(Json::as_str)
+                {
+                    full = Some(text);
+                }
+            }
+        }
+        let Some(full) = full else {
+            return Some(Vec::new());
+        };
+        // No-op change (identical text): reuse the live SourceId so
+        // a keystroke that nets no new text never grows the
+        // append-only SourceDb. Versions still advance and the new
+        // version is still published; only the snapshot is shared.
+        let changed = full != open.text;
+        let id = if !changed {
+            open.id
+        } else {
+            match self.db.try_add(uri_to_path(uri), full.to_string()) {
+                Ok(id) => id,
+                Err(error) => {
+                    return Some(vec![output::notification(
+                        "window/logMessage",
+                        lsp::LogMessageParams {
+                            typ: lsp::MessageType::ERROR,
+                            message: error.to_string(),
+                        },
+                    )]);
+                }
+            }
+        };
+        self.docs.insert(
+            uri.to_string(),
+            OpenDoc {
+                version,
+                text: full.to_string(),
+                id,
+            },
+        );
+        self.pending.push_back((uri.to_string(), version, id));
+        if changed {
+            self.retain_live_sources();
+            self.queue_workspace_diagnostics();
+        }
+        None
+    }
+
+    fn apply_did_close(&mut self, params: &Json) -> Vec<String> {
+        if let Some(uri) = params
+            .get("textDocument")
+            .and_then(|d| d.get("uri"))
+            .and_then(Json::as_str)
+        {
+            self.pending.retain(|(queued_uri, _, _)| queued_uri != uri);
+            if let Some(doc) = self.docs.remove(uri) {
+                if self.roots.is_empty() {
+                    self.retain_live_sources();
+                } else {
+                    self.refresh_workspace();
+                }
+                return vec![publish_diagnostics(uri, doc.version, &doc.text, &[])];
+            }
+        }
+        Vec::new()
+    }
+
     fn handle_notification(&mut self, method: &str, params: Option<&Json>) -> Vec<String> {
         if method != "exit" && self.lifecycle != Lifecycle::Ready {
             return Vec::new();
@@ -1614,17 +1811,7 @@ impl<A: LanguageAnalysis> Server<A> {
         match method {
             "initialized" => {}
             "workspace/didChangeWorkspaceFolders" => {
-                if let Some(event) = params.get("event") {
-                    for root in folder_paths(event.get("removed")) {
-                        self.roots.retain(|candidate| candidate != &root);
-                    }
-                    for root in folder_paths(event.get("added")) {
-                        if !self.roots.contains(&root) {
-                            self.roots.push(root);
-                        }
-                    }
-                    self.refresh_workspace();
-                }
+                self.apply_workspace_folders(params);
             }
             "workspace/didChangeWatchedFiles" => {
                 if params
@@ -1663,130 +1850,17 @@ impl<A: LanguageAnalysis> Server<A> {
                 };
             }
             "textDocument/didOpen" => {
-                let Some(doc) = params.get("textDocument") else {
-                    return Vec::new();
-                };
-                let (Some(uri), Some(version), Some(text)) = (
-                    doc.get("uri").and_then(Json::as_str),
-                    doc.get("version").and_then(t::integer_value),
-                    doc.get("text").and_then(Json::as_str),
-                ) else {
-                    return Vec::new();
-                };
-                // No-op open (same text already tracked): reuse the live
-                // SourceId instead of appending a duplicate snapshot.
-                let changed = self.docs.get(uri).is_none_or(|open| open.text != text);
-                let id = match self.docs.get(uri) {
-                    Some(open) if open.text == text => open.id,
-                    _ => match self.db.try_add(uri_to_path(uri), text.to_string()) {
-                        Ok(id) => id,
-                        Err(error) => {
-                            return vec![output::notification(
-                                "window/logMessage",
-                                lsp::LogMessageParams {
-                                    typ: lsp::MessageType::ERROR,
-                                    message: error.to_string(),
-                                },
-                            )];
-                        }
-                    },
-                };
-                self.docs.insert(
-                    uri.to_string(),
-                    OpenDoc {
-                        version,
-                        text: text.to_string(),
-                        id,
-                    },
-                );
-                self.pending.push_back((uri.to_string(), version, id));
-                if changed {
-                    self.retain_live_sources();
-                    self.queue_workspace_diagnostics();
+                if let Some(out) = self.apply_did_open(params) {
+                    return out;
                 }
             }
             "textDocument/didChange" => {
-                let (Some(selector), Some(version)) = (
-                    params.get("textDocument"),
-                    params
-                        .get("textDocument")
-                        .and_then(|d| d.get("version"))
-                        .and_then(t::integer_value),
-                ) else {
-                    return Vec::new();
-                };
-                let Some(uri) = selector.get("uri").and_then(Json::as_str) else {
-                    return Vec::new();
-                };
-                let Some(open) = self.docs.get(uri) else {
-                    return Vec::new();
-                };
-                // Full-text sync only: last change without a `range` wins.
-                // Incremental edits are ignored (documented limitation).
-                let mut full: Option<&str> = None;
-                if let Some(changes) = params.get("contentChanges").and_then(Json::as_arr) {
-                    for change in changes {
-                        if change.get("range").is_none()
-                            && let Some(text) = change.get("text").and_then(Json::as_str)
-                        {
-                            full = Some(text);
-                        }
-                    }
-                }
-                let Some(full) = full else {
-                    return Vec::new();
-                };
-                // No-op change (identical text): reuse the live SourceId so
-                // a keystroke that nets no new text never grows the
-                // append-only SourceDb. Versions still advance and the new
-                // version is still published; only the snapshot is shared.
-                let changed = full != open.text;
-                let id = if !changed {
-                    open.id
-                } else {
-                    match self.db.try_add(uri_to_path(uri), full.to_string()) {
-                        Ok(id) => id,
-                        Err(error) => {
-                            return vec![output::notification(
-                                "window/logMessage",
-                                lsp::LogMessageParams {
-                                    typ: lsp::MessageType::ERROR,
-                                    message: error.to_string(),
-                                },
-                            )];
-                        }
-                    }
-                };
-                self.docs.insert(
-                    uri.to_string(),
-                    OpenDoc {
-                        version,
-                        text: full.to_string(),
-                        id,
-                    },
-                );
-                self.pending.push_back((uri.to_string(), version, id));
-                if changed {
-                    self.retain_live_sources();
-                    self.queue_workspace_diagnostics();
+                if let Some(out) = self.apply_did_change(params) {
+                    return out;
                 }
             }
             "textDocument/didClose" => {
-                if let Some(uri) = params
-                    .get("textDocument")
-                    .and_then(|d| d.get("uri"))
-                    .and_then(Json::as_str)
-                {
-                    self.pending.retain(|(queued_uri, _, _)| queued_uri != uri);
-                    if let Some(doc) = self.docs.remove(uri) {
-                        if self.roots.is_empty() {
-                            self.retain_live_sources();
-                        } else {
-                            self.refresh_workspace();
-                        }
-                        return vec![publish_diagnostics(uri, doc.version, &doc.text, &[])];
-                    }
-                }
+                return self.apply_did_close(params);
             }
             _ => {}
         }
@@ -1906,24 +1980,8 @@ fn no_params(params: Option<&Json>) -> bool {
         || matches!(params, Some(Json::Obj(fields)) if fields.is_empty())
 }
 
-/// Validate only fields consumed or required by supported methods. Extensions
-/// and ignored optional client schemas remain forward-compatible.
-fn valid_params(method: &str, params: Option<&Json>) -> bool {
-    if matches!(method, "shutdown" | "exit") {
-        return no_params(params);
-    }
-    let Some(params @ Json::Obj(_)) = params else {
-        return false;
-    };
+fn valid_pos_params(method: &str, params: &Json) -> bool {
     match method {
-        "initialize" => {
-            (matches!(params.get("processId"), Some(Json::Null))
-                || params.get("processId").and_then(t::integer_value).is_some())
-                && matches!(params.get("rootUri"), Some(Json::Null | Json::Str(_)))
-                && matches!(params.get("capabilities"), Some(Json::Obj(_)))
-        }
-        "initialized" => true,
-        "$/cancelRequest" => params.get("id").is_some_and(t::valid_id),
         "textDocument/hover" | "textDocument/completion" | "textDocument/definition" => {
             parse_pos_request(params).is_some()
         }
@@ -1940,6 +1998,12 @@ fn valid_params(method: &str, params: Option<&Json>) -> bool {
             parse_pos_request(params).is_some()
                 && params.get("newName").and_then(Json::as_str).is_some()
         }
+        _ => false,
+    }
+}
+
+fn valid_doc_params(method: &str, params: &Json) -> bool {
+    match method {
         "textDocument/semanticTokens/full"
         | "textDocument/didClose"
         | "textDocument/foldingRange"
@@ -1966,6 +2030,12 @@ fn valid_params(method: &str, params: Option<&Json>) -> bool {
                     .and_then(Json::as_arr)
                     .is_some()
         }
+        _ => false,
+    }
+}
+
+fn valid_sync_params(method: &str, params: &Json) -> bool {
+    match method {
         "textDocument/didOpen" => {
             doc_of(params).is_some()
                 && params.get("textDocument").is_some_and(|doc| {
@@ -1997,6 +2067,38 @@ fn valid_params(method: &str, params: Option<&Json>) -> bool {
                         })
                     })
         }
+        _ => false,
+    }
+}
+
+/// Validate only fields consumed or required by supported methods. Extensions
+/// and ignored optional client schemas remain forward-compatible.
+fn valid_params(method: &str, params: Option<&Json>) -> bool {
+    if matches!(method, "shutdown" | "exit") {
+        return no_params(params);
+    }
+    let Some(params @ Json::Obj(_)) = params else {
+        return false;
+    };
+    match method {
+        "initialize" => {
+            (matches!(params.get("processId"), Some(Json::Null))
+                || params.get("processId").and_then(t::integer_value).is_some())
+                && matches!(params.get("rootUri"), Some(Json::Null | Json::Str(_)))
+                && matches!(params.get("capabilities"), Some(Json::Obj(_)))
+        }
+        "initialized" => true,
+        "$/cancelRequest" => params.get("id").is_some_and(t::valid_id),
+        "textDocument/hover" | "textDocument/completion" | "textDocument/definition"
+        | "textDocument/references" | "textDocument/rename" => valid_pos_params(method, params),
+        "textDocument/semanticTokens/full"
+        | "textDocument/didClose"
+        | "textDocument/foldingRange"
+        | "textDocument/documentSymbol"
+        | "textDocument/selectionRange"
+        | "textDocument/formatting"
+        | "textDocument/codeAction" => valid_doc_params(method, params),
+        "textDocument/didOpen" | "textDocument/didChange" => valid_sync_params(method, params),
         _ => true,
     }
 }

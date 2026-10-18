@@ -1147,6 +1147,49 @@ fn enclosing_suite<'a>(block: &'a SyntaxNode, node: &SyntaxNode) -> Option<&'a S
 /// shadowing let's own initializer, the classic `let total = total+1`
 /// accident). Contextual names are `E2012` territory and excluded.
 /// Renaming needs an authored decision, so no fix is offered.
+fn shadow_nearby(
+    match_affected: bool,
+    match_reads: &HashMap<NodeKey, Vec<Span>>,
+    outer: &SyntaxNode,
+    reads: &[Read],
+    name: &str,
+    suite: &SyntaxNode,
+    inner: &SyntaxNode,
+) -> bool {
+    if match_affected {
+        match_reads
+            .get(&NodeKey::of(outer))
+            .is_some_and(|reads| reads.iter().any(|at| at.start > outer.span.end))
+    } else {
+        reads.iter().any(|(word, at)| {
+            word == name
+                && at.start > outer.span.end
+                && (at.start < suite.span.start
+                    || at.start >= suite.span.end
+                    || at.start < inner.span.end)
+        })
+    }
+}
+
+fn shadow_duplicate(
+    block: &SyntaxNode,
+    text: &str,
+    suite: &SyntaxNode,
+    name: &str,
+    top: &[(&str, Span, &SyntaxNode)],
+) -> bool {
+    block
+        .descendants()
+        .filter(|binding| {
+            let_binding(binding, text).is_some_and(|(other, _)| other == name)
+                && std::ptr::eq(enclosing_suite(block, binding).unwrap_or(block), suite)
+        })
+        .count()
+        != 1
+        || other_binding_named(block, text, name)
+        || top.iter().filter(|(top_name, _, _)| *top_name == name).count() != 1
+}
+
 fn rule_shadowing(ctx: &RuleCtx<'_>, tree: &SyntaxNode, out: &mut Vec<Finding>) {
     let rule = &RULES[3];
     debug_assert_eq!(rule.id, "shadowed-binding");
@@ -1200,22 +1243,7 @@ fn rule_shadowing(ctx: &RuleCtx<'_>, tree: &SyntaxNode, out: &mut Vec<Finding>) 
             let match_affected = enclosing_match_arm(block, inner).is_some();
             if match_affected {
                 let suite = enclosing_suite(block, inner).unwrap_or(block);
-                let duplicates = block
-                    .descendants()
-                    .filter(|binding| {
-                        let_binding(binding, ctx.text).is_some_and(|(other, _)| other == name)
-                            && std::ptr::eq(enclosing_suite(block, binding).unwrap_or(block), suite)
-                    })
-                    .count()
-                    != 1;
-                if duplicates
-                    || other_binding_named(block, ctx.text, name)
-                    || top
-                        .iter()
-                        .filter(|(top_name, _, _)| *top_name == name)
-                        .count()
-                        != 1
-                {
+                if shadow_duplicate(block, ctx.text, suite, name, &top) {
                     continue;
                 }
             } else if counts.get(name).copied().unwrap_or(0) != 2 {
@@ -1229,19 +1257,8 @@ fn rule_shadowing(ctx: &RuleCtx<'_>, tree: &SyntaxNode, out: &mut Vec<Finding>) 
             let Some(suite) = enclosing_suite(block, inner) else {
                 continue;
             };
-            let nearby = if match_affected {
-                match_reads
-                    .get(&NodeKey::of(outer))
-                    .is_some_and(|reads| reads.iter().any(|at| at.start > outer.span.end))
-            } else {
-                reads.iter().any(|(word, at)| {
-                    word == name
-                        && at.start > outer.span.end
-                        && (at.start < suite.span.start
-                            || at.start >= suite.span.end
-                            || at.start < inner.span.end)
-                })
-            };
+            let nearby =
+                shadow_nearby(match_affected, &match_reads, outer, &reads, name, suite, inner);
             if nearby {
                 push(
                     out,

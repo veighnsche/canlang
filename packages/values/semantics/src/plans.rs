@@ -295,6 +295,55 @@ fn reject_reserved(where_: &str, name: &str) -> Result<(), PlanError> {
     Ok(())
 }
 
+/// Plans one field/input member: resolves its default reference into the
+/// shared registry and records union dispatch edges. `owner`/`word`
+/// name the member in diagnostics (`field C.f`, `input O.i).
+fn plan_member(
+    sequence: u64,
+    owner: &str,
+    word: &str,
+    path: String,
+    field: &FieldInput,
+    defaults: &mut HashMap<String, Meta>,
+    dispatch: &mut Vec<(String, Vec<String>)>,
+) -> Result<FieldPlan, PlanError> {
+    let key = format!("{sequence}:{path}");
+    let default_ref = if field.has_default {
+        let default = field.default.clone().ok_or_else(|| {
+            PlanError::new(
+                PlanCode::MalformedSchema,
+                format!("{word} {owner}.{} claims a default it lacks", field.name),
+            )
+        })?;
+        defaults.insert(key.clone(), default);
+        Some(DefaultRef { key })
+    } else {
+        None
+    };
+    if let TypeBase::Union { arms } = &field.base {
+        dispatch.push((path, arms.clone()));
+    }
+    Ok(FieldPlan {
+        name: field.name.clone(),
+        type_id: field.type_id.clone(),
+        base: field.base.clone(),
+        array: field.array,
+        nullable: field.nullable,
+        required_array: field.required_array,
+        required: field.required,
+        has_default: field.has_default,
+        default_ref,
+        length_min: field.length_min,
+        length_max: field.length_max,
+        value_min: field.value_min.clone(),
+        value_max: field.value_max.clone(),
+        trim: field.trim,
+        server_only: field.server_only,
+        default_origin: field.default_origin.clone(),
+        refs: type_refs(&field.base),
+    })
+}
+
 impl Plans {
     /// Mints one owner registry bound to copied scope strings and a
     /// registration bound. Synchronous.
@@ -350,6 +399,66 @@ impl Plans {
         })
     }
 
+    /// Registration gates that only read: owner, profile, wrapper/shape,
+    /// provenance, revision, reserved names, default presence, then the
+    /// registration bound. Shape gates run before the bound so malformed
+    /// input never consumes capacity.
+    fn check_registration_gates(
+        &self,
+        owner: &OwnerToken,
+        profile: &str,
+        schema: &SchemaInput,
+        provenance: Option<&Provenance>,
+    ) -> Result<(), PlanError> {
+        let state = self.state(owner)?;
+        if profile.is_empty() {
+            return Err(PlanError::new(
+                PlanCode::InvalidProfile,
+                "profile version must be a non-empty string",
+            ));
+        }
+        let SchemaInput::Normalized {
+            contracts,
+            enums,
+            operations,
+        } = schema
+        else {
+            return Err(PlanError::new(
+                PlanCode::LegacyWrapper,
+                "unknown string wrappers stay outside the plan cache (legacy path)",
+            ));
+        };
+        let Some(record) = provenance else {
+            return Err(PlanError::new(
+                PlanCode::MissingProvenance,
+                "schema lacks factory provenance",
+            ));
+        };
+        if record.factory != "normalizeSchema" {
+            return Err(PlanError::new(
+                PlanCode::MissingProvenance,
+                "schema lacks factory provenance",
+            ));
+        }
+        if record.owner_rev != state.scope.owner_rev {
+            return Err(PlanError::new(
+                PlanCode::StaleScope,
+                "schema provenance revision does not match the owner scope",
+            ));
+        }
+        // Shape gates (reserved names, default presence) run before
+        // the bound so malformed input never consumes capacity.
+        Self::check_schema(contracts, enums, operations)?;
+        let live = state.plans.iter().filter(|p| p.is_some()).count();
+        if live >= state.bound {
+            return Err(PlanError::new(
+                PlanCode::RegistryFull,
+                "owner plan registry is at its bound",
+            ));
+        }
+        Ok(())
+    }
+
     /// Registers an immutable plan. Performs every gate before storing:
     /// owner, profile, wrapper/shape, provenance, revision, reserved
     /// names, default presence, then the registration bound.
@@ -361,54 +470,7 @@ impl Plans {
         provenance: Option<&Provenance>,
     ) -> Result<String, PlanError> {
         // Borrow once for gates that only read; re-borrow mutably to store.
-        {
-            let state = self.state(owner)?;
-            if profile.is_empty() {
-                return Err(PlanError::new(
-                    PlanCode::InvalidProfile,
-                    "profile version must be a non-empty string",
-                ));
-            }
-            let SchemaInput::Normalized {
-                contracts,
-                enums,
-                operations,
-            } = schema
-            else {
-                return Err(PlanError::new(
-                    PlanCode::LegacyWrapper,
-                    "unknown string wrappers stay outside the plan cache (legacy path)",
-                ));
-            };
-            let Some(record) = provenance else {
-                return Err(PlanError::new(
-                    PlanCode::MissingProvenance,
-                    "schema lacks factory provenance",
-                ));
-            };
-            if record.factory != "normalizeSchema" {
-                return Err(PlanError::new(
-                    PlanCode::MissingProvenance,
-                    "schema lacks factory provenance",
-                ));
-            }
-            if record.owner_rev != state.scope.owner_rev {
-                return Err(PlanError::new(
-                    PlanCode::StaleScope,
-                    "schema provenance revision does not match the owner scope",
-                ));
-            }
-            // Shape gates (reserved names, default presence) run before
-            // the bound so malformed input never consumes capacity.
-            Self::check_schema(contracts, enums, operations)?;
-            let live = state.plans.iter().filter(|p| p.is_some()).count();
-            if live >= state.bound {
-                return Err(PlanError::new(
-                    PlanCode::RegistryFull,
-                    "owner plan registry is at its bound",
-                ));
-            }
-        }
+        self.check_registration_gates(owner, profile, schema, provenance)?;
         let state = self.state_mut(owner)?;
         let sequence = state.next_sequence;
         state.next_sequence += 1;
@@ -438,44 +500,15 @@ impl Plans {
             let mut required = Vec::new();
             for field in &contract.fields {
                 let path = format!("contracts.{}.fields.{}", contract.name, field.name);
-                let key = format!("{sequence}:{path}");
-                let default_ref = if field.has_default {
-                    let default = field.default.clone().ok_or_else(|| {
-                        PlanError::new(
-                            PlanCode::MalformedSchema,
-                            format!(
-                                "field {}.{} claims a default it lacks",
-                                contract.name, field.name
-                            ),
-                        )
-                    })?;
-                    state.defaults.insert(key.clone(), default);
-                    Some(DefaultRef { key })
-                } else {
-                    None
-                };
-                if let TypeBase::Union { arms } = &field.base {
-                    dispatch.push((path.clone(), arms.clone()));
-                }
-                fields.push(FieldPlan {
-                    name: field.name.clone(),
-                    type_id: field.type_id.clone(),
-                    base: field.base.clone(),
-                    array: field.array,
-                    nullable: field.nullable,
-                    required_array: field.required_array,
-                    required: field.required,
-                    has_default: field.has_default,
-                    default_ref,
-                    length_min: field.length_min,
-                    length_max: field.length_max,
-                    value_min: field.value_min.clone(),
-                    value_max: field.value_max.clone(),
-                    trim: field.trim,
-                    server_only: field.server_only,
-                    default_origin: field.default_origin.clone(),
-                    refs: type_refs(&field.base),
-                });
+                fields.push(plan_member(
+                    sequence,
+                    &contract.name,
+                    "field",
+                    path,
+                    field,
+                    &mut state.defaults,
+                    &mut dispatch,
+                )?);
                 allowed.push(field.name.clone());
                 if field.required {
                     required.push(field.name.clone());
@@ -506,44 +539,15 @@ impl Plans {
             let mut required = Vec::new();
             for field in &operation.inputs {
                 let path = format!("operations.{}.inputs.{}", operation.name, field.name);
-                let key = format!("{sequence}:{path}");
-                let default_ref = if field.has_default {
-                    let default = field.default.clone().ok_or_else(|| {
-                        PlanError::new(
-                            PlanCode::MalformedSchema,
-                            format!(
-                                "input {}.{} claims a default it lacks",
-                                operation.name, field.name
-                            ),
-                        )
-                    })?;
-                    state.defaults.insert(key.clone(), default);
-                    Some(DefaultRef { key })
-                } else {
-                    None
-                };
-                if let TypeBase::Union { arms } = &field.base {
-                    dispatch.push((path.clone(), arms.clone()));
-                }
-                inputs.push(FieldPlan {
-                    name: field.name.clone(),
-                    type_id: field.type_id.clone(),
-                    base: field.base.clone(),
-                    array: field.array,
-                    nullable: field.nullable,
-                    required_array: field.required_array,
-                    required: field.required,
-                    has_default: field.has_default,
-                    default_ref,
-                    length_min: field.length_min,
-                    length_max: field.length_max,
-                    value_min: field.value_min.clone(),
-                    value_max: field.value_max.clone(),
-                    trim: field.trim,
-                    server_only: field.server_only,
-                    default_origin: field.default_origin.clone(),
-                    refs: type_refs(&field.base),
-                });
+                inputs.push(plan_member(
+                    sequence,
+                    &operation.name,
+                    "input",
+                    path,
+                    field,
+                    &mut state.defaults,
+                    &mut dispatch,
+                )?);
                 allowed.push(field.name.clone());
                 if field.required {
                     required.push(field.name.clone());

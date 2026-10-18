@@ -516,6 +516,29 @@ pub fn read_fanout_checkpoint_row(
     })
 }
 
+/// Reads a fanout child `causeKind`: null stays uncaused, the three
+/// terminal names parse, anything else (including missing) fails.
+fn check_fanout_cause_kind(data: &[(U16, Value)]) -> Result<Option<U16>, LinkageError> {
+    match get(data, "causeKind") {
+        None => {
+            let shown = "undefined";
+            Err(state_error(format!(
+                "work.fanout_child.causeKind is unknown: {shown}."
+            )))
+        }
+        Some(Value::Null) => Ok(None),
+        Some(Value::Str(s))
+            if s.eq_ascii("completed") || s.eq_ascii("skipped") || s.eq_ascii("failed") =>
+        {
+            Ok(Some(s.clone()))
+        }
+        Some(other) => Err(state_error(format!(
+            "work.fanout_child.causeKind is unknown: {}.",
+            js_stringify(other)
+        ))),
+    }
+}
+
 pub fn read_fanout_child_row(row: &StoredRow) -> Result<FanoutChildRowData, LinkageError> {
     let data = check_record(&row.data, "work.fanout_child data")?;
     let state = check_string(data, "state", "work.fanout_child")?;
@@ -525,26 +548,7 @@ pub fn read_fanout_child_row(row: &StoredRow) -> Result<FanoutChildRowData, Link
             js_stringify(&Value::Str(state))
         )));
     }
-    let cause_kind = match get(data, "causeKind") {
-        None => {
-            let shown = "undefined";
-            return Err(state_error(format!(
-                "work.fanout_child.causeKind is unknown: {shown}."
-            )));
-        }
-        Some(Value::Null) => None,
-        Some(Value::Str(s))
-            if s.eq_ascii("completed") || s.eq_ascii("skipped") || s.eq_ascii("failed") =>
-        {
-            Some(s.clone())
-        }
-        Some(other) => {
-            return Err(state_error(format!(
-                "work.fanout_child.causeKind is unknown: {}.",
-                js_stringify(other)
-            )));
-        }
-    };
+    let cause_kind = check_fanout_cause_kind(data)?;
     let cause_reason = check_nullable_string(data, "causeReason", "work.fanout_child")?;
     check_child_cause(&state, &cause_kind, &cause_reason)?;
     let fanout_id = check_string(data, "fanoutId", "work.fanout_child")?;
@@ -998,109 +1002,160 @@ pub struct FanoutChildJoinOutcome {
 }
 
 /**
+ * Accumulated fanout halves for one commit batch under join assertion.
+ */
+struct FanoutJoinScan {
+    child_ids: HashSet<U16>,
+    checkpoint_ids: HashSet<U16>,
+    terminal_outcomes: Vec<FanoutChildJoinOutcome>,
+    checkpoint_covers: HashMap<U16, HashSet<U16>>,
+}
+
+/// Checks one `work.fanout_intent` write: the frozen set is insert-only.
+fn check_fanout_intent_write(write: &DomainWrite) -> Result<(), LinkageError> {
+    if write.kind != WriteKind::Insert {
+        return Err(fail_validation(
+            "Fanout child join: work.fanout_intent rows are insert-only \
+             (the frozen set is never redefined)."
+                .to_string(),
+        ));
+    }
+    read_fanout_intent_row(&write.row)?;
+    Ok(())
+}
+
+/**
  * Assert the fanout child-unit linkage for one commit batch BEFORE it
  * touches the store (fail closed, `StateError` validation). The child
  * unit commits in ONE owner transaction; this assertion pins the
  * fanout halves together. Batches with no fanout writes pass trivially.
  */
 pub fn assert_fanout_child_join(batch: &CommitBatch) -> Result<(), LinkageError> {
-    let mut child_ids: HashSet<U16> = HashSet::new();
-    let mut checkpoint_ids: HashSet<U16> = HashSet::new();
-    let mut terminal_outcomes: Vec<FanoutChildJoinOutcome> = Vec::new();
-    let mut checkpoint_covers: HashMap<U16, HashSet<U16>> = HashMap::new();
+    let mut scan = FanoutJoinScan {
+        child_ids: HashSet::new(),
+        checkpoint_ids: HashSet::new(),
+        terminal_outcomes: Vec::new(),
+        checkpoint_covers: HashMap::new(),
+    };
     for write in batch.writes.iter() {
         if write.model.eq_ascii(FANOUT_INTENT_MODEL) {
-            if write.kind != WriteKind::Insert {
-                return Err(fail_validation(
-                    "Fanout child join: work.fanout_intent rows are insert-only \
-                     (the frozen set is never redefined)."
-                        .to_string(),
-                ));
-            }
-            read_fanout_intent_row(&write.row)?;
+            check_fanout_intent_write(write)?;
             continue;
         }
         if write.model.eq_ascii(FANOUT_CHILD_MODEL) {
-            if write.kind == WriteKind::Remove {
+            scan.check_child_write(write)?;
+            continue;
+        }
+        if write.model.eq_ascii(FANOUT_CHECKPOINT_MODEL) {
+            scan.check_checkpoint_write(write)?;
+            continue;
+        }
+    }
+    check_join_outcomes(&scan.terminal_outcomes, &scan.checkpoint_covers)?;
+    if !scan.checkpoint_covers.is_empty() && scan.terminal_outcomes.is_empty() {
+        return Err(fail_validation(
+            "Fanout child join: checkpoint updates carry no terminal outcome in this batch \
+             (cursor-only maintenance uses the plain store port)."
+                .to_string(),
+        ));
+    }
+    Ok(())
+}
+
+impl FanoutJoinScan {
+    /// Checks one `work.fanout_child` write: never removed, inserts
+    /// stage pending with zero attempts, terminal updates join outcomes.
+    fn check_child_write(&mut self, write: &DomainWrite) -> Result<(), LinkageError> {
+        if write.kind == WriteKind::Remove {
+            return Err(fail_validation(
+                "Fanout child join: work.fanout_child rows are never removed \
+                 (terminal records stand)."
+                    .to_string(),
+            ));
+        }
+        if write.kind == WriteKind::Insert {
+            let data = read_fanout_child_row(&write.row)?;
+            if !data.state.eq_ascii("pending") || data.attempts != 0.0 {
                 return Err(fail_validation(
-                    "Fanout child join: work.fanout_child rows are never removed \
-                     (terminal records stand)."
+                    "Fanout child join: work.fanout_child inserts stage pending with zero \
+                     attempts (no fabricated claims or outcomes)."
                         .to_string(),
                 ));
             }
-            if write.kind == WriteKind::Insert {
-                let data = read_fanout_child_row(&write.row)?;
-                if !data.state.eq_ascii("pending") || data.attempts != 0.0 {
-                    return Err(fail_validation(
-                        "Fanout child join: work.fanout_child inserts stage pending with zero \
-                         attempts (no fabricated claims or outcomes)."
-                            .to_string(),
-                    ));
-                }
-                if !child_ids.insert(data.child_id.clone()) {
-                    return Err(fail_validation(format!(
-                        "Fanout child join: duplicate work.fanout_child row {}.",
-                        js_stringify(&Value::Str(data.child_id.clone()))
-                    )));
-                }
-                continue;
-            }
-            let data = read_fanout_child_row(&write.row)?;
-            if !child_ids.insert(data.child_id.clone()) {
+            if !self.child_ids.insert(data.child_id.clone()) {
                 return Err(fail_validation(format!(
                     "Fanout child join: duplicate work.fanout_child row {}.",
                     js_stringify(&Value::Str(data.child_id.clone()))
                 )));
             }
-            if data.state.eq_ascii("completed")
-                || data.state.eq_ascii("skipped")
-                || data.state.eq_ascii("failed")
-            {
-                terminal_outcomes.push(FanoutChildJoinOutcome {
-                    fanout_id: data.fanout_id.clone(),
-                    record_id: data.record_id.clone(),
-                });
-            }
-            continue;
+            return Ok(());
         }
-        if write.model.eq_ascii(FANOUT_CHECKPOINT_MODEL) {
-            if write.kind == WriteKind::Remove {
+        let data = read_fanout_child_row(&write.row)?;
+        if !self.child_ids.insert(data.child_id.clone()) {
+            return Err(fail_validation(format!(
+                "Fanout child join: duplicate work.fanout_child row {}.",
+                js_stringify(&Value::Str(data.child_id.clone()))
+            )));
+        }
+        if data.state.eq_ascii("completed")
+            || data.state.eq_ascii("skipped")
+            || data.state.eq_ascii("failed")
+        {
+            self.terminal_outcomes.push(FanoutChildJoinOutcome {
+                fanout_id: data.fanout_id.clone(),
+                record_id: data.record_id.clone(),
+            });
+        }
+        Ok(())
+    }
+
+    /// Checks one `work.fanout_checkpoint` write: never removed,
+    /// inserts carry an empty completed set, updates stage covers.
+    fn check_checkpoint_write(&mut self, write: &DomainWrite) -> Result<(), LinkageError> {
+        if write.kind == WriteKind::Remove {
+            return Err(fail_validation(
+                "Fanout child join: work.fanout_checkpoint rows are never removed.".to_string(),
+            ));
+        }
+        if write.kind == WriteKind::Insert {
+            let data = read_fanout_checkpoint_row(&write.row)?;
+            if !data.completed.is_empty() {
                 return Err(fail_validation(
-                    "Fanout child join: work.fanout_checkpoint rows are never removed.".to_string(),
+                    "Fanout child join: work.fanout_checkpoint inserts carry an empty \
+                     completed set (no fabricated completion)."
+                        .to_string(),
                 ));
             }
-            if write.kind == WriteKind::Insert {
-                let data = read_fanout_checkpoint_row(&write.row)?;
-                if !data.completed.is_empty() {
-                    return Err(fail_validation(
-                        "Fanout child join: work.fanout_checkpoint inserts carry an empty \
-                         completed set (no fabricated completion)."
-                            .to_string(),
-                    ));
-                }
-                if !checkpoint_ids.insert(data.fanout_id.clone()) {
-                    return Err(fail_validation(format!(
-                        "Fanout child join: duplicate work.fanout_checkpoint row {}.",
-                        js_stringify(&Value::Str(data.fanout_id.clone()))
-                    )));
-                }
-                continue;
-            }
-            let data = read_fanout_checkpoint_row(&write.row)?;
-            if !checkpoint_ids.insert(data.fanout_id.clone()) {
+            if !self.checkpoint_ids.insert(data.fanout_id.clone()) {
                 return Err(fail_validation(format!(
                     "Fanout child join: duplicate work.fanout_checkpoint row {}.",
                     js_stringify(&Value::Str(data.fanout_id.clone()))
                 )));
             }
-            let mut cover: HashSet<U16> = HashSet::new();
-            for record in data.completed.iter() {
-                cover.insert(record.clone());
-            }
-            checkpoint_covers.insert(data.fanout_id.clone(), cover);
-            continue;
+            return Ok(());
         }
+        let data = read_fanout_checkpoint_row(&write.row)?;
+        if !self.checkpoint_ids.insert(data.fanout_id.clone()) {
+            return Err(fail_validation(format!(
+                "Fanout child join: duplicate work.fanout_checkpoint row {}.",
+                js_stringify(&Value::Str(data.fanout_id.clone()))
+            )));
+        }
+        let mut cover: HashSet<U16> = HashSet::new();
+        for record in data.completed.iter() {
+            cover.insert(record.clone());
+        }
+        self.checkpoint_covers.insert(data.fanout_id.clone(), cover);
+        Ok(())
     }
+}
+
+/// Checks every terminal outcome has same-fanout checkpoint cover in
+/// this batch.
+fn check_join_outcomes(
+    terminal_outcomes: &[FanoutChildJoinOutcome],
+    checkpoint_covers: &HashMap<U16, HashSet<U16>>,
+) -> Result<(), LinkageError> {
     for outcome in terminal_outcomes.iter() {
         let covered = checkpoint_covers
             .get(&outcome.fanout_id)
@@ -1113,13 +1168,6 @@ pub fn assert_fanout_child_join(batch: &CommitBatch) -> Result<(), LinkageError>
                 js_stringify(&Value::Str(outcome.record_id.clone()))
             )));
         }
-    }
-    if !checkpoint_covers.is_empty() && terminal_outcomes.is_empty() {
-        return Err(fail_validation(
-            "Fanout child join: checkpoint updates carry no terminal outcome in this batch \
-             (cursor-only maintenance uses the plain store port)."
-                .to_string(),
-        ));
     }
     Ok(())
 }

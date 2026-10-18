@@ -138,111 +138,123 @@ pub struct InputArena {
     root: usize,
 }
 
+/// Pass 1 (validate): iterative pre-order walk. Every count is checked
+/// before ANY node is materialized, and the node count is enforced
+/// DURING the walk (D2: reject before traversal completes, never after
+/// a full unbounded walk). Returns the visit order for capacity use.
+fn validate_preorder<'f>(
+    frame: &'f Frame,
+    budgets: &Budgets,
+) -> Result<Vec<(&'f Frame, usize)>, TransportError> {
+    let mut preorder: Vec<(&Frame, usize)> = vec![(frame, 0)];
+    let mut order: Vec<(&Frame, usize)> = Vec::new();
+    while let Some((current, depth)) = preorder.pop() {
+        if depth > budgets.max_depth {
+            // E-D1 ruling: KEEP-V1 length/bound-exceeded+depth.
+            return Err(TransportError::length("length/bound-exceeded", "depth"));
+        }
+        order.push((current, depth));
+        if order.len() > budgets.max_nodes {
+            // E-D1 ruling: KEEP-V1 length/oversized+nodes.
+            return Err(TransportError::length("length/oversized", "nodes"));
+        }
+        match current {
+            Frame::Array(items) => {
+                for child in items.iter().rev() {
+                    preorder.push((child, depth + 1));
+                }
+            }
+            Frame::Entries(entries) => {
+                if entries.len() > budgets.max_entries {
+                    return Err(TransportError::length("length/entries", "entries"));
+                }
+                for (key, child) in entries.iter().rev() {
+                    // N1: keys are text units too — the text budget
+                    // covers entry keys, not just text values.
+                    if key.len() > budgets.max_text_units {
+                        return Err(TransportError::length("length/text", "text-units"));
+                    }
+                    preorder.push((child, depth + 1));
+                }
+            }
+            Frame::TextUnits(units) if units.len() > budgets.max_text_units => {
+                return Err(TransportError::length("length/text", "text-units"));
+            }
+            Frame::F64Bits(bits) if f64::from_bits(*bits).is_nan() => {
+                return Err(TransportError::corrupt("corrupt/nan-bits"));
+            }
+            _ => {}
+        }
+    }
+    Ok(order)
+}
+
+/// Pass 2 (materialize): post-order via an explicit visited-flag stack;
+/// finished child indices accumulate on `values`.
+fn materialize_postorder(frame: &Frame, node_capacity: usize) -> InputArena {
+    let mut nodes: Vec<TransportNode> = Vec::with_capacity(node_capacity);
+    let mut values: Vec<usize> = Vec::new();
+    let mut work: Vec<(&Frame, bool)> = vec![(frame, false)];
+    while let Some((current, visited)) = work.pop() {
+        if !visited {
+            work.push((current, true));
+            match current {
+                Frame::Array(items) => {
+                    for child in items.iter().rev() {
+                        work.push((child, false));
+                    }
+                }
+                Frame::Entries(entries) => {
+                    for (_key, child) in entries.iter().rev() {
+                        work.push((child, false));
+                    }
+                }
+                _ => {}
+            }
+            continue;
+        }
+        let node = match current {
+            Frame::F64Bits(bits) => TransportNode::F64 { bits: *bits },
+            Frame::TextUnits(units) => TransportNode::Text {
+                units: units.clone(),
+            },
+            Frame::Bool(flag) => TransportNode::Bool(*flag),
+            Frame::OwnNull => TransportNode::OwnNull,
+            Frame::Missing => TransportNode::Missing,
+            Frame::Array(items) => {
+                let start = values.len() - items.len();
+                let items: Vec<usize> = values.drain(start..).collect();
+                TransportNode::Array { items }
+            }
+            Frame::Entries(entries) => {
+                let start = values.len() - entries.len();
+                let children: Vec<usize> = values.drain(start..).collect();
+                let entries: Vec<Entry> = entries
+                    .iter()
+                    .zip(children)
+                    .map(|((key, _), node)| Entry {
+                        key: key.clone(),
+                        node,
+                    })
+                    .collect();
+                TransportNode::Entries { entries }
+            }
+        };
+        nodes.push(node);
+        values.push(nodes.len() - 1);
+    }
+    debug_assert_eq!(values.len(), 1);
+    let root = values.pop().unwrap_or(0);
+    InputArena { nodes, root }
+}
+
 impl InputArena {
     /// Builds the arena from a host frame, checking node/depth/text/
     /// entries counts iteratively. On breach returns the transport
     /// error WITHOUT a partial arena (never coerce-then-check).
     pub fn build(frame: &Frame, budgets: &Budgets) -> Result<Self, TransportError> {
-        // Pass 1 (validate): iterative pre-order walk. Every count is
-        // checked before ANY node is materialized, and the node count
-        // is enforced DURING the walk (D2: reject before traversal
-        // completes, never after a full unbounded walk).
-        let mut preorder: Vec<(&Frame, usize)> = vec![(frame, 0)];
-        let mut order: Vec<(&Frame, usize)> = Vec::new();
-        while let Some((current, depth)) = preorder.pop() {
-            if depth > budgets.max_depth {
-                // E-D1 ruling: KEEP-V1 length/bound-exceeded+depth.
-                return Err(TransportError::length("length/bound-exceeded", "depth"));
-            }
-            order.push((current, depth));
-            if order.len() > budgets.max_nodes {
-                // E-D1 ruling: KEEP-V1 length/oversized+nodes.
-                return Err(TransportError::length("length/oversized", "nodes"));
-            }
-            match current {
-                Frame::Array(items) => {
-                    for child in items.iter().rev() {
-                        preorder.push((child, depth + 1));
-                    }
-                }
-                Frame::Entries(entries) => {
-                    if entries.len() > budgets.max_entries {
-                        return Err(TransportError::length("length/entries", "entries"));
-                    }
-                    for (key, child) in entries.iter().rev() {
-                        // N1: keys are text units too — the text budget
-                        // covers entry keys, not just text values.
-                        if key.len() > budgets.max_text_units {
-                            return Err(TransportError::length("length/text", "text-units"));
-                        }
-                        preorder.push((child, depth + 1));
-                    }
-                }
-                Frame::TextUnits(units) if units.len() > budgets.max_text_units => {
-                    return Err(TransportError::length("length/text", "text-units"));
-                }
-                Frame::F64Bits(bits) if f64::from_bits(*bits).is_nan() => {
-                    return Err(TransportError::corrupt("corrupt/nan-bits"));
-                }
-                _ => {}
-            }
-        }
-        // Pass 2 (materialize): post-order via an explicit visited-flag
-        // stack; finished child indices accumulate on `values`.
-        let mut nodes: Vec<TransportNode> = Vec::with_capacity(order.len());
-        let mut values: Vec<usize> = Vec::new();
-        let mut work: Vec<(&Frame, bool)> = vec![(frame, false)];
-        while let Some((current, visited)) = work.pop() {
-            if !visited {
-                work.push((current, true));
-                match current {
-                    Frame::Array(items) => {
-                        for child in items.iter().rev() {
-                            work.push((child, false));
-                        }
-                    }
-                    Frame::Entries(entries) => {
-                        for (_key, child) in entries.iter().rev() {
-                            work.push((child, false));
-                        }
-                    }
-                    _ => {}
-                }
-                continue;
-            }
-            let node = match current {
-                Frame::F64Bits(bits) => TransportNode::F64 { bits: *bits },
-                Frame::TextUnits(units) => TransportNode::Text {
-                    units: units.clone(),
-                },
-                Frame::Bool(flag) => TransportNode::Bool(*flag),
-                Frame::OwnNull => TransportNode::OwnNull,
-                Frame::Missing => TransportNode::Missing,
-                Frame::Array(items) => {
-                    let start = values.len() - items.len();
-                    let items: Vec<usize> = values.drain(start..).collect();
-                    TransportNode::Array { items }
-                }
-                Frame::Entries(entries) => {
-                    let start = values.len() - entries.len();
-                    let children: Vec<usize> = values.drain(start..).collect();
-                    let entries: Vec<Entry> = entries
-                        .iter()
-                        .zip(children)
-                        .map(|((key, _), node)| Entry {
-                            key: key.clone(),
-                            node,
-                        })
-                        .collect();
-                    TransportNode::Entries { entries }
-                }
-            };
-            nodes.push(node);
-            values.push(nodes.len() - 1);
-        }
-        debug_assert_eq!(values.len(), 1);
-        let root = values.pop().unwrap_or(0);
-        Ok(InputArena { nodes, root })
+        let order = validate_preorder(frame, budgets)?;
+        Ok(materialize_postorder(frame, order.len()))
     }
 
     /// Root node index.

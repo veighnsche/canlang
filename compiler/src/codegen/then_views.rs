@@ -254,27 +254,261 @@ fn collect_models(tree: &SyntaxNode, text: &str) -> HashSet<String> {
 /// canonical cards, controls, presentation leaves and direct gates, plus one
 /// root style suffix; this step checks the row target and exposes the renderer
 /// contract. Card descendants keep their ordinary checked UI profiles.
-pub fn lower_then_views(tree: &SyntaxNode, text: &str) -> ThenLowering {
+fn lower_composed_modules(tree: &SyntaxNode, text: &str) -> Option<ThenLowering> {
     // A composed file has independent app/package namespaces. Row targets
     // and view anchors belong to the declaration that contains each view.
-    if !matches!(tree.kind, SyntaxKind::App | SyntaxKind::Package) {
-        let modules: Vec<_> = tree
-            .children
-            .iter()
-            .filter(|node| matches!(node.kind, SyntaxKind::App | SyntaxKind::Package))
-            .collect();
-        if !modules.is_empty() {
-            let mut out = ThenLowering {
-                views: Vec::new(),
-                diagnostics: Vec::new(),
-            };
-            for module in modules {
-                let scoped = lower_then_views(module, text);
-                out.views.extend(scoped.views);
-                out.diagnostics.extend(scoped.diagnostics);
-            }
-            return out;
+    if matches!(tree.kind, SyntaxKind::App | SyntaxKind::Package) {
+        return None;
+    }
+    let modules: Vec<_> = tree
+        .children
+        .iter()
+        .filter(|node| matches!(node.kind, SyntaxKind::App | SyntaxKind::Package))
+        .collect();
+    if modules.is_empty() {
+        return None;
+    }
+    let mut out = ThenLowering {
+        views: Vec::new(),
+        diagnostics: Vec::new(),
+    };
+    for module in modules {
+        let scoped = lower_then_views(module, text);
+        out.views.extend(scoped.views);
+        out.diagnostics.extend(scoped.diagnostics);
+    }
+    Some(out)
+}
+
+// Row model from the single `row:Model` parameter.
+fn view_row_model(node: &SyntaxNode, text: &str) -> String {
+    let mut row_model = String::new();
+    for child in significant(node) {
+        if child.kind != SyntaxKind::Parameter {
+            continue;
         }
+        let parts: Vec<String> = child
+            .descendants()
+            .filter(|n| n.kind == SyntaxKind::Name)
+            .filter_map(|n| n.token().map(|t| t.text(text).to_string()))
+            .collect();
+        if let Some(model) = parts.into_iter().nth(1) {
+            row_model = model;
+        }
+    }
+    row_model
+}
+
+fn control_binding_name(child: &SyntaxNode, text: &str) -> Option<String> {
+    match child.kind {
+        SyntaxKind::Card => Some("card".to_string()),
+        SyntaxKind::Edit => Some("edit".to_string()),
+        SyntaxKind::Form => Some(
+            names(child, text)
+                .into_iter()
+                .next()
+                .unwrap_or_else(|| "form".into()),
+        ),
+        SyntaxKind::UiLeaf => names(child, text)
+            .into_iter()
+            .next()
+            .filter(|name| name != "require"),
+        SyntaxKind::CatalogItem => names(child, text)
+            .into_iter()
+            .next()
+            .filter(|name| name == "button"),
+        _ => None,
+    }
+}
+
+fn lower_uileaf_control(
+    child: &SyntaxNode,
+    text: &str,
+    name: &str,
+    controls: &mut Vec<ThenControl>,
+    leaves: &mut Vec<String>,
+    gates: &mut Vec<String>,
+    diagnostics: &mut Vec<Diagnostic>,
+) {
+    let word = names(child, text).into_iter().next().unwrap_or_default();
+    match word.as_str() {
+        "primary" | "secondary" => diagnostics.push(Diagnostic::error("E2001", "a generated view must declare an owning card or supported action owner around priorities".into(), child.span)),
+        "delete" => controls.push(ThenControl::Delete),
+        "action" => {
+            let operation = significant(child)
+                .iter()
+                .find(|c| c.kind != SyntaxKind::Name)
+                .map(|c| operation_text(c, text))
+                .unwrap_or_default();
+            controls.push(ThenControl::Action { operation });
+        }
+        "actions" => {
+            let operations = significant(child)
+                .iter()
+                .filter(|c| c.kind != SyntaxKind::Name)
+                .map(|c| operation_text(c, text))
+                .collect();
+            controls.push(ThenControl::Actions { operations });
+        }
+        "require" => {
+            let predicate = significant(child)
+                .iter()
+                .find(|c| c.kind != SyntaxKind::Name)
+                .map(|c| flat(c, text))
+                .unwrap_or_default();
+            gates.push(predicate);
+        }
+        "history" | "text" | "content" => leaves.push(word),
+        other => diagnostics.push(Diagnostic::error(
+            "E2001",
+            format!(
+                "view `{name}` admits no `{other}` child in a prompted renderer"
+            ),
+            child.span,
+        )),
+    }
+}
+
+fn lower_child_control(
+    child: &SyntaxNode,
+    text: &str,
+    name: &str,
+    controls: &mut Vec<ThenControl>,
+    leaves: &mut Vec<String>,
+    gates: &mut Vec<String>,
+    root_style: &mut Option<ThenRootStyle>,
+    diagnostics: &mut Vec<Diagnostic>,
+) {
+    match child.kind {
+        SyntaxKind::Card => {
+            leaves.push("card".into());
+            collect_card_controls(child, text, controls);
+        }
+        SyntaxKind::Edit => {
+            let fields = attribute_value(child, text, "fields")
+                .map(|v| selector_fields(v, text))
+                .unwrap_or_default();
+            controls.push(ThenControl::Edit { fields });
+        }
+        SyntaxKind::CatalogItem
+            if names(child, text).first().map(String::as_str) == Some("button") =>
+        {
+            collect_button_control(child, text, controls);
+        }
+        SyntaxKind::Form => {
+            let priority = names(child, text).into_iter().next().unwrap_or_default();
+            if matches!(priority.as_str(), "primary" | "secondary") {
+                diagnostics.push(Diagnostic::error("E2001", "a generated view must declare an owning card or supported action owner around priorities".into(), child.span));
+            }
+            let operation = attribute_value(child, text, "action")
+                .or_else(|| {
+                    significant(child)
+                        .iter()
+                        .find(|c| {
+                            !matches!(c.kind, SyntaxKind::Name | SyntaxKind::Attribute)
+                        })
+                        .copied()
+                })
+                .map(|c| operation_text(c, text))
+                .unwrap_or_default();
+            let fields = attribute_value(child, text, "fields")
+                .map(|v| selector_fields(v, text))
+                .unwrap_or_default();
+            controls.push(ThenControl::Form { operation, fields });
+        }
+        SyntaxKind::UiLeaf => {
+            lower_uileaf_control(child, text, name, controls, leaves, gates, diagnostics);
+        }
+        SyntaxKind::ViewStyle => {
+            let style_names = names(child, text);
+            if let Some(inline) = prompt_text(child) {
+                *root_style = Some(ThenRootStyle {
+                    named: None,
+                    inline_prompt: Some(inline),
+                });
+            } else if let Some(style) = style_names.into_iter().next() {
+                *root_style = Some(ThenRootStyle {
+                    named: Some(style),
+                    inline_prompt: None,
+                });
+            }
+        }
+        SyntaxKind::Name
+        | SyntaxKind::Parameter
+        | SyntaxKind::GenPrompt
+        | SyntaxKind::Attribute
+        | SyntaxKind::Error => {}
+        _ => {
+            diagnostics.push(Diagnostic::error(
+                "E2001",
+                format!(
+                    "view `{name}` admits only canonical cards, controls, history/text/content leaves, require gates and one root style suffix"
+                ),
+                child.span,
+            ));
+        }
+    }
+}
+
+fn lower_view_node(
+    node: &SyntaxNode,
+    text: &str,
+    models: &HashSet<String>,
+    owner: &str,
+    views: &mut Vec<ThenView>,
+    diagnostics: &mut Vec<Diagnostic>,
+) {
+    let ns = names(node, text);
+    let name = ns.get(1).cloned().unwrap_or_default();
+    let prompt = prompt_text(node).unwrap_or_default();
+    let profile = profile_text(node, text);
+    let row_model = view_row_model(node, text);
+    if !models.contains(&row_model) {
+        diagnostics.push(Diagnostic::error(
+            "E2001",
+            format!("view `{name}` binds unknown model `{row_model}` as its row"),
+            node.span,
+        ));
+        return;
+    }
+    let mut controls = Vec::new();
+    let mut binding_names = Vec::new();
+    let mut gates = Vec::new();
+    let mut leaves = Vec::new();
+    let mut root_style: Option<ThenRootStyle> = None;
+    for child in significant(node) {
+        if let Some(binding) = control_binding_name(child, text) {
+            binding_names.push((child.span, binding));
+        }
+        lower_child_control(
+            child,
+            text,
+            &name,
+            &mut controls,
+            &mut leaves,
+            &mut gates,
+            &mut root_style,
+            diagnostics,
+        );
+    }
+    views.push(ThenView {
+        anchor: format!("{owner}:view:{name}:{row_model}"),
+        name,
+        row_model,
+        prompt,
+        profile,
+        controls,
+        binding_names,
+        gates,
+        leaves,
+        root_style,
+        span: node.span,
+    });
+}
+
+pub fn lower_then_views(tree: &SyntaxNode, text: &str) -> ThenLowering {
+    if let Some(out) = lower_composed_modules(tree, text) {
+        return out;
     }
     let mut views = Vec::new();
     let mut diagnostics = Vec::new();
@@ -284,180 +518,7 @@ pub fn lower_then_views(tree: &SyntaxNode, text: &str) -> ThenLowering {
         if node.kind != SyntaxKind::View || !has_prompt(node) {
             continue;
         }
-        let ns = names(node, text);
-        let name = ns.get(1).cloned().unwrap_or_default();
-        let prompt = prompt_text(node).unwrap_or_default();
-        let profile = profile_text(node, text);
-        // Row model from the single `row:Model` parameter.
-        let mut row_model = String::new();
-        for child in significant(node) {
-            if child.kind != SyntaxKind::Parameter {
-                continue;
-            }
-            let parts: Vec<String> = child
-                .descendants()
-                .filter(|n| n.kind == SyntaxKind::Name)
-                .filter_map(|n| n.token().map(|t| t.text(text).to_string()))
-                .collect();
-            if let Some(model) = parts.into_iter().nth(1) {
-                row_model = model;
-            }
-        }
-        if !models.contains(&row_model) {
-            diagnostics.push(Diagnostic::error(
-                "E2001",
-                format!("view `{name}` binds unknown model `{row_model}` as its row"),
-                node.span,
-            ));
-            continue;
-        }
-        let mut controls = Vec::new();
-        let mut binding_names = Vec::new();
-        let mut gates = Vec::new();
-        let mut leaves = Vec::new();
-        let mut root_style: Option<ThenRootStyle> = None;
-        for child in significant(node) {
-            let binding = match child.kind {
-                SyntaxKind::Card => Some("card".to_string()),
-                SyntaxKind::Edit => Some("edit".to_string()),
-                SyntaxKind::Form => Some(
-                    names(child, text)
-                        .into_iter()
-                        .next()
-                        .unwrap_or_else(|| "form".into()),
-                ),
-                SyntaxKind::UiLeaf => names(child, text)
-                    .into_iter()
-                    .next()
-                    .filter(|name| name != "require"),
-                SyntaxKind::CatalogItem => names(child, text)
-                    .into_iter()
-                    .next()
-                    .filter(|name| name == "button"),
-                _ => None,
-            };
-            if let Some(binding) = binding {
-                binding_names.push((child.span, binding));
-            }
-            match child.kind {
-                SyntaxKind::Card => {
-                    leaves.push("card".into());
-                    collect_card_controls(child, text, &mut controls);
-                }
-                SyntaxKind::Edit => {
-                    let fields = attribute_value(child, text, "fields")
-                        .map(|v| selector_fields(v, text))
-                        .unwrap_or_default();
-                    controls.push(ThenControl::Edit { fields });
-                }
-                SyntaxKind::CatalogItem
-                    if names(child, text).first().map(String::as_str) == Some("button") =>
-                {
-                    collect_button_control(child, text, &mut controls);
-                }
-                SyntaxKind::Form => {
-                    let priority = names(child, text).into_iter().next().unwrap_or_default();
-                    if matches!(priority.as_str(), "primary" | "secondary") {
-                        diagnostics.push(Diagnostic::error("E2001", "a generated view must declare an owning card or supported action owner around priorities".into(), child.span));
-                    }
-                    let operation = attribute_value(child, text, "action")
-                        .or_else(|| {
-                            significant(child)
-                                .iter()
-                                .find(|c| {
-                                    !matches!(c.kind, SyntaxKind::Name | SyntaxKind::Attribute)
-                                })
-                                .copied()
-                        })
-                        .map(|c| operation_text(c, text))
-                        .unwrap_or_default();
-                    let fields = attribute_value(child, text, "fields")
-                        .map(|v| selector_fields(v, text))
-                        .unwrap_or_default();
-                    controls.push(ThenControl::Form { operation, fields });
-                }
-                SyntaxKind::UiLeaf => {
-                    let word = names(child, text).into_iter().next().unwrap_or_default();
-                    match word.as_str() {
-                        "primary" | "secondary" => diagnostics.push(Diagnostic::error("E2001", "a generated view must declare an owning card or supported action owner around priorities".into(), child.span)),
-                        "delete" => controls.push(ThenControl::Delete),
-                        "action" => {
-                            let operation = significant(child)
-                                .iter()
-                                .find(|c| c.kind != SyntaxKind::Name)
-                                .map(|c| operation_text(c, text))
-                                .unwrap_or_default();
-                            controls.push(ThenControl::Action { operation });
-                        }
-                        "actions" => {
-                            let operations = significant(child)
-                                .iter()
-                                .filter(|c| c.kind != SyntaxKind::Name)
-                                .map(|c| operation_text(c, text))
-                                .collect();
-                            controls.push(ThenControl::Actions { operations });
-                        }
-                        "require" => {
-                            let predicate = significant(child)
-                                .iter()
-                                .find(|c| c.kind != SyntaxKind::Name)
-                                .map(|c| flat(c, text))
-                                .unwrap_or_default();
-                            gates.push(predicate);
-                        }
-                        "history" | "text" | "content" => leaves.push(word),
-                        other => diagnostics.push(Diagnostic::error(
-                            "E2001",
-                            format!(
-                                "view `{name}` admits no `{other}` child in a prompted renderer"
-                            ),
-                            child.span,
-                        )),
-                    }
-                }
-                SyntaxKind::ViewStyle => {
-                    let style_names = names(child, text);
-                    if let Some(inline) = prompt_text(child) {
-                        root_style = Some(ThenRootStyle {
-                            named: None,
-                            inline_prompt: Some(inline),
-                        });
-                    } else if let Some(style) = style_names.into_iter().next() {
-                        root_style = Some(ThenRootStyle {
-                            named: Some(style),
-                            inline_prompt: None,
-                        });
-                    }
-                }
-                SyntaxKind::Name
-                | SyntaxKind::Parameter
-                | SyntaxKind::GenPrompt
-                | SyntaxKind::Attribute
-                | SyntaxKind::Error => {}
-                _ => {
-                    diagnostics.push(Diagnostic::error(
-                        "E2001",
-                        format!(
-                            "view `{name}` admits only canonical cards, controls, history/text/content leaves, require gates and one root style suffix"
-                        ),
-                        child.span,
-                    ));
-                }
-            }
-        }
-        views.push(ThenView {
-            anchor: format!("{owner}:view:{name}:{row_model}"),
-            name,
-            row_model,
-            prompt,
-            profile,
-            controls,
-            binding_names,
-            gates,
-            leaves,
-            root_style,
-            span: node.span,
-        });
+        lower_view_node(node, text, &models, &owner, &mut views, &mut diagnostics);
     }
     ThenLowering { views, diagnostics }
 }

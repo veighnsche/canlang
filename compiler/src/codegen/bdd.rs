@@ -14,8 +14,8 @@
 
 use crate::analysis::types::ResolvedType;
 use crate::codegen::ir::{
-    IrExpr, IrFixture, IrFixtureKind, IrItem, IrItemKind, IrProgram, IrQueryDomain, IrSequence,
-    IrStep, IrTable, IrTableRow, TypedExpr,
+    IrExpr, IrFixture, IrFixtureKind, IrItem, IrItemKind, IrMessage, IrMessageCallParam, IrProgram,
+    IrQuery, IrQueryDomain, IrSequence, IrStep, IrTable, IrTableRow, TypedExpr,
 };
 use crate::codegen::js::{Emitter, JsModule, JsWriter, binding_ident, js_string};
 use crate::diagnostic::Diagnostic;
@@ -351,6 +351,62 @@ fn complete_table_fixture_bindings(
     (fixtures, tables)
 }
 
+fn visible_aliases(
+    aliases: &HashMap<String, String>,
+    domain: &IrQueryDomain,
+) -> HashMap<String, String> {
+    let mut visible = aliases.clone();
+    visible.remove(match domain {
+        IrQueryDomain::Value { alias, .. } => alias.as_str(),
+        IrQueryDomain::Model(_) => "row",
+    });
+    visible
+}
+
+fn rewrite_query_fixtures(query: &mut IrQuery, aliases: &HashMap<String, String>) {
+    if let IrQueryDomain::Value { base, .. } = &mut query.domain {
+        rewrite_fixture_names(base, aliases);
+    }
+    for value in [&mut query.parent, &mut query.limit, &mut query.archived]
+        .into_iter()
+        .flatten()
+    {
+        rewrite_fixture_names(value, aliases);
+    }
+    if let Some(predicate) = &mut query.where_pred {
+        rewrite_fixture_names(predicate, &visible_aliases(aliases, &query.domain));
+    }
+    if let Some(order) = &mut query.value_order {
+        rewrite_fixture_names(&mut order.key, &visible_aliases(aliases, &query.domain));
+    }
+    if let Some(projection) = &mut query.select {
+        let mut visible = aliases.clone();
+        if let Some(param) = &query.select_param {
+            visible.remove(param);
+        }
+        rewrite_fixture_names(projection, &visible);
+    }
+}
+
+fn rewrite_message_call_fixtures(
+    descriptor: &mut IrMessage,
+    args: &mut Vec<TypedExpr>,
+    params: &mut Vec<IrMessageCallParam>,
+    aliases: &HashMap<String, String>,
+) {
+    for param in &mut descriptor.params {
+        rewrite_fixture_names(&mut param.value, aliases);
+    }
+    for arg in args {
+        rewrite_fixture_names(arg, aliases);
+    }
+    for param in params {
+        if let Some(default) = &mut param.default {
+            rewrite_fixture_names(default, aliases);
+        }
+    }
+}
+
 fn rewrite_fixture_names(expr: &mut TypedExpr, aliases: &HashMap<String, String>) {
     match &mut expr.expr {
         IrExpr::Name(name) if aliases.contains_key(name) => {
@@ -385,38 +441,7 @@ fn rewrite_fixture_names(expr: &mut TypedExpr, aliases: &HashMap<String, String>
             }
         }
         IrExpr::Query(query) => {
-            if let IrQueryDomain::Value { base, .. } = &mut query.domain {
-                rewrite_fixture_names(base, aliases);
-            }
-            for value in [&mut query.parent, &mut query.limit, &mut query.archived]
-                .into_iter()
-                .flatten()
-            {
-                rewrite_fixture_names(value, aliases);
-            }
-            if let Some(predicate) = &mut query.where_pred {
-                let mut visible = aliases.clone();
-                visible.remove(match &query.domain {
-                    IrQueryDomain::Value { alias, .. } => alias.as_str(),
-                    IrQueryDomain::Model(_) => "row",
-                });
-                rewrite_fixture_names(predicate, &visible);
-            }
-            if let Some(order) = &mut query.value_order {
-                let mut visible = aliases.clone();
-                visible.remove(match &query.domain {
-                    IrQueryDomain::Value { alias, .. } => alias.as_str(),
-                    IrQueryDomain::Model(_) => "row",
-                });
-                rewrite_fixture_names(&mut order.key, &visible);
-            }
-            if let Some(projection) = &mut query.select {
-                let mut visible = aliases.clone();
-                if let Some(param) = &query.select_param {
-                    visible.remove(param);
-                }
-                rewrite_fixture_names(projection, &visible);
-            }
+            rewrite_query_fixtures(query, aliases);
         }
         IrExpr::Message(message) => {
             for param in &mut message.params {
@@ -428,17 +453,7 @@ fn rewrite_fixture_names(expr: &mut TypedExpr, aliases: &HashMap<String, String>
             args,
             params,
         } => {
-            for param in &mut descriptor.params {
-                rewrite_fixture_names(&mut param.value, aliases);
-            }
-            for arg in args {
-                rewrite_fixture_names(arg, aliases);
-            }
-            for param in params {
-                if let Some(default) = &mut param.default {
-                    rewrite_fixture_names(default, aliases);
-                }
-            }
+            rewrite_message_call_fixtures(descriptor, args, params, aliases);
         }
         IrExpr::JudgmentSpecification {
             options: Some(options),

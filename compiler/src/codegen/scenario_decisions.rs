@@ -73,15 +73,16 @@ pub(super) fn collect_decision_sources_with_context(
     )
 }
 
-fn collect_decision_sources_checked(
+fn decision_proof_sites<'a>(
     program: &CheckedProgram,
-    ir: &IrProgram,
+    ir: &'a IrProgram,
     owner: &IrItem,
     db: &SourceDb,
     catalog: Option<&Catalog>,
-    fresh: &IrProgram,
-    trees: &[(crate::source::SourceId, SyntaxNode)],
-) -> Option<Vec<CheckedDecisionSite>> {
+) -> Option<(
+    &'a Vec<CheckedDecisionSite>,
+    &'a crate::analysis::scenario_disclosure::CheckedScenarioSource,
+)> {
     program.validate_cohort(db, catalog).ok()?;
     let source = super::scenario_calls::checked_source(ir, owner, db)?;
     let proofs = source.decision_sites.as_ref()?;
@@ -97,6 +98,14 @@ fn collect_decision_sources_checked(
     {
         return None;
     }
+    Some((proofs, source))
+}
+
+fn check_transcript_schemas(
+    ir: &IrProgram,
+    source: &crate::analysis::scenario_disclosure::CheckedScenarioSource,
+    db: &SourceDb,
+) -> Option<()> {
     for transcript in source.transcripts.iter().flatten() {
         let schema = source
             .stored_contracts
@@ -108,6 +117,76 @@ fn collect_decision_sources_checked(
             super::scenario_receipts::match_stored_contract_field(ir, field, db)?;
         }
     }
+    Some(())
+}
+
+fn required_decision_nodes(
+    program: &CheckedProgram,
+    proofs: &[CheckedDecisionSite],
+) -> Option<HashSet<NodeKey>> {
+    let mut required = HashSet::new();
+    let mut calls = 0usize;
+    if proofs.len() > 200 {
+        return None;
+    }
+    for site in proofs {
+        required.extend([site.node, site.statement]);
+        for call in &site.calls {
+            calls += 1;
+            if calls > 200 {
+                return None;
+            }
+            required.insert(call.node);
+            required.extend(call.arguments.iter().map(|(node, _)| *node));
+            required.extend(call.defaults.iter().map(|(_, node)| *node));
+            if let CheckedDecisionCallTarget::DeriveFn(id) = call.target {
+                required.insert(program.effects.derives.get(&id)?.expr?);
+            }
+        }
+    }
+    Some(required)
+}
+
+fn verify_decision_sites(
+    cx: &mut Consumer,
+    owner: &IrItem,
+    proofs: &[CheckedDecisionSite],
+    sites: &[(&TypedExpr, Span, Stage, Vec<Position>)],
+) -> Option<()> {
+    if sites.len() != proofs.len() {
+        return None;
+    }
+    for ((expr, span, stage, position), proof) in sites.iter().zip(proofs) {
+        if proof.owner != owner.id
+            || proof.stage != *stage
+            || proof.position != *position
+            || !cx.same(proof.statement, *span)
+            || !cx.same(proof.node, expr.span)
+            || expr.ty != ResolvedType::Scalar(Scalar::Bool)
+            || !cx.origin(&proof.source, proof.node, owner.module)
+        {
+            return None;
+        }
+        let mut matched = HashSet::new();
+        cx.expression(expr, &[], &mut HashSet::new(), &proof.calls, &mut matched, 0)?;
+        if matched.len() != proof.calls.len() {
+            return None;
+        }
+    }
+    Some(())
+}
+
+fn collect_decision_sources_checked(
+    program: &CheckedProgram,
+    ir: &IrProgram,
+    owner: &IrItem,
+    db: &SourceDb,
+    catalog: Option<&Catalog>,
+    fresh: &IrProgram,
+    trees: &[(crate::source::SourceId, SyntaxNode)],
+) -> Option<Vec<CheckedDecisionSite>> {
+    let (proofs, source) = decision_proof_sites(program, ir, owner, db, catalog)?;
+    check_transcript_schemas(ir, source, db)?;
     let IrItemKind::Scenario {
         guards, effects, ..
     } = &owner.kind
@@ -143,26 +222,7 @@ fn collect_decision_sources_checked(
     };
     // Only the original consumed anchors need a CST cache. Unrelated source
     // remains in the checked/fresh cohort without spending this owner's budget.
-    let mut required = HashSet::new();
-    let mut calls = 0usize;
-    if proofs.len() > 200 {
-        return None;
-    }
-    for site in proofs {
-        required.extend([site.node, site.statement]);
-        for call in &site.calls {
-            calls += 1;
-            if calls > 200 {
-                return None;
-            }
-            required.insert(call.node);
-            required.extend(call.arguments.iter().map(|(node, _)| *node));
-            required.extend(call.defaults.iter().map(|(_, node)| *node));
-            if let CheckedDecisionCallTarget::DeriveFn(id) = call.target {
-                required.insert(program.effects.derives.get(&id)?.expr?);
-            }
-        }
-    }
+    let required = required_decision_nodes(program, proofs)?;
     cx.index_required(trees, &required)?;
     cx.steps = 0;
     let mut sites = Vec::new();
@@ -172,26 +232,7 @@ fn collect_decision_sources_checked(
     for (i, s) in effects.iter().enumerate() {
         cx.statements(s, vec![Position::Body(i)], false, &mut sites)?;
     }
-    if sites.len() != proofs.len() {
-        return None;
-    }
-    for ((expr, span, stage, position), proof) in sites.iter().zip(proofs) {
-        if proof.owner != owner.id
-            || proof.stage != *stage
-            || proof.position != *position
-            || !cx.same(proof.statement, *span)
-            || !cx.same(proof.node, expr.span)
-            || expr.ty != ResolvedType::Scalar(Scalar::Bool)
-            || !cx.origin(&proof.source, proof.node, owner.module)
-        {
-            return None;
-        }
-        let mut matched = HashSet::new();
-        cx.expression(expr, &[], &mut HashSet::new(), &proof.calls, &mut matched, 0)?;
-        if matched.len() != proof.calls.len() {
-            return None;
-        }
-    }
+    verify_decision_sites(&mut cx, owner, proofs, &sites)?;
     Some(proofs.clone())
 }
 struct Consumer<'a> {
@@ -542,6 +583,334 @@ impl Consumer<'_> {
         }
         Some(())
     }
+    fn visit_call_args(
+        &mut self,
+        args: &[TypedExpr],
+        e: &TypedExpr,
+        chain: &[CheckedDecisionCallFrame],
+        stack: &mut HashSet<crate::analysis::resolve::SymbolId>,
+        calls: &[crate::analysis::scenario_disclosure::CheckedDecisionCall],
+        matched: &mut HashSet<usize>,
+        depth: usize,
+    ) -> Option<()> {
+        for a in args {
+            if let IrExpr::Lambda { body, .. } = &a.expr {
+                collection_lambda(self.program, args, a, e.span)?;
+                self.expression(body, chain, stack, calls, matched, depth + 1)?;
+            } else {
+                self.expression(a, chain, stack, calls, matched, depth + 1)?;
+            }
+        }
+        Some(())
+    }
+    fn find_consumed_call(
+        &self,
+        e: &TypedExpr,
+        chain: &[CheckedDecisionCallFrame],
+        calls: &[crate::analysis::scenario_disclosure::CheckedDecisionCall],
+        matched: &mut HashSet<usize>,
+    ) -> Option<usize> {
+        let mut found = calls.iter().enumerate().filter(|(_, p)| {
+            self.same(p.node, e.span)
+                && p.chain.len() == chain.len()
+                && p.chain.iter().zip(chain).all(|(a, b)| {
+                    a.node == b.node
+                        && a.derive == b.derive
+                        && a.module == b.module
+                        && a.source.path == b.source.path
+                        && a.source.sha256 == b.source.sha256
+                        && a.source.module == b.source.module
+                })
+        });
+        let (i, _) = found.next()?;
+        if found.next().is_some() || i != matched.len() || !matched.insert(i) {
+            return None;
+        }
+        Some(i)
+    }
+    fn check_consumed_shape(
+        &self,
+        e: &TypedExpr,
+        args: &[TypedExpr],
+        p: &crate::analysis::scenario_disclosure::CheckedDecisionCall,
+        selected: &crate::analysis::types::SelectedCall,
+    ) -> Option<()> {
+        if self.program.types.node_types.get(&p.node) != Some(&e.ty) {
+            return None;
+        }
+        if selected.arguments.len() != args.len()
+            || selected.arguments.len() != p.arguments.len()
+            || selected.slots != p.slots
+        {
+            return None;
+        }
+        let mut used = HashSet::new();
+        for n in p.slots.iter().flatten() {
+            if *n >= args.len() || !used.insert(*n) {
+                return None;
+            }
+        }
+        if used.len() != args.len() {
+            return None;
+        }
+        for ((a, (key, ty)), selected_key) in
+            args.iter().zip(&p.arguments).zip(&selected.arguments)
+        {
+            if key != selected_key
+                || !self.same(*key, a.span)
+                || a.ty != *ty
+                || self.program.types.node_types.get(key) != Some(ty)
+            {
+                return None;
+            }
+        }
+        let irslots = match &e.expr {
+            IrExpr::BoundCall { slots, .. } => slots.clone(),
+            _ => (0..args.len()).map(Some).collect(),
+        };
+        if irslots != p.slots {
+            return None;
+        }
+        Some(())
+    }
+    fn check_builtin_target(
+        &self,
+        p: &crate::analysis::scenario_disclosure::CheckedDecisionCall,
+        selected: &SelectedCallTarget,
+        target: &IrCallTarget,
+    ) -> Option<bool> {
+        let (
+            CheckedDecisionCallTarget::Builtin { id, overload },
+            SelectedCallTarget::Builtin {
+                id: actual,
+                overload: index,
+            },
+            IrCallTarget::Builtin {
+                id: lowered,
+                awaited,
+            },
+        ) = (&p.target, selected, target)
+        else {
+            return Some(false);
+        };
+        let cat = self.catalog?;
+        let entry = cat.lookup(id)?;
+        if id != actual
+            || id != lowered
+            || overload != index
+            || cat.overloads(id)?.get(*overload).is_none()
+            || *awaited != (entry.effects == Some(Effects::StateRead))
+            || !p.defaults.is_empty()
+        {
+            return None;
+        }
+        Some(true)
+    }
+    fn join_derive_defaults(
+        &mut self,
+        params: &[crate::analysis::resolve::SymbolId],
+        declared: &crate::analysis::effects::DeriveData,
+        p_slots: &[Option<usize>],
+        id: crate::analysis::resolve::SymbolId,
+        stack: &mut HashSet<crate::analysis::resolve::SymbolId>,
+        calls: &[crate::analysis::scenario_disclosure::CheckedDecisionCall],
+        matched: &mut HashSet<usize>,
+        frame: &[CheckedDecisionCallFrame],
+    ) -> Option<Vec<(crate::analysis::resolve::SymbolId, NodeKey)>> {
+        let mut defaults = Vec::new();
+        for (pid, slot) in params.iter().zip(p_slots) {
+            if slot.is_none() {
+                let param = self.ir.items.get(pid.0 as usize)?;
+                let IrItemKind::Param {
+                    owner,
+                    default_node: Some(key),
+                    default: Some(default),
+                    ..
+                } = &param.kind
+                else {
+                    return None;
+                };
+                if *owner != id
+                    || param.id != *pid
+                    || declared
+                        .params
+                        .iter()
+                        .find(|param| param.param == *pid)?
+                        .default
+                        != Some(*key)
+                {
+                    return None;
+                }
+                defaults.push((*pid, *key));
+                let d = match default {
+                    IrDefault::Literal(d) | IrDefault::Computed { expr: d, .. } => d,
+                };
+                if !self.same(*key, d.span)
+                    || self.program.types.node_types.get(key) != Some(&d.ty)
+                {
+                    return None;
+                }
+                self.expression(d, frame, stack, calls, matched, 0)?;
+            }
+        }
+        Some(defaults)
+    }
+    fn join_derive_call(
+        &mut self,
+        checked: &CheckedDecisionCallTarget,
+        selected: &SelectedCallTarget,
+        target: &IrCallTarget,
+        p: &crate::analysis::scenario_disclosure::CheckedDecisionCall,
+        chain: &[CheckedDecisionCallFrame],
+        stack: &mut HashSet<crate::analysis::resolve::SymbolId>,
+        calls: &[crate::analysis::scenario_disclosure::CheckedDecisionCall],
+        matched: &mut HashSet<usize>,
+    ) -> Option<bool> {
+        let (
+            CheckedDecisionCallTarget::DeriveFn(id),
+            SelectedCallTarget::DeriveFn(actual),
+            IrCallTarget::DeriveFn(name),
+        ) = (checked, selected, target)
+        else {
+            return Some(false);
+        };
+        let item = self.ir.items.get(id.0 as usize)?;
+        if id != actual || item.id != *id || item.canonical != *name || !stack.insert(*id) {
+            return None;
+        }
+        let IrItemKind::DeriveFn {
+            params,
+            expr: Some(body),
+            ..
+        } = &item.kind
+        else {
+            return None;
+        };
+        let declared = self.program.effects.derives.get(id)?;
+        let body_node = declared.expr?;
+        if params.len() != p.slots.len()
+            || item.module != declared.module
+            || params
+                .iter()
+                .copied()
+                .ne(declared.params.iter().map(|param| param.param))
+            || !self.same(body_node, body.span)
+            || self.program.types.node_types.get(&body_node) != Some(&body.ty)
+        {
+            return None;
+        }
+        let mut frame = chain.to_vec();
+        frame.push(CheckedDecisionCallFrame {
+            node: p.node,
+            module: p.module,
+            source: p.source.clone(),
+            derive: *id,
+        });
+        let defaults = self.join_derive_defaults(
+            params,
+            declared,
+            &p.slots,
+            *id,
+            stack,
+            calls,
+            matched,
+            &frame,
+        )?;
+        if defaults != p.defaults {
+            return None;
+        }
+        self.expression(body, &frame, stack, calls, matched, 0)?;
+        stack.remove(id);
+        Some(true)
+    }
+    fn visit_query_parts(
+        &mut self,
+        query: &IrQuery,
+        chain: &[CheckedDecisionCallFrame],
+        stack: &mut HashSet<crate::analysis::resolve::SymbolId>,
+        calls: &[crate::analysis::scenario_disclosure::CheckedDecisionCall],
+        matched: &mut HashSet<usize>,
+        depth: usize,
+    ) -> Option<()> {
+        checked_query(self.program, query)?;
+        if let IrQueryDomain::Value { base, .. } = &query.domain {
+            self.expression(base, chain, stack, calls, matched, depth + 1)?;
+        }
+        if let Some(order) = &query.value_order {
+            self.expression(&order.key, chain, stack, calls, matched, depth + 1)?;
+        }
+        for expression in [
+            &query.parent,
+            &query.where_pred,
+            &query.limit,
+            &query.archived,
+            &query.select,
+        ]
+        .into_iter()
+        .flatten()
+        {
+            if let IrExpr::Lambda { body, .. } = &expression.expr {
+                self.expression(body, chain, stack, calls, matched, depth + 1)?;
+            } else {
+                self.expression(expression, chain, stack, calls, matched, depth + 1)?;
+            }
+        }
+        Some(())
+    }
+    fn leaf_consumed(e: &TypedExpr) -> bool {
+        matches!(
+            &e.expr,
+            IrExpr::Int(_)
+                | IrExpr::Text(_)
+                | IrExpr::Bool(_)
+                | IrExpr::Null
+                | IrExpr::Name(_)
+                | IrExpr::Decimal(_)
+                | IrExpr::Money { .. }
+                | IrExpr::Date(_)
+                | IrExpr::Datetime(_)
+        )
+    }
+    fn visit_compound_expr(
+        &mut self,
+        e: &TypedExpr,
+        chain: &[CheckedDecisionCallFrame],
+        stack: &mut HashSet<crate::analysis::resolve::SymbolId>,
+        calls: &[crate::analysis::scenario_disclosure::CheckedDecisionCall],
+        matched: &mut HashSet<usize>,
+        depth: usize,
+    ) -> Option<bool> {
+        match &e.expr {
+            IrExpr::Binary { left, right, .. } => {
+                self.expression(left, chain, stack, calls, matched, depth + 1)?;
+                self.expression(right, chain, stack, calls, matched, depth + 1)?;
+                Some(true)
+            }
+            IrExpr::Unary { operand, .. } | IrExpr::Member { base: operand, .. } => {
+                self.expression(operand, chain, stack, calls, matched, depth + 1)?;
+                Some(true)
+            }
+            IrExpr::Array(a) => {
+                for v in a {
+                    self.expression(v, chain, stack, calls, matched, depth + 1)?;
+                }
+                Some(true)
+            }
+            IrExpr::Object(a) => {
+                for (_, v) in a {
+                    self.expression(v, chain, stack, calls, matched, depth + 1)?;
+                }
+                Some(true)
+            }
+            IrExpr::HasRole { person, .. } => {
+                if let Some(person) = person {
+                    self.expression(person, chain, stack, calls, matched, depth + 1)?;
+                }
+                Some(true)
+            }
+            _ => Some(false),
+        }
+    }
     fn expression(
         &mut self,
         e: &TypedExpr,
@@ -557,241 +926,32 @@ impl Consumer<'_> {
         }
         match &e.expr {
             IrExpr::Call { target, args } | IrExpr::BoundCall { target, args, .. } => {
-                for a in args {
-                    if let IrExpr::Lambda { body, .. } = &a.expr {
-                        collection_lambda(self.program, args, a, e.span)?;
-                        self.expression(body, chain, stack, calls, matched, depth + 1)?;
-                    } else {
-                        self.expression(a, chain, stack, calls, matched, depth + 1)?;
-                    }
-                }
-                let mut found = calls.iter().enumerate().filter(|(_, p)| {
-                    self.same(p.node, e.span)
-                        && p.chain.len() == chain.len()
-                        && p.chain.iter().zip(chain).all(|(a, b)| {
-                            a.node == b.node
-                                && a.derive == b.derive
-                                && a.module == b.module
-                                && a.source.path == b.source.path
-                                && a.source.sha256 == b.source.sha256
-                                && a.source.module == b.source.module
-                        })
-                });
-                let (i, p) = found.next()?;
-                if found.next().is_some() || i != matched.len() || !matched.insert(i) {
-                    return None;
-                }
+                self.visit_call_args(args, e, chain, stack, calls, matched, depth)?;
+                let index = self.find_consumed_call(e, chain, calls, matched)?;
+                let p = &calls[index];
                 self.count += 1;
                 if self.count > 200 || !self.origin(&p.source, p.node, p.module) {
                     return None;
                 }
                 let selected = self.program.types.selected_calls.get(&p.node)?;
-                if self.program.types.node_types.get(&p.node) != Some(&e.ty) {
+                self.check_consumed_shape(e, args, p, selected)?;
+                if self.check_builtin_target(p, &selected.target, target)? {
+                } else if self.join_derive_call(
+                    &p.target, &selected.target, target, p, chain, stack, calls, matched,
+                )? {
+                } else {
                     return None;
-                }
-                if selected.arguments.len() != args.len()
-                    || selected.arguments.len() != p.arguments.len()
-                    || selected.slots != p.slots
-                {
-                    return None;
-                }
-                let mut used = HashSet::new();
-                for n in p.slots.iter().flatten() {
-                    if *n >= args.len() || !used.insert(*n) {
-                        return None;
-                    }
-                }
-                if used.len() != args.len() {
-                    return None;
-                }
-                for ((a, (key, ty)), selected_key) in
-                    args.iter().zip(&p.arguments).zip(&selected.arguments)
-                {
-                    if key != selected_key
-                        || !self.same(*key, a.span)
-                        || a.ty != *ty
-                        || self.program.types.node_types.get(key) != Some(ty)
-                    {
-                        return None;
-                    }
-                }
-                let irslots = match &e.expr {
-                    IrExpr::BoundCall { slots, .. } => slots.clone(),
-                    _ => (0..args.len()).map(Some).collect(),
-                };
-                if irslots != p.slots {
-                    return None;
-                }
-                match (&p.target, &selected.target, target) {
-                    (
-                        CheckedDecisionCallTarget::Builtin { id, overload },
-                        SelectedCallTarget::Builtin {
-                            id: actual,
-                            overload: index,
-                        },
-                        IrCallTarget::Builtin {
-                            id: lowered,
-                            awaited,
-                        },
-                    ) => {
-                        let cat = self.catalog?;
-                        let entry = cat.lookup(id)?;
-                        if id != actual
-                            || id != lowered
-                            || overload != index
-                            || cat.overloads(id)?.get(*overload).is_none()
-                            || *awaited != (entry.effects == Some(Effects::StateRead))
-                            || !p.defaults.is_empty()
-                        {
-                            return None;
-                        }
-                    }
-                    (
-                        CheckedDecisionCallTarget::DeriveFn(id),
-                        SelectedCallTarget::DeriveFn(actual),
-                        IrCallTarget::DeriveFn(name),
-                    ) => {
-                        let item = self.ir.items.get(id.0 as usize)?;
-                        if id != actual
-                            || item.id != *id
-                            || item.canonical != *name
-                            || !stack.insert(*id)
-                        {
-                            return None;
-                        }
-                        let IrItemKind::DeriveFn {
-                            params,
-                            expr: Some(body),
-                            ..
-                        } = &item.kind
-                        else {
-                            return None;
-                        };
-                        let declared = self.program.effects.derives.get(id)?;
-                        let body_node = declared.expr?;
-                        if params.len() != p.slots.len()
-                            || item.module != declared.module
-                            || params
-                                .iter()
-                                .copied()
-                                .ne(declared.params.iter().map(|param| param.param))
-                            || !self.same(body_node, body.span)
-                            || self.program.types.node_types.get(&body_node) != Some(&body.ty)
-                        {
-                            return None;
-                        }
-                        let mut frame = chain.to_vec();
-                        frame.push(CheckedDecisionCallFrame {
-                            node: p.node,
-                            module: p.module,
-                            source: p.source.clone(),
-                            derive: *id,
-                        });
-                        let mut defaults = Vec::new();
-                        for (pid, slot) in params.iter().zip(&p.slots) {
-                            if slot.is_none() {
-                                let param = self.ir.items.get(pid.0 as usize)?;
-                                let IrItemKind::Param {
-                                    owner,
-                                    default_node: Some(key),
-                                    default: Some(default),
-                                    ..
-                                } = &param.kind
-                                else {
-                                    return None;
-                                };
-                                if *owner != *id
-                                    || param.id != *pid
-                                    || declared
-                                        .params
-                                        .iter()
-                                        .find(|param| param.param == *pid)?
-                                        .default
-                                        != Some(*key)
-                                {
-                                    return None;
-                                }
-                                defaults.push((*pid, *key));
-                                let d = match default {
-                                    IrDefault::Literal(d) | IrDefault::Computed { expr: d, .. } => {
-                                        d
-                                    }
-                                };
-                                if !self.same(*key, d.span)
-                                    || self.program.types.node_types.get(key) != Some(&d.ty)
-                                {
-                                    return None;
-                                }
-                                self.expression(d, &frame, stack, calls, matched, 0)?;
-                            }
-                        }
-                        if defaults != p.defaults {
-                            return None;
-                        }
-                        self.expression(body, &frame, stack, calls, matched, 0)?;
-                        stack.remove(id);
-                    }
-                    _ => return None,
                 }
             }
             IrExpr::Query(query) => {
-                checked_query(self.program, query)?;
-                if let IrQueryDomain::Value { base, .. } = &query.domain {
-                    self.expression(base, chain, stack, calls, matched, depth + 1)?;
-                }
-                if let Some(order) = &query.value_order {
-                    self.expression(&order.key, chain, stack, calls, matched, depth + 1)?;
-                }
-                for expression in [
-                    &query.parent,
-                    &query.where_pred,
-                    &query.limit,
-                    &query.archived,
-                    &query.select,
-                ]
-                .into_iter()
-                .flatten()
-                {
-                    if let IrExpr::Lambda { body, .. } = &expression.expr {
-                        self.expression(body, chain, stack, calls, matched, depth + 1)?;
-                    } else {
-                        self.expression(expression, chain, stack, calls, matched, depth + 1)?;
-                    }
+                self.visit_query_parts(query, chain, stack, calls, matched, depth)?;
+            }
+            _ => {
+                if self.visit_compound_expr(e, chain, stack, calls, matched, depth)? {
+                } else if !Self::leaf_consumed(e) {
+                    return None;
                 }
             }
-            IrExpr::Binary { left, right, .. } => {
-                self.expression(left, chain, stack, calls, matched, depth + 1)?;
-                self.expression(right, chain, stack, calls, matched, depth + 1)?;
-            }
-            IrExpr::Unary { operand, .. } | IrExpr::Member { base: operand, .. } => {
-                self.expression(operand, chain, stack, calls, matched, depth + 1)?
-            }
-            IrExpr::Array(a) => {
-                for v in a {
-                    self.expression(v, chain, stack, calls, matched, depth + 1)?;
-                }
-            }
-            IrExpr::Object(a) => {
-                for (_, v) in a {
-                    self.expression(v, chain, stack, calls, matched, depth + 1)?;
-                }
-            }
-            IrExpr::HasRole { person, .. } => {
-                if let Some(person) = person {
-                    self.expression(person, chain, stack, calls, matched, depth + 1)?;
-                }
-            }
-            IrExpr::Int(_)
-            | IrExpr::Text(_)
-            | IrExpr::Bool(_)
-            | IrExpr::Null
-            | IrExpr::Name(_)
-            | IrExpr::Decimal(_)
-            | IrExpr::DurationMs(_)
-            | IrExpr::Money { .. }
-            | IrExpr::Date(_)
-            | IrExpr::Datetime(_) => {}
-            _ => return None,
         }
         Some(())
     }
@@ -823,12 +983,7 @@ pub(super) fn owner_handler_queries(context: &FreshSourceContext<'_>, owner: &Ir
 /// Join the executable scenario to a fresh lowering of its original checker.
 /// Shared by independent nongrant source producers; it does not require a
 /// supported native decision capture profile.
-pub(super) fn same_scenario_semantics(
-    program: &CheckedProgram,
-    actual: &IrProgram,
-    expected: &IrProgram,
-    owner: &IrItem,
-) -> Option<()> {
+fn check_owner_identity<'a>(expected: &'a IrProgram, owner: &IrItem) -> Option<&'a IrItem> {
     let original = expected.items.get(owner.id.0 as usize)?;
     if owner.id != original.id
         || owner.module != original.module
@@ -837,6 +992,22 @@ pub(super) fn same_scenario_semantics(
     {
         return None;
     }
+    Some(original)
+}
+
+fn join_scenario_lists<'x>(
+    owner: &'x IrItem,
+    original: &'x IrItem,
+) -> Option<(
+    &'x Vec<crate::analysis::resolve::SymbolId>,
+    &'x Vec<IrGuard>,
+    &'x Vec<IrStmt>,
+    &'x Vec<IrStmt>,
+    &'x Vec<crate::analysis::resolve::SymbolId>,
+    &'x Vec<IrGuard>,
+    &'x Vec<IrStmt>,
+    &'x Vec<IrStmt>,
+)> {
     let (
         IrItemKind::Scenario {
             params: a,
@@ -886,13 +1057,16 @@ pub(super) fn same_scenario_semantics(
     {
         return None;
     }
-    let mut join = SemanticJoin {
-        program,
-        actual,
-        expected,
-        nodes: 0,
-        stack: HashSet::new(),
-    };
+    Some((a, ab, ag, ae, b, bb, bg, be))
+}
+
+fn join_semantic_params(
+    join: &mut SemanticJoin,
+    actual: &IrProgram,
+    expected: &IrProgram,
+    owner: crate::analysis::resolve::SymbolId,
+    a: &[crate::analysis::resolve::SymbolId],
+) -> Option<()> {
     for id in a {
         let (x, y) = (
             actual.items.get(id.0 as usize)?,
@@ -926,7 +1100,7 @@ pub(super) fn same_scenario_semantics(
             || x.module != y.module
             || x.span != y.span
             || xo != yo
-            || *xo != owner.id
+            || *xo != owner
             || xi != yi
             || xn != yn
             || !known_type_equal(xt, yt)
@@ -945,6 +1119,25 @@ pub(super) fn same_scenario_semantics(
             _ => return None,
         }
     }
+    Some(())
+}
+
+pub(super) fn same_scenario_semantics(
+    program: &CheckedProgram,
+    actual: &IrProgram,
+    expected: &IrProgram,
+    owner: &IrItem,
+) -> Option<()> {
+    let original = check_owner_identity(expected, owner)?;
+    let (a, ab, ag, ae, _b, bb, bg, be) = join_scenario_lists(owner, original)?;
+    let mut join = SemanticJoin {
+        program,
+        actual,
+        expected,
+        nodes: 0,
+        stack: HashSet::new(),
+    };
+    join_semantic_params(&mut join, actual, expected, owner.id, a)?;
     if ab.len() != bb.len() {
         return None;
     }
@@ -972,22 +1165,17 @@ impl SemanticJoin<'_> {
             Some(())
         }
     }
-    fn expression(&mut self, a: &TypedExpr, b: &TypedExpr, depth: usize) -> Option<()> {
-        let call_span = a.span;
-        self.budget(depth)?;
-        if a.ty != b.ty || a.span != b.span {
-            return None;
-        }
-        match (&a.expr, &b.expr) {
-            (IrExpr::Int(a), IrExpr::Int(b)) if a == b => {}
-            (IrExpr::Text(a), IrExpr::Text(b)) if a == b => {}
-            (IrExpr::Bool(a), IrExpr::Bool(b)) if a == b => {}
-            (IrExpr::Null, IrExpr::Null) => {}
-            (IrExpr::Name(a), IrExpr::Name(b)) if a == b => {}
-            (IrExpr::Decimal(a), IrExpr::Decimal(b)) if a == b => {}
-            (IrExpr::DurationMs(a), IrExpr::DurationMs(b)) if a == b => {}
-            (IrExpr::Date(a), IrExpr::Date(b)) if a == b => {}
-            (IrExpr::Datetime(a), IrExpr::Datetime(b)) if a == b => {}
+    fn leaf_corresponds(a: &IrExpr, b: &IrExpr) -> bool {
+        match (a, b) {
+            (IrExpr::Int(a), IrExpr::Int(b)) => a == b,
+            (IrExpr::Text(a), IrExpr::Text(b)) => a == b,
+            (IrExpr::Bool(a), IrExpr::Bool(b)) => a == b,
+            (IrExpr::Null, IrExpr::Null) => true,
+            (IrExpr::Name(a), IrExpr::Name(b)) => a == b,
+            (IrExpr::Decimal(a), IrExpr::Decimal(b)) => a == b,
+            (IrExpr::DurationMs(a), IrExpr::DurationMs(b)) => a == b,
+            (IrExpr::Date(a), IrExpr::Date(b)) => a == b,
+            (IrExpr::Datetime(a), IrExpr::Datetime(b)) => a == b,
             (
                 IrExpr::Money {
                     minor: a,
@@ -997,87 +1185,98 @@ impl SemanticJoin<'_> {
                     minor: b,
                     currency: y,
                 },
-            ) if a == b && x == y => {}
-            (IrExpr::Member { base: a, field: x }, IrExpr::Member { base: b, field: y })
-                if x == y =>
+            ) => a == b && x == y,
+            // Identical checked placeholders correspond exactly. Both sides
+            // lower to the same throwing placeholder (IR build and codegen
+            // still report their own E6008), so recognizing the
+            // correspondence neither executes the gap nor masks it. `ty` and
+            // `span` equality is established on entry; any differing
+            // `what`/`why` still refuses. The single-tree executability
+            // check keeps refusing every placeholder.
+            (IrExpr::Unsupported { what: x, why: p }, IrExpr::Unsupported { what: y, why: q })
+                if x == y && p == q =>
             {
-                self.expression(a, b, depth + 1)?;
-                // A derived member can be inlined into an owning source
-                // observer. Its executable body belongs to that same source
-                // comparison, rather than only the Member's spelling/type.
-                if let ResolvedType::Record { symbol: model, .. } = &b.ty
-                    && let Some(expected) = self.expected.items.iter().find(|item| {
-                        item.name == *y
-                            && matches!(item.kind,
-                            IrItemKind::DeriveField { model: owner, .. } if owner == *model)
-                    })
-                {
-                    let actual = self.actual.items.get(expected.id.0 as usize)?;
-                    let (
-                        IrItemKind::DeriveField {
-                            model: actual_model,
-                            ty: actual_ty,
-                            expr: Some(actual_body),
-                            ..
-                        },
-                        IrItemKind::DeriveField {
-                            model: expected_model,
-                            ty: expected_ty,
-                            expr: Some(expected_body),
-                            ..
-                        },
-                    ) = (&actual.kind, &expected.kind)
-                    else {
-                        return None;
-                    };
-                    if actual.id != expected.id
-                        || actual.name != expected.name
-                        || actual.module != expected.module
-                        || actual.canonical != expected.canonical
-                        || actual.span != expected.span
-                        || actual_model != expected_model
-                        || !known_type_equal(actual_ty, expected_ty)
-                        || self.stack.len() >= 16
-                        || !self.stack.insert(expected.id)
-                    {
-                        return None;
-                    }
-                    self.expression(actual_body, expected_body, depth + 1)?;
-                    self.stack.remove(&expected.id);
-                }
+                true
             }
-            (
-                IrExpr::Binary {
-                    op: x,
-                    left: a,
-                    right: c,
+            // A checked page-time predicate is data-only render filtering
+            // (`row.datetime >= now`); its recorded model field,
+            // comparison, spans, and paging support fully determine the
+            // sealed meaning on both sides.
+            (IrExpr::PageTimePredicate(a), IrExpr::PageTimePredicate(b)) => a.corresponds(b),
+            _ => false,
+        }
+    }
+    fn join_member_derive(&mut self, a: &TypedExpr, b: &TypedExpr, depth: usize) -> Option<bool> {
+        let (
+            IrExpr::Member { base: x, field: f },
+            IrExpr::Member { base: y, field: g },
+        ) = (&a.expr, &b.expr)
+        else {
+            return Some(false);
+        };
+        if f != g {
+            return Some(false);
+        }
+        self.expression(x, y, depth + 1)?;
+        // A derived member can be inlined into an owning source
+        // observer. Its executable body belongs to that same source
+        // comparison, rather than only the Member's spelling/type.
+        if let ResolvedType::Record { symbol: model, .. } = &y.ty
+            && let Some(expected) = self.expected.items.iter().find(|item| {
+                item.name == *g
+                    && matches!(item.kind,
+                    IrItemKind::DeriveField { model: owner, .. } if owner == *model)
+            })
+        {
+            let actual = self.actual.items.get(expected.id.0 as usize)?;
+            let (
+                IrItemKind::DeriveField {
+                    model: actual_model,
+                    ty: actual_ty,
+                    expr: Some(actual_body),
+                    ..
                 },
-                IrExpr::Binary {
-                    op: y,
-                    left: b,
-                    right: d,
+                IrItemKind::DeriveField {
+                    model: expected_model,
+                    ty: expected_ty,
+                    expr: Some(expected_body),
+                    ..
                 },
-            ) if x == y => {
-                self.expression(a, b, depth + 1)?;
-                self.expression(c, d, depth + 1)?;
-            }
-            (IrExpr::Unary { op: x, operand: a }, IrExpr::Unary { op: y, operand: b })
-                if x == y =>
+            ) = (&actual.kind, &expected.kind)
+            else {
+                return None;
+            };
+            if actual.id != expected.id
+                || actual.name != expected.name
+                || actual.module != expected.module
+                || actual.canonical != expected.canonical
+                || actual.span != expected.span
+                || actual_model != expected_model
+                || !known_type_equal(actual_ty, expected_ty)
+                || self.stack.len() >= 16
+                || !self.stack.insert(expected.id)
             {
-                self.expression(a, b, depth + 1)?
+                return None;
             }
-            (IrExpr::Array(a), IrExpr::Array(b)) => self.expressions(a, b, depth + 1)?,
-            (IrExpr::Object(a), IrExpr::Object(b)) if a.len() == b.len() => {
-                for ((x, a), (y, b)) in a.iter().zip(b) {
-                    if x != y {
-                        return None;
-                    }
-                    self.expression(a, b, depth + 1)?;
-                }
-            }
+            self.expression(actual_body, expected_body, depth + 1)?;
+            self.stack.remove(&expected.id);
+        }
+        Some(true)
+    }
+    fn join_call_like(
+        &mut self,
+        a: &TypedExpr,
+        b: &TypedExpr,
+        call_span: Span,
+        span: Span,
+        ty: &ResolvedType,
+        depth: usize,
+    ) -> Option<bool> {
+        match (&a.expr, &b.expr) {
             (IrExpr::Call { target: x, args: a }, IrExpr::Call { target: y, args: b }) => {
                 self.target(x, y, depth + 1, None)?;
                 self.call_arguments(a, b, depth + 1, call_span)?;
+                Some(true)
             }
             (
                 IrExpr::BoundCall {
@@ -1093,37 +1292,87 @@ impl SemanticJoin<'_> {
             ) if s == t => {
                 self.target(x, y, depth + 1, Some(s))?;
                 self.call_arguments(a, b, depth + 1, call_span)?;
+                Some(true)
             }
-            (IrExpr::Query(x), IrExpr::Query(y)) => self.query(x, y, a.span, &a.ty, depth + 1)?,
+            (IrExpr::Query(x), IrExpr::Query(y)) => {
+                self.query(x, y, span, ty, depth + 1)?;
+                Some(true)
+            }
+            _ => Some(false),
+        }
+    }
+    fn join_simple_recursive(&mut self, a: &TypedExpr, b: &TypedExpr, depth: usize) -> Option<bool> {
+        match (&a.expr, &b.expr) {
+            (
+                IrExpr::Binary {
+                    op: x,
+                    left: a,
+                    right: c,
+                },
+                IrExpr::Binary {
+                    op: y,
+                    left: b,
+                    right: d,
+                },
+            ) if x == y => {
+                self.expression(a, b, depth + 1)?;
+                self.expression(c, d, depth + 1)?;
+                Some(true)
+            }
+            (IrExpr::Unary { op: x, operand: a }, IrExpr::Unary { op: y, operand: b })
+                if x == y =>
+            {
+                self.expression(a, b, depth + 1)?;
+                Some(true)
+            }
+            (IrExpr::Array(a), IrExpr::Array(b)) => {
+                self.expressions(a, b, depth + 1)?;
+                Some(true)
+            }
+            (IrExpr::Object(a), IrExpr::Object(b)) if a.len() == b.len() => {
+                for ((x, a), (y, b)) in a.iter().zip(b) {
+                    if x != y {
+                        return None;
+                    }
+                    self.expression(a, b, depth + 1)?;
+                }
+                Some(true)
+            }
             (IrExpr::Lambda { param: x, body: a }, IrExpr::Lambda { param: y, body: b })
                 if x == y =>
             {
                 self.expression(a, b, depth + 1)?;
+                Some(true)
             }
-            (IrExpr::HasRole { role: x, person: a }, IrExpr::HasRole { role: y, person: b })
-                if x == y =>
-            {
-                match (a, b) {
-                    (None, None) => {}
-                    (Some(a), Some(b)) => self.expression(a, b, depth + 1)?,
-                    _ => return None,
-                }
+            _ => Some(false),
+        }
+    }
+    fn join_has_role(&mut self, a: &TypedExpr, b: &TypedExpr, depth: usize) -> Option<bool> {
+        let (
+            IrExpr::HasRole { role: x, person: a },
+            IrExpr::HasRole { role: y, person: b },
+        ) = (&a.expr, &b.expr)
+        else {
+            return Some(false);
+        };
+        if x != y {
+            return Some(false);
+        }
+        match (a, b) {
+            (None, None) => Some(true),
+            (Some(a), Some(b)) => {
+                self.expression(a, b, depth + 1)?;
+                Some(true)
             }
-            (IrExpr::Message(a), IrExpr::Message(b)) => self.message(a, b, depth + 1)?,
-            // Identical checked placeholders correspond exactly. Both sides
-            // lower to the same throwing placeholder (IR build and codegen
-            // still report their own E6008), so recognizing the
-            // correspondence neither executes the gap nor masks it. `ty` and
-            // `span` equality is established on entry; any differing
-            // `what`/`why` still refuses. The single-tree executability
-            // check keeps refusing every placeholder.
-            (IrExpr::Unsupported { what: x, why: p }, IrExpr::Unsupported { what: y, why: q })
-                if x == y && p == q => {}
-            // A checked page-time predicate is data-only render filtering
-            // (`row.datetime >= now`); its recorded model field,
-            // comparison, spans, and paging support fully determine the
-            // sealed meaning on both sides.
-            (IrExpr::PageTimePredicate(a), IrExpr::PageTimePredicate(b)) if a.corresponds(b) => {}
+            _ => None,
+        }
+    }
+    fn join_message_like(&mut self, a: &TypedExpr, b: &TypedExpr, depth: usize) -> Option<bool> {
+        match (&a.expr, &b.expr) {
+            (IrExpr::Message(a), IrExpr::Message(b)) => {
+                self.message(a, b, depth + 1)?;
+                Some(true)
+            }
             (
                 IrExpr::MessageCall {
                     descriptor: a,
@@ -1138,13 +1387,28 @@ impl SemanticJoin<'_> {
             ) if p.len() == q.len() => {
                 self.message(a, b, depth + 1)?;
                 self.expressions(x, y, depth + 1)?;
-                for (p, q) in p.iter().zip(q) {
-                    if p.name != q.name || p.type_id != q.type_id || p.source != q.source {
-                        return None;
-                    }
-                    self.optional(&p.default, &q.default, depth + 1)?;
-                }
+                self.join_message_params(p, q, depth)?;
+                Some(true)
             }
+            _ => Some(false),
+        }
+    }
+    fn join_message_params(
+        &mut self,
+        p: &[IrMessageCallParam],
+        q: &[IrMessageCallParam],
+        depth: usize,
+    ) -> Option<()> {
+        for (p, q) in p.iter().zip(q) {
+            if p.name != q.name || p.type_id != q.type_id || p.source != q.source {
+                return None;
+            }
+            self.optional(&p.default, &q.default, depth + 1)?;
+        }
+        Some(())
+    }
+    fn join_special_read(&mut self, a: &TypedExpr, b: &TypedExpr, depth: usize) -> Option<bool> {
+        match (&a.expr, &b.expr) {
             (
                 IrExpr::Format {
                     args: a,
@@ -1158,7 +1422,10 @@ impl SemanticJoin<'_> {
                     locale_index: v,
                     schemas: q,
                 },
-            ) if x == y && u == v && p == q => self.expressions(a, b, depth + 1)?,
+            ) if x == y && u == v && p == q => {
+                self.expressions(a, b, depth + 1)?;
+                Some(true)
+            }
             (
                 IrExpr::DeliveryRead {
                     record: x,
@@ -1174,17 +1441,61 @@ impl SemanticJoin<'_> {
                 },
             ) if p == q && i == j => {
                 self.expression(x, y, depth + 1)?;
-                match (a_callback, b_callback) {
-                    (None, None) => {}
-                    (Some(ap), Some(bp))
-                        if ap.matches(self.actual, a, x, p, i)
-                            && bp.matches(self.expected, b, y, q, j) => {}
-                    _ => return None,
-                }
+                self.join_delivery_callback(a_callback, b_callback, a, b, x, y, p, q, i, j)?;
+                Some(true)
             }
-            _ => return None,
+            _ => Some(false),
         }
-        Some(())
+    }
+    fn join_delivery_callback(
+        &mut self,
+        a_callback: &Option<Box<CheckedGenerationCallbackRead>>,
+        b_callback: &Option<Box<CheckedGenerationCallbackRead>>,
+        a: &TypedExpr,
+        b: &TypedExpr,
+        x: &Box<TypedExpr>,
+        y: &Box<TypedExpr>,
+        p: &String,
+        q: &String,
+        i: &Vec<String>,
+        j: &Vec<String>,
+    ) -> Option<()> {
+        match (a_callback, b_callback) {
+            (None, None) => Some(()),
+            (Some(ap), Some(bp))
+                if ap.matches(self.actual, a, x, p, i)
+                    && bp.matches(self.expected, b, y, q, j) => Some(()),
+            _ => None,
+        }
+    }
+    fn expression(&mut self, a: &TypedExpr, b: &TypedExpr, depth: usize) -> Option<()> {
+        let call_span = a.span;
+        self.budget(depth)?;
+        if a.ty != b.ty || a.span != b.span {
+            return None;
+        }
+        if Self::leaf_corresponds(&a.expr, &b.expr) {
+            return Some(());
+        }
+        if self.join_member_derive(a, b, depth)? {
+            return Some(());
+        }
+        if self.join_call_like(a, b, call_span, a.span, &a.ty, depth)? {
+            return Some(());
+        }
+        if self.join_simple_recursive(a, b, depth)? {
+            return Some(());
+        }
+        if self.join_has_role(a, b, depth)? {
+            return Some(());
+        }
+        if self.join_message_like(a, b, depth)? {
+            return Some(());
+        }
+        if self.join_special_read(a, b, depth)? {
+            return Some(());
+        }
+        None
     }
     fn guard(&mut self, a: &IrGuard, b: &IrGuard, depth: usize) -> Option<()> {
         self.budget(depth)?;
@@ -1299,13 +1610,12 @@ impl SemanticJoin<'_> {
         }
         Some(())
     }
-    fn query(
+    fn query_source_ok(
         &mut self,
         a: &IrQuery,
         b: &IrQuery,
         span: Span,
         ty: &ResolvedType,
-        d: usize,
     ) -> Option<()> {
         match (&a.source, &b.source) {
             (Some(_), Some(_)) => {
@@ -1318,21 +1628,9 @@ impl SemanticJoin<'_> {
             }
             _ => return None,
         }
-        if a.source != b.source
-            || a.collection_call != b.collection_call
-            || a.contract_collection_call != b.contract_collection_call
-            || a.where_param != b.where_param
-            || a.where_async != b.where_async
-            || a.select_param != b.select_param
-            || a.order.len() != b.order.len()
-        {
-            return None;
-        }
-        for (x, y) in a.order.iter().zip(&b.order) {
-            if x.field != y.field || x.descending != y.descending {
-                return None;
-            }
-        }
+        Some(())
+    }
+    fn query_ordering_ok(&mut self, a: &IrQuery, b: &IrQuery, d: usize) -> Option<()> {
         match (&a.value_order, &b.value_order) {
             (None, None) => {}
             (Some(x), Some(y)) if x.descending == y.descending => {
@@ -1348,6 +1646,27 @@ impl SemanticJoin<'_> {
             ) if p == q => self.expression(x, y, d)?,
             _ => return None,
         }
+        Some(())
+    }
+    fn query_optional_expr(&mut self, x: &TypedExpr, y: &TypedExpr, d: usize) -> Option<()> {
+        match (&x.expr, &y.expr) {
+            (
+                IrExpr::Lambda {
+                    param: p,
+                    body: xbody,
+                },
+                IrExpr::Lambda {
+                    param: q,
+                    body: ybody,
+                },
+            ) if p == q && x.ty == y.ty && x.span == y.span => {
+                self.expression(xbody, ybody, d)?
+            }
+            _ => self.expression(x, y, d)?,
+        }
+        Some(())
+    }
+    fn query_optional_parts(&mut self, a: &IrQuery, b: &IrQuery, d: usize) -> Option<()> {
         for (x, y) in [
             (&a.parent, &b.parent),
             (&a.where_pred, &b.where_pred),
@@ -1357,24 +1676,38 @@ impl SemanticJoin<'_> {
         ] {
             match (x, y) {
                 (None, None) => {}
-                (Some(x), Some(y)) => match (&x.expr, &y.expr) {
-                    (
-                        IrExpr::Lambda {
-                            param: p,
-                            body: xbody,
-                        },
-                        IrExpr::Lambda {
-                            param: q,
-                            body: ybody,
-                        },
-                    ) if p == q && x.ty == y.ty && x.span == y.span => {
-                        self.expression(xbody, ybody, d)?
-                    }
-                    _ => self.expression(x, y, d)?,
-                },
+                (Some(x), Some(y)) => self.query_optional_expr(x, y, d)?,
                 _ => return None,
             }
         }
+        Some(())
+    }
+    fn query(
+        &mut self,
+        a: &IrQuery,
+        b: &IrQuery,
+        span: Span,
+        ty: &ResolvedType,
+        d: usize,
+    ) -> Option<()> {
+        self.query_source_ok(a, b, span, ty)?;
+        if a.source != b.source
+            || a.collection_call != b.collection_call
+            || a.contract_collection_call != b.contract_collection_call
+            || a.where_param != b.where_param
+            || a.where_async != b.where_async
+            || a.select_param != b.select_param
+            || a.order.len() != b.order.len()
+        {
+            return None;
+        }
+        for (x, y) in a.order.iter().zip(&b.order) {
+            if x.field != y.field || x.descending != y.descending {
+                return None;
+            }
+        }
+        self.query_ordering_ok(a, b, d)?;
+        self.query_optional_parts(a, b, d)?;
         Some(())
     }
     fn expressions(&mut self, a: &[TypedExpr], b: &[TypedExpr], d: usize) -> Option<()> {
@@ -1385,6 +1718,202 @@ impl SemanticJoin<'_> {
             self.expression(a, b, d)?;
         }
         Some(())
+    }
+    fn derive_formal_mismatch(
+        current: &IrItem,
+        original: &IrItem,
+        item: &IrItem,
+        formal: crate::analysis::resolve::SymbolId,
+        branch: crate::analysis::resolve::SymbolId,
+        current_owner: crate::analysis::resolve::SymbolId,
+        original_owner: crate::analysis::resolve::SymbolId,
+        current_index: usize,
+        original_index: usize,
+        current_ty: &IrType,
+        original_ty: &IrType,
+    ) -> bool {
+        current.id != formal
+            || original.id != formal
+            || current.module != original.module
+            || current.module != item.module
+            || current.span != original.span
+            || current.canonical != original.canonical
+            || current.name != original.name
+            || current_owner != item.id
+            || current_owner != original_owner
+            || current_index != 0
+            || current_index != original_index
+            || !known_type_equal(current_ty, original_ty)
+            || !matches!(current_ty,IrType::Known(ResolvedType::Record {symbol,stored:true})
+                if *symbol==branch)
+    }
+    fn join_derive_fn_formal(&mut self, item: &IrItem, b: &[crate::analysis::resolve::SymbolId]) -> Option<()> {
+        // Supplied slots do not visit defaults. The exact transcript
+        // projection still consumes its original required Branch
+        // formal, so seal that declaration independently of the body.
+        if let Some(fact) = self
+            .program
+            .scenario_disclosures()
+            .values()
+            .filter_map(|value| value.source_facts())
+            .filter_map(|source| source.transcripts.as_ref())
+            .flatten()
+            .find(|fact| fact.derive == item.id)
+        {
+            if b != [fact.formal] {
+                return None;
+            }
+            let current = self.actual.items.get(fact.formal.0 as usize)?;
+            let original = self.expected.items.get(fact.formal.0 as usize)?;
+            let (
+                IrItemKind::Param {
+                    owner: current_owner,
+                    index: current_index,
+                    ty: current_ty,
+                    default: None,
+                    default_node: None,
+                    default_copy_source: None,
+                    ..
+                },
+                IrItemKind::Param {
+                    owner: original_owner,
+                    index: original_index,
+                    ty: original_ty,
+                    default: None,
+                    default_node: None,
+                    default_copy_source: None,
+                    ..
+                },
+            ) = (&current.kind, &original.kind)
+            else {
+                return None;
+            };
+            if Self::derive_formal_mismatch(
+                current,
+                original,
+                item,
+                fact.formal,
+                fact.branch,
+                *current_owner,
+                *original_owner,
+                *current_index,
+                *original_index,
+                current_ty,
+                original_ty,
+            ) {
+                return None;
+            }
+        }
+        Some(())
+    }
+    fn join_supplied_slots(
+        &mut self,
+        b: &[crate::analysis::resolve::SymbolId],
+        slots: &[Option<usize>],
+        d: usize,
+    ) -> Option<()> {
+        if slots.len() != b.len() {
+            return None;
+        }
+        for (pid, slot) in b.iter().zip(slots) {
+            if slot.is_none() {
+                let actual = self.actual.items.get(pid.0 as usize)?;
+                let original = self.expected.items.get(pid.0 as usize)?;
+                let (
+                    IrItemKind::Param {
+                        owner: a,
+                        index: x,
+                        ty: at,
+                        default_node: ak,
+                        default: Some(ad),
+                        ..
+                    },
+                    IrItemKind::Param {
+                        owner: b,
+                        index: y,
+                        ty: bt,
+                        default_node: bk,
+                        default: Some(bd),
+                        ..
+                    },
+                ) = (&actual.kind, &original.kind)
+                else {
+                    return None;
+                };
+                if actual.id != original.id
+                    || a != b
+                    || x != y
+                    || ak != bk
+                    || !known_type_equal(at, bt)
+                {
+                    return None;
+                }
+                let ae = match ad {
+                    IrDefault::Literal(e) | IrDefault::Computed { expr: e, .. } => e,
+                };
+                let be = match bd {
+                    IrDefault::Literal(e) | IrDefault::Computed { expr: e, .. } => e,
+                };
+                self.expression(ae, be, d)?;
+            }
+        }
+        Some(())
+    }
+    fn join_derive_field_target(
+        &mut self,
+        actual: &IrItem,
+        item: &IrItem,
+        slots: Option<&Vec<Option<usize>>>,
+        d: usize,
+    ) -> Option<bool> {
+        let (
+            IrItemKind::DeriveField {
+                model: a,
+                ty: x,
+                expr: Some(ae),
+                ..
+            },
+            IrItemKind::DeriveField {
+                model: b,
+                ty: y,
+                expr: Some(be),
+                ..
+            },
+        ) = (&actual.kind, &item.kind)
+        else {
+            return Some(false);
+        };
+        if a != b
+            || !known_type_equal(x, y)
+            || ae.ty != ResolvedType::Scalar(Scalar::Bool)
+            || slots.is_some()
+        {
+            return None;
+        }
+        self.expression(ae, be, d + 1)?;
+        self.stack.remove(&item.id);
+        Some(true)
+    }
+    fn join_derive_identity<'a>(
+        expected: &'a IrProgram,
+        actual_program: &'a IrProgram,
+        stack: &mut HashSet<crate::analysis::resolve::SymbolId>,
+        canonical: &str,
+    ) -> Option<(&'a IrItem, &'a IrItem)> {
+        let item = expected
+            .items
+            .iter()
+            .find(|i| i.canonical == *canonical)?;
+        let actual = actual_program.items.get(item.id.0 as usize)?;
+        if actual.id != item.id
+            || actual.module != item.module
+            || actual.canonical != item.canonical
+            || stack.len() >= 16
+            || !stack.insert(item.id)
+        {
+            return None;
+        }
+        Some((actual, item))
     }
     fn target(
         &mut self,
@@ -1399,40 +1928,9 @@ impl SemanticJoin<'_> {
                 IrCallTarget::Builtin { id: b, awaited: y },
             ) if a == b && x == y => {}
             (IrCallTarget::DeriveFn(a), IrCallTarget::DeriveFn(b)) if a == b => {
-                let item = self.expected.items.iter().find(|i| i.canonical == *b)?;
-                let actual = self.actual.items.get(item.id.0 as usize)?;
-                if actual.id != item.id
-                    || actual.module != item.module
-                    || actual.canonical != item.canonical
-                    || self.stack.len() >= 16
-                    || !self.stack.insert(item.id)
-                {
-                    return None;
-                }
-                if let (
-                    IrItemKind::DeriveField {
-                        model: a,
-                        ty: x,
-                        expr: Some(ae),
-                        ..
-                    },
-                    IrItemKind::DeriveField {
-                        model: b,
-                        ty: y,
-                        expr: Some(be),
-                        ..
-                    },
-                ) = (&actual.kind, &item.kind)
-                {
-                    if a != b
-                        || !known_type_equal(x, y)
-                        || ae.ty != ResolvedType::Scalar(Scalar::Bool)
-                        || slots.is_some()
-                    {
-                        return None;
-                    }
-                    self.expression(ae, be, d + 1)?;
-                    self.stack.remove(&item.id);
+                let (actual, item) =
+                    Self::join_derive_identity(self.expected, self.actual, &mut self.stack, b)?;
+                if self.join_derive_field_target(actual, item, slots, d)? {
                     return Some(());
                 }
                 let (
@@ -1453,111 +1951,10 @@ impl SemanticJoin<'_> {
                 if a != b || !known_type_equal(x, y) {
                     return None;
                 }
-                // Supplied slots do not visit defaults. The exact transcript
-                // projection still consumes its original required Branch
-                // formal, so seal that declaration independently of the body.
-                if let Some(fact) = self
-                    .program
-                    .scenario_disclosures()
-                    .values()
-                    .filter_map(|value| value.source_facts())
-                    .filter_map(|source| source.transcripts.as_ref())
-                    .flatten()
-                    .find(|fact| fact.derive == item.id)
-                {
-                    if b.as_slice() != [fact.formal] {
-                        return None;
-                    }
-                    let current = self.actual.items.get(fact.formal.0 as usize)?;
-                    let original = self.expected.items.get(fact.formal.0 as usize)?;
-                    let (
-                        IrItemKind::Param {
-                            owner: current_owner,
-                            index: current_index,
-                            ty: current_ty,
-                            default: None,
-                            default_node: None,
-                            default_copy_source: None,
-                            ..
-                        },
-                        IrItemKind::Param {
-                            owner: original_owner,
-                            index: original_index,
-                            ty: original_ty,
-                            default: None,
-                            default_node: None,
-                            default_copy_source: None,
-                            ..
-                        },
-                    ) = (&current.kind, &original.kind)
-                    else {
-                        return None;
-                    };
-                    if current.id != fact.formal
-                        || original.id != fact.formal
-                        || current.module != original.module
-                        || current.module != item.module
-                        || current.span != original.span
-                        || current.canonical != original.canonical
-                        || current.name != original.name
-                        || *current_owner != item.id
-                        || current_owner != original_owner
-                        || *current_index != 0
-                        || current_index != original_index
-                        || !known_type_equal(current_ty, original_ty)
-                        || !matches!(current_ty,IrType::Known(ResolvedType::Record {symbol,stored:true})
-                            if *symbol==fact.branch)
-                    {
-                        return None;
-                    }
-                }
+                self.join_derive_fn_formal(item, b)?;
                 self.expression(ae, be, d)?;
                 if let Some(slots) = slots {
-                    if slots.len() != b.len() {
-                        return None;
-                    }
-                    for (pid, slot) in b.iter().zip(slots) {
-                        if slot.is_none() {
-                            let actual = self.actual.items.get(pid.0 as usize)?;
-                            let original = self.expected.items.get(pid.0 as usize)?;
-                            let (
-                                IrItemKind::Param {
-                                    owner: a,
-                                    index: x,
-                                    ty: at,
-                                    default_node: ak,
-                                    default: Some(ad),
-                                    ..
-                                },
-                                IrItemKind::Param {
-                                    owner: b,
-                                    index: y,
-                                    ty: bt,
-                                    default_node: bk,
-                                    default: Some(bd),
-                                    ..
-                                },
-                            ) = (&actual.kind, &original.kind)
-                            else {
-                                return None;
-                            };
-                            if actual.id != original.id
-                                || a != b
-                                || x != y
-                                || ak != bk
-                                || !known_type_equal(at, bt)
-                            {
-                                return None;
-                            }
-                            let ae = match ad {
-                                IrDefault::Literal(e) | IrDefault::Computed { expr: e, .. } => e,
-                            };
-                            let be = match bd {
-                                IrDefault::Literal(e) | IrDefault::Computed { expr: e, .. } => e,
-                            };
-                            self.expression(ae, be, d)?;
-                        }
-                    }
+                    self.join_supplied_slots(b, slots, d)?;
                 }
                 self.stack.remove(&item.id);
             }
@@ -1574,13 +1971,13 @@ impl SemanticJoin<'_> {
         }
         Some(())
     }
-    fn statement(&mut self, a: &IrStmt, b: &IrStmt, d: usize) -> Option<()> {
-        self.budget(d)?;
+    fn join_simple_effect(&mut self, a: &IrStmt, b: &IrStmt, d: usize) -> Option<bool> {
         match (a, b) {
             (IrStmt::Require { cond: a, span: x }, IrStmt::Require { cond: b, span: y })
                 if x == y =>
             {
-                self.expression(a, b, d + 1)?
+                self.expression(a, b, d + 1)?;
+                Some(true)
             }
             (
                 IrStmt::Let {
@@ -1593,7 +1990,10 @@ impl SemanticJoin<'_> {
                     value: b,
                     span: t,
                 },
-            ) if x == y && s == t => self.expression(a, b, d + 1)?,
+            ) if x == y && s == t => {
+                self.expression(a, b, d + 1)?;
+                Some(true)
+            }
             (
                 IrStmt::Create {
                     model: x,
@@ -1611,40 +2011,24 @@ impl SemanticJoin<'_> {
                 },
             ) if x == y && u == w && v == z && s == t => {
                 self.expression(a, b, d + 1)?;
+                Some(true)
             }
-            // A prepared child call remains an original statement in a
-            // parent's decision sites. Match its complete static operand and
-            // authored inputs to fresh IR; receipt preparation still owns all
-            // execution authority and child result qualification.
-            (
-                IrStmt::Call {
-                    target:
-                        IrEffectCallTarget::Operation {
-                            source: x,
-                            operation: a,
-                        },
-                    inputs: c,
-                    binding: u,
-                    result: ar,
-                    span: s,
-                },
-                IrStmt::Call {
-                    target:
-                        IrEffectCallTarget::Operation {
-                            source: y,
-                            operation: b,
-                        },
-                    inputs: e,
-                    binding: v,
-                    result: br,
-                    span: t,
-                },
-            ) if x == y && a == b && u == v && ar == br && s == t => {
-                self.expression(c, e, d + 1)?;
-            }
+            _ => Some(false),
+        }
+    }
+    fn join_event_effect(&mut self, a: &IrStmt, b: &IrStmt, d: usize) -> Option<bool> {
+        match (a, b) {
             (IrStmt::Emit { event: x, payload: a, span: s },
              IrStmt::Emit { event: y, payload: b, span: t }) if x == y && s == t => {
                 self.expression(a, b, d + 1)?;
+                Some(true)
+            }
+            (
+                IrStmt::Cancel { owner_package: x, key: a, span: s },
+                IrStmt::Cancel { owner_package: y, key: b, span: t },
+            ) if x == y && s == t => {
+                self.expression(a, b, d + 1)?;
+                Some(true)
             }
             (
                 IrStmt::Schedule { owner_package: x, key: a, at: c, event: u, payload: e, span: s },
@@ -1653,16 +2037,51 @@ impl SemanticJoin<'_> {
                 self.expression(a, b, d + 1)?;
                 self.expression(c, other_at, d + 1)?;
                 self.expression(e, f, d + 1)?;
+                Some(true)
             }
-            (
-                IrStmt::Cancel { owner_package: x, key: a, span: s },
-                IrStmt::Cancel { owner_package: y, key: b, span: t },
-            ) if x == y && s == t => self.expression(a, b, d + 1)?,
-            (IrStmt::Return { value: a, span: x }, IrStmt::Return { value: b, span: y })
-                if x == y =>
-            {
-                self.optional(a, b, d + 1)?
-            }
+            _ => Some(false),
+        }
+    }
+    fn join_call_statement(&mut self, a: &IrStmt, b: &IrStmt, d: usize) -> Option<bool> {
+        // A prepared child call remains an original statement in a
+        // parent's decision sites. Match its complete static operand and
+        // authored inputs to fresh IR; receipt preparation still owns all
+        // execution authority and child result qualification.
+        let (
+            IrStmt::Call {
+                target:
+                    IrEffectCallTarget::Operation {
+                        source: x,
+                        operation: a,
+                    },
+                inputs: c,
+                binding: u,
+                result: ar,
+                span: s,
+            },
+            IrStmt::Call {
+                target:
+                    IrEffectCallTarget::Operation {
+                        source: y,
+                        operation: b,
+                    },
+                inputs: e,
+                binding: v,
+                result: br,
+                span: t,
+            },
+        ) = (a, b)
+        else {
+            return Some(false);
+        };
+        if x != y || a != b || u != v || ar != br || s != t {
+            return Some(false);
+        }
+        self.expression(c, e, d + 1)?;
+        Some(true)
+    }
+    fn join_branch_statement(&mut self, a: &IrStmt, b: &IrStmt, d: usize) -> Option<bool> {
+        match (a, b) {
             (
                 IrStmt::If {
                     cond: a,
@@ -1680,6 +2099,7 @@ impl SemanticJoin<'_> {
                 self.expression(a, b, d + 1)?;
                 self.statements(x, y, d + 1)?;
                 self.statements(z, w, d + 1)?;
+                Some(true)
             }
             (
                 IrStmt::Match {
@@ -1700,27 +2120,41 @@ impl SemanticJoin<'_> {
                     }
                     self.statements(&a.body, &b.body, d + 1)?;
                 }
+                Some(true)
             }
-            (
-                IrStmt::For {
-                    item: x,
-                    domain: a,
-                    limit: c,
-                    body: z,
-                    span: s,
-                },
-                IrStmt::For {
-                    item: y,
-                    domain: b,
-                    limit: e,
-                    body: w,
-                    span: t,
-                },
-            ) if x == y && s == t => {
-                self.expression(a, b, d + 1)?;
-                self.optional(c, e, d + 1)?;
-                self.statements(z, w, d + 1)?;
-            }
+            _ => Some(false),
+        }
+    }
+    fn join_for_statement(&mut self, a: &IrStmt, b: &IrStmt, d: usize) -> Option<bool> {
+        let (
+            IrStmt::For {
+                item: x,
+                domain: a,
+                limit: c,
+                body: z,
+                span: s,
+            },
+            IrStmt::For {
+                item: y,
+                domain: b,
+                limit: e,
+                body: w,
+                span: t,
+            },
+        ) = (a, b)
+        else {
+            return Some(false);
+        };
+        if x != y || s != t {
+            return Some(false);
+        }
+        self.expression(a, b, d + 1)?;
+        self.optional(c, e, d + 1)?;
+        self.statements(z, w, d + 1)?;
+        Some(true)
+    }
+    fn join_scoped_statement(&mut self, a: &IrStmt, b: &IrStmt, d: usize) -> Option<bool> {
+        match (a, b) {
             (
                 IrStmt::Send {
                     operation: x,
@@ -1741,6 +2175,7 @@ impl SemanticJoin<'_> {
             ) if x == y && u == w && v == z && s == t => {
                 self.expression(a, b, d + 1)?;
                 self.optional(c, e, d + 1)?;
+                Some(true)
             }
             (
                 IrStmt::Set {
@@ -1758,10 +2193,38 @@ impl SemanticJoin<'_> {
             ) if x == y && s == t => {
                 self.expression(a, b, d + 1)?;
                 self.expression(c, e, d + 1)?;
+                Some(true)
             }
-            _ => return None,
+            (IrStmt::Return { value: a, span: x }, IrStmt::Return { value: b, span: y })
+                if x == y =>
+            {
+                self.optional(a, b, d + 1)?;
+                Some(true)
+            }
+            _ => Some(false),
         }
-        Some(())
+    }
+    fn statement(&mut self, a: &IrStmt, b: &IrStmt, d: usize) -> Option<()> {
+        self.budget(d)?;
+        if self.join_simple_effect(a, b, d)? {
+            return Some(());
+        }
+        if self.join_event_effect(a, b, d)? {
+            return Some(());
+        }
+        if self.join_for_statement(a, b, d)? {
+            return Some(());
+        }
+        if self.join_call_statement(a, b, d)? {
+            return Some(());
+        }
+        if self.join_branch_statement(a, b, d)? {
+            return Some(());
+        }
+        if self.join_scoped_statement(a, b, d)? {
+            return Some(());
+        }
+        None
     }
     fn optional(&mut self, a: &Option<TypedExpr>, b: &Option<TypedExpr>, d: usize) -> Option<()> {
         match (a, b) {
@@ -2070,18 +2533,10 @@ pub fn serialize_read_decision_sources(
         .serialize_rule(rule)
 }
 
-fn serialize_read_rule(
-    sources: &FreshSourceContext<'_>,
+fn match_read_rule(
     rule: &IrRuleFn,
-) -> Option<Vec<SerialDecisionSite>> {
-    let program = sources.program;
-    let ir = sources.ir;
-    let db = sources.db;
-    let catalog = sources.catalog;
-    let original = &sources.original;
-    let fresh = &sources.fresh;
-    let trees = &sources.trees;
-    let resolved = &sources.resolved;
+    original: &CheckedProgram,
+) -> Option<(crate::analysis::resolve::SymbolId, usize, bool)> {
     let mut matches = Vec::new();
     for (model, data) in &original.effects.models {
         let symbol = original.symbols.get(model.0 as usize)?;
@@ -2104,43 +2559,57 @@ fn serialize_read_rule(
     let [(model, ordinal, callback)] = matches.as_slice() else {
         return None;
     };
+    Some((*model, *ordinal, *callback))
+}
+
+fn check_read_rule_policy(
+    program: &CheckedProgram,
+    original: &CheckedProgram,
+    model: crate::analysis::resolve::SymbolId,
+    ordinal: usize,
+    rule: &IrRuleFn,
+) -> Option<bool> {
     let symbol = original.symbols.get(model.0 as usize)?;
     let actual_symbol = program.symbols.get(model.0 as usize)?;
-    if actual_symbol.id != *model
+    if actual_symbol.id != model
         || actual_symbol.canonical != symbol.canonical
         || actual_symbol.module != symbol.module
         || rule.origin.is_some()
     {
         return None;
     }
-    let actual_model = program.effects.models.get(model)?;
-    let original_model = original.effects.models.get(model)?;
-    if actual_model.model != *model || actual_model.module != original_model.module {
+    let actual_model = program.effects.models.get(&model)?;
+    let original_model = original.effects.models.get(&model)?;
+    if actual_model.model != model || actual_model.module != original_model.module {
         return None;
     }
-    let actual_policy = actual_model.policies.get(*ordinal)?;
-    let policy = original_model.policies.get(*ordinal)?;
-    if actual_policy.id != policy.id
-        || actual_policy.node != policy.node
-        || actual_policy.module != policy.module
-        || actual_policy.read != policy.read
-        || actual_policy.where_predicate != policy.where_predicate
-        || actual_policy.fields != policy.fields
-        || actual_policy.callback_fields != policy.callback_fields
-        || actual_policy.fields_node != policy.fields_node
-    {
+    let actual_policy = actual_model.policies.get(ordinal)?;
+    let policy = original_model.policies.get(ordinal)?;
+    if read_policy_mismatch(actual_policy, policy) {
         return None;
     }
-    let expected_rules = if *callback {
-        &fresh.callback_read_rules
-    } else {
-        &fresh.read_rules
-    };
-    let actual_rules = if *callback {
-        &ir.callback_read_rules
-    } else {
-        &ir.read_rules
-    };
+    Some(policy.where_predicate.is_some())
+}
+
+fn read_policy_mismatch(
+    actual: &crate::analysis::effects::PolicyRule,
+    expected: &crate::analysis::effects::PolicyRule,
+) -> bool {
+    actual.id != expected.id
+        || actual.node != expected.node
+        || actual.module != expected.module
+        || actual.read != expected.read
+        || actual.where_predicate != expected.where_predicate
+        || actual.fields != expected.fields
+        || actual.callback_fields != expected.callback_fields
+        || actual.fields_node != expected.fields_node
+}
+
+fn select_matching_rules<'a, 'b>(
+    expected_rules: &'a [IrRuleFn],
+    actual_rules: &'b [IrRuleFn],
+    rule: &IrRuleFn,
+) -> Option<(&'a IrRuleFn, &'b IrRuleFn)> {
     let matching_rule =
         |candidate: &&IrRuleFn| candidate.id == rule.id && candidate.span == rule.span;
     let mut expected_matches = expected_rules.iter().filter(matching_rule);
@@ -2153,40 +2622,11 @@ fn serialize_read_rule(
     if actual_matches.next().is_some() || actual.origin.is_some() {
         return None;
     }
-    let mut semantics = SemanticJoin {
-        program: original,
-        actual: ir,
-        expected: fresh,
-        nodes: 0,
-        stack: HashSet::new(),
-    };
-    semantics.expression(&rule.pred, &expected.pred, 0)?;
-    semantics.expression(&actual.pred, &expected.pred, 0)?;
-    let sites = crate::analysis::scenario_disclosure::checked_read_decision_sites(
-        db,
-        trees,
-        resolved,
-        &original.types,
-        &original.effects,
-        *model,
-        *ordinal,
-    )?;
-    let mut consumer = Consumer {
-        program: original,
-        ir,
-        db,
-        catalog,
-        nodes: HashMap::new(),
-        steps: 0,
-        count: 0,
-    };
-    // Only this rule's consumed anchors spend the finite index budget, then
-    // the present helper-closure bodies join best-effort. Unrelated source
-    // remains in the checked/fresh cohort unindexed.
-    consumer.index_required(trees, &required_site_keys(original, &sites)?)?;
-    index_helper_closure(&mut consumer, trees, original);
-    consumer.steps = 0;
-    let predicates = if policy.where_predicate.is_some() {
+    Some((expected, actual))
+}
+
+fn split_rule_predicates(rule: &IrRuleFn, has_where: bool) -> Option<Vec<&TypedExpr>> {
+    if has_where {
         let IrExpr::Binary {
             op: IrBinOp::And,
             left,
@@ -2195,16 +2635,24 @@ fn serialize_read_rule(
         else {
             return None;
         };
-        vec![left.as_ref(), right.as_ref()]
+        Some(vec![left.as_ref(), right.as_ref()])
     } else {
-        vec![&rule.pred]
-    };
+        Some(vec![&rule.pred])
+    }
+}
+
+fn verify_rule_predicates(
+    consumer: &mut Consumer<'_>,
+    sites: &[CheckedDecisionSite],
+    predicates: Vec<&TypedExpr>,
+    module: crate::analysis::resolve::ModuleId,
+) -> Option<()> {
     if sites.len() != predicates.len() {
         return None;
     }
     for (site, predicate) in sites.iter().zip(predicates) {
         if predicate.ty != ResolvedType::Scalar(Scalar::Bool)
-            || !consumer.origin(&site.source, site.node, symbol.module)
+            || !consumer.origin(&site.source, site.node, module)
         {
             return None;
         }
@@ -2225,6 +2673,70 @@ fn serialize_read_rule(
             }
         }
     }
+    Some(())
+}
+
+fn serialize_read_rule(
+    sources: &FreshSourceContext<'_>,
+    rule: &IrRuleFn,
+) -> Option<Vec<SerialDecisionSite>> {
+    let program = sources.program;
+    let ir = sources.ir;
+    let db = sources.db;
+    let catalog = sources.catalog;
+    let original = &sources.original;
+    let fresh = &sources.fresh;
+    let trees = &sources.trees;
+    let resolved = &sources.resolved;
+    let (model, ordinal, callback) = match_read_rule(rule, original)?;
+    let has_where = check_read_rule_policy(program, original, model, ordinal, rule)?;
+    let expected_rules = if callback {
+        &fresh.callback_read_rules
+    } else {
+        &fresh.read_rules
+    };
+    let actual_rules = if callback {
+        &ir.callback_read_rules
+    } else {
+        &ir.read_rules
+    };
+    let (expected, actual) = select_matching_rules(expected_rules, actual_rules, rule)?;
+    let mut semantics = SemanticJoin {
+        program: original,
+        actual: ir,
+        expected: fresh,
+        nodes: 0,
+        stack: HashSet::new(),
+    };
+    semantics.expression(&rule.pred, &expected.pred, 0)?;
+    semantics.expression(&actual.pred, &expected.pred, 0)?;
+    let symbol = original.symbols.get(model.0 as usize)?;
+    let sites = crate::analysis::scenario_disclosure::checked_read_decision_sites(
+        db,
+        trees,
+        resolved,
+        &original.types,
+        &original.effects,
+        model,
+        ordinal,
+    )?;
+    let mut consumer = Consumer {
+        program: original,
+        ir,
+        db,
+        catalog,
+        nodes: HashMap::new(),
+        steps: 0,
+        count: 0,
+    };
+    // Only this rule's consumed anchors spend the finite index budget, then
+    // the present helper-closure bodies join best-effort. Unrelated source
+    // remains in the checked/fresh cohort unindexed.
+    consumer.index_required(trees, &required_site_keys(original, &sites)?)?;
+    index_helper_closure(&mut consumer, trees, original);
+    consumer.steps = 0;
+    let predicates = split_rule_predicates(rule, has_where)?;
+    verify_rule_predicates(&mut consumer, &sites, predicates, symbol.module)?;
     let module = original.modules.get(symbol.module.0 as usize)?;
     let owner = if super::ir::model_rule_prefix(original, symbol) == symbol.canonical {
         rule.id.clone()
@@ -2246,6 +2758,113 @@ pub fn serialize_read_predicate_sources(
     FreshSourceContext::prepare(program, ir, db, catalog)
         .ok()?
         .serialize_predicates()
+}
+
+fn module_identity_mismatch(module: &IrModule, expected: &IrModule) -> bool {
+    module.id != expected.id
+        || module.name != expected.name
+        || module.file != expected.file
+        || module.span != expected.span
+        || module.pages.len() != expected.pages.len()
+}
+
+fn join_predicate_page(
+    join: &mut SemanticJoin,
+    page: &IrPage,
+    expected_page: &IrPage,
+) -> Option<()> {
+    if page.owner != expected_page.owner
+        || page.fn_name != expected_page.fn_name
+        || page.descriptor_name != expected_page.descriptor_name
+        || page.path != expected_page.path
+        || page.span != expected_page.span
+        || page.render.len() != expected_page.render.len()
+        || page.admit.len() != expected_page.admit.len()
+    {
+        return None;
+    }
+    join.message(&page.title, &expected_page.title, 0)?;
+    for (actual, expected) in page.admit.iter().zip(&expected_page.admit) {
+        join.guard(actual, expected, 0)?;
+    }
+    for (actual, expected) in page.render.iter().zip(&expected_page.render) {
+        join.ui(actual, expected, 0)?;
+    }
+    Some(())
+}
+
+fn resolve_page_node<'t>(
+    consumer: &mut Consumer<'_>,
+    trees: &'t [(crate::source::SourceId, crate::syntax::SyntaxNode)],
+    page_span: Span,
+) -> Option<(&'t crate::syntax::SyntaxNode, NodeKey)> {
+    let page_key = NodeKey {
+        file: page_span.file,
+        start: page_span.start,
+        end: page_span.end,
+        kind: SyntaxKind::Page as u8,
+    };
+    // The sealed page subtree carries this owner's CST; a missing
+    // anchor refuses exactly like the previous whole-tree lookup did.
+    let Some((_, tree)) = trees.iter().find(|(file, _)| *file == page_span.file) else {
+        return None;
+    };
+    let page_node = find_page_root(tree, page_key, &mut consumer.steps)?;
+    if page_node.kind != SyntaxKind::Page {
+        return None;
+    }
+    Some((page_node, page_key))
+}
+
+fn resolve_predicate_body(ui: &IrUi) -> Option<Option<&TypedExpr>> {
+    if !matches!(ui.factory.as_str(), "list" | "table" | "calendar") {
+        return Some(None);
+    }
+    let mut predicates = ui.props.iter().filter(|(name, _)| name == "where");
+    let Some((_, predicate)) = predicates.next() else {
+        return Some(None);
+    };
+    if predicates.next().is_some() {
+        return None;
+    }
+    // Checked data filters are compared by the complete fresh UI
+    // join above and carry no callable decision census. Checked
+    // page-time predicates match the read-predicate seal, which
+    // skips the same data-only shapes.
+    if matches!(
+        &predicate.expr,
+        IrExpr::Object(_) | IrExpr::PageTimePredicate(_)
+    ) {
+        return Some(None);
+    }
+    let IrExpr::Lambda { body, .. } = &predicate.expr else {
+        return None;
+    };
+    Some(Some(body))
+}
+
+fn verify_predicate_site(
+    consumer: &mut Consumer<'_>,
+    site: &CheckedDecisionSite,
+    body: &TypedExpr,
+    module: crate::analysis::resolve::ModuleId,
+) -> Option<()> {
+    // Each collected site is an independent validation unit:
+    // prior units must not spend its finite expression budget.
+    // Total output stays capped below.
+    consumer.steps = 0;
+    if !consumer.same(site.node, body.span)
+        || body.ty != ResolvedType::Scalar(Scalar::Bool)
+        || !consumer.origin(&site.source, site.node, module)
+    {
+        return None;
+    }
+    let mut matched = HashSet::new();
+    consumer.expression(body, &[], &mut HashSet::new(), &site.calls, &mut matched, 0)?;
+    if matched.len() != site.calls.len() {
+        return None;
+    }
+    Some(())
 }
 
 fn serialize_read_predicates(sources: &FreshSourceContext<'_>) -> Option<Vec<SerialDecisionSite>> {
@@ -2284,73 +2903,18 @@ fn serialize_read_predicates(sources: &FreshSourceContext<'_>) -> Option<Vec<Ser
     let mut output = Vec::new();
     let mut call_count = 0usize;
     for (module, expected_module) in ir.modules.iter().zip(&fresh.modules) {
-        if module.id != expected_module.id
-            || module.name != expected_module.name
-            || module.file != expected_module.file
-            || module.span != expected_module.span
-            || module.pages.len() != expected_module.pages.len()
-        {
+        if module_identity_mismatch(module, expected_module) {
             return None;
         }
         for (page, expected_page) in module.pages.iter().zip(&expected_module.pages) {
-            if page.owner != expected_page.owner
-                || page.fn_name != expected_page.fn_name
-                || page.descriptor_name != expected_page.descriptor_name
-                || page.path != expected_page.path
-                || page.span != expected_page.span
-                || page.render.len() != expected_page.render.len()
-                || page.admit.len() != expected_page.admit.len()
-            {
-                return None;
-            }
-            join.message(&page.title, &expected_page.title, 0)?;
-            for (actual, expected) in page.admit.iter().zip(&expected_page.admit) {
-                join.guard(actual, expected, 0)?;
-            }
-            for (actual, expected) in page.render.iter().zip(&expected_page.render) {
-                join.ui(actual, expected, 0)?;
-            }
-            let page_key = NodeKey {
-                file: page.span.file,
-                start: page.span.start,
-                end: page.span.end,
-                kind: SyntaxKind::Page as u8,
-            };
-            // The sealed page subtree carries this owner's CST; a missing
-            // anchor refuses exactly like the previous whole-tree lookup did.
-            let Some((_, tree)) = trees.iter().find(|(file, _)| *file == page.span.file) else {
-                return None;
-            };
-            let page_node = find_page_root(tree, page_key, &mut consumer.steps)?;
-            if page_node.kind != SyntaxKind::Page {
-                return None;
-            }
+            join_predicate_page(&mut join, page, expected_page)?;
+            let (page_node, page_key) = resolve_page_node(&mut consumer, trees, page.span)?;
             let owner = format!("{}.{}", page.owner, page.fn_name);
             let mut pending = page.render.iter().rev().collect::<Vec<_>>();
             while let Some(ui) = pending.pop() {
                 pending.extend(ui.children.iter().rev());
-                if !matches!(ui.factory.as_str(), "list" | "table" | "calendar") {
+                let Some(body) = resolve_predicate_body(ui)? else {
                     continue;
-                }
-                let mut predicates = ui.props.iter().filter(|(name, _)| name == "where");
-                let Some((_, predicate)) = predicates.next() else {
-                    continue;
-                };
-                if predicates.next().is_some() {
-                    return None;
-                }
-                // Checked data filters are compared by the complete fresh UI
-                // join above and carry no callable decision census. Checked
-                // page-time predicates match the read-predicate seal, which
-                // skips the same data-only shapes.
-                if matches!(
-                    &predicate.expr,
-                    IrExpr::Object(_) | IrExpr::PageTimePredicate(_)
-                ) {
-                    continue;
-                }
-                let IrExpr::Lambda { body, .. } = &predicate.expr else {
-                    return None;
                 };
                 let ui_key = NodeKey {
                     file: ui.span.file,
@@ -2370,21 +2934,7 @@ fn serialize_read_predicates(sources: &FreshSourceContext<'_>) -> Option<Vec<Ser
                     page_key,
                     NodeKey::of(query),
                 )?;
-                // Each collected site is an independent validation unit:
-                // prior units must not spend its finite expression budget.
-                // Total output stays capped below.
-                consumer.steps = 0;
-                if !consumer.same(site.node, body.span)
-                    || body.ty != ResolvedType::Scalar(Scalar::Bool)
-                    || !consumer.origin(&site.source, site.node, module.id)
-                {
-                    return None;
-                }
-                let mut matched = HashSet::new();
-                consumer.expression(body, &[], &mut HashSet::new(), &site.calls, &mut matched, 0)?;
-                if matched.len() != site.calls.len() {
-                    return None;
-                }
+                verify_predicate_site(&mut consumer, &site, body, module.id)?;
                 call_count = call_count.checked_add(site.calls.len())?;
                 if output.len() >= 200 || call_count > 200 {
                     return None;
@@ -2401,26 +2951,123 @@ fn serialize_read_predicates(sources: &FreshSourceContext<'_>) -> Option<Vec<Ser
 
 /// Original Boolean observers. The read-predicate preparation seals the full
 /// fresh source and IR before these identities can reach the emitter.
-pub(super) fn serialize_read_booleans(
-    sources: &FreshSourceContext<'_>,
-) -> Option<Vec<(Span, serde_json::Value, Vec<SerialDecisionSite>)>> {
-    let original = sources.original();
-    let ir = sources.ir();
-    let mut consumer = Consumer {
-        program: original,
-        ir,
-        db: sources.db(),
-        catalog: sources.catalog(),
-        nodes: HashMap::new(),
-        steps: 0,
-        count: 0,
+fn resolve_page_predicate<'g>(
+    original: &CheckedProgram,
+    page_node: &crate::syntax::SyntaxNode,
+    guard: &'g IrGuard,
+) -> Option<(&'g TypedExpr, NodeKey, NodeKey)> {
+    let IrGuard::Expr(expr) = guard else {
+        return None;
     };
-    // Only the sealed pages spend the finite index budget, then the present
-    // helper-closure bodies join best-effort. Unrelated Given/When bulk
-    // remains in the checked/fresh cohort unindexed.
-    consumer.index_required(sources.trees(), &page_anchor_keys(ir))?;
-    index_helper_closure(&mut consumer, sources.trees(), original);
-    consumer.steps = 0;
+    let Some(statement) = crate::analysis::kids(page_node).into_iter().find(|n| {
+        matches!(n.kind, SyntaxKind::Require | SyntaxKind::UiLeaf)
+            && n.span.start <= expr.span.start
+            && n.span.end >= expr.span.end
+    }) else {
+        return None;
+    };
+    let Some(predicate) = crate::analysis::kids(statement).into_iter().find(|n| {
+        original.types.node_types.get(&NodeKey::of(n))
+            == Some(&ResolvedType::Scalar(Scalar::Bool))
+    }) else {
+        return None;
+    };
+    if !crate::analysis::scenario_disclosure::expression_reads_membership(
+        &original.types,
+        &original.effects,
+        NodeKey::of(predicate),
+    ) {
+        return None;
+    }
+    Some((expr, NodeKey::of(predicate), NodeKey::of(statement)))
+}
+
+type PageCandidate<'a> = (
+    crate::analysis::resolve::ModuleId,
+    crate::analysis::resolve::SymbolId,
+    String,
+    &'a TypedExpr,
+    NodeKey,
+    NodeKey,
+    &'static str,
+    Option<String>,
+);
+
+type StatelessCandidate<'a> = (
+    crate::analysis::resolve::ModuleId,
+    String,
+    &'a TypedExpr,
+    NodeKey,
+    NodeKey,
+);
+
+fn push_page_candidate<'e>(
+    candidates: &mut Vec<PageCandidate<'e>>,
+    stateless: &mut Vec<StatelessCandidate<'e>>,
+    sources: &FreshSourceContext<'_>,
+    original: &CheckedProgram,
+    module: crate::analysis::resolve::ModuleId,
+    page_owner: &str,
+    page_fn: &str,
+    expr: &'e TypedExpr,
+    predicate: NodeKey,
+    statement: NodeKey,
+    route: Option<&crate::syntax::SyntaxNode>,
+) -> Option<()> {
+    // An incidental route record never defines permission to read
+    // (DESIGN §3): a guard without a record owner keeps its exact
+    // owning page sources without inventing a model.
+    let route_kids = route.map(crate::analysis::kids).unwrap_or_default();
+    let records = route_kids
+        .iter()
+        .filter(|n| n.kind == SyntaxKind::RouteRecord)
+        .collect::<Vec<_>>();
+    let has_scalar = route_kids
+        .iter()
+        .any(|n| n.kind == SyntaxKind::RouteScalar);
+    if records.len() == 1 && !has_scalar {
+        let path = crate::analysis::kids(records[0])
+            .into_iter()
+            .find(|n| n.kind == SyntaxKind::Path)?;
+        let model = *sources.resolved().node_symbol.get(&NodeKey::of(path))?;
+        let model = if matches!(
+            original.symbols.get(model.0 as usize)?.kind,
+            crate::analysis::resolve::SymbolKind::Model { .. }
+        ) {
+            model
+        } else {
+            return None;
+        };
+        candidates.push((
+            module,
+            model,
+            format!("{}.{}", page_owner, page_fn),
+            expr,
+            predicate,
+            statement,
+            "page-require",
+            None,
+        ));
+    } else if records.is_empty() && !has_scalar {
+        stateless.push((
+            module,
+            format!("{}.{}", page_owner, page_fn),
+            expr,
+            predicate,
+            statement,
+        ));
+    } else {
+        return None;
+    }
+    Some(())
+}
+
+fn collect_page_candidates<'i>(
+    ir: &'i IrProgram,
+    sources: &FreshSourceContext<'_>,
+    original: &'i CheckedProgram,
+    consumer: &mut Consumer<'_>,
+) -> Option<(Vec<PageCandidate<'i>>, Vec<StatelessCandidate<'i>>)> {
     let mut candidates = Vec::new();
     let mut stateless = Vec::new();
     for module in &ir.modules {
@@ -2440,77 +3087,35 @@ pub(super) fn serialize_read_booleans(
                 .into_iter()
                 .find(|n| n.kind == SyntaxKind::Route);
             for guard in &page.admit {
-                let IrGuard::Expr(expr) = guard else {
+                let Some((expr, predicate, statement)) =
+                    resolve_page_predicate(original, page_node, guard)
+                else {
                     continue;
                 };
-                let Some(statement) = crate::analysis::kids(page_node).into_iter().find(|n| {
-                    matches!(n.kind, SyntaxKind::Require | SyntaxKind::UiLeaf)
-                        && n.span.start <= expr.span.start
-                        && n.span.end >= expr.span.end
-                }) else {
-                    continue;
-                };
-                let Some(predicate) = crate::analysis::kids(statement).into_iter().find(|n| {
-                    original.types.node_types.get(&NodeKey::of(n))
-                        == Some(&ResolvedType::Scalar(Scalar::Bool))
-                }) else {
-                    continue;
-                };
-                if !crate::analysis::scenario_disclosure::expression_reads_membership(
-                    &original.types,
-                    &original.effects,
-                    NodeKey::of(predicate),
-                ) {
-                    continue;
-                }
-                // An incidental route record never defines permission to
-                // read (DESIGN §3): a guard without a record owner keeps
-                // its exact owning page sources without inventing a model.
-                let route_kids = route.map(crate::analysis::kids).unwrap_or_default();
-                let records = route_kids
-                    .iter()
-                    .filter(|n| n.kind == SyntaxKind::RouteRecord)
-                    .collect::<Vec<_>>();
-                let has_scalar = route_kids
-                    .iter()
-                    .any(|n| n.kind == SyntaxKind::RouteScalar);
-                if records.len() == 1 && !has_scalar {
-                    let path = crate::analysis::kids(records[0])
-                        .into_iter()
-                        .find(|n| n.kind == SyntaxKind::Path)?;
-                    let model = *sources.resolved().node_symbol.get(&NodeKey::of(path))?;
-                    let model = if matches!(
-                        original.symbols.get(model.0 as usize)?.kind,
-                        crate::analysis::resolve::SymbolKind::Model { .. }
-                    ) {
-                        model
-                    } else {
-                        return None;
-                    };
-                    candidates.push((
-                        module.id,
-                        model,
-                        format!("{}.{}", page.owner, page.fn_name),
-                        expr,
-                        NodeKey::of(predicate),
-                        NodeKey::of(statement),
-                        "page-require",
-                        None,
-                    ));
-                } else if records.is_empty() && !has_scalar {
-                    stateless.push((
-                        module.id,
-                        format!("{}.{}", page.owner, page.fn_name),
-                        expr,
-                        NodeKey::of(predicate),
-                        NodeKey::of(statement),
-                    ));
-                } else {
-                    return None;
-                }
+                push_page_candidate(
+                    &mut candidates,
+                    &mut stateless,
+                    sources,
+                    original,
+                    module.id,
+                    &page.owner,
+                    &page.fn_name,
+                    expr,
+                    predicate,
+                    statement,
+                    route,
+                )?;
             }
         }
     }
+    Some((candidates, stateless))
+}
+
+fn collect_derive_candidates<'i>(
+    original: &'i CheckedProgram,
+    ir: &'i IrProgram,
+    candidates: &mut Vec<PageCandidate<'i>>,
+) -> Option<()> {
     for item in &ir.items {
         let IrItemKind::DeriveField {
             model,
@@ -2541,7 +3146,17 @@ pub(super) fn serialize_read_booleans(
             ));
         }
     }
-    let mut output = Vec::new();
+    Some(())
+}
+
+fn serialize_candidate_observers(
+    sources: &FreshSourceContext<'_>,
+    original: &CheckedProgram,
+    ir: &IrProgram,
+    consumer: &mut Consumer<'_>,
+    candidates: Vec<PageCandidate<'_>>,
+    output: &mut Vec<(Span, serde_json::Value, Vec<SerialDecisionSite>)>,
+) -> Option<()> {
     for (module, model, owner, expr, key, statement, kind, field) in candidates {
         let site = crate::analysis::scenario_disclosure::checked_read_boolean_site(
             sources.db(),
@@ -2579,6 +3194,17 @@ pub(super) fn serialize_read_booleans(
             return None;
         }
     }
+    Some(())
+}
+
+fn serialize_stateless_observers(
+    sources: &FreshSourceContext<'_>,
+    original: &CheckedProgram,
+    ir: &IrProgram,
+    consumer: &mut Consumer<'_>,
+    stateless: Vec<StatelessCandidate<'_>>,
+    output: &mut Vec<(Span, serde_json::Value, Vec<SerialDecisionSite>)>,
+) -> Option<()> {
     for (module, owner, expr, key, statement) in stateless {
         let collected = crate::analysis::scenario_disclosure::collect_read_calls(
             sources.db(),
@@ -2641,6 +3267,35 @@ pub(super) fn serialize_read_booleans(
             return None;
         }
     }
+    Some(())
+}
+
+pub(super) fn serialize_read_booleans(
+    sources: &FreshSourceContext<'_>,
+) -> Option<Vec<(Span, serde_json::Value, Vec<SerialDecisionSite>)>> {
+    let original = sources.original();
+    let ir = sources.ir();
+    let mut consumer = Consumer {
+        program: original,
+        ir,
+        db: sources.db(),
+        catalog: sources.catalog(),
+        nodes: HashMap::new(),
+        steps: 0,
+        count: 0,
+    };
+    // Only the sealed pages spend the finite index budget, then the present
+    // helper-closure bodies join best-effort. Unrelated Given/When bulk
+    // remains in the checked/fresh cohort unindexed.
+    consumer.index_required(sources.trees(), &page_anchor_keys(ir))?;
+    index_helper_closure(&mut consumer, sources.trees(), original);
+    consumer.steps = 0;
+    let (mut candidates, stateless) =
+        collect_page_candidates(ir, sources, original, &mut consumer)?;
+    collect_derive_candidates(original, ir, &mut candidates)?;
+    let mut output = Vec::new();
+    serialize_candidate_observers(sources, original, ir, &mut consumer, candidates, &mut output)?;
+    serialize_stateless_observers(sources, original, ir, &mut consumer, stateless, &mut output)?;
     Some(output)
 }
 
@@ -2701,10 +3356,157 @@ fn serialize_sites(
 /// A leading source requirement has its own observer; its original decision
 /// stage remains untouched. Fresh source/IR correspondence and the complete
 /// selected helper census authenticate the private emitted callable.
+fn collect_require_keys(
+    original: &CheckedProgram,
+    sites: &[CheckedDecisionSite],
+) -> Option<HashSet<NodeKey>> {
+    let mut required = HashSet::new();
+    for site in sites {
+        required.extend([site.node, site.statement]);
+        for call in &site.calls {
+            required.insert(call.node);
+            required.extend(call.arguments.iter().map(|(node, _)| *node));
+            if let CheckedDecisionCallTarget::DeriveFn(id) = call.target {
+                required.insert(original.effects.derives.get(&id)?.expr?);
+            }
+        }
+    }
+    Some(required)
+}
+
+fn join_require_statements<'o>(
+    semantic: &mut SemanticJoin<'_>,
+    consumer: &mut Consumer<'_>,
+    owner: &IrItem,
+    site: &CheckedDecisionSite,
+    guards: &'o [IrStmt],
+    effects: &'o [IrStmt],
+    expected_guards: &[IrStmt],
+    expected_effects: &[IrStmt],
+) -> Option<&'o TypedExpr> {
+    use crate::analysis::scenario_disclosure::{CheckedDecisionPosition, CheckedDecisionStage};
+    let (actual, expected) = match (site.position.as_slice(), site.stage) {
+        ([CheckedDecisionPosition::Guard(index)], CheckedDecisionStage::LeadingRequire) => {
+            (guards.get(*index)?, expected_guards.get(*index)?)
+        }
+        ([CheckedDecisionPosition::Body(index)], CheckedDecisionStage::BodyRequire) => {
+            (effects.get(*index)?, expected_effects.get(*index)?)
+        }
+        _ => return None,
+    };
+    let IrStmt::Require { cond, span } = actual else {
+        return None;
+    };
+    let IrStmt::Require {
+        cond: expected_cond,
+        span: expected_span,
+    } = expected
+    else {
+        return None;
+    };
+    if site.owner != owner.id
+        || *span != *expected_span
+        || !consumer.same(site.statement, *span)
+        || !consumer.same(site.node, cond.span)
+        || cond.ty != ResolvedType::Scalar(Scalar::Bool)
+        || !consumer.origin(&site.source, site.node, owner.module)
+    {
+        return None;
+    }
+    semantic.expression(cond, expected_cond, 0)?;
+    consumer.steps = 0;
+    let mut matched = HashSet::new();
+    consumer.expression(cond, &[], &mut HashSet::new(), &site.calls, &mut matched, 0)?;
+    if matched.len() != site.calls.len() {
+        return None;
+    }
+    Some(cond)
+}
+
+fn serialize_require_params(
+    ir: &IrProgram,
+    original: &CheckedProgram,
+    owner: &IrItem,
+    params: &[crate::analysis::resolve::SymbolId],
+    facts: &crate::analysis::scenario_disclosure::CheckedScenarioSource,
+) -> Option<Vec<serde_json::Value>> {
+    if params.len() != facts.parameters.len() {
+        return None;
+    }
+    let mut parameters = Vec::new();
+    for (index, (id, checked)) in params.iter().zip(&facts.parameters).enumerate() {
+        let item = ir.items.get(id.0 as usize)?;
+        let IrItemKind::Param {
+            owner: declared_owner,
+            index: declared_index,
+            ty: IrType::Known(ty),
+            default: None,
+            ..
+        } = &item.kind
+        else {
+            return None;
+        };
+        if *id != checked.parameter
+            || *declared_owner != owner.id
+            || *declared_index != index
+            || *ty != checked.ty
+            || checked.default.is_some()
+        {
+            return None;
+        }
+        parameters.push(
+            serde_json::json!({"name":item.name,"typeId":serial_type(ty,original,ir,0)?}),
+        );
+    }
+    Some(parameters)
+}
+
+fn serialize_require_observer(
+    sources: &FreshSourceContext<'_>,
+    original: &CheckedProgram,
+    ir: &IrProgram,
+    owner: &IrItem,
+    site: &CheckedDecisionSite,
+    cond: &TypedExpr,
+    parameters: Vec<serde_json::Value>,
+    output: &mut Vec<(Span, serde_json::Value)>,
+) -> Option<()> {
+    // Recollect the same expression for its read observer. This is not
+    // a mutation of the original leading/body Require membership record.
+    let observer = crate::analysis::scenario_disclosure::checked_read_boolean_site(
+        sources.db(),
+        sources.trees(),
+        sources.resolved(),
+        &original.types,
+        &original.effects,
+        owner.module,
+        owner.id,
+        site.node,
+        site.statement,
+    )?;
+    if observer.calls != site.calls || observer.source != site.source {
+        return None;
+    }
+    let serialized = serialize_sites(
+        original,
+        ir,
+        sources.db(),
+        vec![observer],
+        Some(&owner.canonical),
+    )?;
+    let identity = serde_json::json!({"source":serial_source(site.source.clone()),
+        "owner":owner.canonical,"node":serial_node(site.node),"statement":serial_node(site.statement),
+        "parameters":parameters,"sites":serialized});
+    if output.len() >= 200 {
+        return None;
+    }
+    output.push((cond.span, identity));
+    Some(())
+}
+
 pub(super) fn serialize_scenario_requires(
     sources: &FreshSourceContext<'_>,
 ) -> Option<Vec<(Span, serde_json::Value)>> {
-    use crate::analysis::scenario_disclosure::{CheckedDecisionPosition, CheckedDecisionStage};
     let original = sources.original();
     let ir = sources.ir();
     let mut output = Vec::new();
@@ -2759,112 +3561,30 @@ pub(super) fn serialize_scenario_requires(
             steps: 0,
             count: 0,
         };
-        let mut required = HashSet::new();
-        for site in sites {
-            required.extend([site.node, site.statement]);
-            for call in &site.calls {
-                required.insert(call.node);
-                required.extend(call.arguments.iter().map(|(node, _)| *node));
-                if let CheckedDecisionCallTarget::DeriveFn(id) = call.target {
-                    required.insert(original.effects.derives.get(&id)?.expr?);
-                }
-            }
-        }
+        let required = collect_require_keys(original, sites)?;
         consumer.index_required(sources.trees(), &required)?;
         for site in sites {
-            let (actual, expected) = match (site.position.as_slice(), site.stage) {
-                ([CheckedDecisionPosition::Guard(index)], CheckedDecisionStage::LeadingRequire) => {
-                    (guards.get(*index)?, expected_guards.get(*index)?)
-                }
-                ([CheckedDecisionPosition::Body(index)], CheckedDecisionStage::BodyRequire) => {
-                    (effects.get(*index)?, expected_effects.get(*index)?)
-                }
-                _ => return None,
-            };
-            let IrStmt::Require { cond, span } = actual else {
-                return None;
-            };
-            let IrStmt::Require {
-                cond: expected_cond,
-                span: expected_span,
-            } = expected
-            else {
-                return None;
-            };
-            if site.owner != owner.id
-                || *span != *expected_span
-                || !consumer.same(site.statement, *span)
-                || !consumer.same(site.node, cond.span)
-                || cond.ty != ResolvedType::Scalar(Scalar::Bool)
-                || !consumer.origin(&site.source, site.node, owner.module)
-            {
-                return None;
-            }
-            semantic.expression(cond, expected_cond, 0)?;
-            consumer.steps = 0;
-            let mut matched = HashSet::new();
-            consumer.expression(cond, &[], &mut HashSet::new(), &site.calls, &mut matched, 0)?;
-            if matched.len() != site.calls.len() {
-                return None;
-            }
-            // Recollect the same expression for its read observer. This is not
-            // a mutation of the original leading/body Require membership record.
-            let observer = crate::analysis::scenario_disclosure::checked_read_boolean_site(
-                sources.db(),
-                sources.trees(),
-                sources.resolved(),
-                &original.types,
-                &original.effects,
-                owner.module,
-                owner.id,
-                site.node,
-                site.statement,
+            let cond = join_require_statements(
+                &mut semantic,
+                &mut consumer,
+                owner,
+                site,
+                guards,
+                effects,
+                expected_guards,
+                expected_effects,
             )?;
-            if observer.calls != site.calls || observer.source != site.source {
-                return None;
-            }
-            let serialized = serialize_sites(
+            let parameters = serialize_require_params(ir, original, owner, params, facts)?;
+            serialize_require_observer(
+                sources,
                 original,
                 ir,
-                sources.db(),
-                vec![observer],
-                Some(&owner.canonical),
+                owner,
+                site,
+                cond,
+                parameters,
+                &mut output,
             )?;
-            let mut parameters = Vec::new();
-            if params.len() != facts.parameters.len() {
-                return None;
-            }
-            for (index, (id, checked)) in params.iter().zip(&facts.parameters).enumerate() {
-                let item = ir.items.get(id.0 as usize)?;
-                let IrItemKind::Param {
-                    owner: declared_owner,
-                    index: declared_index,
-                    ty: IrType::Known(ty),
-                    default: None,
-                    ..
-                } = &item.kind
-                else {
-                    return None;
-                };
-                if *id != checked.parameter
-                    || *declared_owner != owner.id
-                    || *declared_index != index
-                    || *ty != checked.ty
-                    || checked.default.is_some()
-                {
-                    return None;
-                }
-                parameters.push(
-                    serde_json::json!({"name":item.name,"typeId":serial_type(ty,original,ir,0)?}),
-                );
-            }
-            let identity = serde_json::json!({"source":serial_source(site.source.clone()),
-                "owner":owner.canonical,"node":serial_node(site.node),"statement":serial_node(site.statement),
-                "parameters":parameters,"sites":serialized});
-            if output.len() >= 200 {
-                return None;
-            }
-            output.push((cond.span, identity));
         }
     }
     Some(output)
@@ -2900,22 +3620,12 @@ fn serialize_canonical(
 
 /// One checked decision call with its owning sources, argument types, slots,
 /// defaults and helper chain. Transport budgets match `serialize_sites`.
-fn serialize_call(
+fn serialize_call_target(
     program: &CheckedProgram,
     ir: &IrProgram,
-    db: &SourceDb,
     call: &crate::analysis::scenario_disclosure::CheckedDecisionCall,
-    count: &mut usize,
-    values: &mut usize,
-) -> Option<SerialDecisionCall> {
-    *count += 1;
-    *values = values.checked_add(
-        call.arguments.len() + call.slots.len() + call.defaults.len() + call.chain.len() + 1,
-    )?;
-    if *count > 200 || *values > 20000 {
-        return None;
-    }
-    let target = match &call.target {
+) -> Option<SerialDecisionTarget> {
+    Some(match &call.target {
         crate::analysis::scenario_disclosure::CheckedDecisionCallTarget::Builtin {
             id,
             overload,
@@ -2928,14 +3638,15 @@ fn serialize_call(
                 name: serialize_canonical(program, ir, *id)?,
             }
         }
-    };
-    let mut arguments = Vec::new();
-    for (node, ty) in &call.arguments {
-        arguments.push(SerialDecisionArgument {
-            node: serial_node(*node),
-            type_id: serial_type(ty, program, ir, 0)?,
-        });
-    }
+    })
+}
+
+fn serialize_call_defaults(
+    program: &CheckedProgram,
+    ir: &IrProgram,
+    db: &SourceDb,
+    call: &crate::analysis::scenario_disclosure::CheckedDecisionCall,
+) -> Option<Vec<SerialDecisionDefault>> {
     let mut defaults = Vec::new();
     for (id, node) in &call.defaults {
         let item = ir.items.get(id.0 as usize)?;
@@ -2977,6 +3688,33 @@ fn serialize_call(
             type_id: serial_type(ty, program, ir, 0)?,
         });
     }
+    Some(defaults)
+}
+
+fn serialize_call(
+    program: &CheckedProgram,
+    ir: &IrProgram,
+    db: &SourceDb,
+    call: &crate::analysis::scenario_disclosure::CheckedDecisionCall,
+    count: &mut usize,
+    values: &mut usize,
+) -> Option<SerialDecisionCall> {
+    *count += 1;
+    *values = values.checked_add(
+        call.arguments.len() + call.slots.len() + call.defaults.len() + call.chain.len() + 1,
+    )?;
+    if *count > 200 || *values > 20000 {
+        return None;
+    }
+    let target = serialize_call_target(program, ir, call)?;
+    let mut arguments = Vec::new();
+    for (node, ty) in &call.arguments {
+        arguments.push(SerialDecisionArgument {
+            node: serial_node(*node),
+            type_id: serial_type(ty, program, ir, 0)?,
+        });
+    }
+    let defaults = serialize_call_defaults(program, ir, db, call)?;
     let mut chain = Vec::new();
     for frame in &call.chain {
         chain.push(SerialDecisionFrame {
@@ -3004,6 +3742,34 @@ fn serial_source(
         module: source.module,
     }
 }
+fn serial_record_type(item: &IrItem) -> Option<String> {
+    if !matches!(
+        item.kind,
+        IrItemKind::Model { .. } | IrItemKind::Contract { .. } | IrItemKind::Event { .. }
+    ) {
+        return None;
+    }
+    Some(item.canonical.clone())
+}
+
+fn serial_enum_type(item: &IrItem, id: &crate::analysis::resolve::SymbolId, cases: &Vec<String>) -> Option<String> {
+    let IrItemKind::Field {
+        ty:
+            IrType::Known(ResolvedType::Enum {
+                owner: Some(actual),
+                cases: expected,
+            }),
+        ..
+    } = &item.kind
+    else {
+        return None;
+    };
+    if actual != id || expected != cases || cases.is_empty() {
+        return None;
+    }
+    Some(item.canonical.clone())
+}
+
 pub(super) fn serial_type(
     ty: &ResolvedType,
     program: &CheckedProgram,
@@ -3040,37 +3806,11 @@ pub(super) fn serial_type(
         {
             "TextMessage".into()
         }
-        ResolvedType::Record { symbol, .. } => {
-            let item = nominal(*symbol)?;
-            if !matches!(
-                item.kind,
-                IrItemKind::Model { .. } | IrItemKind::Contract { .. } | IrItemKind::Event { .. }
-            ) {
-                return None;
-            }
-            item.canonical.clone()
-        }
+        ResolvedType::Record { symbol, .. } => serial_record_type(nominal(*symbol)?)?,
         ResolvedType::Enum {
             owner: Some(id),
             cases,
-        } => {
-            let item = nominal(*id)?;
-            let IrItemKind::Field {
-                ty:
-                    IrType::Known(ResolvedType::Enum {
-                        owner: Some(actual),
-                        cases: expected,
-                    }),
-                ..
-            } = &item.kind
-            else {
-                return None;
-            };
-            if actual != id || expected != cases || cases.is_empty() {
-                return None;
-            }
-            item.canonical.clone()
-        }
+        } => serial_enum_type(nominal(*id)?, id, cases)?,
         ResolvedType::Enum { owner: None, cases }
             if !cases.is_empty()
                 && cases.len() <= 200
@@ -3086,15 +3826,8 @@ pub(super) fn serial_type(
 
 /// A bare checked `parent.Child` member has no explicit query clauses. Its
 /// existing lowering remains source correspondence only, never a query receipt.
-fn checked_contained_query(
-    program: &CheckedProgram,
-    ir: &IrProgram,
-    query: &IrQuery,
-    span: Span,
-    ty: &ResolvedType,
-) -> Option<()> {
-    use crate::analysis::resolve::{ModelOwner, SymbolKind};
-    if query.source.is_some()
+fn contained_query_bare(query: &IrQuery) -> bool {
+    query.source.is_some()
         || query.collection_call.is_some()
         || query.contract_collection_call.is_some()
         || query.where_pred.is_some()
@@ -3105,9 +3838,16 @@ fn checked_contained_query(
         || query.archived.is_some()
         || query.select.is_some()
         || query.select_param.is_some()
-    {
-        return None;
-    }
+}
+
+fn contained_child_match(
+    program: &CheckedProgram,
+    ir: &IrProgram,
+    query: &IrQuery,
+    span: Span,
+    ty: &ResolvedType,
+) -> Option<crate::analysis::resolve::SymbolId> {
+    use crate::analysis::resolve::{ModelOwner, SymbolKind};
     let member = NodeKey {
         file: span.file,
         start: span.start,
@@ -3150,9 +3890,34 @@ fn checked_contained_query(
     {
         return None;
     }
+    Some(*owner)
+}
+
+fn checked_contained_query(
+    program: &CheckedProgram,
+    ir: &IrProgram,
+    query: &IrQuery,
+    span: Span,
+    ty: &ResolvedType,
+) -> Option<()> {
+    if contained_query_bare(query) {
+        return None;
+    }
+    let owner = contained_child_match(program, ir, query, span, ty)?;
+    contained_parent_ok(program, ir, query, span, owner)
+}
+
+fn contained_parent_ok(
+    program: &CheckedProgram,
+    ir: &IrProgram,
+    query: &IrQuery,
+    span: Span,
+    owner: crate::analysis::resolve::SymbolId,
+) -> Option<()> {
+    use crate::analysis::resolve::SymbolKind;
     let parent = query.parent.as_deref()?;
     let parent_ty = ResolvedType::Record {
-        symbol: *owner,
+        symbol: owner,
         stored: true,
     };
     let parent_kind = match &parent.expr {
@@ -3173,9 +3938,9 @@ fn checked_contained_query(
         || parent.span.file != span.file
         || parent.span.start != span.start
         || parent.span.end >= span.end
-        || parent_declaration.id != *owner
+        || parent_declaration.id != owner
         || !matches!(parent_declaration.kind, SymbolKind::Model { .. })
-        || parent_item.id != *owner
+        || parent_item.id != owner
         || parent_item.canonical != parent_declaration.canonical
         || parent_item.module != parent_declaration.module
         || !matches!(parent_item.kind, IrItemKind::Model { .. })
@@ -3237,34 +4002,34 @@ pub(super) fn checked_collection_lambda(
     collection_lambda_arguments(program, args, lambda, call, Some(db))
 }
 
-fn collection_lambda_arguments(
+fn normalized_lambda_key(db: Option<&SourceDb>, key: NodeKey) -> Option<NodeKey> {
+    let Some(db) = db else {
+        return Some(key);
+    };
+    let (tree, diagnostics) = crate::syntax::parse_source(key.file, &db.get(key.file)?.text);
+    if !diagnostics.is_empty() {
+        return None;
+    }
+    let mut node = tree.descendants().find(|node| NodeKey::of(node) == key)?;
+    for _ in 0..65 {
+        if node.kind != SyntaxKind::Group {
+            return Some(NodeKey::of(node));
+        }
+        node = node.children.iter().find(|child| {
+            child.token().is_none()
+                && !matches!(child.kind, SyntaxKind::Trivia | SyntaxKind::Comment)
+        })?;
+    }
+    None
+}
+
+fn join_lambda_query<'a>(
     program: &CheckedProgram,
-    args: &[TypedExpr],
+    args: &'a [TypedExpr],
     lambda: &TypedExpr,
     call: Span,
-    db: Option<&SourceDb>,
-) -> Option<()> {
-    let normalized = |key: NodeKey| -> Option<NodeKey> {
-        let Some(db) = db else {
-            return Some(key);
-        };
-        let (tree, diagnostics) = crate::syntax::parse_source(key.file, &db.get(key.file)?.text);
-        if !diagnostics.is_empty() {
-            return None;
-        }
-        let mut node = tree.descendants().find(|node| NodeKey::of(node) == key)?;
-        for _ in 0..65 {
-            if node.kind != SyntaxKind::Group {
-                return Some(NodeKey::of(node));
-            }
-            node = node.children.iter().find(|child| {
-                child.token().is_none()
-                    && !matches!(child.kind, SyntaxKind::Trivia | SyntaxKind::Comment)
-            })?;
-        }
-        None
-    };
-    let IrExpr::Lambda { param, body } = &lambda.expr else {
+) -> Option<(&'a IrQuery, NodeKey, NodeKey)> {
+    let IrExpr::Lambda { body, .. } = &lambda.expr else {
         return None;
     };
     let key = NodeKey {
@@ -3289,17 +4054,36 @@ fn collection_lambda_arguments(
         return None;
     };
     checked_query(program, query)?;
-    let source = query.source.as_deref()?;
-    if normalized(*selected.arguments.get(domain_slot)?)? != source.node {
+    if body.ty != lambda.ty {
         return None;
     }
-    let predicate_key = selected.arguments.get(predicate_slot)?;
-    let predicate = normalized(*predicate_key)?;
+    Some((
+        query,
+        *selected.arguments.get(domain_slot)?,
+        *selected.arguments.get(predicate_slot)?,
+    ))
+}
+
+fn collection_lambda_arguments(
+    program: &CheckedProgram,
+    args: &[TypedExpr],
+    lambda: &TypedExpr,
+    call: Span,
+    db: Option<&SourceDb>,
+) -> Option<()> {
+    let IrExpr::Lambda { param, .. } = &lambda.expr else {
+        return None;
+    };
+    let (query, domain_key, predicate_key) = join_lambda_query(program, args, lambda, call)?;
+    let source = query.source.as_deref()?;
+    if normalized_lambda_key(db, domain_key)? != source.node {
+        return None;
+    }
+    let predicate = normalized_lambda_key(db, predicate_key)?;
     if predicate.file != lambda.span.file
         || predicate.start != lambda.span.start
         || predicate.end != lambda.span.end
-        || program.types.node_types.get(predicate_key) != Some(&lambda.ty)
-        || body.ty != lambda.ty
+        || program.types.node_types.get(&predicate_key) != Some(&lambda.ty)
     {
         return None;
     }

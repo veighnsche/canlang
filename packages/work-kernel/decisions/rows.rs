@@ -608,6 +608,41 @@ fn is_schedule_state(s: &U16) -> bool {
         || s.eq_ascii("cancelled")
 }
 
+/// Reads a dispatch `guardVerdict`: boolean or null (missing fails).
+fn check_guard_verdict(data: &[(U16, Value)], d: Direction) -> Result<Option<bool>, RowsError> {
+    match get(data, "guardVerdict") {
+        None => Err(fail(
+            d,
+            "work.dispatch.guardVerdict must be boolean or null.".to_string(),
+        )),
+        Some(Value::Null) => Ok(None),
+        Some(Value::Bool(b)) => Ok(Some(*b)),
+        _ => Err(fail(
+            d,
+            "work.dispatch.guardVerdict must be boolean or null.".to_string(),
+        )),
+    }
+}
+
+/// Reads a dispatch `retryClass`: transient, terminal, or null
+/// (missing fails).
+fn check_retry_class(data: &[(U16, Value)], d: Direction) -> Result<Option<U16>, RowsError> {
+    match get(data, "retryClass") {
+        None => Err(fail(
+            d,
+            "work.dispatch.retryClass must be transient, terminal or null.".to_string(),
+        )),
+        Some(Value::Null) => Ok(None),
+        Some(Value::Str(s)) if s.eq_ascii("transient") || s.eq_ascii("terminal") => {
+            Ok(Some(s.clone()))
+        }
+        _ => Err(fail(
+            d,
+            "work.dispatch.retryClass must be transient, terminal or null.".to_string(),
+        )),
+    }
+}
+
 /// Read one dispatch row's data, failing closed on any shape drift.
 pub fn read_dispatch_row(row: &StoredRow) -> Result<DispatchRowData, RowsError> {
     let d = Direction::Work;
@@ -622,38 +657,8 @@ pub fn read_dispatch_row(row: &StoredRow) -> Result<DispatchRowData, RowsError> 
             ),
         ));
     }
-    let guard_verdict = match get(data, "guardVerdict") {
-        None => {
-            return Err(fail(
-                d,
-                "work.dispatch.guardVerdict must be boolean or null.".to_string(),
-            ));
-        }
-        Some(Value::Null) => None,
-        Some(Value::Bool(b)) => Some(*b),
-        _ => {
-            return Err(fail(
-                d,
-                "work.dispatch.guardVerdict must be boolean or null.".to_string(),
-            ));
-        }
-    };
-    let retry_class = match get(data, "retryClass") {
-        None => {
-            return Err(fail(
-                d,
-                "work.dispatch.retryClass must be transient, terminal or null.".to_string(),
-            ));
-        }
-        Some(Value::Null) => None,
-        Some(Value::Str(s)) if s.eq_ascii("transient") || s.eq_ascii("terminal") => Some(s.clone()),
-        _ => {
-            return Err(fail(
-                d,
-                "work.dispatch.retryClass must be transient, terminal or null.".to_string(),
-            ));
-        }
-    };
+    let guard_verdict = check_guard_verdict(data, d)?;
+    let retry_class = check_retry_class(data, d)?;
     Ok(DispatchRowData {
         intent_id: check_string(data, "intentId", "work.dispatch", d)?,
         operation_id: check_string(data, "operationId", "work.dispatch", d)?,
@@ -1606,6 +1611,36 @@ pub fn read_fanout_checkpoint_row(
     })
 }
 
+/// Reads a fanout child `causeKind`: null stays uncaused, the three
+/// terminal names parse, anything else (including missing) fails.
+fn check_fanout_cause_kind_row(
+    data: &[(U16, Value)],
+    direction: Direction,
+) -> Result<Option<U16>, RowsError> {
+    match get(data, "causeKind") {
+        None => {
+            let shown = "undefined";
+            Err(fail(
+                direction,
+                format!("work.fanout_child.causeKind is unknown: {shown}."),
+            ))
+        }
+        Some(Value::Null) => Ok(None),
+        Some(Value::Str(s))
+            if s.eq_ascii("completed") || s.eq_ascii("skipped") || s.eq_ascii("failed") =>
+        {
+            Ok(Some(s.clone()))
+        }
+        Some(other) => Err(fail(
+            direction,
+            format!(
+                "work.fanout_child.causeKind is unknown: {}.",
+                js_stringify(other)
+            ),
+        )),
+    }
+}
+
 /// Read one fanout child row's data, failing closed on any shape drift.
 pub fn read_fanout_child_row(
     row: &StoredRow,
@@ -1622,30 +1657,7 @@ pub fn read_fanout_child_row(
             ),
         ));
     }
-    let cause_kind = match get(data, "causeKind") {
-        None => {
-            let shown = "undefined";
-            return Err(fail(
-                direction,
-                format!("work.fanout_child.causeKind is unknown: {shown}."),
-            ));
-        }
-        Some(Value::Null) => None,
-        Some(Value::Str(s))
-            if s.eq_ascii("completed") || s.eq_ascii("skipped") || s.eq_ascii("failed") =>
-        {
-            Some(s.clone())
-        }
-        Some(other) => {
-            return Err(fail(
-                direction,
-                format!(
-                    "work.fanout_child.causeKind is unknown: {}.",
-                    js_stringify(other)
-                ),
-            ));
-        }
-    };
+    let cause_kind = check_fanout_cause_kind_row(data, direction)?;
     let cause_reason = check_nullable_string(data, "causeReason", "work.fanout_child", direction)?;
     check_child_cause(&state, &cause_kind, &cause_reason, direction)?;
     let fanout_id = check_string(data, "fanoutId", "work.fanout_child", direction)?;

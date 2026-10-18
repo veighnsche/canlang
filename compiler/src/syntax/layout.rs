@@ -690,6 +690,44 @@ fn decode_reference(
     DescriptionData::Reference { path: parts }
 }
 
+fn suffix_locale_key(
+    text: &str,
+    key: &Token,
+    fail: &mut impl FnMut(&str, Span),
+) -> Option<String> {
+    match key.kind {
+        TokenKind::Name => Some(key.text(text).to_string()),
+        // A bad string was already reported by the lexer; skip variant.
+        TokenKind::String => Some(key.string_value.clone()?),
+        _ => {
+            fail(
+                "message locale key must be an identifier or quoted tag",
+                key.span,
+            );
+            None
+        }
+    }
+}
+
+fn suffix_variant_value(
+    text: &str,
+    value_token: &Token,
+    fail: &mut impl FnMut(&str, Span),
+) -> Option<Option<String>> {
+    if value_token.kind == TokenKind::String {
+        // A bad string was already reported by the lexer; skip variant.
+        Some(Some(value_token.string_value.clone()?))
+    } else if value_token.kind == TokenKind::Name && value_token.text(text) == "null" {
+        Some(None)
+    } else {
+        fail(
+            "message variant requires a JSON string or null",
+            value_token.span,
+        );
+        None
+    }
+}
+
 /// Decode an inline `@{...}` suffix fragment with absolute `base` offset.
 ///
 /// `text` is the full source (fragment token spans are absolute into it).
@@ -744,18 +782,7 @@ fn decode_suffix(
     let mut seen: Vec<String> = Vec::new();
     while tokens.get(i).is_some_and(|t| !t.is_punct(Punct::RBrace)) {
         let key = &tokens[i];
-        let locale = match key.kind {
-            TokenKind::Name => key.text(text).to_string(),
-            // A bad string was already reported by the lexer; skip variant.
-            TokenKind::String => key.string_value.clone()?,
-            _ => {
-                fail(
-                    "message locale key must be an identifier or quoted tag",
-                    key.span,
-                );
-                return None;
-            }
-        };
+        let locale = suffix_locale_key(text, key, &mut fail)?;
         let folded = locale.to_lowercase();
         if seen.contains(&folded) {
             fail("duplicate message locale variant", key.span);
@@ -787,18 +814,7 @@ fn decode_suffix(
                 return None;
             }
         };
-        let value = if value_token.kind == TokenKind::String {
-            // A bad string was already reported by the lexer; skip variant.
-            Some(value_token.string_value.clone()?)
-        } else if value_token.kind == TokenKind::Name && value_token.text(text) == "null" {
-            None
-        } else {
-            fail(
-                "message variant requires a JSON string or null",
-                value_token.span,
-            );
-            return None;
-        };
+        let value = suffix_variant_value(text, &value_token, &mut fail)?;
         variants.push(DescriptionVariant { locale, value });
         match tokens.get(i) {
             Some(token) if token.is_punct(Punct::Comma) => {

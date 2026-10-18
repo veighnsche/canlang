@@ -698,6 +698,184 @@ fn parse_complex_selector(
 
 /// Parse one compound selector and append the ownership guard. `&` keeps
 /// its nesting meaning; `:host` rewrites to the unit's use-root marker.
+fn parse_pseudo_element(
+    input: &mut Parser,
+    scope: &mut Scoper,
+    tail: &mut String,
+) -> Result<(), ParseError<ScopeError>> {
+    let element = input.next()?.clone();
+    match element {
+        Token::Ident(name) => {
+            write!(tail, "::{name}").expect("selector push");
+        }
+        Token::Function(name) => {
+            let args = input.parse_nested_block(|inner| {
+                if name.eq_ignore_ascii_case("slotted") {
+                    parse_compound(inner, scope)
+                } else {
+                    serialize_generic_block(inner, scope)
+                }
+            })?;
+            write!(tail, "::{name}({args})").expect("selector push");
+        }
+        _ => {
+            return custom(
+                input,
+                "E2100",
+                "expected a pseudo-element".to_string(),
+            );
+        }
+    }
+    Ok(())
+}
+
+fn parse_pseudo_ident(
+    input: &mut Parser,
+    scope: &mut Scoper,
+    name: String,
+    head: &mut String,
+    tail: &mut String,
+    host_only: &mut bool,
+    simple: usize,
+) -> Result<(), ParseError<ScopeError>> {
+    if name.eq_ignore_ascii_case("root") || name.eq_ignore_ascii_case("scope") {
+        return custom(
+            input,
+            "E2103",
+            format!(":{name} escapes the style unit"),
+        );
+    }
+    if name.eq_ignore_ascii_case("host") {
+        if simple > 0 || !tail.is_empty() {
+            return custom(
+                input,
+                "E2100",
+                ":host takes no compound siblings; use :host(x)".to_string(),
+            );
+        }
+        *host_only = true;
+        head.push_str(&scope.root_marker());
+    } else if matches!(
+        name.to_ascii_lowercase().as_str(),
+        "before" | "after" | "first-line" | "first-letter"
+    ) {
+        write!(tail, ":{name}").expect("selector push");
+    } else {
+        write!(head, ":{name}").expect("selector push");
+    }
+    Ok(())
+}
+
+fn parse_functional_pseudo(
+    input: &mut Parser,
+    scope: &mut Scoper,
+    name: String,
+    head: &mut String,
+    tail: &mut String,
+    host_only: &mut bool,
+    simple: usize,
+) -> Result<(), ParseError<ScopeError>> {
+    if name.eq_ignore_ascii_case("has") {
+        return custom(
+            input,
+            "E2102",
+            ":has() relational selectors are not admitted in scoped styles"
+                .to_string(),
+        );
+    }
+    if name.eq_ignore_ascii_case("host") {
+        if simple > 0 || !tail.is_empty() {
+            return custom(
+                input,
+                "E2100",
+                ":host() takes no compound siblings".to_string(),
+            );
+        }
+        let inner = input.parse_nested_block(|inner| {
+            let compound = parse_compound(inner, scope)?;
+            inner.expect_exhausted()?;
+            Ok::<_, ParseError<ScopeError>>(compound)
+        })?;
+        *host_only = true;
+        head.push_str(&scope.root_marker());
+        head.push_str(&inner);
+    } else if name.eq_ignore_ascii_case("not")
+        || name.eq_ignore_ascii_case("is")
+        || name.eq_ignore_ascii_case("where")
+    {
+        let inner = input
+            .parse_nested_block(|inner| parse_selector_list(inner, scope))?;
+        write!(head, ":{name}({inner})").expect("selector push");
+    } else if name.eq_ignore_ascii_case("nth-child")
+        || name.eq_ignore_ascii_case("nth-last-child")
+    {
+        let args =
+            input.parse_nested_block(|inner| transform_nth(inner, scope))?;
+        write!(head, ":{name}({args})").expect("selector push");
+    } else {
+        let args = input.parse_nested_block(|inner| {
+            serialize_generic_block(inner, scope)
+        })?;
+        write!(head, ":{name}({args})").expect("selector push");
+    }
+    Ok(())
+}
+
+fn parse_pseudo(
+    input: &mut Parser,
+    scope: &mut Scoper,
+    pseudo: Token,
+    head: &mut String,
+    tail: &mut String,
+    simple: &mut usize,
+    host_only: &mut bool,
+) -> Result<(), ParseError<ScopeError>> {
+    match pseudo {
+        Token::Colon => {
+            // Pseudo-element: the guard lands before it.
+            parse_pseudo_element(input, scope, tail)?;
+        }
+        Token::Ident(name) => {
+            parse_pseudo_ident(input, scope, name.to_string(), head, tail, host_only, *simple)?;
+        }
+        Token::Function(name) => {
+            parse_functional_pseudo(input, scope, name.to_string(), head, tail, host_only, *simple)?;
+        }
+        _ => return custom(input, "E2100", "expected a pseudo-class".to_string()),
+    }
+    *simple += 1;
+    Ok(())
+}
+
+fn finish_compound(
+    input: &mut Parser,
+    guard: &str,
+    head: String,
+    tail: String,
+    simple: usize,
+    bare_star: bool,
+    host_only: bool,
+) -> Result<String, ParseError<ScopeError>> {
+    if simple == 0 {
+        if bare_star {
+            return custom(
+                input,
+                "E2103",
+                "`*` escapes the style unit; style owned elements only".to_string(),
+            );
+        }
+        return custom(input, "E2100", "expected a selector compound".to_string());
+    }
+    let mut head = head;
+    if host_only {
+        head.push_str(&tail);
+        return Ok(head);
+    }
+    head.push_str(guard);
+    head.push_str(&tail);
+    Ok(head)
+}
+
 fn parse_compound(
     input: &mut Parser,
     scope: &mut Scoper,
@@ -776,138 +954,22 @@ fn parse_compound(
             }
             Token::Colon => {
                 let pseudo = input.next()?.clone();
-                match pseudo {
-                    Token::Colon => {
-                        // Pseudo-element: the guard lands before it.
-                        let element = input.next()?.clone();
-                        match element {
-                            Token::Ident(name) => {
-                                write!(tail, "::{name}").expect("selector push");
-                            }
-                            Token::Function(name) => {
-                                let args = input.parse_nested_block(|inner| {
-                                    if name.eq_ignore_ascii_case("slotted") {
-                                        parse_compound(inner, scope)
-                                    } else {
-                                        serialize_generic_block(inner, scope)
-                                    }
-                                })?;
-                                write!(tail, "::{name}({args})").expect("selector push");
-                            }
-                            _ => {
-                                return custom(
-                                    input,
-                                    "E2100",
-                                    "expected a pseudo-element".to_string(),
-                                );
-                            }
-                        }
-                        simple += 1;
-                    }
-                    Token::Ident(name) => {
-                        if name.eq_ignore_ascii_case("root") || name.eq_ignore_ascii_case("scope") {
-                            return custom(
-                                input,
-                                "E2103",
-                                format!(":{name} escapes the style unit"),
-                            );
-                        }
-                        if name.eq_ignore_ascii_case("host") {
-                            if simple > 0 || !tail.is_empty() {
-                                return custom(
-                                    input,
-                                    "E2100",
-                                    ":host takes no compound siblings; use :host(x)".to_string(),
-                                );
-                            }
-                            host_only = true;
-                            head.push_str(&scope.root_marker());
-                            simple += 1;
-                        } else if matches!(
-                            name.to_ascii_lowercase().as_str(),
-                            "before" | "after" | "first-line" | "first-letter"
-                        ) {
-                            write!(tail, ":{name}").expect("selector push");
-                            simple += 1;
-                        } else {
-                            write!(head, ":{name}").expect("selector push");
-                            simple += 1;
-                        }
-                    }
-                    Token::Function(name) => {
-                        if name.eq_ignore_ascii_case("has") {
-                            return custom(
-                                input,
-                                "E2102",
-                                ":has() relational selectors are not admitted in scoped styles"
-                                    .to_string(),
-                            );
-                        }
-                        if name.eq_ignore_ascii_case("host") {
-                            if simple > 0 || !tail.is_empty() {
-                                return custom(
-                                    input,
-                                    "E2100",
-                                    ":host() takes no compound siblings".to_string(),
-                                );
-                            }
-                            let inner = input.parse_nested_block(|inner| {
-                                let compound = parse_compound(inner, scope)?;
-                                inner.expect_exhausted()?;
-                                Ok::<_, ParseError<ScopeError>>(compound)
-                            })?;
-                            host_only = true;
-                            head.push_str(&scope.root_marker());
-                            head.push_str(&inner);
-                            simple += 1;
-                        } else if name.eq_ignore_ascii_case("not")
-                            || name.eq_ignore_ascii_case("is")
-                            || name.eq_ignore_ascii_case("where")
-                        {
-                            let inner = input
-                                .parse_nested_block(|inner| parse_selector_list(inner, scope))?;
-                            write!(head, ":{name}({inner})").expect("selector push");
-                            simple += 1;
-                        } else if name.eq_ignore_ascii_case("nth-child")
-                            || name.eq_ignore_ascii_case("nth-last-child")
-                        {
-                            let args =
-                                input.parse_nested_block(|inner| transform_nth(inner, scope))?;
-                            write!(head, ":{name}({args})").expect("selector push");
-                            simple += 1;
-                        } else {
-                            let args = input.parse_nested_block(|inner| {
-                                serialize_generic_block(inner, scope)
-                            })?;
-                            write!(head, ":{name}({args})").expect("selector push");
-                            simple += 1;
-                        }
-                    }
-                    _ => return custom(input, "E2100", "expected a pseudo-class".to_string()),
-                }
+                parse_pseudo(
+                    input,
+                    scope,
+                    pseudo,
+                    &mut head,
+                    &mut tail,
+                    &mut simple,
+                    &mut host_only,
+                )?;
             }
             _ => {
                 return custom(input, "E2100", "unexpected token in selector".to_string());
             }
         }
     }
-    if simple == 0 {
-        if bare_star {
-            return custom(
-                input,
-                "E2103",
-                "`*` escapes the style unit; style owned elements only".to_string(),
-            );
-        }
-        return custom(input, "E2100", "expected a selector compound".to_string());
-    }
-    if host_only {
-        head.push_str(&tail);
-        return Ok(head);
-    }
-    head.push_str(&scope.guard);
-    head.push_str(&tail);
-    Ok(head)
+    finish_compound(input, &scope.guard, head, tail, simple, bare_star, host_only)
 }
 
 /// Parse `[name op value flag]`, refusing forged ownership attributes.
@@ -1025,6 +1087,82 @@ fn parse_keyframe_prelude(input: &mut Parser) -> Result<String, ParseError<Scope
     Ok(out)
 }
 
+fn transform_function_value(
+    input: &mut Parser,
+    scope: &mut Scoper,
+    out: &mut String,
+    needs_space: &mut bool,
+    name: String,
+) -> Result<(), ParseError<ScopeError>> {
+    maybe_space(out, needs_space);
+    if name.eq_ignore_ascii_case("var") {
+        let rendered = input.parse_nested_block(|inner| transform_var(inner, scope))?;
+        out.push_str(&rendered);
+    } else if name.eq_ignore_ascii_case("url") {
+        let rendered =
+            input.parse_nested_block(|inner| transform_url_function(inner, scope))?;
+        out.push_str(&rendered);
+    } else {
+        let rendered =
+            input.parse_nested_block(|inner| transform_value(inner, scope, false))?;
+        write!(out, "{name}({rendered})").expect("value push");
+    }
+    Ok(())
+}
+
+fn is_keyframes_ident(token: &Token, animate: bool, scope: &Scoper) -> bool {
+    animate
+        && matches!(token, Token::Ident(name) if scope.keyframes_known.contains(name.as_ref()))
+}
+
+fn next_value_token<'i>(input: &mut Parser<'i>) -> Option<Token<'i>> {
+    match input.next_including_whitespace() {
+        Ok(token) => Some(token.clone()),
+        Err(_) => None,
+    }
+}
+
+fn check_important(input: &mut Parser, state: &ParserState) -> bool {
+    let important = input
+        .try_parse(|inner| {
+            inner.expect_ident_matching("important")?;
+            Ok::<_, ParseError<ScopeError>>(())
+        })
+        .is_ok();
+    input.reset(state);
+    important
+}
+
+fn transform_unquoted_url(
+    input: &mut Parser,
+    scope: &mut Scoper,
+    out: &mut String,
+    needs_space: &mut bool,
+    url: &str,
+) -> Result<(), ParseError<ScopeError>> {
+    maybe_space(out, needs_space);
+    let url = check_owned_url(input, scope, url)?;
+    write!(out, "url({url})").expect("value push");
+    Ok(())
+}
+
+fn transform_bracketed_value(
+    input: &mut Parser,
+    scope: &mut Scoper,
+    out: &mut String,
+    needs_space: &mut bool,
+    open: char,
+    close: char,
+) -> Result<(), ParseError<ScopeError>> {
+    maybe_space(out, needs_space);
+    let rendered =
+        input.parse_nested_block(|inner| transform_value(inner, scope, false))?;
+    out.push(open);
+    out.push_str(&rendered);
+    out.push(close);
+    Ok(())
+}
+
 /// Transform one declaration value: namespace local `var()` references,
 /// rewrite local keyframes names inside `animation`/`animation-name`, and
 /// admit only owned URLs. Stops before a top-level `!important`, which the
@@ -1038,9 +1176,8 @@ fn transform_value(
     let mut needs_space = false;
     loop {
         let state = input.state();
-        let token = match input.next_including_whitespace() {
-            Ok(token) => token.clone(),
-            Err(_) => break,
+        let Some(token) = next_value_token(input) else {
+            break;
         };
         match token {
             Token::WhiteSpace(_) | Token::Comment(_) => {
@@ -1052,65 +1189,27 @@ fn transform_value(
             }
             Token::Delim('!') => {
                 // A top-level `!important` ends the value.
-                let important = input
-                    .try_parse(|inner| {
-                        inner.expect_ident_matching("important")?;
-                        Ok::<_, ParseError<ScopeError>>(())
-                    })
-                    .is_ok();
-                input.reset(&state);
-                if important {
+                if check_important(input, &state) {
                     break;
                 }
                 push_token(&mut out, &mut needs_space, &Token::Delim('!'));
             }
-            Token::Function(name) if name.eq_ignore_ascii_case("var") => {
-                maybe_space(&mut out, &mut needs_space);
-                let rendered = input.parse_nested_block(|inner| transform_var(inner, scope))?;
-                out.push_str(&rendered);
-            }
-            Token::Function(name) if name.eq_ignore_ascii_case("url") => {
-                maybe_space(&mut out, &mut needs_space);
-                let rendered =
-                    input.parse_nested_block(|inner| transform_url_function(inner, scope))?;
-                out.push_str(&rendered);
+            Token::Function(name) => {
+                transform_function_value(input, scope, &mut out, &mut needs_space, name.to_string())?;
             }
             Token::UnquotedUrl(url) => {
-                maybe_space(&mut out, &mut needs_space);
-                let url = check_owned_url(input, scope, &url)?;
-                write!(out, "url({url})").expect("value push");
-            }
-            Token::Function(name) => {
-                maybe_space(&mut out, &mut needs_space);
-                let rendered =
-                    input.parse_nested_block(|inner| transform_value(inner, scope, false))?;
-                write!(out, "{name}({rendered})").expect("value push");
+                transform_unquoted_url(input, scope, &mut out, &mut needs_space, &url)?;
             }
             Token::ParenthesisBlock => {
-                maybe_space(&mut out, &mut needs_space);
-                let rendered =
-                    input.parse_nested_block(|inner| transform_value(inner, scope, false))?;
-                out.push('(');
-                out.push_str(&rendered);
-                out.push(')');
+                transform_bracketed_value(input, scope, &mut out, &mut needs_space, '(', ')')?;
             }
             Token::SquareBracketBlock => {
-                maybe_space(&mut out, &mut needs_space);
-                let rendered =
-                    input.parse_nested_block(|inner| transform_value(inner, scope, false))?;
-                out.push('[');
-                out.push_str(&rendered);
-                out.push(']');
+                transform_bracketed_value(input, scope, &mut out, &mut needs_space, '[', ']')?;
             }
             Token::CurlyBracketBlock => {
-                maybe_space(&mut out, &mut needs_space);
-                let rendered =
-                    input.parse_nested_block(|inner| transform_value(inner, scope, false))?;
-                out.push('{');
-                out.push_str(&rendered);
-                out.push('}');
+                transform_bracketed_value(input, scope, &mut out, &mut needs_space, '{', '}')?;
             }
-            Token::Ident(name) if animate && scope.keyframes_known.contains(name.as_ref()) => {
+            Token::Ident(name) if is_keyframes_ident(&token, animate, scope) => {
                 maybe_space(&mut out, &mut needs_space);
                 out.push_str(&scope.namespaced(&name));
             }

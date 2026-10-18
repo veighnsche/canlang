@@ -266,46 +266,28 @@ pub fn dispatch_with(argv: &[String], analyzer: &dyn Analyzer) -> DispatchResult
     dispatch_with_route(argv, analyzer, false)
 }
 
-fn dispatch_with_route(
-    argv: &[String],
+fn dispatch_help_command(parsed: &ParsedArgs) -> Option<DispatchResult> {
+    if !parsed.help {
+        return None;
+    }
+    Some(match &parsed.subcommand {
+        None => DispatchResult::ok_stdout(global_help()),
+        Some(cmd) if is_known_command(cmd) => DispatchResult::ok_stdout(command_help(cmd)),
+        // Unknown commands stay E7001/exit 2 even with --help, matching
+        // the non-help path (there is no help text to show for them).
+        Some(unknown) => DispatchResult::tool_error(
+            "E7001",
+            format!("unknown command '{unknown}'; use can --help"),
+        ),
+    })
+}
+
+fn dispatch_core_command(
+    cmd: &str,
+    parsed: &ParsedArgs,
     analyzer: &dyn Analyzer,
-    public_generation: bool,
-) -> DispatchResult {
-    // Test-only hook for the panic path (`tests/exe.rs` drives the real
-    // binary with this set): this qualifies the E7005/exit-2 mapping for
-    // ordinary unwinds, not aborts. Production `main` catches this into
-    // `error[E7005]`; in-process callers see the panic itself.
-    if std::env::var("CAN_INTERNAL_TEST_PANIC").as_deref() == Ok("1") {
-        panic!("forced internal error (CAN_INTERNAL_TEST_PANIC=1)");
-    }
-    let args: &[String] = if argv.is_empty() { &[] } else { &argv[1..] };
-    let parsed = match parse_args(args) {
-        Ok(parsed) => parsed,
-        Err(message) => return DispatchResult::tool_error("E7001", message),
-    };
-    if parsed.help {
-        match &parsed.subcommand {
-            None => return DispatchResult::ok_stdout(global_help()),
-            Some(cmd) if is_known_command(cmd) => {
-                return DispatchResult::ok_stdout(command_help(cmd));
-            }
-            // Unknown commands stay E7001/exit 2 even with --help, matching
-            // the non-help path (there is no help text to show for them).
-            Some(unknown) => {
-                return DispatchResult::tool_error(
-                    "E7001",
-                    format!("unknown command '{unknown}'; use can --help"),
-                );
-            }
-        }
-    }
-    if parsed.version {
-        return DispatchResult::ok_stdout(version_text());
-    }
-    let Some(cmd) = &parsed.subcommand else {
-        return DispatchResult::ok_stdout(global_help());
-    };
-    match cmd.as_str() {
+) -> Option<DispatchResult> {
+    Some(match cmd {
         "check" => run_check_like(
             cmd,
             &parsed.operands,
@@ -323,25 +305,25 @@ fn dispatch_with_route(
         ),
         "fmt" => {
             if parsed.format_set {
-                return DispatchResult::tool_error(
+                return Some(DispatchResult::tool_error(
                     "E7001",
                     "can fmt takes no --format flag".to_string(),
-                );
+                ));
             }
             if parsed.catalog_set {
-                return DispatchResult::tool_error(
+                return Some(DispatchResult::tool_error(
                     "E7001",
                     "can fmt takes no --catalog flag".to_string(),
-                );
+                ));
             }
             run_fmt(&parsed.operands, parsed.fmt_check)
         }
         "explain" => {
             if parsed.catalog_set {
-                return DispatchResult::tool_error(
+                return Some(DispatchResult::tool_error(
                     "E7001",
                     "can explain takes no --catalog flag".to_string(),
-                );
+                ));
             }
             run_explain(&parsed.operands, parsed.format)
         }
@@ -349,82 +331,134 @@ fn dispatch_with_route(
         "docs" => run_docs(
             &parsed.operands,
             parsed.format,
-            parsed.locale,
-            parsed.out,
+            parsed.locale.clone(),
+            parsed.out.clone(),
             analyzer,
         ),
+        _ => return None,
+    })
+}
+
+fn dispatch_lsp_command(parsed: &ParsedArgs) -> Option<DispatchResult> {
+    if parsed.format_set {
+        return Some(DispatchResult::tool_error(
+            "E7001",
+            "can lsp takes no --format flag".to_string(),
+        ));
+    }
+    if parsed.catalog_set {
+        return Some(DispatchResult::tool_error(
+            "E7001",
+            "can lsp takes no --catalog flag".to_string(),
+        ));
+    }
+    if !parsed.operands.is_empty() {
+        return Some(DispatchResult::tool_error(
+            "E7001",
+            "can lsp takes no file arguments; it serves stdio".to_string(),
+        ));
+    }
+    Some(DispatchResult {
+        code: exit::OK,
+        stdout: String::new(),
+        stderr: String::new(),
+        run_lsp: true,
+    })
+}
+
+fn dispatch_gen_command(
+    parsed: &ParsedArgs,
+    public_generation: bool,
+) -> DispatchResult {
+    if parsed.catalog_set {
+        return DispatchResult::tool_error(
+            "E7001",
+            "can gen takes no --catalog flag".to_string(),
+        );
+    }
+    let source_mode = parsed
+        .operands
+        .first()
+        .is_some_and(|file| Path::new(file).extension().is_some_and(|ext| ext == "can"));
+    if source_mode && !parsed.request_set {
+        return run_source_entry(
+            "generate",
+            &parsed.operands,
+            parsed.format,
+            parsed.retry,
+            parsed.dry_run,
+            parsed.settings.as_deref(),
+            std::env::var("CAN_PLATFORM_BIN").ok(),
+        );
+    }
+    if parsed.retry || parsed.dry_run || parsed.settings.is_some() {
+        return DispatchResult::tool_error(
+            "E7001",
+            "--retry, --dry-run and --settings require can gen FILE.can".to_string(),
+        );
+    }
+    run_gen(
+        &parsed.operands,
+        parsed.format,
+        parsed.format_set,
+        parsed.request.as_deref(),
+        public_generation,
+    )
+}
+
+fn dispatch_entry_command(
+    cmd: &str,
+    parsed: &ParsedArgs,
+    public_generation: bool,
+) -> Option<DispatchResult> {
+    Some(match cmd {
         "completions" => {
             if parsed.format_set || parsed.catalog_set {
-                return DispatchResult::tool_error(
+                return Some(DispatchResult::tool_error(
                     "E7001",
                     "can completions takes no --format or --catalog flag".to_string(),
-                );
+                ));
             }
             run_completions(&parsed.operands)
         }
         "help" => {
             if parsed.format_set || parsed.catalog_set {
-                return DispatchResult::tool_error(
+                return Some(DispatchResult::tool_error(
                     "E7001",
                     "can help takes no --format or --catalog flag".to_string(),
-                );
+                ));
             }
             run_help(&parsed.operands)
         }
-        "lsp" => {
-            if parsed.format_set {
-                return DispatchResult::tool_error(
-                    "E7001",
-                    "can lsp takes no --format flag".to_string(),
-                );
-            }
-            if parsed.catalog_set {
-                return DispatchResult::tool_error(
-                    "E7001",
-                    "can lsp takes no --catalog flag".to_string(),
-                );
-            }
-            if !parsed.operands.is_empty() {
-                return DispatchResult::tool_error(
-                    "E7001",
-                    "can lsp takes no file arguments; it serves stdio".to_string(),
-                );
-            }
-            DispatchResult {
-                code: exit::OK,
-                stdout: String::new(),
-                stderr: String::new(),
-                run_lsp: true,
-            }
-        }
+        "lsp" => return dispatch_lsp_command(parsed),
         "run" | "test" | "build" | "deploy" | "activate" => {
             if parsed.format_set || parsed.catalog_set {
-                return DispatchResult::tool_error(
+                return Some(DispatchResult::tool_error(
                     "E7001",
                     format!(
                         "can {cmd} takes no can-side flags; everything after the subcommand passes through to can-platform"
                     ),
-                );
+                ));
             }
             let platform_bin = std::env::var("CAN_PLATFORM_BIN").ok();
             run_thin_entry(cmd, &parsed.operands, platform_bin)
         }
         "dev" => {
             if parsed.format_set || parsed.catalog_set {
-                return DispatchResult::tool_error(
+                return Some(DispatchResult::tool_error(
                     "E7001",
                     "can dev takes no can-side flags; arguments pass through to can-dev"
                         .to_string(),
-                );
+                ));
             }
             run_dev_entry(&parsed.operands, std::env::var("CAN_DEV_BIN").ok())
         }
         "validate" => {
             if parsed.catalog_set {
-                return DispatchResult::tool_error(
+                return Some(DispatchResult::tool_error(
                     "E7001",
                     "can validate takes no --catalog flag".to_string(),
-                );
+                ));
             }
             run_source_entry(
                 "validate",
@@ -436,47 +470,47 @@ fn dispatch_with_route(
                 std::env::var("CAN_PLATFORM_BIN").ok(),
             )
         }
-        "gen" => {
-            if parsed.catalog_set {
-                return DispatchResult::tool_error(
-                    "E7001",
-                    "can gen takes no --catalog flag".to_string(),
-                );
-            }
-            let source_mode = parsed
-                .operands
-                .first()
-                .is_some_and(|file| Path::new(file).extension().is_some_and(|ext| ext == "can"));
-            if source_mode && !parsed.request_set {
-                return run_source_entry(
-                    "generate",
-                    &parsed.operands,
-                    parsed.format,
-                    parsed.retry,
-                    parsed.dry_run,
-                    parsed.settings.as_deref(),
-                    std::env::var("CAN_PLATFORM_BIN").ok(),
-                );
-            }
-            if parsed.retry || parsed.dry_run || parsed.settings.is_some() {
-                return DispatchResult::tool_error(
-                    "E7001",
-                    "--retry, --dry-run and --settings require can gen FILE.can".to_string(),
-                );
-            }
-            run_gen(
-                &parsed.operands,
-                parsed.format,
-                parsed.format_set,
-                parsed.request.as_deref(),
-                public_generation,
-            )
-        }
-        unknown => DispatchResult::tool_error(
-            "E7001",
-            format!("unknown command '{unknown}'; use can --help"),
-        ),
+        "gen" => dispatch_gen_command(parsed, public_generation),
+        _ => return None,
+    })
+}
+
+fn dispatch_with_route(
+    argv: &[String],
+    analyzer: &dyn Analyzer,
+    public_generation: bool,
+) -> DispatchResult {
+    // Test-only hook for the panic path (`tests/exe.rs` drives the real
+    // binary with this set): this qualifies the E7005/exit-2 mapping for
+    // ordinary unwinds, not aborts. Production `main` catches this into
+    // `error[E7005]`; in-process callers see the panic itself.
+    if std::env::var("CAN_INTERNAL_TEST_PANIC").as_deref() == Ok("1") {
+        panic!("forced internal error (CAN_INTERNAL_TEST_PANIC=1)");
     }
+    let args: &[String] = if argv.is_empty() { &[] } else { &argv[1..] };
+    let parsed = match parse_args(args) {
+        Ok(parsed) => parsed,
+        Err(message) => return DispatchResult::tool_error("E7001", message),
+    };
+    if let Some(help) = dispatch_help_command(&parsed) {
+        return help;
+    }
+    if parsed.version {
+        return DispatchResult::ok_stdout(version_text());
+    }
+    let Some(cmd) = &parsed.subcommand else {
+        return DispatchResult::ok_stdout(global_help());
+    };
+    if let Some(out) = dispatch_core_command(cmd, &parsed, analyzer) {
+        return out;
+    }
+    if let Some(out) = dispatch_entry_command(cmd, &parsed, public_generation) {
+        return out;
+    }
+    DispatchResult::tool_error(
+        "E7001",
+        format!("unknown command '{cmd}'; use can --help"),
+    )
 }
 
 /// All subcommands `can` accepts.
@@ -555,6 +589,173 @@ struct ParsedArgs {
     version: bool,
 }
 
+fn parse_simple_flag(parsed: &mut ParsedArgs, arg: &str) -> bool {
+    match arg {
+        "--help" | "-h" => parsed.help = true,
+        "--version" | "-V" => parsed.version = true,
+        "--retry" => parsed.retry = true,
+        "--dry-run" => parsed.dry_run = true,
+        "--check" => parsed.fmt_check = true,
+        "--fix" => parsed.fix = true,
+        "--native-scenario-receipts" => parsed.native_scenario_receipts = true,
+        _ => return false,
+    }
+    true
+}
+
+fn parse_root_settings_flag(
+    args: &[String],
+    i: &mut usize,
+    parsed: &mut ParsedArgs,
+    arg: &str,
+) -> Result<bool, String> {
+    if arg == "--generation-root" {
+        *i += 1;
+        parsed.generation_root =
+            Some(args.get(*i).ok_or("--generation-root needs a path")?.clone());
+    } else if let Some(value) = arg.strip_prefix("--generation-root=") {
+        if value.is_empty() {
+            return Err("--generation-root needs a path".into());
+        }
+        parsed.generation_root = Some(value.to_string());
+    } else if arg == "--settings" || arg.starts_with("--settings=") {
+        if parsed.settings.is_some() {
+            return Err("--settings may only be supplied once".to_string());
+        }
+        let value = if let Some(value) = arg.strip_prefix("--settings=") {
+            value
+        } else {
+            *i += 1;
+            args.get(*i)
+                .ok_or_else(|| "missing value for --settings; want a PATH".to_string())?
+        };
+        if value.is_empty() || value.starts_with("--") {
+            return Err("--settings requires a non-empty PATH".to_string());
+        }
+        parsed.settings = Some(value.to_string());
+    } else {
+        return Ok(false);
+    }
+    Ok(true)
+}
+
+fn parse_path_valued_flag(
+    args: &[String],
+    i: &mut usize,
+    parsed: &mut ParsedArgs,
+    arg: &str,
+) -> Result<bool, String> {
+    if parse_root_settings_flag(args, i, parsed, arg)? {
+        return Ok(true);
+    }
+    if let Some(value) = arg.strip_prefix("--catalog=") {
+        parsed.catalog = Some(value.to_string());
+        parsed.catalog_set = true;
+    } else if arg == "--catalog" {
+        *i += 1;
+        let value = args
+            .get(*i)
+            .ok_or_else(|| "missing value for --catalog; want a PATH".to_string())?;
+        parsed.catalog = Some(value.clone());
+        parsed.catalog_set = true;
+    } else if let Some(value) = arg.strip_prefix("--locale=") {
+        parsed.locale = Some(value.to_string());
+        parsed.locale_set = true;
+    } else if arg == "--locale" {
+        *i += 1;
+        let value = args
+            .get(*i)
+            .ok_or_else(|| "missing value for --locale; want a BCP 47 tag".to_string())?;
+        parsed.locale = Some(value.clone());
+        parsed.locale_set = true;
+    } else if let Some(value) = arg.strip_prefix("--out=") {
+        parsed.out = Some(value.to_string());
+        parsed.out_set = true;
+    } else if arg == "--out" {
+        *i += 1;
+        let value = args
+            .get(*i)
+            .ok_or_else(|| "missing value for --out; want a PATH".to_string())?;
+        parsed.out = Some(value.clone());
+        parsed.out_set = true;
+    } else if let Some(value) = arg.strip_prefix("--request=") {
+        parsed.request = Some(value.to_string());
+        parsed.request_set = true;
+    } else if arg == "--request" {
+        *i += 1;
+        let value = args
+            .get(*i)
+            .ok_or_else(|| "missing value for --request; want a PATH".to_string())?;
+        parsed.request = Some(value.clone());
+        parsed.request_set = true;
+    } else {
+        return Ok(false);
+    }
+    Ok(true)
+}
+
+fn parse_valued_flag(
+    args: &[String],
+    i: &mut usize,
+    parsed: &mut ParsedArgs,
+    arg: &str,
+) -> Result<bool, String> {
+    if let Some(value) = arg.strip_prefix("--format=") {
+        parsed.format = parse_format(value)?;
+        parsed.format_set = true;
+    } else if arg == "--format" {
+        *i += 1;
+        let value = args
+            .get(*i)
+            .ok_or_else(|| "missing value for --format; want json|text".to_string())?;
+        parsed.format = parse_format(value)?;
+        parsed.format_set = true;
+    } else if !parse_path_valued_flag(args, i, parsed, arg)? {
+        return Ok(false);
+    }
+    Ok(true)
+}
+
+fn check_flag_scope(parsed: &ParsedArgs) -> Result<(), String> {
+    if (parsed.retry || parsed.dry_run) && parsed.subcommand.as_deref() != Some("gen") {
+        return Err("--retry and --dry-run only apply to can gen FILE.can".to_string());
+    }
+    if parsed.settings.is_some() && parsed.subcommand.as_deref() != Some("gen") {
+        return Err("--settings only applies to can gen FILE.can".to_string());
+    }
+    if parsed.fmt_check && parsed.subcommand.as_deref() != Some("fmt") {
+        return Err("--check only applies to can fmt".to_string());
+    }
+    if parsed.fix && parsed.subcommand.as_deref() != Some("lint") {
+        return Err("--fix only applies to can lint".to_string());
+    }
+    if parsed.generation_root.is_some()
+        && !matches!(parsed.subcommand.as_deref(), Some("check" | "compile"))
+    {
+        return Err("--generation-root is available for check and compile".into());
+    }
+    if parsed.native_scenario_receipts && parsed.subcommand.as_deref() != Some("compile") {
+        return Err("--native-scenario-receipts only applies to can compile".to_string());
+    }
+    check_docs_flag_scope(parsed)
+}
+
+fn check_docs_flag_scope(parsed: &ParsedArgs) -> Result<(), String> {
+    if parsed.locale_set && parsed.subcommand.as_deref() != Some("docs") {
+        return Err("--locale only applies to can docs".to_string());
+    }
+    if parsed.out_set && parsed.subcommand.as_deref() != Some("docs") {
+        return Err("--out only applies to can docs".to_string());
+    }
+    if parsed.request_set && parsed.subcommand.as_deref() != Some("gen") {
+        return Err("--request only applies to can gen".to_string());
+    }
+    if parsed.locale.as_deref().is_some_and(str::is_empty) {
+        return Err("can docs --locale needs a non-empty BCP 47 tag".to_string());
+    }
+    Ok(())
+}
+
 fn parse_args(args: &[String]) -> Result<ParsedArgs, String> {
     let mut parsed = ParsedArgs {
         subcommand: None,
@@ -589,95 +790,9 @@ fn parse_args(args: &[String]) -> Result<ParsedArgs, String> {
             continue;
         }
         if !flags_done && arg.starts_with('-') && arg.len() > 1 {
-            if arg == "--generation-root" {
-                i += 1;
-                parsed.generation_root =
-                    Some(args.get(i).ok_or("--generation-root needs a path")?.clone());
-            } else if let Some(value) = arg.strip_prefix("--generation-root=") {
-                if value.is_empty() {
-                    return Err("--generation-root needs a path".into());
-                }
-                parsed.generation_root = Some(value.to_string());
-            } else if arg == "--help" || arg == "-h" {
-                parsed.help = true;
-            } else if arg == "--version" || arg == "-V" {
-                parsed.version = true;
-            } else if arg == "--retry" {
-                parsed.retry = true;
-            } else if arg == "--dry-run" {
-                parsed.dry_run = true;
-            } else if arg == "--settings" || arg.starts_with("--settings=") {
-                if parsed.settings.is_some() {
-                    return Err("--settings may only be supplied once".to_string());
-                }
-                let value = if let Some(value) = arg.strip_prefix("--settings=") {
-                    value
-                } else {
-                    i += 1;
-                    args.get(i)
-                        .ok_or_else(|| "missing value for --settings; want a PATH".to_string())?
-                };
-                if value.is_empty() || value.starts_with("--") {
-                    return Err("--settings requires a non-empty PATH".to_string());
-                }
-                parsed.settings = Some(value.to_string());
-            } else if arg == "--check" {
-                parsed.fmt_check = true;
-            } else if arg == "--fix" {
-                parsed.fix = true;
-            } else if arg == "--native-scenario-receipts" {
-                parsed.native_scenario_receipts = true;
-            } else if let Some(value) = arg.strip_prefix("--format=") {
-                parsed.format = parse_format(value)?;
-                parsed.format_set = true;
-            } else if arg == "--format" {
-                i += 1;
-                let value = args
-                    .get(i)
-                    .ok_or_else(|| "missing value for --format; want json|text".to_string())?;
-                parsed.format = parse_format(value)?;
-                parsed.format_set = true;
-            } else if let Some(value) = arg.strip_prefix("--catalog=") {
-                parsed.catalog = Some(value.to_string());
-                parsed.catalog_set = true;
-            } else if arg == "--catalog" {
-                i += 1;
-                let value = args
-                    .get(i)
-                    .ok_or_else(|| "missing value for --catalog; want a PATH".to_string())?;
-                parsed.catalog = Some(value.clone());
-                parsed.catalog_set = true;
-            } else if let Some(value) = arg.strip_prefix("--locale=") {
-                parsed.locale = Some(value.to_string());
-                parsed.locale_set = true;
-            } else if arg == "--locale" {
-                i += 1;
-                let value = args
-                    .get(i)
-                    .ok_or_else(|| "missing value for --locale; want a BCP 47 tag".to_string())?;
-                parsed.locale = Some(value.clone());
-                parsed.locale_set = true;
-            } else if let Some(value) = arg.strip_prefix("--out=") {
-                parsed.out = Some(value.to_string());
-                parsed.out_set = true;
-            } else if arg == "--out" {
-                i += 1;
-                let value = args
-                    .get(i)
-                    .ok_or_else(|| "missing value for --out; want a PATH".to_string())?;
-                parsed.out = Some(value.clone());
-                parsed.out_set = true;
-            } else if let Some(value) = arg.strip_prefix("--request=") {
-                parsed.request = Some(value.to_string());
-                parsed.request_set = true;
-            } else if arg == "--request" {
-                i += 1;
-                let value = args
-                    .get(i)
-                    .ok_or_else(|| "missing value for --request; want a PATH".to_string())?;
-                parsed.request = Some(value.clone());
-                parsed.request_set = true;
-            } else {
+            if !parse_simple_flag(&mut parsed, arg)
+                && !parse_valued_flag(args, &mut i, &mut parsed, arg)?
+            {
                 return Err(format!("unknown flag '{arg}'; use can --help"));
             }
             i += 1;
@@ -698,38 +813,7 @@ fn parse_args(args: &[String]) -> Result<ParsedArgs, String> {
         }
         i += 1;
     }
-    if (parsed.retry || parsed.dry_run) && parsed.subcommand.as_deref() != Some("gen") {
-        return Err("--retry and --dry-run only apply to can gen FILE.can".to_string());
-    }
-    if parsed.settings.is_some() && parsed.subcommand.as_deref() != Some("gen") {
-        return Err("--settings only applies to can gen FILE.can".to_string());
-    }
-    if parsed.fmt_check && parsed.subcommand.as_deref() != Some("fmt") {
-        return Err("--check only applies to can fmt".to_string());
-    }
-    if parsed.fix && parsed.subcommand.as_deref() != Some("lint") {
-        return Err("--fix only applies to can lint".to_string());
-    }
-    if parsed.generation_root.is_some()
-        && !matches!(parsed.subcommand.as_deref(), Some("check" | "compile"))
-    {
-        return Err("--generation-root is available for check and compile".into());
-    }
-    if parsed.native_scenario_receipts && parsed.subcommand.as_deref() != Some("compile") {
-        return Err("--native-scenario-receipts only applies to can compile".to_string());
-    }
-    if parsed.locale_set && parsed.subcommand.as_deref() != Some("docs") {
-        return Err("--locale only applies to can docs".to_string());
-    }
-    if parsed.out_set && parsed.subcommand.as_deref() != Some("docs") {
-        return Err("--out only applies to can docs".to_string());
-    }
-    if parsed.request_set && parsed.subcommand.as_deref() != Some("gen") {
-        return Err("--request only applies to can gen".to_string());
-    }
-    if parsed.locale.as_deref().is_some_and(str::is_empty) {
-        return Err("can docs --locale needs a non-empty BCP 47 tag".to_string());
-    }
+    check_flag_scope(&parsed)?;
     if parsed.out.as_deref().is_some_and(str::is_empty) {
         return Err("can docs --out needs a non-empty PATH".to_string());
     }
@@ -2264,7 +2348,7 @@ struct FmtInput {
     dest: Option<PathBuf>,
 }
 
-fn run_fmt(operands: &[String], check: bool) -> DispatchResult {
+fn read_fmt_inputs(operands: &[String]) -> Result<Vec<FmtInput>, DispatchResult> {
     let mut inputs = Vec::new();
     // No operands formats the stdin filter, mirroring rustfmt/gofmt.
     let resolved: Vec<&str> = if operands.is_empty() {
@@ -2276,10 +2360,10 @@ fn run_fmt(operands: &[String], check: bool) -> DispatchResult {
     for operand in resolved {
         if operand == "-" {
             if stdin_used {
-                return DispatchResult::tool_error(
+                return Err(DispatchResult::tool_error(
                     "E7001",
                     "duplicate `-` (stdin) operand".to_string(),
-                );
+                ));
             }
             stdin_used = true;
             match read_source_text(std::io::stdin()) {
@@ -2289,10 +2373,10 @@ fn run_fmt(operands: &[String], check: bool) -> DispatchResult {
                     dest: None,
                 }),
                 Err(err) => {
-                    return DispatchResult::tool_error(
+                    return Err(DispatchResult::tool_error(
                         "E7002",
                         format!("cannot read '<stdin>': {err}"),
-                    );
+                    ));
                 }
             }
             continue;
@@ -2304,13 +2388,19 @@ fn run_fmt(operands: &[String], check: bool) -> DispatchResult {
                 dest: Some(PathBuf::from(operand)),
             }),
             Err(err) => {
-                return DispatchResult::tool_error(
+                return Err(DispatchResult::tool_error(
                     "E7002",
                     format!("cannot read '{operand}': {err}"),
-                );
+                ));
             }
         }
     }
+    Ok(inputs)
+}
+
+fn collect_fmt_outputs(
+    inputs: &[FmtInput],
+) -> Result<(SourceDb, Vec<String>, DiagnosticResult), DispatchResult> {
     // Format everything before writing anything: a parse failure anywhere
     // reports the aggregated envelope and leaves every file untouched.
     let mut db = SourceDb::new();
@@ -2320,10 +2410,10 @@ fn run_fmt(operands: &[String], check: bool) -> DispatchResult {
         crate::LANGUAGE_VERSION,
         crate::SCHEMA_VERSION,
     );
-    for input in &inputs {
+    for input in inputs {
         let id = match add_source(&mut db, input.name.clone(), input.text.clone()) {
             Ok(id) => id,
-            Err(error) => return error,
+            Err(error) => return Err(error),
         };
         match crate::format::format_source(id, &input.text) {
             Ok(formatted) => outputs.push(formatted.text),
@@ -2335,33 +2425,28 @@ fn run_fmt(operands: &[String], check: bool) -> DispatchResult {
             }
         }
     }
-    if result.has_errors() {
-        result.add_sources(&db);
-        result.finish();
-        return DispatchResult {
-            code: exit::DIAGNOSTICS,
-            stdout: format!("{}\n", result.to_json()),
-            stderr: String::new(),
-            run_lsp: false,
-        };
-    }
-    if check {
-        let mut differing = Vec::new();
-        for (input, output) in inputs.iter().zip(outputs.iter()) {
-            if *output != input.text {
-                differing.push(input.name.clone());
-            }
+    Ok((db, outputs, result))
+}
+
+fn report_fmt_check(inputs: &[FmtInput], outputs: &[String]) -> Option<DispatchResult> {
+    let mut differing = Vec::new();
+    for (input, output) in inputs.iter().zip(outputs.iter()) {
+        if *output != input.text {
+            differing.push(input.name.clone());
         }
-        if differing.is_empty() {
-            return DispatchResult::ok_stdout(String::new());
-        }
-        return DispatchResult {
-            code: exit::DIAGNOSTICS,
-            stdout: format!("{}\n", differing.join("\n")),
-            stderr: String::new(),
-            run_lsp: false,
-        };
     }
+    if differing.is_empty() {
+        return Some(DispatchResult::ok_stdout(String::new()));
+    }
+    Some(DispatchResult {
+        code: exit::DIAGNOSTICS,
+        stdout: format!("{}\n", differing.join("\n")),
+        stderr: String::new(),
+        run_lsp: false,
+    })
+}
+
+fn write_fmt_outputs(inputs: &[FmtInput], outputs: &[String]) -> DispatchResult {
     // Each file writes atomically (temp file in the same directory,
     // then rename): a failure aborts with E7007 and the failed file keeps
     // its old bytes. Earlier files in the same invocation may already be
@@ -2391,6 +2476,33 @@ fn run_fmt(operands: &[String], check: bool) -> DispatchResult {
         }
     }
     DispatchResult::ok_stdout(stdout)
+}
+
+fn run_fmt(operands: &[String], check: bool) -> DispatchResult {
+    let inputs = match read_fmt_inputs(operands) {
+        Ok(inputs) => inputs,
+        Err(error) => return error,
+    };
+    let (db, outputs, mut result) = match collect_fmt_outputs(&inputs) {
+        Ok(collected) => collected,
+        Err(error) => return error,
+    };
+    if result.has_errors() {
+        result.add_sources(&db);
+        result.finish();
+        return DispatchResult {
+            code: exit::DIAGNOSTICS,
+            stdout: format!("{}\n", result.to_json()),
+            stderr: String::new(),
+            run_lsp: false,
+        };
+    }
+    if check {
+        if let Some(report) = report_fmt_check(&inputs, &outputs) {
+            return report;
+        }
+    }
+    write_fmt_outputs(&inputs, &outputs)
 }
 
 /// Replace the requested directory entry with complete staged bytes.
@@ -3406,6 +3518,152 @@ struct GenStatusReport {
     issues: Vec<crate::analysis::generation_intake::IntakeIssue>,
 }
 
+struct GenScopeData {
+    descriptors: Vec<crate::analysis::generation::GenerationDescriptor>,
+    evidence: std::collections::HashMap<SourceId, crate::analysis::generation_intake::AssociationSource>,
+    texts: std::collections::HashMap<String, String>,
+}
+
+fn collect_gen_scope_data(
+    root_path: &Path,
+    scope_files: &[String],
+) -> Result<GenScopeData, DispatchResult> {
+    use crate::analysis::generation_intake as intake;
+    let mut descriptors = Vec::new();
+    let mut evidence = std::collections::HashMap::new();
+    let mut texts = std::collections::HashMap::new();
+    for (index, file) in scope_files.iter().enumerate() {
+        let source_file = generation_source_file(root_path, file);
+        let (_, _, text) = read_gen_source(&source_file)?;
+        let id = SourceId(index as u32);
+        let (tree, _) = crate::syntax::parse_source(id, &text);
+        descriptors
+            .extend(crate::analysis::generation::discover_generation(&tree, &text).descriptors);
+        evidence.insert(
+            id,
+            intake::AssociationSource {
+                path: file.clone(),
+                revision: crate::source::sha256_hex(text.as_bytes()),
+            },
+        );
+        texts.insert(file.clone(), text);
+    }
+    Ok(GenScopeData {
+        descriptors,
+        evidence,
+        texts,
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+fn report_retained_group(
+    root: &str,
+    root_path: &Path,
+    id: &crate::analysis::generation_intake::GenerationUnitId,
+    descriptor: &crate::analysis::generation::GenerationDescriptor,
+    kind: &str,
+    label: &str,
+    file: &str,
+    source_path: &str,
+    text: &str,
+    prompt_changed: bool,
+    lines: &mut Vec<String>,
+    units_json: &mut Vec<serde_json::Value>,
+    issues: &mut Vec<crate::analysis::generation_intake::IntakeIssue>,
+) {
+    use crate::analysis::generation_intake as intake;
+    let group = intake::read_saved_group(root_path, id);
+    let stale = if prompt_changed {
+        " prompt-changed"
+    } else {
+        ""
+    };
+    match group {
+        Ok(group) => {
+            let prefix = format!("{}/{id}/", intake::GENERATED_DIR);
+            let mut paths = vec![format!("{prefix}{}", intake::UNIT_FILE)];
+            paths.extend(
+                group
+                    .files
+                    .iter()
+                    .map(|f| format!("{prefix}{}", f.rel_path)),
+            );
+            let inputs =
+                match crate::source::ValidationInputs::bind(root_path, &paths) {
+                    Ok(inputs) => inputs,
+                    Err(error) => {
+                        issues.push(intake::IntakeIssue {
+                            unit: id.as_str().to_string(),
+                            action: intake::IntakeAction::Bind,
+                            detail: error.to_string(),
+                        });
+                        return;
+                    }
+                };
+            let mut current_files: Vec<serde_json::Value> = inputs
+                .files
+                .iter()
+                .map(|f| serde_json::json!({"path": f.path, "sha256": f.sha256}))
+                .collect();
+            current_files.push(serde_json::json!({"path": source_path, "sha256": crate::source::sha256_hex(text.as_bytes())}));
+            current_files
+                .sort_by(|a, b| a["path"].as_str().cmp(&b["path"].as_str()));
+            let mut compiler_sources = vec![source_path.to_string()];
+            if matches!(
+                group.record.source.kind,
+                intake::UnitKind::NamedTrait | intake::UnitKind::InlineTrait
+            ) && group
+                .files
+                .iter()
+                .any(|f| f.rel_path == "contributions.can")
+            {
+                compiler_sources.push(format!("{prefix}contributions.can"));
+            }
+            lines.push(format!(
+                "unit {} {}/{}/{label} {file}{stale}",
+                id, descriptor.owner, kind
+            ));
+            units_json.push(serde_json::json!({
+                "id": id.as_str(),
+                "owner": descriptor.owner,
+                "kind": kind,
+                "label": descriptor.label,
+                "path": file,
+                "association": "retained",
+                "current_files": current_files,
+                "compiler_sources": compiler_sources,
+                // BGI-12 capture seam (additive): the live
+                // prompt text, the fresh descriptor
+                // contract, and the descriptor span for
+                // bind-new selection. Saved history stays
+                // in unit.json; prompt_changed flags drift.
+                "prompt": descriptor.prompt,
+                "selector": descriptor.selector,
+                "region": descriptor.region,
+                "contract": intake::contract_for(descriptor)
+                    .map(|contract| contract_json(&contract))
+                    .unwrap_or(serde_json::Value::Null),
+                "span": serde_json::json!({"start": descriptor.span.start, "end": descriptor.span.end}),
+                "prompt_changed": prompt_changed,
+                "current": format!(
+                    "{}/{}/{id}",
+                    root, intake::GENERATED_DIR
+                ),
+                // BGI-04 owns leases/journals under this dir;
+                // BGI-02 only names the concrete location.
+                "candidates": format!(
+                    "{}/.can/gen/attempts/{id}",
+                    root
+                ),
+            }));
+        }
+        Err(issue) => {
+            // Reported once with every other issue below.
+            issues.push(issue);
+        }
+    }
+}
+
 /// Collect one association report over explicit sources: saved
 /// intake only, no settings, recipe, or MCP server consulted.
 fn collect_gen_status(root: &str, files: &[String]) -> Result<GenStatusReport, DispatchResult> {
@@ -3426,25 +3684,11 @@ fn collect_gen_status(root: &str, files: &[String]) -> Result<GenStatusReport, D
     }
     scope_files.sort();
     scope_files.dedup();
-    let mut descriptors = Vec::new();
-    let mut evidence = std::collections::HashMap::new();
-    let mut texts = std::collections::HashMap::new();
-    for (index, file) in scope_files.iter().enumerate() {
-        let source_file = generation_source_file(root_path, file);
-        let (_, _, text) = read_gen_source(&source_file)?;
-        let id = SourceId(index as u32);
-        let (tree, _) = crate::syntax::parse_source(id, &text);
-        descriptors
-            .extend(crate::analysis::generation::discover_generation(&tree, &text).descriptors);
-        evidence.insert(
-            id,
-            intake::AssociationSource {
-                path: file.clone(),
-                revision: crate::source::sha256_hex(text.as_bytes()),
-            },
-        );
-        texts.insert(file.clone(), text);
-    }
+    let GenScopeData {
+        descriptors,
+        evidence,
+        texts,
+    } = collect_gen_scope_data(root_path, &scope_files)?;
     let associations = intake::associate_with_sources(&descriptors, &saved, &evidence);
     for (_, association) in &associations {
         if let intake::UnitAssociation::Retained { id, .. } = association {
@@ -3467,97 +3711,21 @@ fn collect_gen_status(root: &str, files: &[String]) -> Result<GenStatusReport, D
             match &association {
                 intake::UnitAssociation::Retained { id, prompt_changed } => {
                     matched.insert(id.as_str().to_string());
-                    let group = intake::read_saved_group(root_path, id);
-                    let stale = if *prompt_changed {
-                        " prompt-changed"
-                    } else {
-                        ""
-                    };
-                    match group {
-                        Ok(group) => {
-                            let prefix = format!("{}/{id}/", intake::GENERATED_DIR);
-                            let source_path = generation_source_path(root_path, &source_file);
-                            let mut paths = vec![format!("{prefix}{}", intake::UNIT_FILE)];
-                            paths.extend(
-                                group
-                                    .files
-                                    .iter()
-                                    .map(|f| format!("{prefix}{}", f.rel_path)),
-                            );
-                            let inputs =
-                                match crate::source::ValidationInputs::bind(root_path, &paths) {
-                                    Ok(inputs) => inputs,
-                                    Err(error) => {
-                                        issues.push(intake::IntakeIssue {
-                                            unit: id.as_str().to_string(),
-                                            action: intake::IntakeAction::Bind,
-                                            detail: error.to_string(),
-                                        });
-                                        continue;
-                                    }
-                                };
-                            let mut current_files: Vec<serde_json::Value> = inputs
-                                .files
-                                .iter()
-                                .map(|f| serde_json::json!({"path": f.path, "sha256": f.sha256}))
-                                .collect();
-                            current_files.push(serde_json::json!({"path": source_path, "sha256": crate::source::sha256_hex(text.as_bytes())}));
-                            current_files
-                                .sort_by(|a, b| a["path"].as_str().cmp(&b["path"].as_str()));
-                            let mut compiler_sources = vec![source_path];
-                            if matches!(
-                                group.record.source.kind,
-                                intake::UnitKind::NamedTrait | intake::UnitKind::InlineTrait
-                            ) && group
-                                .files
-                                .iter()
-                                .any(|f| f.rel_path == "contributions.can")
-                            {
-                                compiler_sources.push(format!("{prefix}contributions.can"));
-                            }
-                            lines.push(format!(
-                                "unit {} {}/{}/{label} {file}{stale}",
-                                id, descriptor.owner, kind
-                            ));
-                            units_json.push(serde_json::json!({
-                                "id": id.as_str(),
-                                "owner": descriptor.owner,
-                                "kind": kind,
-                                "label": descriptor.label,
-                                "path": file,
-                                "association": "retained",
-                                "current_files": current_files,
-                                "compiler_sources": compiler_sources,
-                                // BGI-12 capture seam (additive): the live
-                                // prompt text, the fresh descriptor
-                                // contract, and the descriptor span for
-                                // bind-new selection. Saved history stays
-                                // in unit.json; prompt_changed flags drift.
-                                "prompt": descriptor.prompt,
-                                "selector": descriptor.selector,
-                                "region": descriptor.region,
-                                "contract": intake::contract_for(descriptor)
-                                    .map(|contract| contract_json(&contract))
-                                    .unwrap_or(serde_json::Value::Null),
-                                "span": serde_json::json!({"start": descriptor.span.start, "end": descriptor.span.end}),
-                                "prompt_changed": prompt_changed,
-                                "current": format!(
-                                    "{}/{}/{id}",
-                                    root, intake::GENERATED_DIR
-                                ),
-                                // BGI-04 owns leases/journals under this dir;
-                                // BGI-02 only names the concrete location.
-                                "candidates": format!(
-                                    "{}/.can/gen/attempts/{id}",
-                                    root
-                                ),
-                            }));
-                        }
-                        Err(issue) => {
-                            // Reported once with every other issue below.
-                            issues.push(issue);
-                        }
-                    }
+                    report_retained_group(
+                        root,
+                        root_path,
+                        id,
+                        descriptor,
+                        kind,
+                        label,
+                        file,
+                        &source_path,
+                        text,
+                        *prompt_changed,
+                        &mut lines,
+                        &mut units_json,
+                        &mut issues,
+                    );
                 }
                 intake::UnitAssociation::New => {
                     lines.push(format!(
@@ -4255,29 +4423,18 @@ fn inspect_recipe(
 /// saved unit id, or allocate a fresh id with `new`. Same intake
 /// semantics as the positional sugar (stale revisions refuse, saved
 /// groups stay intact on failure); only the envelope differs.
-fn run_gen_bind_json(
+struct BindScope {
+    scope: Vec<String>,
+    _binding_lease: crate::analysis::generation_store::HeldLease,
+    _source_lease: crate::analysis::generation_store::HeldLease,
+}
+
+fn bind_acquire_scope(
     header: &crate::analysis::generation_protocol::RequestHeader,
     params: &crate::analysis::generation_protocol::BindParams,
-) -> DispatchResult {
-    use crate::analysis::generation_intake as intake;
-    use crate::analysis::generation_protocol as proto;
-    let fail = |code: &str, message: String| {
-        gen_envelope_result(
-            if code == "conflict" {
-                exit::GEN_CONFLICT
-            } else {
-                exit::TOOL_FAILURE
-            },
-            proto::error_envelope(
-                &header.request_id,
-                header.operation.as_str(),
-                code,
-                &message,
-                vec!["re-inspect the source and reconcile with bind".into()],
-            ),
-        )
-    };
-    let root_path = Path::new(&params.root);
+    root_path: &Path,
+    fail: &dyn Fn(&str, String) -> DispatchResult,
+) -> Result<BindScope, DispatchResult> {
     let _binding_lease = match crate::analysis::generation_store::HeldLease::acquire(
         root_path,
         &["can.generated/bindings"],
@@ -4285,17 +4442,17 @@ fn run_gen_bind_json(
         &header.request_id,
     ) {
         Ok(lease) => lease,
-        Err(error) => return fail("conflict", error),
+        Err(error) => return Err(fail("conflict", error)),
     };
     if !crate::leases::unresolved_journals(root_path).is_empty() {
-        return fail(
+        return Err(fail(
             "unresolved-journal",
             "recover pending publication before binding".into(),
-        );
+        ));
     }
     let scope = match crate::analysis::generation_store::source_files(root_path) {
         Ok(scope) => scope,
-        Err(error) => return fail("unreadable-input", error),
+        Err(error) => return Err(fail("unreadable-input", error)),
     };
     let _source_lease = match crate::analysis::generation_store::HeldLease::acquire(
         root_path,
@@ -4304,32 +4461,61 @@ fn run_gen_bind_json(
         &header.request_id,
     ) {
         Ok(lease) => lease,
-        Err(error) => return fail("conflict", error),
+        Err(error) => return Err(fail("conflict", error)),
     };
-    let target = if params.unit == "new" {
-        intake::BindTarget::New
-    } else {
-        match intake::GenerationUnitId::parse(&params.unit) {
-            Ok(id) => intake::BindTarget::Existing(id),
-            Err(reason) => {
-                return gen_envelope_result(
-                    exit::TOOL_FAILURE,
-                    proto::error_envelope(
-                        &header.request_id,
-                        header.operation.as_str(),
-                        "invalid-param",
-                        &format!("bind `unit`: {reason}"),
-                        vec!["pass a saved unit id or \"new\"".to_string()],
-                    ),
-                );
-            }
-        }
-    };
+    Ok(BindScope {
+        scope,
+        _binding_lease,
+        _source_lease,
+    })
+}
+
+fn bind_read_target(
+    header: &crate::analysis::generation_protocol::RequestHeader,
+    params: &crate::analysis::generation_protocol::BindParams,
+) -> Result<crate::analysis::generation_intake::BindTarget, DispatchResult> {
+    use crate::analysis::generation_intake as intake;
+    use crate::analysis::generation_protocol as proto;
+    if params.unit == "new" {
+        return Ok(intake::BindTarget::New);
+    }
+    match intake::GenerationUnitId::parse(&params.unit) {
+        Ok(id) => Ok(intake::BindTarget::Existing(id)),
+        Err(reason) => Err(gen_envelope_result(
+            exit::TOOL_FAILURE,
+            proto::error_envelope(
+                &header.request_id,
+                header.operation.as_str(),
+                "invalid-param",
+                &format!("bind `unit`: {reason}"),
+                vec!["pass a saved unit id or \"new\"".to_string()],
+            ),
+        )),
+    }
+}
+
+struct BindPrepared {
+    current_revision: String,
+    descriptor: crate::analysis::generation::GenerationDescriptor,
+    source_file: String,
+    saved: Vec<crate::analysis::generation_intake::UnitRecord>,
+    request: crate::analysis::generation_intake::BindRequest,
+}
+
+fn bind_prepare_request(
+    header: &crate::analysis::generation_protocol::RequestHeader,
+    params: &crate::analysis::generation_protocol::BindParams,
+    root_path: &Path,
+    fail: &dyn Fn(&str, String) -> DispatchResult,
+) -> Result<BindPrepared, DispatchResult> {
+    use crate::analysis::generation_intake as intake;
+    use crate::analysis::generation_protocol as proto;
+    let target = bind_read_target(header, params)?;
     let source_file = generation_source_file(Path::new(&params.root), &params.file);
     let (_db, _id, text) = match read_gen_source(&source_file) {
         Ok(loaded) => loaded,
         Err(error) => {
-            return gen_envelope_result(
+            return Err(gen_envelope_result(
                 exit::TOOL_FAILURE,
                 proto::error_envelope(
                     &header.request_id,
@@ -4338,7 +4524,7 @@ fn run_gen_bind_json(
                     tool_message(&error.stderr),
                     vec!["pass a readable source file and resend".to_string()],
                 ),
-            );
+            ));
         }
     };
     let current_revision = crate::source::sha256_hex(text.as_bytes());
@@ -4359,7 +4545,7 @@ fn run_gen_bind_json(
             )
         });
     let Some(descriptor) = selected else {
-        return gen_envelope_result(
+        return Err(gen_envelope_result(
             exit::TOOL_FAILURE,
             proto::error_envelope(
                 &header.request_id,
@@ -4371,34 +4557,34 @@ fn run_gen_bind_json(
                 ),
                 vec!["send a status request to list bindable units".to_string()],
             ),
-        );
+        ));
     };
-    let root_path = Path::new(&params.root);
-    let (mut saved, saved_issues) = load_gen_saved(root_path, true);
+    let descriptor = descriptor.clone();
+    let (saved, saved_issues) = load_gen_saved(root_path, true);
     if !saved_issues.is_empty() {
-        return fail(
+        return Err(fail(
             "invalid-saved-record",
             saved_issues
                 .iter()
                 .map(ToString::to_string)
                 .collect::<Vec<_>>()
                 .join("; "),
-        );
+        ));
     }
     let source_path = generation_source_path(root_path, &source_file);
     if Path::new(&source_path).is_absolute() || source_path.split('/').any(|part| part == "..") {
-        return fail(
+        return Err(fail(
             "invalid-path",
             "source must be inside its selected generation root".into(),
-        );
+        ));
     }
     if params.copy_from.is_some() && params.unit != "new" {
-        return fail("invalid-param", "copy_from requires unit=new".into());
+        return Err(fail("invalid-param", "copy_from requires unit=new".into()));
     }
-    let source = match intake::association_for(descriptor, &source_path, &params.revision) {
+    let source = match intake::association_for(&descriptor, &source_path, &params.revision) {
         Some(source) => source,
         None => {
-            return gen_envelope_result(
+            return Err(gen_envelope_result(
                 exit::TOOL_FAILURE,
                 proto::error_envelope(
                     &header.request_id,
@@ -4407,13 +4593,13 @@ fn run_gen_bind_json(
                     "the selected descriptor carries no generation identity",
                     vec!["select an identity-carrying unit span and resend".to_string()],
                 ),
-            );
+            ));
         }
     };
-    let contract = match intake::contract_for(descriptor) {
+    let contract = match intake::contract_for(&descriptor) {
         Some(contract) => contract,
         None => {
-            return gen_envelope_result(
+            return Err(gen_envelope_result(
                 exit::TOOL_FAILURE,
                 proto::error_envelope(
                     &header.request_id,
@@ -4422,11 +4608,11 @@ fn run_gen_bind_json(
                     "the selected descriptor carries no generation identity",
                     vec!["select an identity-carrying unit span and resend".to_string()],
                 ),
-            );
+            ));
         }
     };
     let request = intake::BindRequest {
-        path: source_path,
+        path: source_path.clone(),
         revision: params.revision.clone(),
         start: params.start,
         end: params.end,
@@ -4434,47 +4620,79 @@ fn run_gen_bind_json(
         contract,
         target,
     };
-    let mut legacy_files = Vec::new();
-    let _legacy_lease = if let intake::BindTarget::Existing(id) = &request.target
-        && !saved.iter().any(|record| record.id == *id)
-        && root_path
+    Ok(BindPrepared {
+        current_revision,
+        descriptor,
+        source_file,
+        saved,
+        request,
+    })
+}
+
+fn bind_adopt_legacy(
+    request_id: &str,
+    root_path: &Path,
+    request: &crate::analysis::generation_intake::BindRequest,
+    saved: &mut Vec<crate::analysis::generation_intake::UnitRecord>,
+    fail: &dyn Fn(&str, String) -> DispatchResult,
+) -> Result<
+    (
+        Option<crate::analysis::generation_store::HeldLease>,
+        Vec<crate::analysis::generation_intake::SavedFile>,
+    ),
+    DispatchResult,
+> {
+    use crate::analysis::generation_intake as intake;
+    let intake::BindTarget::Existing(id) = &request.target else {
+        return Ok((None, Vec::new()));
+    };
+    if saved.iter().any(|record| record.id == *id)
+        || !root_path
             .join(intake::GENERATED_DIR)
             .join(id.as_str())
             .join(intake::UNIT_FILE)
             .exists()
     {
-        let paths = [
-            format!("{}/{}", intake::GENERATED_DIR, id.as_str()),
-            format!(
-                "{}/{}/{}",
-                intake::GENERATED_DIR,
-                id.as_str(),
-                intake::UNIT_FILE
-            ),
-        ];
-        let lease = match crate::analysis::generation_store::HeldLease::acquire(
-            root_path,
-            &paths.iter().map(String::as_str).collect::<Vec<_>>(),
-            crate::leases::LeaseMode::Write,
-            &header.request_id,
-        ) {
-            Ok(lease) => lease,
-            Err(error) => return fail("conflict", error),
-        };
-        let dir = root_path.join(intake::GENERATED_DIR).join(id.as_str());
-        let (record, files) =
-            match intake::bind_legacy_unit(&dir, id, &request.source, &request.contract) {
-                Ok(adopted) => adopted,
-                Err(error) => return fail("legacy-binding-refused", error),
-            };
-        legacy_files = files;
-        saved.push(record);
-        Some(lease)
-    } else {
-        None
+        return Ok((None, Vec::new()));
+    }
+    let paths = [
+        format!("{}/{}", intake::GENERATED_DIR, id.as_str()),
+        format!(
+            "{}/{}/{}",
+            intake::GENERATED_DIR,
+            id.as_str(),
+            intake::UNIT_FILE
+        ),
+    ];
+    let lease = match crate::analysis::generation_store::HeldLease::acquire(
+        root_path,
+        &paths.iter().map(String::as_str).collect::<Vec<_>>(),
+        crate::leases::LeaseMode::Write,
+        request_id,
+    ) {
+        Ok(lease) => lease,
+        Err(error) => return Err(fail("conflict", error)),
     };
-    let mut record = match intake::apply_bind(&saved, &request, &current_revision) {
-        Ok(record) => record,
+    let dir = root_path.join(intake::GENERATED_DIR).join(id.as_str());
+    let (record, files) =
+        match intake::bind_legacy_unit(&dir, id, &request.source, &request.contract) {
+            Ok(adopted) => adopted,
+            Err(error) => return Err(fail("legacy-binding-refused", error)),
+        };
+    saved.push(record);
+    Ok((Some(lease), files))
+}
+
+fn bind_apply_request(
+    header: &crate::analysis::generation_protocol::RequestHeader,
+    request: &crate::analysis::generation_intake::BindRequest,
+    saved: &[crate::analysis::generation_intake::UnitRecord],
+    current_revision: &str,
+) -> Result<crate::analysis::generation_intake::UnitRecord, DispatchResult> {
+    use crate::analysis::generation_intake as intake;
+    use crate::analysis::generation_protocol as proto;
+    match intake::apply_bind(saved, request, current_revision) {
+        Ok(record) => Ok(record),
         Err(err) => {
             let code = match err {
                 intake::BindError::StaleSelector { .. } => "stale-selector",
@@ -4482,7 +4700,7 @@ fn run_gen_bind_json(
                 intake::BindError::KindMismatch { .. } => "kind-mismatch",
                 intake::BindError::AllocationFailed { .. } => "allocation-failed",
             };
-            return gen_envelope_result(
+            Err(gen_envelope_result(
                 exit::TOOL_FAILURE,
                 proto::error_envelope(
                     &header.request_id,
@@ -4491,30 +4709,40 @@ fn run_gen_bind_json(
                     &err.to_string(),
                     vec!["re-inspect the source location and resend bind".to_string()],
                 ),
-            );
+            ))
         }
-    };
+    }
+}
+
+fn bind_check_slot(
+    params: &crate::analysis::generation_protocol::BindParams,
+    record: &mut crate::analysis::generation_intake::UnitRecord,
+    saved: &[crate::analysis::generation_intake::UnitRecord],
+    fail: &dyn Fn(&str, String) -> DispatchResult,
+) -> Result<Option<usize>, DispatchResult> {
     let copied = params
         .copy_from
         .as_ref()
-        .and_then(|id| saved.iter().find(|record| record.id.as_str() == id));
+        .and_then(|id| saved.iter().position(|record| record.id.as_str() == id));
     if params.copy_from.is_some() && copied.is_none() {
-        return fail(
+        return Err(fail(
             "unknown-unit",
             "copy_from does not name a saved unit".into(),
-        );
+        ));
     }
-    let previous = copied.or_else(|| saved.iter().find(|old| old.id == record.id));
+    let previous = copied
+        .and_then(|index| saved.get(index))
+        .or_else(|| saved.iter().find(|old| old.id == record.id));
     if let Some(old) = previous {
         if old.source.kind != record.source.kind
             || old.contract.target != record.contract.target
             || old.contract.signature != record.contract.signature
         {
-            return fail(
+            return Err(fail(
                 "contract-mismatch",
                 "destination changes the saved implementation contract; saved code was preserved"
                     .into(),
-            );
+            ));
         }
         record.original = old.original.clone();
         record.provenance = old.provenance.clone();
@@ -4528,17 +4756,32 @@ fn run_gen_bind_json(
             && old.source.start == record.source.start
             && old.source.end == record.source.end
     }) {
-        return fail(
+        return Err(fail(
             "occupied-binding",
             "destination already has a saved binding; no files changed".into(),
-        );
+        ));
     }
+    Ok(copied)
+}
+
+fn bind_scope_evidence(
+    root_path: &Path,
+    scope_files: &[String],
+    fail: &dyn Fn(&str, String) -> DispatchResult,
+) -> Result<
+    (
+        Vec<crate::analysis::generation::GenerationDescriptor>,
+        std::collections::HashMap<SourceId, crate::analysis::generation_intake::AssociationSource>,
+    ),
+    DispatchResult,
+> {
+    use crate::analysis::generation_intake as intake;
     let mut scope_descriptors = Vec::new();
     let mut scope_evidence = std::collections::HashMap::new();
-    for (index, path) in scope.iter().enumerate() {
+    for (index, path) in scope_files.iter().enumerate() {
         let text = match read_source_file(root_path.join(path)) {
             Ok(text) => text,
-            Err(error) => return fail("unreadable-input", error.to_string()),
+            Err(error) => return Err(fail("unreadable-input", error.to_string())),
         };
         let source_id = SourceId(index as u32);
         let (tree, _) = crate::syntax::parse_source(source_id, &text);
@@ -4552,63 +4795,66 @@ fn run_gen_bind_json(
             },
         );
     }
+    Ok((scope_descriptors, scope_evidence))
+}
+
+fn bind_check_bindings(
+    descriptor: &crate::analysis::generation::GenerationDescriptor,
+    record: &crate::analysis::generation_intake::UnitRecord,
+    scope_descriptors: &[crate::analysis::generation::GenerationDescriptor],
+    scope_evidence: &std::collections::HashMap<
+        SourceId,
+        crate::analysis::generation_intake::AssociationSource,
+    >,
+    saved: &[crate::analysis::generation_intake::UnitRecord],
+    legacy_present: bool,
+    fail: &dyn Fn(&str, String) -> DispatchResult,
+) -> Result<(), DispatchResult> {
+    use crate::analysis::generation_intake as intake;
     let current_bindings =
-        intake::associate_with_sources(&scope_descriptors, &saved, &scope_evidence);
+        intake::associate_with_sources(scope_descriptors, saved, scope_evidence);
     for (index, binding) in current_bindings {
         let live = &scope_descriptors[index];
         let is_destination = scope_evidence[&live.span.file].path == record.source.path
             && live.span.start == descriptor.span.start
             && live.span.end == descriptor.span.end;
-        if _legacy_lease.is_some()
+        if legacy_present
             && is_destination
             && !matches!(&binding, intake::UnitAssociation::Retained { id, .. } if *id == record.id)
         {
-            return fail(
+            return Err(fail(
                 "ambiguous-binding",
                 "selected source has duplicate or ambiguous saved claims; no files changed".into(),
-            );
+            ));
         }
         if let intake::UnitAssociation::Retained { id, .. } = binding {
             if is_destination && id != record.id {
-                return fail(
+                return Err(fail(
                     "occupied-binding",
                     "destination already retains a different saved unit; no files changed".into(),
-                );
+                ));
             }
             if !is_destination && id == record.id {
-                return fail(
+                return Err(fail(
                     "unit-in-use",
                     "unit still belongs to another live source slot; use copy_from to fork it"
                         .into(),
-                );
+                ));
             }
         }
     }
-    let mut guards = vec![
-        format!("{}/{}", intake::GENERATED_DIR, record.id.as_str()),
-        format!(
-            "{}/{}/{}",
-            intake::GENERATED_DIR,
-            record.id.as_str(),
-            intake::UNIT_FILE
-        ),
-    ];
-    if let Some(old) = copied {
-        guards.push(format!("{}/{}", intake::GENERATED_DIR, old.id.as_str()));
-    }
-    let _unit_lease = if _legacy_lease.is_some() {
-        None
-    } else {
-        match crate::analysis::generation_store::HeldLease::acquire(
-            root_path,
-            &guards.iter().map(String::as_str).collect::<Vec<_>>(),
-            crate::leases::LeaseMode::Write,
-            &header.request_id,
-        ) {
-            Ok(lease) => Some(lease),
-            Err(error) => return fail("conflict", error),
-        }
-    };
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn collect_publish_replacements(
+    root_path: &Path,
+    record: &crate::analysis::generation_intake::UnitRecord,
+    legacy_files: &[crate::analysis::generation_intake::SavedFile],
+    copied: Option<&crate::analysis::generation_intake::UnitRecord>,
+    fail: &dyn Fn(&str, String) -> DispatchResult,
+) -> Result<Vec<crate::leases::Replacement>, DispatchResult> {
+    use crate::analysis::generation_intake as intake;
     let mut replacements = Vec::new();
     // Legacy server modules keep their historical path and bytes. Publish only
     // the missing canonical entrypoint copy beside the canonical unit record.
@@ -4621,18 +4867,18 @@ fn run_gen_bind_json(
         {
             replacements.push(crate::leases::Replacement {
                 unit: record.id.as_str().to_string(),
-                path: file.rel_path,
-                bytes: file.bytes,
+                path: file.rel_path.clone(),
+                bytes: file.bytes.clone(),
             });
         }
     }
     if let Some(old) = copied {
         if let Err(error) = intake::read_saved_group(root_path, &old.id) {
-            return fail("invalid-saved-group", error.to_string());
+            return Err(fail("invalid-saved-group", error.to_string()));
         }
         let paths = match crate::leases::group_files(root_path, old.id.as_str()) {
             Ok(paths) => paths,
-            Err(error) => return fail("unreadable-input", error.to_string()),
+            Err(error) => return Err(fail("unreadable-input", error.to_string())),
         };
         for path in paths {
             if path == intake::UNIT_FILE {
@@ -4645,7 +4891,7 @@ fn run_gen_bind_json(
                     .join(&path),
             ) {
                 Ok(bytes) => bytes,
-                Err(error) => return fail("unreadable-input", error.to_string()),
+                Err(error) => return Err(fail("unreadable-input", error.to_string())),
             };
             replacements.push(crate::leases::Replacement {
                 unit: record.id.as_str().to_string(),
@@ -4659,7 +4905,28 @@ fn run_gen_bind_json(
         path: intake::UNIT_FILE.into(),
         bytes: record.to_json().into_bytes(),
     });
-    if read_source_file(&source_file)
+    Ok(replacements)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn bind_publish(
+    header: &crate::analysis::generation_protocol::RequestHeader,
+    root_path: &Path,
+    record: &crate::analysis::generation_intake::UnitRecord,
+    legacy_files: &[crate::analysis::generation_intake::SavedFile],
+    copied: Option<&crate::analysis::generation_intake::UnitRecord>,
+    source_file: &str,
+    current_revision: &str,
+    fail: &dyn Fn(&str, String) -> DispatchResult,
+) -> DispatchResult {
+    use crate::analysis::generation_intake as intake;
+    use crate::analysis::generation_protocol as proto;
+    let replacements =
+        match collect_publish_replacements(root_path, record, legacy_files, copied, fail) {
+            Ok(replacements) => replacements,
+            Err(error) => return error,
+        };
+    if read_source_file(source_file)
         .ok()
         .is_none_or(|text| crate::source::sha256_hex(text.as_bytes()) != current_revision)
     {
@@ -4711,6 +4978,117 @@ fn run_gen_bind_json(
             payload,
             vec!["send a generate request to produce the unit's outputs".to_string()],
         ),
+    )
+}
+
+fn run_gen_bind_json(
+    header: &crate::analysis::generation_protocol::RequestHeader,
+    params: &crate::analysis::generation_protocol::BindParams,
+) -> DispatchResult {
+    use crate::analysis::generation_intake as intake;
+    use crate::analysis::generation_protocol as proto;
+    let fail = |code: &str, message: String| {
+        gen_envelope_result(
+            if code == "conflict" {
+                exit::GEN_CONFLICT
+            } else {
+                exit::TOOL_FAILURE
+            },
+            proto::error_envelope(
+                &header.request_id,
+                header.operation.as_str(),
+                code,
+                &message,
+                vec!["re-inspect the source and reconcile with bind".into()],
+            ),
+        )
+    };
+    let root_path = Path::new(&params.root);
+    let scope = match bind_acquire_scope(header, params, root_path, &fail) {
+        Ok(scope) => scope,
+        Err(error) => return error,
+    };
+    let prepared = match bind_prepare_request(header, params, root_path, &fail) {
+        Ok(prepared) => prepared,
+        Err(error) => return error,
+    };
+    let mut saved = prepared.saved;
+    let current_revision = prepared.current_revision;
+    let descriptor = prepared.descriptor;
+    let source_file = prepared.source_file;
+    let request = prepared.request;
+    let scope_files = &scope.scope;
+    let (legacy_lease, legacy_files) = match bind_adopt_legacy(
+        &header.request_id,
+        root_path,
+        &request,
+        &mut saved,
+        &fail,
+    ) {
+        Ok(adopted) => adopted,
+        Err(error) => return error,
+    };
+    let _legacy_lease = legacy_lease;
+    let mut record = match bind_apply_request(header, &request, &saved, &current_revision) {
+        Ok(record) => record,
+        Err(error) => return error,
+    };
+    let copied_index = match bind_check_slot(params, &mut record, &saved, &fail) {
+        Ok(index) => index,
+        Err(error) => return error,
+    };
+    let copied = copied_index.and_then(|index| saved.get(index));
+    let (scope_descriptors, scope_evidence) =
+        match bind_scope_evidence(root_path, scope_files, &fail) {
+            Ok(evidence) => evidence,
+            Err(error) => return error,
+        };
+    match bind_check_bindings(
+        &descriptor,
+        &record,
+        &scope_descriptors,
+        &scope_evidence,
+        &saved,
+        _legacy_lease.is_some(),
+        &fail,
+    ) {
+        Ok(()) => {}
+        Err(error) => return error,
+    }
+    let mut guards = vec![
+        format!("{}/{}", intake::GENERATED_DIR, record.id.as_str()),
+        format!(
+            "{}/{}/{}",
+            intake::GENERATED_DIR,
+            record.id.as_str(),
+            intake::UNIT_FILE
+        ),
+    ];
+    if let Some(old) = copied {
+        guards.push(format!("{}/{}", intake::GENERATED_DIR, old.id.as_str()));
+    }
+    let _unit_lease = if _legacy_lease.is_some() {
+        None
+    } else {
+        match crate::analysis::generation_store::HeldLease::acquire(
+            root_path,
+            &guards.iter().map(String::as_str).collect::<Vec<_>>(),
+            crate::leases::LeaseMode::Write,
+            &header.request_id,
+        ) {
+            Ok(lease) => Some(lease),
+            Err(error) => return fail("conflict", error),
+        }
+    };
+    bind_publish(
+        header,
+        root_path,
+        &record,
+        &legacy_files,
+        copied,
+        &source_file,
+        &current_revision,
+        &fail,
     )
 }
 
@@ -6249,87 +6627,104 @@ struct JsModuleScan {
 /// byte length and newlines so offsets still address the original.
 /// Template `${...}` interpolations stay code; everywhere else inside
 /// a literal is blanked.
+fn blank_js_range(out: &mut Vec<u8>, from: usize, to: usize) {
+    for b in &mut out[from..to] {
+        if *b != b'\n' {
+            *b = b' ';
+        }
+    }
+}
+
+fn blank_js_line_comment(bytes: &[u8], out: &mut Vec<u8>, i: &mut usize) {
+    let from = *i;
+    while *i < bytes.len() && bytes[*i] != b'\n' {
+        *i += 1;
+    }
+    blank_js_range(out, from, *i);
+}
+
+fn blank_js_block_comment(bytes: &[u8], out: &mut Vec<u8>, i: &mut usize) {
+    let from = *i;
+    *i += 2;
+    while *i + 1 < bytes.len() && !(bytes[*i] == b'*' && bytes[*i + 1] == b'/') {
+        *i += 1;
+    }
+    *i = (*i + 2).min(bytes.len());
+    blank_js_range(out, from, *i);
+}
+
+fn blank_js_string(bytes: &[u8], out: &mut Vec<u8>, i: &mut usize, quote: u8) {
+    let from = *i;
+    *i += 1;
+    while *i < bytes.len() {
+        if bytes[*i] == b'\\' {
+            *i += 2;
+        } else if bytes[*i] == b'\n' {
+            break;
+        } else if bytes[*i] == quote {
+            *i += 1;
+            break;
+        } else {
+            *i += 1;
+        }
+    }
+    blank_js_range(out, from, *i);
+}
+
+fn blank_js_template(bytes: &[u8], out: &mut Vec<u8>, i: &mut usize) {
+    // Blank literal runs byte by byte; `${...}`
+    // interpolations stay code (balanced braces skipped
+    // unblanked, including nested quotes — a conservative
+    // over-approximation that can only add spurious keyword
+    // matches inside exotic templates, never hide a real
+    // export or import).
+    out[*i] = b' ';
+    *i += 1;
+    while *i < bytes.len() {
+        if bytes[*i] == b'\\' {
+            out[*i] = b' ';
+            if *i + 1 < bytes.len() && bytes[*i + 1] != b'\n' {
+                out[*i + 1] = b' ';
+            }
+            *i += 2;
+        } else if bytes[*i] == b'`' {
+            out[*i] = b' ';
+            *i += 1;
+            break;
+        } else if bytes[*i] == b'$' && *i + 1 < bytes.len() && bytes[*i + 1] == b'{' {
+            *i += 2;
+            let mut depth = 1usize;
+            while *i < bytes.len() && depth > 0 {
+                if bytes[*i] == b'{' {
+                    depth += 1;
+                } else if bytes[*i] == b'}' {
+                    depth -= 1;
+                }
+                *i += 1;
+            }
+        } else {
+            if bytes[*i] != b'\n' {
+                out[*i] = b' ';
+            }
+            *i += 1;
+        }
+    }
+}
+
 fn blank_js_trivia(js: &str) -> Vec<u8> {
     let bytes = js.as_bytes();
     let mut out = bytes.to_vec();
     let mut i = 0;
-    let blank = |out: &mut Vec<u8>, from: usize, to: usize| {
-        for b in &mut out[from..to] {
-            if *b != b'\n' {
-                *b = b' ';
-            }
-        }
-    };
     while i < bytes.len() {
         let b = bytes[i];
         if b == b'/' && i + 1 < bytes.len() && bytes[i + 1] == b'/' {
-            let from = i;
-            while i < bytes.len() && bytes[i] != b'\n' {
-                i += 1;
-            }
-            blank(&mut out, from, i);
+            blank_js_line_comment(bytes, &mut out, &mut i);
         } else if b == b'/' && i + 1 < bytes.len() && bytes[i + 1] == b'*' {
-            let from = i;
-            i += 2;
-            while i + 1 < bytes.len() && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
-                i += 1;
-            }
-            i = (i + 2).min(bytes.len());
-            blank(&mut out, from, i);
+            blank_js_block_comment(bytes, &mut out, &mut i);
         } else if b == b'\'' || b == b'"' {
-            let from = i;
-            i += 1;
-            while i < bytes.len() {
-                if bytes[i] == b'\\' {
-                    i += 2;
-                } else if bytes[i] == b'\n' {
-                    break;
-                } else if bytes[i] == b {
-                    i += 1;
-                    break;
-                } else {
-                    i += 1;
-                }
-            }
-            blank(&mut out, from, i);
+            blank_js_string(bytes, &mut out, &mut i, b);
         } else if b == b'`' {
-            // Blank literal runs byte by byte; `${...}`
-            // interpolations stay code (balanced braces skipped
-            // unblanked, including nested quotes — a conservative
-            // over-approximation that can only add spurious keyword
-            // matches inside exotic templates, never hide a real
-            // export or import).
-            out[i] = b' ';
-            i += 1;
-            while i < bytes.len() {
-                if bytes[i] == b'\\' {
-                    out[i] = b' ';
-                    if i + 1 < bytes.len() && bytes[i + 1] != b'\n' {
-                        out[i + 1] = b' ';
-                    }
-                    i += 2;
-                } else if bytes[i] == b'`' {
-                    out[i] = b' ';
-                    i += 1;
-                    break;
-                } else if bytes[i] == b'$' && i + 1 < bytes.len() && bytes[i + 1] == b'{' {
-                    i += 2;
-                    let mut depth = 1usize;
-                    while i < bytes.len() && depth > 0 {
-                        if bytes[i] == b'{' {
-                            depth += 1;
-                        } else if bytes[i] == b'}' {
-                            depth -= 1;
-                        }
-                        i += 1;
-                    }
-                } else {
-                    if bytes[i] != b'\n' {
-                        out[i] = b' ';
-                    }
-                    i += 1;
-                }
-            }
+            blank_js_template(bytes, &mut out, &mut i);
         } else {
             i += 1;
         }
@@ -6424,235 +6819,275 @@ fn read_js_specifier(js: &[u8], quote_at: usize) -> Option<(String, usize)> {
 /// Lexically scan one saved module for declared exports and import
 /// specifiers. See [`JsModuleScan`] for the admitted shapes and the
 /// finite-checking boundary.
-fn scan_js_module(js: &str) -> JsModuleScan {
-    let original = js.as_bytes();
-    let blanked = blank_js_trivia(js);
-    let mut exports = Vec::new();
-    let mut imports = Vec::new();
-    let mut has_require = false;
-    let mut require_offset = 0;
-    let mut i = 0;
-    let mut seen_exports = std::collections::HashSet::new();
-    let mut push_export = |name: String| {
-        if seen_exports.insert(name.clone()) {
-            exports.push(name);
+struct JsScanState {
+    exports: Vec<String>,
+    imports: Vec<JsImportEdge>,
+    has_require: bool,
+    require_offset: usize,
+    seen_exports: std::collections::HashSet<String>,
+}
+
+impl JsScanState {
+    fn push_export(&mut self, name: String) {
+        if self.seen_exports.insert(name.clone()) {
+            self.exports.push(name);
         }
-    };
-    while i < blanked.len() {
-        if js_keyword_at(&blanked, i, b"export") {
-            let mut j = i + 6;
-            skip_js_ws(&blanked, &mut j);
-            if js_keyword_at(&blanked, j, b"default") {
-                push_export("default".to_string());
-                i = j + 7;
-                continue;
+    }
+
+    fn scan_export_list(&mut self, blanked: &[u8], j: &mut usize) {
+        // `export {a, b as c}`: exported names are the `as`
+        // targets (or the plain names).
+        *j += 1;
+        loop {
+            skip_js_ws(blanked, j);
+            if *j < blanked.len() && blanked[*j] == b'}' {
+                *j += 1;
+                break;
             }
-            if j < blanked.len() && blanked[j] == b'*' {
-                // `export *` / `export * as ns from`: names come from
-                // the target module, so only the re-export edge matters.
-                i = j + 1;
-                continue;
+            let Some(first) = read_js_ident(blanked, j) else {
+                break;
+            };
+            skip_js_ws(blanked, j);
+            let mut exported = first;
+            if js_keyword_at(blanked, *j, b"as") {
+                *j += 2;
+                skip_js_ws(blanked, j);
+                if let Some(target) = read_js_ident(blanked, j) {
+                    exported = target;
+                }
             }
-            if j < blanked.len() && blanked[j] == b'{' {
-                // `export {a, b as c}`: exported names are the `as`
-                // targets (or the plain names).
+            self.push_export(exported);
+            skip_js_ws(blanked, j);
+            if *j < blanked.len() && blanked[*j] == b',' {
+                *j += 1;
+            } else if *j < blanked.len() && blanked[*j] == b'}' {
+                *j += 1;
+                break;
+            } else {
+                break;
+            }
+        }
+    }
+
+    fn scan_export(&mut self, blanked: &[u8], i: usize) -> usize {
+        let mut j = i + 6;
+        skip_js_ws(blanked, &mut j);
+        if js_keyword_at(blanked, j, b"default") {
+            self.push_export("default".to_string());
+            return j + 7;
+        }
+        if j < blanked.len() && blanked[j] == b'*' {
+            // `export *` / `export * as ns from`: names come from
+            // the target module, so only the re-export edge matters.
+            return j + 1;
+        }
+        if j < blanked.len() && blanked[j] == b'{' {
+            self.scan_export_list(blanked, &mut j);
+            return j;
+        }
+        if js_keyword_at(blanked, j, b"async") {
+            j += 5;
+            skip_js_ws(blanked, &mut j);
+        }
+        if js_keyword_at(blanked, j, b"function") || js_keyword_at(blanked, j, b"class") {
+            j += if blanked[j] == b'f' { 8 } else { 5 };
+            skip_js_ws(blanked, &mut j);
+            if blanked.get(j) == Some(&b'*') {
                 j += 1;
-                loop {
-                    skip_js_ws(&blanked, &mut j);
-                    if j < blanked.len() && blanked[j] == b'}' {
-                        j += 1;
-                        break;
-                    }
-                    let Some(first) = read_js_ident(&blanked, &mut j) else {
-                        break;
-                    };
-                    skip_js_ws(&blanked, &mut j);
-                    let mut exported = first;
-                    if js_keyword_at(&blanked, j, b"as") {
-                        j += 2;
-                        skip_js_ws(&blanked, &mut j);
-                        if let Some(target) = read_js_ident(&blanked, &mut j) {
-                            exported = target;
-                        }
-                    }
-                    push_export(exported);
-                    skip_js_ws(&blanked, &mut j);
-                    if j < blanked.len() && blanked[j] == b',' {
-                        j += 1;
-                    } else if j < blanked.len() && blanked[j] == b'}' {
-                        j += 1;
-                        break;
-                    } else {
-                        break;
-                    }
-                }
-                i = j;
-                continue;
+                skip_js_ws(blanked, &mut j);
             }
-            if js_keyword_at(&blanked, j, b"async") {
-                j += 5;
-                skip_js_ws(&blanked, &mut j);
+            if let Some(name) = read_js_ident(blanked, &mut j) {
+                self.push_export(name);
             }
-            if js_keyword_at(&blanked, j, b"function") || js_keyword_at(&blanked, j, b"class") {
-                j += if blanked[j] == b'f' { 8 } else { 5 };
-                skip_js_ws(&blanked, &mut j);
-                if blanked.get(j) == Some(&b'*') {
-                    j += 1;
-                    skip_js_ws(&blanked, &mut j);
-                }
-                if let Some(name) = read_js_ident(&blanked, &mut j) {
-                    push_export(name);
-                }
-                i = j;
-                continue;
-            }
-            if js_keyword_at(&blanked, j, b"const")
-                || js_keyword_at(&blanked, j, b"let")
-                || js_keyword_at(&blanked, j, b"var")
-            {
-                j += if blanked[j] == b'c' { 5 } else { 3 };
-                skip_js_ws(&blanked, &mut j);
-                if let Some(name) = read_js_ident(&blanked, &mut j) {
-                    push_export(name);
-                }
-                i = j;
-                continue;
-            }
-            i = j;
-            continue;
+            return j;
         }
-        if js_keyword_at(&blanked, i, b"import") {
-            // Original trivia skip: a blanked skip would sail over a
-            // blanked side-effect string to the statement end.
-            let mut j = i + 6;
-            skip_js_trivia_original(original, &mut j);
-            if j < blanked.len() && original[j] == b'(' {
-                // Dynamic `import(`: a quoted literal records an edge;
-                // anything else is an unresolvable dynamic edge.
-                j += 1;
-                skip_js_trivia_original(original, &mut j);
-                if let Some((spec, end)) = read_js_specifier(original, j) {
-                    imports.push(JsImportEdge {
-                        specifier: spec,
-                        offset: j,
-                        dynamic: true,
-                        unresolved: false,
-                    });
-                    i = end;
-                } else {
-                    imports.push(JsImportEdge {
-                        specifier: String::new(),
-                        offset: i,
-                        dynamic: true,
-                        unresolved: true,
-                    });
-                    i = j;
-                }
-                continue;
+        if js_keyword_at(blanked, j, b"const")
+            || js_keyword_at(blanked, j, b"let")
+            || js_keyword_at(blanked, j, b"var")
+        {
+            j += if blanked[j] == b'c' { 5 } else { 3 };
+            skip_js_ws(blanked, &mut j);
+            if let Some(name) = read_js_ident(blanked, &mut j) {
+                self.push_export(name);
             }
-            // Static import: scan to `from "spec"` or a bare `"spec"`,
-            // across newlines for multi-line imports, bounded so a
-            // pathological statement cannot hang the scan.
-            // `import.meta` records no edge. A statement end or window
-            // exhaustion without a specifier records an unresolved edge
-            // (fail-closed), and the scan consumes through the specifier
-            // so the `from` arm below never records the same edge twice.
-            if j + 4 <= blanked.len()
-                && blanked[j] == b'.'
-                && js_keyword_at(&blanked, j + 1, b"meta")
-            {
-                i = j + 5;
-                continue;
-            }
-            let mut k = j;
-            let mut found: Option<(String, usize, usize)> = None;
-            let window = (j + 4096).min(blanked.len());
-            while k < window && blanked[k] != b';' {
-                if js_keyword_at(&blanked, k, b"from") {
-                    let mut m = k + 4;
-                    skip_js_trivia_original(original, &mut m);
-                    if let Some((spec, end)) = read_js_specifier(original, m) {
-                        found = Some((spec, m, end));
-                    }
-                    break;
-                }
-                if original.get(k) == Some(&b'\'') || original.get(k) == Some(&b'"') {
-                    if let Some((spec, end)) = read_js_specifier(original, k) {
-                        found = Some((spec, k, end));
-                    }
-                    break;
-                }
-                k += 1;
-            }
-            match found {
-                Some((spec, at, end)) => {
-                    imports.push(JsImportEdge {
-                        specifier: spec,
-                        offset: at,
-                        dynamic: false,
-                        unresolved: false,
-                    });
-                    i = end;
-                }
-                None => {
-                    // No specifier before the statement end: `import`
-                    // with no edge (bare keyword, `import x` fragment).
-                    // A bare `import` is invalid syntax, so record it
-                    // unresolved rather than silently passing it.
-                    imports.push(JsImportEdge {
-                        specifier: String::new(),
-                        offset: i,
-                        dynamic: false,
-                        unresolved: true,
-                    });
-                    i = k.min(blanked.len());
-                }
-            }
-            continue;
+            return j;
         }
-        if js_keyword_at(&blanked, i, b"require") {
-            let mut j = i + 7;
-            skip_js_ws(&blanked, &mut j);
-            if j < blanked.len() && blanked[j] == b'(' {
-                has_require = true;
-                require_offset = i;
-                let mut m = j + 1;
-                skip_js_trivia_original(original, &mut m);
-                if let Some((spec, _)) = read_js_specifier(original, m) {
-                    imports.push(JsImportEdge {
-                        specifier: spec,
-                        offset: m,
-                        dynamic: true,
-                        unresolved: false,
-                    });
-                }
-            }
-            i = j;
-            continue;
-        }
-        // Re-export edges: `export ... from "spec"` handled by the
-        // `from` scan below at the `from` keyword itself.
-        if js_keyword_at(&blanked, i, b"from") {
-            let mut j = i + 4;
+        j
+    }
+
+    fn scan_import(&mut self, original: &[u8], blanked: &[u8], i: usize) -> usize {
+        // Original trivia skip: a blanked skip would sail over a
+        // blanked side-effect string to the statement end.
+        let mut j = i + 6;
+        skip_js_trivia_original(original, &mut j);
+        if j < blanked.len() && original[j] == b'(' {
+            // Dynamic `import(`: a quoted literal records an edge;
+            // anything else is an unresolvable dynamic edge.
+            j += 1;
             skip_js_trivia_original(original, &mut j);
             if let Some((spec, end)) = read_js_specifier(original, j) {
-                imports.push(JsImportEdge {
+                self.imports.push(JsImportEdge {
                     specifier: spec,
                     offset: j,
+                    dynamic: true,
+                    unresolved: false,
+                });
+                return end;
+            }
+            self.imports.push(JsImportEdge {
+                specifier: String::new(),
+                offset: i,
+                dynamic: true,
+                unresolved: true,
+            });
+            return j;
+        }
+        // Static import: scan to `from "spec"` or a bare `"spec"`,
+        // across newlines for multi-line imports, bounded so a
+        // pathological statement cannot hang the scan.
+        // `import.meta` records no edge. A statement end or window
+        // exhaustion without a specifier records an unresolved edge
+        // (fail-closed), and the scan consumes through the specifier
+        // so the `from` arm below never records the same edge twice.
+        if j + 4 <= blanked.len()
+            && blanked[j] == b'.'
+            && js_keyword_at(blanked, j + 1, b"meta")
+        {
+            return j + 5;
+        }
+        match find_from_specifier(original, blanked, j) {
+            Some((spec, at, end)) => {
+                self.imports.push(JsImportEdge {
+                    specifier: spec,
+                    offset: at,
                     dynamic: false,
                     unresolved: false,
                 });
-                i = end;
-                continue;
+                end
             }
+            None => {
+                // No specifier before the statement end: `import`
+                // with no edge (bare keyword, `import x` fragment).
+                // A bare `import` is invalid syntax, so record it
+                // unresolved rather than silently passing it.
+                self.imports.push(JsImportEdge {
+                    specifier: String::new(),
+                    offset: i,
+                    dynamic: false,
+                    unresolved: true,
+                });
+                // Consume through the statement end or the window so the
+                // `from` scan below never records the same edge twice.
+                let window = (j + 4096).min(blanked.len());
+                let mut k = j;
+                while k < window && blanked[k] != b';' {
+                    k += 1;
+                }
+                k.min(blanked.len())
+            }
+        }
+    }
+
+    fn scan_require(&mut self, original: &[u8], blanked: &[u8], i: usize) -> usize {
+        let mut j = i + 7;
+        skip_js_ws(blanked, &mut j);
+        if j < blanked.len() && blanked[j] == b'(' {
+            self.has_require = true;
+            self.require_offset = i;
+            let mut m = j + 1;
+            skip_js_trivia_original(original, &mut m);
+            if let Some((spec, _)) = read_js_specifier(original, m) {
+                self.imports.push(JsImportEdge {
+                    specifier: spec,
+                    offset: m,
+                    dynamic: true,
+                    unresolved: false,
+                });
+            }
+        }
+        j
+    }
+
+    fn scan_from(&mut self, original: &[u8], blanked: &[u8], i: usize) -> usize {
+        // Re-export edges: `export ... from "spec"` handled by the
+        // `from` scan below at the `from` keyword itself.
+        let mut j = i + 4;
+        skip_js_trivia_original(original, &mut j);
+        if let Some((spec, end)) = read_js_specifier(original, j) {
+            self.imports.push(JsImportEdge {
+                specifier: spec,
+                offset: j,
+                dynamic: false,
+                unresolved: false,
+            });
+            return end;
+        }
+        i + 1
+    }
+}
+
+fn find_from_specifier(
+    original: &[u8],
+    blanked: &[u8],
+    j: usize,
+) -> Option<(String, usize, usize)> {
+    let mut k = j;
+    let window = (j + 4096).min(blanked.len());
+    while k < window && blanked[k] != b';' {
+        if js_keyword_at(blanked, k, b"from") {
+            let mut m = k + 4;
+            skip_js_trivia_original(original, &mut m);
+            if let Some((spec, end)) = read_js_specifier(original, m) {
+                return Some((spec, m, end));
+            }
+            return None;
+        }
+        if original.get(k) == Some(&b'\'') || original.get(k) == Some(&b'"') {
+            if let Some((spec, end)) = read_js_specifier(original, k) {
+                return Some((spec, k, end));
+            }
+            return None;
+        }
+        k += 1;
+    }
+    None
+}
+
+fn scan_js_module(js: &str) -> JsModuleScan {
+    let original = js.as_bytes();
+    let blanked = blank_js_trivia(js);
+    let mut state = JsScanState {
+        exports: Vec::new(),
+        imports: Vec::new(),
+        has_require: false,
+        require_offset: 0,
+        seen_exports: std::collections::HashSet::new(),
+    };
+    let mut i = 0;
+    while i < blanked.len() {
+        if js_keyword_at(&blanked, i, b"export") {
+            i = state.scan_export(&blanked, i);
+            continue;
+        }
+        if js_keyword_at(&blanked, i, b"import") {
+            i = state.scan_import(original, &blanked, i);
+            continue;
+        }
+        if js_keyword_at(&blanked, i, b"require") {
+            i = state.scan_require(original, &blanked, i);
+            continue;
+        }
+        if js_keyword_at(&blanked, i, b"from") {
+            i = state.scan_from(original, &blanked, i);
+            continue;
         }
         i += 1;
     }
     JsModuleScan {
-        exports,
-        imports,
-        has_require,
-        require_offset,
+        exports: state.exports,
+        imports: state.imports,
+        has_require: state.has_require,
+        require_offset: state.require_offset,
     }
 }
 
@@ -7010,14 +7445,19 @@ fn validate_saved_files(
     )
 }
 
-/// Validate one bound saved file against its owning unit's record and
-/// siblings. Returns the file's envelope report.
-fn validate_one_saved_file(
-    root_path: &Path,
+/// Loaded owning unit for one saved file under validation.
+struct SavedUnitRecord {
+    id_text: String,
+    id: crate::analysis::generation_intake::GenerationUnitId,
+    record: crate::analysis::generation_intake::UnitRecord,
+    rel: String,
+}
+
+/// Resolve one scope path to its owning unit id and parsed unit record.
+fn load_saved_unit_record(
     inputs: &crate::source::ValidationInputs,
     path: &str,
-    bytes: &[u8],
-) -> Result<serde_json::Value, ValidationFailure> {
+) -> Result<SavedUnitRecord, ValidationFailure> {
     use crate::analysis::generation_intake as intake;
     let Some((id_text, rel)) = split_saved_path(path) else {
         return Err(ValidationFailure::new(
@@ -7047,29 +7487,83 @@ fn validate_one_saved_file(
             vec!["send a bind request to reconcile the unit's association".to_string()],
         )
     })?;
-    let mut checks = Vec::new();
-    let kind = record.source.kind;
-    if rel == intake::UNIT_FILE {
-        checks.push(validation_check("record", "unit record parses".to_string()));
-    } else if rel == DECLARATION_FILE {
-        if kind != intake::UnitKind::Keyword {
-            return Err(ValidationFailure::new(
-                format!(
-                    "unit `{id_text}` ({}) carries unexpected `{DECLARATION_FILE}`: only keyword units declare a producer/export interface in v1",
-                    kind.as_str(),
-                ),
-                vec![
-                    "remove the unexpected declaration file, or send a bind request to reconcile the unit".to_string(),
-                ],
-            ));
-        }
-        let text = String::from_utf8(bytes.to_vec()).map_err(|_| {
-            ValidationFailure::new(
-                format!("unit `{id_text}` `{DECLARATION_FILE}` is not valid UTF-8"),
-                vec![ValidationFailure::drift(String::new()).next.remove(0)],
-            )
-        })?;
-        let parsed: SavedDeclarationFile = serde_json::from_str(&text).map_err(|err| {
+    Ok(SavedUnitRecord {
+        id_text,
+        id,
+        record,
+        rel,
+    })
+}
+
+/// Validate a saved `declaration.json` against its keyword unit.
+fn validate_saved_declaration(
+    id_text: &str,
+    kind: crate::analysis::generation_intake::UnitKind,
+    bytes: &[u8],
+    checks: &mut Vec<serde_json::Value>,
+) -> Result<(), ValidationFailure> {
+    use crate::analysis::generation_intake as intake;
+    if kind != intake::UnitKind::Keyword {
+        return Err(ValidationFailure::new(
+            format!(
+                "unit `{id_text}` ({}) carries unexpected `{DECLARATION_FILE}`: only keyword units declare a producer/export interface in v1",
+                kind.as_str(),
+            ),
+            vec![
+                "remove the unexpected declaration file, or send a bind request to reconcile the unit".to_string(),
+            ],
+        ));
+    }
+    let text = String::from_utf8(bytes.to_vec()).map_err(|_| {
+        ValidationFailure::new(
+            format!("unit `{id_text}` `{DECLARATION_FILE}` is not valid UTF-8"),
+            vec![ValidationFailure::drift(String::new()).next.remove(0)],
+        )
+    })?;
+    let parsed: SavedDeclarationFile = serde_json::from_str(&text).map_err(|err| {
+        ValidationFailure::new(
+            format!(
+                "unit `{id_text}` `{DECLARATION_FILE}` is not a valid saved declaration: {err}"
+            ),
+            vec![ValidationFailure::drift(String::new()).next.remove(0)],
+        )
+    })?;
+    if parsed.producer.is_empty() || parsed.export.is_empty() {
+        return Err(ValidationFailure::new(
+            format!("unit `{id_text}` `{DECLARATION_FILE}` names no producer/export"),
+            vec![ValidationFailure::drift(String::new()).next.remove(0)],
+        ));
+    }
+    checks.push(validation_check(
+        "declaration",
+        format!("producer `{}` export `{}`", parsed.producer, parsed.export),
+    ));
+    Ok(())
+}
+
+/// Check a keyword unit's saved implementation against its declaration.
+fn check_saved_keyword_implementation(
+    inputs: &crate::source::ValidationInputs,
+    id: &crate::analysis::generation_intake::GenerationUnitId,
+    id_text: &str,
+    scan: &JsModuleScan,
+    checks: &mut Vec<serde_json::Value>,
+) -> Result<(), ValidationFailure> {
+    use crate::analysis::generation_intake as intake;
+    let decl_path = format!("{}/{id_text}/{DECLARATION_FILE}", intake::GENERATED_DIR);
+    let Some(decl) = inputs.files.iter().find(|f| f.path == decl_path) else {
+        return Err(ValidationFailure::new(
+            format!(
+                "unit `{id_text}` declares no saved interface: `{DECLARATION_FILE}` is missing; reconcile the interface with adopt or regenerate the unit"
+            ),
+            vec![
+                "send an adopt request to reconcile the unit's declared interface (BGI-12)".to_string(),
+            ],
+        ));
+    };
+    let decl_text = String::from_utf8_lossy(&decl.bytes).into_owned();
+    let parsed: SavedDeclarationFile =
+        serde_json::from_str(&decl_text).map_err(|err| {
             ValidationFailure::new(
                 format!(
                     "unit `{id_text}` `{DECLARATION_FILE}` is not a valid saved declaration: {err}"
@@ -7077,204 +7571,278 @@ fn validate_one_saved_file(
                 vec![ValidationFailure::drift(String::new()).next.remove(0)],
             )
         })?;
-        if parsed.producer.is_empty() || parsed.export.is_empty() {
+    if !scan.exports.iter().any(|e| e == &parsed.export) {
+        return Err(ValidationFailure::new(
+            format!(
+                "unit `{id_text}` declares export `{}` with no matching saved export in `implementation.js`; repair the export or reconcile with adopt",
+                parsed.export
+            ),
+            vec![ValidationFailure::drift(String::new()).next.remove(0)],
+        ));
+    }
+    checks.push(validation_check(
+        "exports",
+        format!("saved module declares `{}`", parsed.export),
+    ));
+    admit_js_imports(id, scan, "workerd")?;
+    Ok(())
+}
+
+/// Check a view unit's saved implementation for its `render` export.
+fn check_saved_view_implementation(
+    id: &crate::analysis::generation_intake::GenerationUnitId,
+    id_text: &str,
+    scan: &JsModuleScan,
+    checks: &mut Vec<serde_json::Value>,
+) -> Result<(), ValidationFailure> {
+    if !scan.exports.iter().any(|e| e == "render") {
+        return Err(ValidationFailure::new(
+            format!(
+                "unit `{id_text}` view implementation declares no `render` export in `implementation.js`; repair the export or reconcile with adopt"
+            ),
+            vec![ValidationFailure::drift(String::new()).next.remove(0)],
+        ));
+    }
+    checks.push(validation_check(
+        "exports",
+        "saved module declares `render`".to_string(),
+    ));
+    admit_js_imports(id, scan, "workerd/browser")?;
+    Ok(())
+}
+
+/// Check a checked field-trait unit's saved implementation in source.
+fn check_saved_trait_implementation(
+    root_path: &Path,
+    inputs: &crate::source::ValidationInputs,
+    id: &crate::analysis::generation_intake::GenerationUnitId,
+    id_text: &str,
+    record: &crate::analysis::generation_intake::UnitRecord,
+    checks: &mut Vec<serde_json::Value>,
+) -> Result<(), ValidationFailure> {
+    use crate::analysis::generation_intake as intake;
+    let prefix = format!("{}/{id_text}/", intake::GENERATED_DIR);
+    let files = inputs
+        .files
+        .iter()
+        .filter_map(|file| {
+            let rel = file.path.strip_prefix(&prefix)?;
+            (rel != intake::UNIT_FILE).then(|| intake::SavedFile {
+                rel_path: rel.to_string(),
+                bytes: file.bytes.clone(),
+                sha256: file.sha256.clone(),
+            })
+        })
+        .collect();
+    let group = intake::SavedGroup {
+        record: record.clone(),
+        files,
+        dir: root_path.join(&prefix),
+    };
+    let source = inputs
+        .files
+        .iter()
+        .find(|file| file.path == record.source.path)
+        .and_then(|file| std::str::from_utf8(&file.bytes).ok())
+        .ok_or_else(|| {
+            ValidationFailure::new(
+                format!("unit `{id_text}` field check has no captured owning source"),
+                vec!["restore the owning source and resend validate".into()],
+            )
+        })?;
+    validate_trait_unit(id, &group, source, checks)?;
+    Ok(())
+}
+
+/// Validate a saved `implementation.js` against its owning unit's kind.
+fn validate_saved_implementation(
+    root_path: &Path,
+    inputs: &crate::source::ValidationInputs,
+    id: &crate::analysis::generation_intake::GenerationUnitId,
+    id_text: &str,
+    kind: crate::analysis::generation_intake::UnitKind,
+    bytes: &[u8],
+    record: &crate::analysis::generation_intake::UnitRecord,
+    checks: &mut Vec<serde_json::Value>,
+) -> Result<(), ValidationFailure> {
+    use crate::analysis::generation_intake as intake;
+    let text = String::from_utf8(bytes.to_vec()).map_err(|_| {
+        ValidationFailure::new(
+            format!("unit `{id_text}` `implementation.js` is not valid UTF-8"),
+            vec![ValidationFailure::drift(String::new()).next.remove(0)],
+        )
+    })?;
+    let scan = scan_js_module(&text);
+    match kind {
+        intake::UnitKind::Keyword => {
+            check_saved_keyword_implementation(inputs, id, id_text, &scan, checks)?;
+        }
+        intake::UnitKind::View => {
+            check_saved_view_implementation(id, id_text, &scan, checks)?;
+        }
+        intake::UnitKind::NamedTrait | intake::UnitKind::InlineTrait => {
+            check_saved_trait_implementation(root_path, inputs, id, id_text, record, checks)?;
+        }
+        _ => {
             return Err(ValidationFailure::new(
-                format!("unit `{id_text}` `{DECLARATION_FILE}` names no producer/export"),
+                format!(
+                    "unit `{id_text}` ({}) carries unexpected `implementation.js`: only keywords, checked field traits and views own saved JavaScript",
+                    kind.as_str(),
+                ),
+                vec![
+                    "remove the unexpected implementation file, or send a bind request to reconcile the unit".to_string(),
+                ],
+            ));
+        }
+    }
+    checks.push(validation_check(
+        "imports",
+        if scan.imports.is_empty() {
+            "no imports".to_string()
+        } else {
+            format!(
+                "{} unit-local relative import{}",
+                scan.imports.len(),
+                if scan.imports.len() == 1 { "" } else { "s" }
+            )
+        },
+    ));
+    Ok(())
+}
+
+/// Validate a saved `contributions.can` carrier parses.
+fn validate_saved_contributions(
+    id_text: &str,
+    bytes: &[u8],
+    checks: &mut Vec<serde_json::Value>,
+) -> Result<(), ValidationFailure> {
+    let text = String::from_utf8_lossy(bytes).into_owned();
+    let (_, parse_diags) = crate::analysis::types::parse_given_carrier(SourceId(0), &text);
+    if !parse_diags.is_empty() {
+        return Err(ValidationFailure::new(
+            format!(
+                "unit `{id_text}` contributions carrier does not parse: {}",
+                diagnostic_summary(&parse_diags)
+            ),
+            vec!["fix the carrier and resend validate".to_string()],
+        ));
+    }
+    checks.push(validation_check(
+        "carrier",
+        "contributions carrier parses (unit scope checks its contracts)".to_string(),
+    ));
+    Ok(())
+}
+
+/// Check scoped stylesheet assets resolve to saved files of matching type.
+fn check_saved_style_assets(
+    id_text: &str,
+    group: &crate::analysis::generation_intake::SavedGroup,
+    assets: &[String],
+) -> Result<(), ValidationFailure> {
+    for asset in assets {
+        if !group.files.iter().any(|f| f.rel_path == *asset) {
+            return Err(ValidationFailure::new(
+                format!(
+                    "unit `{id_text}` `style.css` references owned asset `{asset}` with no saved file; add the asset or reconcile with adopt"
+                ),
                 vec![ValidationFailure::drift(String::new()).next.remove(0)],
             ));
         }
-        checks.push(validation_check(
-            "declaration",
-            format!("producer `{}` export `{}`", parsed.producer, parsed.export),
-        ));
-    } else if rel == "implementation.js" {
-        let text = String::from_utf8(bytes.to_vec()).map_err(|_| {
-            ValidationFailure::new(
-                format!("unit `{id_text}` `implementation.js` is not valid UTF-8"),
-                vec![ValidationFailure::drift(String::new()).next.remove(0)],
-            )
-        })?;
-        let scan = scan_js_module(&text);
-        match kind {
-            intake::UnitKind::Keyword => {
-                let decl_path = format!("{}/{id_text}/{DECLARATION_FILE}", intake::GENERATED_DIR);
-                let Some(decl) = inputs.files.iter().find(|f| f.path == decl_path) else {
-                    return Err(ValidationFailure::new(
-                        format!(
-                            "unit `{id_text}` declares no saved interface: `{DECLARATION_FILE}` is missing; reconcile the interface with adopt or regenerate the unit"
-                        ),
-                        vec![
-                            "send an adopt request to reconcile the unit's declared interface (BGI-12)".to_string(),
-                        ],
-                    ));
-                };
-                let decl_text = String::from_utf8_lossy(&decl.bytes).into_owned();
-                let parsed: SavedDeclarationFile =
-                    serde_json::from_str(&decl_text).map_err(|err| {
-                        ValidationFailure::new(
-                            format!(
-                                "unit `{id_text}` `{DECLARATION_FILE}` is not a valid saved declaration: {err}"
-                            ),
-                            vec![ValidationFailure::drift(String::new()).next.remove(0)],
-                        )
-                    })?;
-                if !scan.exports.iter().any(|e| e == &parsed.export) {
-                    return Err(ValidationFailure::new(
-                        format!(
-                            "unit `{id_text}` declares export `{}` with no matching saved export in `implementation.js`; repair the export or reconcile with adopt",
-                            parsed.export
-                        ),
-                        vec![ValidationFailure::drift(String::new()).next.remove(0)],
-                    ));
-                }
-                checks.push(validation_check(
-                    "exports",
-                    format!("saved module declares `{}`", parsed.export),
-                ));
-                admit_js_imports(&id, &scan, "workerd")?;
-            }
-            intake::UnitKind::View => {
-                if !scan.exports.iter().any(|e| e == "render") {
-                    return Err(ValidationFailure::new(
-                        format!(
-                            "unit `{id_text}` view implementation declares no `render` export in `implementation.js`; repair the export or reconcile with adopt"
-                        ),
-                        vec![ValidationFailure::drift(String::new()).next.remove(0)],
-                    ));
-                }
-                checks.push(validation_check(
-                    "exports",
-                    "saved module declares `render`".to_string(),
-                ));
-                admit_js_imports(&id, &scan, "workerd/browser")?;
-            }
-            intake::UnitKind::NamedTrait | intake::UnitKind::InlineTrait => {
-                let prefix = format!("{}/{id_text}/", intake::GENERATED_DIR);
-                let files = inputs
-                    .files
-                    .iter()
-                    .filter_map(|file| {
-                        let rel = file.path.strip_prefix(&prefix)?;
-                        (rel != intake::UNIT_FILE).then(|| intake::SavedFile {
-                            rel_path: rel.to_string(),
-                            bytes: file.bytes.clone(),
-                            sha256: file.sha256.clone(),
-                        })
-                    })
-                    .collect();
-                let group = intake::SavedGroup {
-                    record: record.clone(),
-                    files,
-                    dir: root_path.join(&prefix),
-                };
-                let source = inputs
-                    .files
-                    .iter()
-                    .find(|file| file.path == record.source.path)
-                    .and_then(|file| std::str::from_utf8(&file.bytes).ok())
-                    .ok_or_else(|| {
-                        ValidationFailure::new(
-                            format!("unit `{id_text}` field check has no captured owning source"),
-                            vec!["restore the owning source and resend validate".into()],
-                        )
-                    })?;
-                validate_trait_unit(&id, &group, source, &mut checks)?;
-            }
-            _ => {
-                return Err(ValidationFailure::new(
-                    format!(
-                        "unit `{id_text}` ({}) carries unexpected `implementation.js`: only keywords, checked field traits and views own saved JavaScript",
-                        kind.as_str(),
-                    ),
-                    vec![
-                        "remove the unexpected implementation file, or send a bind request to reconcile the unit".to_string(),
-                    ],
-                ));
-            }
-        }
-        checks.push(validation_check(
-            "imports",
-            if scan.imports.is_empty() {
-                "no imports".to_string()
-            } else {
-                format!(
-                    "{} unit-local relative import{}",
-                    scan.imports.len(),
-                    if scan.imports.len() == 1 { "" } else { "s" }
+    }
+    for asset in assets {
+        let file = group
+            .files
+            .iter()
+            .find(|file| &file.rel_path == asset)
+            .expect("asset existence checked");
+        crate::codegen::artifact::style_asset_content_type(asset, &file.bytes).map_err(
+            |detail| {
+                ValidationFailure::new(
+                    detail,
+                    vec!["replace the asset with matching supported bytes".to_string()],
                 )
             },
-        ));
-    } else if rel == "contributions.can" {
-        let text = String::from_utf8_lossy(bytes).into_owned();
-        let (_, parse_diags) = crate::analysis::types::parse_given_carrier(SourceId(0), &text);
-        if !parse_diags.is_empty() {
-            return Err(ValidationFailure::new(
-                format!(
-                    "unit `{id_text}` contributions carrier does not parse: {}",
-                    diagnostic_summary(&parse_diags)
-                ),
-                vec!["fix the carrier and resend validate".to_string()],
-            ));
-        }
-        checks.push(validation_check(
-            "carrier",
-            "contributions carrier parses (unit scope checks its contracts)".to_string(),
-        ));
-    } else if rel == "style.css" {
-        let text = String::from_utf8(bytes.to_vec()).map_err(|_| {
-            ValidationFailure::new(
-                format!("unit `{id_text}` `style.css` is not valid UTF-8"),
-                vec![ValidationFailure::drift(String::new()).next.remove(0)],
-            )
-        })?;
-        let scoped = crate::css_scope::scope_stylesheet(id.as_str(), &text).map_err(|errors| {
-            let first = &errors[0];
-            ValidationFailure::new(
-                format!(
-                    "unit `{id_text}` `style.css` failed scope checks: {} {} (line {}, column {})",
-                    first.code, first.message, first.line, first.column,
-                ),
-                vec!["fix the CSS and resend validate".to_string()],
-            )
-        })?;
-        // Owned assets resolve against the owning unit's saved group.
-        let group = intake::read_saved_group(root_path, &id).map_err(|issue| {
+        )?;
+    }
+    Ok(())
+}
+
+/// Validate a saved `style.css` scopes and owns its asset references.
+fn validate_saved_style(
+    root_path: &Path,
+    id: &crate::analysis::generation_intake::GenerationUnitId,
+    id_text: &str,
+    bytes: &[u8],
+    checks: &mut Vec<serde_json::Value>,
+) -> Result<(), ValidationFailure> {
+    let text = String::from_utf8(bytes.to_vec()).map_err(|_| {
+        ValidationFailure::new(
+            format!("unit `{id_text}` `style.css` is not valid UTF-8"),
+            vec![ValidationFailure::drift(String::new()).next.remove(0)],
+        )
+    })?;
+    let scoped = crate::css_scope::scope_stylesheet(id.as_str(), &text).map_err(|errors| {
+        let first = &errors[0];
+        ValidationFailure::new(
+            format!(
+                "unit `{id_text}` `style.css` failed scope checks: {} {} (line {}, column {})",
+                first.code, first.message, first.line, first.column,
+            ),
+            vec!["fix the CSS and resend validate".to_string()],
+        )
+    })?;
+    // Owned assets resolve against the owning unit's saved group.
+    let group = crate::analysis::generation_intake::read_saved_group(root_path, id)
+        .map_err(|issue| {
             let next = intake_issue_next(&issue);
             ValidationFailure::new(issue.to_string(), next)
         })?;
-        for asset in &scoped.assets {
-            if !group.files.iter().any(|f| f.rel_path == *asset) {
-                return Err(ValidationFailure::new(
-                    format!(
-                        "unit `{id_text}` `style.css` references owned asset `{asset}` with no saved file; add the asset or reconcile with adopt"
-                    ),
-                    vec![ValidationFailure::drift(String::new()).next.remove(0)],
-                ));
-            }
-        }
-        for asset in &scoped.assets {
-            let file = group
-                .files
-                .iter()
-                .find(|file| &file.rel_path == asset)
-                .expect("asset existence checked");
-            crate::codegen::artifact::style_asset_content_type(asset, &file.bytes).map_err(
-                |detail| {
-                    ValidationFailure::new(
-                        detail,
-                        vec!["replace the asset with matching supported bytes".to_string()],
-                    )
-                },
-            )?;
-        }
-        checks.push(validation_check(
-            "scope",
-            format!(
-                "css scopes ({} asset{})",
-                scoped.assets.len(),
-                if scoped.assets.len() == 1 { "" } else { "s" },
-            ),
-        ));
+    check_saved_style_assets(id_text, &group, &scoped.assets)?;
+    checks.push(validation_check(
+        "scope",
+        format!(
+            "css scopes ({} asset{})",
+            scoped.assets.len(),
+            if scoped.assets.len() == 1 { "" } else { "s" },
+        ),
+    ));
+    Ok(())
+}
+
+/// Validate one bound saved file against its owning unit's record and
+/// siblings. Returns the file's envelope report.
+fn validate_one_saved_file(
+    root_path: &Path,
+    inputs: &crate::source::ValidationInputs,
+    path: &str,
+    bytes: &[u8],
+) -> Result<serde_json::Value, ValidationFailure> {
+    use crate::analysis::generation_intake as intake;
+    let loaded = load_saved_unit_record(inputs, path)?;
+    let id_text = loaded.id_text.as_str();
+    let rel = loaded.rel.as_str();
+    let mut checks = Vec::new();
+    let kind = loaded.record.source.kind;
+    if rel == intake::UNIT_FILE {
+        checks.push(validation_check("record", "unit record parses".to_string()));
+    } else if rel == DECLARATION_FILE {
+        validate_saved_declaration(id_text, kind, bytes, &mut checks)?;
+    } else if rel == "implementation.js" {
+        validate_saved_implementation(
+            root_path,
+            inputs,
+            &loaded.id,
+            id_text,
+            kind,
+            bytes,
+            &loaded.record,
+            &mut checks,
+        )?;
+    } else if rel == "contributions.can" {
+        validate_saved_contributions(id_text, bytes, &mut checks)?;
+    } else if rel == "style.css" {
+        validate_saved_style(root_path, &loaded.id, id_text, bytes, &mut checks)?;
     } else {
         checks.push(validation_check(
             "asset",
@@ -7287,7 +7855,7 @@ fn validate_one_saved_file(
         "unit": id_text,
         "kind": kind.as_str(),
         "sha256": sha256,
-        "modified_since_generation": modified_since_generation(&record, &rel, &sha256),
+        "modified_since_generation": modified_since_generation(&loaded.record, rel, &sha256),
         "checks": checks,
     }))
 }

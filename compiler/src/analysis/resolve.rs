@@ -1198,6 +1198,23 @@ impl<'a> Resolver<'a> {
             return Ok(());
         }
         match node.kind {
+            SyntaxKind::Preferences
+            | SyntaxKind::Model
+            | SyntaxKind::Contract
+            | SyntaxKind::Event => self.index_given_schema(text, module, node, diags)?,
+            _ => self.index_given_rest(text, module, node, diags)?,
+        }
+        Ok(())
+    }
+
+    fn index_given_schema(
+        &mut self,
+        text: &str,
+        module: ModuleId,
+        node: &SyntaxNode,
+        diags: &mut Vec<Diagnostic>,
+    ) -> Result<(), Diagnostic> {
+        match node.kind {
             SyntaxKind::Preferences => self.index_preferences(text, module, node, diags)?,
             SyntaxKind::Model => self.index_model(text, module, node, diags)?,
             SyntaxKind::Contract => self.index_schema_symbol(
@@ -1216,6 +1233,19 @@ impl<'a> Resolver<'a> {
                 "event",
                 diags,
             )?,
+            _ => {}
+        }
+        Ok(())
+    }
+
+    fn index_given_rest(
+        &mut self,
+        text: &str,
+        module: ModuleId,
+        node: &SyntaxNode,
+        diags: &mut Vec<Diagnostic>,
+    ) -> Result<(), Diagnostic> {
+        match node.kind {
             SyntaxKind::Role => {
                 self.index_named(text, module, node, "role", SymbolKind::Role, diags)?;
             }
@@ -1334,26 +1364,78 @@ impl<'a> Resolver<'a> {
         let has_runtime = items
             .iter()
             .any(|item| Self::judgment_runtime_marker(item, text));
-        let options_record = if has_runtime {
-            let record = self.judgment_symbol(
+        let options_record =
+            self.ensure_judgment_options_record(owner, node, has_runtime)?;
+        let version = Self::judgment_version(text, node);
+        for (name, scalar) in [
+            ("specification_revision", Scalar::Text),
+            ("model", Scalar::Text),
+            ("input_tokens", Scalar::Int),
+            ("output_tokens", Scalar::Int),
+        ] {
+            self.judgment_field(owner, owner, name, name, ResolvedType::Scalar(scalar), node)?;
+        }
+        let mut questions = Vec::new();
+        let mut seen = HashSet::new();
+        for item in items {
+            self.index_judgment_item(
+                text,
                 owner,
-                "options",
-                "options",
-                SymbolKind::Contract { fields: Vec::new() },
-                node,
+                item,
+                has_runtime,
+                options_record,
+                &mut seen,
+                &mut questions,
+                diags,
             )?;
-            self.tables.judgment_type_paths.insert(
-                format!(
-                    "{}.options",
-                    self.tables.symbols[owner.0 as usize].canonical
-                ),
-                record,
-            );
-            Some(record)
-        } else {
-            None
-        };
-        let version = attribute_value(node, "version", text)
+        }
+        let (evaluate, state, evaluate_options, specification, specification_options) =
+            self.index_judgment_evaluate(owner, node, options_record)?;
+        self.tables.judgment_declarations.insert(
+            owner,
+            CheckedJudgment {
+                node: NodeKey::of(node),
+                version,
+                questions,
+                evaluate,
+                state,
+                options: options_record,
+                evaluate_options,
+                specification,
+                specification_options,
+            },
+        );
+        Ok(())
+    }
+
+    fn ensure_judgment_options_record(
+        &mut self,
+        owner: SymbolId,
+        node: &SyntaxNode,
+        has_runtime: bool,
+    ) -> Result<Option<SymbolId>, Diagnostic> {
+        if !has_runtime {
+            return Ok(None);
+        }
+        let record = self.judgment_symbol(
+            owner,
+            "options",
+            "options",
+            SymbolKind::Contract { fields: Vec::new() },
+            node,
+        )?;
+        self.tables.judgment_type_paths.insert(
+            format!(
+                "{}.options",
+                self.tables.symbols[owner.0 as usize].canonical
+            ),
+            record,
+        );
+        Ok(Some(record))
+    }
+
+    fn judgment_version(text: &str, node: &SyntaxNode) -> i64 {
+        attribute_value(node, "version", text)
             .and_then(|n| {
                 (n.kind == SyntaxKind::Literal)
                     .then(|| {
@@ -1371,361 +1453,476 @@ impl<'a> Resolver<'a> {
                     })
                     .flatten()
             })
-            .unwrap_or(0);
-        for (name, scalar) in [
-            ("specification_revision", Scalar::Text),
-            ("model", Scalar::Text),
-            ("input_tokens", Scalar::Int),
-            ("output_tokens", Scalar::Int),
-        ] {
-            self.judgment_field(owner, owner, name, name, ResolvedType::Scalar(scalar), node)?;
+            .unwrap_or(0)
+    }
+
+    fn index_judgment_item(
+        &mut self,
+        text: &str,
+        owner: SymbolId,
+        item: &SyntaxNode,
+        has_runtime: bool,
+        options_record: Option<SymbolId>,
+        seen: &mut HashSet<String>,
+        questions: &mut Vec<CheckedJudgmentQuestion>,
+        diags: &mut Vec<Diagnostic>,
+    ) -> Result<(), Diagnostic> {
+        let parts = kids(item);
+        let Some((name, kind, runtime)) =
+            Self::read_judgment_question(text, item, &parts, has_runtime, seen, diags)
+        else {
+            return Ok(());
+        };
+        let Some((captions, instructions, options)) =
+            Self::read_judgment_evidence(text, &parts)
+        else {
+            return Ok(());
+        };
+        let decimal = ResolvedType::Scalar(Scalar::Decimal);
+        let (answer, enumeration) = self.index_judgment_answer(
+            owner,
+            item,
+            &name,
+            kind,
+            runtime,
+            &options,
+            options_record,
+            decimal.clone(),
+        )?;
+        if let Some((enum_field, enumeration)) = enumeration {
+            self.index_judgment_distribution(
+                owner,
+                item,
+                &name,
+                kind,
+                runtime,
+                answer,
+                enum_field,
+                enumeration,
+                decimal,
+            )?;
         }
-        let mut questions = Vec::new();
-        let mut seen = HashSet::new();
-        for item in items {
-            let parts = kids(item);
-            let names: Vec<_> = parts.iter().filter_map(|n| name_text(n, text)).collect();
-            let Some(name) = names.first().copied() else {
-                continue;
-            };
-            if !seen.insert(name.to_string())
-                || (has_runtime && ["options", "evaluate", "specification"].contains(&name))
-                || [
-                    "specification_revision",
-                    "model",
-                    "input_tokens",
-                    "output_tokens",
-                ]
-                .contains(&name)
-            {
-                diags.push(Diagnostic::error(
-                    "E2002",
-                    format!("duplicate or reserved judgment question '{name}'"),
-                    item.span,
-                ));
-                continue;
-            }
-            let kind = match names.get(1).copied() {
-                Some("noul") => CheckedJudgmentKind::Noul,
-                Some("choice") => CheckedJudgmentKind::Choice,
-                Some("score") => CheckedJudgmentKind::Score,
-                _ => continue,
-            };
-            let runtime =
-                kind == CheckedJudgmentKind::Choice && Self::judgment_runtime_marker(item, text);
-            let captions: Vec<_> = parts
-                .iter()
-                .copied()
-                .filter(|n| {
+        questions.push(CheckedJudgmentQuestion {
+            name,
+            kind,
+            runtime,
+            instructions: NodeKey::of(instructions),
+            yes: (kind == CheckedJudgmentKind::Noul)
+                .then(|| captions.get(1).map(|n| NodeKey::of(n)))
+                .flatten(),
+            no: (kind == CheckedJudgmentKind::Noul)
+                .then(|| captions.get(2).map(|n| NodeKey::of(n)))
+                .flatten(),
+            options: if kind == CheckedJudgmentKind::Choice {
+                options.clone()
+            } else {
+                Vec::new()
+            },
+            levels: if kind == CheckedJudgmentKind::Score {
+                options
+            } else {
+                Vec::new()
+            },
+        });
+        Ok(())
+    }
+
+    fn read_judgment_question(
+        text: &str,
+        item: &SyntaxNode,
+        parts: &[&SyntaxNode],
+        has_runtime: bool,
+        seen: &mut HashSet<String>,
+        diags: &mut Vec<Diagnostic>,
+    ) -> Option<(String, CheckedJudgmentKind, bool)> {
+        let names: Vec<_> = parts.iter().filter_map(|n| name_text(n, text)).collect();
+        let name = names.first().copied()?;
+        if !seen.insert(name.to_string())
+            || (has_runtime && ["options", "evaluate", "specification"].contains(&name))
+            || [
+                "specification_revision",
+                "model",
+                "input_tokens",
+                "output_tokens",
+            ]
+            .contains(&name)
+        {
+            diags.push(Diagnostic::error(
+                "E2002",
+                format!("duplicate or reserved judgment question '{name}'"),
+                item.span,
+            ));
+            return None;
+        }
+        let kind = match names.get(1).copied() {
+            Some("noul") => CheckedJudgmentKind::Noul,
+            Some("choice") => CheckedJudgmentKind::Choice,
+            Some("score") => CheckedJudgmentKind::Score,
+            _ => return None,
+        };
+        let runtime =
+            kind == CheckedJudgmentKind::Choice && Self::judgment_runtime_marker(item, text);
+        Some((name.to_string(), kind, runtime))
+    }
+
+    fn read_judgment_evidence<'x>(
+        text: &str,
+        parts: &[&'x SyntaxNode],
+    ) -> Option<(Vec<&'x SyntaxNode>, &'x SyntaxNode, Vec<CheckedJudgmentOption>)> {
+        let captions: Vec<_> = parts
+            .iter()
+            .copied()
+            .filter(|n| {
+                matches!(
+                    n.kind,
+                    SyntaxKind::Literal | SyntaxKind::MessageValue | SyntaxKind::Path
+                )
+            })
+            .collect();
+        let instructions = *captions.first()?;
+        let options: Vec<_> = parts
+            .iter()
+            .filter(|n| n.kind == SyntaxKind::JudgmentOption)
+            .filter_map(|option| {
+                let parts = kids(option);
+                let id = parts.iter().find_map(|n| name_text(n, text))?;
+                let description = parts.iter().find(|n| {
                     matches!(
                         n.kind,
                         SyntaxKind::Literal | SyntaxKind::MessageValue | SyntaxKind::Path
                     )
+                })?;
+                Some(CheckedJudgmentOption {
+                    id: id.to_string(),
+                    description: NodeKey::of(description),
                 })
-                .collect();
-            let Some(instructions) = captions.first() else {
-                continue;
-            };
-            let options: Vec<_> = parts
-                .iter()
-                .filter(|n| n.kind == SyntaxKind::JudgmentOption)
-                .filter_map(|option| {
-                    let parts = kids(option);
-                    let id = parts.iter().find_map(|n| name_text(n, text))?;
-                    let description = parts.iter().find(|n| {
-                        matches!(
-                            n.kind,
-                            SyntaxKind::Literal | SyntaxKind::MessageValue | SyntaxKind::Path
-                        )
-                    })?;
-                    Some(CheckedJudgmentOption {
-                        id: id.to_string(),
-                        description: NodeKey::of(description),
-                    })
-                })
-                .collect();
-            let answer = self.judgment_symbol(
+            })
+            .collect();
+        Some((captions, instructions, options))
+    }
+
+    fn index_judgment_answer(
+        &mut self,
+        owner: SymbolId,
+        item: &SyntaxNode,
+        name: &str,
+        kind: CheckedJudgmentKind,
+        runtime: bool,
+        options: &[CheckedJudgmentOption],
+        options_record: Option<SymbolId>,
+        decimal: ResolvedType,
+    ) -> Result<(SymbolId, Option<(SymbolId, ResolvedType)>), Diagnostic> {
+        let answer = self.judgment_symbol(
+            owner,
+            name,
+            name,
+            SymbolKind::Contract { fields: Vec::new() },
+            item,
+        )?;
+        self.judgment_field(
+            owner,
+            owner,
+            name,
+            name,
+            ResolvedType::Record {
+                symbol: answer,
+                stored: true,
+            },
+            item,
+        )?;
+        if kind == CheckedJudgmentKind::Noul {
+            self.judgment_field(
                 owner,
+                answer,
+                &format!("{name}.probability"),
+                "probability",
+                decimal,
+                item,
+            )?;
+            return Ok((answer, None));
+        }
+        let enum_name = if kind == CheckedJudgmentKind::Choice {
+            "choice"
+        } else {
+            "level"
+        };
+        let enum_path = format!("{name}.{enum_name}");
+        let enum_field = self.judgment_symbol(
+            owner,
+            &enum_path,
+            enum_name,
+            SymbolKind::Field {
+                owner: answer,
+                type_node: NodeKey::of(item),
+            },
+            item,
+        )?;
+        let enumeration = if runtime {
+            ResolvedType::Scalar(Scalar::Text)
+        } else {
+            ResolvedType::Enum {
+                cases: options.iter().map(|o| o.id.clone()).collect(),
+                owner: Some(enum_field),
+            }
+        };
+        if runtime {
+            self.index_judgment_runtime_options(
+                owner,
+                item,
                 name,
-                name,
-                SymbolKind::Contract { fields: Vec::new() },
+                options,
+                enum_field,
+                options_record,
+            )?;
+        }
+        self.tables
+            .judgment_types
+            .insert(enum_field, enumeration.clone());
+        self.tables.judgment_type_paths.insert(
+            format!(
+                "{}.{}",
+                self.tables.symbols[owner.0 as usize].canonical, enum_path
+            ),
+            enum_field,
+        );
+        if kind == CheckedJudgmentKind::Choice {
+            if let SymbolKind::Contract { fields } =
+                &mut self.tables.symbols[answer.0 as usize].kind
+            {
+                fields.push(enum_field);
+            }
+        } else {
+            self.judgment_field(
+                owner,
+                answer,
+                &format!("{name}.score"),
+                "score",
+                decimal,
+                item,
+            )?;
+        }
+        Ok((answer, Some((enum_field, enumeration))))
+    }
+
+    fn index_judgment_distribution(
+        &mut self,
+        owner: SymbolId,
+        item: &SyntaxNode,
+        name: &str,
+        kind: CheckedJudgmentKind,
+        runtime: bool,
+        answer: SymbolId,
+        enum_field: SymbolId,
+        enumeration: ResolvedType,
+        decimal: ResolvedType,
+    ) -> Result<(), Diagnostic> {
+        let distribution = if kind == CheckedJudgmentKind::Choice {
+            "probabilities"
+        } else {
+            "levels"
+        };
+        let element_path = format!("{name}.{distribution}.item");
+        let element = self.judgment_symbol(
+            owner,
+            &element_path,
+            "item",
+            SymbolKind::Contract { fields: Vec::new() },
+            item,
+        )?;
+        let identity = if kind == CheckedJudgmentKind::Choice {
+            "option"
+        } else {
+            "level"
+        };
+        let identity_field = self.judgment_field(
+            owner,
+            element,
+            &format!("{element_path}.{identity}"),
+            identity,
+            enumeration,
+            item,
+        )?;
+        if runtime {
+            let constraints = self.tables.judgment_value_constraints[&enum_field].clone();
+            self.tables
+                .judgment_value_constraints
+                .insert(identity_field, constraints);
+        }
+        if kind == CheckedJudgmentKind::Score {
+            self.judgment_field(
+                owner,
+                element,
+                &format!("{element_path}.index"),
+                "index",
+                ResolvedType::Scalar(Scalar::Int),
                 item,
             )?;
             self.judgment_field(
                 owner,
-                owner,
-                name,
-                name,
-                ResolvedType::Record {
-                    symbol: answer,
-                    stored: true,
-                },
+                element,
+                &format!("{element_path}.description"),
+                "description",
+                ResolvedType::Scalar(Scalar::Text),
                 item,
             )?;
-            let decimal = ResolvedType::Scalar(Scalar::Decimal);
-            if kind == CheckedJudgmentKind::Noul {
-                self.judgment_field(
-                    owner,
-                    answer,
-                    &format!("{name}.probability"),
-                    "probability",
-                    decimal,
-                    item,
-                )?;
-            } else {
-                let enum_name = if kind == CheckedJudgmentKind::Choice {
-                    "choice"
-                } else {
-                    "level"
-                };
-                let enum_path = format!("{name}.{enum_name}");
-                let enum_field = self.judgment_symbol(
-                    owner,
-                    &enum_path,
-                    enum_name,
-                    SymbolKind::Field {
-                        owner: answer,
-                        type_node: NodeKey::of(item),
-                    },
-                    item,
-                )?;
-                let enumeration = if runtime {
-                    ResolvedType::Scalar(Scalar::Text)
-                } else {
-                    ResolvedType::Enum {
-                        cases: options.iter().map(|o| o.id.clone()).collect(),
-                        owner: Some(enum_field),
-                    }
-                };
-                if runtime {
-                    let constraints = CheckedValueConstraints {
-                        min: Some(1),
-                        max: Some(80),
-                        format: Some("name".to_string()),
-                        alias: Some(enum_field),
-                        ..Default::default()
-                    };
-                    self.tables
-                        .judgment_value_constraints
-                        .insert(enum_field, constraints.clone());
-                    let option_path = format!("{name}.option");
-                    let option_record = self.judgment_symbol(
-                        owner,
-                        &option_path,
-                        "option",
-                        SymbolKind::Contract { fields: Vec::new() },
-                        item,
-                    )?;
-                    self.tables.judgment_type_paths.insert(
-                        format!(
-                            "{}.{}",
-                            self.tables.symbols[owner.0 as usize].canonical, option_path
-                        ),
-                        option_record,
-                    );
-                    let id = self.judgment_field(
-                        owner,
-                        option_record,
-                        &format!("{option_path}.id"),
-                        "id",
-                        ResolvedType::Scalar(Scalar::Text),
-                        item,
-                    )?;
-                    self.tables
-                        .judgment_value_constraints
-                        .insert(id, constraints);
-                    let description = self.judgment_field(
-                        owner,
-                        option_record,
-                        &format!("{option_path}.description"),
-                        "description",
-                        ResolvedType::Scalar(Scalar::Text),
-                        item,
-                    )?;
-                    self.tables.judgment_value_constraints.insert(
-                        description,
-                        CheckedValueConstraints {
-                            min: Some(1),
-                            max: Some(2000),
-                            ..Default::default()
-                        },
-                    );
-                    for field in [id, description] {
-                        self.tables.judgment_type_paths.insert(
-                            self.tables.symbols[field.0 as usize].canonical.clone(),
-                            field,
-                        );
-                    }
-                    let options_path = format!("options.{name}");
-                    let count = options.len() as i64;
-                    let candidates = self.judgment_field(
-                        owner,
-                        options_record.expect("runtime options owner"),
-                        &options_path,
-                        name,
-                        ResolvedType::Array {
-                            element: Box::new(ResolvedType::Record {
-                                symbol: option_record,
-                                stored: true,
-                            }),
-                            ordered: true,
-                            nonempty: count < 2,
-                        },
-                        item,
-                    )?;
-                    self.tables.judgment_required_arrays.insert(candidates);
-                    self.tables.judgment_value_constraints.insert(
-                        candidates,
-                        CheckedValueConstraints {
-                            min: Some((2 - count).max(0)),
-                            max: Some(26 - count),
-                            distinct_by: Some("id".to_string()),
-                            excluded_ids: options.iter().map(|option| option.id.clone()).collect(),
-                            ..Default::default()
-                        },
-                    );
-                    self.tables.judgment_type_paths.insert(
-                        format!(
-                            "{}.{}",
-                            self.tables.symbols[owner.0 as usize].canonical, options_path
-                        ),
-                        candidates,
-                    );
-                }
-                self.tables
-                    .judgment_types
-                    .insert(enum_field, enumeration.clone());
-                self.tables.judgment_type_paths.insert(
-                    format!(
-                        "{}.{}",
-                        self.tables.symbols[owner.0 as usize].canonical, enum_path
-                    ),
-                    enum_field,
-                );
-                if kind == CheckedJudgmentKind::Choice {
-                    if let SymbolKind::Contract { fields } =
-                        &mut self.tables.symbols[answer.0 as usize].kind
-                    {
-                        fields.push(enum_field);
-                    }
-                } else {
-                    self.judgment_field(
-                        owner,
-                        answer,
-                        &format!("{name}.score"),
-                        "score",
-                        decimal.clone(),
-                        item,
-                    )?;
-                }
-                let distribution = if kind == CheckedJudgmentKind::Choice {
-                    "probabilities"
-                } else {
-                    "levels"
-                };
-                let element_path = format!("{name}.{distribution}.item");
-                let element = self.judgment_symbol(
-                    owner,
-                    &element_path,
-                    "item",
-                    SymbolKind::Contract { fields: Vec::new() },
-                    item,
-                )?;
-                let identity = if kind == CheckedJudgmentKind::Choice {
-                    "option"
-                } else {
-                    "level"
-                };
-                let identity_field = self.judgment_field(
-                    owner,
-                    element,
-                    &format!("{element_path}.{identity}"),
-                    identity,
-                    enumeration,
-                    item,
-                )?;
-                if runtime {
-                    let constraints = self.tables.judgment_value_constraints[&enum_field].clone();
-                    self.tables
-                        .judgment_value_constraints
-                        .insert(identity_field, constraints);
-                }
-                if kind == CheckedJudgmentKind::Score {
-                    self.judgment_field(
-                        owner,
-                        element,
-                        &format!("{element_path}.index"),
-                        "index",
-                        ResolvedType::Scalar(Scalar::Int),
-                        item,
-                    )?;
-                    self.judgment_field(
-                        owner,
-                        element,
-                        &format!("{element_path}.description"),
-                        "description",
-                        ResolvedType::Scalar(Scalar::Text),
-                        item,
-                    )?;
-                }
-                self.judgment_field(
-                    owner,
-                    element,
-                    &format!("{element_path}.probability"),
-                    "probability",
-                    decimal.clone(),
-                    item,
-                )?;
-                let distribution_field = self.judgment_field(
-                    owner,
-                    answer,
-                    &format!("{name}.{distribution}"),
-                    distribution,
-                    ResolvedType::Array {
-                        element: Box::new(ResolvedType::Record {
-                            symbol: element,
-                            stored: true,
-                        }),
-                        ordered: true,
-                        nonempty: true,
-                    },
-                    item,
-                )?;
-                self.tables
-                    .judgment_required_arrays
-                    .insert(distribution_field);
-                self.judgment_field(
-                    owner,
-                    answer,
-                    &format!("{name}.confidence"),
-                    "confidence",
-                    decimal,
-                    item,
-                )?;
-            }
-            questions.push(CheckedJudgmentQuestion {
-                name: name.to_string(),
-                kind,
-                runtime,
-                instructions: NodeKey::of(instructions),
-                yes: (kind == CheckedJudgmentKind::Noul)
-                    .then(|| captions.get(1).map(|n| NodeKey::of(n)))
-                    .flatten(),
-                no: (kind == CheckedJudgmentKind::Noul)
-                    .then(|| captions.get(2).map(|n| NodeKey::of(n)))
-                    .flatten(),
-                options: if kind == CheckedJudgmentKind::Choice {
-                    options.clone()
-                } else {
-                    Vec::new()
-                },
-                levels: if kind == CheckedJudgmentKind::Score {
-                    options
-                } else {
-                    Vec::new()
-                },
-            });
         }
+        self.judgment_field(
+            owner,
+            element,
+            &format!("{element_path}.probability"),
+            "probability",
+            decimal.clone(),
+            item,
+        )?;
+        let distribution_field = self.judgment_field(
+            owner,
+            answer,
+            &format!("{name}.{distribution}"),
+            distribution,
+            ResolvedType::Array {
+                element: Box::new(ResolvedType::Record {
+                    symbol: element,
+                    stored: true,
+                }),
+                ordered: true,
+                nonempty: true,
+            },
+            item,
+        )?;
+        self.tables
+            .judgment_required_arrays
+            .insert(distribution_field);
+        self.judgment_field(
+            owner,
+            answer,
+            &format!("{name}.confidence"),
+            "confidence",
+            decimal,
+            item,
+        )?;
+        Ok(())
+    }
+
+    fn index_judgment_runtime_options(
+        &mut self,
+        owner: SymbolId,
+        item: &SyntaxNode,
+        name: &str,
+        options: &[CheckedJudgmentOption],
+        enum_field: SymbolId,
+        options_record: Option<SymbolId>,
+    ) -> Result<(), Diagnostic> {
+        let constraints = CheckedValueConstraints {
+            min: Some(1),
+            max: Some(80),
+            format: Some("name".to_string()),
+            alias: Some(enum_field),
+            ..Default::default()
+        };
+        self.tables
+            .judgment_value_constraints
+            .insert(enum_field, constraints.clone());
+        let option_path = format!("{name}.option");
+        let option_record = self.judgment_symbol(
+            owner,
+            &option_path,
+            "option",
+            SymbolKind::Contract { fields: Vec::new() },
+            item,
+        )?;
+        self.tables.judgment_type_paths.insert(
+            format!(
+                "{}.{}",
+                self.tables.symbols[owner.0 as usize].canonical, option_path
+            ),
+            option_record,
+        );
+        let id = self.judgment_field(
+            owner,
+            option_record,
+            &format!("{option_path}.id"),
+            "id",
+            ResolvedType::Scalar(Scalar::Text),
+            item,
+        )?;
+        self.tables
+            .judgment_value_constraints
+            .insert(id, constraints);
+        let description = self.judgment_field(
+            owner,
+            option_record,
+            &format!("{option_path}.description"),
+            "description",
+            ResolvedType::Scalar(Scalar::Text),
+            item,
+        )?;
+        self.tables.judgment_value_constraints.insert(
+            description,
+            CheckedValueConstraints {
+                min: Some(1),
+                max: Some(2000),
+                ..Default::default()
+            },
+        );
+        for field in [id, description] {
+            self.tables.judgment_type_paths.insert(
+                self.tables.symbols[field.0 as usize].canonical.clone(),
+                field,
+            );
+        }
+        let options_path = format!("options.{name}");
+        let count = options.len() as i64;
+        let candidates = self.judgment_field(
+            owner,
+            options_record.expect("runtime options owner"),
+            &options_path,
+            name,
+            ResolvedType::Array {
+                element: Box::new(ResolvedType::Record {
+                    symbol: option_record,
+                    stored: true,
+                }),
+                ordered: true,
+                nonempty: count < 2,
+            },
+            item,
+        )?;
+        self.tables.judgment_required_arrays.insert(candidates);
+        self.tables.judgment_value_constraints.insert(
+            candidates,
+            CheckedValueConstraints {
+                min: Some((2 - count).max(0)),
+                max: Some(26 - count),
+                distinct_by: Some("id".to_string()),
+                excluded_ids: options.iter().map(|option| option.id.clone()).collect(),
+                ..Default::default()
+            },
+        );
+        self.tables.judgment_type_paths.insert(
+            format!(
+                "{}.{}",
+                self.tables.symbols[owner.0 as usize].canonical, options_path
+            ),
+            candidates,
+        );
+        Ok(())
+    }
+
+    fn index_judgment_evaluate(
+        &mut self,
+        owner: SymbolId,
+        node: &SyntaxNode,
+        options_record: Option<SymbolId>,
+    ) -> Result<
+        (
+            SymbolId,
+            SymbolId,
+            Option<SymbolId>,
+            Option<SymbolId>,
+            Option<SymbolId>,
+        ),
+        Diagnostic,
+    > {
         let evaluate = self.judgment_symbol(
             owner,
             "evaluate",
@@ -1813,21 +2010,13 @@ impl<'a> Resolver<'a> {
             specification = Some(function);
             specification_options = Some(parameter);
         }
-        self.tables.judgment_declarations.insert(
-            owner,
-            CheckedJudgment {
-                node: NodeKey::of(node),
-                version,
-                questions,
-                evaluate,
-                state,
-                options: options_record,
-                evaluate_options,
-                specification,
-                specification_options,
-            },
-        );
-        Ok(())
+        Ok((
+            evaluate,
+            state,
+            evaluate_options,
+            specification,
+            specification_options,
+        ))
     }
 
     /// The five accepted standard shapes retain a single catalog identity.
@@ -2946,7 +3135,31 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    fn resolve_import(&mut self, module: &Module, import: &Import, diags: &mut Vec<Diagnostic>) {
+    /// Deployment binding of an import must use the supported
+    /// `deployment.NAME` form (`E2001`); `false` ends the import.
+    fn check_import_binding_form(import: &Import, diags: &mut Vec<Diagnostic>) -> bool {
+        if let Some(from) = &import.from {
+            let head = from.split('.').next().unwrap_or("");
+            if head != "deployment" || from.split('.').count() != 2 {
+                diags.push(Diagnostic::error(
+                    "E2001",
+                    format!(
+                        "import binding '{from}' must have the supported deployment-binding form deployment.NAME"
+                    ),
+                    import.span,
+                ));
+                return false;
+            }
+        }
+        true
+    }
+
+    fn check_import_records(
+        &mut self,
+        module: &Module,
+        import: &Import,
+        diags: &mut Vec<Diagnostic>,
+    ) -> bool {
         if import.provider == "std"
             && import.members.iter().any(|member| {
                 [
@@ -2961,26 +3174,54 @@ impl<'a> Resolver<'a> {
             && let Err(error) = self.ensure_judgment_standard_records(module.id, import.span)
         {
             diags.push(error);
+            return false;
+        }
+        true
+    }
+
+    fn resolve_unknown_provider_import(
+        &mut self,
+        module: &Module,
+        import: &Import,
+        bound: bool,
+        diags: &mut Vec<Diagnostic>,
+    ) {
+        if bound {
+            for member in &import.members {
+                self.bind_import_alias(
+                    module.id,
+                    &member.alias,
+                    member.span,
+                    ScopedName::External {
+                        provider: import.provider.clone(),
+                        name: member.name.clone(),
+                    },
+                    diags,
+                );
+            }
             return;
         }
-        let bound = import.from.is_some();
-        if let Some(from) = &import.from {
-            let head = from.split('.').next().unwrap_or("");
-            if head != "deployment" || from.split('.').count() != 2 {
-                diags.push(Diagnostic::error(
-                    "E2001",
-                    format!(
-                        "import binding '{from}' must have the supported deployment-binding form deployment.NAME"
-                    ),
-                    import.span,
-                ));
-                return;
-            }
-        }
-        let provider = self.tables.module_by_name.get(&import.provider).copied();
-        let Some(provider) = provider else {
-            if bound {
-                for member in &import.members {
+        // T14b/B1: `std` is a compiler-known provider fed by the
+        // consumed T13 schemas: unbound known members (capabilities
+        // and nominal value types alike) bind as externals, so
+        // nominal type positions resolve instead of failing `E2005`
+        // with `E2001` follow-ons. Unknown members are `E2004`
+        // (the provider is known; the member is not declared).
+        // Bound imports keep the deployment-slot rule above
+        // (unknown members stay opaque externals, never an error);
+        // B11 normalizes bound nominals to this same `External`
+        // binding: `from=` on a value type carries no binding
+        // meaning, so both forms resolve identically.
+        if import.provider == "std" {
+            for member in &import.members {
+                if std_capability(&member.name).is_some()
+                    || is_t13a_nominal(&member.name)
+                    || is_t13b_nominal(&member.name)
+                    || self
+                        .tables
+                        .judgment_standard_records
+                        .contains_key(&member.name)
+                {
                     self.bind_import_alias(
                         module.id,
                         &member.alias,
@@ -2991,138 +3232,138 @@ impl<'a> Resolver<'a> {
                         },
                         diags,
                     );
+                } else {
+                    diags.push(Diagnostic::error(
+                        "E2004",
+                        format!("import member '{}' is not declared in 'std'", member.name),
+                        member.span,
+                    ));
                 }
-                return;
             }
-            // T14b/B1: `std` is a compiler-known provider fed by the
-            // consumed T13 schemas: unbound known members (capabilities
-            // and nominal value types alike) bind as externals, so
-            // nominal type positions resolve instead of failing `E2005`
-            // with `E2001` follow-ons. Unknown members are `E2004`
-            // (the provider is known; the member is not declared).
-            // Bound imports keep the deployment-slot rule above
-            // (unknown members stay opaque externals, never an error);
-            // B11 normalizes bound nominals to this same `External`
-            // binding: `from=` on a value type carries no binding
-            // meaning, so both forms resolve identically.
-            if import.provider == "std" {
-                for member in &import.members {
-                    if std_capability(&member.name).is_some()
-                        || is_t13a_nominal(&member.name)
-                        || is_t13b_nominal(&member.name)
-                        || self
-                            .tables
-                            .judgment_standard_records
-                            .contains_key(&member.name)
-                    {
-                        self.bind_import_alias(
-                            module.id,
-                            &member.alias,
-                            member.span,
-                            ScopedName::External {
-                                provider: import.provider.clone(),
-                                name: member.name.clone(),
-                            },
-                            diags,
-                        );
-                    } else {
-                        diags.push(Diagnostic::error(
-                            "E2004",
-                            format!("import member '{}' is not declared in 'std'", member.name),
-                            member.span,
-                        ));
-                    }
-                }
-                return;
-            }
-            diags.push(Diagnostic::error(
-                "E2005",
-                format!(
-                    "import provider '{}' names no known app or package",
-                    import.provider
-                ),
-                import.provider_span,
-            ));
+            return;
+        }
+        diags.push(Diagnostic::error(
+            "E2005",
+            format!(
+                "import provider '{}' names no known app or package",
+                import.provider
+            ),
+            import.provider_span,
+        ));
+    }
+
+    fn resolve_import(&mut self, module: &Module, import: &Import, diags: &mut Vec<Diagnostic>) {
+        if !self.check_import_records(module, import, diags) {
+            return;
+        }
+        let bound = import.from.is_some();
+        if !Self::check_import_binding_form(import, diags) {
+            return;
+        }
+        let provider = self.tables.module_by_name.get(&import.provider).copied();
+        let Some(provider) = provider else {
+            self.resolve_unknown_provider_import(module, import, bound, diags);
             return;
         };
         let composed_only_messages =
             self.tables.modules[module.id.0 as usize].kind == ModuleKind::ComposedApp;
         for member in &import.members {
-            let target = self.tables.module_scopes[provider.0 as usize]
-                .prod
-                .get(&member.name)
-                .cloned()
-                .or_else(|| {
-                    self.tables.module_scopes[provider.0 as usize]
-                        .test
-                        .get(&member.name)
-                        .cloned()
-                });
-            let Some(target) = target else {
+            self.bind_import_member(
+                module,
+                import,
+                member,
+                provider,
+                bound,
+                composed_only_messages,
+                diags,
+            );
+        }
+    }
+
+    fn bind_import_member(
+        &mut self,
+        module: &Module,
+        import: &Import,
+        member: &ImportMember,
+        provider: ModuleId,
+        bound: bool,
+        composed_only_messages: bool,
+        diags: &mut Vec<Diagnostic>,
+    ) {
+        let target = self.tables.module_scopes[provider.0 as usize]
+            .prod
+            .get(&member.name)
+            .cloned()
+            .or_else(|| {
+                self.tables.module_scopes[provider.0 as usize]
+                    .test
+                    .get(&member.name)
+                    .cloned()
+            });
+        let Some(target) = target else {
+            diags.push(Diagnostic::error(
+                "E2004",
+                format!(
+                    "import member '{}' is not declared in '{}'",
+                    member.name, import.provider
+                ),
+                member.span,
+            ));
+            return;
+        };
+        let target_id = match &target {
+            ScopedName::Local(id) => *id,
+            ScopedName::Imported { .. } | ScopedName::External { .. } => {
                 diags.push(Diagnostic::error(
                     "E2004",
                     format!(
-                        "import member '{}' is not declared in '{}'",
+                        "import member '{}' of '{}' is itself an import; name the owning package",
                         member.name, import.provider
                     ),
                     member.span,
                 ));
-                continue;
-            };
-            let target_id = match &target {
-                ScopedName::Local(id) => *id,
-                ScopedName::Imported { .. } | ScopedName::External { .. } => {
-                    diags.push(Diagnostic::error(
-                        "E2004",
-                        format!(
-                            "import member '{}' of '{}' is itself an import; name the owning package",
-                            member.name, import.provider
-                        ),
-                        member.span,
-                    ));
-                    continue;
-                }
-            };
-            if !self.tables.symbols[target_id.0 as usize].exported {
-                diags.push(Diagnostic::error(
-                    "E2003",
-                    format!(
-                        "import member '{}' of '{}' is not exported",
-                        member.name, import.provider
-                    ),
-                    member.span,
-                ));
-                continue;
+                return;
             }
-            if composed_only_messages
-                && !matches!(
-                    self.tables.symbols[target_id.0 as usize].kind,
-                    SymbolKind::Message { .. }
-                )
-            {
-                diags.push(Diagnostic::error(
-                    "E2009",
-                    format!(
-                        "composed app '{}' imports only messages; '{}' is not a message",
-                        self.tables.modules[module.id.0 as usize].name, member.name
-                    ),
-                    member.span,
-                ));
-                continue;
-            }
-            let is_fixture = matches!(
+        };
+        if !self.tables.symbols[target_id.0 as usize].exported {
+            diags.push(Diagnostic::error(
+                "E2003",
+                format!(
+                    "import member '{}' of '{}' is not exported",
+                    member.name, import.provider
+                ),
+                member.span,
+            ));
+            return;
+        }
+        if composed_only_messages
+            && !matches!(
                 self.tables.symbols[target_id.0 as usize].kind,
-                SymbolKind::Fixture { .. }
-            );
-            let binding = ScopedName::Imported {
-                target: target_id,
-                bound,
-            };
-            if is_fixture {
-                self.bind_import_fixture(module.id, &member.alias, member.span, binding, diags);
-            } else {
-                self.bind_import_alias(module.id, &member.alias, member.span, binding, diags);
-            }
+                SymbolKind::Message { .. }
+            )
+        {
+            diags.push(Diagnostic::error(
+                "E2009",
+                format!(
+                    "composed app '{}' imports only messages; '{}' is not a message",
+                    self.tables.modules[module.id.0 as usize].name, member.name
+                ),
+                member.span,
+            ));
+            return;
+        }
+        let is_fixture = matches!(
+            self.tables.symbols[target_id.0 as usize].kind,
+            SymbolKind::Fixture { .. }
+        );
+        let binding = ScopedName::Imported {
+            target: target_id,
+            bound,
+        };
+        if is_fixture {
+            self.bind_import_fixture(module.id, &member.alias, member.span, binding, diags);
+        } else {
+            self.bind_import_alias(module.id, &member.alias, member.span, binding, diags);
         }
     }
 
@@ -3547,6 +3788,36 @@ impl<'a> Resolver<'a> {
         diags: &mut Vec<Diagnostic>,
     ) -> Result<(), Diagnostic> {
         let root = self.module_root(module, node.span)?;
+        self.resolve_module_sinks(text, module, node);
+        self.resolve_description_refs(text, module, node, diags);
+        // Hook declarations may precede their CRUD owner. Resolve only the
+        // owning grants first; body/source order confers no authentication.
+        self.resolve_module_crud_proofs(text, module, root, node, diags)?;
+        // Resolve declaration-owned view scopes before any page use, including
+        // views written later in the same Then section.
+        self.resolve_module_views(text, module, root, node, diags)?;
+        for child in kids(node) {
+            match child.kind {
+                SyntaxKind::Attribute => {
+                    if let Some((key, value)) = attribute_parts(child)
+                        && is_name(key, text, "label")
+                    {
+                        self.resolve_caption(text, module, value, diags);
+                    }
+                }
+                SyntaxKind::Context => {
+                    self.resolve_context(file, text, module, root, child, diags)?
+                }
+                SyntaxKind::Section => {
+                    self.resolve_section_items(file, text, module, root, child, diags)?;
+                }
+                _ => {}
+            }
+        }
+        Ok(())
+    }
+
+    fn resolve_module_sinks(&mut self, text: &str, module: ModuleId, node: &SyntaxNode) {
         for context in kids(node)
             .into_iter()
             .filter(|n| n.kind == SyntaxKind::Context)
@@ -3564,9 +3835,16 @@ impl<'a> Resolver<'a> {
                 }
             }
         }
-        self.resolve_description_refs(text, module, node, diags);
-        // Hook declarations may precede their CRUD owner. Resolve only the
-        // owning grants first; body/source order confers no authentication.
+    }
+
+    fn resolve_module_crud_proofs(
+        &mut self,
+        text: &'a str,
+        module: ModuleId,
+        root: ScopeId,
+        node: &SyntaxNode,
+        diags: &mut Vec<Diagnostic>,
+    ) -> Result<(), Diagnostic> {
         for section in kids(node)
             .into_iter()
             .filter(|n| n.kind == SyntaxKind::Section)
@@ -3578,8 +3856,17 @@ impl<'a> Resolver<'a> {
                 self.resolve_crud_actor_proof(text, module, root, crud, diags)?;
             }
         }
-        // Resolve declaration-owned view scopes before any page use, including
-        // views written later in the same Then section.
+        Ok(())
+    }
+
+    fn resolve_module_views(
+        &mut self,
+        text: &'a str,
+        module: ModuleId,
+        root: ScopeId,
+        node: &SyntaxNode,
+        diags: &mut Vec<Diagnostic>,
+    ) -> Result<(), Diagnostic> {
         for section in kids(node)
             .into_iter()
             .filter(|n| n.kind == SyntaxKind::Section)
@@ -3591,32 +3878,27 @@ impl<'a> Resolver<'a> {
                 self.resolve_view(text, module, root, view, diags)?;
             }
         }
-        for child in kids(node) {
-            match child.kind {
-                SyntaxKind::Attribute => {
-                    if let Some((key, value)) = attribute_parts(child)
-                        && is_name(key, text, "label")
-                    {
-                        self.resolve_caption(text, module, value, diags);
-                    }
-                }
-                SyntaxKind::Context => {
-                    self.resolve_context(file, text, module, root, child, diags)?
-                }
-                SyntaxKind::Section => {
-                    let marker = kids(child)
-                        .iter()
-                        .find_map(|n| name_text(n, text))
-                        .unwrap_or("");
-                    for item in kids(child) {
-                        match marker {
-                            "Given" => self.resolve_given(file, text, module, root, item, diags)?,
-                            "When" => self.resolve_when(file, text, module, root, item, diags)?,
-                            "Then" => self.resolve_then(file, text, module, root, item, diags)?,
-                            _ => {}
-                        }
-                    }
-                }
+        Ok(())
+    }
+
+    fn resolve_section_items(
+        &mut self,
+        file: SourceId,
+        text: &'a str,
+        module: ModuleId,
+        root: ScopeId,
+        child: &SyntaxNode,
+        diags: &mut Vec<Diagnostic>,
+    ) -> Result<(), Diagnostic> {
+        let marker = kids(child)
+            .iter()
+            .find_map(|n| name_text(n, text))
+            .unwrap_or("");
+        for item in kids(child) {
+            match marker {
+                "Given" => self.resolve_given(file, text, module, root, item, diags)?,
+                "When" => self.resolve_when(file, text, module, root, item, diags)?,
+                "Then" => self.resolve_then(file, text, module, root, item, diags)?,
                 _ => {}
             }
         }
@@ -3950,50 +4232,13 @@ impl<'a> Resolver<'a> {
         }
         match node.kind {
             SyntaxKind::Model => {
-                let name = Self::decl_name(text, node, &["export"]).map(|(n, _)| n);
-                let model = name.as_deref().and_then(|n| self.lookup_prod(module, n));
-                let parent = match model {
-                    Some(ScopedName::Local(id)) => match &self.tables.symbols[id.0 as usize].kind {
-                        SymbolKind::Model {
-                            owner: ModelOwner::ChildOf(p),
-                            ..
-                        } => Some(*p),
-                        _ => None,
-                    },
-                    _ => None,
-                };
-                let scope = match parent {
-                    Some(model) => {
-                        let scope =
-                            self.with_facts(root, ActorKind::NonNull, true, true, node.span)?;
-                        self.tables.scopes[scope.0 as usize].bindings.insert(
-                            "parent".to_string(),
-                            Binding::Context(ContextVar::Parent { model }),
-                        );
-                        scope
-                    }
-                    None => self.with_facts(root, ActorKind::NonNull, true, true, node.span)?,
-                };
-                for field in node.children.iter().filter(|c| c.kind == SyntaxKind::Field) {
-                    self.resolve_field_parts(text, module, scope, None, field, false, diags)?;
-                }
-                if let Some(label) = attribute_value(node, "label", text) {
-                    self.resolve_caption(text, module, label, diags);
-                }
+                self.resolve_given_model_body(text, module, root, node, diags)?;
             }
             SyntaxKind::Contract | SyntaxKind::Event => {
-                let scope = self.with_facts(root, ActorKind::NonNull, true, true, node.span)?;
-                for field in node.children.iter().filter(|c| c.kind == SyntaxKind::Field) {
-                    self.resolve_field_parts(text, module, scope, None, field, false, diags)?;
-                }
-                if let Some(label) = attribute_value(node, "label", text) {
-                    self.resolve_caption(text, module, label, diags);
-                }
+                self.resolve_given_schema_body(text, module, root, node, diags)?;
             }
             SyntaxKind::Role => {
-                if let Some(label) = attribute_value(node, "label", text) {
-                    self.resolve_caption(text, module, label, diags);
-                }
+                self.resolve_given_label(text, module, node, diags);
             }
             SyntaxKind::Derive => {
                 self.resolve_derive_body(file, text, module, root, node, diags)?
@@ -4001,30 +4246,7 @@ impl<'a> Resolver<'a> {
             SyntaxKind::Fixture => self.resolve_fixture(text, module, root, node, diags)?,
             SyntaxKind::Capability => self.resolve_capability(text, module, root, node, diags)?,
             SyntaxKind::Judgment => {
-                for item in kids(node)
-                    .into_iter()
-                    .filter(|n| n.kind == SyntaxKind::JudgmentItem)
-                {
-                    for part in kids(item) {
-                        if matches!(
-                            part.kind,
-                            SyntaxKind::Literal | SyntaxKind::MessageValue | SyntaxKind::Path
-                        ) {
-                            self.resolve_caption(text, module, part, diags);
-                        } else if part.kind == SyntaxKind::JudgmentOption {
-                            for caption in kids(part).into_iter().filter(|n| {
-                                matches!(
-                                    n.kind,
-                                    SyntaxKind::Literal
-                                        | SyntaxKind::MessageValue
-                                        | SyntaxKind::Path
-                                )
-                            }) {
-                                self.resolve_caption(text, module, caption, diags);
-                            }
-                        }
-                    }
-                }
+                self.resolve_given_judgment(text, module, node, diags);
             }
             SyntaxKind::Message => self.resolve_message(text, module, root, node, diags)?,
             SyntaxKind::Policy | SyntaxKind::Unique | SyntaxKind::Lock | SyntaxKind::Retain => {
@@ -4036,6 +4258,103 @@ impl<'a> Resolver<'a> {
             _ => {}
         }
         Ok(())
+    }
+
+    fn resolve_given_model_body(
+        &mut self,
+        text: &'a str,
+        module: ModuleId,
+        root: ScopeId,
+        node: &SyntaxNode,
+        diags: &mut Vec<Diagnostic>,
+    ) -> Result<(), Diagnostic> {
+        let name = Self::decl_name(text, node, &["export"]).map(|(n, _)| n);
+        let model = name.as_deref().and_then(|n| self.lookup_prod(module, n));
+        let parent = match model {
+            Some(ScopedName::Local(id)) => match &self.tables.symbols[id.0 as usize].kind {
+                SymbolKind::Model {
+                    owner: ModelOwner::ChildOf(p),
+                    ..
+                } => Some(*p),
+                _ => None,
+            },
+            _ => None,
+        };
+        let scope = match parent {
+            Some(model) => {
+                let scope = self.with_facts(root, ActorKind::NonNull, true, true, node.span)?;
+                self.tables.scopes[scope.0 as usize].bindings.insert(
+                    "parent".to_string(),
+                    Binding::Context(ContextVar::Parent { model }),
+                );
+                scope
+            }
+            None => self.with_facts(root, ActorKind::NonNull, true, true, node.span)?,
+        };
+        for field in node.children.iter().filter(|c| c.kind == SyntaxKind::Field) {
+            self.resolve_field_parts(text, module, scope, None, field, false, diags)?;
+        }
+        self.resolve_given_label(text, module, node, diags);
+        Ok(())
+    }
+
+    fn resolve_given_label(
+        &mut self,
+        text: &'a str,
+        module: ModuleId,
+        node: &SyntaxNode,
+        diags: &mut Vec<Diagnostic>,
+    ) {
+        if let Some(label) = attribute_value(node, "label", text) {
+            self.resolve_caption(text, module, label, diags);
+        }
+    }
+
+    fn resolve_given_schema_body(
+        &mut self,
+        text: &'a str,
+        module: ModuleId,
+        root: ScopeId,
+        node: &SyntaxNode,
+        diags: &mut Vec<Diagnostic>,
+    ) -> Result<(), Diagnostic> {
+        let scope = self.with_facts(root, ActorKind::NonNull, true, true, node.span)?;
+        for field in node.children.iter().filter(|c| c.kind == SyntaxKind::Field) {
+            self.resolve_field_parts(text, module, scope, None, field, false, diags)?;
+        }
+        self.resolve_given_label(text, module, node, diags);
+        Ok(())
+    }
+
+    fn resolve_given_judgment(
+        &mut self,
+        text: &'a str,
+        module: ModuleId,
+        node: &SyntaxNode,
+        diags: &mut Vec<Diagnostic>,
+    ) {
+        for item in kids(node)
+            .into_iter()
+            .filter(|n| n.kind == SyntaxKind::JudgmentItem)
+        {
+            for part in kids(item) {
+                if matches!(
+                    part.kind,
+                    SyntaxKind::Literal | SyntaxKind::MessageValue | SyntaxKind::Path
+                ) {
+                    self.resolve_caption(text, module, part, diags);
+                } else if part.kind == SyntaxKind::JudgmentOption {
+                    for caption in kids(part).into_iter().filter(|n| {
+                        matches!(
+                            n.kind,
+                            SyntaxKind::Literal | SyntaxKind::MessageValue | SyntaxKind::Path
+                        )
+                    }) {
+                        self.resolve_caption(text, module, caption, diags);
+                    }
+                }
+            }
+        }
     }
 
     fn resolve_invariant(
@@ -4164,74 +4483,100 @@ impl<'a> Resolver<'a> {
             }
         }
         if is_function {
-            let name = parts
-                .iter()
-                .find(|n| n.kind == SyntaxKind::Path)
-                .map(|p| path_segments(p, text).join("."))
-                .unwrap_or_default();
-            let params = match self.lookup_prod(module, &name) {
-                Some(ScopedName::Local(id)) => match &self.tables.symbols[id.0 as usize].kind {
-                    SymbolKind::DeriveFn { params, .. } => params.clone(),
-                    _ => Vec::new(),
-                },
-                _ => Vec::new(),
-            };
-            self.resolve_param_defaults(text, module, root, node, &params, diags)?;
-            let mut scope = self.with_facts(root, ActorKind::Nullable, true, true, node.span)?;
-            for param in &params {
-                let name = self.tables.symbols[param.0 as usize].name.clone();
-                let span = self.tables.symbols[param.0 as usize].span;
-                if self.param_hides_contextual(scope, &name) {
-                    diags.push(Diagnostic::error(
-                        "E2012",
-                        format!("parameter '{name}' hides the active contextual fact '{name}'"),
-                        span,
-                    ));
-                } else {
-                    self.tables.scopes[scope.0 as usize]
-                        .bindings
-                        .insert(name, Binding::Symbol(*param));
-                }
-                let _ = &mut scope;
-            }
-            for part in parts {
-                if is_expression(part.kind) {
-                    self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags)?;
-                }
-            }
+            self.resolve_derive_function(text, module, root, node, parts, diags)?;
         } else {
-            let path = parts.iter().find(|n| n.kind == SyntaxKind::Path);
-            let model = path.and_then(|p| {
-                let segments = path_segments(p, text);
-                if segments.len() == 2 {
-                    match self.lookup_prod(module, segments[0]) {
-                        Some(ScopedName::Local(id)) => Some(id),
-                        _ => None,
-                    }
-                } else {
-                    None
-                }
-            });
-            let mut scope = self.with_facts(root, ActorKind::Nullable, true, true, node.span)?;
-            if let Some(model) = model {
-                scope = self.with_row(scope, model, node.span)?;
+            self.resolve_derive_rule(text, module, root, node, parts, diags)?;
+        }
+        Ok(())
+    }
+
+    fn resolve_derive_function(
+        &mut self,
+        text: &'a str,
+        module: ModuleId,
+        root: ScopeId,
+        node: &SyntaxNode,
+        parts: Vec<&SyntaxNode>,
+        diags: &mut Vec<Diagnostic>,
+    ) -> Result<(), Diagnostic> {
+        let name = parts
+            .iter()
+            .find(|n| n.kind == SyntaxKind::Path)
+            .map(|p| path_segments(p, text).join("."))
+            .unwrap_or_default();
+        let params = match self.lookup_prod(module, &name) {
+            Some(ScopedName::Local(id)) => match &self.tables.symbols[id.0 as usize].kind {
+                SymbolKind::DeriveFn { params, .. } => params.clone(),
+                _ => Vec::new(),
+            },
+            _ => Vec::new(),
+        };
+        self.resolve_param_defaults(text, module, root, node, &params, diags)?;
+        let mut scope = self.with_facts(root, ActorKind::Nullable, true, true, node.span)?;
+        for param in &params {
+            let name = self.tables.symbols[param.0 as usize].name.clone();
+            let span = self.tables.symbols[param.0 as usize].span;
+            if self.param_hides_contextual(scope, &name) {
+                diags.push(Diagnostic::error(
+                    "E2012",
+                    format!("parameter '{name}' hides the active contextual fact '{name}'"),
+                    span,
+                ));
+            } else {
+                self.tables.scopes[scope.0 as usize]
+                    .bindings
+                    .insert(name, Binding::Symbol(*param));
             }
-            for part in parts {
-                if is_type_node(part.kind) {
-                    continue;
-                }
-                if is_expression(part.kind) {
-                    self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags)?;
-                } else if is_name(part, text, "label") {
-                    continue;
-                }
+            let _ = &mut scope;
+        }
+        for part in parts {
+            if is_expression(part.kind) {
+                self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags)?;
             }
-            for (i, part) in kids(node).iter().enumerate() {
-                if is_name(part, text, "label")
-                    && let Some(caption) = kids(node).get(i + 2)
-                {
-                    self.resolve_caption(text, module, caption, diags);
+        }
+        Ok(())
+    }
+
+    fn resolve_derive_rule(
+        &mut self,
+        text: &'a str,
+        module: ModuleId,
+        root: ScopeId,
+        node: &SyntaxNode,
+        parts: Vec<&SyntaxNode>,
+        diags: &mut Vec<Diagnostic>,
+    ) -> Result<(), Diagnostic> {
+        let path = parts.iter().find(|n| n.kind == SyntaxKind::Path);
+        let model = path.and_then(|p| {
+            let segments = path_segments(p, text);
+            if segments.len() == 2 {
+                match self.lookup_prod(module, segments[0]) {
+                    Some(ScopedName::Local(id)) => Some(id),
+                    _ => None,
                 }
+            } else {
+                None
+            }
+        });
+        let mut scope = self.with_facts(root, ActorKind::Nullable, true, true, node.span)?;
+        if let Some(model) = model {
+            scope = self.with_row(scope, model, node.span)?;
+        }
+        for part in parts {
+            if is_type_node(part.kind) {
+                continue;
+            }
+            if is_expression(part.kind) {
+                self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags)?;
+            } else if is_name(part, text, "label") {
+                continue;
+            }
+        }
+        for (i, part) in kids(node).iter().enumerate() {
+            if is_name(part, text, "label")
+                && let Some(caption) = kids(node).get(i + 2)
+            {
+                self.resolve_caption(text, module, caption, diags);
             }
         }
         Ok(())
@@ -4761,46 +5106,60 @@ impl<'a> Resolver<'a> {
                 }
             }
             SyntaxKind::EnumType => {
-                let mut seen: HashSet<String> = HashSet::new();
-                for child in kids(node) {
-                    if child.kind != SyntaxKind::Path {
-                        continue;
-                    }
-                    for case in path_segments(child, text) {
-                        if !seen.insert(case.to_string()) {
-                            diags.push(Diagnostic::error(
-                                "E2002",
-                                format!("duplicate enum case '{case}'"),
-                                child.span,
-                            ));
-                        }
-                    }
-                }
+                Self::resolve_enum_cases(text, node, diags);
             }
             SyntaxKind::ActionType | SyntaxKind::DeliveryType | SyntaxKind::InvocationType => {
-                for child in kids(node) {
-                    if child.kind != SyntaxKind::Path {
-                        continue;
-                    }
-                    let segments = path_segments(child, text);
-                    // Bound-import targets have no local symbol: record
-                    // the canonical `provider.name` (aliases resolve to
-                    // the original member name, never the alias).
-                    if segments.len() == 1
-                        && let Some(ScopedName::External { provider, name }) =
-                            self.lookup_prod(module, segments[0])
-                    {
-                        self.tables
-                            .node_external_op
-                            .insert(NodeKey::of(child), format!("{provider}.{name}"));
-                        continue;
-                    }
-                    if let Some(op) = self.resolve_op_path(module, &segments, child, text, diags) {
-                        self.tables.node_symbol.insert(NodeKey::of(child), op);
-                    }
-                }
+                self.resolve_op_type_path(module, text, node, diags);
             }
             _ => {}
+        }
+    }
+
+    fn resolve_enum_cases(text: &str, node: &SyntaxNode, diags: &mut Vec<Diagnostic>) {
+        let mut seen: HashSet<String> = HashSet::new();
+        for child in kids(node) {
+            if child.kind != SyntaxKind::Path {
+                continue;
+            }
+            for case in path_segments(child, text) {
+                if !seen.insert(case.to_string()) {
+                    diags.push(Diagnostic::error(
+                        "E2002",
+                        format!("duplicate enum case '{case}'"),
+                        child.span,
+                    ));
+                }
+            }
+        }
+    }
+
+    fn resolve_op_type_path(
+        &mut self,
+        module: ModuleId,
+        text: &'a str,
+        node: &SyntaxNode,
+        diags: &mut Vec<Diagnostic>,
+    ) {
+        for child in kids(node) {
+            if child.kind != SyntaxKind::Path {
+                continue;
+            }
+            let segments = path_segments(child, text);
+            // Bound-import targets have no local symbol: record
+            // the canonical `provider.name` (aliases resolve to
+            // the original member name, never the alias).
+            if segments.len() == 1
+                && let Some(ScopedName::External { provider, name }) =
+                    self.lookup_prod(module, segments[0])
+            {
+                self.tables
+                    .node_external_op
+                    .insert(NodeKey::of(child), format!("{provider}.{name}"));
+                continue;
+            }
+            if let Some(op) = self.resolve_op_path(module, &segments, child, text, diags) {
+                self.tables.node_symbol.insert(NodeKey::of(child), op);
+            }
         }
     }
 
@@ -5233,6 +5592,27 @@ impl<'a> Resolver<'a> {
         node: &SyntaxNode,
         diags: &mut Vec<Diagnostic>,
     ) -> Result<(), Diagnostic> {
+        let (name, params, trusted) = self.resolve_scenario_header(text, module, node);
+        self.resolve_param_defaults(text, module, root, node, &params, diags)?;
+        if let Some(result) = result_annotation(node) {
+            self.resolve_type(text, module, result, diags);
+        }
+        self.resolve_scenario_labels(text, module, node, diags);
+        if trusted {
+            self.resolve_trusted_execution(text, module, root, node, diags)?;
+        } else {
+            self.resolve_untrusted_execution(text, module, root, node, &params, diags)?;
+        }
+        self.resolve_scenario_examples(text, module, root, node, name, &params, trusted, diags)?;
+        Ok(())
+    }
+
+    fn resolve_scenario_header(
+        &self,
+        text: &str,
+        module: ModuleId,
+        node: &SyntaxNode,
+    ) -> (Option<String>, Vec<SymbolId>, bool) {
         let name = Self::decl_name(text, node, &["export", "scenario"]).map(|(n, _)| n);
         // A handler whose declaration failed (duplicate or closed
         // builtin name, `E2002`) has no symbol; its body still
@@ -5252,10 +5632,16 @@ impl<'a> Resolver<'a> {
             },
             _ => (Vec::new(), cst_trusted),
         };
-        self.resolve_param_defaults(text, module, root, node, &params, diags)?;
-        if let Some(result) = result_annotation(node) {
-            self.resolve_type(text, module, result, diags);
-        }
+        (name, params, trusted)
+    }
+
+    fn resolve_scenario_labels(
+        &mut self,
+        text: &'a str,
+        module: ModuleId,
+        node: &SyntaxNode,
+        diags: &mut Vec<Diagnostic>,
+    ) {
         for child in kids(node) {
             if child.kind != SyntaxKind::Attribute {
                 continue;
@@ -5267,66 +5653,96 @@ impl<'a> Resolver<'a> {
                 self.resolve_caption(text, module, value, diags);
             }
         }
-        if trusted {
-            let actor = if self.hook_has_authenticated_crud(text, module, node) {
-                ActorKind::NonNull
-            } else {
-                ActorKind::Null
-            };
-            let mut scope = self.with_facts(root, actor, true, true, node.span)?;
-            self.tables.scopes[scope.0 as usize]
-                .bindings
-                .insert("event".to_string(), Binding::Context(ContextVar::Event));
-            self.bind_cohort_child(text, module, scope, node, diags);
-            let _ = &mut scope;
-            self.resolve_execution(text, module, scope, node, diags)?;
+    }
+
+    fn resolve_trusted_execution(
+        &mut self,
+        text: &'a str,
+        module: ModuleId,
+        root: ScopeId,
+        node: &SyntaxNode,
+        diags: &mut Vec<Diagnostic>,
+    ) -> Result<(), Diagnostic> {
+        let actor = if self.hook_has_authenticated_crud(text, module, node) {
+            ActorKind::NonNull
         } else {
-            if let Some(by) = node.children.iter().find_map(|c| {
-                if c.kind == SyntaxKind::Attribute {
-                    attribute_parts(c).and_then(|(k, v)| is_name(k, text, "by").then_some(v))
-                } else {
-                    None
-                }
-            }) {
-                let mut scope =
-                    self.with_facts(root, ActorKind::Nullable, false, true, node.span)?;
-                for param in &params {
-                    let name = self.tables.symbols[param.0 as usize].name.clone();
-                    self.tables.scopes[scope.0 as usize]
-                        .bindings
-                        .insert(name, Binding::Symbol(*param));
-                }
-                let _ = &mut scope;
-                self.walk_expr(module, scope, by, text, ExprCtx::bare(), diags)?;
-            }
-            let actor = if node.children.iter().any(|c| {
-                c.kind == SyntaxKind::Attribute
-                    && attribute_parts(c)
-                        .is_some_and(|(k, v)| is_name(k, text, "by") && self.proves_auth(v, text))
-            }) {
-                ActorKind::NonNull
+            ActorKind::Null
+        };
+        let mut scope = self.with_facts(root, actor, true, true, node.span)?;
+        self.tables.scopes[scope.0 as usize]
+            .bindings
+            .insert("event".to_string(), Binding::Context(ContextVar::Event));
+        self.bind_cohort_child(text, module, scope, node, diags);
+        let _ = &mut scope;
+        self.resolve_execution(text, module, scope, node, diags)
+    }
+
+    fn resolve_untrusted_execution(
+        &mut self,
+        text: &'a str,
+        module: ModuleId,
+        root: ScopeId,
+        node: &SyntaxNode,
+        params: &[SymbolId],
+        diags: &mut Vec<Diagnostic>,
+    ) -> Result<(), Diagnostic> {
+        if let Some(by) = node.children.iter().find_map(|c| {
+            if c.kind == SyntaxKind::Attribute {
+                attribute_parts(c).and_then(|(k, v)| is_name(k, text, "by").then_some(v))
             } else {
-                ActorKind::Nullable
-            };
-            let mut scope = self.with_facts(root, actor, true, true, node.span)?;
-            for param in &params {
+                None
+            }
+        }) {
+            let mut scope = self.with_facts(root, ActorKind::Nullable, false, true, node.span)?;
+            for param in params {
                 let name = self.tables.symbols[param.0 as usize].name.clone();
-                let span = self.tables.symbols[param.0 as usize].span;
-                if self.param_hides_contextual(scope, &name) {
-                    diags.push(Diagnostic::error(
-                        "E2012",
-                        format!("parameter '{name}' hides the active contextual fact '{name}'"),
-                        span,
-                    ));
-                } else {
-                    self.tables.scopes[scope.0 as usize]
-                        .bindings
-                        .insert(name, Binding::Symbol(*param));
-                }
+                self.tables.scopes[scope.0 as usize]
+                    .bindings
+                    .insert(name, Binding::Symbol(*param));
             }
             let _ = &mut scope;
-            self.resolve_execution(text, module, scope, node, diags)?;
+            self.walk_expr(module, scope, by, text, ExprCtx::bare(), diags)?;
         }
+        let actor = if node.children.iter().any(|c| {
+            c.kind == SyntaxKind::Attribute
+                && attribute_parts(c)
+                    .is_some_and(|(k, v)| is_name(k, text, "by") && self.proves_auth(v, text))
+        }) {
+            ActorKind::NonNull
+        } else {
+            ActorKind::Nullable
+        };
+        let mut scope = self.with_facts(root, actor, true, true, node.span)?;
+        for param in params {
+            let name = self.tables.symbols[param.0 as usize].name.clone();
+            let span = self.tables.symbols[param.0 as usize].span;
+            if self.param_hides_contextual(scope, &name) {
+                diags.push(Diagnostic::error(
+                    "E2012",
+                    format!("parameter '{name}' hides the active contextual fact '{name}'"),
+                    span,
+                ));
+            } else {
+                self.tables.scopes[scope.0 as usize]
+                    .bindings
+                    .insert(name, Binding::Symbol(*param));
+            }
+        }
+        let _ = &mut scope;
+        self.resolve_execution(text, module, scope, node, diags)
+    }
+
+    fn resolve_scenario_examples(
+        &mut self,
+        text: &'a str,
+        module: ModuleId,
+        root: ScopeId,
+        node: &SyntaxNode,
+        name: Option<String>,
+        params: &[SymbolId],
+        trusted: bool,
+        diags: &mut Vec<Diagnostic>,
+    ) -> Result<(), Diagnostic> {
         let example_root = self.new_scope(Some(root), node.span)?;
         if let Some(ScopedName::Local(id)) =
             name.as_deref().and_then(|n| self.lookup_prod(module, n))
@@ -5344,7 +5760,7 @@ impl<'a> Resolver<'a> {
                 .bindings
                 .insert("event".into(), Binding::Context(ContextVar::Event));
         }
-        for param in &params {
+        for param in params {
             self.tables.scopes[example_root.0 as usize].bindings.insert(
                 self.tables.symbols[param.0 as usize].name.clone(),
                 Binding::Symbol(*param),
@@ -5379,26 +5795,7 @@ impl<'a> Resolver<'a> {
         let header_test_root = self.test_root(module, header_root, node.span)?;
         let header_scope =
             self.with_facts(header_test_root, ActorKind::NonNull, true, false, node.span)?;
-        for child in kids(node) {
-            if child.kind == SyntaxKind::Attribute
-                && let Some((key, value)) = attribute_parts(child)
-            {
-                self.walk_expr(module, header_scope, value, text, ExprCtx::bare(), diags)?;
-                if let Some(name) = name_text(key, text)
-                    && name != "seed"
-                    && self
-                        .tables
-                        .resolve_name(scope, name, self.catalog)
-                        .is_none()
-                    && let Some(binding) =
-                        self.tables.node_binding.get(&NodeKey::of(value)).cloned()
-                {
-                    self.tables.scopes[scope.0 as usize]
-                        .bindings
-                        .insert(name.to_string(), binding);
-                }
-            }
-        }
+        self.resolve_example_attributes(module, header_scope, scope, text, node, diags)?;
         // Only table observations inspect the completed mutation request.
         // Setup, expected cells and sequence expressions have no such context.
         let observation_scope = self.new_scope(Some(scope), node.span)?;
@@ -5423,128 +5820,232 @@ impl<'a> Resolver<'a> {
             .filter(|n| n.kind == SyntaxKind::ExampleRow)
             .collect();
         for (index, row) in rows.iter().enumerate() {
-            let mut expected = false;
-            for part in kids(row) {
-                if is_punct(part, text, "->") {
-                    expected = true;
-                }
-                // Resolve only input selectors with a known lexical root; E5 owns
-                // selector vocabulary, request envelopes and caller profiles.
-                if index == 0 && !expected && is_expression(part.kind) {
-                    let mut root_node = part;
-                    while root_node.kind == SyntaxKind::Member {
-                        if let Some(base) =
-                            kids(root_node).into_iter().find(|n| is_expression(n.kind))
-                        {
-                            root_node = base;
-                        } else {
-                            break;
-                        }
-                    }
-                    if let Some(word) = kids(root_node).into_iter().find_map(|n| name_text(n, text))
-                        && word != "as"
-                        && word != "request"
-                        && self
-                            .tables
-                            .resolve_name(scope, word, self.catalog)
-                            .is_some()
-                    {
-                        self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags)?;
-                    }
-                }
-                if is_expression(part.kind) && (index != 0 || expected) {
-                    // Caller selectors (roles, predicates and arrays) have their own E5 profile.
-                    let caller_column = index != 0
-                        && !expected
-                        && rows.first().is_some_and(|header| {
-                            let inputs: Vec<_> = kids(header)
-                                .into_iter()
-                                .take_while(|n| !is_punct(n, text, "->"))
-                                .filter(|n| is_expression(n.kind))
-                                .collect();
-                            let cells: Vec<_> = kids(row)
-                                .into_iter()
-                                .take_while(|n| !is_punct(n, text, "->"))
-                                .filter(|n| is_expression(n.kind))
-                                .collect();
-                            cells
-                                .iter()
-                                .position(|n| NodeKey::of(n) == NodeKey::of(part))
-                                .and_then(|i| inputs.get(i))
-                                .is_some_and(|n| {
-                                    text[n.span.start as usize..n.span.end as usize].trim() == "as"
-                                })
-                        });
-                    if !caller_column {
-                        let expression_scope = if index == 0 && expected {
-                            observation_scope
-                        } else {
-                            scope
-                        };
-                        self.walk_expr(
-                            module,
-                            expression_scope,
-                            part,
-                            text,
-                            ExprCtx::bare(),
-                            diags,
-                        )?;
-                    }
-                }
-            }
+            self.walk_example_row(
+                module,
+                scope,
+                observation_scope,
+                text,
+                &rows,
+                index,
+                row,
+                diags,
+            )?;
         }
         if let Some(body) = kids(node)
             .into_iter()
             .find(|n| n.kind == SyntaxKind::DoBlock)
         {
-            let mut active = self.new_scope(Some(scope), body.span)?;
-            for step in kids(body) {
-                match step.kind {
-                    SyntaxKind::Let => self.walk_statement(text, module, active, step, diags)?,
-                    SyntaxKind::ExampleAssert => {
-                        for part in kids(step) {
-                            if is_expression(part.kind) {
-                                self.walk_expr(module, active, part, text, ExprCtx::bare(), diags)?;
-                            }
-                        }
-                    }
-                    SyntaxKind::ExampleCall => {
-                        let parts = kids(step);
-                        let target = parts.iter().find(|n| is_expression(n.kind)).copied();
-                        if let Some(target) = target {
-                            self.walk_expr(module, active, target, text, ExprCtx::bare(), diags)?;
-                        }
-                        for part in &parts {
-                            if part.kind == SyntaxKind::Object {
-                                self.walk_expr(module, active, part, text, ExprCtx::bare(), diags)?;
-                            }
-                        }
-                        let next = self.new_scope(Some(active), step.span)?;
-                        if let Some(target) = target {
-                            self.bind_result(module, text, next, target);
-                            if parts.iter().any(|n| n.kind == SyntaxKind::ExpectedError) {
-                                self.tables.scopes[next.0 as usize]
-                                    .bindings
-                                    .insert("result".into(), Binding::Error);
-                            } else if let Some((name, _)) = as_binding(step, text) {
-                                let binding = self.tables.scopes[next.0 as usize]
-                                    .bindings
-                                    .get("result")
-                                    .cloned()
-                                    .unwrap_or(Binding::Error);
-                                self.tables.scopes[next.0 as usize]
-                                    .bindings
-                                    .insert(name, binding);
-                            }
-                        }
-                        active = next;
-                    }
-                    _ => {}
-                }
-            }
+            self.walk_example_body(text, module, scope, body, diags)?;
         }
         self.tables.unresolved_names.truncate(unresolved_before);
         Ok(())
+    }
+
+    fn resolve_example_attributes(
+        &mut self,
+        module: ModuleId,
+        header_scope: ScopeId,
+        scope: ScopeId,
+        text: &'a str,
+        node: &SyntaxNode,
+        diags: &mut Vec<Diagnostic>,
+    ) -> Result<(), Diagnostic> {
+        for child in kids(node) {
+            if child.kind == SyntaxKind::Attribute
+                && let Some((key, value)) = attribute_parts(child)
+            {
+                self.walk_expr(module, header_scope, value, text, ExprCtx::bare(), diags)?;
+                if let Some(name) = name_text(key, text)
+                    && name != "seed"
+                    && self
+                        .tables
+                        .resolve_name(scope, name, self.catalog)
+                        .is_none()
+                    && let Some(binding) =
+                        self.tables.node_binding.get(&NodeKey::of(value)).cloned()
+                {
+                    self.tables.scopes[scope.0 as usize]
+                        .bindings
+                        .insert(name.to_string(), binding);
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn walk_example_row(
+        &mut self,
+        module: ModuleId,
+        scope: ScopeId,
+        observation_scope: ScopeId,
+        text: &'a str,
+        rows: &[&SyntaxNode],
+        index: usize,
+        row: &SyntaxNode,
+        diags: &mut Vec<Diagnostic>,
+    ) -> Result<(), Diagnostic> {
+        let mut expected = false;
+        for part in kids(row) {
+            if is_punct(part, text, "->") {
+                expected = true;
+            }
+            // Resolve only input selectors with a known lexical root; E5 owns
+            // selector vocabulary, request envelopes and caller profiles.
+            if index == 0 && !expected && is_expression(part.kind) {
+                self.walk_example_input(module, scope, text, part, diags)?;
+            }
+            if is_expression(part.kind) && (index != 0 || expected) {
+                // Caller selectors (roles, predicates and arrays) have their own E5 profile.
+                let caller_column =
+                    self.is_caller_column(text, rows, row, part, index, expected);
+                if !caller_column {
+                    let expression_scope = if index == 0 && expected {
+                        observation_scope
+                    } else {
+                        scope
+                    };
+                    self.walk_expr(
+                        module,
+                        expression_scope,
+                        part,
+                        text,
+                        ExprCtx::bare(),
+                        diags,
+                    )?;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn walk_example_input(
+        &mut self,
+        module: ModuleId,
+        scope: ScopeId,
+        text: &'a str,
+        part: &SyntaxNode,
+        diags: &mut Vec<Diagnostic>,
+    ) -> Result<(), Diagnostic> {
+        let mut root_node = part;
+        while root_node.kind == SyntaxKind::Member {
+            if let Some(base) =
+                kids(root_node).into_iter().find(|n| is_expression(n.kind))
+            {
+                root_node = base;
+            } else {
+                break;
+            }
+        }
+        if let Some(word) = kids(root_node).into_iter().find_map(|n| name_text(n, text))
+            && word != "as"
+            && word != "request"
+            && self
+                .tables
+                .resolve_name(scope, word, self.catalog)
+                .is_some()
+        {
+            self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags)?;
+        }
+        Ok(())
+    }
+
+    fn is_caller_column(
+        &self,
+        text: &str,
+        rows: &[&SyntaxNode],
+        row: &SyntaxNode,
+        part: &SyntaxNode,
+        index: usize,
+        expected: bool,
+    ) -> bool {
+        index != 0
+            && !expected
+            && rows.first().is_some_and(|header| {
+                let inputs: Vec<_> = kids(header)
+                    .into_iter()
+                    .take_while(|n| !is_punct(n, text, "->"))
+                    .filter(|n| is_expression(n.kind))
+                    .collect();
+                let cells: Vec<_> = kids(row)
+                    .into_iter()
+                    .take_while(|n| !is_punct(n, text, "->"))
+                    .filter(|n| is_expression(n.kind))
+                    .collect();
+                cells
+                    .iter()
+                    .position(|n| NodeKey::of(n) == NodeKey::of(part))
+                    .and_then(|i| inputs.get(i))
+                    .is_some_and(|n| {
+                        text[n.span.start as usize..n.span.end as usize].trim() == "as"
+                    })
+            })
+    }
+
+    fn walk_example_body(
+        &mut self,
+        text: &'a str,
+        module: ModuleId,
+        scope: ScopeId,
+        body: &SyntaxNode,
+        diags: &mut Vec<Diagnostic>,
+    ) -> Result<(), Diagnostic> {
+        let mut active = self.new_scope(Some(scope), body.span)?;
+        for step in kids(body) {
+            match step.kind {
+                SyntaxKind::Let => self.walk_statement(text, module, active, step, diags)?,
+                SyntaxKind::ExampleAssert => {
+                    for part in kids(step) {
+                        if is_expression(part.kind) {
+                            self.walk_expr(module, active, part, text, ExprCtx::bare(), diags)?;
+                        }
+                    }
+                }
+                SyntaxKind::ExampleCall => {
+                    active = self.walk_example_call(text, module, active, step, diags)?;
+                }
+                _ => {}
+            }
+        }
+        Ok(())
+    }
+
+    fn walk_example_call(
+        &mut self,
+        text: &'a str,
+        module: ModuleId,
+        active: ScopeId,
+        step: &SyntaxNode,
+        diags: &mut Vec<Diagnostic>,
+    ) -> Result<ScopeId, Diagnostic> {
+        let parts = kids(step);
+        let target = parts.iter().find(|n| is_expression(n.kind)).copied();
+        if let Some(target) = target {
+            self.walk_expr(module, active, target, text, ExprCtx::bare(), diags)?;
+        }
+        for part in &parts {
+            if part.kind == SyntaxKind::Object {
+                self.walk_expr(module, active, part, text, ExprCtx::bare(), diags)?;
+            }
+        }
+        let next = self.new_scope(Some(active), step.span)?;
+        if let Some(target) = target {
+            self.bind_result(module, text, next, target);
+            if parts.iter().any(|n| n.kind == SyntaxKind::ExpectedError) {
+                self.tables.scopes[next.0 as usize]
+                    .bindings
+                    .insert("result".into(), Binding::Error);
+            } else if let Some((name, _)) = as_binding(step, text) {
+                let binding = self.tables.scopes[next.0 as usize]
+                    .bindings
+                    .get("result")
+                    .cloned()
+                    .unwrap_or(Binding::Error);
+                self.tables.scopes[next.0 as usize]
+                    .bindings
+                    .insert(name, binding);
+            }
+        }
+        Ok(next)
     }
 
     /// Walk leading guards and the `do` body with `scope`.
@@ -5672,272 +6173,447 @@ impl<'a> Resolver<'a> {
             return Ok(());
         }
         match node.kind {
-            SyntaxKind::Require => self.walk_guard(text, module, scope, node, diags)?,
-            SyntaxKind::Let => {
-                let parts = kids(node);
-                let name = parts.iter().find_map(|n| {
-                    let word = name_text(n, text)?;
-                    (word != "let").then(|| (word.to_string(), n.span))
-                });
-                for part in &parts {
-                    if is_expression(part.kind) {
-                        self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags)?;
-                    }
-                }
-                if let Some((name, span)) = name {
-                    self.bind_authored(
-                        scope,
-                        &name,
-                        Binding::Let {
-                            node: NodeKey::of(node),
-                        },
-                        span,
-                        "let",
-                        diags,
-                    );
-                }
+            SyntaxKind::Let
+            | SyntaxKind::Create
+            | SyntaxKind::Set
+            | SyntaxKind::Transition
+            | SyntaxKind::Delete
+            | SyntaxKind::Call
+            | SyntaxKind::Emit => {
+                self.walk_data_statement(text, module, scope, node, diags)?;
             }
-            SyntaxKind::Create => {
-                let parts = kids(node);
-                if let Some(path) = parts.iter().find(|n| n.kind == SyntaxKind::Path) {
-                    let segments = path_segments(path, text);
-                    self.resolve_model_path(module, &segments, path, text, diags);
-                }
-                if let Some(object) = parts.iter().find(|n| n.kind == SyntaxKind::Object) {
-                    self.walk_object_values(module, scope, object, text, diags)?;
-                }
-                if let Some(binding) = as_binding(node, text) {
-                    self.bind_authored(
-                        scope,
-                        &binding.0,
-                        Binding::CreateAs {
-                            node: NodeKey::of(node),
-                        },
-                        binding.1,
-                        "create binding",
-                        diags,
-                    );
-                }
-            }
-            SyntaxKind::Set => {
-                let parts = kids(node);
-                if let Some(target) = parts.iter().find(|n| n.kind == SyntaxKind::Path) {
-                    self.resolve_mutation_head(scope, target, text);
-                }
-                if let Some(object) = parts.iter().find(|n| n.kind == SyntaxKind::Object) {
-                    self.walk_object_values(module, scope, object, text, diags)?;
-                }
-            }
-            SyntaxKind::Transition | SyntaxKind::Delete => {
-                let parts = kids(node);
-                if let Some(target) = parts.iter().find(|n| n.kind == SyntaxKind::Path) {
-                    self.resolve_mutation_head(scope, target, text);
-                }
-            }
-            SyntaxKind::Call => {
-                let parts = kids(node);
-                for part in &parts {
-                    if is_expression(part.kind) {
-                        self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags)?;
-                    } else if part.kind == SyntaxKind::Object {
-                        self.walk_object_values(module, scope, part, text, diags)?;
-                    }
-                }
-                if let Some(binding) = as_binding(node, text) {
-                    self.bind_authored(
-                        scope,
-                        &binding.0,
-                        Binding::CallAs {
-                            node: NodeKey::of(node),
-                        },
-                        binding.1,
-                        "call binding",
-                        diags,
-                    );
-                }
-            }
-            SyntaxKind::Emit => {
-                let parts = kids(node);
-                if let Some(path) = parts.iter().find(|n| n.kind == SyntaxKind::Path) {
-                    let segments = path_segments(path, text);
-                    self.resolve_model_path(module, &segments, path, text, diags);
-                }
-                if let Some(object) = parts.iter().find(|n| n.kind == SyntaxKind::Object) {
-                    self.walk_object_values(module, scope, object, text, diags)?;
-                }
-            }
-            SyntaxKind::Send => {
-                let target = kids(node).into_iter().find(|n| is_expression(n.kind));
-                for part in kids(node) {
-                    let sink_target = target.is_some_and(|target| std::ptr::eq(target, part))
-                        && part.kind == SyntaxKind::Member
-                        && kids(part).first().is_some_and(|head| {
-                            head.kind == SyntaxKind::NameRef
-                                && kids(head)
-                                    .into_iter()
-                                    .find_map(|n| name_text(n, text))
-                                    .is_some_and(|name| {
-                                        self.context_sinks.contains(&(module, name.to_string()))
-                                            && self
-                                                .tables
-                                                .resolve_name(scope, name, self.catalog)
-                                                .is_none()
-                                    })
-                        });
-                    if sink_target {
-                        // The context declaration owns this deployment target;
-                        // its operation and inputs are checked by the typer.
-                        continue;
-                    }
-                    if is_expression(part.kind) {
-                        self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags)?;
-                    } else if part.kind == SyntaxKind::Object {
-                        self.walk_object_values(module, scope, part, text, diags)?;
-                    }
-                }
-                if let Some(binding) = as_binding(node, text) {
-                    self.bind_authored(
-                        scope,
-                        &binding.0,
-                        Binding::SendAs {
-                            node: NodeKey::of(node),
-                        },
-                        binding.1,
-                        "send binding",
-                        diags,
-                    );
-                }
-            }
-            SyntaxKind::Schedule => {
-                let parts = kids(node);
-                let mut event_path = None;
-                for (i, part) in parts.iter().enumerate() {
-                    if is_name(part, text, "event") {
-                        event_path = parts.get(i + 2).copied();
-                    }
-                }
-                for part in &parts {
-                    if is_expression(part.kind) {
-                        self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags)?;
-                    } else if part.kind == SyntaxKind::Path
-                        && event_path.is_some_and(|e| std::ptr::eq(*part, e))
-                    {
-                        let segments = path_segments(part, text);
-                        self.resolve_model_path(module, &segments, part, text, diags);
-                    } else if part.kind == SyntaxKind::Object {
-                        self.walk_object_values(module, scope, part, text, diags)?;
-                    }
-                }
-            }
-            SyntaxKind::Cancel | SyntaxKind::Return => {
-                for part in kids(node) {
-                    if is_expression(part.kind) {
-                        self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags)?;
-                    }
-                }
-            }
-            SyntaxKind::Match => {
-                let parts = kids(node);
-                if let Some(subject) = parts.iter().find(|part| is_expression(part.kind)) {
-                    self.walk_expr(module, scope, subject, text, ExprCtx::bare(), diags)?;
-                }
-                for arm in parts
-                    .iter()
-                    .filter(|part| part.kind == SyntaxKind::MatchArm)
-                {
-                    let arm_scope = self.new_scope(Some(scope), arm.span)?;
-                    // `case` and its raw label are not lexical expressions.
-                    for statement in kids(arm).into_iter().skip(2) {
-                        self.walk_statement(text, module, arm_scope, statement, diags)?;
-                    }
-                }
-            }
-            SyntaxKind::If => {
-                let parts = kids(node);
-                let mut else_at = None;
-                for (i, part) in parts.iter().enumerate() {
-                    if is_name(part, text, "else") {
-                        else_at = Some(i);
-                    }
-                }
-                let mut cond_done = false;
-                let then_scope = self.new_scope(Some(scope), node.span)?;
-                let else_scope = self.new_scope(Some(scope), node.span)?;
-                for (i, part) in parts.iter().enumerate() {
-                    if is_name(part, text, "if") || is_name(part, text, "else") {
-                        continue;
-                    }
-                    if !cond_done && is_expression(part.kind) {
-                        self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags)?;
-                        cond_done = true;
-                    } else if cond_done
-                        && !matches!(part.kind, SyntaxKind::Punct | SyntaxKind::Name)
-                    {
-                        // Any post-condition expression is a body `call`
-                        // statement; anything else here is a body
-                        // statement too.
-                        let target = if else_at.is_some_and(|at| i > at) {
-                            else_scope
-                        } else {
-                            then_scope
-                        };
-                        self.walk_statement(text, module, target, part, diags)?;
-                    }
-                }
-            }
-            SyntaxKind::For => {
-                let parts = kids(node);
-                let mut item: Option<(String, Span)> = None;
-                let mut limit_at = None;
-                for (i, part) in parts.iter().enumerate() {
-                    if is_name(part, text, "for")
-                        && let Some(name) = parts.get(i + 1).and_then(|n| name_text(n, text))
-                    {
-                        item = Some((name.to_string(), parts[i + 1].span));
-                    }
-                    if is_name(part, text, "limit") {
-                        limit_at = Some(i);
-                    }
-                }
-                // Header expressions (domain, then the `limit =` value)
-                // resolve in the outer scope; the body resolves in the
-                // item scope. Positions past the header are body
-                // statements, including `call` (an expression kind).
-                let mut header_end = 0;
-                let mut seen_domain = false;
-                for (i, part) in parts.iter().enumerate() {
-                    if !is_expression(part.kind) {
-                        continue;
-                    }
-                    let is_header = if !seen_domain {
-                        seen_domain = true;
-                        true
-                    } else {
-                        limit_at.is_some_and(|at| i == at + 2)
-                    };
-                    if is_header {
-                        self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags)?;
-                        header_end = i;
-                    }
-                }
-                let body = self.new_scope(Some(scope), node.span)?;
-                if let Some((name, span)) = item {
-                    self.bind_authored(
-                        body,
-                        &name,
-                        Binding::ForItem {
-                            node: NodeKey::of(node),
-                        },
-                        span,
-                        "for item",
-                        diags,
-                    );
-                }
-                for part in parts.iter().skip(header_end + 1) {
-                    self.walk_statement(text, module, body, part, diags)?;
-                }
+            SyntaxKind::Require
+            | SyntaxKind::Send
+            | SyntaxKind::Schedule
+            | SyntaxKind::Cancel
+            | SyntaxKind::Return
+            | SyntaxKind::Match
+            | SyntaxKind::If
+            | SyntaxKind::For => {
+                self.walk_control_statement(text, module, scope, node, diags)?;
             }
             _ => {}
+        }
+        Ok(())
+    }
+
+    fn walk_data_statement(
+        &mut self,
+        text: &'a str,
+        module: ModuleId,
+        scope: ScopeId,
+        node: &SyntaxNode,
+        diags: &mut Vec<Diagnostic>,
+    ) -> Result<(), Diagnostic> {
+        match node.kind {
+            SyntaxKind::Let => {
+                self.walk_let_statement(text, module, scope, node, diags)?;
+            }
+            SyntaxKind::Create => {
+                self.walk_create_statement(text, module, scope, node, diags)?;
+            }
+            SyntaxKind::Set => {
+                self.walk_set_statement(text, module, scope, node, diags)?;
+            }
+            SyntaxKind::Transition | SyntaxKind::Delete => {
+                self.walk_mutation_statement(scope, node, text);
+            }
+            SyntaxKind::Call => {
+                self.walk_call_statement(text, module, scope, node, diags)?;
+            }
+            SyntaxKind::Emit => {
+                self.walk_emit_statement(text, module, scope, node, diags)?;
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
+    fn walk_control_statement(
+        &mut self,
+        text: &'a str,
+        module: ModuleId,
+        scope: ScopeId,
+        node: &SyntaxNode,
+        diags: &mut Vec<Diagnostic>,
+    ) -> Result<(), Diagnostic> {
+        match node.kind {
+            SyntaxKind::Require => self.walk_guard(text, module, scope, node, diags)?,
+            SyntaxKind::Send => {
+                self.walk_send_statement(text, module, scope, node, diags)?;
+            }
+            SyntaxKind::Schedule => {
+                self.walk_schedule_statement(text, module, scope, node, diags)?;
+            }
+            SyntaxKind::Cancel | SyntaxKind::Return => {
+                self.walk_child_expressions(module, scope, node, text, diags)?;
+            }
+            SyntaxKind::Match => {
+                self.walk_match_statement(text, module, scope, node, diags)?;
+            }
+            SyntaxKind::If => {
+                self.walk_if_statement(text, module, scope, node, diags)?;
+            }
+            SyntaxKind::For => {
+                self.walk_for_statement(text, module, scope, node, diags)?;
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
+    fn walk_let_statement(
+        &mut self,
+        text: &'a str,
+        module: ModuleId,
+        scope: ScopeId,
+        node: &SyntaxNode,
+        diags: &mut Vec<Diagnostic>,
+    ) -> Result<(), Diagnostic> {
+        let parts = kids(node);
+        let name = parts.iter().find_map(|n| {
+            let word = name_text(n, text)?;
+            (word != "let").then(|| (word.to_string(), n.span))
+        });
+        for part in &parts {
+            if is_expression(part.kind) {
+                self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags)?;
+            }
+        }
+        if let Some((name, span)) = name {
+            self.bind_authored(
+                scope,
+                &name,
+                Binding::Let {
+                    node: NodeKey::of(node),
+                },
+                span,
+                "let",
+                diags,
+            );
+        }
+        Ok(())
+    }
+
+    fn walk_create_statement(
+        &mut self,
+        text: &'a str,
+        module: ModuleId,
+        scope: ScopeId,
+        node: &SyntaxNode,
+        diags: &mut Vec<Diagnostic>,
+    ) -> Result<(), Diagnostic> {
+        let parts = kids(node);
+        if let Some(path) = parts.iter().find(|n| n.kind == SyntaxKind::Path) {
+            let segments = path_segments(path, text);
+            self.resolve_model_path(module, &segments, path, text, diags);
+        }
+        if let Some(object) = parts.iter().find(|n| n.kind == SyntaxKind::Object) {
+            self.walk_object_values(module, scope, object, text, diags)?;
+        }
+        if let Some(binding) = as_binding(node, text) {
+            self.bind_authored(
+                scope,
+                &binding.0,
+                Binding::CreateAs {
+                    node: NodeKey::of(node),
+                },
+                binding.1,
+                "create binding",
+                diags,
+            );
+        }
+        Ok(())
+    }
+
+    fn walk_set_statement(
+        &mut self,
+        text: &'a str,
+        module: ModuleId,
+        scope: ScopeId,
+        node: &SyntaxNode,
+        diags: &mut Vec<Diagnostic>,
+    ) -> Result<(), Diagnostic> {
+        let parts = kids(node);
+        if let Some(target) = parts.iter().find(|n| n.kind == SyntaxKind::Path) {
+            self.resolve_mutation_head(scope, target, text);
+        }
+        if let Some(object) = parts.iter().find(|n| n.kind == SyntaxKind::Object) {
+            self.walk_object_values(module, scope, object, text, diags)?;
+        }
+        Ok(())
+    }
+
+    fn walk_mutation_statement(&mut self, scope: ScopeId, node: &SyntaxNode, text: &str) {
+        let parts = kids(node);
+        if let Some(target) = parts.iter().find(|n| n.kind == SyntaxKind::Path) {
+            self.resolve_mutation_head(scope, target, text);
+        }
+    }
+
+    fn walk_call_statement(
+        &mut self,
+        text: &'a str,
+        module: ModuleId,
+        scope: ScopeId,
+        node: &SyntaxNode,
+        diags: &mut Vec<Diagnostic>,
+    ) -> Result<(), Diagnostic> {
+        let parts = kids(node);
+        for part in &parts {
+            if is_expression(part.kind) {
+                self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags)?;
+            } else if part.kind == SyntaxKind::Object {
+                self.walk_object_values(module, scope, part, text, diags)?;
+            }
+        }
+        if let Some(binding) = as_binding(node, text) {
+            self.bind_authored(
+                scope,
+                &binding.0,
+                Binding::CallAs {
+                    node: NodeKey::of(node),
+                },
+                binding.1,
+                "call binding",
+                diags,
+            );
+        }
+        Ok(())
+    }
+
+    fn walk_emit_statement(
+        &mut self,
+        text: &'a str,
+        module: ModuleId,
+        scope: ScopeId,
+        node: &SyntaxNode,
+        diags: &mut Vec<Diagnostic>,
+    ) -> Result<(), Diagnostic> {
+        let parts = kids(node);
+        if let Some(path) = parts.iter().find(|n| n.kind == SyntaxKind::Path) {
+            let segments = path_segments(path, text);
+            self.resolve_model_path(module, &segments, path, text, diags);
+        }
+        if let Some(object) = parts.iter().find(|n| n.kind == SyntaxKind::Object) {
+            self.walk_object_values(module, scope, object, text, diags)?;
+        }
+        Ok(())
+    }
+
+    fn walk_send_statement(
+        &mut self,
+        text: &'a str,
+        module: ModuleId,
+        scope: ScopeId,
+        node: &SyntaxNode,
+        diags: &mut Vec<Diagnostic>,
+    ) -> Result<(), Diagnostic> {
+        let target = kids(node).into_iter().find(|n| is_expression(n.kind));
+        for part in kids(node) {
+            if self.is_sink_target(module, scope, text, target, part) {
+                // The context declaration owns this deployment target;
+                // its operation and inputs are checked by the typer.
+                continue;
+            }
+            if is_expression(part.kind) {
+                self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags)?;
+            } else if part.kind == SyntaxKind::Object {
+                self.walk_object_values(module, scope, part, text, diags)?;
+            }
+        }
+        if let Some(binding) = as_binding(node, text) {
+            self.bind_authored(
+                scope,
+                &binding.0,
+                Binding::SendAs {
+                    node: NodeKey::of(node),
+                },
+                binding.1,
+                "send binding",
+                diags,
+            );
+        }
+        Ok(())
+    }
+
+    fn is_sink_target(
+        &self,
+        module: ModuleId,
+        scope: ScopeId,
+        text: &str,
+        target: Option<&SyntaxNode>,
+        part: &SyntaxNode,
+    ) -> bool {
+        target.is_some_and(|target| std::ptr::eq(target, part))
+            && part.kind == SyntaxKind::Member
+            && kids(part).first().is_some_and(|head| {
+                head.kind == SyntaxKind::NameRef
+                    && kids(head)
+                        .into_iter()
+                        .find_map(|n| name_text(n, text))
+                        .is_some_and(|name| {
+                            self.context_sinks.contains(&(module, name.to_string()))
+                                && self
+                                    .tables
+                                    .resolve_name(scope, name, self.catalog)
+                                    .is_none()
+                        })
+            })
+    }
+
+    fn walk_schedule_statement(
+        &mut self,
+        text: &'a str,
+        module: ModuleId,
+        scope: ScopeId,
+        node: &SyntaxNode,
+        diags: &mut Vec<Diagnostic>,
+    ) -> Result<(), Diagnostic> {
+        let parts = kids(node);
+        let mut event_path = None;
+        for (i, part) in parts.iter().enumerate() {
+            if is_name(part, text, "event") {
+                event_path = parts.get(i + 2).copied();
+            }
+        }
+        for part in &parts {
+            if is_expression(part.kind) {
+                self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags)?;
+            } else if part.kind == SyntaxKind::Path
+                && event_path.is_some_and(|e| std::ptr::eq(*part, e))
+            {
+                let segments = path_segments(part, text);
+                self.resolve_model_path(module, &segments, part, text, diags);
+            } else if part.kind == SyntaxKind::Object {
+                self.walk_object_values(module, scope, part, text, diags)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn walk_match_statement(
+        &mut self,
+        text: &'a str,
+        module: ModuleId,
+        scope: ScopeId,
+        node: &SyntaxNode,
+        diags: &mut Vec<Diagnostic>,
+    ) -> Result<(), Diagnostic> {
+        let parts = kids(node);
+        if let Some(subject) = parts.iter().find(|part| is_expression(part.kind)) {
+            self.walk_expr(module, scope, subject, text, ExprCtx::bare(), diags)?;
+        }
+        for arm in parts
+            .iter()
+            .filter(|part| part.kind == SyntaxKind::MatchArm)
+        {
+            let arm_scope = self.new_scope(Some(scope), arm.span)?;
+            // `case` and its raw label are not lexical expressions.
+            for statement in kids(arm).into_iter().skip(2) {
+                self.walk_statement(text, module, arm_scope, statement, diags)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn walk_if_statement(
+        &mut self,
+        text: &'a str,
+        module: ModuleId,
+        scope: ScopeId,
+        node: &SyntaxNode,
+        diags: &mut Vec<Diagnostic>,
+    ) -> Result<(), Diagnostic> {
+        let parts = kids(node);
+        let mut else_at = None;
+        for (i, part) in parts.iter().enumerate() {
+            if is_name(part, text, "else") {
+                else_at = Some(i);
+            }
+        }
+        let mut cond_done = false;
+        let then_scope = self.new_scope(Some(scope), node.span)?;
+        let else_scope = self.new_scope(Some(scope), node.span)?;
+        for (i, part) in parts.iter().enumerate() {
+            if is_name(part, text, "if") || is_name(part, text, "else") {
+                continue;
+            }
+            if !cond_done && is_expression(part.kind) {
+                self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags)?;
+                cond_done = true;
+            } else if cond_done && !matches!(part.kind, SyntaxKind::Punct | SyntaxKind::Name) {
+                // Any post-condition expression is a body `call`
+                // statement; anything else here is a body
+                // statement too.
+                let target = if else_at.is_some_and(|at| i > at) {
+                    else_scope
+                } else {
+                    then_scope
+                };
+                self.walk_statement(text, module, target, part, diags)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn walk_for_statement(
+        &mut self,
+        text: &'a str,
+        module: ModuleId,
+        scope: ScopeId,
+        node: &SyntaxNode,
+        diags: &mut Vec<Diagnostic>,
+    ) -> Result<(), Diagnostic> {
+        let parts = kids(node);
+        let mut item: Option<(String, Span)> = None;
+        let mut limit_at = None;
+        for (i, part) in parts.iter().enumerate() {
+            if is_name(part, text, "for")
+                && let Some(name) = parts.get(i + 1).and_then(|n| name_text(n, text))
+            {
+                item = Some((name.to_string(), parts[i + 1].span));
+            }
+            if is_name(part, text, "limit") {
+                limit_at = Some(i);
+            }
+        }
+        // Header expressions (domain, then the `limit =` value)
+        // resolve in the outer scope; the body resolves in the
+        // item scope. Positions past the header are body
+        // statements, including `call` (an expression kind).
+        let mut header_end = 0;
+        let mut seen_domain = false;
+        for (i, part) in parts.iter().enumerate() {
+            if !is_expression(part.kind) {
+                continue;
+            }
+            let is_header = if !seen_domain {
+                seen_domain = true;
+                true
+            } else {
+                limit_at.is_some_and(|at| i == at + 2)
+            };
+            if is_header {
+                self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags)?;
+                header_end = i;
+            }
+        }
+        let body = self.new_scope(Some(scope), node.span)?;
+        if let Some((name, span)) = item {
+            self.bind_authored(
+                body,
+                &name,
+                Binding::ForItem {
+                    node: NodeKey::of(node),
+                },
+                span,
+                "for item",
+                diags,
+            );
+        }
+        for part in parts.iter().skip(header_end + 1) {
+            self.walk_statement(text, module, body, part, diags)?;
         }
         Ok(())
     }
@@ -6193,13 +6869,7 @@ impl<'a> Resolver<'a> {
             return Ok(());
         }
         if node.kind == SyntaxKind::Preferences {
-            for field in node.children.iter().filter(|c| c.kind == SyntaxKind::Field) {
-                self.resolve_field_parts(text, module, root, None, field, true, diags)?;
-            }
-            if let Some(label) = attribute_value(node, "label", text) {
-                self.resolve_caption(text, module, label, diags);
-            }
-            return Ok(());
+            return self.resolve_then_preferences(text, module, root, node, diags);
         }
         if node.kind == SyntaxKind::Invariant {
             return self.resolve_invariant(text, module, root, node, true, diags);
@@ -6228,18 +6898,7 @@ impl<'a> Resolver<'a> {
             if child.kind != SyntaxKind::Attribute {
                 continue;
             }
-            let Some((key, value)) = attribute_parts(child) else {
-                continue;
-            };
-            let word = name_text(key, text).unwrap_or("");
-            if matches!(word, "title" | "data" | "order" | "group" | "poll") {
-                self.walk_expr(module, scope, value, text, ExprCtx::bare(), diags)?;
-            } else if word == "refresh" && value.kind == SyntaxKind::Path {
-                let segments = path_segments(value, text);
-                if let Some(op) = self.resolve_op_path(module, &segments, value, text, diags) {
-                    self.tables.node_symbol.insert(NodeKey::of(value), op);
-                }
-            }
+            self.resolve_then_attribute(module, scope, text, child, diags)?;
         }
         if let Some(data) = attribute_value(node, "data", text) {
             self.bind_result(module, text, scope, data);
@@ -6247,6 +6906,46 @@ impl<'a> Resolver<'a> {
         for child in kids(node) {
             if !matches!(child.kind, SyntaxKind::Route | SyntaxKind::Attribute) {
                 self.walk_ui(text, module, scope, child, diags)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn resolve_then_preferences(
+        &mut self,
+        text: &'a str,
+        module: ModuleId,
+        root: ScopeId,
+        node: &SyntaxNode,
+        diags: &mut Vec<Diagnostic>,
+    ) -> Result<(), Diagnostic> {
+        for field in node.children.iter().filter(|c| c.kind == SyntaxKind::Field) {
+            self.resolve_field_parts(text, module, root, None, field, true, diags)?;
+        }
+        if let Some(label) = attribute_value(node, "label", text) {
+            self.resolve_caption(text, module, label, diags);
+        }
+        Ok(())
+    }
+
+    fn resolve_then_attribute(
+        &mut self,
+        module: ModuleId,
+        scope: ScopeId,
+        text: &'a str,
+        child: &SyntaxNode,
+        diags: &mut Vec<Diagnostic>,
+    ) -> Result<(), Diagnostic> {
+        let Some((key, value)) = attribute_parts(child) else {
+            return Ok(());
+        };
+        let word = name_text(key, text).unwrap_or("");
+        if matches!(word, "title" | "data" | "order" | "group" | "poll") {
+            self.walk_expr(module, scope, value, text, ExprCtx::bare(), diags)?;
+        } else if word == "refresh" && value.kind == SyntaxKind::Path {
+            let segments = path_segments(value, text);
+            if let Some(op) = self.resolve_op_path(module, &segments, value, text, diags) {
+                self.tables.node_symbol.insert(NodeKey::of(value), op);
             }
         }
         Ok(())
@@ -6429,253 +7128,463 @@ impl<'a> Resolver<'a> {
             return Ok(());
         }
         match node.kind {
+            SyntaxKind::Show
+            | SyntaxKind::Card
+            | SyntaxKind::Details
+            | SyntaxKind::Tabs
+            | SyntaxKind::Tab
+            | SyntaxKind::Collection
+            | SyntaxKind::Form => {
+                self.walk_container_ui(text, module, scope, node, diags)?;
+            }
+            SyntaxKind::Edit | SyntaxKind::UiLeaf | SyntaxKind::Slot | SyntaxKind::PreferencePanel | SyntaxKind::CatalogItem => {
+                self.walk_leaf_ui(text, module, scope, node, diags)?;
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
+    fn walk_container_ui(
+        &mut self,
+        text: &'a str,
+        module: ModuleId,
+        scope: ScopeId,
+        node: &SyntaxNode,
+        diags: &mut Vec<Diagnostic>,
+    ) -> Result<(), Diagnostic> {
+        match node.kind {
             SyntaxKind::Show => {
-                let name = kids(node)
-                    .into_iter()
-                    .filter_map(|n| name_text(n, text))
-                    .find(|name| *name != "show");
-                if let Some(target) = name
-                    .and_then(|name| self.tables.views.get(&(module, name.to_string())).copied())
-                {
-                    self.tables.show_views.insert(NodeKey::of(node), target);
-                } else {
-                    diags.push(Diagnostic::error(
-                        "E2001",
-                        "show must name a view declared in the same module".to_string(),
-                        node.span,
-                    ));
-                }
-                for args in kids(node)
-                    .into_iter()
-                    .filter(|n| n.kind == SyntaxKind::Object)
-                {
-                    self.walk_object_values(module, scope, args, text, diags)?;
-                }
+                self.walk_show_view(text, module, scope, node, diags)?;
             }
             SyntaxKind::Card | SyntaxKind::Details => {
-                for child in kids(node) {
-                    if is_expression(child.kind) {
-                        self.walk_expr(module, scope, child, text, ExprCtx::bare(), diags)?;
-                    } else if child.kind == SyntaxKind::Attribute {
-                        if let Some((key, value)) = attribute_parts(child)
-                            && is_name(key, text, "open")
-                        {
-                            self.walk_expr(module, scope, value, text, ExprCtx::bare(), diags)?;
-                        }
-                    } else if is_ui_child(child.kind) {
-                        self.walk_ui(text, module, scope, child, diags)?;
-                    }
-                }
+                self.walk_card_details(text, module, scope, node, diags)?;
             }
             SyntaxKind::Tabs => {
-                for child in kids(node) {
-                    if is_expression(child.kind) {
-                        self.walk_expr(module, scope, child, text, ExprCtx::bare(), diags)?;
-                    } else if child.kind == SyntaxKind::Tab {
-                        self.walk_ui(text, module, scope, child, diags)?;
-                    }
-                }
+                self.walk_tabs_ui(text, module, scope, node, diags)?;
             }
             SyntaxKind::Tab => {
-                for child in kids(node) {
-                    if is_expression(child.kind) {
-                        self.walk_expr(module, scope, child, text, ExprCtx::bare(), diags)?;
-                    } else if is_ui_child(child.kind) {
-                        self.walk_ui(text, module, scope, child, diags)?;
-                    }
-                }
+                self.walk_tab_ui(text, module, scope, node, diags)?;
             }
             SyntaxKind::Collection => {
-                let mut child_scope = self.new_scope(Some(scope), node.span)?;
-                for child in kids(node) {
-                    if is_expression(child.kind) {
-                        self.walk_expr(module, scope, child, text, ExprCtx::bare(), diags)?;
-                        if let Some((alias, clause)) = top_alias(child, text) {
-                            self.bind_authored(
-                                child_scope,
-                                &alias,
-                                Binding::QueryAlias {
-                                    node: NodeKey::of(clause),
-                                },
-                                clause.span,
-                                "query alias",
-                                diags,
-                            );
-                        }
-                        self.tables.scopes[child_scope.0 as usize].bindings.insert(
-                            "row".to_string(),
-                            Binding::Context(ContextVar::RowQuery {
-                                node: NodeKey::of(child),
-                            }),
-                        );
-                    } else if child.kind == SyntaxKind::Attribute {
-                        if let Some((key, value)) = attribute_parts(child) {
-                            let word = name_text(key, text).unwrap_or("");
-                            if word == "empty" {
-                                self.walk_expr(module, scope, value, text, ExprCtx::bare(), diags)?;
-                            } else if word == "defaults" && value.kind == SyntaxKind::Object {
-                                self.walk_object_values(module, scope, value, text, diags)?;
-                            }
-                        }
-                    } else if is_ui_child(child.kind) {
-                        self.walk_ui(text, module, child_scope, child, diags)?;
-                    }
-                }
-                let _ = &mut child_scope;
+                self.walk_collection_ui(text, module, scope, node, diags)?;
             }
             SyntaxKind::Form => {
-                for child in kids(node) {
-                    if is_expression(child.kind) {
-                        self.walk_expr(module, scope, child, text, ExprCtx::bare(), diags)?;
-                    }
-                }
-                if kids(node)
-                    .iter()
-                    .find_map(|n| name_text(n, text))
-                    .is_some_and(|word| matches!(word, "primary" | "secondary"))
-                {
-                    if let Some(target) = attribute_value(node, "action", text) {
-                        self.walk_expr(module, scope, target, text, ExprCtx::bare(), diags)?;
-                        let segments = expr_path_segments(target, text);
-                        if let Some(operation) =
-                            self.resolve_op_path(module, &segments, target, text, diags)
-                        {
-                            self.tables
-                                .node_symbol
-                                .insert(NodeKey::of(target), operation);
-                        }
-                    }
-                }
-                let mut form_scope = self.new_scope(Some(scope), node.span)?;
-                let target = attribute_value(node, "action", text)
-                    .or_else(|| kids(node).into_iter().find(|n| is_expression(n.kind)));
-                if let Some(target) = target {
-                    self.bind_result(module, text, form_scope, target);
-                }
-                let _ = &mut form_scope;
-                for child in kids(node) {
-                    if child.kind == SyntaxKind::Attribute {
-                        if let Some((key, value)) = attribute_parts(child) {
-                            let word = name_text(key, text).unwrap_or("");
-                            if word == "submit" {
-                                self.walk_expr(module, scope, value, text, ExprCtx::bare(), diags)?;
-                            } else if word == "arguments" && value.kind == SyntaxKind::Object {
-                                self.walk_object_values(module, scope, value, text, diags)?;
-                            } else if word == "review" && value.kind == SyntaxKind::Path {
-                                let segments = path_segments(value, text);
-                                if let Some(op) =
-                                    self.resolve_op_path(module, &segments, value, text, diags)
-                                {
-                                    self.tables.node_symbol.insert(NodeKey::of(value), op);
-                                }
-                            }
-                        }
-                    } else if is_ui_child(child.kind) {
-                        self.walk_ui(text, module, form_scope, child, diags)?;
-                    }
-                }
+                self.walk_form_ui(text, module, scope, node, diags)?;
             }
+            _ => {}
+        }
+        Ok(())
+    }
+
+    fn walk_leaf_ui(
+        &mut self,
+        text: &'a str,
+        module: ModuleId,
+        scope: ScopeId,
+        node: &SyntaxNode,
+        diags: &mut Vec<Diagnostic>,
+    ) -> Result<(), Diagnostic> {
+        match node.kind {
             SyntaxKind::Edit | SyntaxKind::UiLeaf => {
-                if kids(node)
-                    .iter()
-                    .find_map(|n| name_text(n, text))
-                    .is_some_and(|word| matches!(word, "primary" | "secondary"))
-                {
-                    for name in ["target", "submit"] {
-                        if let Some(value) = attribute_value(node, name, text) {
-                            self.walk_expr(module, scope, value, text, ExprCtx::bare(), diags)?;
-                        }
-                    }
-                }
-                for child in kids(node) {
-                    if is_expression(child.kind) {
-                        self.walk_expr(module, scope, child, text, ExprCtx::bare(), diags)?;
-                    } else if node.kind == SyntaxKind::Edit && is_ui_child(child.kind) {
-                        self.walk_ui(text, module, scope, child, diags)?;
-                    }
-                }
+                self.walk_edit_leaf(text, module, scope, node, diags)?;
             }
             // Slots and preference panels are transparent structural
             // groups: their children resolve in the current scope.
             SyntaxKind::Slot | SyntaxKind::PreferencePanel => {
-                for child in kids(node) {
-                    if is_ui_child(child.kind) {
-                        self.walk_ui(text, module, scope, child, diags)?;
-                    }
-                }
+                self.walk_slot_ui(text, module, scope, node, diags)?;
             }
             SyntaxKind::CatalogItem => {
-                if let Some((domain, model)) =
-                    self.unknown_collection_presentation(module, text, node)
-                {
-                    self.walk_expr(module, scope, domain, text, ExprCtx::bare(), diags)?;
-                    let child_scope = self.new_scope(Some(scope), node.span)?;
-                    self.tables.scopes[child_scope.0 as usize].bindings.insert(
-                        "row".to_string(),
-                        Binding::Context(ContextVar::RowModel(model)),
-                    );
-                    self.tables
-                        .unknown_collection_presentations
-                        .insert(NodeKey::of(node), model);
-                    for child in kids(node) {
-                        if child.kind == SyntaxKind::Attribute {
-                            if let Some((_, value)) = attribute_parts(child) {
-                                self.walk_expr(module, scope, value, text, ExprCtx::bare(), diags)?;
-                            }
-                        } else if is_ui_child(child.kind) {
-                            self.walk_ui(text, module, child_scope, child, diags)?;
-                        }
-                    }
-                    return Ok(());
-                }
-                // Collapse shares Details' expression-valued open option and
-                // must retain the same lexical scope and preference bindings.
-                if kids(node).iter().find_map(|n| name_text(n, text)) == Some("collapse")
-                    && let Some(open) = attribute_value(node, "open", text)
-                {
-                    self.walk_expr(module, scope, open, text, ExprCtx::bare(), diags)?;
-                }
-                // Destination controls carry real expressions, not catalog words.
-                if kids(node).iter().find_map(|n| name_text(n, text))
-                    .is_some_and(|word| matches!(word, "button" | "link"))
-                    && (attribute_value(node, "target", text).is_some()
-                        || attribute_value(node, "caption", text).is_some())
-                {
-                    for name in ["target", "caption"] {
-                        if let Some(value) = attribute_value(node, name, text) {
-                            self.walk_expr(module, scope, value, text, ExprCtx::bare(), diags)?;
-                        }
-                    }
-                }
-                // The stat description is a caption expression, not catalog vocabulary.
-                if kids(node).iter().find_map(|n| name_text(n, text)) == Some("stat")
-                    && let Some(value) = attribute_value(node, "description", text)
+                self.walk_catalog_item(text, module, scope, node, diags)?;
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
+    fn walk_show_view(
+        &mut self,
+        text: &'a str,
+        module: ModuleId,
+        scope: ScopeId,
+        node: &SyntaxNode,
+        diags: &mut Vec<Diagnostic>,
+    ) -> Result<(), Diagnostic> {
+        let name = kids(node)
+            .into_iter()
+            .filter_map(|n| name_text(n, text))
+            .find(|name| *name != "show");
+        if let Some(target) = name
+            .and_then(|name| self.tables.views.get(&(module, name.to_string())).copied())
+        {
+            self.tables.show_views.insert(NodeKey::of(node), target);
+        } else {
+            diags.push(Diagnostic::error(
+                "E2001",
+                "show must name a view declared in the same module".to_string(),
+                node.span,
+            ));
+        }
+        for args in kids(node)
+            .into_iter()
+            .filter(|n| n.kind == SyntaxKind::Object)
+        {
+            self.walk_object_values(module, scope, args, text, diags)?;
+        }
+        Ok(())
+    }
+
+    fn walk_card_details(
+        &mut self,
+        text: &'a str,
+        module: ModuleId,
+        scope: ScopeId,
+        node: &SyntaxNode,
+        diags: &mut Vec<Diagnostic>,
+    ) -> Result<(), Diagnostic> {
+        for child in kids(node) {
+            if is_expression(child.kind) {
+                self.walk_expr(module, scope, child, text, ExprCtx::bare(), diags)?;
+            } else if child.kind == SyntaxKind::Attribute {
+                if let Some((key, value)) = attribute_parts(child)
+                    && is_name(key, text, "open")
                 {
                     self.walk_expr(module, scope, value, text, ExprCtx::bare(), diags)?;
                 }
-                for child in kids(node) {
-                    if is_expression(child.kind) {
-                        // M6 extension (PR6): a bare-word header position
-                        // (`input title`) is catalog vocabulary — a field
-                        // selector against the component's record — not a
-                        // name reference. Binding it needs per-component
-                        // header profiles, and no producer UI catalog
-                        // exists yet, so it stays silent like `NAME=word`
-                        // options (recorded hole, see module docs).
-                        // Complex expressions (calls, member paths) still
-                        // resolve: only single names are vocabulary.
-                        if child.kind == SyntaxKind::NameRef {
-                            continue;
-                        }
-                        self.walk_expr(module, scope, child, text, ExprCtx::bare(), diags)?;
-                    } else if is_ui_child(child.kind) {
-                        self.walk_ui(text, module, scope, child, diags)?;
-                    }
-                    // `NAME=word` options are catalog vocabulary, not
-                    // name references; membership is PR5 (M6 record).
+            } else if is_ui_child(child.kind) {
+                self.walk_ui(text, module, scope, child, diags)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn walk_tabs_ui(
+        &mut self,
+        text: &'a str,
+        module: ModuleId,
+        scope: ScopeId,
+        node: &SyntaxNode,
+        diags: &mut Vec<Diagnostic>,
+    ) -> Result<(), Diagnostic> {
+        for child in kids(node) {
+            if is_expression(child.kind) {
+                self.walk_expr(module, scope, child, text, ExprCtx::bare(), diags)?;
+            } else if child.kind == SyntaxKind::Tab {
+                self.walk_ui(text, module, scope, child, diags)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn walk_tab_ui(
+        &mut self,
+        text: &'a str,
+        module: ModuleId,
+        scope: ScopeId,
+        node: &SyntaxNode,
+        diags: &mut Vec<Diagnostic>,
+    ) -> Result<(), Diagnostic> {
+        for child in kids(node) {
+            if is_expression(child.kind) {
+                self.walk_expr(module, scope, child, text, ExprCtx::bare(), diags)?;
+            } else if is_ui_child(child.kind) {
+                self.walk_ui(text, module, scope, child, diags)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn walk_collection_ui(
+        &mut self,
+        text: &'a str,
+        module: ModuleId,
+        scope: ScopeId,
+        node: &SyntaxNode,
+        diags: &mut Vec<Diagnostic>,
+    ) -> Result<(), Diagnostic> {
+        let mut child_scope = self.new_scope(Some(scope), node.span)?;
+        for child in kids(node) {
+            if is_expression(child.kind) {
+                self.walk_expr(module, scope, child, text, ExprCtx::bare(), diags)?;
+                if let Some((alias, clause)) = top_alias(child, text) {
+                    self.bind_authored(
+                        child_scope,
+                        &alias,
+                        Binding::QueryAlias {
+                            node: NodeKey::of(clause),
+                        },
+                        clause.span,
+                        "query alias",
+                        diags,
+                    );
+                }
+                self.tables.scopes[child_scope.0 as usize].bindings.insert(
+                    "row".to_string(),
+                    Binding::Context(ContextVar::RowQuery {
+                        node: NodeKey::of(child),
+                    }),
+                );
+            } else if child.kind == SyntaxKind::Attribute {
+                self.walk_collection_attribute(module, scope, text, child, diags)?;
+            } else if is_ui_child(child.kind) {
+                self.walk_ui(text, module, child_scope, child, diags)?;
+            }
+        }
+        let _ = &mut child_scope;
+        Ok(())
+    }
+
+    fn walk_collection_attribute(
+        &mut self,
+        module: ModuleId,
+        scope: ScopeId,
+        text: &'a str,
+        child: &SyntaxNode,
+        diags: &mut Vec<Diagnostic>,
+    ) -> Result<(), Diagnostic> {
+        if let Some((key, value)) = attribute_parts(child) {
+            let word = name_text(key, text).unwrap_or("");
+            if word == "empty" {
+                self.walk_expr(module, scope, value, text, ExprCtx::bare(), diags)?;
+            } else if word == "defaults" && value.kind == SyntaxKind::Object {
+                self.walk_object_values(module, scope, value, text, diags)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn walk_form_ui(
+        &mut self,
+        text: &'a str,
+        module: ModuleId,
+        scope: ScopeId,
+        node: &SyntaxNode,
+        diags: &mut Vec<Diagnostic>,
+    ) -> Result<(), Diagnostic> {
+        for child in kids(node) {
+            if is_expression(child.kind) {
+                self.walk_expr(module, scope, child, text, ExprCtx::bare(), diags)?;
+            }
+        }
+        self.walk_form_action(text, module, scope, node, diags)?;
+        let mut form_scope = self.new_scope(Some(scope), node.span)?;
+        let target = attribute_value(node, "action", text)
+            .or_else(|| kids(node).into_iter().find(|n| is_expression(n.kind)));
+        if let Some(target) = target {
+            self.bind_result(module, text, form_scope, target);
+        }
+        let _ = &mut form_scope;
+        for child in kids(node) {
+            if child.kind == SyntaxKind::Attribute {
+                self.walk_form_attribute(text, module, scope, child, diags)?;
+            } else if is_ui_child(child.kind) {
+                self.walk_ui(text, module, form_scope, child, diags)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn walk_form_action(
+        &mut self,
+        text: &'a str,
+        module: ModuleId,
+        scope: ScopeId,
+        node: &SyntaxNode,
+        diags: &mut Vec<Diagnostic>,
+    ) -> Result<(), Diagnostic> {
+        if kids(node)
+            .iter()
+            .find_map(|n| name_text(n, text))
+            .is_some_and(|word| matches!(word, "primary" | "secondary"))
+        {
+            if let Some(target) = attribute_value(node, "action", text) {
+                self.walk_expr(module, scope, target, text, ExprCtx::bare(), diags)?;
+                let segments = expr_path_segments(target, text);
+                if let Some(operation) =
+                    self.resolve_op_path(module, &segments, target, text, diags)
+                {
+                    self.tables
+                        .node_symbol
+                        .insert(NodeKey::of(target), operation);
                 }
             }
-            _ => {}
+        }
+        Ok(())
+    }
+
+    fn walk_form_attribute(
+        &mut self,
+        text: &'a str,
+        module: ModuleId,
+        scope: ScopeId,
+        child: &SyntaxNode,
+        diags: &mut Vec<Diagnostic>,
+    ) -> Result<(), Diagnostic> {
+        if let Some((key, value)) = attribute_parts(child) {
+            let word = name_text(key, text).unwrap_or("");
+            if word == "submit" {
+                self.walk_expr(module, scope, value, text, ExprCtx::bare(), diags)?;
+            } else if word == "arguments" && value.kind == SyntaxKind::Object {
+                self.walk_object_values(module, scope, value, text, diags)?;
+            } else if word == "review" && value.kind == SyntaxKind::Path {
+                let segments = path_segments(value, text);
+                if let Some(op) =
+                    self.resolve_op_path(module, &segments, value, text, diags)
+                {
+                    self.tables.node_symbol.insert(NodeKey::of(value), op);
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn walk_edit_leaf(
+        &mut self,
+        text: &'a str,
+        module: ModuleId,
+        scope: ScopeId,
+        node: &SyntaxNode,
+        diags: &mut Vec<Diagnostic>,
+    ) -> Result<(), Diagnostic> {
+        if kids(node)
+            .iter()
+            .find_map(|n| name_text(n, text))
+            .is_some_and(|word| matches!(word, "primary" | "secondary"))
+        {
+            for name in ["target", "submit"] {
+                if let Some(value) = attribute_value(node, name, text) {
+                    self.walk_expr(module, scope, value, text, ExprCtx::bare(), diags)?;
+                }
+            }
+        }
+        for child in kids(node) {
+            if is_expression(child.kind) {
+                self.walk_expr(module, scope, child, text, ExprCtx::bare(), diags)?;
+            } else if node.kind == SyntaxKind::Edit && is_ui_child(child.kind) {
+                self.walk_ui(text, module, scope, child, diags)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn walk_slot_ui(
+        &mut self,
+        text: &'a str,
+        module: ModuleId,
+        scope: ScopeId,
+        node: &SyntaxNode,
+        diags: &mut Vec<Diagnostic>,
+    ) -> Result<(), Diagnostic> {
+        for child in kids(node) {
+            if is_ui_child(child.kind) {
+                self.walk_ui(text, module, scope, child, diags)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn walk_catalog_item(
+        &mut self,
+        text: &'a str,
+        module: ModuleId,
+        scope: ScopeId,
+        node: &SyntaxNode,
+        diags: &mut Vec<Diagnostic>,
+    ) -> Result<(), Diagnostic> {
+        if let Some((domain, model)) =
+            self.unknown_collection_presentation(module, text, node)
+        {
+            self.walk_catalog_presentation(text, module, scope, node, domain, model, diags)?;
+            return Ok(());
+        }
+        self.walk_catalog_item_options(text, module, scope, node, diags)?;
+        for child in kids(node) {
+            if is_expression(child.kind) {
+                // M6 extension (PR6): a bare-word header position
+                // (`input title`) is catalog vocabulary — a field
+                // selector against the component's record — not a
+                // name reference. Binding it needs per-component
+                // header profiles, and no producer UI catalog
+                // exists yet, so it stays silent like `NAME=word`
+                // options (recorded hole, see module docs).
+                // Complex expressions (calls, member paths) still
+                // resolve: only single names are vocabulary.
+                if child.kind == SyntaxKind::NameRef {
+                    continue;
+                }
+                self.walk_expr(module, scope, child, text, ExprCtx::bare(), diags)?;
+            } else if is_ui_child(child.kind) {
+                self.walk_ui(text, module, scope, child, diags)?;
+            }
+            // `NAME=word` options are catalog vocabulary, not
+            // name references; membership is PR5 (M6 record).
+        }
+        Ok(())
+    }
+
+    fn walk_catalog_presentation(
+        &mut self,
+        text: &'a str,
+        module: ModuleId,
+        scope: ScopeId,
+        node: &SyntaxNode,
+        domain: &SyntaxNode,
+        model: SymbolId,
+        diags: &mut Vec<Diagnostic>,
+    ) -> Result<(), Diagnostic> {
+        self.walk_expr(module, scope, domain, text, ExprCtx::bare(), diags)?;
+        let child_scope = self.new_scope(Some(scope), node.span)?;
+        self.tables.scopes[child_scope.0 as usize].bindings.insert(
+            "row".to_string(),
+            Binding::Context(ContextVar::RowModel(model)),
+        );
+        self.tables
+            .unknown_collection_presentations
+            .insert(NodeKey::of(node), model);
+        for child in kids(node) {
+            if child.kind == SyntaxKind::Attribute {
+                if let Some((_, value)) = attribute_parts(child) {
+                    self.walk_expr(module, scope, value, text, ExprCtx::bare(), diags)?;
+                }
+            } else if is_ui_child(child.kind) {
+                self.walk_ui(text, module, child_scope, child, diags)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn walk_catalog_item_options(
+        &mut self,
+        text: &'a str,
+        module: ModuleId,
+        scope: ScopeId,
+        node: &SyntaxNode,
+        diags: &mut Vec<Diagnostic>,
+    ) -> Result<(), Diagnostic> {
+        // Collapse shares Details' expression-valued open option and
+        // must retain the same lexical scope and preference bindings.
+        if kids(node).iter().find_map(|n| name_text(n, text)) == Some("collapse")
+            && let Some(open) = attribute_value(node, "open", text)
+        {
+            self.walk_expr(module, scope, open, text, ExprCtx::bare(), diags)?;
+        }
+        // Destination controls carry real expressions, not catalog words.
+        if kids(node).iter().find_map(|n| name_text(n, text))
+            .is_some_and(|word| matches!(word, "button" | "link"))
+            && (attribute_value(node, "target", text).is_some()
+                || attribute_value(node, "caption", text).is_some())
+        {
+            for name in ["target", "caption"] {
+                if let Some(value) = attribute_value(node, name, text) {
+                    self.walk_expr(module, scope, value, text, ExprCtx::bare(), diags)?;
+                }
+            }
+        }
+        // The stat description is a caption expression, not catalog vocabulary.
+        if kids(node).iter().find_map(|n| name_text(n, text)) == Some("stat")
+            && let Some(value) = attribute_value(node, "description", text)
+        {
+            self.walk_expr(module, scope, value, text, ExprCtx::bare(), diags)?;
         }
         Ok(())
     }
@@ -6707,24 +7616,7 @@ impl<'a> Resolver<'a> {
         };
         let mut model_head = *domain;
         if model_head.kind == SyntaxKind::Query {
-            for clause in kids(model_head)
-                .into_iter()
-                .filter(|child| child.kind == SyntaxKind::QueryClause)
-            {
-                let keyword = kids(clause)
-                    .into_iter()
-                    .find_map(|child| name_text(child, text))?;
-                if !matches!(keyword, "where" | "as")
-                    || clause
-                        .descendants()
-                        .any(|child| child.kind == SyntaxKind::Call)
-                {
-                    return None;
-                }
-            }
-            model_head = kids(model_head)
-                .into_iter()
-                .find(|child| is_expression(child.kind))?;
+            model_head = self.query_head_model(text, model_head)?;
         }
         if model_head.kind != SyntaxKind::NameRef {
             return None;
@@ -6741,24 +7633,62 @@ impl<'a> Resolver<'a> {
         ) {
             return None;
         }
-        for child in kids(node)
-            .into_iter()
-            .filter(|child| child.kind == SyntaxKind::Attribute)
-        {
-            let (name, value) = attribute_parts(child)?;
-            if name_text(name, text) != Some("empty")
-                || !matches!(value.kind, SyntaxKind::MessageValue | SyntaxKind::Literal)
-            {
-                return None;
-            }
+        if !self.all_empty_attributes(text, node) {
+            return None;
         }
         let children = kids(node)
             .into_iter()
             .filter(|child| is_ui_child(child.kind))
             .collect::<Vec<_>>();
-        if children.is_empty() {
+        if children.is_empty() || !Self::valid_text_children(text, &children) {
             return None;
         }
+        Some((*domain, model))
+    }
+
+    fn query_head_model<'n>(
+        &self,
+        text: &str,
+        model_head: &'n SyntaxNode,
+    ) -> Option<&'n SyntaxNode> {
+        for clause in kids(model_head)
+            .into_iter()
+            .filter(|child| child.kind == SyntaxKind::QueryClause)
+        {
+            let keyword = kids(clause)
+                .into_iter()
+                .find_map(|child| name_text(child, text))?;
+            if !matches!(keyword, "where" | "as")
+                || clause
+                    .descendants()
+                    .any(|child| child.kind == SyntaxKind::Call)
+            {
+                return None;
+            }
+        }
+        kids(model_head)
+            .into_iter()
+            .find(|child| is_expression(child.kind))
+    }
+
+    fn all_empty_attributes(&self, text: &str, node: &SyntaxNode) -> bool {
+        for child in kids(node)
+            .into_iter()
+            .filter(|child| child.kind == SyntaxKind::Attribute)
+        {
+            let Some((name, value)) = attribute_parts(child) else {
+                return false;
+            };
+            if name_text(name, text) != Some("empty")
+                || !matches!(value.kind, SyntaxKind::MessageValue | SyntaxKind::Literal)
+            {
+                return false;
+            }
+        }
+        true
+    }
+
+    fn valid_text_children(text: &str, children: &[&SyntaxNode]) -> bool {
         for child in children {
             if child.kind != SyntaxKind::UiLeaf
                 || kids(child)
@@ -6766,7 +7696,7 @@ impl<'a> Resolver<'a> {
                     .find_map(|part| name_text(part, text))
                     != Some("text")
             {
-                return None;
+                return false;
             }
             let values = kids(child)
                 .into_iter()
@@ -6777,14 +7707,17 @@ impl<'a> Resolver<'a> {
                     .into_iter()
                     .any(|part| part.kind == SyntaxKind::Attribute || is_ui_child(part.kind))
             {
-                return None;
+                return false;
             }
             for value in values {
                 if value.kind != SyntaxKind::Member {
-                    return None;
+                    return false;
                 }
                 let parts = kids(value);
-                let base = parts.first()?;
+                let base = match parts.first() {
+                    Some(base) => base,
+                    None => return false,
+                };
                 if base.kind != SyntaxKind::NameRef
                     || kids(base)
                         .into_iter()
@@ -6792,11 +7725,11 @@ impl<'a> Resolver<'a> {
                         != Some("row")
                     || parts.iter().any(|part| is_punct(part, text, "?."))
                 {
-                    return None;
+                    return false;
                 }
             }
         }
-        Some((*domain, model))
+        true
     }
 
     // --- Pass 5e: expressions -----------------------------------------------
@@ -6820,179 +7753,254 @@ impl<'a> Resolver<'a> {
         match node.kind {
             SyntaxKind::Literal | SyntaxKind::MessageValue => {}
             SyntaxKind::NameRef => {
-                let name = kids(node)
-                    .iter()
-                    .find_map(|n| name_text(n, text))
-                    .unwrap_or("");
-                if name.is_empty() {
-                    return Ok(());
-                }
-                match self.tables.resolve_name(scope, name, self.catalog) {
-                    Some(binding) => {
-                        self.tables.node_binding.insert(NodeKey::of(node), binding);
-                    }
-                    None => {
-                        if self.catalog.is_some_and(|c| c.is_helper(name)) {
-                            // Trimmed like `E2001`: `NameRef` spans can
-                            // include leading trivia.
-                            let span = trimmed_slice(self.db, &NodeKey::of(node))
-                                .map(|(_, span)| span)
-                                .unwrap_or(node.span);
-                            diags.push(Diagnostic::error(
-                                "E2006",
-                                format!(
-                                    "helper '{name}' is codegen-only and cannot be called from source"
-                                ),
-                                span,
-                            ));
-                            self.tables
-                                .node_binding
-                                .insert(NodeKey::of(node), Binding::Error);
-                        } else if !self.tables.module_by_name.contains_key(name) {
-                            self.tables.unresolved_names.push(NodeKey::of(node));
-                        }
-                    }
-                }
+                self.walk_name_ref(scope, node, text, diags);
             }
             SyntaxKind::Member => {
-                let parts = kids(node);
-                if let Some(receiver) = parts.first() {
-                    self.walk_expr(module, scope, receiver, text, ExprCtx::bare(), diags)?;
-                }
+                self.walk_member_receiver(module, scope, node, text, diags)?;
             }
             SyntaxKind::Call => {
-                let parts = kids(node);
-                let callee = parts.iter().find(|n| is_expression(n.kind));
-                if let Some(callee) = callee {
-                    self.walk_expr(module, scope, callee, text, ExprCtx::bare(), diags)?;
-                }
-                let args: Vec<&SyntaxNode> = parts
-                    .iter()
-                    .filter(|n| n.kind == SyntaxKind::Argument)
-                    .copied()
-                    .collect();
-                let mut arg_scope = scope;
-                if callee.is_some_and(|c| self.is_alias_builtin(c))
-                    && let Some(first) = args.first()
-                    && let Some(value) = kids(first).iter().find(|n| is_expression(n.kind))
-                    && let Some((alias, clause)) = top_alias(value, text)
-                {
-                    let extended = self.new_scope(Some(scope), clause.span)?;
-                    self.bind_authored(
-                        extended,
-                        &alias,
-                        Binding::QueryAlias {
-                            node: NodeKey::of(clause),
-                        },
-                        clause.span,
-                        "query alias",
-                        diags,
-                    );
-                    arg_scope = extended;
-                }
-                for (i, arg) in args.iter().enumerate() {
-                    for value in kids(arg) {
-                        if is_expression(value.kind) {
-                            let scope = if i == 0 { scope } else { arg_scope };
-                            self.walk_expr(module, scope, value, text, ExprCtx::bare(), diags)?;
-                        }
-                    }
-                }
+                self.walk_call_expr(module, scope, node, text, diags)?;
             }
             SyntaxKind::Query => {
-                let parts = kids(node);
-                let mut extended = scope;
-                let mut first = true;
-                for part in parts {
-                    if part.kind == SyntaxKind::QueryClause {
-                        let head = kids(part)
-                            .iter()
-                            .find_map(|n| name_text(n, text))
-                            .unwrap_or("");
-                        if head == "as" {
-                            if let Some((alias, _)) = clause_alias(part, text) {
-                                let scope = self.new_scope(Some(extended), part.span)?;
-                                self.bind_authored(
-                                    scope,
-                                    &alias,
-                                    Binding::QueryAlias {
-                                        node: NodeKey::of(part),
-                                    },
-                                    part.span,
-                                    "query alias",
-                                    diags,
-                                );
-                                extended = scope;
-                            }
-                        } else if head == "archived" {
-                            continue;
-                        } else {
-                            for value in kids(part) {
-                                if is_expression(value.kind) {
-                                    self.walk_expr(
-                                        module,
-                                        extended,
-                                        value,
-                                        text,
-                                        ExprCtx::bare(),
-                                        diags,
-                                    )?;
-                                }
-                            }
-                        }
-                    } else if is_expression(part.kind) && first {
-                        self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags)?;
-                        first = false;
-                    }
-                }
+                self.walk_query_expr(module, scope, node, text, diags)?;
             }
             SyntaxKind::Binary => {
-                // Flat parser loops build arbitrarily tall binary trees.
-                // Keep source order and defer `is` targets until their left value.
-                let mut work = vec![(node, false)];
-                while let Some((current, is_target)) = work.pop() {
-                    if is_target {
-                        self.resolve_is_target(module, current, text, diags);
-                    } else if current.kind != SyntaxKind::Binary {
-                        self.walk_expr(module, scope, current, text, ExprCtx::bare(), diags)?;
-                    } else if !has_error(current) {
-                        self.tables.expr_scope.insert(NodeKey::of(current), scope);
-                        let parts = kids(current);
-                        if parts.len() == 3 {
-                            work.push((parts[2], super::op_text(current, text) == Some("is")));
-                            work.push((parts[0], false));
-                        }
-                    }
-                }
+                self.walk_binary_expr(module, scope, node, text, diags)?;
             }
-            SyntaxKind::Unary | SyntaxKind::Group => {
-                for part in kids(node) {
-                    if is_expression(part.kind) {
-                        self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags)?;
-                    }
-                }
-            }
-            SyntaxKind::Array => {
-                for part in kids(node) {
-                    if is_expression(part.kind) {
-                        self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags)?;
-                    }
-                }
+            SyntaxKind::Unary | SyntaxKind::Group | SyntaxKind::Array => {
+                self.walk_child_expressions(module, scope, node, text, diags)?;
             }
             SyntaxKind::Object => {
                 self.walk_object_values(module, scope, node, text, diags)?;
             }
             SyntaxKind::Construct => {
-                let parts = kids(node);
-                if let Some(head) = parts.iter().find(|n| is_expression(n.kind)) {
-                    self.resolve_construct_head(module, head, text, diags);
-                    self.tables.expr_scope.insert(NodeKey::of(head), scope);
-                }
-                if let Some(object) = parts.iter().find(|n| n.kind == SyntaxKind::Object) {
-                    self.walk_object_values(module, scope, object, text, diags)?;
-                }
+                self.walk_construct_expr(module, scope, node, text, diags)?;
             }
             _ => {}
+        }
+        Ok(())
+    }
+
+    fn walk_name_ref(
+        &mut self,
+        scope: ScopeId,
+        node: &SyntaxNode,
+        text: &'a str,
+        diags: &mut Vec<Diagnostic>,
+    ) {
+        let name = kids(node)
+            .iter()
+            .find_map(|n| name_text(n, text))
+            .unwrap_or("");
+        if name.is_empty() {
+            return;
+        }
+        match self.tables.resolve_name(scope, name, self.catalog) {
+            Some(binding) => {
+                self.tables.node_binding.insert(NodeKey::of(node), binding);
+            }
+            None => {
+                if self.catalog.is_some_and(|c| c.is_helper(name)) {
+                    // Trimmed like `E2001`: `NameRef` spans can
+                    // include leading trivia.
+                    let span = trimmed_slice(self.db, &NodeKey::of(node))
+                        .map(|(_, span)| span)
+                        .unwrap_or(node.span);
+                    diags.push(Diagnostic::error(
+                        "E2006",
+                        format!(
+                            "helper '{name}' is codegen-only and cannot be called from source"
+                        ),
+                        span,
+                    ));
+                    self.tables
+                        .node_binding
+                        .insert(NodeKey::of(node), Binding::Error);
+                } else if !self.tables.module_by_name.contains_key(name) {
+                    self.tables.unresolved_names.push(NodeKey::of(node));
+                }
+            }
+        }
+    }
+
+    fn walk_member_receiver(
+        &mut self,
+        module: ModuleId,
+        scope: ScopeId,
+        node: &SyntaxNode,
+        text: &'a str,
+        diags: &mut Vec<Diagnostic>,
+    ) -> Result<(), Diagnostic> {
+        let parts = kids(node);
+        if let Some(receiver) = parts.first() {
+            self.walk_expr(module, scope, receiver, text, ExprCtx::bare(), diags)?;
+        }
+        Ok(())
+    }
+
+    fn walk_call_expr(
+        &mut self,
+        module: ModuleId,
+        scope: ScopeId,
+        node: &SyntaxNode,
+        text: &'a str,
+        diags: &mut Vec<Diagnostic>,
+    ) -> Result<(), Diagnostic> {
+        let parts = kids(node);
+        let callee = parts.iter().find(|n| is_expression(n.kind));
+        if let Some(callee) = callee {
+            self.walk_expr(module, scope, callee, text, ExprCtx::bare(), diags)?;
+        }
+        let args: Vec<&SyntaxNode> = parts
+            .iter()
+            .filter(|n| n.kind == SyntaxKind::Argument)
+            .copied()
+            .collect();
+        let mut arg_scope = scope;
+        if callee.is_some_and(|c| self.is_alias_builtin(c))
+            && let Some(first) = args.first()
+            && let Some(value) = kids(first).iter().find(|n| is_expression(n.kind))
+            && let Some((alias, clause)) = top_alias(value, text)
+        {
+            let extended = self.new_scope(Some(scope), clause.span)?;
+            self.bind_authored(
+                extended,
+                &alias,
+                Binding::QueryAlias {
+                    node: NodeKey::of(clause),
+                },
+                clause.span,
+                "query alias",
+                diags,
+            );
+            arg_scope = extended;
+        }
+        for (i, arg) in args.iter().enumerate() {
+            for value in kids(arg) {
+                if is_expression(value.kind) {
+                    let scope = if i == 0 { scope } else { arg_scope };
+                    self.walk_expr(module, scope, value, text, ExprCtx::bare(), diags)?;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn walk_query_expr(
+        &mut self,
+        module: ModuleId,
+        scope: ScopeId,
+        node: &SyntaxNode,
+        text: &'a str,
+        diags: &mut Vec<Diagnostic>,
+    ) -> Result<(), Diagnostic> {
+        let parts = kids(node);
+        let mut extended = scope;
+        let mut first = true;
+        for part in parts {
+            if part.kind == SyntaxKind::QueryClause {
+                let head = kids(part)
+                    .iter()
+                    .find_map(|n| name_text(n, text))
+                    .unwrap_or("");
+                if head == "as" {
+                    if let Some((alias, _)) = clause_alias(part, text) {
+                        let scope = self.new_scope(Some(extended), part.span)?;
+                        self.bind_authored(
+                            scope,
+                            &alias,
+                            Binding::QueryAlias {
+                                node: NodeKey::of(part),
+                            },
+                            part.span,
+                            "query alias",
+                            diags,
+                        );
+                        extended = scope;
+                    }
+                } else if head == "archived" {
+                    continue;
+                } else {
+                    for value in kids(part) {
+                        if is_expression(value.kind) {
+                            self.walk_expr(
+                                module,
+                                extended,
+                                value,
+                                text,
+                                ExprCtx::bare(),
+                                diags,
+                            )?;
+                        }
+                    }
+                }
+            } else if is_expression(part.kind) && first {
+                self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags)?;
+                first = false;
+            }
+        }
+        Ok(())
+    }
+
+    fn walk_binary_expr(
+        &mut self,
+        module: ModuleId,
+        scope: ScopeId,
+        node: &SyntaxNode,
+        text: &'a str,
+        diags: &mut Vec<Diagnostic>,
+    ) -> Result<(), Diagnostic> {
+        // Flat parser loops build arbitrarily tall binary trees.
+        // Keep source order and defer `is` targets until their left value.
+        let mut work = vec![(node, false)];
+        while let Some((current, is_target)) = work.pop() {
+            if is_target {
+                self.resolve_is_target(module, current, text, diags);
+            } else if current.kind != SyntaxKind::Binary {
+                self.walk_expr(module, scope, current, text, ExprCtx::bare(), diags)?;
+            } else if !has_error(current) {
+                self.tables.expr_scope.insert(NodeKey::of(current), scope);
+                let parts = kids(current);
+                if parts.len() == 3 {
+                    work.push((parts[2], super::op_text(current, text) == Some("is")));
+                    work.push((parts[0], false));
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn walk_child_expressions(
+        &mut self,
+        module: ModuleId,
+        scope: ScopeId,
+        node: &SyntaxNode,
+        text: &'a str,
+        diags: &mut Vec<Diagnostic>,
+    ) -> Result<(), Diagnostic> {
+        for part in kids(node) {
+            if is_expression(part.kind) {
+                self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn walk_construct_expr(
+        &mut self,
+        module: ModuleId,
+        scope: ScopeId,
+        node: &SyntaxNode,
+        text: &'a str,
+        diags: &mut Vec<Diagnostic>,
+    ) -> Result<(), Diagnostic> {
+        let parts = kids(node);
+        if let Some(head) = parts.iter().find(|n| is_expression(n.kind)) {
+            self.resolve_construct_head(module, head, text, diags);
+            self.tables.expr_scope.insert(NodeKey::of(head), scope);
+        }
+        if let Some(object) = parts.iter().find(|n| n.kind == SyntaxKind::Object) {
+            self.walk_object_values(module, scope, object, text, diags)?;
         }
         Ok(())
     }

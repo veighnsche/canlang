@@ -192,63 +192,116 @@ pub extern "C" fn can_recovery_text_reply(handle: u32) -> u32 {
     })
 }
 
+/// Tag-reply select phases 9/11: branch selection, then equal-id
+/// sorting into DONE. Unstable sorting avoids an extra infallible
+/// scratch allocation without changing output (equal UTF-16 ids are
+/// indistinguishable).
+fn tag_reply_select(call: &mut Call, value: u32) -> Option<u32> {
+    match call.phase {
+        9 => match value { 0 => call.phase = 11, 1 => call.phase = 10, _ => return Some(call.fail(PROTOCOL)) },
+        11 => match value {
+            0 => { for list in &mut call.lists { list.sort_unstable(); } call.phase = DONE; }
+            1 => call.phase = 12,
+            _ => return Some(call.fail(PROTOCOL)),
+        },
+        _ => return None,
+    }
+    Some(call.phase)
+}
+
+/// Tag-reply route phases 12-27: fan out to the output/branch phases.
+fn tag_reply_route(call: &mut Call, value: u32) -> Option<u32> {
+    match call.phase {
+        12 => match value {
+            0 => call.phase = 13, 1 => call.phase = 14, 2 => call.phase = 20,
+            3 => call.phase = 27, 4 => call.phase = 11, _ => return Some(call.fail(PROTOCOL)),
+        },
+        13 => match value { 0 => { call.output(4); }, 1 => call.phase = 11, _ => return Some(call.fail(PROTOCOL)) },
+        20 => match value { 1 => call.phase = 21, 0 => { call.output(5); }, _ => return Some(call.fail(PROTOCOL)) },
+        23 => match value { 0 => { call.output(1); }, 1 => call.phase = 24, _ => return Some(call.fail(PROTOCOL)) },
+        27 => match value {
+            0 => { call.output(3); }, 1 => { call.output(1); }, 2 => { call.output(2); },
+            _ => return Some(call.fail(PROTOCOL)),
+        },
+        _ => return None,
+    }
+    Some(call.phase)
+}
+
 #[no_mangle]
 pub extern "C" fn can_recovery_tag_reply(handle: u32, value: u32) -> u32 {
     with_call(handle, |call| {
-        match call.phase {
-            9 => match value { 0 => call.phase = 11, 1 => call.phase = 10, _ => return call.fail(PROTOCOL) },
-            11 => match value {
-                // Equal UTF-16 ids are indistinguishable; unstable sorting avoids
-                // an extra infallible scratch allocation without changing output.
-                0 => { for list in &mut call.lists { list.sort_unstable(); } call.phase = DONE; }
-                1 => call.phase = 12,
-                _ => return call.fail(PROTOCOL),
-            },
-            12 => match value {
-                0 => call.phase = 13, 1 => call.phase = 14, 2 => call.phase = 20,
-                3 => call.phase = 27, 4 => call.phase = 11, _ => return call.fail(PROTOCOL),
-            },
-            13 => match value { 0 => { call.output(4); }, 1 => call.phase = 11, _ => return call.fail(PROTOCOL) },
-            20 => match value { 1 => call.phase = 21, 0 => { call.output(5); }, _ => return call.fail(PROTOCOL) },
-            23 => match value { 0 => { call.output(1); }, 1 => call.phase = 24, _ => return call.fail(PROTOCOL) },
-            27 => match value {
-                0 => { call.output(3); }, 1 => { call.output(1); }, 2 => { call.output(2); },
-                _ => return call.fail(PROTOCOL),
-            },
-            _ => return call.fail(PROTOCOL),
+        if let Some(outcome) = tag_reply_select(call, value) {
+            return outcome;
         }
-        call.phase
+        if let Some(outcome) = tag_reply_route(call, value) {
+            return outcome;
+        }
+        call.fail(PROTOCOL)
     })
+}
+
+/// Number-reply gate phases 1-8: finite, non-negative, integer, and
+/// positive gates. Returns the reply when the phase was handled.
+fn number_reply_gate(call: &mut Call, value: f64) -> Option<u32> {
+    match call.phase {
+        1 => { if !value.is_finite() { return Some(call.fail(1)); } call.phase = 2; }
+        2 => { if value < 0.0 { return Some(call.fail(1)); } call.phase = 3; }
+        3 => { if !value.is_finite() { return Some(call.fail(2)); } call.phase = 4; }
+        4 => { if value < 0.0 { return Some(call.fail(2)); } call.phase = 5; }
+        5 => { if !value.is_finite() || value.trunc() != value { return Some(call.fail(3)); } call.phase = 6; }
+        6 => { if value < 1.0 { return Some(call.fail(3)); } call.phase = 7; }
+        7 => { if !value.is_finite() { return Some(call.fail(4)); } call.phase = 8; }
+        8 => { if value <= 0.0 { return Some(call.fail(4)); } call.phase = 9; }
+        _ => return None,
+    }
+    Some(call.phase)
+}
+
+/// Number-reply staleness window phases 15-17: captures now/age,
+/// gates both, then compares the value against the window.
+fn number_reply_window(call: &mut Call, value: f64) -> Option<u32> {
+    match call.phase {
+        15 => { call.now = value; call.phase = 16; }
+        16 => {
+            call.age = value;
+            if !call.now.is_finite() || call.now < 0.0 { return Some(call.fail(5)); }
+            if !call.age.is_finite() || call.age < 0.0 { return Some(call.fail(6)); }
+            call.phase = 17;
+        }
+        17 => { if value + call.age <= call.now { call.output(0); } else { call.phase = 11; } }
+        _ => return None,
+    }
+    Some(call.phase)
+}
+
+/// Number-reply attempt phases 21-26: captures attempts/anchor and
+/// compares against the horizon value.
+fn number_reply_attempt(call: &mut Call, value: f64) -> Option<u32> {
+    match call.phase {
+        21 => { call.attempts = value; call.phase = 22; }
+        22 => { if call.attempts >= value { call.output(6); } else { call.phase = 23; } }
+        24 => { call.failure_now = value; call.phase = 25; }
+        25 => { call.anchor = value; call.phase = 26; }
+        26 => { if call.failure_now - call.anchor >= value { call.output(6); } else { call.output(1); } }
+        _ => return None,
+    }
+    Some(call.phase)
 }
 
 #[no_mangle]
 pub extern "C" fn can_recovery_number_reply(handle: u32, value: f64) -> u32 {
     with_call(handle, |call| {
-        match call.phase {
-            1 => { if !value.is_finite() { return call.fail(1); } call.phase = 2; }
-            2 => { if value < 0.0 { return call.fail(1); } call.phase = 3; }
-            3 => { if !value.is_finite() { return call.fail(2); } call.phase = 4; }
-            4 => { if value < 0.0 { return call.fail(2); } call.phase = 5; }
-            5 => { if !value.is_finite() || value.trunc() != value { return call.fail(3); } call.phase = 6; }
-            6 => { if value < 1.0 { return call.fail(3); } call.phase = 7; }
-            7 => { if !value.is_finite() { return call.fail(4); } call.phase = 8; }
-            8 => { if value <= 0.0 { return call.fail(4); } call.phase = 9; }
-            15 => { call.now = value; call.phase = 16; }
-            16 => {
-                call.age = value;
-                if !call.now.is_finite() || call.now < 0.0 { return call.fail(5); }
-                if !call.age.is_finite() || call.age < 0.0 { return call.fail(6); }
-                call.phase = 17;
-            }
-            17 => { if value + call.age <= call.now { call.output(0); } else { call.phase = 11; } }
-            21 => { call.attempts = value; call.phase = 22; }
-            22 => { if call.attempts >= value { call.output(6); } else { call.phase = 23; } }
-            24 => { call.failure_now = value; call.phase = 25; }
-            25 => { call.anchor = value; call.phase = 26; }
-            26 => { if call.failure_now - call.anchor >= value { call.output(6); } else { call.output(1); } }
-            _ => return call.fail(PROTOCOL),
+        if let Some(outcome) = number_reply_gate(call, value) {
+            return outcome;
         }
-        call.phase
+        if let Some(outcome) = number_reply_window(call, value) {
+            return outcome;
+        }
+        if let Some(outcome) = number_reply_attempt(call, value) {
+            return outcome;
+        }
+        call.fail(PROTOCOL)
     })
 }
 

@@ -685,6 +685,9 @@ fn display_type(program: &CheckedProgram, module: ModuleId, ty: &ResolvedType) -
             },
         )
     };
+    if let Some(text) = display_compound_type(program, module, &name, ty) {
+        return text;
+    }
     match ty {
         ResolvedType::Error => "{error}".to_string(),
         ResolvedType::Unknown => "{unknown}".to_string(),
@@ -696,18 +699,54 @@ fn display_type(program: &CheckedProgram, module: ModuleId, ty: &ResolvedType) -
         ResolvedType::Record { symbol, .. } => name(*symbol),
         ResolvedType::Message(id) => format!("message {}", name(*id)),
         ResolvedType::InlineMessage => "anonymous message descriptor".to_string(),
+        ResolvedType::Delivery { op } => format!("delivery({})", name(*op)),
+        ResolvedType::Operation(id) => name(*id),
+        ResolvedType::Opaque(_) => "{opaque}".to_string(),
+        ResolvedType::StdNominal { name, .. } => (*name).to_string(),
+        _ => unreachable!("display_compound_type covers the remaining variants"),
+    }
+}
+
+/// Scalar leaf spelling.
+fn scalar_name(scalar: &Scalar) -> &'static str {
+    scalar.as_str()
+}
+
+fn display_action_type(
+    name: &dyn Fn(SymbolId) -> String,
+    targets: &[SymbolId],
+    external: &[String],
+) -> String {
+    let mut ops: Vec<String> = targets.iter().map(|t| name(*t)).collect();
+    ops.extend(external.iter().cloned());
+    format!("action({})", ops.join(","))
+}
+
+fn display_invocation_type(name: &dyn Fn(SymbolId) -> String, targets: &[SymbolId]) -> String {
+    let ops: Vec<String> = targets.iter().map(|t| name(*t)).collect();
+    format!("invocation({})", ops.join(","))
+}
+
+fn display_union_arms(name: &dyn Fn(SymbolId) -> String, arms: &[SymbolId]) -> String {
+    arms.iter().map(|a| name(*a)).collect::<Vec<_>>().join("|")
+}
+
+fn display_object_type(fields: &[(String, ResolvedType)]) -> String {
+    let keys: Vec<&str> = fields.iter().map(|(k, _)| k.as_str()).collect();
+    format!("object{{{}}}", keys.join(","))
+}
+
+fn display_compound_type(
+    program: &CheckedProgram,
+    module: ModuleId,
+    name: &dyn Fn(SymbolId) -> String,
+    ty: &ResolvedType,
+) -> Option<String> {
+    let text = match ty {
         ResolvedType::Action {
             targets, external, ..
-        } => {
-            let mut ops: Vec<String> = targets.iter().map(|t| name(*t)).collect();
-            ops.extend(external.iter().cloned());
-            format!("action({})", ops.join(","))
-        }
-        ResolvedType::Invocation { targets } => {
-            let ops: Vec<String> = targets.iter().map(|t| name(*t)).collect();
-            format!("invocation({})", ops.join(","))
-        }
-        ResolvedType::Delivery { op } => format!("delivery({})", name(*op)),
+        } => display_action_type(name, targets, external),
+        ResolvedType::Invocation { targets } => display_invocation_type(name, targets),
         // T14c: typed external receipts name their consumed `std`
         // target (mirrors `ResolvedType::display`).
         ResolvedType::StdDelivery { capability, op } => {
@@ -717,20 +756,11 @@ fn display_type(program: &CheckedProgram, module: ModuleId, ty: &ResolvedType) -
             format!("array of {}", display_type(program, module, element))
         }
         ResolvedType::Nullable(inner) => format!("{}?", display_type(program, module, inner)),
-        ResolvedType::Union(arms) => arms.iter().map(|a| name(*a)).collect::<Vec<_>>().join("|"),
-        ResolvedType::Object(fields) => {
-            let keys: Vec<&str> = fields.iter().map(|(k, _)| k.as_str()).collect();
-            format!("object{{{}}}", keys.join(","))
-        }
-        ResolvedType::Operation(id) => name(*id),
-        ResolvedType::Opaque(_) => "{opaque}".to_string(),
-        ResolvedType::StdNominal { name, .. } => (*name).to_string(),
-    }
-}
-
-/// Scalar leaf spelling.
-fn scalar_name(scalar: &Scalar) -> &'static str {
-    scalar.as_str()
+        ResolvedType::Union(arms) => display_union_arms(name, arms),
+        ResolvedType::Object(fields) => display_object_type(fields),
+        _ => return None,
+    };
+    Some(text)
 }
 
 #[cfg(test)]

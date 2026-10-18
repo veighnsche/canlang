@@ -41,53 +41,70 @@ struct DatetimeFields {
     offset: Option<(bool, u8, u8)>,
 }
 
-/// Matches the public constructor grammar:
-/// `YYYY-MM-DD[Tt]HH:MM:SS[.fraction]([Zz]|[+-]HH:MM)` with ASCII digits.
-fn match_datetime_text(text: &str) -> Option<DatetimeFields> {
-    let bytes = text.as_bytes();
-    if bytes.len() < 20 {
-        return None;
+/// Parses ASCII digits at `text[from..to]`. Returns None for a missing,
+/// short, non-digit, or unparsable slice.
+fn parse_digits(text: &str, from: usize, to: usize) -> Option<i32> {
+    let part = text.get(from..to)?;
+    if part.len() == to - from && part.bytes().all(|b| b.is_ascii_digit()) {
+        part.parse::<i32>().ok()
+    } else {
+        None
     }
-    let digits = |from: usize, to: usize| -> Option<i32> {
-        let part = text.get(from..to)?;
-        if part.len() == to - from && part.bytes().all(|b| b.is_ascii_digit()) {
-            part.parse::<i32>().ok()
-        } else {
-            None
-        }
-    };
-    let year = digits(0, 4)?;
+}
+
+/// Parses the `YYYY-MM-DD[Tt]` date prefix. Requires `text.len() >= 20`
+/// (checked by the caller before any positional parse runs).
+fn parse_datetime_date(text: &str) -> Option<(i32, i32, i32)> {
+    let bytes = text.as_bytes();
+    let year = parse_digits(text, 0, 4)?;
     if bytes[4] != b'-' {
         return None;
     }
-    let month = digits(5, 7)?;
+    let month = parse_digits(text, 5, 7)?;
     if bytes[7] != b'-' {
         return None;
     }
-    let day = digits(8, 10)?;
+    let day = parse_digits(text, 8, 10)?;
     if bytes[10] != b'T' && bytes[10] != b't' {
         return None;
     }
-    let hour = digits(11, 13)?;
+    Some((year, month, day))
+}
+
+/// Parses the `HH:MM:SS` time part. Requires `text.len() >= 20`.
+fn parse_datetime_time(text: &str) -> Option<(i32, i32, i32)> {
+    let bytes = text.as_bytes();
+    let hour = parse_digits(text, 11, 13)?;
     if bytes[13] != b':' {
         return None;
     }
-    let minute = digits(14, 16)?;
+    let minute = parse_digits(text, 14, 16)?;
     if bytes[16] != b':' {
         return None;
     }
-    let second = digits(17, 19)?;
-    let mut rest = &text[19..];
+    let second = parse_digits(text, 17, 19)?;
+    Some((hour, minute, second))
+}
+
+/// Parses an optional `.fraction` at the head of `rest`, returning the
+/// fraction and the unconsumed tail. A bare dot with no digits rejects.
+fn parse_datetime_fraction(rest: &str) -> Option<(Option<String>, &str)> {
     let mut fraction = None;
+    let mut tail = rest;
     if let Some(after_dot) = rest.strip_prefix('.') {
         let digit_len = after_dot.bytes().take_while(|b| b.is_ascii_digit()).count();
         if digit_len == 0 {
             return None;
         }
         fraction = Some(after_dot[..digit_len].to_string());
-        rest = &after_dot[digit_len..];
+        tail = &after_dot[digit_len..];
     }
-    let offset = if rest == "Z" || rest == "z" {
+    Some((fraction, tail))
+}
+
+/// Parses the offset tail: `Z`/`z` (no offset) or `[+-]HH:MM`.
+fn parse_datetime_offset(rest: &str) -> Option<Option<(bool, u8, u8)>> {
+    if rest == "Z" || rest == "z" {
         None
     } else if rest.len() == 6
         && (rest.as_bytes()[0] == b'+' || rest.as_bytes()[0] == b'-')
@@ -101,10 +118,23 @@ fn match_datetime_text(text: &str) -> Option<DatetimeFields> {
         }
         let oh = rest[1..3].parse::<i32>().ok()?;
         let om = rest[4..6].parse::<i32>().ok()?;
-        Some((sign_positive, oh as u8, om as u8))
+        Some(Some((sign_positive, oh as u8, om as u8)))
     } else {
         return None;
-    };
+    }
+}
+
+/// Matches the public constructor grammar:
+/// `YYYY-MM-DD[Tt]HH:MM:SS[.fraction]([Zz]|[+-]HH:MM)` with ASCII digits.
+fn match_datetime_text(text: &str) -> Option<DatetimeFields> {
+    let bytes = text.as_bytes();
+    if bytes.len() < 20 {
+        return None;
+    }
+    let (year, month, day) = parse_datetime_date(text)?;
+    let (hour, minute, second) = parse_datetime_time(text)?;
+    let (fraction, rest) = parse_datetime_fraction(&text[19..])?;
+    let offset = parse_datetime_offset(rest)?;
     Some(DatetimeFields {
         year,
         month: month as u8,

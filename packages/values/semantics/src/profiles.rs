@@ -91,6 +91,38 @@ fn parse_units(value: &Value) -> Result<Vec<u16>, Value> {
     Ok(units)
 }
 
+/// Parses an `array` frame's items recursively.
+fn parse_frame_array(value: &Value) -> Result<Frame, Value> {
+    let items = value
+        .get("items")
+        .and_then(Value::as_array)
+        .ok_or_else(|| transport_err("args/malformed", None))?;
+    let mut out = Vec::with_capacity(items.len());
+    for item in items {
+        out.push(parse_frame(item)?);
+    }
+    Ok(Frame::Array(out))
+}
+
+/// Parses an `entries` frame's key/value pairs.
+fn parse_frame_entries(value: &Value) -> Result<Frame, Value> {
+    let items = value
+        .get("entries")
+        .and_then(Value::as_array)
+        .ok_or_else(|| transport_err("args/malformed", None))?;
+    let mut out = Vec::with_capacity(items.len());
+    for item in items {
+        let pair = item
+            .as_array()
+            .ok_or_else(|| transport_err("args/malformed", None))?;
+        if pair.len() != 2 {
+            return Err(transport_err("args/malformed", None));
+        }
+        out.push((parse_units(&pair[0])?, parse_frame(&pair[1])?));
+    }
+    Ok(Frame::Entries(out))
+}
+
 /// Builds a host frame from its tagged JSON form. Every numeric
 /// conversion is checked: malformed shapes reject, fixed-width
 /// breaches overflow, and nothing parses through lossy floats.
@@ -118,34 +150,8 @@ fn parse_frame(value: &Value) -> Result<Frame, Value> {
         }
         "null" => Ok(Frame::OwnNull),
         "missing" => Ok(Frame::Missing),
-        "array" => {
-            let items = value
-                .get("items")
-                .and_then(Value::as_array)
-                .ok_or_else(|| transport_err("args/malformed", None))?;
-            let mut out = Vec::with_capacity(items.len());
-            for item in items {
-                out.push(parse_frame(item)?);
-            }
-            Ok(Frame::Array(out))
-        }
-        "entries" => {
-            let items = value
-                .get("entries")
-                .and_then(Value::as_array)
-                .ok_or_else(|| transport_err("args/malformed", None))?;
-            let mut out = Vec::with_capacity(items.len());
-            for item in items {
-                let pair = item
-                    .as_array()
-                    .ok_or_else(|| transport_err("args/malformed", None))?;
-                if pair.len() != 2 {
-                    return Err(transport_err("args/malformed", None));
-                }
-                out.push((parse_units(&pair[0])?, parse_frame(&pair[1])?));
-            }
-            Ok(Frame::Entries(out))
-        }
+        "array" => parse_frame_array(value),
+        "entries" => parse_frame_entries(value),
         _ => Err(transport_err("args/malformed", None)),
     }
 }
@@ -173,6 +179,46 @@ fn digest_node(arena: &InputArena, index: usize) -> Value {
     }
 }
 
+/// Parses a `bigint` meta's decimal digits without float loss.
+fn parse_meta_bigint(value: &Value) -> Result<Meta, Value> {
+    let digits = str_arg(value.get("digits"))?;
+    BigInt::parse_bytes(digits.as_bytes(), 10)
+        .map(Meta::Bigint)
+        .ok_or_else(|| transport_err("args/malformed", None))
+}
+
+/// Parses an `array` meta's items recursively.
+fn parse_meta_array(value: &Value) -> Result<Meta, Value> {
+    let items = value
+        .get("items")
+        .and_then(Value::as_array)
+        .ok_or_else(|| transport_err("args/malformed", None))?;
+    let mut out = Vec::with_capacity(items.len());
+    for item in items {
+        out.push(parse_meta(item)?);
+    }
+    Ok(Meta::Array(out))
+}
+
+/// Parses an `object` meta's string-keyed entries recursively.
+fn parse_meta_object(value: &Value) -> Result<Meta, Value> {
+    let items = value
+        .get("entries")
+        .and_then(Value::as_array)
+        .ok_or_else(|| transport_err("args/malformed", None))?;
+    let mut out = Vec::with_capacity(items.len());
+    for item in items {
+        let pair = item
+            .as_array()
+            .ok_or_else(|| transport_err("args/malformed", None))?;
+        if pair.len() != 2 {
+            return Err(transport_err("args/malformed", None));
+        }
+        out.push((str_arg(Some(&pair[0]))?.to_string(), parse_meta(&pair[1])?));
+    }
+    Ok(Meta::Object(out))
+}
+
 fn parse_meta(value: &Value) -> Result<Meta, Value> {
     let tag = value
         .get("t")
@@ -192,40 +238,9 @@ fn parse_meta(value: &Value) -> Result<Meta, Value> {
                 .get("units")
                 .ok_or_else(|| transport_err("args/malformed", None))?,
         )?)),
-        "bigint" => {
-            let digits = str_arg(value.get("digits"))?;
-            BigInt::parse_bytes(digits.as_bytes(), 10)
-                .map(Meta::Bigint)
-                .ok_or_else(|| transport_err("args/malformed", None))
-        }
-        "array" => {
-            let items = value
-                .get("items")
-                .and_then(Value::as_array)
-                .ok_or_else(|| transport_err("args/malformed", None))?;
-            let mut out = Vec::with_capacity(items.len());
-            for item in items {
-                out.push(parse_meta(item)?);
-            }
-            Ok(Meta::Array(out))
-        }
-        "object" => {
-            let items = value
-                .get("entries")
-                .and_then(Value::as_array)
-                .ok_or_else(|| transport_err("args/malformed", None))?;
-            let mut out = Vec::with_capacity(items.len());
-            for item in items {
-                let pair = item
-                    .as_array()
-                    .ok_or_else(|| transport_err("args/malformed", None))?;
-                if pair.len() != 2 {
-                    return Err(transport_err("args/malformed", None));
-                }
-                out.push((str_arg(Some(&pair[0]))?.to_string(), parse_meta(&pair[1])?));
-            }
-            Ok(Meta::Object(out))
-        }
+        "bigint" => parse_meta_bigint(value),
+        "array" => parse_meta_array(value),
+        "object" => parse_meta_object(value),
         "undef" => Ok(Meta::Undefined),
         _ => Err(transport_err("args/malformed", None)),
     }
@@ -258,77 +273,98 @@ fn opt_bool(value: &Value, key: &str) -> Result<Option<bool>, Value> {
     }
 }
 
+/// Unit-like and named base tags: scalar/stringlike/user/member/file/
+/// secret/json/nominal. Returns None for compound tags.
+fn parse_base_simple(tag: &str, value: &Value) -> Option<Result<TypeBase, Value>> {
+    match tag {
+        "scalar" => Some(str_arg(value.get("name")).map(|name| TypeBase::Scalar {
+            name: name.to_string(),
+        })),
+        "stringlike" => Some(str_arg(value.get("name")).map(|name| TypeBase::Stringlike {
+            name: name.to_string(),
+        })),
+        "user" => Some(Ok(TypeBase::User)),
+        "member" => Some(Ok(TypeBase::Member)),
+        "file" => Some(Ok(TypeBase::File)),
+        "secret" => Some(Ok(TypeBase::Secret)),
+        "json" => Some(Ok(TypeBase::Json)),
+        "nominal" => Some(str_arg(value.get("path")).map(|path| TypeBase::Nominal {
+            path: path.to_string(),
+        })),
+        _ => None,
+    }
+}
+
+/// Parses a string list at `key` (`cases`, `arms`).
+fn parse_string_list(value: &Value, key: &str) -> Result<Vec<String>, Value> {
+    let list = value
+        .get(key)
+        .and_then(Value::as_array)
+        .ok_or_else(|| transport_err("args/malformed", None))?;
+    let mut out = Vec::with_capacity(list.len());
+    for item in list {
+        out.push(str_arg(Some(item))?.to_string());
+    }
+    Ok(out)
+}
+
+/// Parses the optional string-list `targets` of action/invocation bases.
+fn parse_base_targets(value: &Value) -> Result<Option<Vec<String>>, Value> {
+    match value.get("targets") {
+        None => Ok(None),
+        Some(items) => {
+            let list = items
+                .as_array()
+                .ok_or_else(|| transport_err("args/malformed", None))?;
+            let mut out = Vec::with_capacity(list.len());
+            for item in list {
+                out.push(str_arg(Some(item))?.to_string());
+            }
+            Ok(Some(out))
+        }
+    }
+}
+
+/// Parses the optional operation name of a delivery base.
+fn parse_base_operation(value: &Value) -> Result<Option<String>, Value> {
+    match value.get("operation") {
+        None => Ok(None),
+        Some(item) => str_arg(Some(item)).map(|name| Some(name.to_string())),
+    }
+}
+
+/// Compound base tags: action/invocation/delivery/enum/union.
+/// Returns None for simple tags.
+fn parse_base_compound(tag: &str, value: &Value) -> Option<Result<TypeBase, Value>> {
+    match tag {
+        "action" | "invocation" => Some(parse_base_targets(value).map(|targets| {
+            if tag == "action" {
+                TypeBase::Action { targets }
+            } else {
+                TypeBase::Invocation { targets }
+            }
+        })),
+        "delivery" => Some(
+            parse_base_operation(value).map(|operation| TypeBase::Delivery { operation }),
+        ),
+        "enum" => Some(parse_string_list(value, "cases").map(|cases| TypeBase::Enum { cases })),
+        "union" => Some(parse_string_list(value, "arms").map(|arms| TypeBase::Union { arms })),
+        _ => None,
+    }
+}
+
 fn parse_base(value: &Value) -> Result<TypeBase, Value> {
     let tag = value
         .get("t")
         .and_then(Value::as_str)
         .ok_or_else(|| transport_err("args/malformed", None))?;
-    match tag {
-        "scalar" => Ok(TypeBase::Scalar {
-            name: str_arg(value.get("name"))?.to_string(),
-        }),
-        "stringlike" => Ok(TypeBase::Stringlike {
-            name: str_arg(value.get("name"))?.to_string(),
-        }),
-        "user" => Ok(TypeBase::User),
-        "member" => Ok(TypeBase::Member),
-        "file" => Ok(TypeBase::File),
-        "secret" => Ok(TypeBase::Secret),
-        "json" => Ok(TypeBase::Json),
-        "nominal" => Ok(TypeBase::Nominal {
-            path: str_arg(value.get("path"))?.to_string(),
-        }),
-        "action" | "invocation" => {
-            let targets = match value.get("targets") {
-                None => None,
-                Some(items) => {
-                    let list = items
-                        .as_array()
-                        .ok_or_else(|| transport_err("args/malformed", None))?;
-                    let mut out = Vec::with_capacity(list.len());
-                    for item in list {
-                        out.push(str_arg(Some(item))?.to_string());
-                    }
-                    Some(out)
-                }
-            };
-            if tag == "action" {
-                Ok(TypeBase::Action { targets })
-            } else {
-                Ok(TypeBase::Invocation { targets })
-            }
-        }
-        "delivery" => {
-            let operation = match value.get("operation") {
-                None => None,
-                Some(item) => Some(str_arg(Some(item))?.to_string()),
-            };
-            Ok(TypeBase::Delivery { operation })
-        }
-        "enum" => {
-            let list = value
-                .get("cases")
-                .and_then(Value::as_array)
-                .ok_or_else(|| transport_err("args/malformed", None))?;
-            let mut cases = Vec::with_capacity(list.len());
-            for item in list {
-                cases.push(str_arg(Some(item))?.to_string());
-            }
-            Ok(TypeBase::Enum { cases })
-        }
-        "union" => {
-            let list = value
-                .get("arms")
-                .and_then(Value::as_array)
-                .ok_or_else(|| transport_err("args/malformed", None))?;
-            let mut arms = Vec::with_capacity(list.len());
-            for item in list {
-                arms.push(str_arg(Some(item))?.to_string());
-            }
-            Ok(TypeBase::Union { arms })
-        }
-        _ => Err(transport_err("args/malformed", None)),
+    if let Some(result) = parse_base_simple(tag, value) {
+        return result;
     }
+    if let Some(result) = parse_base_compound(tag, value) {
+        return result;
+    }
+    Err(transport_err("args/malformed", None))
 }
 
 fn parse_field(value: &Value) -> Result<FieldInput, Value> {
@@ -376,6 +412,70 @@ fn parse_field(value: &Value) -> Result<FieldInput, Value> {
     })
 }
 
+/// Parses the `contracts` section of a normalized schema.
+fn parse_schema_contracts(contracts: &[Value]) -> Result<Vec<ContractInput>, Value> {
+    let mut out_contracts = Vec::with_capacity(contracts.len());
+    for contract in contracts {
+        let fields = contract
+            .get("fields")
+            .and_then(Value::as_array)
+            .ok_or_else(|| transport_err("args/malformed", None))?;
+        let mut out_fields = Vec::with_capacity(fields.len());
+        for field in fields {
+            out_fields.push(parse_field(field)?);
+        }
+        out_contracts.push(ContractInput {
+            name: str_arg(contract.get("name"))?.to_string(),
+            fields: out_fields,
+        });
+    }
+    Ok(out_contracts)
+}
+
+/// Parses the `enums` section of a normalized schema.
+fn parse_schema_enums(enums: &[Value]) -> Result<Vec<EnumInput>, Value> {
+    let mut out_enums = Vec::with_capacity(enums.len());
+    for enum_def in enums {
+        let cases = enum_def
+            .get("cases")
+            .and_then(Value::as_array)
+            .ok_or_else(|| transport_err("args/malformed", None))?;
+        let mut out_cases = Vec::with_capacity(cases.len());
+        for case in cases {
+            out_cases.push(str_arg(Some(case))?.to_string());
+        }
+        out_enums.push(EnumInput {
+            name: str_arg(enum_def.get("name"))?.to_string(),
+            cases: out_cases,
+        });
+    }
+    Ok(out_enums)
+}
+
+/// Parses the `operations` section of a normalized schema.
+fn parse_schema_operations(operations: &[Value]) -> Result<Vec<OperationInput>, Value> {
+    let mut out_operations = Vec::with_capacity(operations.len());
+    for operation in operations {
+        let inputs = operation
+            .get("inputs")
+            .and_then(Value::as_array)
+            .ok_or_else(|| transport_err("args/malformed", None))?;
+        let mut out_inputs = Vec::with_capacity(inputs.len());
+        for input in inputs {
+            out_inputs.push(parse_field(input)?);
+        }
+        out_operations.push(OperationInput {
+            name: str_arg(operation.get("name"))?.to_string(),
+            inputs: out_inputs,
+            mutation: operation
+                .get("mutation")
+                .and_then(Value::as_bool)
+                .unwrap_or(false),
+        });
+    }
+    Ok(out_operations)
+}
+
 fn parse_schema(value: &Value) -> Result<SchemaInput, Value> {
     if value.get("aliases").is_some() {
         return Err(plan_err(&PlanError {
@@ -396,63 +496,17 @@ fn parse_schema(value: &Value) -> Result<SchemaInput, Value> {
                 .get("contracts")
                 .and_then(Value::as_array)
                 .ok_or_else(|| transport_err("args/malformed", None))?;
-            let mut out_contracts = Vec::with_capacity(contracts.len());
-            for contract in contracts {
-                let fields = contract
-                    .get("fields")
-                    .and_then(Value::as_array)
-                    .ok_or_else(|| transport_err("args/malformed", None))?;
-                let mut out_fields = Vec::with_capacity(fields.len());
-                for field in fields {
-                    out_fields.push(parse_field(field)?);
-                }
-                out_contracts.push(ContractInput {
-                    name: str_arg(contract.get("name"))?.to_string(),
-                    fields: out_fields,
-                });
-            }
+            let out_contracts = parse_schema_contracts(contracts)?;
             let enums = value
                 .get("enums")
                 .and_then(Value::as_array)
                 .ok_or_else(|| transport_err("args/malformed", None))?;
-            let mut out_enums = Vec::with_capacity(enums.len());
-            for enum_def in enums {
-                let cases = enum_def
-                    .get("cases")
-                    .and_then(Value::as_array)
-                    .ok_or_else(|| transport_err("args/malformed", None))?;
-                let mut out_cases = Vec::with_capacity(cases.len());
-                for case in cases {
-                    out_cases.push(str_arg(Some(case))?.to_string());
-                }
-                out_enums.push(EnumInput {
-                    name: str_arg(enum_def.get("name"))?.to_string(),
-                    cases: out_cases,
-                });
-            }
+            let out_enums = parse_schema_enums(enums)?;
             let operations = value
                 .get("operations")
                 .and_then(Value::as_array)
                 .ok_or_else(|| transport_err("args/malformed", None))?;
-            let mut out_operations = Vec::with_capacity(operations.len());
-            for operation in operations {
-                let inputs = operation
-                    .get("inputs")
-                    .and_then(Value::as_array)
-                    .ok_or_else(|| transport_err("args/malformed", None))?;
-                let mut out_inputs = Vec::with_capacity(inputs.len());
-                for input in inputs {
-                    out_inputs.push(parse_field(input)?);
-                }
-                out_operations.push(OperationInput {
-                    name: str_arg(operation.get("name"))?.to_string(),
-                    inputs: out_inputs,
-                    mutation: operation
-                        .get("mutation")
-                        .and_then(Value::as_bool)
-                        .unwrap_or(false),
-                });
-            }
+            let out_operations = parse_schema_operations(operations)?;
             Ok(SchemaInput::Normalized {
                 contracts: out_contracts,
                 enums: out_enums,

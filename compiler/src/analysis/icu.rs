@@ -137,55 +137,64 @@ where
         let format = self.keyword()?;
         self.skip_ws();
         match format.as_str() {
-            "number" => {
-                let mut kind = UsageKind::Number;
-                if self.chars.get(self.pos) == Some(&',') {
-                    self.pos += 1;
-                    self.skip_ws();
-                    let style = self.keyword()?;
-                    if style != "integer" {
-                        return Err(format!("unsupported number style '{style}'"));
-                    }
-                    kind = UsageKind::Integer;
-                    self.skip_ws();
-                }
-                self.usage(name.clone(), kind)?;
-                self.close(&name)?;
-            }
-            "date" | "time" => {
-                let kind = if format == "date" {
-                    UsageKind::Date
-                } else {
-                    UsageKind::Time
-                };
-                self.usage(name.clone(), kind)?;
-                if self.chars.get(self.pos) == Some(&',') {
-                    self.pos += 1;
-                    self.skip_ws();
-                    let style = self.keyword()?;
-                    if !matches!(style.as_str(), "short" | "medium" | "long" | "full") {
-                        return Err(format!("unsupported {format} style '{style}'"));
-                    }
-                    self.skip_ws();
-                }
-                self.close(&name)?;
-            }
-            "plural" | "selectordinal" | "select" => {
-                let kind = match format.as_str() {
-                    "plural" => UsageKind::Plural,
-                    "selectordinal" => UsageKind::Ordinal,
-                    _ => UsageKind::Select,
-                };
-                self.usage(name.clone(), kind)?;
-                if self.chars.get(self.pos) != Some(&',') {
-                    return Err(format!("{format} '{{{name}' needs branches"));
-                }
-                self.pos += 1;
-                self.options(&name, format != "select", depth)?;
-                self.close(&name)?;
-            }
+            "number" => self.number_argument(name)?,
+            "date" | "time" => self.date_argument(name, &format)?,
+            "plural" | "selectordinal" | "select" => self.select_argument(name, &format, depth)?,
             other => return Err(format!("unsupported format '{other}'")),
         }
+        Ok(())
+    }
+
+    fn number_argument(&mut self, name: String) -> Result<(), String> {
+        let mut kind = UsageKind::Number;
+        if self.chars.get(self.pos) == Some(&',') {
+            self.pos += 1;
+            self.skip_ws();
+            let style = self.keyword()?;
+            if style != "integer" {
+                return Err(format!("unsupported number style '{style}'"));
+            }
+            kind = UsageKind::Integer;
+            self.skip_ws();
+        }
+        self.usage(name.clone(), kind)?;
+        self.close(&name)?;
+        Ok(())
+    }
+
+    fn date_argument(&mut self, name: String, format: &str) -> Result<(), String> {
+        let kind = if format == "date" {
+            UsageKind::Date
+        } else {
+            UsageKind::Time
+        };
+        self.usage(name.clone(), kind)?;
+        if self.chars.get(self.pos) == Some(&',') {
+            self.pos += 1;
+            self.skip_ws();
+            let style = self.keyword()?;
+            if !matches!(style.as_str(), "short" | "medium" | "long" | "full") {
+                return Err(format!("unsupported {format} style '{style}'"));
+            }
+            self.skip_ws();
+        }
+        self.close(&name)?;
+        Ok(())
+    }
+
+    fn select_argument(&mut self, name: String, format: &str, depth: usize) -> Result<(), String> {
+        let kind = match format {
+            "plural" => UsageKind::Plural,
+            "selectordinal" => UsageKind::Ordinal,
+            _ => UsageKind::Select,
+        };
+        self.usage(name.clone(), kind)?;
+        if self.chars.get(self.pos) != Some(&',') {
+            return Err(format!("{format} '{{{name}' needs branches"));
+        }
+        self.pos += 1;
+        self.options(&name, format != "select", depth)?;
+        self.close(&name)?;
         Ok(())
     }
 

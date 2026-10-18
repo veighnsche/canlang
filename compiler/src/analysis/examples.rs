@@ -1049,14 +1049,13 @@ impl<'a> Checker<'a> {
     }
 
     /// Resolve an input selector root to its channel and identity.
-    fn resolve_selector_root(
+    fn scenario_selector_root(
         &mut self,
-        text: &str,
-        module: ModuleId,
         ctx: &OpCtx,
         bound: &HashMap<String, &SyntaxNode>,
         sel: &Selector,
-        span: Span,
+        module: ModuleId,
+        text: &str,
     ) -> Option<SelRoot> {
         if let OpCtx::Scenario {
             params, trusted, ..
@@ -1076,19 +1075,31 @@ impl<'a> Checker<'a> {
                 return Some(SelRoot::Event);
             }
         }
+        None
+    }
+
+    /// Crud-context root: `Some(outcome)` decides (including a
+    /// diagnostic `None`); plain `None` falls through to the shared
+    /// roots below (non-Crud context or no Crud root matched).
+    fn crud_selector_root(
+        &mut self,
+        ctx: &OpCtx,
+        sel: &Selector,
+        span: Span,
+    ) -> Option<Option<SelRoot>> {
         if let OpCtx::Crud { model, op } = ctx {
             match sel.root.as_str() {
                 "record" if matches!(op, CrudOp::Update | CrudOp::Delete) => {
-                    return Some(SelRoot::Record {
+                    return Some(Some(SelRoot::Record {
                         model: *model,
                         changes: false,
-                    });
+                    }));
                 }
                 "changes" if matches!(op, CrudOp::Update) => {
-                    return Some(SelRoot::Record {
+                    return Some(Some(SelRoot::Record {
                         model: *model,
                         changes: true,
-                    });
+                    }));
                 }
                 "record" | "changes" => {
                     self.diags.push(Diagnostic::error(
@@ -1096,22 +1107,42 @@ impl<'a> Checker<'a> {
                         format!("'{}' is not an input here", sel.root),
                         span,
                     ));
-                    return None;
+                    return Some(None);
                 }
                 _ => {}
             }
             if matches!(op, CrudOp::Create) {
                 if let Some(field) = self.model_field_named(*model, &sel.root) {
-                    return Some(SelRoot::CreateField(field));
+                    return Some(Some(SelRoot::CreateField(field)));
                 }
                 if sel.root == "parent"
                     && let SymbolKind::Model { owner, .. } =
                         &self.tables.symbols[model.0 as usize].kind
                     && let ModelOwner::ChildOf(parent) = owner
                 {
-                    return Some(SelRoot::CreateParent(*parent));
+                    return Some(Some(SelRoot::CreateParent(*parent)));
                 }
             }
+            return None;
+        }
+        None
+    }
+
+    fn resolve_selector_root(
+        &mut self,
+        text: &str,
+        module: ModuleId,
+        ctx: &OpCtx,
+        bound: &HashMap<String, &SyntaxNode>,
+        sel: &Selector,
+        span: Span,
+    ) -> Option<SelRoot> {
+        if let Some(root) = self.scenario_selector_root(ctx, bound, sel, module, text) {
+            return Some(root);
+        }
+        match self.crud_selector_root(ctx, sel, span) {
+            Some(decided) => return decided,
+            None => {}
         }
         if let Some(value) = bound.get(&sel.root) {
             return Some(SelRoot::Binding(binding_fixture(

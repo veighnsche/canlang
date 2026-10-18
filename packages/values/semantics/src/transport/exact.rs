@@ -481,6 +481,53 @@ impl<'a> Cur<'a> {
         self.skip_value_at(0)
     }
 
+    /// Skips one object assuming the cursor points at `{` (unconsumed).
+    fn skip_object_at(&mut self, depth: usize) -> bool {
+        self.p += 1;
+        self.ws();
+        if self.eat(b'}') {
+            return true;
+        }
+        loop {
+            if self.str_span().is_none() {
+                return false;
+            }
+            self.ws();
+            if !self.eat(b':') {
+                return false;
+            }
+            if !self.skip_value_at(depth + 1) {
+                return false;
+            }
+            self.ws();
+            if self.eat(b',') {
+                self.ws();
+                continue;
+            }
+            return self.eat(b'}');
+        }
+    }
+
+    /// Skips one array assuming the cursor points at `[` (unconsumed).
+    fn skip_array_at(&mut self, depth: usize) -> bool {
+        self.p += 1;
+        self.ws();
+        if self.eat(b']') {
+            return true;
+        }
+        loop {
+            if !self.skip_value_at(depth + 1) {
+                return false;
+            }
+            self.ws();
+            if self.eat(b',') {
+                self.ws();
+                continue;
+            }
+            return self.eat(b']');
+        }
+    }
+
     fn skip_value_at(&mut self, depth: usize) -> bool {
         if depth > 64 {
             return false;
@@ -488,49 +535,8 @@ impl<'a> Cur<'a> {
         self.ws();
         match self.b.get(self.p) {
             Some(b'"') => self.str_span().is_some(),
-            Some(b'{') => {
-                self.p += 1;
-                self.ws();
-                if self.eat(b'}') {
-                    return true;
-                }
-                loop {
-                    if self.str_span().is_none() {
-                        return false;
-                    }
-                    self.ws();
-                    if !self.eat(b':') {
-                        return false;
-                    }
-                    if !self.skip_value_at(depth + 1) {
-                        return false;
-                    }
-                    self.ws();
-                    if self.eat(b',') {
-                        self.ws();
-                        continue;
-                    }
-                    return self.eat(b'}');
-                }
-            }
-            Some(b'[') => {
-                self.p += 1;
-                self.ws();
-                if self.eat(b']') {
-                    return true;
-                }
-                loop {
-                    if !self.skip_value_at(depth + 1) {
-                        return false;
-                    }
-                    self.ws();
-                    if self.eat(b',') {
-                        self.ws();
-                        continue;
-                    }
-                    return self.eat(b']');
-                }
-            }
+            Some(b'{') => self.skip_object_at(depth),
+            Some(b'[') => self.skip_array_at(depth),
             Some(b't') => self.eat_lit("true"),
             Some(b'f') => self.eat_lit("false"),
             Some(b'n') => self.eat_lit("null"),
@@ -573,6 +579,55 @@ enum TagName {
     Other,
 }
 
+/// Classifies one tag-object key span as (`t`, `v`). A well-formed key
+/// longer than any admitted name is simply not `t`/`v` (inexact, keeps
+/// preflight); malformed keys fail the scan.
+fn classify_tag_key(
+    c: &mut Cur,
+    span: (usize, usize),
+    buf: &mut [u8; 64],
+    exact: &mut bool,
+) -> Option<(bool, bool)> {
+    match c.decode_short(span, buf) {
+        Short::Fit(klen) => Some((buf[..klen] == *b"t", buf[..klen] == *b"v")),
+        Short::TooLong => {
+            *exact = false;
+            Some((false, false))
+        }
+        Short::Bad => None,
+    }
+}
+
+/// Parses one tag-name value span (`str`/`bigint`/other). A well-formed
+/// name longer than any known tag selects the legacy order below.
+fn parse_tag_name(c: &mut Cur, buf: &mut [u8; 64]) -> Option<TagName> {
+    let vspan = c.str_span()?;
+    Some(match c.decode_short(vspan, buf) {
+        Short::Fit(vlen) => match &buf[..vlen] {
+            b"str" => TagName::Str,
+            b"bigint" => TagName::Bigint,
+            _ => TagName::Other,
+        },
+        Short::TooLong => TagName::Other,
+        Short::Bad => return None,
+    })
+}
+
+/// Parses one `v` value: a string span assigns, any other value skips
+/// past it. Returns None on hard failure; `Some(None)` keeps the
+/// previous span after a successful skip.
+fn parse_tag_value(c: &mut Cur) -> Option<Option<(usize, usize)>> {
+    match c.str_span() {
+        Some(vspan) => Some(Some(vspan)),
+        None => {
+            if !c.skip_value() {
+                return None;
+            }
+            Some(None)
+        }
+    }
+}
+
 /// Parses one tag object the cursor points at (`{` unconsumed).
 /// Returns `None` when it is not shaped like an object at all; duplicate
 /// or unknown keys are recorded as inexact rather than failing the scan.
@@ -603,14 +658,7 @@ fn parse_tag(c: &mut Cur) -> Option<TagShape> {
         // `t`/`v`: the tag is inexact, and the scan keeps preflight
         // instead of escaping to the serde-first legacy path. Malformed
         // keys keep the legacy verdicts.
-        let (is_t, is_v) = match c.decode_short(span, &mut buf) {
-            Short::Fit(klen) => (buf[..klen] == *b"t", buf[..klen] == *b"v"),
-            Short::TooLong => {
-                exact = false;
-                (false, false)
-            }
-            Short::Bad => return None,
-        };
+        let (is_t, is_v) = classify_tag_key(c, span, &mut buf, &mut exact)?;
         c.ws();
         if !c.eat(b':') {
             return None;
@@ -621,31 +669,18 @@ fn parse_tag(c: &mut Cur) -> Option<TagShape> {
                 exact = false;
             }
             seen_t = true;
-            let vspan = c.str_span()?;
             // A well-formed tag name longer than any known tag is not
             // `str`/`bigint`: it selects the legacy order below rather
             // than escaping the whole candidate to it.
-            t = Some(match c.decode_short(vspan, &mut buf) {
-                Short::Fit(vlen) => match &buf[..vlen] {
-                    b"str" => TagName::Str,
-                    b"bigint" => TagName::Bigint,
-                    _ => TagName::Other,
-                },
-                Short::TooLong => TagName::Other,
-                Short::Bad => return None,
-            });
+            t = Some(parse_tag_name(c, &mut buf)?);
         } else if is_v {
             if seen_v {
                 exact = false;
             }
             seen_v = true;
-            match c.str_span() {
+            match parse_tag_value(c)? {
                 Some(vspan) => v_str = Some(vspan),
-                None => {
-                    if !c.skip_value() {
-                        return None;
-                    }
-                }
+                None => {}
             }
         } else {
             exact = false;
@@ -690,6 +725,121 @@ enum Walk {
     Unparseable,
 }
 
+/// Reads one object key and reports whether it carries bigint-decimal.
+/// Key spans above the text bound refuse outright; malformed keys
+/// keep the legacy verdicts.
+fn walk_object_key(c: &mut Cur, buf: &mut [u8; 64]) -> Result<bool, Walk> {
+    c.ws();
+    let span = match c.str_span() {
+        Some(span) => span,
+        None => return Err(Walk::Unparseable),
+    };
+    // Any decoded string span above the selected text bound refuses
+    // before serde materializes it, keys included. Malformed escapes
+    // keep the legacy verdicts.
+    match c.content_ulen(span) {
+        Some(len) if len > SELECTED_INT_TEXT_MAX_BYTES => return Err(Walk::Huge),
+        Some(_) => {}
+        None => return Err(Walk::Unparseable),
+    };
+    // A well-formed key longer than any bigint-decimal key is
+    // simply not one; malformed keys keep legacy verdicts.
+    let bigkey = match c.decode_short(span, buf) {
+        Short::Fit(klen) => is_bigint_key(&buf[..klen]),
+        Short::TooLong => false,
+        Short::Bad => return Err(Walk::Unparseable),
+    };
+    c.ws();
+    if !c.eat(b':') {
+        return Err(Walk::Unparseable);
+    }
+    c.ws();
+    Ok(bigkey)
+}
+
+/// Walks one bigint-key value: string spans are magnitude-gated (huge
+/// text refuses even at small magnitude; grammar failures keep legacy
+/// verdicts), anything else rewinds and walks nested.
+fn walk_bigint_value(c: &mut Cur, depth: usize) -> Walk {
+    let save = c.p;
+    match c.str_span() {
+        Some(vspan) => {
+            // Oversized decimal text refuses even when its
+            // significant magnitude is small (a megabyte of
+            // leading zeros still materializes in serde).
+            match c.content_ulen(vspan) {
+                Some(len) if len > SELECTED_INT_TEXT_MAX_BYTES => {
+                    return Walk::Huge;
+                }
+                Some(_) => {}
+                None => {
+                    c.p = save;
+                    return Walk::Unparseable;
+                }
+            }
+            match c.content_sig(vspan) {
+                Some(significant) if significant > 19 => return Walk::Huge,
+                Some(_) => {}
+                None => {
+                    // Grammar failures fast-fail in the
+                    // legacy parse; keep its verdicts.
+                }
+            }
+            Walk::Clean
+        }
+        None => {
+            // Non-string bigint-key value: walk it in
+            // case it nests further carriers.
+            c.p = save;
+            match walk_nested(c, depth + 1) {
+                Walk::Clean => {}
+                other => return other,
+            }
+            Walk::Clean
+        }
+    }
+}
+
+/// Walks array items to the closing bracket.
+fn walk_array_items(c: &mut Cur, depth: usize) -> Walk {
+    loop {
+        match walk_nested(c, depth + 1) {
+            Walk::Clean => {}
+            other => return other,
+        }
+        c.ws();
+        if c.eat(b',') {
+            continue;
+        }
+        if c.eat(b']') {
+            break;
+        }
+        return Walk::Unparseable;
+    }
+    Walk::Clean
+}
+
+/// Walks one atom: bare strings above the selected text bound refuse
+/// before serde materializes them; anything smaller keeps the legacy
+/// verdicts byte for byte. Non-strings only validate shape — atoms
+/// never reach bigint parsing without a tag carrier.
+fn walk_atom(c: &mut Cur) -> Walk {
+    if c.b.get(c.p) == Some(&b'"') {
+        match c.str_span() {
+            Some(vspan) => match c.content_ulen(vspan) {
+                Some(len) if len > SELECTED_INT_TEXT_MAX_BYTES => Walk::Huge,
+                Some(_) => Walk::Clean,
+                None => Walk::Unparseable,
+            },
+            None => Walk::Unparseable,
+        }
+    } else if c.skip_value() {
+        Walk::Clean
+    } else {
+        Walk::Unparseable
+    }
+}
+
 /// Walks a raw value span (cursor positioned at its start) looking for
 /// bigint-decimal string spans above int64 magnitude. Borrows only, no
 /// allocation and no bigint parse. Depth-capped; deeper input keeps
@@ -708,68 +858,14 @@ fn walk_nested(c: &mut Cur, depth: usize) -> Walk {
                 return Walk::Clean;
             }
             loop {
-                c.ws();
-                let span = match c.str_span() {
-                    Some(span) => span,
-                    None => return Walk::Unparseable,
+                let bigkey = match walk_object_key(c, &mut buf) {
+                    Ok(bigkey) => bigkey,
+                    Err(outcome) => return outcome,
                 };
-                // Any decoded string span above the selected text bound
-                // refuses before serde materializes it, keys included:
-                // no legitimate selected call carries megabyte strings,
-                // and every smaller span keeps legacy verdicts byte for
-                // byte. Malformed escapes keep the legacy verdicts.
-                match c.content_ulen(span) {
-                    Some(len) if len > SELECTED_INT_TEXT_MAX_BYTES => return Walk::Huge,
-                    Some(_) => {}
-                    None => return Walk::Unparseable,
-                }
-                // A well-formed key longer than any bigint-decimal key is
-                // simply not one; malformed keys keep legacy verdicts.
-                let bigkey = match c.decode_short(span, &mut buf) {
-                    Short::Fit(klen) => is_bigint_key(&buf[..klen]),
-                    Short::TooLong => false,
-                    Short::Bad => return Walk::Unparseable,
-                };
-                c.ws();
-                if !c.eat(b':') {
-                    return Walk::Unparseable;
-                }
-                c.ws();
                 if bigkey {
-                    let save = c.p;
-                    match c.str_span() {
-                        Some(vspan) => {
-                            // Oversized decimal text refuses even when its
-                            // significant magnitude is small (a megabyte of
-                            // leading zeros still materializes in serde).
-                            match c.content_ulen(vspan) {
-                                Some(len) if len > SELECTED_INT_TEXT_MAX_BYTES => {
-                                    return Walk::Huge;
-                                }
-                                Some(_) => {}
-                                None => {
-                                    c.p = save;
-                                    return Walk::Unparseable;
-                                }
-                            }
-                            match c.content_sig(vspan) {
-                                Some(significant) if significant > 19 => return Walk::Huge,
-                                Some(_) => {}
-                                None => {
-                                    // Grammar failures fast-fail in the
-                                    // legacy parse; keep its verdicts.
-                                }
-                            }
-                        }
-                        None => {
-                            // Non-string bigint-key value: walk it in
-                            // case it nests further carriers.
-                            c.p = save;
-                            match walk_nested(c, depth + 1) {
-                                Walk::Clean => {}
-                                other => return other,
-                            }
-                        }
+                    match walk_bigint_value(c, depth) {
+                        Walk::Clean => {}
+                        other => return other,
                     }
                 } else {
                     match walk_nested(c, depth + 1) {
@@ -794,198 +890,205 @@ fn walk_nested(c: &mut Cur, depth: usize) -> Walk {
             if c.eat(b']') {
                 return Walk::Clean;
             }
-            loop {
-                match walk_nested(c, depth + 1) {
-                    Walk::Clean => {}
-                    other => return other,
-                }
-                c.ws();
-                if c.eat(b',') {
-                    continue;
-                }
-                if c.eat(b']') {
-                    break;
-                }
-                return Walk::Unparseable;
-            }
-            Walk::Clean
+            walk_array_items(c, depth)
         }
-        _ => {
-            // Atoms (bare strings, numbers, literals) never reach
-            // bigint parsing without a tag carrier; validate shape only.
-            // A bare string above the selected text bound still refuses
-            // before serde materializes it; anything smaller keeps the
-            // legacy verdicts byte for byte.
-            if c.b.get(c.p) == Some(&b'"') {
-                match c.str_span() {
-                    Some(vspan) => match c.content_ulen(vspan) {
-                        Some(len) if len > SELECTED_INT_TEXT_MAX_BYTES => Walk::Huge,
-                        Some(_) => Walk::Clean,
-                        None => Walk::Unparseable,
-                    },
-                    None => Walk::Unparseable,
-                }
-            } else if c.skip_value() {
-                Walk::Clean
-            } else {
-                Walk::Unparseable
+        // Atoms (bare strings, numbers, literals) never reach
+        // bigint parsing without a tag carrier; validate shape only.
+        _ => walk_atom(c),
+    }
+}
+
+/// Classifies one envelope key span into its slot (0 `v`, 1 `op`,
+/// 2 `args`, 99 extra). A well-formed key longer than any envelope
+/// name is simply extra; malformed keys keep the legacy verdicts.
+fn classify_envelope_key(c: &mut Cur, buf: &mut [u8; 64]) -> Option<usize> {
+    let span = match c.str_span() {
+        Some(span) => span,
+        None => return None,
+    };
+    match c.decode_short(span, buf) {
+        Short::Fit(klen) => Some(match &buf[..klen] {
+            b"v" => 0,
+            b"op" => 1,
+            b"args" => 2,
+            _ => 99,
+        }),
+        Short::TooLong => Some(99),
+        Short::Bad => None,
+    }
+}
+
+/// Consumes one envelope separator after a value: a comma continues
+/// with more keys, a `}` re-loops into the top close check, anything
+/// else keeps the legacy verdicts.
+fn scan_envelope_separator(c: &mut Cur) -> Option<()> {
+    c.ws();
+    if c.eat(b',') {
+        return Some(());
+    }
+    if c.b.get(c.p) == Some(&b'}') {
+        return Some(());
+    }
+    None
+}
+
+/// Scans one `op` value: a string name sets the op flags, any other
+/// value skips past it. None fails legacy; `Some(true)` continues the
+/// envelope loop (a skipped value takes no separator); `Some(false)`
+/// falls through to separator handling.
+fn scan_op_value(
+    c: &mut Cur,
+    buf: &mut [u8; 64],
+    op_sel: &mut bool,
+    op_encode: &mut bool,
+) -> Option<bool> {
+    match c.str_span() {
+        Some(vspan) => {
+            // A well-formed op name longer than any known op is
+            // simply not selected; anything else leaves op_sel
+            // clear and keeps the legacy verdicts.
+            if let Short::Fit(vlen) = c.decode_short(vspan, buf) {
+                *op_sel = matches!(&buf[..vlen], b"decode-value" | b"encode-value");
+                *op_encode = matches!(&buf[..vlen], b"encode-value");
             }
+            Some(false)
+        }
+        None => {
+            if !c.skip_value() {
+                return None;
+            }
+            Some(true)
         }
     }
 }
 
-/// Scans raw request bytes for a recognizable selected int call,
-/// measuring decoded lengths and bigint magnitudes without allocating
-/// either. Recognized selected shapes return `Admitted` (within bounds)
-/// or `Refused` (transport, before serde); anything else returns
-/// `Legacy` and keeps the existing serde-first order and verdicts.
-fn preserde_selected_scan(line: &str) -> Preserde {
-    let legacy = Preserde::Legacy;
-    let mut c = Cur {
-        b: line.as_bytes(),
-        s: line,
-        p: 0,
-    };
-    let mut buf = [0u8; 64];
-    c.ws();
-    if !c.eat(b'{') {
-        return legacy;
+/// Scans the `args` array (`[` unconsumed): only the first two tag
+/// shapes are read; later arguments skip borrow-only so a huge or
+/// extra trailing argument cannot push a recognizable selected call
+/// into the serde-first path. None keeps the legacy verdicts.
+fn scan_args_array(
+    c: &mut Cur,
+    arg0: &mut Option<TagShape>,
+    arg1: &mut Option<TagShape>,
+    arg_count: &mut usize,
+) -> Option<()> {
+    if !c.eat(b'[') {
+        return None;
     }
-    let mut seen = [false; 3];
-    let mut extra_top = false;
-    let mut op_sel = false;
-    let mut op_encode = false;
-    // Parsed args, in order; only the first two tag shapes are read.
-    let mut arg0: Option<TagShape> = None;
-    let mut arg1: Option<TagShape> = None;
-    let mut arg_count = 0usize;
-    let mut args_ok = false;
+    c.ws();
+    if c.eat(b']') {
+        return Some(());
+    }
     loop {
-        c.ws();
-        if c.eat(b'}') {
-            break;
-        }
-        let span = match c.str_span() {
-            Some(span) => span,
-            None => return legacy,
-        };
-        // A well-formed key longer than any envelope name is simply
-        // extra; malformed keys keep the legacy serde verdicts.
-        let slot = match c.decode_short(span, &mut buf) {
-            Short::Fit(klen) => match &buf[..klen] {
-                b"v" => 0,
-                b"op" => 1,
-                b"args" => 2,
-                _ => 99,
-            },
-            Short::TooLong => 99,
-            Short::Bad => return legacy,
-        };
-        if slot == 99 || seen[slot] {
-            extra_top = true;
+        if *arg_count >= 2 {
+            if !c.skip_value() {
+                return None;
+            }
+            *arg_count += 1;
         } else {
-            seen[slot] = true;
-        }
-        c.ws();
-        if !c.eat(b':') {
-            return legacy;
-        }
-        c.ws();
-        match slot {
-            0 => {
-                if !c.skip_value() {
-                    return legacy;
-                }
-            }
-            1 => {
-                let vspan = match c.str_span() {
-                    Some(vspan) => vspan,
-                    None => {
-                        if !c.skip_value() {
-                            return legacy;
-                        }
-                        continue;
-                    }
-                };
-                // A well-formed op name longer than any known op is
-                // simply not selected; anything else leaves op_sel
-                // clear and keeps the legacy verdicts.
-                if let Short::Fit(vlen) = c.decode_short(vspan, &mut buf) {
-                    op_sel = matches!(&buf[..vlen], b"decode-value" | b"encode-value");
-                    op_encode = matches!(&buf[..vlen], b"encode-value");
-                }
-            }
-            2 => {
-                if !c.eat(b'[') {
-                    return legacy;
-                }
-                c.ws();
-                if c.eat(b']') {
-                    args_ok = true;
-                } else {
-                    loop {
-                        // Only the first two argument shapes matter; later
-                        // arguments are skipped borrow-only so a huge or
-                        // extra trailing argument cannot push a
-                        // recognizable selected call into the serde-first
-                        // path. Malformed arguments keep legacy verdicts.
-                        if arg_count >= 2 {
-                            if !c.skip_value() {
-                                return legacy;
-                            }
-                            arg_count += 1;
-                        } else {
-                            match parse_tag(&mut c) {
-                                Some(shape) => {
-                                    arg_count += 1;
-                                    if arg_count == 1 {
-                                        arg0 = Some(shape);
-                                    } else {
-                                        arg1 = Some(shape);
-                                    }
-                                }
-                                // Not tag-shaped (well-formed tags always
-                                // parse): the candidate cannot be a
-                                // selected call, so keep the legacy order
-                                // and verdicts.
-                                None => return legacy,
-                            }
-                        }
-                        c.ws();
-                        if c.eat(b',') {
-                            c.ws();
-                            continue;
-                        }
-                        if c.eat(b']') {
-                            args_ok = true;
-                            break;
-                        }
-                        return legacy;
+            match parse_tag(c) {
+                Some(shape) => {
+                    *arg_count += 1;
+                    if *arg_count == 1 {
+                        *arg0 = Some(shape);
+                    } else {
+                        *arg1 = Some(shape);
                     }
                 }
-            }
-            _ => {
-                if !c.skip_value() {
-                    return legacy;
-                }
+                // Not tag-shaped (well-formed tags always
+                // parse): the candidate cannot be a
+                // selected call, so keep the legacy order
+                // and verdicts.
+                None => return None,
             }
         }
         c.ws();
         if c.eat(b',') {
+            c.ws();
             continue;
         }
-        if c.b.get(c.p) == Some(&b'}') {
-            continue;
+        if c.eat(b']') {
+            return Some(());
         }
-        return legacy;
+        return None;
     }
-    c.ws();
-    if c.p != c.b.len() {
-        return legacy;
+}
+
+/// Strict verdict for a `str` payload: decoded text within the bound
+/// admits, anything larger refuses before serde materializes it.
+fn decide_str_payload(c: &Cur, span: (usize, usize)) -> Preserde {
+    match c.content_ulen(span) {
+        Some(len) if len <= SELECTED_INT_TEXT_MAX_BYTES => Preserde::Admitted,
+        _ => Preserde::Refused(transport_refused(format!(
+            "selected int text exceeds the {} byte admission bound",
+            SELECTED_INT_TEXT_MAX_BYTES,
+        ))),
     }
-    if !(seen[0] && seen[1] && seen[2]) || !args_ok {
-        return legacy;
+}
+
+/// Strict verdict for an encode `bigint` payload: the selected encode
+/// caller serializes an actual signed64 bigint canonically (at most 20
+/// characters), so an oversized carrier or a lexically out-of-range
+/// magnitude cannot come from that caller and refuses before any serde
+/// allocation or bigint parse. Grammar failures fast-fail in the
+/// legacy parse, and in-range magnitudes keep the legacy encode order.
+fn decide_bigint_encode_payload(c: &Cur, span: (usize, usize)) -> Preserde {
+    match c.content_int64(span) {
+        IntLex::CarrierTooLong => Preserde::Refused(transport_refused(
+            "selected int value exceeds the canonical int64 carrier".to_string(),
+        )),
+        IntLex::OutOfRange => Preserde::Refused(transport_refused(
+            "selected int value is out of range before bigint parse".to_string(),
+        )),
+        IntLex::Fits | IntLex::Unparseable => Preserde::Admitted,
     }
+}
+
+/// Strict verdict for a decode `bigint` payload: significant magnitudes
+/// above int64 refuse before any bigint parse; grammar failures
+/// fast-fail and small magnitudes keep the legacy parse order and
+/// envelopes (a 19-digit out-of-range decode stays a semantic bound
+/// failure, never transport).
+fn decide_bigint_decode_payload(c: &Cur, span: (usize, usize)) -> Preserde {
+    match c.content_sig(span) {
+        Some(significant) if significant > 19 => Preserde::Refused(transport_refused(
+            "selected int value is out of range before bigint parse".to_string(),
+        )),
+        _ => Preserde::Admitted,
+    }
+}
+
+/// Strict verdict for any other payload tag: its subtree walks for
+/// nested bigint-decimal magnitudes (only magnitudes refuse early);
+/// everything else keeps legacy verdicts byte for byte (this preserves
+/// the committed `num`-tag type-violation pin).
+fn decide_other_payload(c: &Cur, span: (usize, usize)) -> Preserde {
+    let mut w = Cur {
+        b: c.b,
+        s: c.s,
+        p: span.0,
+    };
+    match walk_nested(&mut w, 0) {
+        Walk::Huge => Preserde::Refused(transport_refused(
+            "selected int nested value is out of range before bigint parse".to_string(),
+        )),
+        Walk::Clean | Walk::Unparseable => Preserde::Legacy,
+    }
+}
+
+/// Strict verdict for a recognized selected-int candidate: envelope,
+/// arity, scalar, and payload gates refuse as transport; payload
+/// carriers measure; anything else keeps legacy.
+fn decide_selected(
+    c: &Cur,
+    op_sel: bool,
+    op_encode: bool,
+    extra_top: bool,
+    arg_count: usize,
+    arg0: Option<TagShape>,
+    arg1: Option<TagShape>,
+) -> Preserde {
+    let legacy = Preserde::Legacy;
     // Loose candidate peek: a tagged "int" scalar carrier selects the
     // strict path even with extra tag keys; anything else keeps legacy.
     let scalar = match arg0 {
@@ -1025,11 +1128,7 @@ fn preserde_selected_scan(line: &str) -> Preserde {
     };
     // The payload tag name decides the bound. The selected `str` and
     // `bigint` carriers enforce exact keys, then measure decoded text
-    // or significant magnitude. Any other tag keeps the legacy order:
-    // its subtree walks for nested bigint-decimal magnitudes (only
-    // magnitudes refuse early), and everything else — including extra
-    // fields on a mistyped carrier — keeps legacy verdicts byte for
-    // byte (this preserves the committed `num`-tag type-violation pin).
+    // or significant magnitude. Any other tag keeps the legacy order.
     if !payload.exact
         && matches!(payload.t_is, TagName::Str | TagName::Bigint)
     {
@@ -1039,63 +1138,100 @@ fn preserde_selected_scan(line: &str) -> Preserde {
     }
     match payload.t_is {
         TagName::Str => match payload.v_str {
-            Some(span) => match c.content_ulen(span) {
-                Some(len) if len <= SELECTED_INT_TEXT_MAX_BYTES => Preserde::Admitted,
-                _ => Preserde::Refused(transport_refused(format!(
-                    "selected int text exceeds the {} byte admission bound",
-                    SELECTED_INT_TEXT_MAX_BYTES,
-                ))),
-            },
+            Some(span) => decide_str_payload(c, span),
             None => Preserde::Refused(transport_refused(
                 "selected int payload tag is malformed".to_string(),
             )),
         },
         TagName::Bigint => match payload.v_str {
-            Some(span) if op_encode => match c.content_int64(span) {
-                // The selected encode caller serializes an actual
-                // signed64 bigint canonically (at most 20 characters),
-                // so an oversized carrier or a lexically out-of-range
-                // magnitude cannot come from that caller and refuses
-                // before any serde allocation or bigint parse.
-                // Grammar failures fast-fail in the legacy parse, and
-                // in-range magnitudes keep the legacy encode order.
-                IntLex::CarrierTooLong => Preserde::Refused(transport_refused(
-                    "selected int value exceeds the canonical int64 carrier".to_string(),
-                )),
-                IntLex::OutOfRange => Preserde::Refused(transport_refused(
-                    "selected int value is out of range before bigint parse".to_string(),
-                )),
-                IntLex::Fits | IntLex::Unparseable => Preserde::Admitted,
-            },
-            Some(span) => match c.content_sig(span) {
-                // Significant magnitudes above int64 refuse before any
-                // bigint parse; grammar failures fast-fail and small
-                // magnitudes keep the legacy parse order and envelopes
-                // (a 19-digit out-of-range decode stays a semantic
-                // bound failure, never transport).
-                Some(significant) if significant > 19 => Preserde::Refused(transport_refused(
-                    "selected int value is out of range before bigint parse".to_string(),
-                )),
-                _ => Preserde::Admitted,
-            },
+            Some(span) if op_encode => decide_bigint_encode_payload(c, span),
+            Some(span) => decide_bigint_decode_payload(c, span),
             None => Preserde::Refused(transport_refused(
                 "selected int value tag is malformed".to_string(),
             )),
         },
-        TagName::Other => {
-            let mut w = Cur {
-                b: c.b,
-                s: c.s,
-                p: payload.span.0,
-            };
-            match walk_nested(&mut w, 0) {
-                Walk::Huge => Preserde::Refused(transport_refused(
-                    "selected int nested value is out of range before bigint parse".to_string(),
-                )),
-                Walk::Clean | Walk::Unparseable => Preserde::Legacy,
+        TagName::Other => decide_other_payload(c, payload.span),
+    }
+}
+
+/// Scans raw request bytes for a recognizable selected int call,
+/// measuring decoded lengths and bigint magnitudes without allocating
+/// either. Recognized selected shapes return `Admitted` (within bounds)
+/// or `Refused` (transport, before serde); anything else returns
+/// `Legacy` and keeps the existing serde-first order and verdicts.
+fn preserde_selected_scan(line: &str) -> Preserde {
+    let legacy = Preserde::Legacy;
+    let mut c = Cur {
+        b: line.as_bytes(),
+        s: line,
+        p: 0,
+    };
+    let mut buf = [0u8; 64];
+    c.ws();
+    if !c.eat(b'{') {
+        return legacy;
+    }
+    let mut seen = [false; 3];
+    let mut extra_top = false;
+    let mut op_sel = false;
+    let mut op_encode = false;
+    // Parsed args, in order; only the first two tag shapes are read.
+    let mut arg0: Option<TagShape> = None;
+    let mut arg1: Option<TagShape> = None;
+    let mut arg_count = 0usize;
+    let mut args_ok = false;
+    loop {
+        c.ws();
+        if c.eat(b'}') {
+            break;
+        }
+        // A well-formed key longer than any envelope name is simply
+        // extra; malformed keys keep the legacy serde verdicts.
+        let slot = match classify_envelope_key(&mut c, &mut buf) {
+            Some(slot) => slot,
+            None => return legacy,
+        };
+        if slot == 99 || seen[slot] {
+            extra_top = true;
+        } else {
+            seen[slot] = true;
+        }
+        c.ws();
+        if !c.eat(b':') {
+            return legacy;
+        }
+        c.ws();
+        match slot {
+            1 => match scan_op_value(&mut c, &mut buf, &mut op_sel, &mut op_encode) {
+                None => return legacy,
+                Some(true) => continue,
+                Some(false) => {}
+            },
+            2 => {
+                if scan_args_array(&mut c, &mut arg0, &mut arg1, &mut arg_count).is_none() {
+                    return legacy;
+                }
+                args_ok = true;
+            }
+            // `v` carries no selected meaning; unknown slots are extra.
+            _ => {
+                if !c.skip_value() {
+                    return legacy;
+                }
             }
         }
+        if scan_envelope_separator(&mut c).is_none() {
+            return legacy;
+        }
     }
+    c.ws();
+    if c.p != c.b.len() {
+        return legacy;
+    }
+    if !(seen[0] && seen[1] && seen[2]) || !args_ok {
+        return legacy;
+    }
+    decide_selected(&c, op_sel, op_encode, extra_top, arg_count, arg0, arg1)
 }
 
 /// Compares a raw string-token span's decoded content against `b"int"`.
@@ -1177,36 +1313,51 @@ fn selected_int_gate(op: &str, req: &Json, raw_args: &[Json]) -> Option<Json> {
         return Some(transport_refused(what.to_string()));
     }
     if op == "decode-value" {
-        match tag {
-            "str" => {
-                let text = payload.get("v").and_then(Json::as_str).unwrap_or("");
-                if text.len() > SELECTED_INT_TEXT_MAX_BYTES {
-                    return Some(transport_refused(format!(
-                        "selected int text exceeds the {} byte admission bound",
-                        SELECTED_INT_TEXT_MAX_BYTES,
-                    )));
-                }
-                return None;
-            }
-            "bigint" => {
-                let text = payload.get("v").and_then(Json::as_str).unwrap_or("");
-                match significant_digits(text) {
-                    Some(significant) if significant.len() > 19 => {
-                        return Some(transport_refused(
-                            "selected int value is out of range before bigint parse".to_string(),
-                        ));
-                    }
-                    _ => return None,
-                }
-            }
-            _ => return None,
-        }
+        return selected_decode_payload(tag, payload);
     }
-    // encode-value: the value travels as a tagged bigint decimal string.
-    // The canonical carrier (at most 20 characters), the significant
-    // magnitude, and the lexical 19-digit boundary refuse before any
-    // arbitrary-precision parse; every other well-formed tag keeps the
-    // legacy parse-then-narrow order and envelopes.
+    // encode-value falls through to the bigint carrier gate; any other
+    // well-formed tag keeps the legacy parse-then-narrow order.
+    selected_encode_payload(tag, payload)
+}
+
+/// decode-value payload gate: `str` measures decoded text, `bigint`
+/// measures significant magnitude; any other well-formed tag keeps the
+/// legacy semantic order (preserving the committed `num`-tag
+/// type-violation pin).
+fn selected_decode_payload(tag: &str, payload: &Json) -> Option<Json> {
+    match tag {
+        "str" => {
+            let text = payload.get("v").and_then(Json::as_str).unwrap_or("");
+            if text.len() > SELECTED_INT_TEXT_MAX_BYTES {
+                Some(transport_refused(format!(
+                    "selected int text exceeds the {} byte admission bound",
+                    SELECTED_INT_TEXT_MAX_BYTES,
+                )))
+            } else {
+                None
+            }
+        }
+        "bigint" => {
+            let text = payload.get("v").and_then(Json::as_str).unwrap_or("");
+            match significant_digits(text) {
+                Some(significant) if significant.len() > 19 => {
+                    Some(transport_refused(
+                        "selected int value is out of range before bigint parse".to_string(),
+                    ))
+                }
+                _ => None,
+            }
+        }
+        _ => None,
+    }
+}
+
+/// encode-value payload gate: the value travels as a tagged bigint
+/// decimal string. The canonical carrier (at most 20 characters), the
+/// significant magnitude, and the lexical 19-digit boundary refuse
+/// before any arbitrary-precision parse; every other well-formed tag
+/// keeps the legacy parse-then-narrow order and envelopes.
+fn selected_encode_payload(tag: &str, payload: &Json) -> Option<Json> {
     match tag {
         "bigint" => {
             let text = payload.get("v").and_then(Json::as_str).unwrap_or("");
@@ -1271,120 +1422,151 @@ fn json_to_f64(v: &Json) -> Result<f64, TransportError> {
 }
 
 /// Decodes a tagged JSON input value to a core `Value`.
+/// Reads one string payload field for scalar inputs.
+fn decode_text_field(v: &Json, field: &str, what: &str) -> Result<String, TransportError> {
+    Ok(get_field(v, field)?
+        .as_str()
+        .ok_or_else(|| TransportError::new(what))?
+        .to_string())
+}
+
+/// Decodes scalar tagged inputs: bigint/num/str/bool/null/undef/other.
+/// Yields None for compound tags.
+fn decode_scalar_input(tag: &str, v: &Json) -> Result<Option<Value>, TransportError> {
+    match tag {
+        "bigint" => decode_text_field(v, "v", "bigint input needs a decimal-string payload")
+            .and_then(|text| parse_bigint(&text))
+            .map(|int| Some(Value::BigInt(int))),
+        "num" => get_field(v, "v")
+            .and_then(json_to_f64)
+            .map(|number| Some(Value::Num(number))),
+        "str" => decode_text_field(v, "v", "str input needs a string payload")
+            .map(|text| Some(Value::Str(text))),
+        "bool" => get_field(v, "v")
+            .and_then(|field| {
+                field
+                    .as_bool()
+                    .ok_or_else(|| TransportError::new("bool input needs a boolean payload"))
+            })
+            .map(|flag| Some(Value::Bool(flag))),
+        "null" => Ok(Some(Value::Null)),
+        "undef" => Ok(Some(Value::Undefined)),
+        "other" => decode_text_field(v, "tag", "other input needs a tag payload")
+            .map(|tag| Some(Value::Other(tag))),
+        _ => Ok(None),
+    }
+}
+
+/// Decodes a `decimal` input into its kind/coef/scale record.
+fn decode_decimal_input(v: &Json) -> Result<Value, TransportError> {
+    let coef = decode_text_field(v, "coef", "decimal input needs a coef payload")?;
+    let scale = json_to_f64(get_field(v, "scale")?)?;
+    Ok(Value::Record(vec![
+        ("kind".to_string(), Value::Str("decimal".to_string())),
+        ("coef".to_string(), Value::BigInt(parse_bigint(&coef)?)),
+        ("scale".to_string(), Value::Num(scale)),
+    ]))
+}
+
+/// Decodes a `money` input into its kind/minor/currency record.
+fn decode_money_input(v: &Json) -> Result<Value, TransportError> {
+    let minor = decode_text_field(v, "minor", "money input needs a minor payload")?;
+    let currency = decode_text_field(v, "currency", "money input needs a currency payload")?;
+    Ok(Value::Record(vec![
+        ("kind".to_string(), Value::Str("money".to_string())),
+        ("minor".to_string(), Value::BigInt(parse_bigint(&minor)?)),
+        ("currency".to_string(), Value::Str(currency)),
+    ]))
+}
+
+/// Decodes a `date` input into its kind/year/month/day record.
+fn decode_date_input(v: &Json) -> Result<Value, TransportError> {
+    let year = json_to_f64(get_field(v, "year")?)?;
+    let month = json_to_f64(get_field(v, "month")?)?;
+    let day = json_to_f64(get_field(v, "day")?)?;
+    Ok(Value::Record(vec![
+        ("kind".to_string(), Value::Str("date".to_string())),
+        ("year".to_string(), Value::Num(year)),
+        ("month".to_string(), Value::Num(month)),
+        ("day".to_string(), Value::Num(day)),
+    ]))
+}
+
+/// Decodes a `datetime` input into its kind/ms record.
+fn decode_datetime_input(v: &Json) -> Result<Value, TransportError> {
+    let ms = decode_text_field(v, "ms", "datetime input needs an ms payload")?;
+    Ok(Value::Record(vec![
+        ("kind".to_string(), Value::Str("datetime".to_string())),
+        ("ms".to_string(), Value::BigInt(parse_bigint(&ms)?)),
+    ]))
+}
+
+/// Decodes an `array` input's items recursively.
+fn decode_array_input(v: &Json) -> Result<Value, TransportError> {
+    let items = get_field(v, "items")?
+        .as_array()
+        .ok_or_else(|| TransportError::new("array input needs an items payload"))?;
+    Ok(Value::Array(
+        items.iter().map(decode_input).collect::<Result<_, _>>()?,
+    ))
+}
+
+/// Decodes a `record` input's entries: pairs with string keys that
+/// must not repeat.
+fn decode_record_input(v: &Json) -> Result<Value, TransportError> {
+    let entries = get_field(v, "entries")?
+        .as_array()
+        .ok_or_else(|| TransportError::new("record input needs an entries payload"))?;
+    let mut out = Vec::with_capacity(entries.len());
+    let mut keys = HashSet::with_capacity(entries.len());
+    for entry in entries {
+        let pair = entry.as_array().ok_or_else(|| {
+            TransportError::new("record entries must be [key, value] pairs")
+        })?;
+        if pair.len() != 2 {
+            return Err(TransportError::new(
+                "record entries must be [key, value] pairs",
+            ));
+        }
+        let key = pair[0]
+            .as_str()
+            .ok_or_else(|| TransportError::new("record keys must be strings"))?;
+        if !keys.insert(key) {
+            return Err(TransportError::new("record keys must not repeat"));
+        }
+        out.push((key.to_string(), decode_input(&pair[1])?));
+    }
+    Ok(Value::Record(out))
+}
+
+/// Decodes compound tagged inputs: decimal/money/date/datetime/
+/// array/record. Yields None for scalar tags.
+fn decode_compound_input(tag: &str, v: &Json) -> Result<Option<Value>, TransportError> {
+    match tag {
+        "decimal" => decode_decimal_input(v).map(Some),
+        "money" => decode_money_input(v).map(Some),
+        "date" => decode_date_input(v).map(Some),
+        "datetime" => decode_datetime_input(v).map(Some),
+        "array" => decode_array_input(v).map(Some),
+        "record" => decode_record_input(v).map(Some),
+        _ => Ok(None),
+    }
+}
+
 pub fn decode_input(v: &Json) -> Result<Value, TransportError> {
     let tag = v
         .get("t")
         .and_then(Json::as_str)
         .ok_or_else(|| TransportError::new("input value is missing its tag"))?;
-    match tag {
-        "bigint" => {
-            let text = get_field(v, "v")?.as_str().ok_or_else(|| {
-                TransportError::new("bigint input needs a decimal-string payload")
-            })?;
-            Ok(Value::BigInt(parse_bigint(text)?))
-        }
-        "num" => Ok(Value::Num(json_to_f64(get_field(v, "v")?)?)),
-        "str" => {
-            let text = get_field(v, "v")?
-                .as_str()
-                .ok_or_else(|| TransportError::new("str input needs a string payload"))?;
-            Ok(Value::Str(text.to_string()))
-        }
-        "bool" => {
-            let flag = get_field(v, "v")?
-                .as_bool()
-                .ok_or_else(|| TransportError::new("bool input needs a boolean payload"))?;
-            Ok(Value::Bool(flag))
-        }
-        "null" => Ok(Value::Null),
-        "undef" => Ok(Value::Undefined),
-        "decimal" => {
-            let coef = get_field(v, "coef")?
-                .as_str()
-                .ok_or_else(|| TransportError::new("decimal input needs a coef payload"))?;
-            let scale = json_to_f64(get_field(v, "scale")?)?;
-            Ok(Value::Record(vec![
-                ("kind".to_string(), Value::Str("decimal".to_string())),
-                ("coef".to_string(), Value::BigInt(parse_bigint(coef)?)),
-                ("scale".to_string(), Value::Num(scale)),
-            ]))
-        }
-        "money" => {
-            let minor = get_field(v, "minor")?
-                .as_str()
-                .ok_or_else(|| TransportError::new("money input needs a minor payload"))?;
-            let currency = get_field(v, "currency")?
-                .as_str()
-                .ok_or_else(|| TransportError::new("money input needs a currency payload"))?;
-            Ok(Value::Record(vec![
-                ("kind".to_string(), Value::Str("money".to_string())),
-                ("minor".to_string(), Value::BigInt(parse_bigint(minor)?)),
-                ("currency".to_string(), Value::Str(currency.to_string())),
-            ]))
-        }
-        "date" => {
-            let year = json_to_f64(get_field(v, "year")?)?;
-            let month = json_to_f64(get_field(v, "month")?)?;
-            let day = json_to_f64(get_field(v, "day")?)?;
-            Ok(Value::Record(vec![
-                ("kind".to_string(), Value::Str("date".to_string())),
-                ("year".to_string(), Value::Num(year)),
-                ("month".to_string(), Value::Num(month)),
-                ("day".to_string(), Value::Num(day)),
-            ]))
-        }
-        "datetime" => {
-            let ms = get_field(v, "ms")?
-                .as_str()
-                .ok_or_else(|| TransportError::new("datetime input needs an ms payload"))?;
-            Ok(Value::Record(vec![
-                ("kind".to_string(), Value::Str("datetime".to_string())),
-                ("ms".to_string(), Value::BigInt(parse_bigint(ms)?)),
-            ]))
-        }
-        "array" => {
-            let items = get_field(v, "items")?
-                .as_array()
-                .ok_or_else(|| TransportError::new("array input needs an items payload"))?;
-            Ok(Value::Array(
-                items.iter().map(decode_input).collect::<Result<_, _>>()?,
-            ))
-        }
-        "record" => {
-            let entries = get_field(v, "entries")?
-                .as_array()
-                .ok_or_else(|| TransportError::new("record input needs an entries payload"))?;
-            let mut out = Vec::with_capacity(entries.len());
-            let mut keys = HashSet::with_capacity(entries.len());
-            for entry in entries {
-                let pair = entry.as_array().ok_or_else(|| {
-                    TransportError::new("record entries must be [key, value] pairs")
-                })?;
-                if pair.len() != 2 {
-                    return Err(TransportError::new(
-                        "record entries must be [key, value] pairs",
-                    ));
-                }
-                let key = pair[0]
-                    .as_str()
-                    .ok_or_else(|| TransportError::new("record keys must be strings"))?;
-                if !keys.insert(key) {
-                    return Err(TransportError::new("record keys must not repeat"));
-                }
-                out.push((key.to_string(), decode_input(&pair[1])?));
-            }
-            Ok(Value::Record(out))
-        }
-        "other" => {
-            let tag = get_field(v, "tag")?
-                .as_str()
-                .ok_or_else(|| TransportError::new("other input needs a tag payload"))?;
-            Ok(Value::Other(tag.to_string()))
-        }
-        _ => Err(TransportError::new(format!(
-            "unknown input tag in transport: {tag:?}"
-        ))),
+    if let Some(value) = decode_scalar_input(tag, v)? {
+        return Ok(value);
     }
+    if let Some(value) = decode_compound_input(tag, v)? {
+        return Ok(value);
+    }
+    Err(TransportError::new(format!(
+        "unknown input tag in transport: {tag:?}"
+    )))
 }
 
 /// Encodes a core output `Value` to tagged JSON.
@@ -1489,264 +1671,330 @@ fn expect_args<'a>(
 }
 
 /// Dispatches one decoded operation to the native core.
-pub fn dispatch(op: &str, args: &[Value]) -> Result<Json, TransportError> {
-    use crate::aggregates;
+/// Integer op group: int64 construction, arithmetic, and comparison.
+fn dispatch_integer_ops(op: &str, args: &[Value]) -> Result<Option<Json>, TransportError> {
     use crate::numeric;
-    use crate::temporal;
-
     match op {
-        // -- integers -------------------------------------------------------
         "int64" => {
             let args = expect_args(args, op, 1)?;
-            Ok(int_result(numeric::integer::int64(&args[0])))
+            Ok(Some(int_result(numeric::integer::int64(&args[0]))))
         }
         "add-int" => {
             let args = expect_args(args, op, 2)?;
-            Ok(int_result(numeric::integer::add_int(&args[0], &args[1])))
+            Ok(Some(int_result(numeric::integer::add_int(&args[0], &args[1]))))
         }
         "subtract-int" => {
             let args = expect_args(args, op, 2)?;
-            Ok(int_result(numeric::integer::subtract_int(
+            Ok(Some(int_result(numeric::integer::subtract_int(
                 &args[0], &args[1],
-            )))
+            ))))
         }
         "multiply-int" => {
             let args = expect_args(args, op, 2)?;
-            Ok(int_result(numeric::integer::multiply_int(
+            Ok(Some(int_result(numeric::integer::multiply_int(
                 &args[0], &args[1],
-            )))
+            ))))
         }
         "mod-int" => {
             let args = expect_args(args, op, 2)?;
-            Ok(int_result(numeric::integer::mod_int(&args[0], &args[1])))
+            Ok(Some(int_result(numeric::integer::mod_int(&args[0], &args[1]))))
         }
         "negate-int" => {
             let args = expect_args(args, op, 1)?;
-            Ok(int_result(numeric::integer::negate_int(&args[0])))
+            Ok(Some(int_result(numeric::integer::negate_int(&args[0]))))
         }
         "abs-int" => {
             let args = expect_args(args, op, 1)?;
-            Ok(int_result(numeric::integer::abs_int(&args[0])))
+            Ok(Some(int_result(numeric::integer::abs_int(&args[0]))))
         }
         "compare-int" => {
             let args = expect_args(args, op, 2)?;
-            Ok(cmp_result(numeric::integer::compare_int(
+            Ok(Some(cmp_result(numeric::integer::compare_int(
                 &args[0], &args[1],
-            )))
+            ))))
         }
-        // -- rounding -------------------------------------------------------
+        _ => Ok(None),
+    }
+}
+
+/// Rounding op group.
+fn dispatch_rounding_ops(op: &str, args: &[Value]) -> Result<Option<Json>, TransportError> {
+    use crate::numeric;
+    match op {
         "round-rational" => {
             let args = expect_args(args, op, 2)?;
-            match numeric::rounding::round_rational_half_even(&args[0], &args[1]) {
-                Ok(v) => Ok(ok(Value::BigInt(v))),
-                Err(f) => Ok(err(&f)),
-            }
+            Ok(Some(match numeric::rounding::round_rational_half_even(&args[0], &args[1]) {
+                Ok(v) => ok(Value::BigInt(v)),
+                Err(f) => err(&f),
+            }))
         }
-        // -- decimals -------------------------------------------------------
+        _ => Ok(None),
+    }
+}
+
+/// Decimal arithmetic op group (add through round).
+fn dispatch_decimal_ops_a(op: &str, args: &[Value]) -> Result<Option<Json>, TransportError> {
+    use crate::numeric;
+    match op {
         "add-decimal" => {
             let args = expect_args(args, op, 2)?;
-            match numeric::decimal::add_decimal(&args[0], &args[1]) {
-                Ok(v) => Ok(ok(Value::Decimal(v))),
-                Err(f) => Ok(err(&f)),
-            }
+            Ok(Some(match numeric::decimal::add_decimal(&args[0], &args[1]) {
+                Ok(v) => ok(Value::Decimal(v)),
+                Err(f) => err(&f),
+            }))
         }
         "subtract-decimal" => {
             let args = expect_args(args, op, 2)?;
-            match numeric::decimal::subtract_decimal(&args[0], &args[1]) {
-                Ok(v) => Ok(ok(Value::Decimal(v))),
-                Err(f) => Ok(err(&f)),
-            }
+            Ok(Some(match numeric::decimal::subtract_decimal(&args[0], &args[1]) {
+                Ok(v) => ok(Value::Decimal(v)),
+                Err(f) => err(&f),
+            }))
         }
         "multiply-decimal" => {
             let args = expect_args(args, op, 2)?;
-            match numeric::decimal::multiply_decimal(&args[0], &args[1]) {
-                Ok(v) => Ok(ok(Value::Decimal(v))),
-                Err(f) => Ok(err(&f)),
-            }
+            Ok(Some(match numeric::decimal::multiply_decimal(&args[0], &args[1]) {
+                Ok(v) => ok(Value::Decimal(v)),
+                Err(f) => err(&f),
+            }))
         }
         "divide-decimal" => {
             let args = expect_args(args, op, 2)?;
-            match numeric::decimal::divide_decimal(&args[0], &args[1]) {
-                Ok(v) => Ok(ok(Value::Decimal(v))),
-                Err(f) => Ok(err(&f)),
-            }
+            Ok(Some(match numeric::decimal::divide_decimal(&args[0], &args[1]) {
+                Ok(v) => ok(Value::Decimal(v)),
+                Err(f) => err(&f),
+            }))
         }
+        _ => Ok(None),
+    }
+}
+
+/// Decimal scale/sign/round op group.
+fn dispatch_decimal_ops_b(op: &str, args: &[Value]) -> Result<Option<Json>, TransportError> {
+    use crate::numeric;
+    match op {
         "divide-duration-ms" => {
             let args = expect_args(args, op, 2)?;
-            match numeric::decimal::divide_duration_ms(&args[0], &args[1]) {
-                Ok(v) => Ok(ok(Value::Decimal(v))),
-                Err(f) => Ok(err(&f)),
-            }
+            Ok(Some(match numeric::decimal::divide_duration_ms(&args[0], &args[1]) {
+                Ok(v) => ok(Value::Decimal(v)),
+                Err(f) => err(&f),
+            }))
         }
         "negate-decimal" => {
             let args = expect_args(args, op, 1)?;
-            match numeric::decimal::negate_decimal(&args[0]) {
-                Ok(v) => Ok(ok(Value::Decimal(v))),
-                Err(f) => Ok(err(&f)),
-            }
+            Ok(Some(match numeric::decimal::negate_decimal(&args[0]) {
+                Ok(v) => ok(Value::Decimal(v)),
+                Err(f) => err(&f),
+            }))
         }
         "abs-decimal" => {
             let args = expect_args(args, op, 1)?;
-            match numeric::decimal::abs_decimal(&args[0]) {
-                Ok(v) => Ok(ok(Value::Decimal(v))),
-                Err(f) => Ok(err(&f)),
-            }
+            Ok(Some(match numeric::decimal::abs_decimal(&args[0]) {
+                Ok(v) => ok(Value::Decimal(v)),
+                Err(f) => err(&f),
+            }))
         }
         "round-decimal" => {
             let args = expect_args(args, op, 2)?;
-            match numeric::decimal::round_decimal(&args[0], &args[1]) {
-                Ok(v) => Ok(ok(Value::Decimal(v))),
-                Err(f) => Ok(err(&f)),
-            }
+            Ok(Some(match numeric::decimal::round_decimal(&args[0], &args[1]) {
+                Ok(v) => ok(Value::Decimal(v)),
+                Err(f) => err(&f),
+            }))
         }
+        _ => Ok(None),
+    }
+}
+
+/// Decimal compare/parse/convert op group.
+fn dispatch_decimal_ops_c(op: &str, args: &[Value]) -> Result<Option<Json>, TransportError> {
+    use crate::numeric;
+    match op {
         "compare-decimal" => {
             let args = expect_args(args, op, 2)?;
-            Ok(cmp_result(numeric::decimal::compare_decimal(
+            Ok(Some(cmp_result(numeric::decimal::compare_decimal(
                 &args[0], &args[1],
-            )))
+            ))))
         }
         "equal-decimal" => {
             let args = expect_args(args, op, 2)?;
-            Ok(bool_result(numeric::decimal::equal_decimal(
+            Ok(Some(bool_result(numeric::decimal::equal_decimal(
                 &args[0], &args[1],
-            )))
+            ))))
         }
         "parse-decimal" => {
             let args = expect_args(args, op, 1)?;
-            match numeric::decimal::parse_decimal(&args[0]) {
-                Ok(v) => Ok(ok(Value::Decimal(v))),
-                Err(f) => Ok(err(&f)),
-            }
+            Ok(Some(match numeric::decimal::parse_decimal(&args[0]) {
+                Ok(v) => ok(Value::Decimal(v)),
+                Err(f) => err(&f),
+            }))
         }
         "decimal-from-integer" => {
             let args = expect_args(args, op, 1)?;
-            match numeric::decimal::decimal_from_integer(&args[0]) {
-                Ok(v) => Ok(ok(Value::Decimal(v))),
-                Err(f) => Ok(err(&f)),
-            }
+            Ok(Some(match numeric::decimal::decimal_from_integer(&args[0]) {
+                Ok(v) => ok(Value::Decimal(v)),
+                Err(f) => err(&f),
+            }))
         }
         "decimal-to-string" => {
             let args = expect_args(args, op, 1)?;
-            match numeric::decimal::decimal_to_string(&args[0]) {
-                Ok(v) => Ok(ok(Value::Str(v))),
-                Err(f) => Ok(err(&f)),
-            }
+            Ok(Some(match numeric::decimal::decimal_to_string(&args[0]) {
+                Ok(v) => ok(Value::Str(v)),
+                Err(f) => err(&f),
+            }))
         }
-        // -- money ----------------------------------------------------------
+        _ => Ok(None),
+    }
+}
+
+/// Money construction/scale op group.
+fn dispatch_money_ops_a(op: &str, args: &[Value]) -> Result<Option<Json>, TransportError> {
+    use crate::numeric;
+    match op {
         "currency-scale" => {
             let args = expect_args(args, op, 1)?;
-            match numeric::money::currency_scale(&args[0]) {
-                Ok(v) => Ok(ok(Value::Num(v as f64))),
-                Err(f) => Ok(err(&f)),
-            }
+            Ok(Some(match numeric::money::currency_scale(&args[0]) {
+                Ok(v) => ok(Value::Num(v as f64)),
+                Err(f) => err(&f),
+            }))
         }
         "is-known-currency" => {
             let args = expect_args(args, op, 1)?;
-            Ok(ok(Value::Bool(numeric::money::is_known_currency(&args[0]))))
+            Ok(Some(ok(Value::Bool(numeric::money::is_known_currency(&args[0])))))
         }
         "money" => {
             let args = expect_args(args, op, 2)?;
-            match numeric::money::make_money_value(&args[0], &args[1]) {
-                Ok(v) => Ok(ok(Value::Money(v))),
-                Err(f) => Ok(err(&f)),
-            }
+            Ok(Some(match numeric::money::make_money_value(&args[0], &args[1]) {
+                Ok(v) => ok(Value::Money(v)),
+                Err(f) => err(&f),
+            }))
         }
         "make-money" => {
             let args = expect_args(args, op, 2)?;
-            match numeric::money::make_money_structural(&args[0], &args[1]) {
-                Ok(v) => Ok(ok(Value::Money(v))),
-                Err(f) => Ok(err(&f)),
-            }
+            Ok(Some(match numeric::money::make_money_structural(&args[0], &args[1]) {
+                Ok(v) => ok(Value::Money(v)),
+                Err(f) => err(&f),
+            }))
         }
+        _ => Ok(None),
+    }
+}
+
+/// Money arithmetic op group.
+fn dispatch_money_ops_b(op: &str, args: &[Value]) -> Result<Option<Json>, TransportError> {
+    use crate::numeric;
+    match op {
         "add-money" => {
             let args = expect_args(args, op, 2)?;
-            match numeric::money::add_money(&args[0], &args[1]) {
-                Ok(v) => Ok(ok(Value::Money(v))),
-                Err(f) => Ok(err(&f)),
-            }
+            Ok(Some(match numeric::money::add_money(&args[0], &args[1]) {
+                Ok(v) => ok(Value::Money(v)),
+                Err(f) => err(&f),
+            }))
         }
         "subtract-money" => {
             let args = expect_args(args, op, 2)?;
-            match numeric::money::subtract_money(&args[0], &args[1]) {
-                Ok(v) => Ok(ok(Value::Money(v))),
-                Err(f) => Ok(err(&f)),
-            }
+            Ok(Some(match numeric::money::subtract_money(&args[0], &args[1]) {
+                Ok(v) => ok(Value::Money(v)),
+                Err(f) => err(&f),
+            }))
         }
         "multiply-money" => {
             let args = expect_args(args, op, 2)?;
-            match numeric::money::multiply_money(&args[0], &args[1]) {
-                Ok(v) => Ok(ok(Value::Money(v))),
-                Err(f) => Ok(err(&f)),
-            }
+            Ok(Some(match numeric::money::multiply_money(&args[0], &args[1]) {
+                Ok(v) => ok(Value::Money(v)),
+                Err(f) => err(&f),
+            }))
         }
         "divide-money" => {
             let args = expect_args(args, op, 2)?;
-            match numeric::money::divide_money(&args[0], &args[1]) {
-                Ok(v) => Ok(ok(Value::Money(v))),
-                Err(f) => Ok(err(&f)),
-            }
+            Ok(Some(match numeric::money::divide_money(&args[0], &args[1]) {
+                Ok(v) => ok(Value::Money(v)),
+                Err(f) => err(&f),
+            }))
         }
+        _ => Ok(None),
+    }
+}
+
+/// Money ratio/compare/sign op group.
+fn dispatch_money_ops_c(op: &str, args: &[Value]) -> Result<Option<Json>, TransportError> {
+    use crate::numeric;
+    match op {
         "money-ratio" => {
             let args = expect_args(args, op, 2)?;
-            match numeric::money::money_ratio(&args[0], &args[1]) {
-                Ok(v) => Ok(ok(Value::Decimal(v))),
-                Err(f) => Ok(err(&f)),
-            }
+            Ok(Some(match numeric::money::money_ratio(&args[0], &args[1]) {
+                Ok(v) => ok(Value::Decimal(v)),
+                Err(f) => err(&f),
+            }))
         }
         "compare-money" => {
             let args = expect_args(args, op, 2)?;
-            Ok(cmp_result(numeric::money::compare_money(
+            Ok(Some(cmp_result(numeric::money::compare_money(
                 &args[0], &args[1],
-            )))
+            ))))
         }
         "equal-money" => {
             let args = expect_args(args, op, 2)?;
-            Ok(bool_result(numeric::money::equal_money(&args[0], &args[1])))
+            Ok(Some(bool_result(numeric::money::equal_money(&args[0], &args[1]))))
         }
         "negate-money" => {
             let args = expect_args(args, op, 1)?;
-            match numeric::money::negate_money(&args[0]) {
-                Ok(v) => Ok(ok(Value::Money(v))),
-                Err(f) => Ok(err(&f)),
-            }
+            Ok(Some(match numeric::money::negate_money(&args[0]) {
+                Ok(v) => ok(Value::Money(v)),
+                Err(f) => err(&f),
+            }))
         }
         "abs-money" => {
             let args = expect_args(args, op, 1)?;
-            match numeric::money::abs_money(&args[0]) {
-                Ok(v) => Ok(ok(Value::Money(v))),
-                Err(f) => Ok(err(&f)),
-            }
+            Ok(Some(match numeric::money::abs_money(&args[0]) {
+                Ok(v) => ok(Value::Money(v)),
+                Err(f) => err(&f),
+            }))
         }
-        // -- temporal -------------------------------------------------------
+        _ => Ok(None),
+    }
+}
+
+/// Civil date construction/parse op group.
+fn dispatch_date_ops_a(op: &str, args: &[Value]) -> Result<Option<Json>, TransportError> {
+    use crate::temporal;
+    match op {
         "date-to-epoch-days" => {
             let args = expect_args(args, op, 1)?;
-            match temporal::civil::date_to_epoch_days(&args[0]) {
+            Ok(Some(match temporal::civil::date_to_epoch_days(&args[0]) {
                 // TS returns a JS number here, not a bigint.
-                Ok(v) => Ok(ok(Value::Num(v as f64))),
-                Err(f) => Ok(err(&f)),
-            }
+                Ok(v) => ok(Value::Num(v as f64)),
+                Err(f) => err(&f),
+            }))
         }
         "epoch-days-to-date" => {
             let args = expect_args(args, op, 1)?;
-            match temporal::civil::epoch_days_to_date(&args[0]) {
-                Ok(v) => Ok(ok(Value::Date(v))),
-                Err(f) => Ok(err(&f)),
-            }
+            Ok(Some(match temporal::civil::epoch_days_to_date(&args[0]) {
+                Ok(v) => ok(Value::Date(v)),
+                Err(f) => err(&f),
+            }))
         }
         "parse-date" => {
             let args = expect_args(args, op, 1)?;
-            match temporal::civil::parse_date(&args[0]) {
-                Ok(v) => Ok(ok(Value::Date(v))),
-                Err(f) => Ok(err(&f)),
-            }
+            Ok(Some(match temporal::civil::parse_date(&args[0]) {
+                Ok(v) => ok(Value::Date(v)),
+                Err(f) => err(&f),
+            }))
         }
         "parse-datetime" => {
             let args = expect_args(args, op, 1)?;
-            match temporal::instant::parse_datetime(&args[0]) {
-                Ok(v) => Ok(ok(Value::Datetime(v))),
-                Err(f) => Ok(err(&f)),
-            }
+            Ok(Some(match temporal::instant::parse_datetime(&args[0]) {
+                Ok(v) => ok(Value::Datetime(v)),
+                Err(f) => err(&f),
+            }))
         }
+        _ => Ok(None),
+    }
+}
+
+/// make-date/make-datetime op group. make-date mirrors the per-part
+/// `Number.isInteger` loop: the first non-integer part fails with its
+/// label.
+fn dispatch_date_ops_b(op: &str, args: &[Value]) -> Result<Option<Json>, TransportError> {
+    match op {
         "make-date" => {
             let args = expect_args(args, op, 3)?;
             let parts = (0..3)
@@ -1755,13 +2003,11 @@ pub fn dispatch(op: &str, args: &[Value]) -> Result<Json, TransportError> {
                     _ => Err(()),
                 })
                 .collect::<Result<Vec<_>, _>>();
-            match parts {
+            Ok(Some(match parts {
                 Ok(p) => match crate::representations::numeric::make_date(p[0], p[1], p[2]) {
-                    Ok(v) => Ok(ok(Value::Date(v))),
-                    Err(f) => Ok(err(&f)),
+                    Ok(v) => ok(Value::Date(v)),
+                    Err(f) => err(&f),
                 },
-                // Mirrors the per-part `Number.isInteger` loop: the first
-                // non-integer part fails with its label.
                 Err(()) => {
                     let labels = ["year", "month", "day"];
                     for (i, label) in labels.iter().enumerate() {
@@ -1769,168 +2015,199 @@ pub fn dispatch(op: &str, args: &[Value]) -> Result<Json, TransportError> {
                             Value::Num(n)
                                 if crate::representations::numeric::is_integer_number(*n) => {}
                             _ => {
-                                return Ok(err(&Failure::invalid_construction(format!(
+                                return Ok(Some(err(&Failure::invalid_construction(format!(
                                     "date {label} must be an integer"
-                                ))));
+                                )))));
                             }
                         }
                     }
-                    Err(TransportError::new("unreachable make-date guard"))
+                    return Err(TransportError::new("unreachable make-date guard"));
                 }
-            }
+            }))
         }
         "make-datetime" => {
             let args = expect_args(args, op, 1)?;
-            match &args[0] {
+            Ok(Some(match &args[0] {
                 Value::BigInt(ms) => {
                     match crate::representations::numeric::make_datetime(ms.clone()) {
-                        Ok(v) => Ok(ok(Value::Datetime(v))),
-                        Err(f) => Ok(err(&f)),
+                        Ok(v) => ok(Value::Datetime(v)),
+                        Err(f) => err(&f),
                     }
                 }
-                _ => Ok(err(&Failure::invalid_construction(
+                _ => err(&Failure::invalid_construction(
                     "datetime ms must be a bigint",
-                ))),
-            }
+                )),
+            }))
         }
+        _ => Ok(None),
+    }
+}
+
+/// Civil date arithmetic/query op group.
+fn dispatch_date_ops_c(op: &str, args: &[Value]) -> Result<Option<Json>, TransportError> {
+    use crate::temporal;
+    match op {
         "add-days" => {
             let args = expect_args(args, op, 2)?;
-            match temporal::civil::add_days(&args[0], &args[1]) {
-                Ok(v) => Ok(ok(Value::Date(v))),
-                Err(f) => Ok(err(&f)),
-            }
+            Ok(Some(match temporal::civil::add_days(&args[0], &args[1]) {
+                Ok(v) => ok(Value::Date(v)),
+                Err(f) => err(&f),
+            }))
         }
         "add-months" => {
             let args = expect_args(args, op, 2)?;
-            match temporal::civil::add_months(&args[0], &args[1]) {
-                Ok(v) => Ok(ok(Value::Date(v))),
-                Err(f) => Ok(err(&f)),
-            }
+            Ok(Some(match temporal::civil::add_months(&args[0], &args[1]) {
+                Ok(v) => ok(Value::Date(v)),
+                Err(f) => err(&f),
+            }))
         }
         "date-year" => {
             let args = expect_args(args, op, 1)?;
-            match temporal::civil::date_year(&args[0]) {
-                Ok(v) => Ok(ok(Value::BigInt(v))),
-                Err(f) => Ok(err(&f)),
-            }
+            Ok(Some(match temporal::civil::date_year(&args[0]) {
+                Ok(v) => ok(Value::BigInt(v)),
+                Err(f) => err(&f),
+            }))
         }
         "weekday" => {
             let args = expect_args(args, op, 1)?;
-            match temporal::civil::weekday(&args[0]) {
-                Ok(v) => Ok(ok(Value::BigInt(v))),
-                Err(f) => Ok(err(&f)),
-            }
+            Ok(Some(match temporal::civil::weekday(&args[0]) {
+                Ok(v) => ok(Value::BigInt(v)),
+                Err(f) => err(&f),
+            }))
         }
         "dates" => {
             let args = expect_args(args, op, 3)?;
-            match temporal::civil::dates(&args[0], &args[1], &args[2]) {
-                Ok(v) => Ok(ok(Value::Array(v.into_iter().map(Value::Date).collect()))),
-                Err(f) => Ok(err(&f)),
-            }
+            Ok(Some(match temporal::civil::dates(&args[0], &args[1], &args[2]) {
+                Ok(v) => ok(Value::Array(v.into_iter().map(Value::Date).collect())),
+                Err(f) => err(&f),
+            }))
         }
         "overlaps" => {
             let args = expect_args(args, op, 4)?;
-            Ok(bool_result(temporal::instant::overlaps(
+            Ok(Some(bool_result(temporal::instant::overlaps(
                 &args[0], &args[1], &args[2], &args[3],
-            )))
+            ))))
         }
+        _ => Ok(None),
+    }
+}
+
+/// Duration add/subtract op group.
+fn dispatch_duration_ops_a(op: &str, args: &[Value]) -> Result<Option<Json>, TransportError> {
+    use crate::temporal;
+    match op {
         "add-duration" => {
             let args = expect_args(args, op, 2)?;
-            match temporal::duration::add_duration(&args[0], &args[1]) {
+            Ok(Some(match temporal::duration::add_duration(&args[0], &args[1]) {
                 Ok(temporal::duration::DurationSum::Duration(v)) => {
-                    Ok(ok(Value::BigInt(BigInt::from(v))))
+                    ok(Value::BigInt(BigInt::from(v)))
                 }
-                Ok(temporal::duration::DurationSum::Datetime(v)) => Ok(ok(Value::Datetime(v))),
-                Err(f) => Ok(err(&f)),
-            }
+                Ok(temporal::duration::DurationSum::Datetime(v)) => ok(Value::Datetime(v)),
+                Err(f) => err(&f),
+            }))
         }
         "subtract-duration" => {
             let args = expect_args(args, op, 2)?;
-            match temporal::duration::subtract_duration(&args[0], &args[1]) {
+            Ok(Some(match temporal::duration::subtract_duration(&args[0], &args[1]) {
                 Ok(temporal::duration::DurationSum::Duration(v)) => {
-                    Ok(ok(Value::BigInt(BigInt::from(v))))
+                    ok(Value::BigInt(BigInt::from(v)))
                 }
-                Ok(temporal::duration::DurationSum::Datetime(v)) => Ok(ok(Value::Datetime(v))),
-                Err(f) => Ok(err(&f)),
-            }
+                Ok(temporal::duration::DurationSum::Datetime(v)) => ok(Value::Datetime(v)),
+                Err(f) => err(&f),
+            }))
         }
+        _ => Ok(None),
+    }
+}
+
+/// Duration scale/compare op group.
+fn dispatch_duration_ops_b(op: &str, args: &[Value]) -> Result<Option<Json>, TransportError> {
+    use crate::temporal;
+    match op {
         "multiply-duration" => {
             let args = expect_args(args, op, 2)?;
-            Ok(int_result(temporal::duration::multiply_duration(
+            Ok(Some(int_result(temporal::duration::multiply_duration(
                 &args[0], &args[1],
-            )))
+            ))))
         }
         "divide-duration-by-int" => {
             let args = expect_args(args, op, 2)?;
-            Ok(int_result(temporal::duration::divide_duration_by_int(
+            Ok(Some(int_result(temporal::duration::divide_duration_by_int(
                 &args[0], &args[1],
-            )))
+            ))))
         }
         "remainder-duration" => {
             let args = expect_args(args, op, 2)?;
-            Ok(int_result(temporal::duration::remainder_duration(
+            Ok(Some(int_result(temporal::duration::remainder_duration(
                 &args[0], &args[1],
-            )))
+            ))))
         }
         "compare-duration" => {
             let args = expect_args(args, op, 2)?;
-            Ok(cmp_result(temporal::duration::compare_duration(
+            Ok(Some(cmp_result(temporal::duration::compare_duration(
                 &args[0], &args[1],
-            )))
+            ))))
         }
         "negate-duration" => {
             let args = expect_args(args, op, 1)?;
-            Ok(int_result(temporal::duration::negate_duration(&args[0])))
+            Ok(Some(int_result(temporal::duration::negate_duration(&args[0]))))
         }
         "abs-duration" => {
             let args = expect_args(args, op, 1)?;
-            Ok(int_result(temporal::duration::abs_duration(&args[0])))
+            Ok(Some(int_result(temporal::duration::abs_duration(&args[0]))))
         }
         "duration-between" => {
             let args = expect_args(args, op, 2)?;
-            Ok(int_result(temporal::instant::duration_between(
+            Ok(Some(int_result(temporal::instant::duration_between(
                 &args[0], &args[1],
-            )))
+            ))))
         }
         "compare-instant" => {
             let args = expect_args(args, op, 2)?;
-            Ok(cmp_result(temporal::instant::compare_instant(
+            Ok(Some(cmp_result(temporal::instant::compare_instant(
                 &args[0], &args[1],
-            )))
+            ))))
         }
         "compare-date" => {
             let args = expect_args(args, op, 2)?;
-            Ok(cmp_result(temporal::civil::compare_date(
+            Ok(Some(cmp_result(temporal::civil::compare_date(
                 &args[0], &args[1],
-            )))
+            ))))
         }
-        // -- aggregates -----------------------------------------------------
+        _ => Ok(None),
+    }
+}
+
+/// Aggregate sum op group.
+fn dispatch_aggregate_ops(op: &str, args: &[Value]) -> Result<Option<Json>, TransportError> {
+    use crate::aggregates;
+    match op {
         "sum-int" => {
             let args = expect_args(args, op, 1)?;
             let domain = aggregates::numeric::require_domain(&args[0], "sumInt");
-            match domain {
-                Ok(items) => Ok(int_result(aggregates::integer::sum_int(items))),
-                Err(f) => Ok(err(&f)),
-            }
+            Ok(Some(match domain {
+                Ok(items) => int_result(aggregates::integer::sum_int(items)),
+                Err(f) => err(&f),
+            }))
         }
         "sum-decimal" => {
             let args = expect_args(args, op, 1)?;
             let domain = aggregates::numeric::require_domain(&args[0], "sumDecimal");
-            match domain {
+            Ok(Some(match domain {
                 Ok(items) => match aggregates::decimal::sum_decimal(items) {
-                    Ok(v) => Ok(ok(Value::Decimal(v))),
-                    Err(f) => Ok(err(&f)),
+                    Ok(v) => ok(Value::Decimal(v)),
+                    Err(f) => err(&f),
                 },
-                Err(f) => Ok(err(&f)),
-            }
+                Err(f) => err(&f),
+            }))
         }
         "sum-duration" => {
             let args = expect_args(args, op, 1)?;
             let domain = aggregates::numeric::require_domain(&args[0], "sumDuration");
-            match domain {
-                Ok(items) => Ok(int_result(aggregates::integer::sum_duration(items))),
-                Err(f) => Ok(err(&f)),
-            }
+            Ok(Some(match domain {
+                Ok(items) => int_result(aggregates::integer::sum_duration(items)),
+                Err(f) => err(&f),
+            }))
         }
         "sum-money" => {
             if args.len() != 1 && args.len() != 2 {
@@ -1940,109 +2217,197 @@ pub fn dispatch(op: &str, args: &[Value]) -> Result<Json, TransportError> {
                 )));
             }
             let domain = aggregates::numeric::require_domain(&args[0], "sumMoney");
-            match domain {
+            Ok(Some(match domain {
                 Ok(items) => {
                     let currency = args.get(1);
                     match aggregates::money::sum_money(items, currency) {
-                        Ok(v) => Ok(ok(Value::Money(v))),
-                        Err(f) => Ok(err(&f)),
+                        Ok(v) => ok(Value::Money(v)),
+                        Err(f) => err(&f),
                     }
                 }
-                Err(f) => Ok(err(&f)),
-            }
+                Err(f) => err(&f),
+            }))
         }
-        // -- codecs ---------------------------------------------------------
+        _ => Ok(None),
+    }
+}
+
+/// Renders one decode violation list as the legacy violations envelope.
+fn decode_violations_envelope(
+    violations: &[crate::codecs::numeric::Violation],
+) -> Json {
+    serde_json::json!({
+        "ok": false,
+        "violations": violations.iter().map(|v| {
+            let mut item = serde_json::json!({
+                "path": v.path.iter().map(|seg| match seg {
+                    crate::codecs::numeric::PathSeg::Key(k) => {
+                        serde_json::json!(k)
+                    }
+                    crate::codecs::numeric::PathSeg::Index(i) => {
+                        serde_json::json!(i)
+                    }
+                }).collect::<Vec<_>>(),
+                "code": v.code.as_str(),
+                "message": v.message,
+            });
+            if let Some(expected) = &v.expected {
+                item["expected"] = serde_json::json!(expected);
+            }
+            if let Some(actual) = &v.actual {
+                item["actual"] = serde_json::json!(actual);
+            }
+            item
+        }).collect::<Vec<_>>(),
+    })
+}
+
+/// Reads one scalar-name argument for the value codecs.
+fn codec_scalar_name<'a>(op: &str, arg: &'a Value, what: &str) -> Result<ScalarName, TransportError> {
+    let name = match arg {
+        Value::Str(name) => name,
+        _ => {
+            return Err(TransportError::new(what));
+        }
+    };
+    ScalarName::parse(name).ok_or_else(|| {
+        TransportError::new(format!("{op} has no scalar {name:?}"))
+    })
+}
+
+/// Value codec op group.
+fn dispatch_codec_ops(op: &str, args: &[Value]) -> Result<Option<Json>, TransportError> {
+    match op {
         "decode-value" => {
             let args = expect_args(args, op, 2)?;
-            let name = match &args[0] {
-                Value::Str(name) => name,
-                _ => {
-                    return Err(TransportError::new(
-                        "decode-value needs a scalar-name string",
-                    ));
-                }
-            };
-            let scalar = ScalarName::parse(name).ok_or_else(|| {
-                TransportError::new(format!("decode-value has no scalar {name:?}"))
-            })?;
-            match decode_value_scalar(scalar, &args[1]) {
-                Ok(value) => Ok(ok(value)),
-                Err(violations) => Ok(serde_json::json!({
-                    "ok": false,
-                    "violations": violations.iter().map(|v| {
-                        let mut item = serde_json::json!({
-                            "path": v.path.iter().map(|seg| match seg {
-                                crate::codecs::numeric::PathSeg::Key(k) => {
-                                    serde_json::json!(k)
-                                }
-                                crate::codecs::numeric::PathSeg::Index(i) => {
-                                    serde_json::json!(i)
-                                }
-                            }).collect::<Vec<_>>(),
-                            "code": v.code.as_str(),
-                            "message": v.message,
-                        });
-                        if let Some(expected) = &v.expected {
-                            item["expected"] = serde_json::json!(expected);
-                        }
-                        if let Some(actual) = &v.actual {
-                            item["actual"] = serde_json::json!(actual);
-                        }
-                        item
-                    }).collect::<Vec<_>>(),
-                })),
-            }
+            let scalar = codec_scalar_name(op, &args[0], "decode-value needs a scalar-name string")?;
+            Ok(Some(match decode_value_scalar(scalar, &args[1]) {
+                Ok(value) => ok(value),
+                Err(violations) => decode_violations_envelope(&violations),
+            }))
         }
         "encode-value" => {
             let args = expect_args(args, op, 2)?;
-            let name = match &args[0] {
-                Value::Str(name) => name,
-                _ => {
-                    return Err(TransportError::new(
-                        "encode-value needs a scalar-name string",
-                    ));
-                }
-            };
-            let scalar = ScalarName::parse(name).ok_or_else(|| {
-                TransportError::new(format!("encode-value has no scalar {name:?}"))
-            })?;
-            match encode_value_scalar(scalar, &args[1]) {
-                Ok(wire) => Ok(ok_wire(&wire)),
-                Err(f) => Ok(err(&f)),
-            }
+            let scalar = codec_scalar_name(op, &args[0], "encode-value needs a scalar-name string")?;
+            Ok(Some(match encode_value_scalar(scalar, &args[1]) {
+                Ok(wire) => ok_wire(&wire),
+                Err(f) => err(&f),
+            }))
         }
-        // -- guards ---------------------------------------------------------
+        _ => Ok(None),
+    }
+}
+
+/// Shape guard op group.
+fn dispatch_guard_ops(op: &str, args: &[Value]) -> Result<Option<Json>, TransportError> {
+    match op {
         "is-decimal" => {
             let args = expect_args(args, op, 1)?;
-            Ok(ok(Value::Bool(is_decimal_value(&args[0]))))
+            Ok(Some(ok(Value::Bool(is_decimal_value(&args[0])))))
         }
         "is-money" => {
             let args = expect_args(args, op, 1)?;
-            Ok(ok(Value::Bool(is_money_value(&args[0]))))
+            Ok(Some(ok(Value::Bool(is_money_value(&args[0])))))
         }
         "is-date" => {
             let args = expect_args(args, op, 1)?;
-            Ok(ok(Value::Bool(is_date_value(&args[0]))))
+            Ok(Some(ok(Value::Bool(is_date_value(&args[0])))))
         }
         "is-datetime" => {
             let args = expect_args(args, op, 1)?;
-            Ok(ok(Value::Bool(is_datetime_value(&args[0]))))
+            Ok(Some(ok(Value::Bool(is_datetime_value(&args[0])))))
         }
         "is-currency-shape" => {
             let args = expect_args(args, op, 1)?;
-            match &args[0] {
-                Value::Str(code) => Ok(ok(Value::Bool(is_currency_shape(code)))),
+            Ok(Some(match &args[0] {
+                Value::Str(code) => ok(Value::Bool(is_currency_shape(code))),
                 // Non-strings are false here; the only divergence from the
                 // RegExp.test coercion is single-element 3-letter arrays
                 // (plus symbol TypeErrors), which vectors never generate
                 // (parity ledger).
-                _ => Ok(ok(Value::Bool(false))),
-            }
+                _ => ok(Value::Bool(false)),
+            }))
         }
-        _ => Err(TransportError::new(format!(
-            "unknown op in transport: {op:?}"
-        ))),
+        _ => Ok(None),
     }
+}
+
+/// Numeric op domain: integers, rounding, decimals, money.
+fn dispatch_numeric_ops(op: &str, args: &[Value]) -> Result<Option<Json>, TransportError> {
+    if let Some(result) = dispatch_integer_ops(op, args)? {
+        return Ok(Some(result));
+    }
+    if let Some(result) = dispatch_rounding_ops(op, args)? {
+        return Ok(Some(result));
+    }
+    if let Some(result) = dispatch_decimal_ops_a(op, args)? {
+        return Ok(Some(result));
+    }
+    if let Some(result) = dispatch_decimal_ops_b(op, args)? {
+        return Ok(Some(result));
+    }
+    if let Some(result) = dispatch_decimal_ops_c(op, args)? {
+        return Ok(Some(result));
+    }
+    if let Some(result) = dispatch_money_ops_a(op, args)? {
+        return Ok(Some(result));
+    }
+    if let Some(result) = dispatch_money_ops_b(op, args)? {
+        return Ok(Some(result));
+    }
+    if let Some(result) = dispatch_money_ops_c(op, args)? {
+        return Ok(Some(result));
+    }
+    Ok(None)
+}
+
+/// Temporal op domain: dates, datetimes, durations, instants.
+fn dispatch_temporal_ops(op: &str, args: &[Value]) -> Result<Option<Json>, TransportError> {
+    if let Some(result) = dispatch_date_ops_a(op, args)? {
+        return Ok(Some(result));
+    }
+    if let Some(result) = dispatch_date_ops_b(op, args)? {
+        return Ok(Some(result));
+    }
+    if let Some(result) = dispatch_date_ops_c(op, args)? {
+        return Ok(Some(result));
+    }
+    if let Some(result) = dispatch_duration_ops_a(op, args)? {
+        return Ok(Some(result));
+    }
+    if let Some(result) = dispatch_duration_ops_b(op, args)? {
+        return Ok(Some(result));
+    }
+    Ok(None)
+}
+
+/// Service op domain: aggregates, value codecs, shape guards.
+fn dispatch_service_ops(op: &str, args: &[Value]) -> Result<Option<Json>, TransportError> {
+    if let Some(result) = dispatch_aggregate_ops(op, args)? {
+        return Ok(Some(result));
+    }
+    if let Some(result) = dispatch_codec_ops(op, args)? {
+        return Ok(Some(result));
+    }
+    if let Some(result) = dispatch_guard_ops(op, args)? {
+        return Ok(Some(result));
+    }
+    Ok(None)
+}
+
+pub fn dispatch(op: &str, args: &[Value]) -> Result<Json, TransportError> {
+    if let Some(result) = dispatch_numeric_ops(op, args)? {
+        return Ok(result);
+    }
+    if let Some(result) = dispatch_temporal_ops(op, args)? {
+        return Ok(result);
+    }
+    if let Some(result) = dispatch_service_ops(op, args)? {
+        return Ok(result);
+    }
+    Err(TransportError::new(format!(
+        "unknown op in transport: {op:?}"
+    )))
 }
 
 /// Handles one raw request line, returning the response JSON.

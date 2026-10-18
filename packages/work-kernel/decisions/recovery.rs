@@ -611,6 +611,66 @@ pub struct RecoveryPlan {
     pub dead: Vec<U16>,
 }
 
+/**
+ * Accumulated recovery buckets for one scan; every actionable row
+ * lands in exactly one list.
+ */
+struct RecoveryBuckets {
+    resume: Vec<U16>,
+    retry: Vec<U16>,
+    reconcile: Vec<U16>,
+    awaiting: Vec<U16>,
+    skipped: Vec<U16>,
+    terminal: Vec<U16>,
+    dead: Vec<U16>,
+}
+
+/// Classifies one recoverable row into its plan bucket.
+fn classify_recovery_row(
+    row: &RecoverableRow,
+    buckets: &mut RecoveryBuckets,
+    by_outbox: &HashMap<&U16, &DispatchClaim>,
+    evidence: &dyn Fn(&U16) -> Option<ReconcileEvidence>,
+    now_ms: f64,
+    max_claim_age_ms: f64,
+    policy: &RetryPolicy,
+) -> Result<(), RecoveryError> {
+    let item = &row.item;
+    if item.state.eq_ascii("pending") {
+        if row.guard_verdict == Some(false) {
+            buckets.skipped.push(item.id.clone());
+        }
+    } else if item.state.eq_ascii("claimed") {
+        if let Some(claim) = by_outbox.get(&item.id) {
+            if is_claim_stale(claim, now_ms, max_claim_age_ms)? {
+                buckets.resume.push(item.id.clone());
+            }
+        }
+    } else if item.state.eq_ascii("failed") {
+        match &row.retry_class {
+            Some(c) if c.eq_ascii("transient") => {
+                let horizon_exceeded = row
+                    .first_attempt_at_ms
+                    .map(|first| now_ms - first >= policy.horizon_ms)
+                    .unwrap_or(false);
+                if item.attempts >= policy.max_attempts || horizon_exceeded {
+                    buckets.dead.push(item.id.clone());
+                } else {
+                    buckets.retry.push(item.id.clone());
+                }
+            }
+            _ => buckets.terminal.push(item.id.clone()),
+        }
+    } else if item.state.eq_ascii("uncertain") {
+        match (evidence)(&item.id) {
+            None => buckets.awaiting.push(item.id.clone()),
+            Some(ReconcileEvidence::NotFound) => buckets.retry.push(item.id.clone()),
+            Some(_) => buckets.reconcile.push(item.id.clone()),
+        }
+    }
+    Ok(())
+}
+
 /** Plan one bounded recovery scan over dispatch-row views. */
 pub fn plan_recovery_scan(input: &RecoveryScanInput) -> Result<RecoveryPlan, RecoveryError> {
     if !input.now_ms.is_finite() || input.now_ms < 0.0 {
@@ -629,63 +689,41 @@ pub fn plan_recovery_scan(input: &RecoveryScanInput) -> Result<RecoveryPlan, Rec
     for claim in input.claims.iter() {
         by_outbox.insert(&claim.outbox_id, claim);
     }
-    let mut resume: Vec<U16> = Vec::new();
-    let mut retry: Vec<U16> = Vec::new();
-    let mut reconcile: Vec<U16> = Vec::new();
-    let mut awaiting: Vec<U16> = Vec::new();
-    let mut skipped: Vec<U16> = Vec::new();
-    let mut terminal: Vec<U16> = Vec::new();
-    let mut dead: Vec<U16> = Vec::new();
+    let mut buckets = RecoveryBuckets {
+        resume: Vec::new(),
+        retry: Vec::new(),
+        reconcile: Vec::new(),
+        awaiting: Vec::new(),
+        skipped: Vec::new(),
+        terminal: Vec::new(),
+        dead: Vec::new(),
+    };
     for row in input.rows.iter() {
-        let item = &row.item;
-        if item.state.eq_ascii("pending") {
-            if row.guard_verdict == Some(false) {
-                skipped.push(item.id.clone());
-            }
-        } else if item.state.eq_ascii("claimed") {
-            if let Some(claim) = by_outbox.get(&item.id) {
-                if is_claim_stale(claim, input.now_ms, input.max_claim_age_ms)? {
-                    resume.push(item.id.clone());
-                }
-            }
-        } else if item.state.eq_ascii("failed") {
-            match &row.retry_class {
-                Some(c) if c.eq_ascii("transient") => {
-                    let horizon_exceeded = row
-                        .first_attempt_at_ms
-                        .map(|first| input.now_ms - first >= policy.horizon_ms)
-                        .unwrap_or(false);
-                    if item.attempts >= policy.max_attempts || horizon_exceeded {
-                        dead.push(item.id.clone());
-                    } else {
-                        retry.push(item.id.clone());
-                    }
-                }
-                _ => terminal.push(item.id.clone()),
-            }
-        } else if item.state.eq_ascii("uncertain") {
-            match (input.evidence)(&item.id) {
-                None => awaiting.push(item.id.clone()),
-                Some(ReconcileEvidence::NotFound) => retry.push(item.id.clone()),
-                Some(_) => reconcile.push(item.id.clone()),
-            }
-        }
+        classify_recovery_row(
+            row,
+            &mut buckets,
+            &by_outbox,
+            input.evidence,
+            input.now_ms,
+            input.max_claim_age_ms,
+            &policy,
+        )?;
     }
-    resume.sort();
-    retry.sort();
-    reconcile.sort();
-    awaiting.sort();
-    skipped.sort();
-    terminal.sort();
-    dead.sort();
+    buckets.resume.sort();
+    buckets.retry.sort();
+    buckets.reconcile.sort();
+    buckets.awaiting.sort();
+    buckets.skipped.sort();
+    buckets.terminal.sort();
+    buckets.dead.sort();
     Ok(RecoveryPlan {
-        resume,
-        retry,
-        reconcile,
-        awaiting,
-        skipped,
-        terminal,
-        dead,
+        resume: buckets.resume,
+        retry: buckets.retry,
+        reconcile: buckets.reconcile,
+        awaiting: buckets.awaiting,
+        skipped: buckets.skipped,
+        terminal: buckets.terminal,
+        dead: buckets.dead,
     })
 }
 
@@ -863,10 +901,26 @@ pub fn is_fanout_child_exhausted(
             .unwrap_or(false))
 }
 
-/** Plan one recovery scan over a drained fanout row set. One fanout per call. */
-pub fn plan_fanout_recovery_scan(
-    input: &FanoutRecoveryScanInput,
-) -> Result<FanoutRecoveryPlan, RecoveryError> {
+/**
+ * Accumulated fanout buckets plus the membership sets for one scan.
+ * Sets borrow the input; buckets own the planned actions.
+ */
+struct FanoutScanState<'a> {
+    member_set: HashMap<&'a U16, ()>,
+    completed_set: HashMap<&'a U16, ()>,
+    row_record_ids: HashMap<&'a U16, ()>,
+    terminal_record_ids: HashMap<&'a U16, ()>,
+    resume: Vec<U16>,
+    skipped: Vec<FanoutSkippedAction>,
+    dead: Vec<U16>,
+    failed: Vec<FanoutFailedAction>,
+    uncertain: Vec<U16>,
+    phantoms: Vec<U16>,
+}
+
+/// Validates scan-wide gates: fanout identity across intent/checkpoint
+/// and the numeric bounds. Returns the effective retry policy.
+fn check_fanout_scan_gates(input: &FanoutRecoveryScanInput) -> Result<RetryPolicy, RecoveryError> {
     if input.fanout_id.is_empty() {
         return Err(plain_error(
             "planFanoutRecoveryScan: fanoutId must be a non-empty string.".to_string(),
@@ -894,12 +948,155 @@ pub fn plan_fanout_recovery_scan(
     }
     let policy = input.policy.clone().unwrap_or_else(default_retry_policy);
     assert_retry_policy(&policy, "planFanoutRecoveryScan")?;
-    let mut resume: Vec<U16> = Vec::new();
-    let mut skipped: Vec<FanoutSkippedAction> = Vec::new();
-    let mut dead: Vec<U16> = Vec::new();
-    let mut failed: Vec<FanoutFailedAction> = Vec::new();
-    let mut uncertain: Vec<U16> = Vec::new();
-    let mut phantoms: Vec<U16> = Vec::new();
+    Ok(policy)
+}
+
+/// Validates one row's shape: fanout identity, known state, finite
+/// instant anchors, and a known lifecycle status/reason.
+fn check_fanout_row_shape(
+    row: &FanoutRecoverableRow,
+    child: &FanoutChildRowData,
+    fanout_id: &U16,
+) -> Result<(), RecoveryError> {
+    if child.fanout_id != *fanout_id {
+        return Err(plain_error(
+            "planFanoutRecoveryScan: child row carries a different fanoutId.".to_string(),
+        ));
+    }
+    if !child.state.eq_ascii("pending")
+        && !child.state.eq_ascii("running")
+        && !child.state.eq_ascii("completed")
+        && !child.state.eq_ascii("skipped")
+        && !child.state.eq_ascii("failed")
+    {
+        return Err(plain_error(format!(
+            "planFanoutRecoveryScan: child {} has unknown state {}.",
+            js_quote(&child.child_id.0),
+            js_quote(&child.state.0)
+        )));
+    }
+    match row.claimed_at_ms {
+        Some(claimed) if !claimed.is_finite() || claimed < 0.0 => {
+            return Err(range_error(
+                "planFanoutRecoveryScan: claimedAtMs must be finite and >= 0".to_string(),
+            ));
+        }
+        _ => (),
+    }
+    match row.first_attempt_at_ms {
+        Some(first) if !first.is_finite() || first < 0.0 => {
+            return Err(range_error(
+                "planFanoutRecoveryScan: firstAttemptAtMs must be finite and >= 0".to_string(),
+            ));
+        }
+        _ => (),
+    }
+    let lifecycle = &row.lifecycle.status;
+    if !lifecycle.eq_ascii("present")
+        && !lifecycle.eq_ascii("deleted")
+        && !lifecycle.eq_ascii("moved")
+        && !lifecycle.eq_ascii("unknown")
+    {
+        return Err(plain_error(format!(
+            "planFanoutRecoveryScan: child {} has unknown lifecycle {}.",
+            js_quote(&child.child_id.0),
+            js_quote(&lifecycle.0)
+        )));
+    }
+    if row.lifecycle.status.eq_ascii("unknown")
+        && !matches!(&row.lifecycle.reason, Some(r)
+            if r.eq_ascii("missing-record")
+                || r.eq_ascii("inaccessible-record")
+                || r.eq_ascii("infra-read-failure"))
+    {
+        let shown = row.lifecycle.reason.as_ref().map(|r| js_quote(&r.0));
+        return Err(plain_error(format!(
+            "planFanoutRecoveryScan: child {} has unknown lifecycle reason {}.",
+            js_quote(&child.child_id.0),
+            shown.unwrap_or_else(|| "undefined".to_string())
+        )));
+    }
+    Ok(())
+}
+
+/// Classifies one validated row into the scan buckets. Terminal rows
+/// stage covers; fresh running rows observe read-only; deleted,
+/// unknown-lifecycle, and guard-false rows record their closed reason;
+/// pending rows wait; the rest resume or dead-letter on exhaustion.
+fn classify_fanout_row<'a>(
+    row: &FanoutRecoverableRow,
+    child: &'a FanoutChildRowData,
+    state: &mut FanoutScanState<'a>,
+    now_ms: f64,
+    max_claim_age_ms: f64,
+    policy: &RetryPolicy,
+) -> Result<(), RecoveryError> {
+    state.row_record_ids.insert(&child.record_id, ());
+    if !state.member_set.contains_key(&child.record_id) {
+        state.phantoms.push(child.child_id.clone());
+    }
+    if child.state.eq_ascii("completed")
+        || child.state.eq_ascii("skipped")
+        || child.state.eq_ascii("failed")
+    {
+        state.terminal_record_ids.insert(&child.record_id, ());
+        return Ok(());
+    }
+    if child.state.eq_ascii("running") {
+        let stale = match row.claimed_at_ms {
+            Some(claimed) => {
+                is_fanout_claim_stale(claimed, now_ms, max_claim_age_ms)?
+            }
+            None => false,
+        };
+        if !stale {
+            state.uncertain.push(child.child_id.clone());
+            return Ok(());
+        }
+    }
+    if row.lifecycle.status.eq_ascii("deleted") {
+        state.skipped.push(FanoutSkippedAction {
+            child_id: child.child_id.clone(),
+            reason: U16::from_utf8("deleted"),
+        });
+        return Ok(());
+    }
+    if row.lifecycle.status.eq_ascii("unknown") {
+        // Validated above: the reason is a known closed reason here.
+        state.failed.push(FanoutFailedAction {
+            child_id: child.child_id.clone(),
+            reason: row.lifecycle.reason.clone().unwrap(),
+        });
+        return Ok(());
+    }
+    if row.guard_verdict == Some(false) {
+        state.skipped.push(FanoutSkippedAction {
+            child_id: child.child_id.clone(),
+            reason: U16::from_utf8("non-applicable"),
+        });
+        return Ok(());
+    }
+    if child.state.eq_ascii("pending") {
+        return Ok(());
+    }
+    if is_fanout_child_exhausted(
+        child.attempts,
+        row.first_attempt_at_ms,
+        now_ms,
+        policy,
+    )? {
+        state.dead.push(child.child_id.clone());
+    } else {
+        state.resume.push(child.child_id.clone());
+    }
+    Ok(())
+}
+
+/** Plan one recovery scan over a drained fanout row set. One fanout per call. */
+pub fn plan_fanout_recovery_scan(
+    input: &FanoutRecoveryScanInput,
+) -> Result<FanoutRecoveryPlan, RecoveryError> {
+    let policy = check_fanout_scan_gates(input)?;
     let mut member_set: HashMap<&U16, ()> = HashMap::new();
     for member in input.intent.members.iter() {
         member_set.insert(member, ());
@@ -908,133 +1105,37 @@ pub fn plan_fanout_recovery_scan(
     for record in input.checkpoint.completed.iter() {
         completed_set.insert(record, ());
     }
-    let mut row_record_ids: HashMap<&U16, ()> = HashMap::new();
-    let mut terminal_record_ids: HashMap<&U16, ()> = HashMap::new();
+    let mut state = FanoutScanState {
+        member_set,
+        completed_set,
+        row_record_ids: HashMap::new(),
+        terminal_record_ids: HashMap::new(),
+        resume: Vec::new(),
+        skipped: Vec::new(),
+        dead: Vec::new(),
+        failed: Vec::new(),
+        uncertain: Vec::new(),
+        phantoms: Vec::new(),
+    };
     for row in input.rows.iter() {
         let child = &row.child;
-        if child.fanout_id != input.fanout_id {
-            return Err(plain_error(
-                "planFanoutRecoveryScan: child row carries a different fanoutId.".to_string(),
-            ));
-        }
-        if !child.state.eq_ascii("pending")
-            && !child.state.eq_ascii("running")
-            && !child.state.eq_ascii("completed")
-            && !child.state.eq_ascii("skipped")
-            && !child.state.eq_ascii("failed")
-        {
-            return Err(plain_error(format!(
-                "planFanoutRecoveryScan: child {} has unknown state {}.",
-                js_quote(&child.child_id.0),
-                js_quote(&child.state.0)
-            )));
-        }
-        match row.claimed_at_ms {
-            Some(claimed) if !claimed.is_finite() || claimed < 0.0 => {
-                return Err(range_error(
-                    "planFanoutRecoveryScan: claimedAtMs must be finite and >= 0".to_string(),
-                ));
-            }
-            _ => (),
-        }
-        match row.first_attempt_at_ms {
-            Some(first) if !first.is_finite() || first < 0.0 => {
-                return Err(range_error(
-                    "planFanoutRecoveryScan: firstAttemptAtMs must be finite and >= 0".to_string(),
-                ));
-            }
-            _ => (),
-        }
-        let lifecycle = &row.lifecycle.status;
-        if !lifecycle.eq_ascii("present")
-            && !lifecycle.eq_ascii("deleted")
-            && !lifecycle.eq_ascii("moved")
-            && !lifecycle.eq_ascii("unknown")
-        {
-            return Err(plain_error(format!(
-                "planFanoutRecoveryScan: child {} has unknown lifecycle {}.",
-                js_quote(&child.child_id.0),
-                js_quote(&lifecycle.0)
-            )));
-        }
-        if row.lifecycle.status.eq_ascii("unknown")
-            && !matches!(&row.lifecycle.reason, Some(r)
-                if r.eq_ascii("missing-record")
-                    || r.eq_ascii("inaccessible-record")
-                    || r.eq_ascii("infra-read-failure"))
-        {
-            let shown = row.lifecycle.reason.as_ref().map(|r| js_quote(&r.0));
-            return Err(plain_error(format!(
-                "planFanoutRecoveryScan: child {} has unknown lifecycle reason {}.",
-                js_quote(&child.child_id.0),
-                shown.unwrap_or_else(|| "undefined".to_string())
-            )));
-        }
-        row_record_ids.insert(&child.record_id, ());
-        if !member_set.contains_key(&child.record_id) {
-            phantoms.push(child.child_id.clone());
-        }
-        if child.state.eq_ascii("completed")
-            || child.state.eq_ascii("skipped")
-            || child.state.eq_ascii("failed")
-        {
-            terminal_record_ids.insert(&child.record_id, ());
-            continue;
-        }
-        if child.state.eq_ascii("running") {
-            let stale = match row.claimed_at_ms {
-                Some(claimed) => {
-                    is_fanout_claim_stale(claimed, input.now_ms, input.max_claim_age_ms)?
-                }
-                None => false,
-            };
-            if !stale {
-                uncertain.push(child.child_id.clone());
-                continue;
-            }
-        }
-        if row.lifecycle.status.eq_ascii("deleted") {
-            skipped.push(FanoutSkippedAction {
-                child_id: child.child_id.clone(),
-                reason: U16::from_utf8("deleted"),
-            });
-            continue;
-        }
-        if row.lifecycle.status.eq_ascii("unknown") {
-            // Validated above: the reason is a known closed reason here.
-            failed.push(FanoutFailedAction {
-                child_id: child.child_id.clone(),
-                reason: row.lifecycle.reason.clone().unwrap(),
-            });
-            continue;
-        }
-        if row.guard_verdict == Some(false) {
-            skipped.push(FanoutSkippedAction {
-                child_id: child.child_id.clone(),
-                reason: U16::from_utf8("non-applicable"),
-            });
-            continue;
-        }
-        if child.state.eq_ascii("pending") {
-            continue;
-        }
-        if is_fanout_child_exhausted(
-            child.attempts,
-            row.first_attempt_at_ms,
+        check_fanout_row_shape(row, child, &input.fanout_id)?;
+        classify_fanout_row(
+            row,
+            child,
+            &mut state,
             input.now_ms,
+            input.max_claim_age_ms,
             &policy,
-        )? {
-            dead.push(child.child_id.clone());
-        } else {
-            resume.push(child.child_id.clone());
-        }
+        )?;
     }
     let mut admit: Vec<U16> = input
         .intent
         .members
         .iter()
         .filter(|member| {
-            !row_record_ids.contains_key(*member) && !completed_set.contains_key(*member)
+            !state.row_record_ids.contains_key(*member)
+                && !state.completed_set.contains_key(*member)
         })
         .cloned()
         .collect();
@@ -1042,27 +1143,27 @@ pub fn plan_fanout_recovery_scan(
         .checkpoint
         .completed
         .iter()
-        .filter(|record| !terminal_record_ids.contains_key(*record))
+        .filter(|record| !state.terminal_record_ids.contains_key(*record))
         .cloned()
         .collect();
-    resume.sort();
-    skipped.sort_by(|a, b| a.child_id.cmp(&b.child_id));
-    dead.sort();
-    failed.sort_by(|a, b| a.child_id.cmp(&b.child_id));
+    state.resume.sort();
+    state.skipped.sort_by(|a, b| a.child_id.cmp(&b.child_id));
+    state.dead.sort();
+    state.failed.sort_by(|a, b| a.child_id.cmp(&b.child_id));
     admit.sort();
-    uncertain.sort();
-    phantoms.sort();
+    state.uncertain.sort();
+    state.phantoms.sort();
     checkpoint_gaps.sort();
     let finish_enumeration =
         input.checkpoint.cursor.is_some() && admit.is_empty() && checkpoint_gaps.is_empty();
     Ok(FanoutRecoveryPlan {
-        resume,
-        skipped,
-        dead,
-        failed,
+        resume: state.resume,
+        skipped: state.skipped,
+        dead: state.dead,
+        failed: state.failed,
         admit,
-        uncertain,
-        phantoms,
+        uncertain: state.uncertain,
+        phantoms: state.phantoms,
         checkpoint_gaps,
         finish_enumeration,
     })

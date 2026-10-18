@@ -19833,3 +19833,28 @@ passes after the extracted D1 statement return type repair; Work with its owning
 Work-kernel source and Values typing pass. Focused retained getter/receiver probes
 pass. Large released helpers received targeted semantic review, not exhaustive
 branch qualification. Rust validation and final integration remain separate.
+
+
+## 2026-10-18 — finish the released Rust complexity batch
+
+Accepted implementation: retain the 52 released Compiler, native Values and
+Work-kernel helper extractions at the user's wind-down boundary. Correct the
+extracted types/lifetimes and restore original rejection polarity, non-Query/UI
+skips, derived-member receiver, Contract-before-Model handling, and source
+correspondence/Require guard order. The finite predicate repair was independently
+compared with its original guards; no acceptance widening or test weakening is
+intended. Native workers and coordinator are stopped, with their source and viewer
+preserved. The unchanged original census now measures 849 resolved identities of
+1070 (468 TypeScript, 381 Rust), with 221 deferred (162 TypeScript, 59 Rust);
+remaining work is deferred by the human cutoff rather than claimed blocked/done.
+
+Validation uses existing external dependency artifacts read-only and task-owned
+Rust outputs, with no shared/private Cargo cache writes. Compiler metadata and
+unit-test compilation succeed. Values tests pass 15/15; Work-kernel passes 322
+with two ignored observer cases. The unchanged compiler base passes 277/297,
+with 20 failures retained for missing catalog/fixture and existing qualification
+limits. A later current full run passed 268/297 with nine new failures; all nine
+affected cases now pass after the finite guard repairs, including the complete
+original query composition (156.81 seconds for the affected run). Unchanged
+results are reused; no clean whole-suite or whole-application claim is made.
+The final combined source metric and main reconciliation remain with closeout.

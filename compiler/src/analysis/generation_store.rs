@@ -130,32 +130,7 @@ impl FrozenGeneration {
                 crate::leases::LeaseMode::Read,
                 "compile-capture",
             )?;
-            for id in unit_ids {
-                fn regular_tree(path: &Path) -> Result<(), String> {
-                    let metadata = std::fs::symlink_metadata(path).map_err(|e| e.to_string())?;
-                    if metadata.file_type().is_symlink() {
-                        return Err(format!(
-                            "saved group contains a symlink: {}",
-                            path.display()
-                        ));
-                    }
-                    if metadata.is_dir() {
-                        for entry in std::fs::read_dir(path).map_err(|e| e.to_string())? {
-                            regular_tree(&entry.map_err(|e| e.to_string())?.path())?;
-                        }
-                    } else if !metadata.is_file() {
-                        return Err(format!(
-                            "saved group contains a non-file: {}",
-                            path.display()
-                        ));
-                    }
-                    Ok(())
-                }
-                regular_tree(&original.join(intake::GENERATED_DIR).join(&id))?;
-                for file in crate::leases::group_files(&original, &id).map_err(|e| e.to_string())? {
-                    paths.push(format!("{}/{id}/{file}", intake::GENERATED_DIR));
-                }
-            }
+            freeze_unit_groups(&original, unit_ids, &mut paths)?;
             let frozen = crate::leases::snapshot_inputs(
                 &original,
                 "compile-capture",
@@ -166,61 +141,9 @@ impl FrozenGeneration {
             if source_files(&original)? != sources {
                 return Err("source scope changed during capture; retry".into());
             }
-            let mirror = tempfile::tempdir().map_err(|e| e.to_string())?;
-            let mut source_texts = HashMap::new();
-            for file in frozen {
-                if sources.contains(&file.path) {
-                    source_texts.insert(
-                        file.path.clone(),
-                        String::from_utf8(file.bytes.clone())
-                            .map_err(|_| format!("{} is not UTF-8", file.path))?,
-                    );
-                }
-                let target = mirror.path().join(file.path);
-                std::fs::create_dir_all(target.parent().unwrap()).map_err(|e| e.to_string())?;
-                std::fs::write(target, file.bytes).map_err(|e| e.to_string())?;
-            }
-            let mut descriptors = Vec::new();
-            let mut evidence = HashMap::new();
-            for (index, path) in sources.iter().enumerate() {
-                let text = &source_texts[path];
-                let id = SourceId(index as u32);
-                let (tree, _) = crate::syntax::parse_source(id, text);
-                descriptors.extend(discover_generation(&tree, text).descriptors);
-                evidence.insert(
-                    id,
-                    intake::AssociationSource {
-                        path: path.clone(),
-                        revision: crate::source::sha256_hex(text.as_bytes()),
-                    },
-                );
-            }
-            let mut records = Vec::new();
-            for name in intake::scan_unit_ids(mirror.path())? {
-                let id = intake::GenerationUnitId::parse(&name).map_err(|e| e.to_string())?;
-                let path = mirror
-                    .path()
-                    .join(intake::GENERATED_DIR)
-                    .join(&name)
-                    .join(intake::UNIT_FILE);
-                let text = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
-                // Legacy hand-authored records are handled by the existing
-                // explicit adoption path. Modern malformed records fail closed.
-                match intake::UnitRecord::parse(&text, &id) {
-                    Ok(record) => records.push(record),
-                    Err(error) => {
-                        if !serde_json::from_str::<serde_json::Value>(&text)
-                            .ok()
-                            .is_some_and(|v| {
-                                v.get("id").is_none()
-                                    && v["unit_id"].as_str() == Some(name.as_str())
-                            })
-                        {
-                            return Err(error.to_string());
-                        }
-                    }
-                }
-            }
+            let (mirror, source_texts) = mirror_frozen_inputs(frozen, &sources)?;
+            let (descriptors, evidence) = describe_root_sources(&sources, &source_texts);
+            let records = load_mirror_records(&mirror)?;
             captured.push(FrozenRoot {
                 original,
                 mirror,
@@ -236,6 +159,119 @@ impl FrozenGeneration {
         })
     }
 
+}
+
+fn regular_tree(path: &Path) -> Result<(), String> {
+    let metadata = std::fs::symlink_metadata(path).map_err(|e| e.to_string())?;
+    if metadata.file_type().is_symlink() {
+        return Err(format!(
+            "saved group contains a symlink: {}",
+            path.display()
+        ));
+    }
+    if metadata.is_dir() {
+        for entry in std::fs::read_dir(path).map_err(|e| e.to_string())? {
+            regular_tree(&entry.map_err(|e| e.to_string())?.path())?;
+        }
+    } else if !metadata.is_file() {
+        return Err(format!(
+            "saved group contains a non-file: {}",
+            path.display()
+        ));
+    }
+    Ok(())
+}
+
+fn freeze_unit_groups(
+    original: &Path,
+    unit_ids: Vec<String>,
+    paths: &mut Vec<String>,
+) -> Result<(), String> {
+    for id in unit_ids {
+        regular_tree(&original.join(intake::GENERATED_DIR).join(&id))?;
+        for file in crate::leases::group_files(&original, &id).map_err(|e| e.to_string())? {
+            paths.push(format!("{}/{id}/{file}", intake::GENERATED_DIR));
+        }
+    }
+    Ok(())
+}
+
+fn mirror_frozen_inputs(
+    frozen: Vec<crate::leases::ConsumedInput>,
+    sources: &[String],
+) -> Result<(tempfile::TempDir, HashMap<String, String>), String> {
+    let mirror = tempfile::tempdir().map_err(|e| e.to_string())?;
+    let mut source_texts = HashMap::new();
+    for file in frozen {
+        if sources.contains(&file.path) {
+            source_texts.insert(
+                file.path.clone(),
+                String::from_utf8(file.bytes.clone())
+                    .map_err(|_| format!("{} is not UTF-8", file.path))?,
+            );
+        }
+        let target = mirror.path().join(file.path);
+        std::fs::create_dir_all(target.parent().unwrap()).map_err(|e| e.to_string())?;
+        std::fs::write(target, file.bytes).map_err(|e| e.to_string())?;
+    }
+    Ok((mirror, source_texts))
+}
+
+fn describe_root_sources(
+    sources: &[String],
+    source_texts: &HashMap<String, String>,
+) -> (
+    Vec<GenerationDescriptor>,
+    HashMap<SourceId, intake::AssociationSource>,
+) {
+    let mut descriptors = Vec::new();
+    let mut evidence = HashMap::new();
+    for (index, path) in sources.iter().enumerate() {
+        let text = &source_texts[path];
+        let id = SourceId(index as u32);
+        let (tree, _) = crate::syntax::parse_source(id, text);
+        descriptors.extend(discover_generation(&tree, text).descriptors);
+        evidence.insert(
+            id,
+            intake::AssociationSource {
+                path: path.clone(),
+                revision: crate::source::sha256_hex(text.as_bytes()),
+            },
+        );
+    }
+    (descriptors, evidence)
+}
+
+fn load_mirror_records(mirror: &tempfile::TempDir) -> Result<Vec<intake::UnitRecord>, String> {
+    let mut records = Vec::new();
+    for name in intake::scan_unit_ids(mirror.path())? {
+        let id = intake::GenerationUnitId::parse(&name).map_err(|e| e.to_string())?;
+        let path = mirror
+            .path()
+            .join(intake::GENERATED_DIR)
+            .join(&name)
+            .join(intake::UNIT_FILE);
+        let text = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+        // Legacy hand-authored records are handled by the existing
+        // explicit adoption path. Modern malformed records fail closed.
+        match intake::UnitRecord::parse(&text, &id) {
+            Ok(record) => records.push(record),
+            Err(error) => {
+                if !serde_json::from_str::<serde_json::Value>(&text)
+                    .ok()
+                    .is_some_and(|v| {
+                        v.get("id").is_none() && v["unit_id"].as_str() == Some(name.as_str())
+                    })
+                {
+                    return Err(error.to_string());
+                }
+            }
+        }
+    }
+    Ok(records)
+}
+
+impl FrozenGeneration {
     pub(crate) fn source(&self, path: &Path) -> Option<&str> {
         let spelling = path.to_path_buf();
         let mut source_paths = self.source_paths.lock().ok()?;
@@ -279,43 +315,7 @@ impl FrozenGeneration {
             .cloned()
             .ok_or("source has no captured generated output root")?;
         let root = &self.roots[root_index];
-        let keyed = root
-            .descriptors
-            .iter()
-            .enumerate()
-            .filter(|(_, d)| {
-                intake::association_for(d, "", "")
-                    .is_some_and(|s| intake::AssociationKey::of(&s) == *key)
-            })
-            .collect::<Vec<_>>();
-        let exact = keyed
-            .iter()
-            .filter(|(_, d)| {
-                root.evidence[&d.span.file].path == relative
-                    && d.span.start == span.start
-                    && d.span.end == span.end
-            })
-            .collect::<Vec<_>>();
-        let contained = keyed
-            .iter()
-            .filter(|(_, d)| {
-                root.evidence[&d.span.file].path == relative
-                    && span.start <= d.span.start
-                    && d.span.end <= span.end
-            })
-            .collect::<Vec<_>>();
-        let selected = if exact.len() == 1 {
-            exact[0].0
-        } else if contained.len() == 1 {
-            contained[0].0
-        } else if keyed.len() == 1 {
-            keyed[0].0
-        } else {
-            return Err(format!(
-                "ambiguous source claims for {}; reconcile with bind",
-                key.describe()
-            ));
-        };
+        let selected = select_claimed_descriptor(root, key, &relative, span)?;
         let associations =
             intake::associate_with_sources(&root.descriptors, &root.records, &root.evidence);
         match associations
@@ -324,71 +324,135 @@ impl FrozenGeneration {
             .map(|(_, a)| a)
         {
             Some(intake::UnitAssociation::Retained { id, .. }) => {
-                let mut group =
-                    intake::read_saved_group(root.mirror.path(), &id).map_err(|e| e.to_string())?;
-                let staged_id = if self.roots.len() > 1 {
-                    format!("r{root_index}-{}", id.as_str())
-                } else {
-                    id.as_str().to_string()
-                };
-                // Qualification is ephemeral artifact naming; persisted identity
-                // and its editable directory retain the original unit ID.
-                group.record.id =
-                    intake::GenerationUnitId::parse(&staged_id).map_err(|e| e.to_string())?;
-                Ok(Some((staged_id, group)))
+                let staged = self.stage_retained_group(root_index, id)?;
+                Ok(Some(staged))
             }
             Some(intake::UnitAssociation::New) => {
-                let descriptor = &root.descriptors[selected];
-                let source = &root.evidence[&descriptor.span.file];
-                let evidence = intake::AdoptEvidence {
-                    path: source.path.clone(),
-                    revision: source.revision.clone(),
-                    start: descriptor.span.start,
-                    end: descriptor.span.end,
-                };
-                let mut adopted = Vec::new();
-                for name in intake::scan_unit_ids(root.mirror.path())? {
-                    let id = intake::GenerationUnitId::parse(&name)?;
-                    if root.records.iter().any(|record| record.id == id) {
-                        continue;
-                    }
-                    let dir = root.mirror.path().join(intake::GENERATED_DIR).join(&name);
-                    if let Ok((mut record, files)) =
-                        intake::adopt_legacy_unit(&dir, &id, key, &evidence)
-                    {
-                        let staged_id = if self.roots.len() > 1 {
-                            format!("r{root_index}-{name}")
-                        } else {
-                            name
-                        };
-                        record.id = intake::GenerationUnitId::parse(&staged_id)?;
-                        adopted.push((staged_id, intake::SavedGroup { record, files, dir }));
-                    }
-                }
-                if adopted.len() > 1 {
-                    return Err("ambiguous legacy bindings; reconcile with adopt".into());
-                }
-                if !adopted.is_empty()
-                    && root
-                        .descriptors
-                        .iter()
-                        .filter(|descriptor| {
-                            descriptor.has_generation_identity
-                                && intake::UnitKind::of_descriptor(descriptor.kind)
-                                    == Some(key.kind)
-                                && descriptor.label == key.label
-                        })
-                        .count()
-                        != 1
-                {
-                    return Err("ambiguous legacy source claims; reconcile with adopt".into());
-                }
-                Ok(adopted.pop())
+                self.adopt_candidate_group(root_index, key, selected)
             }
             _ => Err(format!(
                 "ambiguous or displaced saved binding for {}; reconcile with bind",
                 key.describe()
             )),
         }
+    }
+
+    fn stage_retained_group(
+        &self,
+        root_index: usize,
+        id: intake::GenerationUnitId,
+    ) -> Result<(String, intake::SavedGroup), String> {
+        let root = &self.roots[root_index];
+        let mut group =
+            intake::read_saved_group(root.mirror.path(), &id).map_err(|e| e.to_string())?;
+        let staged_id = if self.roots.len() > 1 {
+            format!("r{root_index}-{}", id.as_str())
+        } else {
+            id.as_str().to_string()
+        };
+        // Qualification is ephemeral artifact naming; persisted identity
+        // and its editable directory retain the original unit ID.
+        group.record.id =
+            intake::GenerationUnitId::parse(&staged_id).map_err(|e| e.to_string())?;
+        Ok((staged_id, group))
+    }
+
+    fn adopt_candidate_group(
+        &self,
+        root_index: usize,
+        key: &intake::AssociationKey,
+        selected: usize,
+    ) -> Result<Option<(String, intake::SavedGroup)>, String> {
+        let root = &self.roots[root_index];
+        let descriptor = &root.descriptors[selected];
+        let source = &root.evidence[&descriptor.span.file];
+        let evidence = intake::AdoptEvidence {
+            path: source.path.clone(),
+            revision: source.revision.clone(),
+            start: descriptor.span.start,
+            end: descriptor.span.end,
+        };
+        let mut adopted = Vec::new();
+        for name in intake::scan_unit_ids(root.mirror.path())? {
+            let id = intake::GenerationUnitId::parse(&name)?;
+            if root.records.iter().any(|record| record.id == id) {
+                continue;
+            }
+            let dir = root.mirror.path().join(intake::GENERATED_DIR).join(&name);
+            if let Ok((mut record, files)) = intake::adopt_legacy_unit(&dir, &id, key, &evidence)
+            {
+                let staged_id = if self.roots.len() > 1 {
+                    format!("r{root_index}-{name}")
+                } else {
+                    name
+                };
+                record.id = intake::GenerationUnitId::parse(&staged_id)?;
+                adopted.push((staged_id, intake::SavedGroup { record, files, dir }));
+            }
+        }
+        if adopted.len() > 1 {
+            return Err("ambiguous legacy bindings; reconcile with adopt".into());
+        }
+        if !adopted.is_empty()
+            && root
+                .descriptors
+                .iter()
+                .filter(|descriptor| {
+                    descriptor.has_generation_identity
+                        && intake::UnitKind::of_descriptor(descriptor.kind)
+                            == Some(key.kind)
+                        && descriptor.label == key.label
+                })
+                .count()
+                != 1
+        {
+            return Err("ambiguous legacy source claims; reconcile with adopt".into());
+        }
+        Ok(adopted.pop())
+    }
+}
+
+fn select_claimed_descriptor(
+    root: &FrozenRoot,
+    key: &intake::AssociationKey,
+    relative: &str,
+    span: Span,
+) -> Result<usize, String> {
+    let keyed = root
+        .descriptors
+        .iter()
+        .enumerate()
+        .filter(|(_, d)| {
+            intake::association_for(d, "", "")
+                .is_some_and(|s| intake::AssociationKey::of(&s) == *key)
+        })
+        .collect::<Vec<_>>();
+    let exact = keyed
+        .iter()
+        .filter(|(_, d)| {
+            root.evidence[&d.span.file].path == relative
+                && d.span.start == span.start
+                && d.span.end == span.end
+        })
+        .collect::<Vec<_>>();
+    let contained = keyed
+        .iter()
+        .filter(|(_, d)| {
+            root.evidence[&d.span.file].path == relative
+                && span.start <= d.span.start
+                && d.span.end <= span.end
+        })
+        .collect::<Vec<_>>();
+    if exact.len() == 1 {
+        Ok(exact[0].0)
+    } else if contained.len() == 1 {
+        Ok(contained[0].0)
+    } else if keyed.len() == 1 {
+        Ok(keyed[0].0)
+    } else {
+        Err(format!(
+            "ambiguous source claims for {}; reconcile with bind",
+            key.describe()
+        ))
     }
 }

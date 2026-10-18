@@ -3,12 +3,22 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 
 #[cfg(test)]
 use crate::analysis::catalog::Catalog;
-use crate::analysis::resolve::{self, Binding, SymbolId, SymbolKind};
+use crate::analysis::effects::{Effect, EffectVerb, ScenarioData};
+use crate::analysis::resolve::{self, Binding, Symbol, SymbolId, SymbolKind};
+use crate::analysis::scenario_disclosure::{
+    CheckedDecisionPosition, CheckedDecisionSite, CheckedDecisionStage, CheckedScenarioSource,
+    DisclosureFirstQuery, DisclosureQuery,
+};
+use crate::analysis::types::{
+    CheckedCollectionCall, CheckedQuery, SelectedCall, SelectedCallTarget,
+};
 use crate::analysis::{CheckedProgram, NodeKey, ResolvedType, Scalar, kids, name_text};
 use crate::source::{SourceDb, Span};
 use crate::syntax::{SyntaxKind, SyntaxNode};
 
-use super::ir::{IrBinOp, IrExpr, IrItemKind, IrProgram, IrQueryDomain, IrStmt, TypedExpr};
+use super::ir::{
+    IrBinOp, IrExpr, IrItem, IrItemKind, IrProgram, IrQuery, IrQueryDomain, IrStmt, TypedExpr,
+};
 use super::scenario_decisions::serial_type;
 
 #[derive(Debug)]
@@ -123,16 +133,180 @@ pub(super) fn source_preparation_gap(
     }
 }
 
+fn prepare_send_guard(
+    original: &CheckedProgram,
+    ir: &IrProgram,
+    db: &SourceDb,
+    resolved: &resolve::ResolveTables,
+    nodes: &HashMap<NodeKey, &SyntaxNode>,
+    owner: &IrItem,
+    source_facts: &[CheckedDecisionSite],
+    send: &IrStmt,
+    site: &super::scenario_decisions::SerialDecisionSite,
+) -> Result<(Span, PreparedSendGuard), SendGuardGap> {
+    let IrStmt::Send {
+        operation,
+        when: Some(predicate),
+        deployment_binding,
+        binding,
+        span,
+        ..
+    } = send
+    else {
+        unreachable!()
+    };
+    if predicate.ty != ResolvedType::Scalar(Scalar::Bool)
+        || site.owner != owner.canonical
+        || site.statement.start != span.start
+        || site.statement.end != span.end
+    {
+        return Err(gap(
+            "original SEND owner/Boolean site mismatch",
+            Some(*span),
+        ));
+    }
+    let fact = source_facts
+        .iter()
+        .find(|fact| {
+            fact.stage
+                == crate::analysis::scenario_disclosure::CheckedDecisionStage::SendDispatch
+                && fact.statement.file == span.file
+                && fact.statement.start == span.start
+                && fact.statement.end == span.end
+                && fact.node.start == site.node.start
+                && fact.node.end == site.node.end
+        })
+        .ok_or_else(|| gap("original SEND predicate node mismatch", Some(*span)))?;
+    let source = db
+        .get(span.file)
+        .ok_or_else(|| gap("missing SEND source", Some(*span)))?;
+    if site.source.path != source.path
+        || site.source.sha256 != source.sha256
+        || original
+            .modules
+            .get(owner.module.0 as usize)
+            .is_none_or(|module| module.name != site.source.module)
+    {
+        return Err(gap("original SEND source identity mismatch", Some(*span)));
+    }
+    let node = nodes
+        .get(&fact.node)
+        .ok_or_else(|| gap("missing original SEND predicate CST", Some(*span)))?;
+    let inputs = free_inputs(
+        FreeInputSource {
+            program: original,
+            ir,
+            db,
+            resolved,
+            nodes,
+            owner: owner.id,
+        },
+        fact.node,
+        node,
+        predicate,
+    )?;
+    let rule = format!(
+        "{}.sendWhen.{}.{}.{}",
+        owner.canonical, site.source.sha256, site.node.start, site.node.end
+    );
+    let descriptor = serde_json::json!({
+        "rule": rule, "owner": owner.canonical, "source": site.source,
+        "node": site.node, "statement": site.statement,
+        "target": operation, "binding": deployment_binding, "sourceBinding": binding,
+        "inputs": inputs.iter().map(|input| serde_json::json!({"name":input.name,"type":input.type_id})).collect::<Vec<_>>(),
+    });
+    Ok((
+        *span,
+        PreparedSendGuard {
+            rule,
+            predicate: predicate.clone(),
+            descriptor,
+            inputs,
+        },
+    ))
+}
+
+fn prepare_owner_guards(
+    context: &super::scenario_decisions::FreshSourceContext<'_>,
+    owner: &IrItem,
+    nodes: &HashMap<NodeKey, &SyntaxNode>,
+    guards: &mut HashMap<Span, PreparedSendGuard>,
+) -> Result<Option<Vec<serde_json::Value>>, SendGuardGap> {
+    let original = context.original();
+    let ir = context.ir();
+    let db = context.db();
+    let resolved = context.resolved();
+    let IrItemKind::Scenario {
+        guards: leading,
+        effects,
+        ..
+    } = &owner.kind
+    else {
+        return Ok(None);
+    };
+    let mut sends = Vec::new();
+    collect_sends(leading, &mut sends, 0)?;
+    collect_sends(effects, &mut sends, 0)?;
+    if sends.is_empty() {
+        return Ok(None);
+    }
+    let sites = super::scenario_decisions::serialize_original_decision_sources_with_context(
+        context, owner,
+    )
+    .ok_or_else(|| {
+        gap(
+            "complete original SEND decision correspondence unavailable",
+            Some(owner.span),
+        )
+    })?;
+    let sites = sites
+        .iter()
+        .filter(|site| site.stage == "send-dispatch")
+        .collect::<Vec<_>>();
+    if sites.len() != sends.len() {
+        return Err(gap(
+            "original SEND dispatch census mismatch",
+            Some(owner.span),
+        ));
+    }
+    let source_facts = original
+        .scenario_disclosures()
+        .get(&owner.id)
+        .and_then(|disclosure| disclosure.source_facts())
+        .and_then(|facts| facts.decision_sites.as_ref())
+        .ok_or_else(|| gap("original SEND source facts unavailable", Some(owner.span)))?;
+    let mut descriptors = Vec::new();
+    for (send, site) in sends.into_iter().zip(sites) {
+        let (span, guard) = prepare_send_guard(
+            original,
+            ir,
+            db,
+            resolved,
+            nodes,
+            owner,
+            source_facts,
+            send,
+            site,
+        )?;
+        descriptors.push(guard.descriptor.clone());
+        if guards.len() >= 200 || guards.insert(span, guard).is_some() {
+            return Err(gap(
+                "duplicate or excessive original SEND guard",
+                Some(span),
+            ));
+        }
+    }
+    Ok(Some(descriptors))
+}
+
 pub(super) fn prepare_with_context(
     context: &super::scenario_decisions::FreshSourceContext<'_>,
 ) -> Result<PreparedSendGuards, SendGuardGap> {
     let program = context.program();
     let ir = context.ir();
-    let db = context.db();
     let original = context.original();
     let fresh = context.fresh();
     let trees = context.trees();
-    let resolved = context.resolved();
     if original.types.node_types != program.types.node_types
         || original.types.symbol_types != program.types.symbol_types
     {
@@ -158,142 +332,12 @@ pub(super) fn prepare_with_context(
     let mut guards = HashMap::new();
     let mut by_owner = BTreeMap::new();
     for owner in &ir.items {
-        let IrItemKind::Scenario {
-            guards: leading,
-            effects,
-            ..
-        } = &owner.kind
-        else {
-            continue;
-        };
-        let mut sends = Vec::new();
-        collect_sends(leading, &mut sends, 0)?;
-        collect_sends(effects, &mut sends, 0)?;
-        if sends.is_empty() {
-            continue;
-        }
-        let sites = super::scenario_decisions::serialize_original_decision_sources_with_context(
-            context, owner,
-        )
-        .ok_or_else(|| {
-            gap(
-                "complete original SEND decision correspondence unavailable",
-                Some(owner.span),
-            )
-        })?;
-        let sites = sites
-            .iter()
-            .filter(|site| site.stage == "send-dispatch")
-            .collect::<Vec<_>>();
-        if sites.len() != sends.len() {
-            return Err(gap(
-                "original SEND dispatch census mismatch",
-                Some(owner.span),
-            ));
-        }
-        let source_facts = original
-            .scenario_disclosures()
-            .get(&owner.id)
-            .and_then(|disclosure| disclosure.source_facts())
-            .and_then(|facts| facts.decision_sites.as_ref())
-            .ok_or_else(|| gap("original SEND source facts unavailable", Some(owner.span)))?;
-        let mut descriptors = Vec::new();
-        for (send, site) in sends.into_iter().zip(sites) {
-            let IrStmt::Send {
-                operation,
-                when: Some(predicate),
-                deployment_binding,
-                binding,
-                span,
-                ..
-            } = send
-            else {
-                unreachable!()
-            };
-            if predicate.ty != ResolvedType::Scalar(Scalar::Bool)
-                || site.owner != owner.canonical
-                || site.statement.start != span.start
-                || site.statement.end != span.end
-            {
-                return Err(gap(
-                    "original SEND owner/Boolean site mismatch",
-                    Some(*span),
-                ));
-            }
-            let fact = source_facts
-                .iter()
-                .find(|fact| {
-                    fact.stage
-                        == crate::analysis::scenario_disclosure::CheckedDecisionStage::SendDispatch
-                        && fact.statement.file == span.file
-                        && fact.statement.start == span.start
-                        && fact.statement.end == span.end
-                        && fact.node.start == site.node.start
-                        && fact.node.end == site.node.end
-                })
-                .ok_or_else(|| gap("original SEND predicate node mismatch", Some(*span)))?;
-            let source = db
-                .get(span.file)
-                .ok_or_else(|| gap("missing SEND source", Some(*span)))?;
-            if site.source.path != source.path
-                || site.source.sha256 != source.sha256
-                || original
-                    .modules
-                    .get(owner.module.0 as usize)
-                    .is_none_or(|module| module.name != site.source.module)
-            {
-                return Err(gap("original SEND source identity mismatch", Some(*span)));
-            }
-            let node = nodes
-                .get(&fact.node)
-                .ok_or_else(|| gap("missing original SEND predicate CST", Some(*span)))?;
-            let inputs = free_inputs(
-                FreeInputSource {
-                    program: original,
-                    ir,
-                    db,
-                    resolved,
-                    nodes: &nodes,
-                    owner: owner.id,
-                },
-                fact.node,
-                node,
-                predicate,
-            )?;
-            let rule = format!(
-                "{}.sendWhen.{}.{}.{}",
-                owner.canonical, site.source.sha256, site.node.start, site.node.end
+        if let Some(descriptors) = prepare_owner_guards(context, owner, &nodes, &mut guards)? {
+            by_owner.insert(
+                owner.canonical.clone(),
+                serde_json::Value::Array(descriptors),
             );
-            let descriptor = serde_json::json!({
-                "rule": rule, "owner": owner.canonical, "source": site.source,
-                "node": site.node, "statement": site.statement,
-                "target": operation, "binding": deployment_binding, "sourceBinding": binding,
-                "inputs": inputs.iter().map(|input| serde_json::json!({"name":input.name,"type":input.type_id})).collect::<Vec<_>>(),
-            });
-            descriptors.push(descriptor.clone());
-            if guards.len() >= 200
-                || guards
-                    .insert(
-                        *span,
-                        PreparedSendGuard {
-                            rule,
-                            predicate: predicate.clone(),
-                            descriptor,
-                            inputs,
-                        },
-                    )
-                    .is_some()
-            {
-                return Err(gap(
-                    "duplicate or excessive original SEND guard",
-                    Some(*span),
-                ));
-            }
         }
-        by_owner.insert(
-            owner.canonical.clone(),
-            serde_json::Value::Array(descriptors),
-        );
     }
     Ok(PreparedSendGuards {
         guards,
@@ -448,29 +492,46 @@ struct FreeInputSource<'a> {
 /// No guard-local check, copied nullable alias, scalar or nullable parameter
 /// acquires this proof. The existing whole original/fresh seal precedes this
 /// producer, and the native receiver must still supply the actual selected row.
-fn checked_first_row_narrowing(
-    source: FreeInputSource<'_>,
-    predicate: NodeKey,
+fn narrowing_owner_mismatch(
+    owner: &IrItem,
+    scenario: &ScenarioData,
+    facts: &CheckedScenarioSource,
+    symbol: &Symbol,
+    actual_model: &IrItem,
+    source_owner: SymbolId,
+    occurrence_type_ok: bool,
+    model: SymbolId,
+    module_name: &str,
+    occurrence_kind: SyntaxKind,
+) -> bool {
+    owner.id != source_owner
+        || owner.module != scenario.module
+        || facts.scenario != source_owner
+        || facts.node != scenario.node
+        || facts.source.module != module_name
+        || !matches!(symbol.kind, SymbolKind::Model { .. })
+        || symbol.id != model
+        || symbol.module != scenario.module
+        || actual_model.id != model
+        || actual_model.module != symbol.module
+        || actual_model.canonical != symbol.canonical
+        || !matches!(actual_model.kind, IrItemKind::Model { .. })
+        || !occurrence_type_ok
+        || occurrence_kind != SyntaxKind::NameRef
+}
+
+fn narrowing_header<'a>(
+    source: FreeInputSource<'a>,
     occurrence: NodeKey,
-    binding: &Binding,
+    declaration: NodeKey,
+    model: SymbolId,
     declared_type: &ResolvedType,
-) -> Option<PreparedFirstRowNarrowing> {
-    use crate::analysis::effects::EffectVerb;
-    use crate::analysis::scenario_disclosure::{CheckedDecisionPosition, CheckedDecisionStage};
-    use crate::analysis::types::SelectedCallTarget;
-    let Binding::Let { node: declaration } = binding else {
-        return None;
-    };
-    let ResolvedType::Nullable(inner) = declared_type else {
-        return None;
-    };
-    let ResolvedType::Record {
-        symbol: model,
-        stored: true,
-    } = inner.as_ref()
-    else {
-        return None;
-    };
+) -> Option<(
+    &'a ScenarioData,
+    &'a CheckedScenarioSource,
+    &'a IrItem,
+    ResolvedType,
+)> {
     let scenario = source.program.effects.scenarios.get(&source.owner)?;
     let facts = source
         .program
@@ -478,61 +539,148 @@ fn checked_first_row_narrowing(
         .get(&source.owner)?
         .source_facts()?;
     let owner = source.ir.items.get(source.owner.0 as usize)?;
-    let IrItemKind::Scenario {
-        effects: actual_effects,
-        ..
-    } = &owner.kind
-    else {
+    let IrItemKind::Scenario { .. } = &owner.kind else {
         return None;
     };
     let symbol = source.resolved.symbols.get(model.0 as usize)?;
     let actual_model = source.ir.items.get(model.0 as usize)?;
     let capture_type = ResolvedType::Record {
-        symbol: *model,
+        symbol: model,
         stored: true,
     };
-    if owner.id != source.owner
-        || owner.module != scenario.module
-        || facts.scenario != source.owner
-        || facts.node != scenario.node
-        || facts.source.module != source.program.modules.get(scenario.module.0 as usize)?.name
-        || !matches!(symbol.kind, SymbolKind::Model { .. })
-        || symbol.id != *model
-        || symbol.module != scenario.module
-        || actual_model.id != *model
-        || actual_model.module != symbol.module
-        || actual_model.canonical != symbol.canonical
-        || !matches!(actual_model.kind, IrItemKind::Model { .. })
-        || source.program.types.node_types.get(&occurrence) != Some(&capture_type)
-        || source.nodes.get(&occurrence)?.kind != SyntaxKind::NameRef
-    {
+    let module_name = source
+        .program
+        .modules
+        .get(scenario.module.0 as usize)
+        .map(|module| module.name.as_str())?;
+    let occurrence_kind = source.nodes.get(&occurrence).map(|node| node.kind)?;
+    let occurrence_type_ok =
+        source.program.types.node_types.get(&occurrence) == Some(&capture_type);
+    if narrowing_owner_mismatch(
+        owner,
+        scenario,
+        facts,
+        symbol,
+        actual_model,
+        source.owner,
+        occurrence_type_ok,
+        model,
+        module_name,
+        occurrence_kind,
+    ) {
         return None;
     }
+    Some((scenario, facts, owner, capture_type))
+}
+
+fn select_narrowing_query(
+    facts: &CheckedScenarioSource,
+    declaration: NodeKey,
+    model: SymbolId,
+) -> Option<(&DisclosureQuery, &DisclosureFirstQuery)> {
     let mut queries = facts.queries.as_deref()?.iter().filter(|query| {
         query
             .first
             .as_ref()
-            .is_some_and(|first| first.binding == *declaration)
+            .is_some_and(|first| first.binding == declaration)
     });
     let query = queries.next()?;
-    let first = query.first.as_ref()?;
+    if queries.next().is_some()
+        || query.model != model
+        || query.source != facts.source
+        || query.count.is_some()
+        || query.projection.is_some()
+    {
+        return None;
+    }
+    Some((query, query.first.as_ref()?))
+}
+
+fn resolve_narrowing_positions(
+    scenario: &ScenarioData,
+    declaration: NodeKey,
+    predicate: NodeKey,
+) -> Option<((usize, &Effect), (usize, &Effect))> {
     let (let_index, let_effect) = scenario
         .effects
         .iter()
         .enumerate()
-        .find(|(_, effect)| effect.node == *declaration)?;
+        .find(|(_, effect)| effect.node == declaration)?;
     let (send_index, send_effect) =
         scenario.effects.iter().enumerate().find(|(_, effect)| {
             effect.verb == EffectVerb::Send && effect.when == Some(predicate)
         })?;
-    let call = first_send_group(source, let_effect.value?)?;
+    if let_index >= send_index
+        || declaration.end > send_effect.node.start
+        || !contained(send_effect.node, predicate)
+    {
+        return None;
+    }
+    Some(((let_index, let_effect), (send_index, send_effect)))
+}
+
+fn resolve_narrowing_call<'a>(
+    source: FreeInputSource<'a>,
+    first: &DisclosureFirstQuery,
+    query: &DisclosureQuery,
+    let_value: NodeKey,
+) -> Option<(
+    NodeKey,
+    &'a SelectedCall,
+    &'a CheckedCollectionCall,
+    &'a CheckedQuery,
+    NodeKey,
+)> {
+    let call = first_send_group(source, let_value)?;
     let selected = source.program.types.selected_calls.get(&call)?;
     let collection = source.program.types.checked_collection_calls.get(&call)?;
     let [argument] = selected.arguments.as_slice() else {
         return None;
     };
     let checked_query = source.program.types.checked_queries.get(&query.node)?;
-    let let_node = source.nodes.get(declaration)?;
+    let arg_group = first_send_group(source, *argument)?;
+    Some((call, selected, collection, checked_query, arg_group))
+}
+
+fn narrowing_call_mismatch(
+    source: FreeInputSource<'_>,
+    call: NodeKey,
+    selected: &SelectedCall,
+    collection: &CheckedCollectionCall,
+    checked_query: &CheckedQuery,
+    arg_group: NodeKey,
+    first: &DisclosureFirstQuery,
+    query: &DisclosureQuery,
+    model: SymbolId,
+    declared_type: &ResolvedType,
+    let_value: NodeKey,
+) -> bool {
+    call != first.call
+        || collection.node != call
+        || collection.builtin != "first"
+        || collection.model != model
+        || collection.query != query.node
+        || Some(collection.alias) != query.alias
+        || collection.predicate.is_some()
+        || collection.overload != first.overload
+        || !matches!(&selected.target,SelectedCallTarget::Builtin {id,overload}
+            if id=="first" && *overload==first.overload)
+        || selected.slots.as_slice() != [Some(0)]
+        || arg_group != query.node
+        || checked_query.node != query.node
+        || checked_query.projection.is_some()
+        || checked_query.domain != query.domain
+        || source.program.types.node_types.get(&call) != Some(declared_type)
+        || source.program.types.node_types.get(&let_value) != Some(declared_type)
+}
+
+fn resolve_narrowing_let<'a>(
+    source: FreeInputSource<'a>,
+    let_effect: &Effect,
+    declaration: NodeKey,
+    let_value: NodeKey,
+) -> Option<Vec<&'a str>> {
+    let let_node = source.nodes.get(&declaration)?;
     let let_values: Vec<_> = kids(let_node)
         .into_iter()
         .filter(|child| resolve::is_expression(child.kind))
@@ -543,41 +691,41 @@ fn checked_first_row_narrowing(
         .into_iter()
         .filter_map(|child| name_text(child, text))
         .collect();
-    if queries.next().is_some()
-        || query.model != *model
-        || query.source != facts.source
-        || query.count.is_some()
-        || query.projection.is_some()
-        || let_effect.verb != EffectVerb::Let
+    if let_effect.verb != EffectVerb::Let
         || let_effect.binding.as_deref() != let_names.get(1).copied()
         || let_node.kind != SyntaxKind::Let
         || let_names.first().copied() != Some("let")
         || let_names.len() != 2
-        || let_values.as_slice() != [let_effect.value?]
-        || let_index >= send_index
-        || declaration.end > send_effect.node.start
-        || !contained(send_effect.node, predicate)
-        || !contained(predicate, occurrence)
-        || call != first.call
-        || collection.node != call
-        || collection.builtin != "first"
-        || collection.model != *model
-        || collection.query != query.node
-        || Some(collection.alias) != query.alias
-        || collection.predicate.is_some()
-        || collection.overload != first.overload
-        || !matches!(&selected.target,SelectedCallTarget::Builtin {id,overload}
-            if id=="first" && *overload==first.overload)
-        || selected.slots.as_slice() != [Some(0)]
-        || first_send_group(source, *argument)? != query.node
-        || checked_query.node != query.node
-        || checked_query.projection.is_some()
-        || checked_query.domain != query.domain
-        || source.program.types.node_types.get(&call) != Some(declared_type)
-        || source.program.types.node_types.get(&let_effect.value?) != Some(declared_type)
+        || let_values.as_slice() != [let_value]
     {
         return None;
     }
+    Some(let_names)
+}
+
+fn check_narrowing_seal(
+    source: FreeInputSource<'_>,
+    owner: &IrItem,
+    facts: &CheckedScenarioSource,
+    query: &DisclosureQuery,
+    call: NodeKey,
+    let_index: usize,
+    send_index: usize,
+    declaration: NodeKey,
+    predicate: NodeKey,
+    send_node: NodeKey,
+    occurrence: NodeKey,
+    capture_type: &ResolvedType,
+    declared_type: &ResolvedType,
+    binding_name: &str,
+) -> Option<()> {
+    let IrItemKind::Scenario {
+        effects: actual_effects,
+        ..
+    } = &owner.kind
+    else {
+        return None;
+    };
     let IrStmt::Let {
         name: actual_name,
         value: actual_value,
@@ -599,28 +747,106 @@ fn checked_first_row_narrowing(
         .as_deref()?
         .iter()
         .find(|created| created.source == facts.source)?;
-    if *actual_let != send_key_span(*declaration)
-        || actual_name.as_str() != let_names[1]
+    let sealed = super::scenario_receipts::checked_first_query_ir(
+        source.ir,
+        original,
+        actual_value,
+        call,
+        source.db,
+    )?;
+    if *actual_let != send_key_span(declaration)
+        || actual_name.as_str() != binding_name
         || actual_value.ty != *declared_type
         || actual_value.span != send_key_span(call)
-        || *actual_send != send_key_span(send_effect.node)
+        || *actual_send != send_key_span(send_node)
         || actual_predicate.span != send_key_span(predicate)
-        || super::scenario_receipts::checked_first_query_ir(
-            source.ir,
-            original,
-            actual_value,
-            call,
-            source.db,
-        )? != query
-        || !same_send_occurrence(actual_predicate, occurrence, let_names[1], &capture_type)
+        || sealed != query
+        || !same_send_occurrence(actual_predicate, occurrence, binding_name, capture_type)
+        || !contained(predicate, occurrence)
     {
         return None;
     }
+    Some(())
+}
+
+fn check_require_control(
+    source: FreeInputSource<'_>,
+    facts: &CheckedScenarioSource,
+    sites: &[CheckedDecisionSite],
+    owner: &IrItem,
+    effect: &Effect,
+    index: usize,
+    send_node: NodeKey,
+    declaration: NodeKey,
+    declared_type: &ResolvedType,
+    binding_name: &str,
+) -> Option<Option<NodeKey>> {
+    let mut controls = sites.iter().filter(|site| {
+        site.owner == source.owner
+            && site.stage == CheckedDecisionStage::BodyRequire
+            && site.statement == effect.node
+            && Some(site.node) == effect.cond
+    });
+    let control = controls.next()?;
+    if controls.next().is_some()
+        || control.source != facts.source
+        || control.position.as_slice() != [CheckedDecisionPosition::Body(index)]
+    {
+        return None;
+    }
+    let Some(presence) =
+        compulsory_first_presence(source, control.node, declaration, declared_type, 0)
+    else {
+        return Some(None);
+    };
+    let IrItemKind::Scenario {
+        effects: actual_effects,
+        ..
+    } = &owner.kind
+    else {
+        return None;
+    };
+    let IrStmt::Require { cond, span, .. } = actual_effects.get(index)? else {
+        return None;
+    };
+    if *span != send_key_span(effect.node)
+        || !compiled_first_presence(
+            source,
+            cond,
+            control.node,
+            presence,
+            binding_name,
+            declared_type,
+            0,
+        )
+    {
+        return None;
+    }
+    Some(Some(presence))
+}
+
+fn find_compulsory_narrowing(
+    source: FreeInputSource<'_>,
+    scenario: &ScenarioData,
+    facts: &CheckedScenarioSource,
+    owner: &IrItem,
+    query: &DisclosureQuery,
+    call: NodeKey,
+    declaration: NodeKey,
+    predicate: NodeKey,
+    send_node: NodeKey,
+    occurrence: NodeKey,
+    binding_name: &str,
+    declared_type: &ResolvedType,
+    model: SymbolId,
+    send_index: usize,
+    let_index: usize,
+) -> Option<PreparedFirstRowNarrowing> {
     let sites = facts.decision_sites.as_deref()?;
     let mut dispatches = sites.iter().filter(|site| {
         site.owner == source.owner
             && site.stage == CheckedDecisionStage::SendDispatch
-            && site.statement == send_effect.node
+            && site.statement == send_node
             && site.node == predicate
     });
     let dispatch = dispatches.next()?;
@@ -641,59 +867,124 @@ fn checked_first_row_narrowing(
         .skip(let_index + 1)
     {
         if effect.verb != EffectVerb::Require
-            || effect.node.end > send_effect.node.start
+            || effect.node.end > send_node.start
             || !effect.then_effects.is_empty()
             || !effect.else_effects.is_empty()
             || !effect.match_arms.is_empty()
         {
             continue;
         }
-        let mut controls = sites.iter().filter(|site| {
-            site.owner == source.owner
-                && site.stage == CheckedDecisionStage::BodyRequire
-                && site.statement == effect.node
-                && Some(site.node) == effect.cond
+        let Some(presence) = check_require_control(
+            source,
+            facts,
+            sites,
+            owner,
+            effect,
+            index,
+            send_node,
+            declaration,
+            declared_type,
+            binding_name,
+        )? else {
+            continue;
+        };
+        return Some(PreparedFirstRowNarrowing {
+            declared_type: declared_type.clone(),
+            model,
+            query_id: query.id.clone(),
+            first_call: call,
+            binding: declaration,
+            presence,
+            require: effect.node,
+            occurrence,
+            source: facts.source.clone(),
         });
-        let control = controls.next()?;
-        if controls.next().is_some()
-            || control.source != facts.source
-            || control.position.as_slice() != [CheckedDecisionPosition::Body(index)]
-        {
-            return None;
-        }
-        if let Some(presence) =
-            compulsory_first_presence(source, control.node, *declaration, declared_type, 0)
-        {
-            let IrStmt::Require { cond, span, .. } = actual_effects.get(index)? else {
-                return None;
-            };
-            if *span != send_key_span(effect.node)
-                || !compiled_first_presence(
-                    source,
-                    cond,
-                    control.node,
-                    presence,
-                    let_names[1],
-                    declared_type,
-                    0,
-                )
-            {
-                return None;
-            }
-            return Some(PreparedFirstRowNarrowing {
-                declared_type: declared_type.clone(),
-                model: *model,
-                query_id: query.id.clone(),
-                first_call: call,
-                binding: *declaration,
-                presence,
-                require: effect.node,
-                occurrence,
-                source: facts.source.clone(),
-            });
-        }
     }
     None
+}
+
+fn checked_first_row_narrowing(
+    source: FreeInputSource<'_>,
+    predicate: NodeKey,
+    occurrence: NodeKey,
+    binding: &Binding,
+    declared_type: &ResolvedType,
+) -> Option<PreparedFirstRowNarrowing> {
+    let Binding::Let { node: declaration } = binding else {
+        return None;
+    };
+    let ResolvedType::Nullable(inner) = declared_type else {
+        return None;
+    };
+    let ResolvedType::Record {
+        symbol: model,
+        stored: true,
+    } = inner.as_ref()
+    else {
+        return None;
+    };
+    let (scenario, facts, owner, capture_type) = narrowing_header(
+        source,
+        occurrence,
+        *declaration,
+        *model,
+        declared_type,
+    )?;
+    let (query, first) = select_narrowing_query(facts, *declaration, *model)?;
+    let ((let_index, let_effect), (send_index, send_effect)) =
+        resolve_narrowing_positions(scenario, *declaration, predicate)?;
+    let let_value = let_effect.value?;
+    let (call, selected, collection, checked_query, arg_group) =
+        resolve_narrowing_call(source, first, query, let_value)?;
+    if narrowing_call_mismatch(
+        source,
+        call,
+        selected,
+        collection,
+        checked_query,
+        arg_group,
+        first,
+        query,
+        *model,
+        declared_type,
+        let_value,
+    ) {
+        return None;
+    }
+    let let_names = resolve_narrowing_let(source, let_effect, *declaration, let_value)?;
+    check_narrowing_seal(
+        source,
+        owner,
+        facts,
+        query,
+        call,
+        let_index,
+        send_index,
+        *declaration,
+        predicate,
+        send_effect.node,
+        occurrence,
+        &capture_type,
+        declared_type,
+        let_names[1],
+    )?;
+    find_compulsory_narrowing(
+        source,
+        scenario,
+        facts,
+        owner,
+        query,
+        call,
+        *declaration,
+        predicate,
+        send_effect.node,
+        occurrence,
+        let_names[1],
+        declared_type,
+        *model,
+        send_index,
+        let_index,
+    )
 }
 
 fn send_key_span(key: NodeKey) -> Span {
@@ -841,6 +1132,26 @@ fn first_send_group(source: FreeInputSource<'_>, mut key: NodeKey) -> Option<Nod
     None
 }
 
+fn check_presence_operands(
+    source: FreeInputSource<'_>,
+    key: NodeKey,
+    left: NodeKey,
+    right: NodeKey,
+    binding: NodeKey,
+    declared_type: &ResolvedType,
+    text: &str,
+) -> Option<NodeKey> {
+    let value = first_send_group(source, left)?;
+    let absent = first_send_group(source, right)?;
+    let null = source.nodes.get(&absent)?;
+    (source.nodes.get(&value)?.kind==SyntaxKind::NameRef
+        && matches!(source.resolved.node_binding.get(&value),Some(Binding::Let {node}) if *node==binding)
+        && source.program.types.node_types.get(&value)==Some(declared_type)
+        && null.kind==SyntaxKind::Literal && text.get(absent.start as usize..absent.end as usize)?.trim()=="null"
+        && source.program.types.node_types.get(&absent)==Some(&ResolvedType::Null))
+        .then_some(key)
+}
+
 fn compulsory_first_presence(
     source: FreeInputSource<'_>,
     key: NodeKey,
@@ -881,23 +1192,29 @@ fn compulsory_first_presence(
     if operator != "!=" {
         return None;
     }
-    let value = first_send_group(source, *left)?;
-    let absent = first_send_group(source, *right)?;
-    let null = source.nodes.get(&absent)?;
-    (source.nodes.get(&value)?.kind==SyntaxKind::NameRef
-        && matches!(source.resolved.node_binding.get(&value),Some(Binding::Let {node}) if *node==binding)
-        && source.program.types.node_types.get(&value)==Some(declared_type)
-        && null.kind==SyntaxKind::Literal && text.get(absent.start as usize..absent.end as usize)?.trim()=="null"
-        && source.program.types.node_types.get(&absent)==Some(&ResolvedType::Null))
-        .then_some(key)
+    check_presence_operands(
+        source,
+        key,
+        *left,
+        *right,
+        binding,
+        declared_type,
+        text,
+    )
 }
 
-fn free_inputs(
+fn collect_source_names(
     source: FreeInputSource<'_>,
     predicate_key: NodeKey,
     predicate_node: &SyntaxNode,
-    predicate: &TypedExpr,
-) -> Result<Vec<PreparedSendInput>, SendGuardGap> {
+) -> Result<
+    (
+        Vec<PreparedSendInput>,
+        HashMap<String, String>,
+        HashSet<Span>,
+    ),
+    SendGuardGap,
+> {
     let original_source = source;
     let FreeInputSource {
         program,
@@ -991,6 +1308,78 @@ fn free_inputs(
             narrowing,
         });
     }
+    Ok((inputs, identities, source_reads))
+}
+
+fn push_query_values<'e>(
+    query: &'e IrQuery,
+    pending: &mut Vec<(&'e TypedExpr, usize)>,
+    depth: usize,
+) {
+    if let IrQueryDomain::Value { base, .. } = &query.domain {
+        pending.push((base, depth + 1));
+    }
+    if let Some(order) = &query.value_order {
+        pending.push((&order.key, depth + 1));
+    }
+    for value in [
+        &query.parent,
+        &query.where_pred,
+        &query.limit,
+        &query.archived,
+        &query.select,
+    ]
+    .into_iter()
+    .flatten()
+    {
+        pending.push((value, depth + 1));
+    }
+}
+
+fn check_evaluated_name(
+    source: FreeInputSource<'_>,
+    predicate_key: NodeKey,
+    owner: SymbolId,
+    value: &TypedExpr,
+    name: &str,
+    identities: &HashMap<String, String>,
+    evaluated: &mut HashSet<Span>,
+) -> Result<(), SendGuardGap> {
+    let program = source.program;
+    let resolved = source.resolved;
+    let nodes = source.nodes;
+    let key = NodeKey {
+        file: value.span.file,
+        start: value.span.start,
+        end: value.span.end,
+        kind: SyntaxKind::NameRef as u8,
+    };
+    let binding = resolved.node_binding.get(&key).ok_or_else(|| {
+        gap(
+            "evaluated SEND name lacks original lexical source",
+            Some(value.span),
+        )
+    })?;
+    if declaration_type(program, resolved, nodes, owner, predicate_key, key, binding)?.is_some()
+    {
+        if !identities.contains_key(name) {
+            return Err(gap(
+                "evaluated SEND lexical name differs from source binding",
+                Some(value.span),
+            ));
+        }
+        evaluated.insert(value.span);
+    }
+    Ok(())
+}
+
+fn check_evaluated_names(
+    source: FreeInputSource<'_>,
+    predicate_key: NodeKey,
+    predicate: &TypedExpr,
+    identities: &HashMap<String, String>,
+) -> Result<HashSet<Span>, SendGuardGap> {
+    let owner = source.owner;
     let mut pending = vec![(predicate, 0usize)];
     let mut evaluated = HashSet::new();
     let mut count = 0usize;
@@ -1004,29 +1393,15 @@ fn free_inputs(
         }
         match &value.expr {
             IrExpr::Name(name) => {
-                let key = NodeKey {
-                    file: value.span.file,
-                    start: value.span.start,
-                    end: value.span.end,
-                    kind: SyntaxKind::NameRef as u8,
-                };
-                let binding = resolved.node_binding.get(&key).ok_or_else(|| {
-                    gap(
-                        "evaluated SEND name lacks original lexical source",
-                        Some(value.span),
-                    )
-                })?;
-                if declaration_type(program, resolved, nodes, owner, predicate_key, key, binding)?
-                    .is_some()
-                {
-                    if !identities.contains_key(name) {
-                        return Err(gap(
-                            "evaluated SEND lexical name differs from source binding",
-                            Some(value.span),
-                        ));
-                    }
-                    evaluated.insert(value.span);
-                }
+                check_evaluated_name(
+                    source,
+                    predicate_key,
+                    owner,
+                    value,
+                    name,
+                    identities,
+                    &mut evaluated,
+                )?;
             }
             IrExpr::Member { base, .. }
             | IrExpr::Unary { operand: base, .. }
@@ -1046,24 +1421,7 @@ fn free_inputs(
                 pending.extend(fields.iter().map(|(_, value)| (value, depth + 1)))
             }
             IrExpr::Query(query) => {
-                if let IrQueryDomain::Value { base, .. } = &query.domain {
-                    pending.push((base, depth + 1));
-                }
-                if let Some(order) = &query.value_order {
-                    pending.push((&order.key, depth + 1));
-                }
-                for value in [
-                    &query.parent,
-                    &query.where_pred,
-                    &query.limit,
-                    &query.archived,
-                    &query.select,
-                ]
-                .into_iter()
-                .flatten()
-                {
-                    pending.push((value, depth + 1));
-                }
+                push_query_values(query, &mut pending, depth);
             }
             IrExpr::HasRole { person, .. } => {
                 if let Some(value) = person {
@@ -1087,6 +1445,18 @@ fn free_inputs(
             }
         }
     }
+    Ok(evaluated)
+}
+
+fn free_inputs(
+    source: FreeInputSource<'_>,
+    predicate_key: NodeKey,
+    predicate_node: &SyntaxNode,
+    predicate: &TypedExpr,
+) -> Result<Vec<PreparedSendInput>, SendGuardGap> {
+    let (inputs, identities, source_reads) =
+        collect_source_names(source, predicate_key, predicate_node)?;
+    let evaluated = check_evaluated_names(source, predicate_key, predicate, &identities)?;
     if source_reads != evaluated {
         return Err(gap(
             "source/evaluated free SEND name census differs",
