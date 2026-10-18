@@ -28,19 +28,22 @@ Recover its residual identity correspondence before bulk continuation, preservin
 the original threshold and eligibility. Neither a new current-tree census nor a
 grandfathered enforcement pass substitutes for reducing a selected residual.
 
-**Effort-reduction priority:** start the next available compiler/capture owner with
-the existing one-shot post-release original24 result, since the last complete
-diagnostics predate accepted repairs. Use its actual roots to choose the first
-shared source repair, then release checked composed-app membership to native Dev
-and exercise released producer outputs in one complete app/regression path.
-Ready service foundations remain independent. Automatic save-to-page work can
-reduce repeated operator/browser steps, while further caching requires evidence
-of remaining repeated cost; accepted no-op reuse is not scheduled again. Native
-ownership completion has a concrete delivery benefit but no assumed speedup.
-The canonical priority section records relative cost/risk and branches, without
-new IDs, scores, benchmarks or a universal tooling prerequisite. It does not
-preempt a user's active local Muse unit or authorize implementation. Expected
-downstream savings remain hypotheses until the corresponding consumer proves them.
+**User-corrected priority — reduce repeated effort:** put the existing T22
+MCP/HTTP producer-bundle reuse unit ahead of the original24 capture and feature
+work as the concrete first candidate. The broader goal includes repeated tests,
+setup, capture, integration and manual actions, not build time alone. Current
+portable builds still launch both Node/esbuild producers through a
+fresh owned build child. Retained total portable bundling near two seconds per
+check establishes a plausible shared cost, but does not isolate today's producer
+pair or promise that saving. Reuse must survive the child boundary, key the actual
+consumed producer/tool closure, and retain admission/invalidation/cleanup. The next
+normal affected build supplies the one missing cost observation and finite
+hit/miss/output controls; an immaterial result closes T22's existing no-go.
+This targets repeated Worker/dev integration builds, not Cargo or TypeScript
+emission. T23's remaining staging cost is unmeasured, accepted no-op reuse stays
+closed, and native construction has no assumed speed advantage. The canonical
+priority section retains the dependent order and independent alternatives. It
+neither preempts a user's live Muse unit nor authorizes implementation.
 
 This is documentation preparation only. It starts no implementation; no new
 semantic choice, runtime qualification, public activation or complete file-tree
