@@ -30,6 +30,52 @@ function unsupported(): never {
 }
 function notFound(): never { throw new StateError('not_found', 'Record not found.'); }
 
+/** Entry/proof shape must bind the stored row before chain checks run. */
+function checkedOriginalProof(entry: HistoryEntry, row: StoredRow,
+  model: ModelName): NonNullable<HistoryEntry['auditProjection']> {
+  if (typeof entry !== 'object' || entry === null) return unsupported();
+  const proof = entry.auditProjection;
+  if (entry.model !== model || entry.recordId !== row.id || typeof proof !== 'object' || proof === null ||
+      proof.created !== row.created || proof.createdBy !== row.createdBy ||
+      !Array.isArray(proof.secretFields)) return unsupported();
+  return proof;
+}
+
+/** Version/clock/actor/operation/payload shape carries no chain meaning. */
+function assertOriginalEntryFields(entry: HistoryEntry): void {
+  if (!Number.isSafeInteger(entry.version) || entry.version < 1 ||
+      !Number.isFinite(entry.at) || typeof entry.actor !== 'string' ||
+      typeof entry.operation !== 'string' || typeof entry.operationId !== 'string' ||
+      typeof entry.after !== 'object' || entry.after === null || Array.isArray(entry.after) ||
+      entry.before !== null && (typeof entry.before !== 'object' || Array.isArray(entry.before))) return unsupported();
+}
+
+/** Secret paths stay non-empty dot segments; contract types may lie at runtime. */
+function collectOriginalSecret(path: unknown, secrets: Set<string>): void {
+  if (typeof path !== 'string' || path === '' || path.split('.').some(part => part === '')) return unsupported();
+  secrets.add(path);
+}
+
+/** Create-then-monotone-version links with exact before/after continuity. */
+function assertOriginalChainLink(entry: HistoryEntry, previous: HistoryEntry | undefined, row: StoredRow): void {
+  if (previous === undefined) {
+    if (entry.change !== 'create' || entry.before !== null || entry.after === null ||
+        entry.version !== 1 || entry.at !== row.created || entry.actor !== row.createdBy) return unsupported();
+  } else if ((entry.change !== 'update' && entry.change !== 'archive') ||
+      entry.before === null || entry.after === null ||
+      entry.version < previous.version || entry.version > previous.version + 1 ||
+      previous.change === 'create' && entry.version !== previous.version + 1 ||
+      stableStringify(entry.before) !== stableStringify(previous.after)) return unsupported();
+}
+
+/** The tip must land exactly on the stored row version/clock/actor/data. */
+function assertOriginalChainTip(entry: HistoryEntry, row: StoredRow): void {
+  if (entry.version !== row.version || entry.at !== row.updated || entry.actor !== row.updatedBy ||
+      stableStringify(entry.after) !== stableStringify(row.data) ||
+      (row.archivedAt === null ? entry.change === 'archive' :
+        entry.change !== 'archive' || row.archivedAt !== entry.at)) return unsupported();
+}
+
 /** Legacy, recreated, missing-stage or migration-discontinuous chains refuse. */
 function originalSecrets(entries: readonly HistoryEntry[], row: StoredRow,
   model: ModelName): readonly string[] {
@@ -37,33 +83,13 @@ function originalSecrets(entries: readonly HistoryEntry[], row: StoredRow,
   const secrets = new Set<string>();
   let previous: HistoryEntry | undefined;
   for (const entry of entries) {
-    if (typeof entry !== 'object' || entry === null) return unsupported();
-    const proof = entry.auditProjection;
-    if (entry.model !== model || entry.recordId !== row.id || typeof proof !== 'object' || proof === null ||
-        proof.created !== row.created || proof.createdBy !== row.createdBy ||
-        !Array.isArray(proof.secretFields) || !Number.isSafeInteger(entry.version) || entry.version < 1 ||
-        !Number.isFinite(entry.at) || typeof entry.actor !== 'string' ||
-        typeof entry.operation !== 'string' || typeof entry.operationId !== 'string' ||
-        typeof entry.after !== 'object' || entry.after === null || Array.isArray(entry.after) ||
-        entry.before !== null && (typeof entry.before !== 'object' || Array.isArray(entry.before))) return unsupported();
-    for (const path of proof.secretFields) {
-      if (typeof path !== 'string' || path === '' || path.split('.').some(part => part === '')) return unsupported();
-      secrets.add(path);
-    }
-    if (previous === undefined) {
-      if (entry.change !== 'create' || entry.before !== null || entry.after === null ||
-          entry.version !== 1 || entry.at !== row.created || entry.actor !== row.createdBy) return unsupported();
-    } else if ((entry.change !== 'update' && entry.change !== 'archive') ||
-        entry.before === null || entry.after === null ||
-        entry.version < previous.version || entry.version > previous.version + 1 ||
-        previous.change === 'create' && entry.version !== previous.version + 1 ||
-        stableStringify(entry.before) !== stableStringify(previous.after)) return unsupported();
+    const proof = checkedOriginalProof(entry, row, model);
+    assertOriginalEntryFields(entry);
+    for (const path of proof.secretFields) collectOriginalSecret(path, secrets);
+    assertOriginalChainLink(entry, previous, row);
     previous = entry;
   }
-  if (previous!.version !== row.version || previous!.at !== row.updated || previous!.actor !== row.updatedBy ||
-      stableStringify(previous!.after) !== stableStringify(row.data) ||
-      (row.archivedAt === null ? previous!.change === 'archive' :
-        previous!.change !== 'archive' || row.archivedAt !== previous!.at)) return unsupported();
+  assertOriginalChainTip(previous!, row);
   return Object.freeze([...secrets]);
 }
 

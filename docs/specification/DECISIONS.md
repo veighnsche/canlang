@@ -19683,3 +19683,15 @@ review accepted the released extraction; the recorded 5,020-case old/new differe
 found no mismatches. Existing source-AST complexity validation applies to every new
 helper. This closes one original above-20 function; the remaining finite cleanup
 is separate, and broader JavaScript grammar support is not proposed here.
+
+
+## 2026-10-18 — extract State history, uniqueness and fanout validators
+
+Accepted implementation: retain the existing history-chain, checked unique-tuple
+and terminal fanout contracts, splitting their validation into private helpers.
+Independent diff review checked short-circuit/access order, error ownership, the
+table-owned frozen tuple profiles and exact chain/fanout conditions. Reused focused
+results: query fences 8/8, uniqueness 25/25 and old/new differential cases 20/19/21.
+Four original above-20 functions are reduced without threshold or allowance changes.
+Full-package typecheck remains limited by missing worktree dependency types; the
+released changed files had no reported type errors. No wider State behavior changes.

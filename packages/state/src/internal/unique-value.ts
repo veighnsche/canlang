@@ -1,28 +1,41 @@
 /** Shared field-directed uniqueness for canonical user wires and legacy scalars. */
-import { getUniqueGroupProfile, type InterimModelDef, type ModelTable, type InterimFieldDef } from '../mutation/models.js';
+import { getUniqueGroupProfile, type InterimModelDef, type ModelTable, type InterimFieldDef,
+  type UniqueGroupProfile } from '../mutation/models.js';
 import { decodeValue, isUserRef, isRecordRef } from '@canlang/values';
 import { StateError } from '../errors.js';
 import type { StoredRow } from '@canlang/contracts';
 import { evalPredicateForRow } from '../policy/grants.js';
 
+function throwInvalidUniqueUser(key: string, model: string): never {
+  throw new StateError('validation',
+    `Unique field ${JSON.stringify(key)} on model ${JSON.stringify(model)} must be a canonical user value.`);
+}
+
+function throwInvalidCompositeUnique(key: string, model: string): never {
+  throw new StateError('validation', `Invalid composite unique ${key} on ${model}.`);
+}
+
+/** Single-id canonical user wire; any other shape refuses. Non-null is a caller precondition. */
+function canonicalUserFieldValue(value: {}, key: string, model: string): string {
+  if (typeof value !== 'object' || Array.isArray(value)) return throwInvalidUniqueUser(key, model);
+  const prototype = Object.getPrototypeOf(value);
+  if (prototype !== Object.prototype && prototype !== null) return throwInvalidUniqueUser(key, model);
+  const keys = Reflect.ownKeys(value);
+  if (keys.length !== 1 || keys[0] !== 'id') return throwInvalidUniqueUser(key, model);
+  const id = Object.getOwnPropertyDescriptor(value, 'id');
+  if (id === undefined || !('value' in id) || !id.enumerable) return throwInvalidUniqueUser(key, model);
+  try {
+    const decoded = decodeValue('user', { id: id.value });
+    if (!isUserRef(decoded)) return throwInvalidUniqueUser(key, model);
+    return decoded.id;
+  } catch { return throwInvalidUniqueUser(key, model); }
+}
+
 export function canonicalUniqueFieldValue(value: unknown, key: string, model: string,
   field?: InterimFieldDef): string | null {
   if (value === null || value === undefined) return null;
   if (field?.array === undefined && (field?.valueType === 'user' || field?.valueType === 'user?')) {
-    const invalid = (): never => { throw new StateError('validation',
-      `Unique field ${JSON.stringify(key)} on model ${JSON.stringify(model)} must be a canonical user value.`); };
-    if (typeof value !== 'object' || Array.isArray(value)) return invalid();
-    const prototype = Object.getPrototypeOf(value);
-    if (prototype !== Object.prototype && prototype !== null) return invalid();
-    const keys = Reflect.ownKeys(value);
-    if (keys.length !== 1 || keys[0] !== 'id') return invalid();
-    const id = Object.getOwnPropertyDescriptor(value, 'id');
-    if (id === undefined || !('value' in id) || !id.enumerable) return invalid();
-    try {
-      const decoded = decodeValue('user', { id: id.value });
-      if (!isUserRef(decoded)) return invalid();
-      return decoded.id;
-    } catch { return invalid(); }
+    return canonicalUserFieldValue(value, key, model);
   }
   if (typeof value === 'string') return value;
   if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') return String(value);
@@ -41,37 +54,70 @@ export function canonicalUniqueRowValue(row: Pick<StoredRow, 'data' | 'parent'>,
     const value = canonicalUniqueFieldValue(row.data[key], key, def.model, def.fields[key]);
     return canonicalUniqueScopeValue(row, value, def);
   }
-  const invalid = (): never => {throw new StateError('validation', `Invalid composite unique ${key} on ${def.model}.`);};
-  const read = (name: string): unknown => {
-    const d = Object.getOwnPropertyDescriptor(row.data, name);
-    if (d === undefined || !d.enumerable || !('value' in d)) return invalid();
-    return d.value;
-  };
-  const ref = read(group.fields[0]), role = read(group.fields[1]);
-  if (group.kind === 'user-enum') {
-    const id = canonicalUniqueFieldValue(ref, group.fields[0], def.model, def.fields[group.fields[0]]);
-    if (id === null || typeof role !== 'string' || !group.cases.includes(role)) return invalid();
-    const parent = def.containment?.parent === undefined ? null : uniqueParentScope(row, def);
-    return JSON.stringify(['user-enum', parent, 'user', id, role]);
+  const ref = compositeFieldValue(row.data, group.fields[0], key, def.model),
+    role = compositeFieldValue(row.data, group.fields[1], key, def.model);
+  if (group.kind === 'user-enum') return userEnumUniqueValue(ref, role, group, row, def);
+  return refEnumUniqueValue(ref, role, group, row, def);
+}
+
+/** Conditions are table-checked local data predicates, never metadata paths. */
+function compositeFieldValue(data: Readonly<Record<string, unknown>>, name: string, key: string,
+  model: string): unknown {
+  const d = Object.getOwnPropertyDescriptor(data, name);
+  if (d === undefined || !d.enumerable || !('value' in d)) return throwInvalidCompositeUnique(key, model);
+  return d.value;
+}
+
+/** User-enum tuples bind one canonical user id with a declared case. */
+function userEnumUniqueValue(ref: unknown, role: unknown, group: UniqueGroupProfile,
+  row: Pick<StoredRow, 'data' | 'parent'>, def: InterimModelDef): string {
+  const key = group.fields.join(',');
+  const id = canonicalUniqueFieldValue(ref, group.fields[0], def.model, def.fields[group.fields[0]]);
+  if (id === null || typeof role !== 'string' || !group.cases.includes(role)) {
+    return throwInvalidCompositeUnique(key, def.model);
   }
-  if (typeof ref !== 'object' || ref === null || Array.isArray(ref) ||
-      ![Object.prototype, null].includes(Object.getPrototypeOf(ref))) return invalid();
+  const parent = def.containment?.parent === undefined ? null : uniqueParentScope(row, def);
+  return JSON.stringify(['user-enum', parent, 'user', id, role]);
+}
+
+/** Id/version-only wires copy by value; anything else refuses. */
+function checkedCompositeWire(ref: object, key: string, model: string): Record<string, unknown> {
   const keys = Reflect.ownKeys(ref);
-  if (!keys.includes('id') || keys.some(key => key !== 'id' && key !== 'version')) return invalid();
+  if (!keys.includes('id') || keys.some(name => name !== 'id' && name !== 'version')) {
+    return throwInvalidCompositeUnique(key, model);
+  }
   const wire: Record<string, unknown> = {};
   for (const name of keys) {
     const d = Object.getOwnPropertyDescriptor(ref, name);
-    if (typeof name !== 'string' || d === undefined || !d.enumerable || !('value' in d)) return invalid();
+    if (typeof name !== 'string' || d === undefined || !d.enumerable || !('value' in d)) {
+      return throwInvalidCompositeUnique(key, model);
+    }
     wire[name] = d.value;
   }
+  return wire;
+}
+
+/** Reference-enum tuples bind one record reference with a declared case. */
+function refEnumUniqueValue(ref: unknown, role: unknown, group: Extract<UniqueGroupProfile, { kind: 'ref-enum' }>,
+  row: Pick<StoredRow, 'data' | 'parent'>, def: InterimModelDef): string {
+  const key = group.fields.join(',');
+  if (typeof ref !== 'object' || ref === null || Array.isArray(ref) ||
+      ![Object.prototype, null].includes(Object.getPrototypeOf(ref))) {
+    return throwInvalidCompositeUnique(key, def.model);
+  }
+  const wire = checkedCompositeWire(ref, key, def.model);
   let id: string;
   try {
     const decoded = decodeValue(group.refModel, wire);
     if (!isRecordRef(decoded) || decoded.model !== group.refModel ||
-        Object.hasOwn(wire, 'version') && (decoded.version === undefined || decoded.version < 1n || decoded.version.toString() !== wire.version)) return invalid();
+        Object.hasOwn(wire, 'version') && (decoded.version === undefined || decoded.version < 1n || decoded.version.toString() !== wire.version)) {
+      return throwInvalidCompositeUnique(key, def.model);
+    }
     id = decoded.id;
-  } catch {return invalid();}
-  if (typeof role !== 'string' || !group.cases.includes(role)) return invalid();
+  } catch {return throwInvalidCompositeUnique(key, def.model);}
+  if (typeof role !== 'string' || !group.cases.includes(role)) {
+    return throwInvalidCompositeUnique(key, def.model);
+  }
   const parent = def.containment?.parent === undefined ? null : uniqueParentScope(row, def);
   // Typed JSON slots are collision-free; reference versions do not alter identity.
   return JSON.stringify(['ref-enum', parent, group.refModel, id, role]);
