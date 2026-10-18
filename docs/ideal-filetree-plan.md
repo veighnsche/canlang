@@ -1,5 +1,12 @@
 # Living ideal file-tree plan for Canlang
 
+> **Stale plan — not verified against the current repository.** This document
+> is historical planning guidance, not a reliable current description of the
+> repository or an independent mandate to implement changes. Current source and
+> explicit user decisions take precedence. Historical checkpoints, accepted
+> decisions and bounded coverage evidence are retained below; that evidence
+> applies only at its recorded scope and does not establish whole-plan currency.
+
 **Selected `ports:V02.6` Worker serving qualification, 2026-10-18 (base
 `3059a36af` plus local finite changes):** the released ordinary TS source-serving
 packet is complete at its selected scope. The new
