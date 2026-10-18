@@ -19067,6 +19067,70 @@ sources remain untouched. Scoped patch/syntax checks pass; CI itself was not run
 No builds, downloads, worktrees, publication or deployment occurred.
 
 
+## 2026-10-18 — choose a Rust development server with Ratatui and managed Workerd
+
+**Accepted user choice:** implement the Can development server in Rust under the
+root `dev-server/` directory. The former `dev server/` name is historical; the
+directory rename is already complete. Rust owns orchestration, the authoritative state
+machine and Workerd's start, readiness, replacement, stop, failure and recovery.
+Ratatui is the primary human interface: it renders Rust state and translates input
+into events. Keeping one transition/admission authority makes terminal, plain and
+JSON controls consistent, including failed checks with a last-good preview and
+retained cleanup failures.
+
+Workerd executes compiled Can JavaScript. Miniflare configures/launches Workerd and
+supplies local services through a subordinate JS/TS bridge where needed. The
+bounded private process contract carries correlated readiness, generation,
+release and log facts; Rust alone admits work and publishes a current candidate.
+Compiler and shared runtime semantics retain their existing owners. Preserve
+permissions, freshness, retained login/data and retryable resource ownership.
+
+**Proposed execution:** the [single current plan](../implementation/can-dev-server/PLAN.md#accepted-rust-development-server-and-managed-workerd--2026-10-18)
+prioritizes T14's state contract and T15's Ratatui status/history, diagnostics,
+responsive input and recovery actions. T16 supplies the Workerd adapter in
+parallel; T17 qualifies installed manual parity and retires replaced TypeScript
+session routes. Reuse accepted behavior/evidence and canonical T14–T30 IDs.
+Later automation/reuse remains separately scoped. Preserve plain/noninteractive
+and JSON behavior. `can dev ui --source App.can` and exact private framing remain
+proposed interface details, not a pending server-language or packaging decision.
+
+**Packaging decision for this plan:** build a separate native `can-dev` from
+`dev-server/Cargo.toml` and ship it in the existing Can archive at `libexec/can-dev`.
+Keep the compiler's `can dev` forwarding and `CAN_DEV_BIN` override; the installed
+launcher already selects this sibling path. This preserves compiler/library
+ownership and keeps Ratatui/server dependencies in their defining crate. Linking
+into `can` would remove one dispatch process but would not remove session/Workerd
+supervision or supply a missing required outcome.
+
+T14 supplies the native command/session entry; T15 supplies compatible controls;
+T16 supplies the installed bridge entry and production closure. T17's existing
+distribution writer extends local/CI native builds, explicit packer inputs,
+manifest/version inventory and notices for both current release hosts, replaces
+the TypeScript launcher/bin mapping, and verifies non-starting dev help before
+the existing atomic install switch. Bundled Node/Miniflare tooling remains;
+users need no separate server installer or host toolchain. The plan names exact
+owning scripts and finite installed checks. No user packaging decision remains.
+
+**Behavior parity:** the plan's single mapping compares current main `3bb610962`
+with stopped `0970` source at `b8c909700` and its dirty additions. T14/T16 explicitly
+preserve generated-source capture/watch recovery, exact compiler invocation and
+result validation, retained diagnostic/failure refs, typed business refusals,
+isolated examples/reruns and trusted construct qualification/disclosure gates.
+These existing capabilities must survive Rust cutover; broad lifecycle headings
+or a check/open demonstration do not establish parity. E1's retryable cleanup
+source is located and can be consumed without resuming its former owner.
+Unmerged automatic scheduling and unfinished browser updates/reuse retain their
+existing later task scopes and are not accepted mainline or Rust results.
+
+**Status and uncertainty:** this supersedes the UI-only scope and earlier
+implementation release. Miniflare work and the Rust rewrite remain paused.
+Architecture, packaging and parity ownership are specified. The user authorized a
+separate documentation commit; implementation remains paused. This comparison used
+source inspection only.
+Actual terminal behavior and migration acceptance await T14–T17. A language switch
+does not establish a speedup; compare attributed phases when implementation resumes.
+
+
 ## 2026-10-18 — accept the native module/plan source boundary
 
 Accept source `6fb752375` as the finite private retained-job module/plan and
