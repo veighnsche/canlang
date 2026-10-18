@@ -11,16 +11,17 @@ use num_traits::{Signed, Zero};
 use crate::failures::Failure;
 use crate::numeric::rounding::{pow10, round_rational, round_scaled_half_even};
 use crate::representations::numeric::{
-    decimal_parts, is_decimal_value, is_integer_number, money_parts_unchecked, require_bigint,
-    require_int64, significant_digits, DecimalParts, Value, DECIMAL_MAX_SCALE,
+    decimal_parts, is_decimal_value, is_integer_number, max_scale, money_parts_unchecked,
+    require_bigint, require_int64, significant_digits, DecimalParts, Value, DECIMAL_MAX_SCALE,
     DECIMAL_MAX_SIGNIFICANT_DIGITS,
 };
 
 /// Decimal addition (`addDecimal`): exact sum at max operand scale.
+/// `max_scale` reproduces `Math.max` bit-exactly, including `-0`.
 pub fn add_decimal(a: &Value, b: &Value) -> Result<DecimalParts, Failure> {
     let left = decimal_parts(a, "addDecimal")?;
     let right = decimal_parts(b, "addDecimal")?;
-    let scale = left.scale.max(right.scale);
+    let scale = max_scale(left.scale, right.scale);
     let sum = left.coef * pow10((scale - left.scale) as u32)
         + right.coef * pow10((scale - right.scale) as u32);
     DecimalParts::make_result(sum, scale)
@@ -30,24 +31,26 @@ pub fn add_decimal(a: &Value, b: &Value) -> Result<DecimalParts, Failure> {
 pub fn subtract_decimal(a: &Value, b: &Value) -> Result<DecimalParts, Failure> {
     let left = decimal_parts(a, "subtractDecimal")?;
     let right = decimal_parts(b, "subtractDecimal")?;
-    let scale = left.scale.max(right.scale);
+    let scale = max_scale(left.scale, right.scale);
     let diff = left.coef * pow10((scale - left.scale) as u32)
         - right.coef * pow10((scale - right.scale) as u32);
     DecimalParts::make_result(diff, scale)
 }
 
 /// Decimal multiplication (`multiplyDecimal`): exact product at summed
-/// scale when that fits in 18 places, else half-even to 18 places.
+/// scale when that fits in 18 places, else half-even to 18 places. The
+/// signed scale sum preserves `-0 + -0` exactly like `+` in TypeScript.
 pub fn multiply_decimal(a: &Value, b: &Value) -> Result<DecimalParts, Failure> {
     let left = decimal_parts(a, "multiplyDecimal")?;
     let right = decimal_parts(b, "multiplyDecimal")?;
-    let exact_scale = left.scale as u32 + right.scale as u32;
+    let exact_scale = left.scale + right.scale;
     let exact_coef = left.coef * right.coef;
-    if exact_scale <= DECIMAL_MAX_SCALE as u32 {
-        return DecimalParts::make_result(exact_coef, exact_scale as u8);
+    if exact_scale <= DECIMAL_MAX_SCALE as f64 {
+        return DecimalParts::make_result(exact_coef, exact_scale);
     }
-    let rounded = round_scaled_half_even(&exact_coef, exact_scale - DECIMAL_MAX_SCALE as u32)?;
-    DecimalParts::make_result(rounded, DECIMAL_MAX_SCALE)
+    let rounded =
+        round_scaled_half_even(&exact_coef, (exact_scale - DECIMAL_MAX_SCALE as f64) as u32)?;
+    DecimalParts::make_result(rounded, DECIMAL_MAX_SCALE as f64)
 }
 
 /// Exact integer-ratio division N/D to a decimal (`divideIntegers`):
@@ -64,7 +67,7 @@ pub fn divide_integers(num: &BigInt, den: &BigInt) -> Result<DecimalParts, Failu
     let mut rest = &n % &d;
     if rest.is_zero() {
         let coef = if negative { -int_part } else { int_part };
-        return DecimalParts::make_result(coef, 0);
+        return DecimalParts::make_result(coef, 0.0);
     }
     let mut frac = BigInt::ZERO;
     let ten = BigInt::from(10);
@@ -75,7 +78,7 @@ pub fn divide_integers(num: &BigInt, den: &BigInt) -> Result<DecimalParts, Failu
         if rest.is_zero() {
             let coef = &int_part * pow10(places) + frac;
             let coef = if negative { -coef } else { coef };
-            return DecimalParts::make_result(coef, places as u8);
+            return DecimalParts::make_result(coef, places as f64);
         }
     }
     rest *= &ten;
@@ -91,7 +94,7 @@ pub fn divide_integers(num: &BigInt, den: &BigInt) -> Result<DecimalParts, Failu
         coef += 1;
     }
     let coef = if negative { -coef } else { coef };
-    DecimalParts::make_result(coef, DECIMAL_MAX_SCALE)
+    DecimalParts::make_result(coef, DECIMAL_MAX_SCALE as f64)
 }
 
 /// Decimal division (`divideDecimal`): int|decimal operands, plus the
@@ -150,7 +153,7 @@ pub fn negate_decimal(value: &Value) -> Result<DecimalParts, Failure> {
         ));
     }
     let parts = decimal_parts(value, "negateDecimal")?;
-    DecimalParts::make(-parts.coef, parts.scale as i64)
+    DecimalParts::make(-parts.coef, parts.scale)
 }
 
 /// Decimal absolute value (`absDecimal`).
@@ -164,7 +167,7 @@ pub fn abs_decimal(value: &Value) -> Result<DecimalParts, Failure> {
     } else {
         parts.coef
     };
-    DecimalParts::make(coef, parts.scale as i64)
+    DecimalParts::make(coef, parts.scale)
 }
 
 /// `round(value, scale)` builtin: integer scale 0..=18, half-even;
@@ -184,14 +187,16 @@ pub fn round_decimal(value: &Value, scale: &Value) -> Result<DecimalParts, Failu
             format_scale(scale_num)
         )));
     }
-    let scale_u8 = scale_num as u8;
+    // The target scale keeps its sign: `round(x, -0)` stores `-0`, exactly
+    // like `makeDecimalResult(coef, scale)` in TypeScript. Magnitudes cast
+    // exactly (`-0.0 as u32` is `0`).
     let parts = decimal_parts(value, "round")?;
-    if scale_u8 >= parts.scale {
-        let coef = parts.coef * pow10((scale_u8 - parts.scale) as u32);
-        return DecimalParts::make_result(coef, scale_u8);
+    if scale_num >= parts.scale {
+        let coef = parts.coef * pow10((scale_num - parts.scale) as u32);
+        return DecimalParts::make_result(coef, scale_num);
     }
-    let rounded = round_scaled_half_even(&parts.coef, (parts.scale - scale_u8) as u32)?;
-    DecimalParts::make_result(rounded, scale_u8)
+    let rounded = round_scaled_half_even(&parts.coef, (parts.scale - scale_num) as u32)?;
+    DecimalParts::make_result(rounded, scale_num)
 }
 
 /// Formats a scale for the out-of-range message exactly like
@@ -204,7 +209,7 @@ fn format_scale(scale: f64) -> String {
 pub fn compare_decimal(a: &Value, b: &Value) -> Result<i8, Failure> {
     let left = decimal_parts(a, "compareDecimal")?;
     let right = decimal_parts(b, "compareDecimal")?;
-    let scale = left.scale.max(right.scale);
+    let scale = max_scale(left.scale, right.scale);
     let x = left.coef * pow10((scale - left.scale) as u32);
     let y = right.coef * pow10((scale - right.scale) as u32);
     Ok(if x < y {
@@ -276,7 +281,7 @@ pub fn parse_decimal(text: &Value) -> Result<DecimalParts, Failure> {
             "decimal text exceeds 38 significant digits",
         ));
     }
-    DecimalParts::make(coef, frac_digits.len() as i64)
+    DecimalParts::make(coef, frac_digits.len() as f64)
 }
 
 /// Canonical construction for integral spellings (`decimalFromInteger`):
@@ -284,7 +289,7 @@ pub fn parse_decimal(text: &Value) -> Result<DecimalParts, Failure> {
 pub fn decimal_from_integer(coef: &Value) -> Result<DecimalParts, Failure> {
     let coef = require_bigint(coef, "decimalFromInteger")
         .map_err(|_| Failure::invalid_construction("decimalFromInteger needs a bigint"))?;
-    DecimalParts::make(coef.clone(), 0)
+    DecimalParts::make(coef.clone(), 0.0)
 }
 
 /// Canonical normalized decimal text (`decimalToString`): strip fractional
@@ -302,7 +307,9 @@ pub fn decimal_to_string(value: &Value) -> Result<String, Failure> {
     let negative = parts.coef < BigInt::ZERO;
     let digits = parts.coef.abs().to_string();
     let prefix = if negative { "-" } else { "" };
-    if parts.scale == 0 {
+    // `-0` is zero (`-0.0 == 0.0`), so neg-zero scales take the integral
+    // branch exactly like `scale === 0` in TypeScript.
+    if parts.scale == 0.0 {
         return Ok(format!("{prefix}{digits}"));
     }
     let scale = parts.scale as usize;

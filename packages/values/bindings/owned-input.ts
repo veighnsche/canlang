@@ -125,6 +125,62 @@ export function readOwnedJson(token: OwnedJsonToken): OwnedJsonRecord {
   return resolve(token);
 }
 
+/** Tagged frame JSON consumed by the native profile seam (mirrors
+ * `parse_frame` in `semantics/src/profiles.rs`). Text rides UTF-16
+ * units with lone surrogates preserved; numbers ride exact f64 bits
+ * (including -0 and NaN payloads); objects ride ordered key-unit
+ * entries in first-insertion order. */
+export type OwnedFrame =
+  | { readonly t: "f64"; readonly bits: string }
+  | { readonly t: "text"; readonly units: readonly number[] }
+  | { readonly t: "bool"; readonly v: boolean }
+  | { readonly t: "null" }
+  | { readonly t: "array"; readonly items: readonly OwnedFrame[] }
+  | { readonly t: "entries"; readonly entries: ReadonlyArray<readonly [readonly number[], OwnedFrame]> };
+
+function textUnits(text: string): number[] {
+  const out = new Array<number>(text.length);
+  for (let index = 0; index < text.length; index++) {
+    out[index] = text.charCodeAt(index);
+  }
+  return out;
+}
+
+function f64Bits(value: number): string {
+  const view = new DataView(new ArrayBuffer(8));
+  view.setFloat64(0, value);
+  let hex = "";
+  for (let index = 0; index < 8; index++) {
+    hex += view.getUint8(index).toString(16).padStart(2, "0");
+  }
+  return hex;
+}
+
+function frameForValue(value: unknown): OwnedFrame {
+  if (value === null) return { t: "null" };
+  if (typeof value === "boolean") return { t: "bool", v: value };
+  if (typeof value === "number") return { t: "f64", bits: f64Bits(value) };
+  if (typeof value === "string") return { t: "text", units: textUnits(value) };
+  if (Array.isArray(value)) return { t: "array", items: value.map(frameForValue) };
+  if (typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    return {
+      t: "entries",
+      entries: Object.keys(record).map(
+        (key) => [textUnits(key), frameForValue(record[key])] as const,
+      ),
+    };
+  }
+  throw new OwnedInputError("validation", "Owned frame cannot represent this value.");
+}
+
+/** Builds the owned-input frame join: the parser-owned value of a
+ * genuine token encoded losslessly for `request.begin`. Forged tokens
+ * refuse at lineage resolution before any encoding. */
+export function ownedFrameFor(token: OwnedJsonToken): OwnedFrame {
+  return frameForValue(resolve(token).value);
+}
+
 /** Controlled text derivative: decoded body text, no host fields. */
 export function ownedJsonText(token: OwnedJsonToken): string {
   return resolve(token).text;

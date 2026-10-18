@@ -8,7 +8,7 @@ use num_bigint::BigInt;
 use crate::failures::Failure;
 use crate::numeric::rounding::pow10;
 use crate::representations::numeric::{
-    decimal_parts, is_decimal_value, significant_digits, DecimalParts, Value,
+    decimal_parts, is_decimal_value, max_scale, significant_digits, DecimalParts, Value,
     DECIMAL_MAX_SIGNIFICANT_DIGITS,
 };
 
@@ -22,12 +22,14 @@ pub fn sum_decimal(domain: &[Value]) -> Result<DecimalParts, Failure> {
         }
     }
     if domain.is_empty() {
-        return DecimalParts::make(BigInt::ZERO, 0);
+        return DecimalParts::make(BigInt::ZERO, 0.0);
     }
-    let mut scale: u8 = 0;
+    // Seeded at `+0` exactly like `let scale = 0` in TypeScript, so a
+    // neg-zero-only domain still sums at `+0` (`Math.max(0, -0)` is `+0`).
+    let mut scale: f64 = 0.0;
     for value in domain {
         let parts = decimal_parts(value, "sumDecimal")?;
-        scale = scale.max(parts.scale);
+        scale = max_scale(scale, parts.scale);
     }
     let mut total = BigInt::ZERO;
     for value in domain {
@@ -39,5 +41,5 @@ pub fn sum_decimal(domain: &[Value]) -> Result<DecimalParts, Failure> {
             "decimal result exceeds 38 significant digits",
         ));
     }
-    DecimalParts::make(total, scale as i64)
+    DecimalParts::make(total, scale)
 }

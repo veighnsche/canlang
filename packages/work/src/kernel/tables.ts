@@ -693,18 +693,18 @@ const WORK_ERRORS: RowsErrorFactory = {
 };
 
 /** Rebuild the contract scope from a schedule row's flat fields. */
-export function scheduleRowScope(row: ScheduleRowData): WorkScope {
-  return leafScheduleRowScope(row);
+export function scheduleRowScope(row: ScheduleRowData, kernel: WorkKernel = tsWorkKernel): WorkScope {
+  return kernel.rows.scheduleRowScope(row);
 }
 
 /** Read one every-slot row's data, failing closed on any shape drift. */
-export function readEverySlotRow(row: StoredRow): EverySlotRowData {
-  return leafReadEverySlotRow(row, WORK_ERRORS);
+export function readEverySlotRow(row: StoredRow, kernel: WorkKernel = tsWorkKernel): EverySlotRowData {
+  return kernel.rows.readEverySlotRow(row, WORK_ERRORS);
 }
 
 /** Read one supersession row's data, failing closed on any shape drift. */
-export function readSupersessionRow(row: StoredRow): SupersessionRowData {
-  return leafReadSupersessionRow(row, WORK_ERRORS);
+export function readSupersessionRow(row: StoredRow, kernel: WorkKernel = tsWorkKernel): SupersessionRowData {
+  return kernel.rows.readSupersessionRow(row, WORK_ERRORS);
 }
 
 export interface NewRowMeta {
@@ -750,8 +750,9 @@ export function withRowData(
   data: Readonly<Record<string, unknown>>,
   meta: NewRowMeta,
   what: string,
+  kernel: WorkKernel = tsWorkKernel,
 ): StoredRow {
-  return leafWithRowData(row, data, meta, what, WORK_ERRORS);
+  return kernel.rows.withRowData(row, data, meta, what, WORK_ERRORS);
 }
 
 /** Producer-side insert: the pending dispatch row for one staged intent. */
@@ -830,43 +831,46 @@ export function everySlotRowId(
   handler: string,
   scope: RecurringScope,
   owner: string,
+  kernel: WorkKernel = tsWorkKernel,
 ): string {
-  return leafEverySlotRowId(app, handler, scope, owner);
+  return kernel.rows.everySlotRowId(app, handler, scope, owner);
 }
 
 /** Every-slot tracker row (id = app/handler/scope/owner tuple). */
 export function newEverySlotRow(
   input: EverySlotRowData,
   meta: NewRowMeta,
+  kernel: WorkKernel = tsWorkKernel,
 ): StoredRow {
-  return leafNewEverySlotRow(input, meta, WORK_ERRORS);
+  return kernel.rows.newEverySlotRow(input, meta, WORK_ERRORS);
 }
 
 /** Supersession mark row (id = outbox id). */
 export function newSupersessionRow(
   input: SupersessionRowData,
   meta: NewRowMeta,
+  kernel: WorkKernel = tsWorkKernel,
 ): StoredRow {
-  return leafNewSupersessionRow(input, meta, WORK_ERRORS);
+  return kernel.rows.newSupersessionRow(input, meta, WORK_ERRORS);
 }
 
 /**
  * Dispatch rows stamped with one origin occurrence. Stages re-filter
  * exactly; the predicate only narrows the scan.
  */
-export function dispatchByOriginQuery(originOccurrence: OccurrenceId): QuerySpec {
-  return leafDispatchByOriginQuery(originOccurrence);
+export function dispatchByOriginQuery(originOccurrence: OccurrenceId, kernel: WorkKernel = tsWorkKernel): QuerySpec {
+  return kernel.rows.dispatchByOriginQuery(originOccurrence);
 }
 
 /** Dispatch rows in one lifecycle state. Stages re-filter exactly. */
-export function dispatchByStateQuery(state: OutboxItemState): QuerySpec {
-  return leafDispatchByStateQuery(state);
+export function dispatchByStateQuery(state: OutboxItemState, kernel: WorkKernel = tsWorkKernel): QuerySpec {
+  return kernel.rows.dispatchByStateQuery(state);
 }
 
 /** Bounded recovery state window; ids are the canonical intent row keys. */
 export function dispatchRecoveryPageQuery(state: 'claimed' | 'uncertain', limit: number,
-  after: string | null): QuerySpec {
-  return { ...dispatchByStateQuery(state),
+  after: string | null, kernel: WorkKernel = tsWorkKernel): QuerySpec {
+  return { ...dispatchByStateQuery(state, kernel),
     where: {op: 'and', args: [{op: 'eq', field: 'state', value: state},
       ...(after === null ? [] : [{op: 'gt' as const, field: 'id', value: after}])]},
     order: [{field: 'id', direction: 'asc'}], limit,
@@ -878,8 +882,8 @@ export function dispatchRecoveryPageQuery(state: 'claimed' | 'uncertain', limit:
  * collide across scopes (open handoff); the flat scope fields disjoin
  * here and stages re-filter exactly.
  */
-export function scheduleByKeyQuery(scope: WorkScope, key: string): QuerySpec {
-  return leafScheduleByKeyQuery(scope, key);
+export function scheduleByKeyQuery(scope: WorkScope, key: string, kernel: WorkKernel = tsWorkKernel): QuerySpec {
+  return kernel.rows.scheduleByKeyQuery(scope, key);
 }
 
 /* -- T34-F2 durable fanout tables: work-direction leaf facade. -- */
@@ -930,6 +934,8 @@ import {
   readFanoutIntentRow as leafReadFanoutIntentRow,
   type RowsErrorFactory,
 } from '@canlang/work-kernel/rows';
+import { tsWorkKernel } from '@canlang/work-kernel';
+import type { WorkKernel } from '@canlang/work-kernel';
 
 /** Lane-04-owned fanout table models (branded casts, mirroring F2 usage). */
 export const WORK_FANOUT_INTENT_MODEL = 'work.fanout_intent' as ModelName;
@@ -991,8 +997,9 @@ export interface FanoutChildRowData {
 export function checkFanoutIdentitySet(
   value: unknown,
   what: string,
+  kernel: WorkKernel = tsWorkKernel,
 ): ReadonlyArray<string> {
-  return leafCheckFanoutIdentitySet(value, what, 'work', WORK_ERRORS);
+  return kernel.rows.checkFanoutIdentitySet(value, what, 'work', WORK_ERRORS);
 }
 
 /**
@@ -1004,13 +1011,14 @@ export function fanoutIntentRowId(
   sourceOccurrence: OccurrenceId,
   handler: string,
   cohort: FanoutCohortKind,
+  kernel: WorkKernel = tsWorkKernel,
 ): FanoutId {
-  return leafFanoutIntentRowId(sourceOccurrence, handler, cohort, 'work', WORK_ERRORS);
+  return kernel.rows.fanoutIntentRowId(sourceOccurrence, handler, cohort, 'work', WORK_ERRORS);
 }
 
 /** Checkpoint row id: exactly one checkpoint row per fanout id. */
-export function fanoutCheckpointRowId(fanoutId: FanoutId): string {
-  return leafFanoutCheckpointRowId(fanoutId, 'work', WORK_ERRORS);
+export function fanoutCheckpointRowId(fanoutId: FanoutId, kernel: WorkKernel = tsWorkKernel): string {
+  return kernel.rows.fanoutCheckpointRowId(fanoutId, 'work', WORK_ERRORS);
 }
 
 /**
@@ -1023,8 +1031,9 @@ export function fanoutChildRowId(
   parentOccurrence: string,
   handler: string,
   recordId: string,
+  kernel: WorkKernel = tsWorkKernel,
 ): string {
-  return leafFanoutChildRowId(parentOccurrence, handler, recordId, 'work', WORK_ERRORS);
+  return kernel.rows.fanoutChildRowId(parentOccurrence, handler, recordId, 'work', WORK_ERRORS);
 }
 
 /** Producer-side insert: the committed fanout intent row. */
@@ -1036,8 +1045,9 @@ export function newFanoutIntentRow(
     readonly members: ReadonlyArray<string>;
   },
   meta: FanoutRowMeta,
+  kernel: WorkKernel = tsWorkKernel,
 ): StoredRow {
-  return leafNewFanoutIntentRow(input, meta, 'work', WORK_ERRORS);
+  return kernel.rows.newFanoutIntentRow(input, meta, 'work', WORK_ERRORS);
 }
 
 /** Producer-side insert: the checkpoint row (explicit completed + cursor). */
@@ -1048,8 +1058,9 @@ export function newFanoutCheckpointRow(
     readonly cursor?: string | null;
   },
   meta: FanoutRowMeta,
+  kernel: WorkKernel = tsWorkKernel,
 ): StoredRow {
-  return leafNewFanoutCheckpointRow(input, meta, 'work', WORK_ERRORS);
+  return kernel.rows.newFanoutCheckpointRow(input, meta, 'work', WORK_ERRORS);
 }
 
 /**
@@ -1062,8 +1073,9 @@ export function nextFanoutCheckpointData(
   current: FanoutCheckpointRowData,
   addCompleted: ReadonlyArray<string>,
   cursor: string | null,
+  kernel: WorkKernel = tsWorkKernel,
 ): FanoutCheckpointRowData {
-  return leafNextFanoutCheckpointData(current, addCompleted, cursor, 'work', WORK_ERRORS);
+  return kernel.rows.nextFanoutCheckpointData(current, addCompleted, cursor, 'work', WORK_ERRORS);
 }
 
 /** Producer-side insert: one admitted child row (default pending, zero attempts). */
@@ -1079,28 +1091,29 @@ export function newFanoutChildRow(
     readonly causeReason?: FanoutSkippedReason | FanoutFailedReason | null;
   },
   meta: FanoutRowMeta,
+  kernel: WorkKernel = tsWorkKernel,
 ): StoredRow {
-  return leafNewFanoutChildRow(input, meta, 'work', WORK_ERRORS);
+  return kernel.rows.newFanoutChildRow(input, meta, 'work', WORK_ERRORS);
 }
 
 /** Read one fanout intent row's data, failing closed on any shape drift. */
-export function readFanoutIntentRow(row: StoredRow): FanoutIntentRowData {
-  return leafReadFanoutIntentRow(row, 'work', WORK_ERRORS);
+export function readFanoutIntentRow(row: StoredRow, kernel: WorkKernel = tsWorkKernel): FanoutIntentRowData {
+  return kernel.rows.readFanoutIntentRow(row, 'work', WORK_ERRORS);
 }
 
 /** Read one fanout checkpoint row's data, failing closed on any shape drift. */
-export function readFanoutCheckpointRow(row: StoredRow): FanoutCheckpointRowData {
-  return leafReadFanoutCheckpointRow(row, 'work', WORK_ERRORS);
+export function readFanoutCheckpointRow(row: StoredRow, kernel: WorkKernel = tsWorkKernel): FanoutCheckpointRowData {
+  return kernel.rows.readFanoutCheckpointRow(row, 'work', WORK_ERRORS);
 }
 
 /** Read one fanout child row's data, failing closed on any shape drift. */
-export function readFanoutChildRow(row: StoredRow): FanoutChildRowData {
-  return leafReadFanoutChildRow(row, 'work', WORK_ERRORS);
+export function readFanoutChildRow(row: StoredRow, kernel: WorkKernel = tsWorkKernel): FanoutChildRowData {
+  return kernel.rows.readFanoutChildRow(row, 'work', WORK_ERRORS);
 }
 
 /** Rebuild the contract child identity from a child row's flat fields. */
-export function fanoutChildIdOf(row: FanoutChildRowData): FanoutChildId {
-  return leafFanoutChildIdOf(row);
+export function fanoutChildIdOf(row: FanoutChildRowData, kernel: WorkKernel = tsWorkKernel): FanoutChildId {
+  return kernel.rows.fanoutChildIdOf(row);
 }
 
 /**
@@ -1111,8 +1124,9 @@ export function fanoutChildIdOf(row: FanoutChildRowData): FanoutChildId {
 export function fanoutChildPageQuery(
   fanoutId: FanoutId,
   opts: { readonly cursor: string | null; readonly limit: number },
+  kernel: WorkKernel = tsWorkKernel,
 ): QuerySpec {
-  return leafFanoutChildPageQuery(fanoutId, opts, 'work', WORK_ERRORS);
+  return kernel.rows.fanoutChildPageQuery(fanoutId, opts, 'work', WORK_ERRORS);
 }
 
 /** One bounded child page: rows plus the honest resume signal. */
@@ -1136,6 +1150,7 @@ export interface FanoutChildPage {
 export function fanoutChildPageResult(
   rows: ReadonlyArray<StoredRow>,
   limit: number,
+  kernel: WorkKernel = tsWorkKernel,
 ): FanoutChildPage {
-  return leafFanoutChildPageResult(rows, limit, 'work', WORK_ERRORS);
+  return kernel.rows.fanoutChildPageResult(rows, limit, 'work', WORK_ERRORS);
 }

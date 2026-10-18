@@ -13,11 +13,13 @@ import {
   OWNED_JSON_MAX_BYTES,
   OwnedInputError,
   OwnedJsonToken,
+  ownedFrameFor,
   ownedJsonText,
   ownedJsonValue,
   parseOwnedJsonBody,
   readOwnedJson,
   type CappedBodyReader,
+  type OwnedFrame,
 } from "../bindings/owned-input.js";
 
 function post(body: string | Uint8Array | null): Request {
@@ -268,5 +270,50 @@ describe("owned token lineage", () => {
     const second = await parseOwnedJsonBody(post("[2]"), fixedReader(utf8("[2]")));
     assert.deepEqual(ownedJsonValue(first), [1]);
     assert.deepEqual(ownedJsonValue(second), [2]);
+  });
+});
+
+describe("owned frame join", () => {
+  const frameOf = async (body: string): Promise<OwnedFrame> => {
+    const token = await parseOwnedJsonBody(post(body), fixedReader(utf8(body)));
+    return ownedFrameFor(token);
+  };
+
+  it("encodes scalars losslessly for the native seam", async () => {
+    assert.deepEqual(await frameOf("null"), { t: "null" });
+    assert.deepEqual(await frameOf("true"), { t: "bool", v: true });
+    assert.deepEqual(await frameOf("1"), { t: "f64", bits: "3ff0000000000000" });
+    assert.deepEqual(await frameOf("-0"), { t: "f64", bits: "8000000000000000" });
+    assert.deepEqual(await frameOf('"A✓"'), { t: "text", units: [65, 10003] });
+  });
+
+  it("preserves lone surrogates as raw units", async () => {
+    assert.deepEqual(await frameOf('"\\ud800"'), { t: "text", units: [55296] });
+  });
+
+  it("keeps array nesting and first-insertion key order with last-wins values", async () => {
+    assert.deepEqual(await frameOf('[1,"x",null]'), {
+      t: "array",
+      items: [
+        { t: "f64", bits: "3ff0000000000000" },
+        { t: "text", units: [120] },
+        { t: "null" },
+      ],
+    });
+    assert.deepEqual(await frameOf('{"b":1,"a":2,"b":3}'), {
+      t: "entries",
+      entries: [
+        [[98], { t: "f64", bits: "4008000000000000" }],
+        [[97], { t: "f64", bits: "4000000000000000" }],
+      ],
+    });
+  });
+
+  it("refuses forged tokens before any encoding", () => {
+    assert.throws(() => ownedFrameFor(new OwnedJsonToken()), (err: unknown) => {
+      assert.ok(err instanceof OwnedInputError);
+      assert.equal(err.code, "forged-token");
+      return true;
+    });
   });
 });

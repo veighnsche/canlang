@@ -1042,6 +1042,7 @@ fn run_mint_row(row: &JVal) -> Outcome {
                         contracts: Vec::new(),
                         enums: Vec::new(),
                         operations: Vec::new(),
+                        aliases: Vec::new(),
                     },
                     Some(&Provenance {
                         factory: "normalizeSchema".to_string(),

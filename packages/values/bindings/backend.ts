@@ -4,16 +4,107 @@
 // values. The ts backend dispatches straight to the TS package (usable
 // with no bootstrap); the wasm backend round-trips through the generated
 // glue. Can failures surface as ValueError with the original code and
-// message on both sides. The smoke op table below is scaffolding; the
-// full operation registry lands with A07.3 final assembly.
-import { addDecimal, negateDecimal, type Decimal } from "../src/decimal.js";
+// message on both sides. This is the A07.3 final exact assembly: every
+// selected integer, decimal, money, temporal, numeric aggregate/
+// comparison and scalar-codec operation the native transport dispatches.
+// `min`/`max` stay out by design (TS orchestration returning the original
+// winning object; their numeric comparisons are the registered
+// `compare-*` ops). Nonnumeric equality, traversal and schema policy stay
+// TS-owned with the validation lane.
+import type {
+  CanValue,
+  DatetimeValue,
+  DateValue,
+  MoneyValue,
+  Violation,
+  ViolationCode,
+} from "@canlang/contracts/values";
+import { sumDecimal, sumDuration, sumInt, sumMoney } from "../src/array.js";
+import {
+  absDecimal,
+  addDecimal,
+  compareDecimal,
+  decimalFromInteger,
+  decimalToString,
+  divideDecimal,
+  divideDurationMs,
+  equalDecimal,
+  isDecimal,
+  multiplyDecimal,
+  negateDecimal,
+  parseDecimal,
+  round,
+  roundRationalHalfEven,
+  subtractDecimal,
+  type Decimal,
+} from "../src/decimal.js";
 import { SchemaError, ValueError, type ValueFailureCode } from "../src/errors.js";
-import { addInt, INT64_MAX, INT64_MIN, negateInt } from "../src/int.js";
-import type { CanValue, DateValue, MoneyValue, Violation, ViolationCode } from "@canlang/contracts/values";
-import { addMoney } from "../src/money.js";
-import { dateToEpochDays } from "../src/temporal.js";
+import {
+  absInt,
+  addInt,
+  compareInt,
+  int64,
+  INT64_MAX,
+  INT64_MIN,
+  modInt,
+  multiplyInt,
+  negateInt,
+  subtractInt,
+} from "../src/int.js";
+import {
+  isCurrencyShape,
+  isDateValue,
+  isDatetime,
+  isMoney,
+  makeDate,
+  makeDatetime,
+  makeMoney,
+} from "../src/kinds.js";
+import {
+  absMoney,
+  addMoney,
+  compareMoney,
+  currencyScale,
+  divideMoney,
+  equalMoney,
+  isKnownCurrency,
+  money,
+  moneyRatio,
+  multiplyMoney,
+  negateMoney,
+  subtractMoney,
+} from "../src/money.js";
+import {
+  absDuration,
+  add_days,
+  add_months,
+  addDuration,
+  compareDate,
+  compareDuration,
+  compareInstant,
+  date,
+  date_year,
+  dates,
+  datetime,
+  divideDurationByInt,
+  durationBetween,
+  epochDaysToDate,
+  dateToEpochDays,
+  multiplyDuration,
+  negateDuration,
+  overlaps,
+  remainderDuration,
+  subtractDuration,
+  weekday,
+} from "../src/temporal.js";
+import { decodeValue, encodeValue } from "../src/wire.js";
 import { decodeValueTsCore, encodeValueTsCore } from "../src/internal/wire-core.js";
-import { reconstruct, tag, type Tagged } from "./carriers.js";
+import {
+  hasLoneSurrogates,
+  reconstruct,
+  tag,
+  type Tagged,
+} from "./carriers.js";
 
 export type BackendName = "ts" | "wasm";
 
@@ -26,27 +117,135 @@ export interface ExactBackend {
   call(op: string, args: unknown[]): unknown;
 }
 
-type SmokeFn = (...args: never[]) => unknown;
+type ExactFn = (...args: never[]) => unknown;
 
-/** Smoke op table (scaffold): fixed entries, not the A07.3 registry. */
-const TS_OPS: Record<string, SmokeFn> = {
-  "add-int": ((a: unknown, b: unknown) => addInt(a as bigint, b as bigint)) as SmokeFn,
-  "negate-int": ((a: unknown) => negateInt(a as bigint)) as SmokeFn,
+const asFn = (fn: (a: unknown, b: unknown) => unknown): ExactFn => fn as ExactFn;
+
+/** Full selected-operation table: one entry per native dispatch op. */
+const TS_OPS: Record<string, ExactFn> = {
+  "int64": ((a: unknown) => int64(a as bigint)) as ExactFn,
+  "add-int": ((a: unknown, b: unknown) => addInt(a as bigint, b as bigint)) as ExactFn,
+  "subtract-int": ((a: unknown, b: unknown) =>
+    subtractInt(a as bigint, b as bigint)) as ExactFn,
+  "multiply-int": ((a: unknown, b: unknown) =>
+    multiplyInt(a as bigint, b as bigint)) as ExactFn,
+  "mod-int": ((a: unknown, b: unknown) => modInt(a as bigint, b as bigint)) as ExactFn,
+  "negate-int": ((a: unknown) => negateInt(a as bigint)) as ExactFn,
+  "abs-int": ((a: unknown) => absInt(a as bigint)) as ExactFn,
+  "compare-int": ((a: unknown, b: unknown) => compareInt(a as bigint, b as bigint)) as ExactFn,
+  "round-rational": ((a: unknown, b: unknown) =>
+    roundRationalHalfEven(a as bigint, b as bigint)) as ExactFn,
   "add-decimal": ((a: unknown, b: unknown) =>
-    addDecimal(a as Decimal | bigint, b as Decimal | bigint)) as SmokeFn,
-  // Retains -0 scales (carrier pin control); the wasm path refuses them.
-  "negate-decimal": ((a: unknown) => negateDecimal(a as Decimal)) as SmokeFn,
-  "date-to-epoch-days": ((a: unknown) => dateToEpochDays(a as DateValue)) as SmokeFn,
+    addDecimal(a as Decimal | bigint, b as Decimal | bigint)) as ExactFn,
+  "subtract-decimal": ((a: unknown, b: unknown) =>
+    subtractDecimal(a as Decimal | bigint, b as Decimal | bigint)) as ExactFn,
+  "multiply-decimal": ((a: unknown, b: unknown) =>
+    multiplyDecimal(a as Decimal | bigint, b as Decimal | bigint)) as ExactFn,
+  "divide-decimal": ((a: unknown, b: unknown) =>
+    divideDecimal(a as Decimal | bigint | MoneyValue, b as Decimal | bigint | MoneyValue)) as ExactFn,
+  "divide-duration-ms": ((a: unknown, b: unknown) =>
+    divideDurationMs(a as bigint, b as bigint)) as ExactFn,
+  "negate-decimal": ((a: unknown) => negateDecimal(a as Decimal)) as ExactFn,
+  "abs-decimal": ((a: unknown) => absDecimal(a as Decimal)) as ExactFn,
+  "round-decimal": ((a: unknown, b: unknown) =>
+    round(a as Decimal | bigint, b as number)) as ExactFn,
+  "compare-decimal": ((a: unknown, b: unknown) =>
+    compareDecimal(a as Decimal | bigint, b as Decimal | bigint)) as ExactFn,
+  "equal-decimal": ((a: unknown, b: unknown) =>
+    equalDecimal(a as Decimal | bigint, b as Decimal | bigint)) as ExactFn,
+  "parse-decimal": ((a: unknown) => parseDecimal(a as string)) as ExactFn,
+  "decimal-from-integer": ((a: unknown) => decimalFromInteger(a as bigint)) as ExactFn,
+  "decimal-to-string": ((a: unknown) => decimalToString(a as Decimal)) as ExactFn,
+  "currency-scale": ((a: unknown) => currencyScale(a as string)) as ExactFn,
+  "is-known-currency": ((a: unknown) => isKnownCurrency(a)) as ExactFn,
+  "money": ((a: unknown, b: unknown) => money(a as bigint | Decimal, b as string)) as ExactFn,
+  "make-money": ((a: unknown, b: unknown) => makeMoney(a as bigint, b as string)) as ExactFn,
   "add-money": ((a: unknown, b: unknown) =>
-    addMoney(a as MoneyValue, b as MoneyValue)) as SmokeFn,
+    addMoney(a as MoneyValue, b as MoneyValue)) as ExactFn,
+  "subtract-money": ((a: unknown, b: unknown) =>
+    subtractMoney(a as MoneyValue, b as MoneyValue)) as ExactFn,
+  "multiply-money": ((a: unknown, b: unknown) =>
+    multiplyMoney(a as MoneyValue, b as Decimal | bigint)) as ExactFn,
+  "divide-money": ((a: unknown, b: unknown) =>
+    divideMoney(a as MoneyValue, b as Decimal | bigint)) as ExactFn,
+  "money-ratio": ((a: unknown, b: unknown) =>
+    moneyRatio(a as MoneyValue, b as MoneyValue)) as ExactFn,
+  "compare-money": ((a: unknown, b: unknown) =>
+    compareMoney(a as MoneyValue, b as MoneyValue)) as ExactFn,
+  "equal-money": ((a: unknown, b: unknown) =>
+    equalMoney(a as MoneyValue, b as MoneyValue)) as ExactFn,
+  "negate-money": ((a: unknown) => negateMoney(a as MoneyValue)) as ExactFn,
+  "abs-money": ((a: unknown) => absMoney(a as MoneyValue)) as ExactFn,
+  "date-to-epoch-days": ((a: unknown) => dateToEpochDays(a as DateValue)) as ExactFn,
+  "epoch-days-to-date": ((a: unknown) => epochDaysToDate(a as number)) as ExactFn,
+  "parse-date": ((a: unknown) => date(a as string)) as ExactFn,
+  "parse-datetime": ((a: unknown) => datetime(a as string)) as ExactFn,
+  "make-date": ((a: unknown, b: unknown, c: unknown) =>
+    makeDate(a as number, b as number, c as number)) as ExactFn,
+  "make-datetime": ((a: unknown) => makeDatetime(a as bigint)) as ExactFn,
+  "add-days": ((a: unknown, b: unknown) => add_days(a as DateValue, b as bigint)) as ExactFn,
+  "add-months": ((a: unknown, b: unknown) => add_months(a as DateValue, b as bigint)) as ExactFn,
+  "date-year": ((a: unknown) => date_year(a as DateValue)) as ExactFn,
+  "weekday": ((a: unknown) => weekday(a as DateValue)) as ExactFn,
+  "dates": ((a: unknown, b: unknown, c: unknown) =>
+    dates(a as DateValue, b as DateValue, c as bigint)) as ExactFn,
+  "overlaps": ((a: unknown, b: unknown, c: unknown, d: unknown) =>
+    (overlaps as (...args: unknown[]) => unknown)(a, b, c, d)) as ExactFn,
+  "add-duration": asFn((a: unknown, b: unknown) =>
+    (addDuration as (a: unknown, b: unknown) => unknown)(a, b)),
+  "subtract-duration": asFn((a: unknown, b: unknown) =>
+    (subtractDuration as (a: unknown, b: unknown) => unknown)(a, b)),
+  "multiply-duration": ((a: unknown, b: unknown) =>
+    multiplyDuration(a as bigint, b as bigint)) as ExactFn,
+  "divide-duration-by-int": ((a: unknown, b: unknown) =>
+    divideDurationByInt(a as bigint, b as bigint)) as ExactFn,
+  "remainder-duration": ((a: unknown, b: unknown) =>
+    remainderDuration(a as bigint, b as bigint)) as ExactFn,
+  "compare-duration": ((a: unknown, b: unknown) =>
+    compareDuration(a as bigint, b as bigint)) as ExactFn,
+  "negate-duration": ((a: unknown) => negateDuration(a as bigint)) as ExactFn,
+  "abs-duration": ((a: unknown) => absDuration(a as bigint)) as ExactFn,
+  "duration-between": ((a: unknown, b: unknown) =>
+    durationBetween(a as DatetimeValue, b as DatetimeValue)) as ExactFn,
+  "compare-instant": ((a: unknown, b: unknown) =>
+    compareInstant(a as DatetimeValue, b as DatetimeValue)) as ExactFn,
+  "compare-date": ((a: unknown, b: unknown) =>
+    compareDate(a as DateValue, b as DateValue)) as ExactFn,
+  "sum-int": ((a: unknown) => sumInt(a as ReadonlyArray<bigint>)) as ExactFn,
+  "sum-decimal": ((a: unknown) => sumDecimal(a as ReadonlyArray<Decimal>)) as ExactFn,
+  "sum-duration": ((a: unknown) => sumDuration(a as ReadonlyArray<bigint>)) as ExactFn,
+  "sum-money": ((a: unknown, b: unknown) =>
+    sumMoney(a as ReadonlyArray<MoneyValue>, b as string | undefined)) as ExactFn,
+  "decode-value": ((a: unknown, b: unknown) => decodeValue(a as string, b)) as ExactFn,
+  "encode-value": ((a: unknown, b: unknown) =>
+    encodeValue(a as string, b as CanValue)) as ExactFn,
+  "is-decimal": ((a: unknown) => isDecimal(a)) as ExactFn,
+  "is-money": ((a: unknown) => isMoney(a)) as ExactFn,
+  "is-date": ((a: unknown) => isDateValue(a)) as ExactFn,
+  "is-datetime": ((a: unknown) => isDatetime(a)) as ExactFn,
+  "is-currency-shape": ((a: unknown) => isCurrencyShape(a as string)) as ExactFn,
 };
+
+/** Selected operation names the registry answers (native dispatch scope). */
+export function exactOpNames(): string[] {
+  return Object.keys(TS_OPS).sort();
+}
+
+/**
+ * True exactly for registry operations. Reads no arguments: both backends
+ * refuse unknown (including inherited) operation names before touching
+ * caller values.
+ */
+export function hasExactOp(op: string): boolean {
+  return Object.hasOwn(TS_OPS, op);
+}
 
 /** Direct-TS backend: works with no bootstrap and no built glue. */
 export function tsBackend(): ExactBackend {
   return {
     name: "ts",
     call(op: string, args: unknown[]): unknown {
-      const fn = Object.hasOwn(TS_OPS, op) ? TS_OPS[op] : undefined;
+      const fn = hasExactOp(op) ? TS_OPS[op] : undefined;
       if (!fn) {
         throw new ValueError("invalid-construction", `smoke backend has no op: ${op}`);
       }
@@ -135,8 +334,225 @@ function throwFailure(op: string, response: FailureResponse): never {
 }
 
 /**
+ * Serializes a finite JS number for the request envelope, preserving `-0`
+ * (`JSON.stringify(-0)` is `"0"`, which would erase the stored Decimal
+ * scale sign the native core now preserves; serde parses `-0` back to
+ * `-0.0` and `JSON.parse` restores `-0` on the way back).
+ */
+function stringifyNumber(value: number): string {
+  if (Object.is(value, -0)) return "-0";
+  return JSON.stringify(value) as string;
+}
+
+function stringifyUnits(units: ReadonlyArray<number>): string {
+  return `[${units.join(",")}]`;
+}
+
+/** Serializes one tagged value, preserving `-0` numbers and `str16`/`k16` text. */
+function stringifyTagged(value: Tagged): string {
+  switch (value.t) {
+    case "bigint":
+      return `{"t":"bigint","v":${JSON.stringify(value.v)}}`;
+    case "num":
+      return typeof value.v === "string"
+        ? `{"t":"num","v":${JSON.stringify(value.v)}}`
+        : `{"t":"num","v":${stringifyNumber(value.v)}}`;
+    case "str":
+      return `{"t":"str","v":${JSON.stringify(value.v)}}`;
+    case "str16":
+      return `{"t":"str16","v":${stringifyUnits(value.v)}}`;
+    case "bool":
+      return value.v ? `{"t":"bool","v":true}` : `{"t":"bool","v":false}`;
+    case "null":
+      return `{"t":"null"}`;
+    case "undef":
+      return `{"t":"undef"}`;
+    case "decimal":
+      return `{"t":"decimal","coef":${JSON.stringify(value.coef)},"scale":${stringifyNumber(value.scale)}}`;
+    case "money":
+      return `{"t":"money","minor":${JSON.stringify(value.minor)},"currency":${JSON.stringify(value.currency)}}`;
+    case "date":
+      return `{"t":"date","year":${stringifyNumber(value.year)},"month":${stringifyNumber(value.month)},"day":${stringifyNumber(value.day)}}`;
+    case "datetime":
+      return `{"t":"datetime","ms":${JSON.stringify(value.ms)}}`;
+    case "array":
+      return `{"t":"array","items":[${value.items.map(stringifyTagged).join(",")}]}`;
+    case "record": {
+      const entries = value.entries.map(([key, item]) => {
+        const renderedKey = typeof key === "string"
+          ? JSON.stringify(key)
+          : `{"k16":${stringifyUnits(key.k16)}}`;
+        return `[${renderedKey},${stringifyTagged(item)}]`;
+      });
+      return `{"t":"record","entries":[${entries.join(",")}]}`;
+    }
+  }
+}
+
+/** Serializes one operation request, preserving `-0` number literals. */
+export function stringifyRequest(op: string, args: Tagged[]): string {
+  return `{"v":1,"op":${JSON.stringify(op)},"args":[${args.map(stringifyTagged).join(",")}]}`;
+}
+
+/**
+ * Dynamic message prefixes the host re-renders from the caller's original
+ * strings. The native core computes these failures over lossy guard text
+ * (lone surrogates arrive as `str16` and decode `from_utf16_lossy`), so its
+ * verdict and code are exact but an embedded ill-formed string would carry
+ * replacement characters. The templates below are the frozen TypeScript
+ * sources; rendering here uses the original argument, never a recompute.
+ */
+const HOST_RENDERED_PREFIXES: Readonly<Record<string, ReadonlyArray<readonly [prefix: string, arg: number]>>> = {
+  "parse-decimal": [["invalid decimal text: ", 0]],
+  "currency-scale": [["unknown currency: ", 0]],
+  "money": [["unknown currency: ", 1], ["invalid currency code shape: ", 1]],
+  "make-money": [["unknown currency: ", 1], ["invalid currency code shape: ", 1]],
+  "parse-date": [
+    ["invalid date text: ", 0],
+    ["date year outside 0001-9999: ", 0],
+    ["invalid civil date: ", 0],
+  ],
+  "parse-datetime": [
+    ["invalid datetime text: ", 0],
+    ["datetime year outside 0001-9999: ", 0],
+    ["invalid calendar date: ", 0],
+    ["invalid time of day: ", 0],
+    ["invalid zone offset: ", 0],
+    ["nonzero sub-millisecond fraction rejected: ", 0],
+  ],
+  "sum-money": [["unknown currency: ", 1]],
+};
+
+/** True when any nested string holds lone surrogates. */
+function containsIllFormed(value: unknown): boolean {
+  if (typeof value === "string") return hasLoneSurrogates(value);
+  if (Array.isArray(value)) return value.some(containsIllFormed);
+  if (typeof value === "object" && value !== null) {
+    return Object.entries(value).some(([key, item]) =>
+      hasLoneSurrogates(key) || containsIllFormed(item)
+    );
+  }
+  return false;
+}
+
+/** Re-renders one native failure message from the original string argument. */
+function renderHostMessage(op: string, message: string, args: ReadonlyArray<unknown>): string {
+  const prefixes = HOST_RENDERED_PREFIXES[op];
+  if (prefixes === undefined) return message;
+  for (const [prefix, index] of prefixes) {
+    if (message.startsWith(prefix) && typeof args[index] === "string") {
+      return `${prefix}${args[index] as string}`;
+    }
+  }
+  return message;
+}
+
+function truncateTs(text: string, max: number): string {
+  return text.length > max ? `${text.slice(0, max)}...` : text;
+}
+
+/** Mirrors the native `actualWire` over the caller's original wire value. */
+function actualWireTs(wire: unknown): string {
+  if (wire === null) return "null";
+  switch (typeof wire) {
+    case "string":
+      return truncateTs(JSON.stringify(wire) as string, 64);
+    case "number":
+      return `number ${String(wire)}`;
+    case "boolean":
+      return wire ? "true" : "false";
+    case "bigint":
+      return `bigint ${wire.toString()}`;
+    case "undefined":
+      return "undefined";
+    default:
+      break;
+  }
+  if (Array.isArray(wire)) return `array of length ${wire.length}`;
+  if (typeof wire === "object" && wire !== null) {
+    return `object with keys [${Object.keys(wire).slice(0, 5).join(", ")}]`;
+  }
+  return typeof wire;
+}
+
+/** Lossy UTF-16 decode mirroring the native guard text. */
+function lossyTs(value: string): string {
+  return value.replace(
+    /[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/g,
+    "�",
+  );
+}
+
+/** Walks a violation path into the caller's original wire value. */
+function lookupPath(wire: unknown, path: ReadonlyArray<string | number>): unknown {
+  let current = wire;
+  for (const segment of path) {
+    if (Array.isArray(current) && typeof segment === "number") {
+      current = current[segment];
+    } else if (typeof current === "object" && current !== null && typeof segment === "string") {
+      const record = current as Record<string, unknown>;
+      if (Object.hasOwn(record, segment)) {
+        current = record[segment];
+      } else {
+        // The native path holds lossy key text; resolve the original key
+        // whose lossy form matches (first match wins, mirroring lookup
+        // order; mixed literal/lone-surrogate U+FFFD keys are out of
+        // scope per the transport micro-boundary).
+        const original = Object.keys(record).find((key) => lossyTs(key) === segment);
+        if (original === undefined) return undefined;
+        current = record[original];
+      }
+    } else {
+      return undefined;
+    }
+  }
+  return current;
+}
+
+/**
+ * Repairs native violation diagnostics that embed ill-formed text. Only
+ * fields holding replacement characters are re-rendered, from the
+ * caller's original wire value; every other field keeps native bytes.
+ */
+function repairViolations(violations: unknown, wire: unknown): unknown {
+  if (!Array.isArray(violations)) return violations;
+  return violations.map((item) => {
+    const record = item as { path?: unknown; message?: unknown; actual?: unknown };
+    if (typeof record !== "object" || record === null) return item;
+    const { path, message } = record;
+    if (!Array.isArray(path) || typeof message !== "string") return item;
+    let nextMessage = message;
+    let nextActual = record.actual;
+    if (typeof nextActual === "string" && nextActual.includes("�")) {
+      nextActual = actualWireTs(lookupPath(wire, path as Array<string | number>));
+    }
+    if (nextMessage.includes("�")) {
+      const last = (path as Array<string | number>).at(-1);
+      const parent = lookupPath(wire, (path as Array<string | number>).slice(0, -1));
+      if (typeof last === "string" && typeof parent === "object" && parent !== null) {
+        const keys = Object.keys(parent as Record<string, unknown>);
+        const original = Object.hasOwn(parent as Record<string, unknown>, last)
+          ? last
+          : keys.find((key) => lossyTs(key) === last);
+        if (original !== undefined) {
+          const rustTail = JSON.stringify(lossyTs(original));
+          if (nextMessage.endsWith(rustTail)) {
+            nextMessage = nextMessage.slice(0, nextMessage.length - rustTail.length) +
+              (JSON.stringify(original) as string);
+          }
+        }
+      }
+    }
+    if (nextMessage === message && nextActual === record.actual) return item;
+    return { ...(item as Record<string, unknown>), message: nextMessage, actual: nextActual };
+  });
+}
+
+/**
  * Wasm backend over caller-supplied glue. The ABI version is checked at
- * construction: a mismatched module fails here, never mid-request.
+ * construction: a mismatched module fails here, never mid-request. Each
+ * call crosses exactly once; a native semantic failure throws once with
+ * its original code and message and never retries in TS.
  */
 export function wasmBackend(glue: WasmGlue): ExactBackend {
   const abi = glue.abi_version();
@@ -149,7 +565,14 @@ export function wasmBackend(glue: WasmGlue): ExactBackend {
   return {
     name: "wasm",
     call(op: string, args: unknown[]): unknown {
-      const request = JSON.stringify({ v: 1, op, args: args.map(tag) });
+      // Refuse unknown operations before reading any argument, exactly
+      // like the ts backend: inherited names never reach tagging, glue,
+      // or the native dispatch.
+      if (!hasExactOp(op)) {
+        throw new ValueError("invalid-construction", `smoke backend has no op: ${op}`);
+      }
+      const tagged = args.map(tag);
+      const request = stringifyRequest(op, tagged);
       const raw = glue.exact_call(request);
       const response = JSON.parse(raw) as {
         ok: boolean;
@@ -159,10 +582,35 @@ export function wasmBackend(glue: WasmGlue): ExactBackend {
         violations?: unknown;
         transport?: string;
       };
-      if (!response.ok) throwFailure(op, response);
+      if (!response.ok) {
+        if (response.violations !== undefined && args.length > 1) {
+          response.violations = repairViolations(response.violations, args[1]);
+        }
+        if (typeof response.message === "string" && containsIllFormed(args)) {
+          response.message = renderHostMessage(op, response.message, args);
+        }
+        throwFailure(op, response);
+      }
       return reconstruct(response.value as Tagged);
     },
   };
+}
+
+/**
+ * General exact-backend profile selection. `null` (the default) keeps the
+ * full-domain TypeScript route; installing a backend selects the genuine
+ * native producer for profile-owned entries. Reads are ordered before any
+ * native evaluation: selection never changes guard, freezing, or error
+ * ownership, which stay with the TypeScript surface.
+ */
+let selectedExactBackend: ExactBackend | null = null;
+
+export function selectExactBackend(backend: ExactBackend | null): void {
+  selectedExactBackend = backend;
+}
+
+export function selectedExactBackendRead(): ExactBackend | null {
+  return selectedExactBackend;
 }
 
 /**

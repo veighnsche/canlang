@@ -158,7 +158,7 @@ fn guarded_ratio_differs_from_weak_divide_branch() {
     let ratio = money_ratio(&money("1", "USD"), &money("8", "USD")).unwrap();
     assert_eq!(
         (ratio.coef.to_string(), ratio.scale),
-        ("125".to_string(), 3)
+        ("125".to_string(), 3.0)
     );
 }
 

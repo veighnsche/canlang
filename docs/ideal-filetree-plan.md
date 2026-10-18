@@ -7,6 +7,22 @@
 > decisions and bounded coverage evidence are retained below; that evidence
 > applies only at its recorded scope and does not establish whole-plan currency.
 
+**Rust completion outcome plan, 2026-10-18 (main `ab516f39b`):** the latest
+human priority is finished Rust with TypeScript retirement allowed to remain held.
+The single current Rust checklist now groups the existing A/V/W/P/C contracts into
+four full responsibility/consumer outcomes, replacing digest-only and other tiny
+packet dispatch. Native preparation includes current source-map/browser construction;
+Values includes full actual binding/routing; validation includes the missing Rust
+interpreter and actual protected HTTP/State profiles; Work includes all seven
+selected families through durable consumers. Existing owner/target allocations and
+accepted results are reused. Three read-only owner-boundary reviews identify current
+source drift and genuine narrow handoffs; shared Values assembly, delivery and
+runtime files each keep one writer. No new package, compiler owner, optional port,
+canonical task/status or complete review checkpoint is introduced. Public/default/
+retirement holds are independent of Rust implementation completion. This is planning
+only; implementation and product checks have not started. Historical notes below
+retain their source pin and are superseded only for dispatch granularity/priority.
+
 **Rust-port planning integration, 2026-10-18:** this seven-document intake
 reconciles the proposed native identity packet against main `a28335e6b`.
 No product/source owner or target changes; retain the bounded coverage below and

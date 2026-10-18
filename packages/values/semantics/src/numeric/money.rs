@@ -64,10 +64,12 @@ pub fn make_money_value(value: &Value, currency: &Value) -> Result<MoneyParts, F
         Value::BigInt(int) => int * pow10(scale as u32),
         other if is_decimal_value(other) => {
             let parts = decimal_parts(other, "money")?;
-            if parts.scale <= scale {
-                parts.coef * pow10((scale - parts.scale) as u32)
+            // Scale compares as JS numbers (`-0 <= 2`); drops are
+            // magnitudes (`-0.0 as u32` is `0`).
+            if parts.scale <= scale as f64 {
+                parts.coef * pow10((scale as f64 - parts.scale) as u32)
             } else {
-                round_decimal_to_minor(&parts.coef, (parts.scale - scale) as u32)?
+                round_decimal_to_minor(&parts.coef, (parts.scale - scale as f64) as u32)?
             }
         }
         _ => {

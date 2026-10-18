@@ -5,6 +5,8 @@ export const WORK_KERNEL_VERSION = '0.1.0' as const;
 
 export { createRecoveryPlanner } from '../bindings/recovery-planner.js';
 export type { RecoveryPlanner, RecoveryPlannerOptions } from '../bindings/recovery-planner.js';
+export { createWorkKernel, tsWorkKernel } from '../bindings/work-kernel.js';
+export type { WorkKernel, WorkKernelOptions } from '../bindings/work-kernel.js';
 export type { RecoverableRow, RecoveryPlan, RecoveryScanInput } from './recovery.js';
 
 export {

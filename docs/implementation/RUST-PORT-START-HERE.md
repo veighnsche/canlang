@@ -1,62 +1,59 @@
-# Rust migration: current implementation and prioritized remainder
+# Rust migration: complete the selected responsibilities
 
 ## Current execution view — 2026-10-18
 
-Refreshed against fetched origin/main and canonical main
-`a28335e6b6d65ac338189f0481cc0af32bfb88f3`; this checkout has identical source.
-**This refresh is planning-only. No implementation or dispatch is started.**
-Public deployment, automatic backend defaults and TS retirement remain held.
-The historical native source release does not override Vince's latest planning-only
-request. Accepted packet writers/commands are released; the retained Muse viewer
-is in intentional standby.
+Vince's priority is **finish Rust**, with TypeScript retirement allowed to remain
+held. Refreshed against fetched origin/main `ab516f39b`; this checkout has the same
+committed tree. Vince now releases implementation through the Muse skill and requests a fresh
+coordinator. The four outcomes below are the active scope; no per-subtask approval
+gates apply. Public deployment/defaults/TS retirement remain held.
 
-The next **proposed, dependency-ready native preparation packet** is the
-`ports:P05.1` / `ports:P05.4` **native bundle identity into the retained deploy
-plan** slice. Rust currently checks final module buffers but discards them after
-returning a count; PLAN separately consumes a host-computed bundle reference.
-Join the existing Rust v1 digest/count to the real plan/review and the same retained
-host publication bundle. Hash exact final JS, preserve legacy absence and all
-stage/error/source correspondence, and keep build's admission domain unchanged.
-Do not merely add an unused digest field or claim native module construction.
+The [single completion plan](rust-port-orchestration/current-plan.md#current-execution-view--four-finished-rust-responsibilities)
+replaces tiny packet dispatch with four substantial end-to-end outcomes:
 
-The [single current checklist](rust-port-orchestration/current-plan.md#next-proposed-packet--native-bundle-identity-into-the-retained-deploy-plan)
-names defining owners, available prerequisites, exclusive possible writes,
-finite acceptance, focused checks and stop conditions. The
-[machine queue](rust-port-orchestration/next-packets.json) carries the same proposal,
-with execution disabled and no active lease. Original task identities,
-dependencies and wider acceptance remain in [tasks.json](remaining-work/tasks.json)
-and the subsystem plans; historical numbered queues are not new assignments.
-
-| Credited outcome | Current scope and remaining boundary |
+| Milestone | Finished means |
 | --- | --- |
-| Values/UI/compiler ICU and ordinary TS `ports:V02.6` | Accepted syntax/usage, serving correspondence and cleanup remain closed at their recorded scope; no rerun. |
-| Selected integer/ASCII + CSV; Values/recovery distribution; Work fanout | Reuse accepted bounds, original CSV data/error order, no-fallback and actual installed Node/Worker results; no broader codec/validator/Work-family closure. |
-| Ten matching Work `ports:W02.5` helpers (`cd2651c5e`) | Owning error factories and nested forwards, original row/query/clone/evaluation order and actual installed Work facade accepted. Not a next assignment. |
-| Native preparation facts/job/plan (`6fb752375`, `c105bf2c4`, `1e018e714`) | Registered native algorithms, release0.1.1 and exact-source frontend facts feed the real job. Existing parser/scope libraries and TS builder policy checkpoints retain their owners. |
-| Explicit native CLI/integrity/local publication (`4ed0d38fe`, closure main `a28335e6b`) | Darwin installed native9/TS9, genuine native mocked apply, same-data TS rollback and Linux installed build/integrity controls accepted. All assigned writers/commands released and owned rebuildable caches cleaned. |
-| Wider native P05/P10/P11 | Full native module construction, real native-output MCP/workerd qualification, complete resources/adoption and retirement ledger remain partial. Current CLI is JS-only; optional Wasm/mixed support is not inferred. |
+| Native preparation | The real installed explicit-native CLI prepares the complete current JS/browser package, identities, plan/review and exact local publication bytes in Rust. The host supplies reads, frontend observations and actual producer results, not a finished TS bundle. |
+| Exact Values | The existing broad Rust arithmetic/temporal/aggregate/codec implementations work through the full genuine synchronous binding, package/stdlib profiles and real consumers; the smoke registry is no longer the boundary. |
+| Owned validation | The missing Rust interpreter/codecs and required HTTP/State/ordinary-MCP profiles are implemented, and actual protected handler/durable admission consumers execute them with original order/identity/lifetime. |
+| Work transition kernel | All seven selected data-only families reach actual Work/State/Cloudflare callers through the shipped Wasm, preserving live authority and atomicity with their host owners. |
 
-The original [artifact preparation plan](../research/package-subsystem-ports-20261006/implementation-plans/artifact-preparation.md)
-retains the detailed P contracts. Public TS helper permissiveness, producer-owned
-activation/Bun/catalog, source-map/browser generation and reviewed writers remain
-explicit. Do not substitute the old Rust stager for evolved source without an
-exact finite construction handoff. Full-job CPU/process-tree RSS/IPC/temp costs
-and adoption policy remain unmeasured/unratified; the recorded timings imply no
-default change. Reuse unchanged installed integrity controls rather than rebuilding
-the accepted packet. Two existing adapter fixture failures, the old Rust digest
-pin and four foreign runtime type errors remain documented in the checklist.
+**Next implementation milestone: complete native preparation**, including module
+construction, source maps, browser package, final identity, plan/review/publication
+and installed produced Worker/MCP qualification. The former digest-only proposal
+is absorbed inside this outcome. It is no longer a separate approval/dispatch stop.
+Exact Values and Work are independent ready streams; validation core can overlap
+and consume specific exact-codec/runtime handoffs as they become available. Use
+available capacity and one writer per shared assembly/runtime/output, not a global
+wave barrier.
 
-Planning checks inspect committed main only; concurrent dirty compiler/runtime/Work
-source and notes are preserved with their owners. No product tests, builds, implementation
-worker, merge, push or whole-filetree checkpoint advance occurs in this refresh.
-The native packet has source/contract inspection, workflow trace, independent
-read-only challenge and exact owner allocation; no full repository audit is claimed.
+Each outcome includes implementation, its actual consumer, focused qualification,
+one independent critical review/repairs and coherent integration. Ordinary internal
+steps require no repeated user approvals once implementation is requested. Existing
+accepted ICU, int/CSV, TS serving, Work helpers/recovery and native CLI/integrity
+results remain credited once. No review chains or unchanged broad test reruns.
+
+Rust completion is independent of public deployment, automatic backend defaults
+and TS deletion, which remain held. Host I/O, JavaScript observable shells,
+parser/Intl/URL libraries, definition-owned producers, authority/transactions and
+reference/rollback TS are named retained responsibilities. A TS evaluator hidden
+behind a Rust-selected façade does not count as a Rust implementation. Required
+missing behavior stays open; conditional unused profiles do not deadlock ready work.
+
+The [machine queue](rust-port-orchestration/next-packets.json) and
+[lane allocation](rust-port-lanes.json) carry the same outcome grouping. Original
+[task identities](remaining-work/tasks.json) and subsystem contracts remain intact;
+counts and historical boxes are not current effort percentages or dispatch units.
+See the completion plan for exact code owners, current gaps, dependencies,
+acceptance and supported-profile/resource/rollback boundaries. No product source,
+tests, builds, new implementation workers, merge, push or complete filetree
+checkpoint advance is part of this planning pass.
 
 ### Historical scope and evidence
 
-The sections below preserve earlier evidence and proposals. Current accepted scope,
-priority and holds are the view above and the single checklist; older HUMAN HOLD,
-missing-native-CLI and proposed-ten-helper wording is superseded accordingly.
+The sections below preserve earlier accepted results and proposals. Current priority,
+completion definition and holds are the four outcomes above and the one completion
+plan. Old packet queues, HUMAN HOLD and missing-CLI observations are historical.
 
 ### Additional package opportunities — message syntax and usage completed
 

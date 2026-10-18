@@ -24,20 +24,41 @@ use serde_json::{json, Value};
 
 use crate::input::{Budgets, Frame, InputArena, TransportNode};
 use crate::plans::{
-    ContractInput, EnumInput, FieldInput, Meta, OperationInput, OwnerToken, PlanCode, PlanError,
-    Plans, Provenance, SchemaInput, TypeBase,
+    AliasInput, ContractInput, EnumInput, FieldInput, Meta, OperationInput, OwnerToken, PlanCode,
+    PlanError, Plans, Provenance, SchemaInput, TypeBase,
 };
+
+/// Owned `values/v1` structural interpreter and whole-profile dispatch.
+/// Lives under `profiles` so the shared crate assembly (`lib.rs`,
+/// shared Cargo manifest) stays single-writer with the Exact lane; the
+/// module is `pub` for binding-side consumers through this profile host.
+#[path = "validation.rs"]
+pub mod validation;
 
 /// Structural scaffold ABI version. Requests must carry `"v": 1`.
 pub const STRUCTURAL_ABI: u32 = 1;
 
-/// Binding-side host: one plan registry plus the handle table that
-/// keeps owner tokens server-side across binding calls.
+/// One live request: its checked arena, owning plan handle and the
+/// budgets its traversal runs under. Request ids are server-side u64
+/// handles like owner handles: forged, stale or disposed ids fail at
+/// the adapter before Rust executes.
+#[derive(Debug)]
+struct RequestEntry {
+    arena: InputArena,
+    owner: OwnerToken,
+    plan_id: String,
+    budgets: Budgets,
+}
+
+/// Binding-side host: one plan registry plus the handle tables that
+/// keep owner tokens and live requests server-side across binding calls.
 #[derive(Debug, Default)]
 pub struct ProfileHost {
     plans: Plans,
     handles: HashMap<u64, OwnerToken>,
     next_handle: u64,
+    requests: HashMap<u64, RequestEntry>,
+    next_request: u64,
 }
 
 fn ok(value: Value) -> Value {
@@ -173,7 +194,18 @@ fn digest_node(arena: &InputArena, index: usize) -> Value {
     }
 }
 
-fn parse_meta(value: &Value) -> Result<Meta, Value> {
+/// Maximum default/bound metadata nesting accepted at registration
+/// (mirrors the interpreter's conversion cap; deeper owner metadata is
+/// malformed, never an unbounded conversion).
+const MAX_META_DEPTH: usize = 128;
+
+fn parse_meta(value: &Value, depth: usize) -> Result<Meta, Value> {
+    if depth > MAX_META_DEPTH {
+        return Err(plan_err(&PlanError {
+            code: PlanCode::MalformedSchema,
+            message: "default metadata is too deeply nested".to_string(),
+        }));
+    }
     let tag = value
         .get("t")
         .and_then(Value::as_str)
@@ -205,7 +237,7 @@ fn parse_meta(value: &Value) -> Result<Meta, Value> {
                 .ok_or_else(|| transport_err("args/malformed", None))?;
             let mut out = Vec::with_capacity(items.len());
             for item in items {
-                out.push(parse_meta(item)?);
+                out.push(parse_meta(item, depth + 1)?);
             }
             Ok(Meta::Array(out))
         }
@@ -222,7 +254,10 @@ fn parse_meta(value: &Value) -> Result<Meta, Value> {
                 if pair.len() != 2 {
                     return Err(transport_err("args/malformed", None));
                 }
-                out.push((str_arg(Some(&pair[0]))?.to_string(), parse_meta(&pair[1])?));
+                out.push((
+                    str_arg(Some(&pair[0]))?.to_string(),
+                    parse_meta(&pair[1], depth + 1)?,
+                ));
             }
             Ok(Meta::Object(out))
         }
@@ -234,7 +269,7 @@ fn parse_meta(value: &Value) -> Result<Meta, Value> {
 fn opt_meta(value: &Value, key: &str) -> Result<Option<Meta>, Value> {
     match value.get(key) {
         None => Ok(None),
-        Some(item) => parse_meta(item).map(Some),
+        Some(item) => parse_meta(item, 0).map(Some),
     }
 }
 
@@ -331,24 +366,44 @@ fn parse_base(value: &Value) -> Result<TypeBase, Value> {
     }
 }
 
-fn parse_field(value: &Value) -> Result<FieldInput, Value> {
-    if [
-        "format",
-        "distinctBy",
-        "distinct_by",
-        "excludedIds",
-        "excluded_ids",
-    ]
-    .iter()
-    .any(|key| value.get(*key).is_some())
-    {
-        return Err(plan_err(&PlanError {
-            code: PlanCode::MalformedSchema,
-            message: "NAME and keyed-array constraints are outside the native profile".to_string(),
-        }));
+/// Parses one carried `excludedIds` entry as lossless UTF-16 units.
+/// Names crossing as JSON text stay exact for well-formed text; the
+/// id check itself runs over units, never lossy strings.
+fn parse_excluded_ids(value: &Value) -> Result<Vec<Vec<u16>>, Value> {
+    let mut out = Vec::new();
+    for key in ["excludedIds", "excluded_ids"] {
+        if let Some(list) = value.get(key) {
+            let items = list
+                .as_array()
+                .ok_or_else(|| transport_err("args/malformed", None))?;
+            for item in items {
+                out.push(parse_units(item)?);
+            }
+        }
     }
+    Ok(out)
+}
+
+fn parse_field(value: &Value) -> Result<FieldInput, Value> {
     let flag =
         |key: &str| Ok::<bool, Value>(value.get(key).and_then(Value::as_bool).unwrap_or(false));
+    // Carried duties (never silently dropped): `format` only "name",
+    // `distinctBy` only "id"; deeper shape gates run in `check_schema`.
+    let format = match value.get("format") {
+        None => None,
+        Some(item) => Some(str_arg(Some(item))?.to_string()),
+    };
+    let mut distinct_by = flag("distinct_by")?;
+    if let Some(raw) = value.get("distinctBy") {
+        let text = str_arg(Some(raw))?;
+        if text != "id" {
+            return Err(plan_err(&PlanError {
+                code: PlanCode::MalformedSchema,
+                message: "distinctBy must be \"id\"".to_string(),
+            }));
+        }
+        distinct_by = true;
+    }
     Ok(FieldInput {
         name: str_arg(value.get("name"))?.to_string(),
         type_id: str_arg(value.get("type_id"))?.to_string(),
@@ -373,16 +428,37 @@ fn parse_field(value: &Value) -> Result<FieldInput, Value> {
             None => None,
             Some(item) => Some(str_arg(Some(item))?.to_string()),
         },
+        format,
+        distinct_by,
+        excluded_ids: parse_excluded_ids(value)?,
+    })
+}
+
+/// Parses one carried text alias: bounded text with NAME format (`type`
+/// must be `"text"`, `format` must be `"name"`; only bounds are stored).
+fn parse_alias(value: &Value) -> Result<AliasInput, Value> {
+    if str_arg(value.get("type"))? != "text" || str_arg(value.get("format"))? != "name" {
+        return Err(plan_err(&PlanError {
+            code: PlanCode::MalformedSchema,
+            message: "text aliases require bounded text with NAME format".to_string(),
+        }));
+    }
+    let min = value
+        .get("min")
+        .and_then(Value::as_f64)
+        .ok_or_else(|| transport_err("args/malformed", None))?;
+    let max = value
+        .get("max")
+        .and_then(Value::as_f64)
+        .ok_or_else(|| transport_err("args/malformed", None))?;
+    Ok(AliasInput {
+        name: str_arg(value.get("name"))?.to_string(),
+        length_min: min,
+        length_max: max,
     })
 }
 
 fn parse_schema(value: &Value) -> Result<SchemaInput, Value> {
-    if value.get("aliases").is_some() {
-        return Err(plan_err(&PlanError {
-            code: PlanCode::MalformedSchema,
-            message: "text aliases are outside the native profile".to_string(),
-        }));
-    }
     let tag = value
         .get("t")
         .and_then(Value::as_str)
@@ -392,6 +468,17 @@ fn parse_schema(value: &Value) -> Result<SchemaInput, Value> {
             str_arg(value.get("text"))?.to_string(),
         )),
         "normalized" => {
+            let raw_aliases = match value.get("aliases") {
+                None => Vec::new(),
+                Some(list) => list
+                    .as_array()
+                    .ok_or_else(|| transport_err("args/malformed", None))?
+                    .clone(),
+            };
+            let mut aliases = Vec::with_capacity(raw_aliases.len());
+            for alias in &raw_aliases {
+                aliases.push(parse_alias(alias)?);
+            }
             let contracts = value
                 .get("contracts")
                 .and_then(Value::as_array)
@@ -457,6 +544,7 @@ fn parse_schema(value: &Value) -> Result<SchemaInput, Value> {
                 contracts: out_contracts,
                 enums: out_enums,
                 operations: out_operations,
+                aliases,
             })
         }
         _ => Err(transport_err("args/malformed", None)),
@@ -613,6 +701,7 @@ impl ProfileHost {
                 "contracts": plan.contract_order,
                 "enums": plan.enum_order,
                 "operations": plan.operation_order,
+                "aliases": plan.alias_order,
                 "dispatch": plan.dispatch.iter().map(|(path, arms)| json!({"path": path, "arms": arms})).collect::<Vec<_>>(),
             })),
             Err(error) => plan_err(&error),
@@ -643,6 +732,180 @@ impl ProfileHost {
         }
     }
 
+    /// Parses shared traversal budgets: explicit caller inputs, never
+    /// defaults that could change the owned contract.
+    fn parse_budgets(args: &Value) -> Result<Budgets, Value> {
+        let budgets = args
+            .get("budgets")
+            .ok_or_else(|| transport_err("args/malformed", None))?;
+        Ok(Budgets {
+            max_nodes: u32_arg(budgets.get("nodes"))? as usize,
+            max_depth: u32_arg(budgets.get("depth"))? as usize,
+            max_text_units: u32_arg(budgets.get("text"))? as usize,
+            max_entries: u32_arg(budgets.get("entries"))? as usize,
+        })
+    }
+
+    /// Begins one owned request: gates owner and plan handles, builds
+    /// the checked arena, and retains it server-side under a fresh
+    /// request id. Parser-token creation records ownership without
+    /// traversal; conversion starts here, at the validation point.
+    fn op_request_begin(&mut self, args: &Value) -> Value {
+        let owner = match self.owner_of(args) {
+            Ok(owner) => owner,
+            Err(response) => return response,
+        };
+        let plan_id = match str_arg(args.get("plan")) {
+            Ok(plan_id) => plan_id.to_string(),
+            Err(response) => return response,
+        };
+        if self.plans.get(&owner, &plan_id).is_err() {
+            // Unknown, released or retired-generation handles fail here,
+            // before any arena is built or retained.
+            let error = self
+                .plans
+                .get(&owner, &plan_id)
+                .expect_err("checked above");
+            return plan_err(&error);
+        }
+        let frame = match args
+            .get("frame")
+            .ok_or_else(|| transport_err("args/malformed", None))
+            .and_then(parse_frame)
+        {
+            Ok(frame) => frame,
+            Err(response) => return response,
+        };
+        let budgets = match Self::parse_budgets(args) {
+            Ok(budgets) => budgets,
+            Err(response) => return response,
+        };
+        match InputArena::build(&frame, &budgets) {
+            Ok(arena) => {
+                let id = self.next_request;
+                self.next_request += 1;
+                self.requests.insert(
+                    id,
+                    RequestEntry {
+                        arena,
+                        owner,
+                        plan_id,
+                        budgets,
+                    },
+                );
+                ok(json!({"request": id}))
+            }
+            Err(error) => transport_err(error.code, error.check),
+        }
+    }
+
+    /// Parses one whole-profile execution target.
+    fn parse_target(args: &Value) -> Result<validation::Target, Value> {
+        let target = args
+            .get("target")
+            .ok_or_else(|| transport_err("args/malformed", None))?;
+        match target.get("kind").and_then(Value::as_str) {
+            Some("contract") => {
+                let name = str_arg(target.get("name"))?.to_string();
+                let mode = match target.get("mode").and_then(Value::as_str) {
+                    Some("create") => validation::Mode::Create,
+                    Some("update") => validation::Mode::Update,
+                    _ => return Err(transport_err("args/malformed", None)),
+                };
+                Ok(validation::Target::Contract { name, mode })
+            }
+            Some("operation") => Ok(validation::Target::Operation {
+                name: str_arg(target.get("name"))?.to_string(),
+            }),
+            _ => Err(transport_err("args/malformed", None)),
+        }
+    }
+
+    /// Executes one whole profile action against a live request: the
+    /// plan resolves fresh (retirement between begin and execute fails
+    /// closed), coverage defers before traversal, and failures never
+    /// publish partial values. No semantic operation is retried here.
+    fn op_values_execute(&mut self, args: &Value) -> Value {
+        let request = match args.get("request").and_then(Value::as_u64) {
+            Some(request) => request,
+            None => return transport_err("args/malformed", None),
+        };
+        let profile = match str_arg(args.get("profile")) {
+            Ok(profile) => profile,
+            Err(response) => return response,
+        };
+        let target = match Self::parse_target(args) {
+            Ok(target) => target,
+            Err(response) => return response,
+        };
+        let entry = match self.requests.get(&request) {
+            Some(entry) => entry,
+            // Forged, stale or disposed handles fail at the adapter,
+            // before Rust executes.
+            None => return transport_err("request/unknown", None),
+        };
+        let plan = match self.plans.get(&entry.owner, &entry.plan_id) {
+            Ok(plan) => plan.clone(),
+            Err(error) => return plan_err(&error),
+        };
+        if profile != plan.profile {
+            return plan_err(&PlanError {
+                code: PlanCode::InvalidProfile,
+                message: "execution profile does not match the registered plan profile".to_string(),
+            });
+        }
+        let known = match &target {
+            validation::Target::Contract { name, .. } => {
+                plan.contracts.iter().any(|contract| contract.name == *name)
+            }
+            validation::Target::Operation { name } => plan
+                .operations
+                .iter()
+                .any(|operation| operation.name == *name),
+        };
+        if !known {
+            return plan_err(&PlanError {
+                code: PlanCode::UnknownTarget,
+                message: "execution target names no declared contract or operation".to_string(),
+            });
+        }
+        let resolve = |key: &str| {
+            self.plans
+                .resolve_default(
+                    &entry.owner,
+                    &crate::plans::DefaultRef {
+                        key: key.to_string(),
+                    },
+                )
+                .ok()
+                .cloned()
+        };
+        let outcome = validation::execute(
+            &entry.arena,
+            &plan,
+            &resolve,
+            &target,
+            validation::ExecBudgets {
+                max_nodes: entry.budgets.max_nodes,
+                max_depth: entry.budgets.max_depth,
+            },
+        );
+        ok(validation::outcome_to_json(&outcome))
+    }
+
+    /// Disposes one request: idempotent success/error/cancel release at
+    /// the request seam. Unknown ids are silent no-ops like plan
+    /// release; every request runs under `try/finally` host-side.
+    fn op_request_dispose(&mut self, args: &Value) -> Value {
+        match args.get("request").and_then(Value::as_u64) {
+            Some(request) => {
+                self.requests.remove(&request);
+                ok(Value::Null)
+            }
+            None => transport_err("args/malformed", None),
+        }
+    }
+
     /// Runs one versioned scaffold request. Version, op and args gates
     /// run before any arena build or registration.
     pub fn handle_line(&mut self, line: &str) -> Value {
@@ -670,6 +933,9 @@ impl ProfileHost {
             "plan.get" => self.op_plan_get(args),
             "plan.release" => self.op_plan_release(args),
             "owner.retire" => self.op_owner_retire(args),
+            "request.begin" => self.op_request_begin(args),
+            "values.execute" => self.op_values_execute(args),
+            "request.dispose" => self.op_request_dispose(args),
             _ => transport_err("op/unknown", None),
         }
     }

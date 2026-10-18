@@ -19330,3 +19330,61 @@ implementation stays paused. Reconcile these documentation changes together with
 the living filetree plan, preserving newer committed compiler/runtime/Work history
 and concurrent uncommitted source/notes. No canonical task status, owner/target
 allocation, complete checkpoint or public/default/retirement release advances.
+
+
+## 2026-10-18 — finish Rust by complete responsibility outcomes
+
+**Accepted human priority and execution granularity; proposed implementation plan.**
+Vince requests a full plan of large end-to-end Rust steps and clarifies that
+finishing Rust matters more than TypeScript retirement, which may remain held.
+The [single current completion plan](../implementation/rust-port-orchestration/current-plan.md)
+therefore groups the existing selected port contracts into four outcomes: native
+preparation, exact Values, owned validation and Work transition kernel. The earlier
+digest-only proposal becomes an internal preparation activity rather than another
+approval/dispatch milestone. No new canonical IDs or scope are created.
+
+A milestone is complete only when its declared Rust mechanisms run through their
+actual selected consumer with focused qualification, independent critical review/
+repairs, resource/rollback disposition and coherent integration. Existing substantive
+Rust algorithms and accepted consumer evidence are inputs, not work to repeat.
+Smoke bindings, a Rust checker after TS computation or renamed whole TS evaluators
+do not prove the responsibility implemented. Required missing work stays visible.
+Default changes, public deployment and physical TS deletion are separate held
+outcomes and cannot block Rust implementation completion. Intentionally retained
+host parsing/libraries/producers, observable shells and live authority/transaction
+work remain named owners.
+
+Rationale: the prior execution queue added repeated coordination stops around small
+bridges without finishing module construction, full binding/consumer routing or the
+missing validator. One responsibility-sized implementation/consumer/review outcome
+keeps those joins inside the deliverable. Internal ordinary tasks/repairs need no
+fresh human approval after implementation is requested; only actual new scope,
+compatibility decisions or external release constraints require their original
+process. Shared-file writers serialize concrete released edits, not completion of
+unrelated adoption parents. C04/C05 complete gates consume outcomes and must not
+become circular prerequisites. New source changes trigger only affected checks.
+
+The source pin is fetched main `ab516f39b`. Three independent read-only challenges
+cover native completion, Values/validation and Work. Concrete findings include stale
+Rust module/source-map/browser builders, the full native exact dispatch versus its
+smoke TS registry, absent native validation/profile execution, incomplete owner-plan
+fields/lossless metadata and newer State/Work provenance/result contexts. These are
+implementation duties within the selected outcomes, not optional scope silently
+excluded. This planning change does not execute code, change a backend default,
+retire TS, commit/merge/push or advance the complete stale filetree checkpoint.
+
+
+### Muse implementation release and fresh coordinator
+
+Vince explicitly invokes the Muse implementation skill for the four completion
+outcomes, then requests a fresh Muse instance. Implementation/consumer qualification/
+review/repairs are released continuously at those outcomes; prior planning-only
+wording no longer holds their source work. A new Contributor/XHIGH coordinator
+and three inheriting native workers have exact startup/goal and actual source
+progress. The previous coordinator remains released standby with its unique work/
+viewer preserved. Runtime identities, exact leases and model evidence are recorded
+in the new run monitor. The one existing25minute same-chat heartbeat is repointed,
+not duplicated; single-instance mode has no recurring Muse worker timer or human
+ready gate. Codex owns independent review and accepted Git/main integration while
+Muse owns implementation and the single central checklist. Public deployment,
+automatic defaults and TS retirement remain held independently of Rust completion.

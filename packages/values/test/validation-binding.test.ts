@@ -15,6 +15,8 @@ import {
   type ValidationBackend,
   type ValidationGlue,
 } from "../bindings/validation.js";
+import { ownedFrameFor, parseOwnedJsonBody } from "../bindings/owned-input.js";
+import { loadOwnerPlan, withOwnedRequest } from "../bindings/validation.js";
 import { structural_abi_version, validation_call } from "../bindings/generated/values_semantics.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -225,5 +227,107 @@ describe("structural scaffold binding", () => {
         return true;
       },
     );
+  });
+});
+
+describe("owned frame round-trip through the native seam", () => {
+  const digestOf = async (body: string): Promise<Record<string, unknown>> => {
+    const bytes = new TextEncoder().encode(body);
+    const token = await parseOwnedJsonBody(
+      new Request("http://owned.test/input", { method: "POST", body }),
+      async () => bytes,
+    );
+    const via = backend();
+    return via.call("input.digest", { frame: ownedFrameFor(token), budgets }) as Record<
+      string,
+      unknown
+    >;
+  };
+
+  it("carries parser-owned -0, lone surrogates and key order into the arena", async () => {
+    const negZero = (await digestOf("-0"))["root"] as { bits: string };
+    assert.equal(negZero.bits, "8000000000000000");
+    const lone = (await digestOf('"\\ud800"'))["root"] as { units: number[] };
+    assert.deepEqual(lone.units, [55296]);
+    const dupes = (await digestOf('{"b":1,"a":2,"b":3}'))["root"] as { keys: number[][] };
+    assert.deepEqual(dupes.keys, [[98], [97]]);
+  });
+});
+
+describe("owner plan loader", () => {
+  it("threads owner scope and provenance into a registered plan id", () => {
+    const via = backend();
+    const loaded = loadOwnerPlan(via, {
+      abi: "v1",
+      profile: "values",
+      planProfile: "values/v1",
+      backend: "native",
+      owner_rev: "artifact-1",
+      bound: 8,
+      schema: schema(),
+      provenance,
+    });
+    assert.equal(typeof loaded.owner, "number");
+    assert.match(loaded.id, /^plan:v1:values:native:artifact-1:g\d+:\d+$/);
+  });
+
+  it("lets the native stale-scope gate refuse a revision mismatch", () => {
+    const via = backend();
+    assert.throws(
+      () =>
+        loadOwnerPlan(via, {
+          abi: "v1",
+          profile: "values",
+          planProfile: "values/v1",
+          backend: "native",
+          owner_rev: "artifact-1",
+          bound: 8,
+          schema: schema(),
+          provenance: { factory: "normalizeSchema", owner_rev: "artifact-2" },
+        }),
+      (err: unknown) => {
+        assert.ok(err instanceof StructuralError);
+        assert.equal(err.stage, "plan");
+        assert.equal(err.code, "stale-scope");
+        return true;
+      },
+    );
+  });
+});
+
+describe("whole profile action through loader, frame and request", () => {
+  it("routes a parser-owned contract create to the named owning lane", async () => {
+    const via = backend();
+    const loaded = loadOwnerPlan(via, {
+      abi: "v1",
+      profile: "values",
+      planProfile: "values/v1",
+      backend: "native",
+      owner_rev: "artifact-1",
+      bound: 8,
+      schema: schema(),
+      provenance,
+    });
+    const bytes = new TextEncoder().encode('{"id":1}');
+    const token = await parseOwnedJsonBody(
+      new Request("http://owned.test/input", { method: "POST", body: '{"id":1}' }),
+      async () => bytes,
+    );
+    const outcome = withOwnedRequest(
+      via,
+      {
+        owner: loaded.owner,
+        plan: loaded.id,
+        frame: ownedFrameFor(token),
+        budgets,
+        profile: "values/v1",
+        target: { kind: "contract", name: "User", mode: "create" },
+      },
+      (result) => result,
+    );
+    // The int leaf belongs to the Exact lane: the whole path must land
+    // on its named deferral, never a false native verdict.
+    assert.equal(outcome.outcome, "deferred");
+    assert.match((outcome as { detail: string }).detail, /exact-codec/);
   });
 });

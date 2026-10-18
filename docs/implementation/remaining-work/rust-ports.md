@@ -2,15 +2,14 @@
 
 Baseline: main `7fd8c6b` on 2026-10-06; scoped Rust source reconciliation at `ede59d051` on 2026-10-18. Use the [single current execution view](../RUST-PORT-START-HERE.md#current-execution-view--2026-10-18) for implementation credit, priorities and holds. Baseline counts are not a current completion percentage. [Index](../REMAINING-WORK.md) · [Exact ledger](tasks.json).
 
-This is the historical unresolved-task catalog, not a dispatch queue. Current
-accepted native facts/job/CLI/integrity and Work helper components are credited
-once in the [single checklist](../rust-port-orchestration/current-plan.md).
-The old native HUMAN HOLD and missing-CLI observations below are superseded by
-those recorded releases/acceptances. Latest refresh at main `a28335e6b` is
-planning-only: the next proposed dependency-ready P05.1/P05.4 component joins the
-native-derived final text-bundle v1 identity to the actual deploy plan/review.
-No implementation starts. Public deployment/defaults/TS retirement remain held;
-full-parent acceptance and original IDs/dependencies remain unchanged.
+This is the historical canonical task catalog, not a microtask dispatch queue.
+The [one completion plan](../rust-port-orchestration/current-plan.md) groups the
+existing IDs into four substantial Rust outcomes: native preparation, exact Values,
+owned validation and Work transitions. Accepted narrow outcomes stay credited.
+Rust completion requires real selected consumers, while TypeScript retirement,
+defaults and public deployment remain separately held. This request is planning
+only. Old native HOLD/missing-CLI observations below are historical; no canonical
+status or complete checkpoint advances from changing the execution grouping.
 
 ## artifact-preparation
 
