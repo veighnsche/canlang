@@ -1,5 +1,7 @@
 # Detailed Can capability task sequence
 
+**Retained design and acceptance source.** Current work and disposition are owned only by [REMAINING-WORK.md](../../implementation/REMAINING-WORK.md). Later [Capability results](../../implementation/capability-roadmap-20261008/README.md) supersede the original proposed/unstarted and active-owner observations below at their accepted finite scopes. The stopped implementation efforts have no active leases here; conditional grammar remains proposed unless its original trigger and decision were met.
+
 Use one direct, proportionate validation of changed behavior and a concise result. Reuse unchanged accepted checks. Do not create nested verification, review receipts, checks of checks, tests of testing code, duplicated snapshots or hash-manifest chains. Repeat a check only after a relevant change, failure or concrete unresolved risk.
 
 The first deliverable is a working private image-generation app whose frontend follows current authorized state. Prepare enum exhaustiveness and dependent forms alongside that work, then build concrete domain reuse and qualify a whole approval app. Conditional and deferred features enter only when their original value gates pass.

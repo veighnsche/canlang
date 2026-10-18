@@ -1,5 +1,7 @@
 # Dependency-ordered packets and future lanes
 
+**Current disposition, 2026-10-18:** all implementation is stopped after the released wind-down/main integration and cleanup. Use the [consolidated remaining list](../../implementation/REMAINING-WORK.md) for current work and exact holds. Original requirements, accepted components and IDs below remain; dated launch/roster/source-absence/checkbox statements are historical and authorize no restart. This is not a new lane allocation or a reopening of accepted criteria.
+
 [tasks.json](tasks.json) preserves all 230 port items: 220 required in their declared scope and ten conditional/deferred. It also maps all 41 canonical challenge parents, eight description parents, the existing remaining packet rows, and new required product joins. Status is never copied from an old checkbox into this audit. Original manifests/checklists and coordinator ownership stay unchanged.
 
 ## Work readiness and ownership

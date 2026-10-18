@@ -1,5 +1,7 @@
 # Installed Worker packages and assets
 
+**Current reconciliation, 2026-10-18:** the accepted package/Turbo and selected installed asset scopes stay closed. Later native core/dev releases supersede the old skeleton/native-source HOLD observations below. Only changed final binaries, exact supported consumers and broader original workflow gaps remain in the [consolidated list](../REMAINING-WORK.md); no unchanged migration rerun or new owner is needed.
+
 Implemented 2026-10-06 against unmerged main `7fd8c6bf4717feeffc70b46819377b74b353e117` and the preceding package-boundary repairs. [Source hashes](evidence/source-hashes.json) pin the tested implementation. This evidence covers package resolution and explicit asset staging, not full native release or browser workflow qualification.
 
 Worker main, MCP and HTTP roots resolve through installed owning exports. ESM producers use import conditions; the source-test loader retains a fallback for packages whose export conditions share one default entry. `repoRoot` is now an optional ignored compatibility input, and the preparation host no longer computes it for bundling. Producer module/asset directories come from declared package distribution exports, with explicit directory injection retained for tests and hosts.

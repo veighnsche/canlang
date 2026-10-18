@@ -2,7 +2,7 @@
 
 Reconciled against main `7fd8c6b` on 2026-10-06. [Index](../REMAINING-WORK.md) · [Exact ledger](tasks.json).
 
-Only unresolved tasks are listed below. Completed narrow tasks are retained in the exact ledger and are not assigned again. All workers remain stopped; D’s port remains human-held. Conditional/deferred rows are separate from selected required work.
+**Historical contract snapshot, reconciled for navigation 2026-10-18.** Use the [one current remaining list](../REMAINING-WORK.md) for final-handoff credit and actual unmet outcomes. Original acceptance and aliases below remain traceable; they are not a second current queue. Native preparation source implementation was released before final wind-down; public/default/retirement holds remain separate. All four implementation efforts are stopped and cleaned up. Completed matching profiles are reused, including native dev/browser/examples, inline preferences, HTTP/Wasm27/27, typed Identity admission and selected CSV/State/recovery results.
 
 ## finished-product
 

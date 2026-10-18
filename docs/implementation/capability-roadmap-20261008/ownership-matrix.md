@@ -1,5 +1,7 @@
 # Ownership and handoffs (SEQ-002)
 
+**Historical ownership capture; no current reservations.** All four implementation efforts are stopped and merged. The [global list](../REMAINING-WORK.md) owns current outcomes and defining roles; former chat, shared-Git and active-writer assignments below grant no present lease or dispatch authority.
+
 The ownership setup is complete. The human appointed a separate coordinator and requires permissive coordination: these domains are advisory, not permission gates. Distinct files and agreed non-overlapping edits proceed without grants. Coordinate only actual concurrent same-file, index or shared-output collisions, with the smallest brief hold. Missing release messages do not establish occupancy.
 
 | Owner | Source domain | Current boundary |

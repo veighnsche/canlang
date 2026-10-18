@@ -1,6 +1,25 @@
 # `can dev` implementation plan
 
-**Current ownership-completion execution, 2026-10-18:** T14/T16's stronger
+**Current disposition, 2026-10-18:** the single remaining-work list is
+[REMAINING-WORK.md](../REMAINING-WORK.md). The native dev-server effort is stopped
+and its released source/startup repair is merged on main. T00–T13/G1/G2 and
+T14–T17 remain accepted at their recorded finite scopes: manual native control,
+Ratatui/plain/JSON, physical lifecycle and retained-state recovery, public41
+qualification proofs, native133 checks and Linux installed23 criteria. The macOS
+installed/manual evidence is retained separately. No unchanged rerun, additional
+manual cutover or packaging task is required by later open criteria.
+
+T18–T30 retain their definitions below as deferred extensions. Historical stopped
+TypeScript automatic/cache/browser fragments and focused checks are reusable
+inputs, not accepted Rust automatic save-to-page behavior. In particular T19/T20
+and T22/T23 here are **dev-server** IDs, distinct from the challenge plan's IDs.
+Basic coherent capture/currentness and unchanged-check reuse are already native
+T14/T16 acceptance; T23 owns only the additional measured duplication. The precise
+Miniflare inner-restart limitation below is retained; a stronger pre-spawn-veto
+architecture remains a proposal, not an added manual acceptance gate. All older
+resumed/in-progress/next-run wording below records historical checkpoints.
+
+**Accepted ownership-completion scope, 2026-10-18:** T14/T16's stronger
 native ownership scope is implemented. Rust now owns producer membership and
 freshness, preview configuration/persistence/preparation, help/ranking,
 example sequencing and full qualification policy. The fixed JS host invokes
@@ -40,12 +59,11 @@ checksum identity, clean PATH, no old dev tree/private test facade, manual login
 grants/D1, isolated examples/rerun, repair, safe HTTP refusal and retained
 stop/restart, protected preview, R2/DO and queue. The current macOS checksum installation and six-step installed manual workflow
 also pass. Full private qualification passes41 construct proofs and the real
-Chromium workflow; the final public invocation follows compiler integration.
+Chromium workflow; the final public invocation subsequently passes41/41, as recorded in the wind-down result below.
 The combined complexity gate has zero failures, and the CLI suite passes32/32.
-Final component refreshes, safe main integration and integrated measurement remain
-in progress. Preserve
-accepted previous tuples below, stopped U stash and foreign unfinished main edits.
-No push or public publication is authorized by this qualification work.
+Final component refreshes, safe main integration and the scoped installed measurement
+are complete in the wind-down result below. Preserve earlier tuples and stopped U
+source as historical evidence. Public publication remains outside this acceptance.
 
 Main sync68919a8b7 incorporates all released inputs through69d45c33c while retaining
 checkpoint058a11b46; its temporary inventory-root test failure is repaired. Main's
@@ -132,17 +150,17 @@ actual equivalent locked release builds and installed checks close this platform
 qualification scope. Main integration and its final measurement follow the safe
 foreign-writer release. T18–T30 and public publication remain separate.
 
-## Current execution view — development experience, 2026-10-18
+## Historical execution view — development experience, 2026-10-18
 
-**Implementation resumed by the user, 2026-10-18.** This is the single current
+**Historical implementation release, 2026-10-18.** This records the earlier
 execution view for the terminal-first development experience and its later
 save-to-presentable-preview work. The earlier implementation authorization for
 **Prevent Miniflare instance accumulation** was followed by the user's stop;
 its work remains preserved. The current instruction selects a Rust development
-server with Ratatui and managed Workerd. The user now authorizes implementation,
+server with Ratatui and managed Workerd. The user then authorized implementation,
 prioritizing the authoritative state machine and Ratatui terminal in dependency order.
-Pause wording retained below records the prior planning handoff, not the current
-execution authorization. T14–T30 retain their IDs and acceptance scopes.
+The later wind-down supersedes that execution release. T14–T30 retain their IDs
+and acceptance scopes; the current remaining-work list owns their disposition.
 First priority is T14's authoritative state contract
 and T15's Ratatui experience, with T16 supplying the runtime boundary needed to
 qualify that manual workflow. Later automation and performance work stay separate.
@@ -312,15 +330,15 @@ This is an accepted architecture, not a resumed rewrite or a claim of superiorit
 The earlier `dev server/` name is historical: the directory has already been
 renamed to `dev-server/`. No relocation remains in this plan.
 
-**Proposed public entry:** `can dev ui --source App.can` is the prominent human
+**Accepted public entry:** `can dev ui --source App.can` is the prominent human
 workflow, with explicit attachment to a verified existing owner. The native `can`
 entry continues to forward to a separate native `can-dev` executable owned by
 `dev-server/`, shipped in the same Can installation as the compiler. The selected
 packaging and cutover are specified below; there is no separate user installation.
 Explicit JSON commands, no-argument help, envelopes and exit semantics remain
 compatible; their control handling reaches the same Rust owner after cutover.
-TTY detection never turns an explicit machine command into a UI. No entry or
-source relocation is implemented by this planning change.
+TTY detection never turns an explicit machine command into a UI. Entry/packaging acceptance is recorded under T17; the earlier planning text is not
+an additional unimplemented relocation.
 
 ```text
 can dev → native can-dev → Rust development server in dev-server/
@@ -953,15 +971,17 @@ workflow release path and either finish their selected scope or remain explicitl
 deferred with the measured reason. None of these dependencies changes the current
 implementation pause.
 
-### Finite implementation tasks
+### Retained finite task definitions
 
 All source paths below are repository-relative. Historical `dev/` shorthand means
 `packages/cloudflare/src/dev/`; `deploy/` means `packages/cloudflare/src/deploy/`.
 Those paths locate current defining mechanisms, not an endorsement of future
 Cloudflare ownership for general development. Rust server and UI ownership under
-root `dev-server/` is selected; the finite migration above is proposed and stopped.
+root `dev-server/` is implemented at T14–T17's accepted scope; later extensions remain deferred.
 Existing TypeScript paths identify reusable behavior or remaining target adapters.
-Checks are requested future acceptance, not checks run during this planning turn.
+These definitions preserve acceptance scope. The current disposition above and
+recorded outcomes close accepted components; remaining checks apply only to the
+unmet extension, not a replay of the native manual qualification.
 
 #### T14 — Authoritative lifecycle, check and preview state; safe status
 

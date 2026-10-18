@@ -1,5 +1,15 @@
 # Exact values: package-owned Rust implementation plan
 
+**Post-merge status, 18 October 2026:** current remaining work is consolidated in
+[REMAINING-WORK.md](../../../implementation/REMAINING-WORK.md); the
+[Rust closeout](../../../implementation/rust-port-orchestration/current-plan.md#wind-down-closeout--18-october-2026)
+credits the merged partial outcomes. Source observations, unchecked boxes, waves
+and release/HOLD instructions below retain their dated assessment/contract scope;
+they are not current completion claims or a dispatch queue. Native-source HOLD
+was lifted before the completed wind-down. No workers or supervision remain active.
+Public deployment/defaults/TS retirement remain separately held.
+
+
 **Current completion plan, 18 October 2026:** [Exact Values](../../../implementation/rust-port-orchestration/current-plan.md#exact-values-complete) is one end-to-end outcome, with implementation, actual consumer, focused qualification/review/repairs and integration inside it. The original tasks/waves below retain IDs and acceptance; they are not repeated approval or dispatch units. Rust completion is independent of held TypeScript retirement, defaults and public deployment. This update starts no implementation.
 
 Planning date: 2026-10-06. Source checkpoint: `3d1f8f062f9650c061f6cb87c8af9afb2c01b0e5`. This is a plan, not an implemented backend, benchmark, or adoption decision. It follows [boundary options](../boundary-options.md) and [the full evaluation](../full-evaluation.md). Only existing `packages/` responsibilities are source-port scope. Compiler sources were read to identify consumers; compiler implementation remains unchanged.

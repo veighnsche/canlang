@@ -1,5 +1,7 @@
 # Living ideal file-tree plan for Canlang
 
+**Current remaining-work navigation, 2026-10-18:** the [consolidated list](implementation/REMAINING-WORK.md) reconciles all current plan families at main476347fdd, preserves accepted components and distinguishes engineering prerequisites, proposals and actual human/external leaves. The four implementation efforts are stopped; released source/histories are merged and cleanup is complete. This documentation intake changes no source owner/allocation or complete historical review checkpoint. Historical dispatch/count/HOLD text below remains evidence at its dated scope; current scheduling is only in the consolidated list.
+
 **Released branch-history cleanup, 2026-10-18:** retain main's complete source
 through1fc81e59b while joining the original B17/B19 histories (including their
 shared Muse history), the standalone-install patch-equivalent history and the

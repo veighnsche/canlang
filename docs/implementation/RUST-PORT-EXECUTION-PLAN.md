@@ -1,5 +1,14 @@
 # Codex subagent execution plan for the Rust-port queues
 
+**After wind-down, 18 October 2026:** the merged Rust batch has no active workers
+or supervision. [REMAINING-WORK.md](REMAINING-WORK.md) is the only current task
+list; the [closeout](rust-port-orchestration/current-plan.md#wind-down-closeout--18-october-2026)
+records scoped acceptance and residuals. Release/dispatch, native HOLD and source
+status wording below is historical. Native-source implementation was released;
+public deployment/defaults/TS retirement remain separately held. Original
+ownership and acceptance contracts remain references, not renewed assignments.
+
+
 **Accepted native module/plan source slice:** `6fb752375` joins retained-job
 module gates, plan/prior-plan order and deterministic review outputs with matching
 host payloads. Present-null, parse diagnostics, optional KV nulls and lone UTF16

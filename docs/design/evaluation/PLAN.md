@@ -1,5 +1,7 @@
 # CanLang adoption evaluation task list
 
+**Completed evaluation, frozen 2026-10-04 scope.** All 120 assessment items are closed below; this is not a current implementation inventory. Its [R1–R12 correction recommendations](ADOPTION.md#finite-next-correction-pass) remain proposals unless adopted by a later defining plan. [REMAINING-WORK.md](../../implementation/REMAINING-WORK.md) is the sole current execution list; no reassessment is scheduled by this record.
+
 ## Objective
 
 Evaluate whether the proposed CanLang product is designed to make it economical for a company to replace selected SaaS subscriptions with AI-generated applications tailored to its own operations. The intended company owns the application and its business rules. Its staff would use the browser or an authorized chatbot; they are not expected to author Can or maintain a conventional application stack.
@@ -12,7 +14,7 @@ This is an evaluation plan, not a decision to add features, rewrite the drafts o
 
 ## Draft-only product evaluation
 
-The evidence is `.can` design drafts, their `.md` requirements, and **handwritten `.mjs` examples of desired output**. The MJS files are not generated and do not demonstrate translation correctness. There is no implemented Can compiler, standard library or infrastructure to evaluate. Any references below to generation, deployment, rendering or runtime behavior describe the proposed product or bounded draft-authoring experiments, not existing Can execution capabilities.
+The evidence is `.can` design drafts, their `.md` requirements, and **handwritten `.mjs` examples of desired output**. The MJS files are not generated and do not demonstrate translation correctness. At that captured design-only evaluation stage, no implemented Can compiler, standard library or infrastructure was part of the evaluation evidence. This is not a claim about the current repository. Any references below to generation, deployment, rendering or runtime behavior describe the proposed product or bounded draft-authoring experiments, not existing Can execution capabilities.
 
 The decision is whether the product design serves the intended companies, what should improve, and which assumptions need later validation. This is not a purchase-today, deployment-readiness or release evaluation. **Missing implementation must not be scored as a design defect, counted as an adoption blocker, or used as grounds to abandon Can.** Record that stage boundary once; mark observations requiring execution as unverified without multiplying the same absence into failures across the checklist.
 

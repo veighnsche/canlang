@@ -2,20 +2,22 @@
 
 ## Current execution view — 2026-10-18
 
-Vince has requested wind-down: finish the already-active preparation and three
-repair assignments, validate the changed batch, then commit and merge. **No new
-tasks, workers or scope expansion are authorized by this queue.** Current source
-handoffs and residuals live in the single completion plan. The original four
-outcomes below retain their acceptance definitions; partial implementation does
-not close them. Public deployment/defaults/TS retirement remain held.
+The Rust batch is merged; workers and supervision are retired. The
+[global remaining-work list](REMAINING-WORK.md) is the only current task list and
+ordering. The [Rust closeout](rust-port-orchestration/current-plan.md#wind-down-closeout--18-october-2026)
+records accepted partial outcomes and remaining original acceptance. No new tasks,
+workers or scope expansion are authorized by these retained plans. Native-source
+implementation was released before wind-down; the old native HOLD is historical.
+Public deployment, automatic defaults and TS retirement remain separately held.
 
 The implementation began at main `ab516f39b`; the branch incorporated
 `69d45c33c`. Final integration preserves newer committed compiler/runtime changes
 and foreign unfinished inputs. Those source pins are historical, not a claim that
 the current main tree is unchanged.
 
-The [single completion plan](rust-port-orchestration/current-plan.md#current-execution-view--four-finished-rust-responsibilities)
-replaces tiny packet dispatch with four substantial end-to-end outcomes:
+The historical [completion plan](rust-port-orchestration/current-plan.md#current-execution-view--four-finished-rust-responsibilities)
+groups original acceptance into four end-to-end outcomes; these definitions are
+not four additional assignments:
 
 | Milestone | Finished means |
 | --- | --- |

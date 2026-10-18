@@ -1,5 +1,7 @@
 # Can language proposal evaluation
 
+**Retained design and acceptance source.** Current work and disposition are owned only by [REMAINING-WORK.md](../../implementation/REMAINING-WORK.md). Later [Capability results](../../implementation/capability-roadmap-20261008/README.md) supersede the original proposed/unstarted and active-owner observations below at their accepted finite scopes. The stopped implementation efforts have no active leases here; conditional grammar remains proposed unless its original trigger and decision were met.
+
 Finish the accepted execution path before adding a broad workflow language. The best small language candidates are exhaustive finite-case handling and dependent form bindings. Approval, resource accounting, cancellation and recovery should first use ordinary typed operations and reusable packages or concrete source templates. Most remaining ideas need evidence from working applications before becoming grammar.
 
 This is a **proposed roadmap**, requested on October 7, 2026. It evaluates all 21 earlier examples; their illustrative syntax is not adopted. [Implementation plans](implementation-plan.md) give phases, owners, dependencies, release conditions and failure checks. The [orchestration plan](orchestration.md) and [packet graph](orchestration.json) turn those into parallel preparation, defining-owner handoffs, bounded implementation and independent qualification. No production implementation or task dispatch follows from this evaluation.

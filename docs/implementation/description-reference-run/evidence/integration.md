@@ -186,12 +186,12 @@ Fixed in reservation (1):
   `can docs` fails (E7004/exit 2; direct exec exit 126). Fixed by the §6
   postbuild line; re-proven with clean rebuild + full e2e + affected suites.
 
-Reported, not fixed (1 limitation, outside reservation):
+Historical finding; resolved by the later independent acceptance linked below:
 
 - ROOT-BUILD-SKIPS-POSTBUILD: `tsc -b` path emits 644 (§6, last paragraph).
-  Recommends a root-build chmod step or equivalent in D08/lane-07 follow-up.
+  Subsequently repaired and independently verified from a clean snapshot; see [independent acceptance](../review.md#independent-acceptance--2230-utc-heartbeat). No root-build repair remains in this D scope.
 
-Investigated and CLOSED as correct-per-contract (not a bug):
+Historical interpretation, superseded by R-D07-06 and its accepted repair:
 
 - REQUESTED-EN-YIELDS-NL: `can-platform docs --locale=en` on a model with
   appDefault `nl` and an `nl`-only variant renders Dutch. This is the frozen
@@ -200,7 +200,7 @@ Investigated and CLOSED as correct-per-contract (not a bug):
   'falls back to the app default when the request is untranslated'
   (docs-reference.test.ts:118) and implemented by the reused `resolveVariant`
   (values/src/locale.ts:67), not a second engine. Initial expectation was
-  wrong; behavior matches the pinned contract.
+  wrong under this initial interpretation. Independent review later found that an explicit owning-source locale must be selectable before the translated app default; the repair and real CLI recheck resolve R-D07-06. See [released locale repair recheck](../review.md#released-locale-repair-recheck--2255-utc-heartbeat). The earlier observation is retained as history, not a remaining defect or current contract.
 
 No other integration bugs found. All D02–D06 producers behaved per their
 frozen contracts; no producer file was touched.

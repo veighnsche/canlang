@@ -1,5 +1,7 @@
 # CanLang challenge audit recommendations and task list
 
+**Current disposition, 2026-10-18:** all implementation is stopped after the released wind-down/main integration and cleanup. Use the [consolidated remaining list](REMAINING-WORK.md) for current work and exact holds. Original requirements, accepted components and IDs below remain; dated launch/roster/source-absence/checkbox statements are historical and authorize no restart. This is not a new lane allocation or a reopening of accepted criteria.
+
 Current remaining-work schedule: [seven parallel implementation lanes](REMAINING-IMPLEMENTATION-LANES.md), saved October 6, 2026. It preserves this plan's scope and task IDs while replacing the remaining execution allocation. Implementation is user-stopped; saving the schedule does not authorize restarting Muse.
 
 Status: proposed implementation plan and execution backlog, recorded October 5, 2026. The challenge audit and recommendation round were read-only. The user subsequently requested that the recommendations and task list be saved and divided into ordered parallel implementation lanes. Saving this document does not start implementation, adopt unsettled language rules, or authorize deployment.

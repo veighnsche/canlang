@@ -1,5 +1,15 @@
 # Four package port implementation plans
 
+**Post-merge status, 18 October 2026:** current remaining work is consolidated in
+[REMAINING-WORK.md](../../../implementation/REMAINING-WORK.md); the
+[Rust closeout](../../../implementation/rust-port-orchestration/current-plan.md#wind-down-closeout--18-october-2026)
+credits the merged partial outcomes. Source observations, unchecked boxes, waves
+and release/HOLD instructions below retain their dated assessment/contract scope;
+they are not current completion claims or a dispatch queue. Native-source HOLD
+was lifted before the completed wind-down. No workers or supervision remain active.
+Public deployment/defaults/TS retirement remain separately held.
+
+
 **Current completion plan, 18 October 2026:** [Four selected Rust responsibilities](../../../implementation/rust-port-orchestration/current-plan.md#current-execution-view--four-finished-rust-responsibilities) is one end-to-end outcome, with implementation, actual consumer, focused qualification/review/repairs and integration inside it. The original tasks/waves below retain IDs and acceptance; they are not repeated approval or dispatch units. Rust completion is independent of held TypeScript retirement, defaults and public deployment. This update starts no implementation.
 
 **Source reconciliation, 2026-10-18:** the [single current Rust execution view](../../../implementation/RUST-PORT-START-HERE.md#current-execution-view--2026-10-18) records implemented components, prioritized remainder and unchanged holds. The checklists/counts below retain their original baseline and acceptance contracts; unchecked original boxes are not claims that all listed source is absent. In particular, selected Work recovery now has accepted durable Wasm use, and ordinary HTTP serving exists in TS; native validation adoption remains unfinished.

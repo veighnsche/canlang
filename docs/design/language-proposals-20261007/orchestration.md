@@ -1,5 +1,7 @@
 # Can capability orchestration
 
+**Retained design and acceptance source.** Current work and disposition are owned only by [REMAINING-WORK.md](../../implementation/REMAINING-WORK.md). Later [Capability results](../../implementation/capability-roadmap-20261008/README.md) supersede the original proposed/unstarted and active-owner observations below at their accepted finite scopes. The stopped implementation efforts have no active leases here; conditional grammar remains proposed unless its original trigger and decision were met.
+
 Use one direct, proportionate validation of changed behavior and a concise result. Reuse unchanged accepted checks. Do not create nested verification, review receipts, checks of checks, tests of testing code, duplicated snapshots or hash-manifest chains. Repeat a check only after a relevant change, failure or concrete unresolved risk.
 
 Coordinate the selected capability roadmap through bounded dependency packets and explicit contract handoffs. Existing compiler and package correctness work continues under its current owners. Start with source reconciliation, the real image-application execution path, and independent preparation of enum exhaustiveness and dependent forms. Promote reusable or conditional features only after their scoped evidence gates pass.

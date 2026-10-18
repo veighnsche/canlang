@@ -1,6 +1,8 @@
 # Shared descriptions and generated internal reference
 
-Status: Codex-owned implementation design/checklist; user has explicitly prioritized implementation now. This is an addition requested by the user after the 41-task challenge plan; the prior queue-only handoff was acknowledged in the same Muse TUI. Its blanket wait is superseded by the latest user instruction. Current original writer reservations remain intact; a concrete start handoff is being delivered and actual startup evidence belongs in the authoritative monitor. All three required JEV calls completed after explicit user authorization to resend; advice is mixed and recorded below. No implementation is claimed.
+**Current disposition, 2026-10-18:** first-delivery D01–D07 behavior is accepted at the recorded scopes in [tasks.md](description-reference-run/tasks.md) and the [independent acceptance and locale recheck](description-reference-run/review.md#independent-acceptance--2230-utc-heartbeat). All six concrete D findings are resolved. D08 normative updates are implemented; only the recorded supplemental handoff/cleanup reconciliation remains unverified, without reopening behavior or creating a new source gate. [REMAINING-WORK.md](REMAINING-WORK.md) is the sole current execution list. Design-time source observations and launch/writer instructions below are historical; no Muse session is active or resumed by this plan.
+
+Status: Codex-owned implementation design/checklist; user has explicitly prioritized implementation now. This is an addition requested by the user after the 41-task challenge plan; the prior queue-only handoff was acknowledged in the same Muse TUI. Its blanket wait is superseded by the latest user instruction. Current original writer reservations remain intact; a concrete start handoff is being delivered and actual startup evidence belongs in the authoritative monitor. All three required JEV calls completed after explicit user authorization to resend; advice is mixed and recorded below. That was the preimplementation design capture; later accepted implementation is recorded above.
 
 ## User requirements and scope
 
@@ -100,37 +102,37 @@ The existing Muse coordinator remains the sole implementer/coordinator. Codex ow
 
 The user clarified that this feature is to be implemented now. The earlier blanket wait for the entire 41-task challenge handoff/review is superseded. Current exact-file reservations remain intact; do not interrupt the active T30 writer. The coordinator has confirmed the supplement had no writers/reservations. Start disjoint D02a syntax and D04a/D05a contract-renderer slices in the two free slots, then prioritize D02b semantic integration at the next release of shared checker files. Freeze the reference-model contract before renderer/extractor consumers and serialize heavy checks. Codex does not edit the original active checklist or normative documents underneath current writers. Inspect and reuse the matching active native goal for this user steering, recording supplemental acceptance separately; never replace an unrelated active goal or mark unfinished original work complete. If the native goal schema permits scope amendment, use it truthfully; otherwise report the representation limitation without inventing a second coordinator. Independent review occurs after the relevant D-scope writers release; unrelated original tasks need not finish first. The heartbeat tracks both finite scopes and preserves viewer/cleanup ownership.
 
-- [ ] **D01 — Complete design gate and controlled scope handoff**
+- [x] **D01 — Complete design gate and controlled scope handoff**
   - Owner: Codex. Files: this plan and `docs/design/jev/description-reference-20261005/*`; monitor follow-up only.
   - Prerequisites: three equivalent JEV responses recorded, disagreement investigated, material choices resolved, exact affected writer release and acknowledged same-session delivery before implementation.
   - Acceptance: frozen minimal reference/description/renderer contract; optional translations with no quota; localized MCP explicitly deferred; latest user-authorized scope/prioritization acknowledged in the same session, with per-slice compatible reservations rather than a blanket wait.
-- [ ] **D02 — Add inline description parsing and checking**
+- [x] **D02 — Add inline description parsing and checking**
   - Owner: one Muse Rust writer. Candidate exact paths: `compiler/src/syntax/{parser,cst}.rs`, `compiler/src/analysis/{resolve,types,effects}.rs`, focused parser/checker tests and required `tools/can_parser.py` grammar mirror. Reserve shared files before work.
   - Prerequisites: D01 and per-slice release. D02a parser/CST/new syntax tests may start while T30 owns checker files. D02b resolution/type/effects joins wait for those exact paths to release; parent D02 stays open until both are evidenced.
   - Acceptance: fields/parameters accept static inline descriptions and variants; defaults/bounds/labels delimit correctly; duplicate/dynamic/parameterized descriptions fail with located diagnostics; old annotations retain literal support.
-- [ ] **D03 — Join compiler descriptions without artifact migration**
+- [x] **D03 — Join compiler descriptions without artifact migration**
   - Owner: one Muse Rust writer; serialize shared analysis/IR/emission files.
   - Candidate paths: `compiler/src/analysis/effects.rs`, `compiler/src/codegen/{ir,js}.rs`, focused emission tests.
   - Prerequisites: D02 frozen static description value and writer release.
   - Acceptance: checked descriptions retain source/variants/owner language/location; inline/attached/shared descriptions feed the same value; existing MCP source-string output gets inline source text; undescribed/legacy artifact shapes remain compatible. Localized MCP and artifact-version changes stay deferred.
-- [ ] **D04 — Derive the minimal source reference model**
+- [x] **D04 — Derive the minimal source reference model**
   - Owner: Muse Rust documentation writer. Proposed new path: `compiler/src/docs.rs`, with module export and focused tests.
   - Prerequisites: D04a can freeze the versioned reference-model interface now in a new contracts/reference.ts and fixtures, using the already frozen static description fields. D04b Rust extraction waits for the D02 checked-description seam and exact path release; parent D04 stays open until the actual extractor is evidenced.
   - Acceptance: reference-model v1 contains owners/models/contracts/fields/user operations and authored examples with canonical links, resolved constraints and explicit unknown availability; no inferred authorization or invented execution results.
-- [ ] **D05 — Render localized Markdown and expose the docs command**
+- [x] **D05 — Render localized Markdown and expose the docs command**
   - Owner: disjoint Muse compiler/CLI and reference-renderer writers after model freeze.
   - Candidate paths: `compiler/src/{docs,cli,lib}.rs`, `packages/interfaces/src/docs/reference.ts` (new), `packages/cloudflare/src/cli/docs.ts` (new), `packages/cloudflare/src/cli/platform.ts`, relevant package exports/dependency and command help/completion files identified before reservation; focused CLI/reference tests.
   - Prerequisites: D05a renderer may start after D04a model-contract freeze, in the same worker if needed, independently of Rust extraction. D05b CLI/platform integration requires D04b extractor release plus renderer invocation agreement. Parent D05 stays open until the end-to-end command works; fixture-based renderer tests prove only that slice.
   - Acceptance: stdout/output-file modes; English/Dutch/canonical-alias/regional/app-default/source-owner/null/empty fallback cases via existing TS resolver; stable anchors/version identity; no misleading output on source/backend failure; escaped Markdown; no overwritten authored source files. No new locale engine or business execution.
-- [ ] **D06 — Join source-language IDE help**
+- [x] **D06 — Join source-language IDE help**
   - Owner: Muse IDE writer; reserve `compiler/src/ide/queries.rs` and focused hover tests.
   - Prerequisites: D02 frozen description slot and affected writer release.
   - Acceptance: inline, attached, legacy and static-reference descriptions display actual source wording; no editor locale feature or localized MCP acceptance gate.
-- [ ] **D07 — Integrate and independently verify the reference**
+- [x] **D07 — Integrate and independently verify the reference**
   - Owner: Muse integration/handoff, then Codex independent review.
   - Prerequisites: D02-D06 released with actual evidence; zero writers/reservations/heavy commands before review.
   - Acceptance: `.can` source to English/Dutch/fallback reference and source-language IDE/MCP; legacy/undescribed MCP shapes preserved; retained negative controls; relevant suites and required checks pass. Localized MCP and authored-guide claims remain explicitly deferred.
-- [ ] **D08 — Reconcile docs and close owned follow-up**
+- [ ] **D08 — Reconcile docs and close owned follow-up** (normative updates implemented; separate final handoff/cleanup not verified in retained record)
   - Owner: Muse normative/usage documentation after accepted behavior, then Codex cleanup/monitor closure.
   - Candidate paths: `DESIGN.md`, `GRAMMAR.md`, `DECISIONS.md`, relevant install/authoring documentation and CLI help. No broad corpus edits. Reconcile the living file-tree plan after any merge under AGENTS.md.
   - Acceptance: consistent syntax/consumer/value justification and exact limits; supplement native handoff complete only after evidence/release; preserve viewer/compact evidence; remove only released owned temporary resources; retire matching heartbeat after original and supplemental follow-up finish.

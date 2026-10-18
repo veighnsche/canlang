@@ -2,40 +2,45 @@
 
 ## Wind-down closeout — 18 October 2026
 
-Vince requests **no new tasks or workers**: finish the current batch, commit it,
-and merge while preserving newer main changes. The current assignments are
-released for final review/integration; the original four full outcomes below are
-acceptance references, not permission to continue dispatching. Public deployment,
-automatic defaults and physical TS retirement remain held. The broad native goal
-is left incomplete because its recorded residuals remain; no implementation runs
-in the background after closeout.
+The current batch is committed and merged: Rust branch `9b1682598` was
+integrated at main `08e095523`; the archived run's final handoff confirms clean,
+pushed main `1fc81e59b`. Workers and supervision are retired; no Rust task is
+running. The [global remaining-work list](../REMAINING-WORK.md) now owns current
+status and ordering. This document preserves the original acceptance contracts
+and scoped handoffs, not another execution queue. The user's wind-down stops new
+implementation; it does not restore the earlier native-source HOLD. Public
+provider deployment, automatic defaults and physical TS retirement remain
+separately held.
 
-The batch adds the full selected exact-operation binding and public/stdlib routing,
-lossless carriers and targeted diagnostic repairs; a structural validation
-interpreter, explicit exact-codec context, constraint/shape handling, stack-safe
-framing/parsing/destruction and optional installed-selection helpers; all seven
-Work-family call transport, pure consumers and a selected-kernel durable store;
-and native preparation parser/staging/assembly/publication protocol mechanisms.
-These mechanisms retain their scoped passing checks. They do not establish the
-full production outcomes merely by existing or by passing synthetic callers.
+The merged batch adds broad exact-operation binding/public routing and lossless
+carriers; structural validation/interpreter, exact-codec context and stack-safe
+input cleanup; all seven Work-family call transport/pure consumers and a selected
+kernel store; and native parser/staging/assembly/publication protocol mechanisms.
+These are partial responsibility outcomes. The actual-Wasm HTTP owned-validation
+and exact-backend merge check passed 27/27; the merged Work facade/selection check
+passed 3/3. Reuse the affected owner checks and earlier accepted CLI/integrity,
+integer/CSV, shared helpers and durable recovery at their recorded scopes.
 
-**Still incomplete after this batch:** the preparation host must serve native
-layers/facts and consume the native publication/plan outputs through the actual
-installed CLI; State and ordinary MCP/HTTP production selection joins and remaining
-required validation duties remain open; Work's actual Cloudflare/F5/F7 production
-joins and complete installed-consumer/resource/adoption coverage remain open.
-Public arbitrary-JavaScript admission/evaluation parity beyond the specifically
-qualified exact-operation cases is not claimed. The original conditional SDK/form
-and unused mixed-Wasm dispositions remain unchanged. None of these residuals
-creates a new wind-down assignment or closes a canonical task automatically.
+**Remaining acceptance:** preparation host layer/frontend-fact production and
+native publication/plan consumption through the actual installed CLI; remaining
+owned validation duties and State/ordinary-MCP/production HTTP selection joins;
+actual Work Cloudflare/F5/F7 production joins and final installed-loader coverage;
+and original complete-call/resource, selected-release/rollback and measured
+adoption/disposition criteria. Exact public arbitrary-JavaScript evaluation parity
+beyond qualified cases remains unclaimed. Optional SDK/forms, unused mixed-Wasm
+and W09 scheduler retain their conditional/deferred dispositions. Final per-port
+coverage consumes these outcomes and does not create new evidence-only gates.
 
-Final affected checks and known broad failures are recorded with the committed
-batch in DECISIONS. Earlier progress notes below are historical. Canonical-main
-integration is owned by the existing integration chat; this worktree releases its
-commits without mutating main's index or foreign dirty inputs. The complete stale
-filetree checkpoint remains unchanged.
+The existing [wind-down decision](../../specification/DECISIONS.md#rust-completion-wind-down-18-october-2026)
+and [merge disposition](../../specification/DECISIONS.md#integrate-the-released-experimental-rust-core-snapshot-2026-10-18)
+record passing scope and known broad-suite pin/timeout failures; the full suite
+was not declared green. Earlier progress and release instructions below are
+historical. No source, build, check rerun, worker or checkpoint advance follows
+from this documentation reconciliation.
 
 ## Implementation release — fresh Muse completion run
+
+**Historical release record; superseded by the merged closeout above.**
 
 Vince explicitly invokes the Muse implementation skill for this plan and requests
 **a fresh Muse instance**. This releases implementation, actual-consumer qualification,
@@ -75,6 +80,10 @@ After handoff continue ready work while Codex reviews asynchronously. Leave Code
 review/acceptance/closure unchecked. Root owns cleanup after exact release.
 
 ## Current execution view — four finished Rust responsibilities
+
+**Acceptance reference, not a live queue.** Implementation observations in this
+section describe its planning baseline; later merged partial outcomes are credited
+in the closeout above and current residuals live only in the global list.
 
 Planning baseline: fetched origin/main `ab516f39bd69498f5e317a0e6662028a385c9a61`
 (18 October 2026); checkout `0fb8d41c8` has the same committed tree. Concurrent
@@ -419,6 +428,8 @@ Earlier releases and detailed packet records below retain their scope. They are
 not a second execution queue; the four outcomes above supersede packet dispatch.
 
 ## Active implementation release — native preparation and Work helpers
+
+**Historical release record; no active assignment remains after wind-down.**
 
 Historical execution record, superseded for dispatch by the planning-only request
 above. Vince's verified voice turn `01a14d5b-34bb-7880-b29b-63081f49cedd` released

@@ -1,5 +1,15 @@
 # Artifact preparation implementation plan
 
+**Post-merge status, 18 October 2026:** current remaining work is consolidated in
+[REMAINING-WORK.md](../../../implementation/REMAINING-WORK.md); the
+[Rust closeout](../../../implementation/rust-port-orchestration/current-plan.md#wind-down-closeout--18-october-2026)
+credits the merged partial outcomes. Source observations, unchecked boxes, waves
+and release/HOLD instructions below retain their dated assessment/contract scope;
+they are not current completion claims or a dispatch queue. Native-source HOLD
+was lifted before the completed wind-down. No workers or supervision remain active.
+Public deployment/defaults/TS retirement remain separately held.
+
+
 Prepare a complete local artifact, compatibility, bundle and review job in Rust while preserving the existing CLI and producer-owned build, activation and application stages. This is the fourth port plan, at source checkpoint `3d1f8f062f9650c061f6cb87c8af9afb2c01b0e5` on October 6, 2026. It implements the larger boundary described in [boundary options](../boundary-options.md); it is not a rewrite of the compiler or the full platform CLI.
 
 The proposed native process owns the semantic artifact tree, indexes, module inventory, compatibility results, plan and rendered output throughout one job. It asks the JavaScript host for external stages only when the current operation requires them. This preserves failure order while avoiding a subprocess for every helper. All APIs and files proposed below are new implementation work. Read the [shared preparation and execution order](README.md) first.

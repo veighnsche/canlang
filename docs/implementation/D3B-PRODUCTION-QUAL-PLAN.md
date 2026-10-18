@@ -1,5 +1,7 @@
 # D3b production qualification plan (scoping proposal, no code)
 
+**Current reconciliation, 2026-10-18:** the blanket ABSENT statements below describe main46a5ece, not current main. Work distribution and production observer loader/bundle foundations Q1–Q3 have retained implementation credit; do not rebuild those foundations merely to satisfy this historical recipe. The remaining actual bundled no-injection Q4-C receipt-read consumer is counted once under challenge:T25 in the [consolidated list](REMAINING-WORK.md). T26 progress/notification remains a distinct consumer. No broad suite rerun or deployment is authorized here.
+
 Base: main `46a5ece` (read-only; D P-commits untouched). Lane C scoping per
 coordinator directive; implementation grants follow plan approval.
 

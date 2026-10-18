@@ -1,5 +1,9 @@
 # Canlang language design decisions
 
+## 2026-10-18 — reconcile the remaining-work navigation after wind-down
+
+Use the existing [remaining-work index](../implementation/REMAINING-WORK.md) as the one current cross-plan list. Reconcile older source/operational statuses against accepted final handoffs at476347fdd; preserve original IDs and finite acceptance in their owning plans. Group shared outputs once and retain proposals and actual action-specific holds separately. No source implementation, new language decision, test rerun, worker or automation is released by this documentation update; the complete historical filetree checkpoint is unchanged.
+
 ## 2026-10-18 — preserve integrated histories during final branch cleanup
 
 Retain the original factory/filter, shared Muse, standalone-install and development

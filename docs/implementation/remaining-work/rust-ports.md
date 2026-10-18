@@ -1,24 +1,22 @@
 # Rust ports and shared delivery gates
 
-**Current authorization (18 October 2026): wind down.** Finish only the active
-preparation and three repair assignments, validate and integrate the resulting
-batch; do not dispatch new tasks or workers. The single
-[current execution view](../rust-port-orchestration/current-plan.md) owns the
-actual handoffs and residuals. Historical holds, task counts and accepted components
-below retain their recorded scope; they do not reopen accepted work or authorize
-new implementation. Public deployment/defaults/TS retirement remain held.
+**Historical detailed contract catalog; reconciled after 18 October wind-down.**
+The [global remaining-work list](../REMAINING-WORK.md) is the sole current task
+list. This catalog preserves canonical IDs and original finite acceptance; its
+per-task statuses, counts, source observations and native HOLD text below are
+historical assessments, superseded by the
+[merged Rust closeout](../rust-port-orchestration/current-plan.md#wind-down-closeout--18-october-2026).
+Native source was released; the current stop is the user's completed wind-down,
+not a missing native implementation permission. No tasks or workers remain active.
+Public deployment/defaults/TS retirement stay separately held. Accepted exact,
+validation, Work and preparation components are reused at their proved scopes;
+none of the unchecked historical boxes reopens them or establishes a current gap
+without the specific remaining acceptance in the global list.
 
-
-Baseline: main `7fd8c6b` on 2026-10-06; scoped Rust source reconciliation at `ede59d051` on 2026-10-18. Use the [single current execution view](../RUST-PORT-START-HERE.md#current-execution-view--2026-10-18) for implementation credit, priorities and holds. Baseline counts are not a current completion percentage. [Index](../REMAINING-WORK.md) · [Exact ledger](tasks.json).
-
-This is the historical canonical task catalog, not a microtask dispatch queue.
-The [one completion plan](../rust-port-orchestration/current-plan.md) groups the
-existing IDs into four substantial Rust outcomes: native preparation, exact Values,
-owned validation and Work transitions. Accepted narrow outcomes stay credited.
-Rust completion requires real selected consumers, while TypeScript retirement,
-defaults and public deployment remain separately held. This request is planning
-only. Old native HOLD/missing-CLI observations below are historical; no canonical
-status or complete checkpoint advances from changing the execution grouping.
+The original A/V/W/P/C contracts and [task identities](tasks.json) remain source
+references. Counts include parents and gates, not independent coding jobs or a
+completion percentage. No machine-ledger status sweep, product verification or
+complete filetree checkpoint advance is performed by this reconciliation.
 
 ## artifact-preparation
 

@@ -1,7 +1,8 @@
 {
-  "status": "interim_execution_snapshot_not_final_task_acceptance",
+  "status": "historical_20261008_snapshot_not_current_execution",
+  "current_execution_view": "../REMAINING-WORK.md",
   "captured_utc": "2026-10-08T10:55:43.100733+00:00",
-  "goal_status": "active",
+  "goal_status": "historical_execution_stopped",
   "proposals_complete": 0,
   "proposal_count": 21,
   "task_count": 63,

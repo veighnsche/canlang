@@ -1,5 +1,15 @@
 # input-validation.md plan audit (review only, no implementation)
 
+**Post-merge status, 18 October 2026:** current remaining work is consolidated in
+[REMAINING-WORK.md](../../../implementation/REMAINING-WORK.md); the
+[Rust closeout](../../../implementation/rust-port-orchestration/current-plan.md#wind-down-closeout--18-october-2026)
+credits the merged partial outcomes. Source observations, unchecked boxes, waves
+and release/HOLD instructions below retain their dated assessment/contract scope;
+they are not current completion claims or a dispatch queue. Native-source HOLD
+was lifted before the completed wind-down. No workers or supervision remain active.
+Public deployment/defaults/TS retirement remain separately held.
+
+
 Audited: 2026-10-06. Plan checkpoint: `3d1f8f0`. Audit head: `264de56`
 (`audit/input-validation-review`). Method: source re-read at both revisions,
 mechanical md↔JSON cross-checks, evidence-tree inventory. Every claim below

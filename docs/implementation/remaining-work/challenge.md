@@ -2,7 +2,7 @@
 
 Reconciled against main `7fd8c6b` on 2026-10-06. [Index](../REMAINING-WORK.md) · [Exact ledger](tasks.json).
 
-Only unresolved tasks are listed below. Completed narrow tasks are retained in the exact ledger and are not assigned again. All workers remain stopped; D’s port remains human-held. Conditional/deferred rows are separate from selected required work.
+**Historical contract snapshot, reconciled for navigation 2026-10-18.** Use the [one current remaining list](../REMAINING-WORK.md) for final-handoff credit and actual unmet outcomes. Original acceptance and aliases below remain traceable; they are not a second current queue. Native preparation source implementation was released before final wind-down; public/default/retirement holds remain separate. All four implementation efforts are stopped and cleaned up. Completed matching profiles are reused, including native dev/browser/examples, inline preferences, HTTP/Wasm27/27, typed Identity admission and selected CSV/State/recovery results.
 
 ## challenge
 
@@ -355,14 +355,9 @@ Only unresolved tasks are listed below. Completed narrow tasks are retained in t
 
 ### H01 — Release all writers and hand off implementation
 
-- [ ] **Partly implemented / incomplete acceptance** · `challenge:H01` · REQUIRED
-- Record truthful stopped/unfinished handoff with exact task/gate/evidence/release/native limitations; human stop does not close programme acceptance.
-- Original prerequisite qualification: all Muse-owned required task/gate acceptances, or a truthful genuinely blocked handoff with exact unfinished tasks still open.
-- Close when: zero writers/reservations/heavy commands, evidence complete for every claimed task; do not call a blocked scope complete. No arbitrary step/time stop, no partial projection disguised as completion. Native 100%/complete only for finished review-ready Muse scope. TUI available for viewing.
-- Old defining-owner scope (historical allocation): Owner / files / interfaces: Muse coordinator; this checklist/progress, compact evidence, coherent exact-path commits and reviewable diff/PR if appropriate. Reconcile current owners and relocated paths before assigning.
-- Source: [docs/implementation/challenge-audit-run/tasks.md](../challenge-audit-run/tasks.md)
-- Current basis: Original independent gate/handoff/review/closure duty remains distinct from stopped writers and consolidation.
-- Scoped evidence: [docs/implementation/challenge-audit-run/tasks.md](../challenge-audit-run/tasks.md), [/private/tmp/canlang-idle-20261006T041507Z/monitor.json](/private/tmp/canlang-idle-20261006T041507Z/monitor.json). Exact revisions, claims and limits are retained in `tasks.json`; these links do not claim fresh execution.
+- [x] **Operational wind-down complete, 2026-10-18** · challenge:H01
+- Final owning handoffs preserve the unfinished behavioral scope; supervision/workers are stopped, released source is merged/pushed and task worktrees/branches are removed. Reuse this completed shutdown/handoff, without inferring programme acceptance.
+- Remaining product review and unsupported-release claims belong to FP.FULL in the [consolidated list](../REMAINING-WORK.md); no new cleanup or old-session completion ceremony is required.
 
 ### R01 — Independently review and verify acceptance
 
@@ -377,14 +372,9 @@ Only unresolved tasks are listed below. Completed narrow tasks are retained in t
 
 ### C01 — Preserve evidence and close owned follow-up
 
-- [ ] **Partly implemented / incomplete acceptance** · `challenge:C01` · REQUIRED
-- Reconcile exact owned evidence/resource/viewer cleanup and matching heartbeat retirement after review/follow-up; current PAUSED and consolidation cleanup stay distinct.
-- Original prerequisite qualification: R01, repairs, writer/process release and viewer check; Codex only, Muse leaves unticked.
-- Close when: exact cleanup and heartbeat retirement confirmed, or precise remaining viewer/cleanup limitation and owner recorded. Never claim implementation stopped merely because monitoring paused.
-- Old defining-owner scope (historical allocation): Owner / files / interfaces: Codex monitor/review and exact newly owned temporary resources. Historical directory is foreign; no worktree was allocated for this run. Reconcile current owners and relocated paths before assigning.
-- Source: [docs/implementation/challenge-audit-run/tasks.md](../challenge-audit-run/tasks.md)
-- Current basis: Original independent gate/handoff/review/closure duty remains distinct from stopped writers and consolidation.
-- Scoped evidence: [docs/implementation/challenge-audit-run/tasks.md](../challenge-audit-run/tasks.md), [/private/tmp/canlang-idle-20261006T041507Z/monitor.json](/private/tmp/canlang-idle-20261006T041507Z/monitor.json). Exact revisions, claims and limits are retained in `tasks.json`; these links do not claim fresh execution.
+- [x] **Operational wind-down complete, 2026-10-18** · challenge:C01
+- Final owning handoffs preserve the unfinished behavioral scope; supervision/workers are stopped, released source is merged/pushed and task worktrees/branches are removed. Reuse this completed shutdown/handoff, without inferring programme acceptance.
+- Remaining product review and unsupported-release claims belong to FP.FULL in the [consolidated list](../REMAINING-WORK.md); no new cleanup or old-session completion ceremony is required.
 
 ## description
 

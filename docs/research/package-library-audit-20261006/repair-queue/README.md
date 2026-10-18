@@ -1,6 +1,8 @@
 # Repair queue
 
-Current authorized implementation and completed progress are recorded in [the existing execution record](../../../implementation/package-maintenance-repair/runs/codex-go-20261007/state.json), under `packet_state`. The planning flags, counts and source pins below are historical; they do not revoke Vince’s subsequent implementation authorization or certify current completion.
+**Current disposition, 2026-10-18:** execution is stopped after final wind-down. The [consolidated list](../../../implementation/REMAINING-WORK.md) replaces dispatch/remaining counts here while retaining exact packet contracts and selected accepted results. DEL-C02, V05 and S04 consumer exits stay closed; F01/F02/B02 map to file publication/receiving/durable export, V03/V04 to current native selection, and D05 to native construction plus separate public/default holds. Native-source preparation HOLD was lifted; old preparation-only blockade wording below is historical. No source/task is restarted.
+
+Historical selected implementation and completed progress are recorded in [the existing execution record](../../../implementation/package-maintenance-repair/runs/codex-go-20261007/state.json), under `packet_state`. The planning flags, counts and source pins below are historical; they do not revoke Vince’s subsequent implementation authorization or certify current completion.
 
 Reviewed planning queue based on `3ff5fbd66324869ba2277fdbe4333fb95256810b`. This queue organizes existing obligations; its 48 packet labels are **not 48 new tasks**. The canonical task ledger remains at 333 identities, unchanged. The 76 integration dispositions are references and remain non-additive. The planning snapshot did not authorize execution (`execution_authorized: false`). Current authorization is recorded above.
 

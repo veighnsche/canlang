@@ -1,5 +1,7 @@
 # Description reference — Muse implementation checklist (supplemental run)
 
+**Historical implementation record, reconciled 2026-10-18.** All six D findings are independently resolved; first-delivery behavior remains accepted. The stale `REQUESTED-EN-YIELDS-NL` and root-build annotations in [integration.md](evidence/integration.md) are now explicitly reconciled to those retained results. Final supplemental handoff/cleanup was not recorded as complete; [REMAINING-WORK.md](../REMAINING-WORK.md) alone owns that finite remainder. The historical coordinator/session/writer instructions below are inactive and do not authorize a resume.
+
 Status: user-authorized immediate implementation in the SAME existing Muse session (muse-spark-1.3-contributor MAX, `/Users/vince/Projects/canlang`, worktree off). Saved design: `docs/implementation/DESCRIPTION-REFERENCE-PLAN.md` (Codex-owned; Alternative B). JEV evidence: `docs/design/jev/description-reference-20261005/` (3 calls complete, mixed advice recorded — do not claim consensus, do not rerun).
 
 - Scope: first delivery only — static inline/attached/shared descriptions, checked declaration reference (owners/models/contracts/fields/user operations/authored examples), localized internal Markdown via existing TS static locale resolver, consistent source-language IDE help, MCP source-string compatibility. Deferred (never claim): localized MCP, artifact migration, AI-written guides, auto-translation, end-user manuals, public publication, translation quota, broad draft rewrites.

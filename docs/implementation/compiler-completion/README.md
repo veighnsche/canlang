@@ -10,7 +10,14 @@
 > full original24 after 465bb1ba5, runtime complexity and remaining compiler/UI
 > roots are open. No new issues or captures are authorized during wind-down.
 
-# Can18 remaining work — proposed root-cause plan
+# Can18 compiler/runtime completion — retained scope and outcomes
+
+**Documentation reconciliation, 2026-10-18:** the single current remaining-work
+list is [REMAINING-WORK.md](../REMAINING-WORK.md). All four implementation efforts
+are stopped; released work is merged on main. This document retains defining
+contracts, finite accepted consumers and unresolved original criteria. Its earlier
+dispatch/order language is historical and authorizes no execution. A merge is
+preservation of the implementation, not acceptance of the original applications.
 
 ### Accepted receipt-read observer census repair — 2026-10-18
 
@@ -38,8 +45,7 @@ Independent direct validation passes and the scoped complexity gate is clear.
 The stale staged UI link that caused HTTP422 is avoided with task-local real-UI
 resolution; shared links and emitted module bytes are preserved. This closes
 the inline editor mechanism, including the recorded Member/Rent/Leave source
-shapes, while full original24 compilation/runtime remains open. One fresh
-original24 capture follows this meaningful intake with frozen compiler inputs.
+shapes, while full original24 compilation/runtime remains open. The post-batch original24 capture remains unrun; wind-down did not close it.
 
 
 ## Current remainder and finite completion
@@ -59,9 +65,9 @@ This is a completed compiler mechanism; the last complete original24 count
 remains 212 E6008 pending the next meaningful combined capture.
 
 
-**State: original Customer `recover`, Purchase `record_payable` / `return_goods`, private whole-handler queries and the declared-event/helper batch below are accepted at their recorded scopes. Latest unchanged original24: 212 E6008, down from 264; FIRST refusals 78→25. Whole CanCRM compilation/runtime remains open. Muse coordinator active on this task scope (Codex owns review/commits); work remains on main without a new branch or worktree. All remaining composition consistency errors are now authorized; Monday, 19 October is the target.**
+**State: original Customer `recover`, Purchase `record_payable` / `return_goods`, private whole-handler queries and the declared-event/helper batch below are accepted at their recorded scopes. Latest unchanged original24: 212 E6008, down from 264; FIRST refusals 78→25. Whole CanCRM compilation/runtime remains open. Muse is stopped, supervision is retired, and released source is merged on main. The earlier Monday target and active dispatch description are historical.**
 
-This is the **one execution plan** for general Can correctness and adoption: existing outcomes 1–18 / C01–C24 and their required executable/reference consumers. The original CanCRM composition and other draft apps are reference programs that reveal reusable language/runtime gaps, not end-user products to finish or polish. Shared work is counted once; consumers link to its output. Other roadmaps supply contracts and dependencies, not extra assignments. Product requirements remain in REQUIREMENTS, behavior in DESIGN and syntax in GRAMMAR.
+This is the retained defining scope for existing outcomes 1–18 / C01–C24 and their required executable/reference consumers; the global remaining-work list owns the current execution view. The original CanCRM composition and other draft apps are reference programs that reveal reusable language/runtime gaps, not end-user products to finish or polish. Shared work is counted once; consumers link to its output. Other roadmaps supply contracts and dependencies, not extra assignments. Product requirements remain in REQUIREMENTS, behavior in DESIGN and syntax in GRAMMAR.
 
 The former 8,333-line completion journal is preserved as [historical evidence](history-before-reorganization-20261017.md). Its checkpoint recaps, REVIEW-NOW list, 24-priority list and older “current” captures are retired as execution queues. Their accepted evidence is reused below; unresolved items are included here.
 
@@ -97,7 +103,7 @@ These accepted components stay closed. Their original consumers and negative che
 | Recorded `delivery.id` persistence and dispatch fencing slices | `69579880f`, merge47 and recorded fence/field-grant consumers | Original cancel/retry shapes, stale-source mismatches and the open test correction |
 | Other closed finite original scopes | Guarded Email, supported Office A1–A6, original Chat source/optional-input/SEND prerequisites, scoped File and current-revision primitives: reuse the linked historical acceptance | Only the separately named runtime/host/whole-source consumers below remain |
 
-### Current authorized query batch
+### Accepted query batch and its original scope
 
 The 89 post-recover FIRST refusals are profile/correspondence symptoms, not 89
 independent query-engine bugs. The shared admission gap is whole-owner composition:
@@ -242,11 +248,10 @@ consumer passes with a descending helper key. Updated the old intentional-refusa
 pin: passes. One combined compiler run had53 passes and that stale pin failure;
 only its corrected case repeated. No original24 capture solely to recount.
 
-The active goal covers all212 diagnostic occurrences (200 distinct source/message
-sites in the retained complete capture), rather than a selected batch. Hook/filter
-mechanisms now have the finite acceptance recorded below; remaining local failures
-are engineering work, not external holds. Keep incremental implementation commits
-and reuse unchanged checks; Muse remains stopped.
+The last complete capture contains212 diagnostic occurrences (200 distinct
+source/message sites). Later hook/filter mechanisms have the finite acceptance
+recorded below; this is not a current post-merge count. Remaining local failures
+are engineering work, not external holds. Muse remains stopped.
 
 ### Typed scalar and contained-parent filters — 2026-10-18
 
@@ -262,7 +267,7 @@ enum53 and remainder8 pass, plus the corrected ordering pin. The old table-filte
 driver fails before its assertions on unchanged caption E5007; the pre-batch
 compiler reproduces it. Reuse other unchanged checks. This closes the filter
 mechanism, not six complete original workflows. No original24 recount yet;
-all212 consistency diagnostics remain the goal, with hook work continuing.
+the later hook results below retain their separate accepted scope.
 Retries stayed on the affected consumer after binder/setup corrections and the
 confirmed Money scale gap; interfaces44 ran after that host change, State21 after
 the parent-shadow repair. No additional full24 run.
@@ -380,7 +385,7 @@ No runtime benchmark, broad suite or extra proof packet was added for this ledge
 
 ## Remaining roots, owners and finite exits
 
-The headings below group the existing outcomes; they are not new task IDs. An unresolved discriminator is labeled as diagnosis, not promoted into a proven root cause.
+The headings below group the existing outcomes; they are not new task IDs. An unresolved discriminator is labeled as diagnosis, not promoted into a proven root cause. Diagnostic-family counts are retained capture facts, not post-merge remaining-task counts. Later accepted mechanisms above supersede older missing-mechanism descriptions; their original whole-page/workflow acceptance remains separate.
 
 ### Source ownership, authority and semantic identity — outcomes 3, 4, 8, 9, 13; C02/C03/C19
 
@@ -412,7 +417,7 @@ The headings below group the existing outcomes; they are not new task IDs. An un
 
 **Ready local work.** Owners: Compiler `ir.rs`, `model_policies.rs`, `model_policy_profile.rs`, `js.rs`; State `mutation/pipeline.ts`; Cloudflare `runtime/invoke.ts`.
 
-- Trace the first unsupported node in each original hook graph. Whole native-policy collection can decline and fall back to legacy mode: the 22 contextual-now errors therefore do **not** establish 22 missing clocks.
+- The original retirement-hook consumer still refuses compilation. Trace its first unsupported node; reuse the accepted Resource/Location/WeeklyHours and Success hooks plus Employee→Shift delivery above. Whole-policy fallback means the historical 22 contextual-now errors do **not** establish 22 missing clocks.
 - Complete the required query/helper source closure, original event.before/event.after/context transfer and the demonstrated staged-value content gap (including Rent policy snapshot sequence). Consume the query output needed by that hook, not the whole query backlog.
 - Finish the reviewed helper discrepancies: top-level identity-only reference helpers must not require an unrelated parent, and imported reference fields must retain inline/helper parity.
 - Connect original parent/staged reads and emissions through their actual lifecycle owner. Reuse accepted parent/query/Work engines. Preserve initiating author, null actor, guard/effect order, cancellation and failure boundaries; later handler failure must not undo an already committed source.
@@ -434,7 +439,7 @@ The headings below group the existing outcomes; they are not new task IDs. An un
 
 - Diagnose 23 exact guard/receipt/Rule correspondence refusals at their source owner.
 - Diagnose the four whole-IR mismatch sites separately: Success109/118, Shift250, Maintain354. Do not alter the authored predicate to bypass a stale/fresh-source mismatch.
-- Finish only the remaining original delivery-id/cancel/retry-release profiles; the successful persistence slice stays closed.
+- Finish the original Maintain retry/replay consumer: assignment and genuine failed-mail receipt pass and retry commits, but its complete retry/replay run exceeds600s. The parent-only CPU profile cannot attribute child/workerd cost; no cause or speculative speed repair is accepted. Preserve current authority, once-only delivery, retained receipt and recovery behavior. Reuse the accepted persistence and bounded32-hop compiled SEND slices.
 - Correct the retained stale-version test: use a valid current version and exact expected refusal, including current membership revocation. An arbitrary early error at hardcoded version1 is not permission-denial evidence.
 
 **Dependencies:** the exact scenario/query/hook/handler closure consumed by a send; no wait for unrelated source profiles. Formatting supplies frozen content where used.
@@ -447,10 +452,10 @@ The headings below group the existing outcomes; they are not new task IDs. An un
 
 | Required original profile | Remaining scope / prerequisite |
 | --- | --- |
-| Filters | Eight authored table/list sites produce 16 diagnostics. Finish the actual scalar/reference/date/nested selectors and source-owned defaults, not another enum/bool-default implementation. |
-| Collection domains | Eight value/result-array domains and two parenthesized Event stored queries. Preserve original row/context/types; do not relabel arrays as stored model scans. |
-| Archive and board continuation | Original archived collections and three board page options; consume the existing current-authorized cursor/pagination contract. |
-| Preferences | Four original inline forms plus the reviewed inventory-free text/date settings defect; never manufacture an empty enum options list. |
+| Filters | The six scalar/contained-parent filter/default combinations are accepted above. Remaining original page qualification must consume those outputs; add a mechanism change only for a demonstrated unsupported original selector. Historical16 diagnostics are not16 remaining repairs. |
+| Collection domains | Value/result-array domains remain outside the accepted grouped stored-query collector. Reuse the accepted grouped Event/list/table source mechanism; preserve original row/context/types instead of relabeling arrays as stored scans. |
+| Archive and board continuation | Recorded archive/include and Board page mechanisms are accepted above with actual compiled HTTP/cursor/current-authority controls. Whole original pages consume these outputs; they are not new archive/pagination implementation tasks. |
+| Preferences | Inline bool/text/int editors, nullable clear and save/reload are accepted above, including recorded Member/Rent/Leave shapes. Any independent inventory-free text/date settings defect and complete original page consumers remain; do not reopen accepted editor/storage behavior or manufacture empty enum options. |
 | Stat/history/skeleton | Three multi-value stats, Invoice owning-row history and Field skeleton at existing component owners. |
 | Containers | Report/Field collapse and Event compact hero have nonempty authored suites. First repair rejected child domains/skeleton, then check any independent container remainder; do not invent an empty-content redesign. |
 | Runtime review findings | Nullable/empty copy labels must not crash, and an authored false steps-item guard must withhold its content. Reuse the closed toggle fix. |
@@ -500,23 +505,23 @@ These are links to existing acceptance outputs, not nine new programmes or host/
 
 ## Genuine holds and unresolved decisions
 
-None of the 212 compiler diagnostics is itself a credential or human-policy blocker. The following recorded release conditions remain exact; this planning pass has not performed or revalidated external qualification.
+None of the last complete capture's212 compiler diagnostics is itself a credential or human-policy blocker. The following recorded release conditions remain exact; this planning pass has not performed or revalidated external qualification.
 
 | Existing gate | Owner | Release condition and dependent scope |
 | --- | --- | --- |
 | Outcome17 / C13 | Dev/human account/executor owner | Original Office G3/A7 required `gpt-6.1-sol` account/executor output, preserving the original attempts/denominator/six-arm protocol. No substitute model/provider repeats. Accepted A1–A6 remain closed. |
-| Outcome17 / C16 | Values/runtime + Dev/L7 | Actual release-pinned ICU/tzdb/CLDR/timezone membership/profile and formatter-context output for the named consumers. Local range/grouping/locale components stay closed. |
+| Outcome17 / C16 | Values/runtime + Dev/L7 | Reuse the accepted selected Node24.21.0/darwin-arm64 V05 release-host/data/artifact/corpus result in the [Dev record](../can-dev-server/PLAN.md) (ICU78.3/CLDR48.0/tz2026c, original180/180). Only a named consumer requiring another absent release-pinned membership/profile/formatter-context output remains dependent; no new all-host dataset gate. Local range/grouping/locale components stay closed. |
 | Outcome17 / C22 | Named GUI/host/Dev owner | Actual supported installed editor/map/Images/browser/application tuple and released source/artifact. No expansion to unselected hosts or handwritten replacements. |
 | Outcome18 / C14 | Original human/policy/Testkit owner | Recipient/action-specific BDD3 returned/result/payload/`as`/disclosure/live/context/input-slot release only. Consultation does not lift this hold. |
 | Outcome18 / C23 | Original human recipient/action owner | Task22 OUTBOX target/binding/deploy/source/revision lookup release only. Do not transfer the hold to independent producer work. |
 | Local decision, outcome14 | Source/Testkit owner | Establish the legitimate Partner editing operation or intentional immutability before lock-edit qualification. This blocks that test, not the compiler work. |
 | Conditional input, outcomes15/16 | Exact producer/host/capability owner | Name the actual absent predecessor, caller, credential or frozen request/result tuple and the consuming criterion before marking it held. Local implementation continues; no blanket “15/16 HELD”. |
 
-The query and whole-handler batches above are human-authorized; other proposed implementation batches still require agreement. Planning edits or reviewer agreement do not resume Muse. No push, deployment, activation, training, dataset work, unrelated apps or foreign-resource changes are authorized here.
+Implementation is stopped after the human wind-down. The global remaining-work list records proposed/local/held outcomes; this reconciliation does not resume Muse or authorize deployment, activation, training, dataset work or unrelated actions.
 
-## Proposed order and dependencies
+## Historical proposed order and retained dependencies
 
-1. **Complete the authorized shared query batch.** Reuse accepted Customer recover and unchanged checks; qualify the original Purchase query/helper/guard/effect closure through actual compiled Can. Select the next finite root-cause batch from the remaining diagnostic families after agreement; do not restart closed primitives.
+1. **Reuse completed shared query output.** Customer recover and original Purchase record_payable/return_goods are accepted at the finite original guard/body scopes above. Remaining original consumers need their exact missing output, not another qualification of those operations.
 2. **Allow independent ready work.** UI/factory and typed collection-call/Boolean repairs can proceed alongside compiler query/hook diagnosis. Hook/event/source work consumes only the query/context/authority output required by that original profile.
 3. **Feed the dependent boundaries.** Typed original handler/operation outputs unlock their parent calls; complete original execution closures unlock their send guards. Formatting supplies the required sink output. A handoff needs the concrete output, not completion of another owner's entire plan.
 4. **Integrate complete tested, reviewed implementation batches promptly.** Prefer closing an actual original operation/page boundary. If a necessary shared prerequisite lands first, keep its parent criterion visibly open and continue directly; do not stop at its fixture or checkpoint.
@@ -534,7 +539,7 @@ The query and whole-handler batches above are human-authorized; other proposed i
 
 ### Writers and resources when execution is released
 
-Use the existing Muse coordinator and finite native capacity; this proposal launches nothing. Preserve `muse-spark-1.3-contributor` at XHIGH with Contributor on for coordinator and native workers, verifying the actual model/effort inheritance without silent downgrade. Keep **one compiler writer** for shared `ir.rs`, `js.rs`, source/receipt/hook owners; one State/Cloudflare writer; and an independent UI/Interfaces writer only where files/inputs are disjoint. UI compiler changes go through the compiler writer. Read-only diagnosis can be parallel. Serialize shared API/file ownership and freeze the full actually consumed producer/source/dist closure during capture-sensitive consumers; do not merge into active child inputs.
+No coordinator or worker remains active. The following retained writer/resource constraints apply only if implementation is separately resumed; this document launches nothing. Preserve `muse-spark-1.3-contributor` at XHIGH with Contributor on for coordinator and native workers, verifying the actual model/effort inheritance without silent downgrade. Keep **one compiler writer** for shared `ir.rs`, `js.rs`, source/receipt/hook owners; one State/Cloudflare writer; and an independent UI/Interfaces writer only where files/inputs are disjoint. UI compiler changes go through the compiler writer. Read-only diagnosis can be parallel. Serialize shared API/file ownership and freeze the full actually consumed producer/source/dist closure during capture-sensitive consumers; do not merge into active child inputs.
 
 Reuse compatible shared caches with `CARGO_INCREMENTAL=0`, `CARGO_PROFILE_DEV_DEBUG=0`, `CARGO_PROFILE_TEST_DEBUG=0`, `CARGO_BUILD_JOBS=2`; no duplicate target/node_modules/worktrees by default. Check disk before a new large allocation, serialize cache writers, and assign cleanup only after explicit owner/command/capture release. Preserve required binaries, unique work and logs.
 
@@ -546,7 +551,7 @@ Reuse compatible shared caches with `CARGO_INCREMENTAL=0`, `CARGO_PROFILE_DEV_DE
 - Bundle required file-tree/decision reconciliation with implementation; when the final code hash makes one follow-up necessary, combine it once. No routine separate checklist, intake-only, recap or reconciliation-only chain. Update the existing outcome row, not a new checkpoint queue.
 - Run original24 only for a relevant producer change, actual failure or distinct unresolved risk. Record the actual child exit; wrapper status and cached compiler version labels are not qualification. Preserve all 24 authored inputs and current authority/order/atomicity/failure/recovery.
 - Status reporting uses: **accepted component**, **remaining original criterion**, **active finite change**, **exact held input**. No progress percentage and no “all green” over known residual failures.
-- Muse's goal stays paused and supervision stays disabled until human agreement. After execution is released, retain the same instance and restore only one 25-minute same-chat supervision schedule; no five-minute Muse timer, duplicate coordinator or recurring worker loop.
+- Muse is stopped and its supervision is retired. Future execution or scheduling requires a new user instruction; the historical run identity is not an active assignment.
 
 ### Existing outcome crosswalk
 
@@ -566,9 +571,14 @@ Reuse compatible shared caches with `CARGO_INCREMENTAL=0`, `CARGO_PROFILE_DEV_DE
 | 15,16 | Named maintenance/lineage and retained native integration consumers; no blanket hold |
 | 17,18 | Exact external and human-policy gates above |
 
-### Diagnostic accounting, not task counts
+### Historical diagnostic accounting, not current task counts
 
-| Current surface family | Occurrences | Interpretation |
+These273 occurrences describe the earlier surface before the accepted batches
+above. The last complete retained original24 capture is212; later released
+producer changes have not had a complete original24 capture. Do not subtract
+focused fixes or treat either table as a current post-merge multiset.
+
+| Historical surface family | Occurrences | Interpretation |
 | --- | ---: | --- |
 | First-query correspondence | 87 | 15 scenarios /67 handlers /5 derives; classify actual declined producer, share repairs |
 | Hook query/context/derive/parent/staged/emit | 85 | 39 query +22 now +10 derive +7 parent +2 staged +5 emit; whole-plan fallback can multiply symptoms |
@@ -576,6 +586,6 @@ Reuse compatible shared caches with `CARGO_INCREMENTAL=0`, `CARGO_PROFILE_DEV_DE
 | Cross-operation calls | 7 | Seven named parents above |
 | Invoice trigger/carrier joins | 5 | Five original handlers above |
 | Other collection/UI/formatting/read profiles | 62 | Breakdown below |
-| **Total** | **273** | Current complete original24 diagnostic multiset |
+| **Total** | **273** | Historical pre-batch original24 diagnostic multiset |
 
 The 62 are: filters16 (eight authored sites), collection domains10, localized sinks9, archived collections6, expression order4, inline preferences4, stats3, board page3, collapse2, history1, compact hero1, skeleton1, checked collection-call/source1 and Boolean observer1. Consequent container errors are not extra redesign tasks. The 18 outcomes, nine references, 190 reviewed paths and these occurrence counts overlap in purpose and must never be summed.

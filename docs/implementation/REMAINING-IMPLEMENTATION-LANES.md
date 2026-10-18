@@ -1,5 +1,7 @@
 # Remaining CanLang implementation: seven parallel lanes
 
+**Current disposition, 2026-10-18:** all implementation is stopped after the released wind-down/main integration and cleanup. Use the [consolidated remaining list](REMAINING-WORK.md) for current work and exact holds. Original requirements, accepted components and IDs below remain; dated launch/roster/source-absence/checkbox statements are historical and authorize no restart. This is not a new lane allocation or a reopening of accepted criteria.
+
 Status: **saved planning revision, 2026-10-06; implementation remains user-stopped.**
 The user requested this reorganization after more than twelve hours of wall time.
 This document does not authorize restarting the stopped Muse session or launching

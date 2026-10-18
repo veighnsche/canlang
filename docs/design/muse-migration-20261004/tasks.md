@@ -1,5 +1,7 @@
 # Implementation: finish settled Can/JavaScript draft migrations
 
+**Retained draft-migration record, 2026-10-18 reconciliation.** Implemented migration/draft stages remain closed at their source/desired-target scope. C01/C02 below have no recorded final independent acceptance/cleanup result; the [global remaining-work list](../../implementation/REMAINING-WORK.md) owns any current finite remainder. Former writer/Git/session instructions and stale BLOCKED prerequisites on checked completed tasks are historical, not live holds. No Muse execution is resumed by this record.
+
 ## Handoff contract
 
 | ID | Intended behavior / why | Observable acceptance | Source |

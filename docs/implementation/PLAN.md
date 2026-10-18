@@ -1,5 +1,7 @@
 # CanLang implementation: seven parallel owners
 
+**Current disposition, 2026-10-18:** all implementation is stopped after the released wind-down/main integration and cleanup. Use the [consolidated remaining list](REMAINING-WORK.md) for current work and exact holds. Original requirements, accepted components and IDs below remain; dated launch/roster/source-absence/checkbox statements are historical and authorize no restart. This is not a new lane allocation or a reopening of accepted criteria.
+
 See the [living ideal file-tree plan](../ideal-filetree-plan.md) for deferred repository organization. After every merge, its handler reconciles all changes since the checkpoint and updates it; plan maintenance does not authorize the refactor.
 
 Status: implementation plan, October 4, 2026. The user will launch the Muse coordinators. This plan implements no compiler, library or infrastructure code and starts no Muse sessions. Repository: https://github.com/veighnsche/canlang (private), main. Read [the common execution protocol](WORKFLOW.md), [shared boundaries](CONTRACTS.md), [diagnostic policy](DIAGNOSTICS.md), then the lane prompt.

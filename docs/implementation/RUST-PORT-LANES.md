@@ -1,5 +1,14 @@
 # Four Rust-port implementation lanes
 
+**After wind-down, 18 October 2026:** the merged Rust batch has no active workers
+or supervision. [REMAINING-WORK.md](REMAINING-WORK.md) is the only current task
+list; the [closeout](rust-port-orchestration/current-plan.md#wind-down-closeout--18-october-2026)
+records scoped acceptance and residuals. Release/dispatch, native HOLD and source
+status wording below is historical. Native-source implementation was released;
+public deployment/defaults/TS retirement remain separately held. Original
+ownership and acceptance contracts remain references, not renewed assignments.
+
+
 Finite source-ready packet details are in [current-plan.md](rust-port-orchestration/current-plan.md) and [next-packets.json](rust-port-orchestration/next-packets.json), subordinate to the canonical priorities below. No packet is authorized.
 
 **Historical ownership allocation; source reconciled 2026-10-18.** Use the [single current execution view](RUST-PORT-START-HERE.md#current-execution-view--2026-10-18) for implemented components, priorities and holds. The baseline counts/static candidates below retain their original assessment dates and are not current progress or dispatch queues. This overlay launches no workers and releases no hold.

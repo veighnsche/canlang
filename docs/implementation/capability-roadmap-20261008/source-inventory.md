@@ -1,5 +1,7 @@
 # Source inventory (SEQ-001) and ownership signals (SEQ-002)
 
+**Historical inventory, not current working-tree or ownership status.** Reuse its original SEQ-001/002 scope; later accepted outcomes and source pins are in the [scope record](README.md). Current work is listed only in [REMAINING-WORK.md](../REMAINING-WORK.md). The dirty/busy observations below are from the original captures.
+
 The inventory describes committed and working-tree candidates; it does not accept uncommitted work or confer ownership. At the original capture, committed HEAD was `c718517a5aae8481a8b548a7eb299b8c5377dee6`; later follow-up observations use `db57c3794d386fcd27f17f54b199272d58106a81`.
 
 ## Bounded implementation outcomes

@@ -1,8 +1,10 @@
 # Capability roadmap: interim proposal status
 
+**Historical snapshot (2026-10-08), superseded for scheduling by [REMAINING-WORK.md](../REMAINING-WORK.md).** The retained 30/63 count predates the accepted SEQ-041, SEQ-044 and SEQ-050 stages. The [scope record](README.md) retains those 33 accepted stages and SEQ-052's later accepted no-pilot disposition. No worker or goal is active by authority of this snapshot.
+
 **Roadmap progress: 30/63 tasks complete.** Completed stages: SEQ-001, SEQ-002, SEQ-003, SEQ-004, SEQ-006, SEQ-007, SEQ-008, SEQ-009, SEQ-012, SEQ-013, SEQ-014, SEQ-015, SEQ-016, SEQ-017, SEQ-018, SEQ-019, SEQ-020, SEQ-023, SEQ-028, SEQ-029, SEQ-030, SEQ-031, SEQ-032, SEQ-033, SEQ-034, SEQ-035, SEQ-036, SEQ-049, SEQ-055, SEQ-056.
 
-The goal remains active. This is an execution snapshot, not final acceptance. None of the 21 complete proposal workflows is claimed finished. Reviewed preparations and bounded positive runtime evidence are recorded separately from open implementation, conditional/value and installed/durable gates.
+At this historical capture, the goal remained active; that execution is now stopped. This is an execution snapshot, not final acceptance. None of the 21 complete proposal workflows is claimed finished. Reviewed preparations and bounded positive runtime evidence are recorded separately from open implementation, conditional/value and installed/durable gates.
 
 | # | Proposal | Current outcome |
 | --- | --- | --- |

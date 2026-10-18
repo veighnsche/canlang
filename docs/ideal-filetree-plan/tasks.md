@@ -1,5 +1,7 @@
 # Dependency-ordered implementation packets
 
+**Current disposition, 2026-10-18:** all implementation is stopped after the released wind-down/main integration and cleanup. Use the [consolidated remaining list](../implementation/REMAINING-WORK.md) for current work and exact holds. Original requirements, accepted components and IDs below remain; dated launch/roster/source-absence/checkbox statements are historical and authorize no restart. This is not a new lane allocation or a reopening of accepted criteria.
+
 This document launches no work. Existing T01–T41 and D01–D08 checklists preserve the stopped coordinator's historical work; implementation remains user-stopped. The packets below organize findings and the complete selected tree without editing those task statuses or expanding the finite remaining implementation scope. [backlog.json](backlog.json) captures the 41 parent tasks at the audit pin and maps them to slices/packets; reported completion is not fresh qualification.
 
 ## Correctness and delivery before decomposition
