@@ -9,7 +9,8 @@ contracts. Existing TS builders and parser/scope libraries remain explicit owner
 full P05 module-construction/policy migration remains partial. The selected native
 CLI/integrity/local-publication packet now has Darwin installed9/TS9, genuine native
 mocked apply, same-data TS rollback and Linux installed build/integrity controls.
-See the [single finite checklist](rust-port-orchestration/current-plan.md) for source,
+Source `4ed0d38fe` is merged/pushed as main `5d38b4efb`; assigned packet writers
+and commands are released. See the [single finite checklist](rust-port-orchestration/current-plan.md) for source,
 remaining programme/resource limits and retained TS owners.
 Public deployment, defaults and TS retirement remain held.
 
