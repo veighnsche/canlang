@@ -5,13 +5,24 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   loadModulesResumeForModules,
+  loadModulesResumeWithFacts,
   previousPlanResumeForPath,
+  scanModuleFacts,
 } from "../src/preparation/build-adapter.js";
 import {
+  buildArtifactPayload,
+  buildCompanionsPayload,
+  buildLoadErrorPayload,
   buildLoadModulesPayload,
+  buildLockstepPayload,
   buildPlanOptionsPayload,
   buildPreviousPlanPayload,
+  encodeAdmittedTreeJson,
 } from "../src/preparation/inputs.js";
+
+function entryKeys(node: { t: string; entries: Array<[number[], unknown]> }): string[] {
+  return node.entries.map(([units]) => String.fromCharCode(...units));
+}
 
 const units = (text: string): number[] => [...text].map((c) => c.charCodeAt(0));
 
@@ -62,6 +73,101 @@ describe("LOAD_MODULES resume payload", () => {
     expect(items).toHaveLength(2);
     const keys = items.map((item) => String.fromCharCode(...item.entries[0]![1].units));
     expect(keys).toEqual(["app/main.js", "app/util.js"]);
+  });
+
+  it("carries owner facts on every module entry (029: never stripped)", () => {
+    const modules = {
+      "a.js": "function f(exports) {} exports.x = 1;",
+      "b.js": "export const b = 2;",
+    };
+    const payload = loadModulesResumeWithFacts(modules);
+    const items = (payload.modules as {
+      items: Array<{ entries: Array<[number[], unknown]> }>;
+    }).items;
+    expect(items).toHaveLength(2);
+    const byKey = new Map(
+      items.map((item) => {
+        const keyEntry = item.entries.find(([k]) => String.fromCharCode(...k) === "key")?.[1] as
+          | { units: number[] }
+          | undefined;
+        return [String.fromCharCode(...(keyEntry?.units ?? [])), item] as const;
+      }),
+    );
+    for (const [key, js] of Object.entries(modules)) {
+      const entry = byKey.get(key);
+      expect(entry, `entry for ${key}`).toBeDefined();
+      const factsNode = entry!.entries.find(([k]) => String.fromCharCode(...k) === "facts")?.[1];
+      expect(factsNode, `facts for ${key}`).toBeDefined();
+      // The encoded facts equal the single frontend's output over
+      // those exact bytes, wire-for-wire (plain-JSON round trip
+      // like driveSession).
+      expect(JSON.parse(JSON.stringify(factsNode))).toEqual(
+        JSON.parse(encodeAdmittedTreeJson(scanModuleFacts(js, key))),
+      );
+    }
+    expect(payload.binaries).toEqual({ t: "arr", items: [] });
+  });
+
+  it("carries staged binary keys alongside module facts", () => {
+    const payload = loadModulesResumeWithFacts({ "a.js": "export const a = 1;" }, ["vendor/r.wasm"]);
+    const binaries = payload.binaries as { t: string; items: Array<{ t: string; units: number[] }> };
+    expect(binaries.t).toBe("arr");
+    expect(binaries.items.map((item) => String.fromCharCode(...item.units))).toEqual(["vendor/r.wasm"]);
+  });
+});
+
+describe("LOAD_ARTIFACT resume payload", () => {
+  it("carries the artifact as one object tree", () => {
+    const payload = buildArtifactPayload({ artifact_version: 1, tool_version: "0.1.0" });
+    expect(payload.tree.t).toBe("obj");
+    expect(entryKeys(payload.tree as { t: string; entries: Array<[number[], unknown]> })).toEqual([
+      "artifact_version",
+      "tool_version",
+    ]);
+  });
+
+  it("rides reader failures as an exact load_error frame", () => {
+    expect(JSON.stringify(buildLoadErrorPayload("artifact x: invalid JSON: oops"))).toBe(
+      `{"load_error":"artifact x: invalid JSON: oops"}`,
+    );
+  });
+});
+
+describe("LOAD_COMPANIONS resume payload", () => {
+  it("carries descriptor, environment and target as three trees", () => {
+    const payload = buildCompanionsPayload(
+      { identity: { appName: "a" } },
+      { environment: "prod", resources: [] },
+      { contractsVersion: 1 },
+    );
+    for (const tree of [payload.descriptor, payload.environment, payload.target]) {
+      expect(tree.t).toBe("obj");
+    }
+    expect(
+      entryKeys(payload.descriptor as { t: string; entries: Array<[number[], unknown]> }),
+    ).toEqual(["identity"]);
+  });
+});
+
+describe("LOCKSTEP_INPUTS resume payload", () => {
+  it("carries the release stamp keys the native gate decodes", () => {
+    const payload = buildLockstepPayload({
+      rootVersion: "0.1.0",
+      platformVersion: "0.1.0",
+      compilerVersion: "0.1.0",
+      contractsVersion: 1,
+      packageVersions: {},
+    });
+    expect(payload.inputs.t).toBe("obj");
+    expect(
+      entryKeys(payload.inputs as { t: string; entries: Array<[number[], unknown]> }),
+    ).toEqual([
+      "rootVersion",
+      "platformVersion",
+      "compilerVersion",
+      "contractsVersion",
+      "packageVersions",
+    ]);
   });
 });
 

@@ -56,7 +56,7 @@ export interface ImportRewriteResult {
 }
 
 const PRODUCERS = new Set(["@canlang/stdlib", "@canlang/ui"]);
-const GROUP_ORDER: Record<ImportGroup, number> = { from: 0, dynamic: 1, "side-effect": 2, meta: 3 };
+export const GROUP_ORDER: Record<ImportGroup, number> = { from: 0, dynamic: 1, "side-effect": 2, meta: 3 };
 const TRIVIA = /^(?:\s|\/\*[\s\S]*?\*\/|\/\/[^\r\n\u2028\u2029]*(?:[\r\n\u2028\u2029]|$))*$/;
 // The pinned asm lexer recognizes ASCII/NBSP whitespace only. This view keeps
 // one original UTF-16 unit per unit; it never becomes emitted JavaScript.
@@ -145,7 +145,14 @@ export function scanModuleImports(js: string, modulePath: string, prefix: Import
   } catch (error) {
     const offset = (error as { idx?: unknown } | null)?.idx;
     if (typeof offset !== "number" || !Number.isInteger(offset)) throw error;
-    throw new Error(`${prefix}: module ${JSON.stringify(modulePath)} has invalid import syntax at offset ${offset}`);
+    const wrapped = new Error(
+      `${prefix}: module ${JSON.stringify(modulePath)} has invalid import syntax at offset ${offset}`,
+    );
+    // Keep the machine offset on the wrapped error: structured
+    // consumers (native facts) recover first-error order without
+    // parsing the message; string consumers read it as before.
+    Object.assign(wrapped, { idx: offset });
+    throw wrapped;
   }
   return imports.map((item) => normalizedImport(js, modulePath, item))
     .sort((a, b) => GROUP_ORDER[a.group] - GROUP_ORDER[b.group] || a.statement.start - b.statement.start || a.argument.start - b.argument.start);

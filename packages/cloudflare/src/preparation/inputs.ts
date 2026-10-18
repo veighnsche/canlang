@@ -16,6 +16,8 @@
  * are enforced before allocation on both sides.
  */
 
+import type { ModuleSyntaxFacts } from "../deploy/bundle.js";
+
 export const MAX_TREE_DEPTH = 32;
 export const MAX_TREE_NODES = 1_048_576;
 export const MAX_TREE_UNITS = 16_777_216;
@@ -130,20 +132,42 @@ export function encodeAdmittedTreeJson(value: unknown): string {
 export interface StagedModuleBuffer {
   readonly key: string;
   readonly js: string;
+  /** Owner syntax facts (deploy only; absent on the build path). */
+  readonly facts?: ModuleSyntaxFacts | undefined;
 }
 
 /**
  * Build the LOAD_MODULES resume payload from actual staged module
- * buffers: `{modules: [{key, js}]}` as one admitted tree, the exact
- * shape the native `module_buffers` gate decodes (key/js as text).
- * The host serves real bundle buffers through this; the native
- * import/graph gates refuse before any bundle assembly materializes.
+ * buffers: `{modules: [{key, js, facts?}]}` as one admitted tree,
+ * the exact shape the native `module_buffers` gate decodes (key/js
+ * as text, facts as the owner `scanModuleFacts` object when
+ * served). The host serves real bundle buffers through this; the
+ * native import/graph gates refuse before any bundle assembly
+ * materializes. Facts ride the same entries (029: never stripped).
  */
 export function buildLoadModulesPayload(modules: ReadonlyArray<StagedModuleBuffer>): {
   readonly modules: TaggedNode;
 } {
   return {
-    modules: encodeAdmittedTree(modules.map((module) => ({ key: module.key, js: module.js }))),
+    modules: encodeAdmittedTree(
+      modules.map((module) =>
+        module.facts === undefined ? { key: module.key, js: module.js } : { key: module.key, js: module.js, facts: module.facts },
+      ),
+    ),
+  };
+}
+
+/**
+ * Build the LOAD_MODULES binary-key closure: `{binaries: [key…]}`
+ * as one admitted tree. Binary asset keys (e.g. staged Wasm) join
+ * the module keys for link resolution; executables stay excluded.
+ * Absent when the bundle stages no binaries.
+ */
+export function buildBinariesPayload(binaryKeys: ReadonlyArray<string>): {
+  readonly binaries: TaggedNode;
+} {
+  return {
+    binaries: encodeAdmittedTree(binaryKeys.map((key) => key)),
   };
 }
 
@@ -182,4 +206,63 @@ export function buildPreviousPlanPayload(previous: unknown): {
   readonly previous: TaggedNode;
 } {
   return { previous: encodeAdmittedTree(previous) };
+}
+
+/**
+ * Build the LOAD_ARTIFACT resume payload from the already-loaded
+ * artifact JSON: `{tree}` as one admitted tree, the exact shape the
+ * native artifact gate decodes. Reader failures ride
+ * `buildLoadErrorPayload` instead (the native side maps them to
+ * missing-producer with its own detail voice).
+ */
+export function buildArtifactPayload(artifact: unknown): {
+  readonly tree: TaggedNode;
+} {
+  return { tree: encodeAdmittedTree(artifact) };
+}
+
+/**
+ * Build a host reader-failure resume: `{load_error: detail}`. Each
+ * native stage maps this to its owning refusal code with the host
+ * detail (companions/lockstep) or its own detail voice (artifact).
+ */
+export function buildLoadErrorPayload(detail: string): {
+  readonly load_error: string;
+} {
+  return { load_error: detail };
+}
+
+/**
+ * Build the LOAD_COMPANIONS resume payload from the already-loaded
+ * companion files: `{descriptor, environment, target}` as three
+ * admitted trees, the exact shape the native companions gate
+ * decodes.
+ */
+export function buildCompanionsPayload(
+  descriptor: unknown,
+  environment: unknown,
+  target: unknown,
+): {
+  readonly descriptor: TaggedNode;
+  readonly environment: TaggedNode;
+  readonly target: TaggedNode;
+} {
+  return {
+    descriptor: encodeAdmittedTree(descriptor),
+    environment: encodeAdmittedTree(environment),
+    target: encodeAdmittedTree(target),
+  };
+}
+
+/**
+ * Build the LOCKSTEP_INPUTS resume payload from the already-read
+ * release stamp: `{inputs}` as one admitted tree, the exact shape
+ * the native `lockstep_inputs` gate decodes (rootVersion,
+ * platformVersion, compilerVersion, contractsVersion,
+ * packageVersions).
+ */
+export function buildLockstepPayload(inputs: unknown): {
+  readonly inputs: TaggedNode;
+} {
+  return { inputs: encodeAdmittedTree(inputs) };
 }

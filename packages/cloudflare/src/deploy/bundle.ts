@@ -114,7 +114,8 @@ import { ASSET_DIGEST_V2 } from "@canlang/contracts";
 import { catalogFromArtifactOperations } from "@canlang/interfaces";
 import { assetContentType } from "@canlang/interfaces/http/assets";
 import { STDLIB_SPECIFIER, UI_SPECIFIER, type AssembledModules } from "../runtime/modules.js";
-import { assertSavedUnitImports, isRelativeImportSpecifier as isRelativeSpecifier, rewriteModuleImports, scanModuleImports, validateArtifactModuleImports } from "./module-imports.js";
+import { assertSavedUnitImports, GROUP_ORDER, isRelativeImportSpecifier as isRelativeSpecifier, rewriteModuleImports, scanModuleImports, validateArtifactModuleImports } from "./module-imports.js";
+import type { ModuleImport } from "./module-imports.js";
 import { composeModuleMap } from "./module-maps.js";
 import { nativeUiQueryFacadeSource } from "../runtime/native-ui-query.js";
 
@@ -1234,10 +1235,75 @@ export function buildHttpOperationsBundle(_repoRoot?: string, lifetime?: LocalCo
 /* ------------------------------------------------------------------ */
 /* Host CommonJS preflight: library syntax and lexical bindings. */
 
-function scanModuleIssues(source: string, modulePath: string): string[] {
-  const issues: string[] = [];
-  for (const record of scanModuleImports(source, modulePath)) {
-    if (record.specifier?.startsWith("file://")) issues.push(`node file-URL import at offset ${record.statement.start}`);
+/** Structured module facts for the native LOAD_MODULES stage (025):
+ * the single host frontend over the owner import lexer (Acorn 2025
+ * scope analysis runs here). The native side validates shape,
+ * unit-coordinate bounds and per-module correspondence, then applies
+ * stage/module key/graph/link and diagnostic policy itself. */
+export interface ModuleImportFact {
+  readonly groupRank: number;
+  readonly statementStart: number;
+  readonly statementEnd: number;
+  readonly argumentStart: number;
+  readonly argumentEnd: number;
+  readonly contentStart: number;
+  readonly contentEnd: number;
+  /** Raw literal slice (028: escapes keep raw distinct from decoded). */
+  readonly raw: string | null;
+  /** Owner-decoded specifier (028: trusted at the decoder boundary). */
+  readonly specifier: string | null;
+}
+export interface ModuleUnresolvedFact {
+  readonly group: 0 | 1 | 2;
+  /** Original UTF-16 start (028: escaped idents keep owner coordinates). */
+  readonly start: number;
+  /** Original UTF-16 end. */
+  readonly end: number;
+  /** Acorn-decoded identifier name (028: binds escaped spellings). */
+  readonly name: string;
+}
+export interface ModuleSyntaxFacts {
+  readonly imports: readonly ModuleImportFact[];
+  /** Import-lexer refusal offset (owner import-syntax error). */
+  readonly lexerError: number | null;
+  /** Non-offset import-frontend refusal: exact owner message, opaque. */
+  readonly frontendError: string | null;
+  /** Acorn refusal offset (owner JS-syntax error). */
+  readonly syntaxError: number | null;
+  /** `file://` import statement starts, in import-record order. */
+  readonly fileUrl: readonly number[];
+  /** Unresolved gates: 0 bare require(, 1 module.exports, 2 free exports. */
+  readonly unresolved: readonly ModuleUnresolvedFact[];
+}
+const EMPTY_FACTS: ModuleSyntaxFacts = {
+  imports: [],
+  lexerError: null,
+  frontendError: null,
+  syntaxError: null,
+  fileUrl: [],
+  unresolved: [],
+};
+export function scanModuleFacts(source: string, modulePath: string): ModuleSyntaxFacts {
+  let records: readonly ModuleImport[];
+  try {
+    records = scanModuleImports(source, modulePath);
+  } catch (error) {
+    // Offset-carrying throws (wrapped import-syntax included) ride
+    // as structured lexer facts so eager all-module collection keeps
+    // per-module first-error order; anything else rides the exact
+    // owner message opaquely at the same precedence. Never parsed.
+    const offset = (error as { idx?: unknown } | null)?.idx;
+    if (typeof offset === "number" && Number.isInteger(offset)) {
+      return { ...EMPTY_FACTS, lexerError: offset };
+    }
+    return {
+      ...EMPTY_FACTS,
+      frontendError: error instanceof Error ? error.message : String(error),
+    };
+  }
+  const fileUrl: number[] = [];
+  for (const record of records) {
+    if (record.specifier?.startsWith("file://")) fileUrl.push(record.statement.start);
   }
   let ast: Parameters<typeof walkJavaScript>[0];
   try {
@@ -1246,28 +1312,90 @@ function scanModuleIssues(source: string, modulePath: string): string[] {
   } catch (error) {
     const offset = (error as { pos?: unknown } | null)?.pos;
     if (typeof offset !== "number" || !Number.isInteger(offset)) throw error;
-    throw new Error(`deploy bundle: module ${JSON.stringify(modulePath)} has invalid JavaScript syntax at offset ${offset}`);
+    return {
+      imports: records.map(toImportFact),
+      lexerError: null,
+      frontendError: null,
+      syntaxError: offset,
+      fileUrl,
+      unresolved: [],
+    };
   }
   // Resolve lexical module bindings. Dynamic eval contents are outside this
   // preflight; no implicit Node/CommonJS bindings or wrapper exemptions apply.
   const scope = analyzeScopes(ast, { ecmaVersion: 2025, sourceType: "module", ignoreEval: true, nodejsScope: false });
   const unresolved = new Set(scope.globalScope!.through.map((reference) => reference.identifier));
-  const offsets: [number[], number[], number[]] = [[], [], []];
+  const offsets: [ModuleUnresolvedFact[], ModuleUnresolvedFact[], ModuleUnresolvedFact[]] = [[], [], []];
   walkJavaScript(ast, {
     enter(node, parent) {
       if (node.type !== "Identifier" || !unresolved.has(node)) return;
-      const offset = node.range![0];
+      const [start, end] = node.range!;
       const directCall = parent?.type === "NewExpression" || (parent?.type === "CallExpression" && !parent.optional);
-      if (node.name === "require" && directCall && parent.callee === node) offsets[0].push(offset);
-      if (node.name === "module" && parent?.type === "MemberExpression" && parent.object === node && !parent.computed && !parent.optional && parent.property.type === "Identifier" && parent.property.name === "exports") offsets[1].push(offset);
-      if (node.name === "exports") offsets[2].push(offset);
+      if (node.name === "require" && directCall && parent.callee === node) {
+        offsets[0].push({ group: 0, start, end, name: node.name });
+      }
+      if (node.name === "module" && parent?.type === "MemberExpression" && parent.object === node && !parent.computed && !parent.optional && parent.property.type === "Identifier" && parent.property.name === "exports") {
+        offsets[1].push({ group: 1, start, end, name: node.name });
+      }
+      if (node.name === "exports") offsets[2].push({ group: 2, start, end, name: node.name });
     },
   });
+  const flat: ModuleUnresolvedFact[] = [];
+  for (const positions of offsets) {
+    for (const item of positions.sort((a, b) => a.start - b.start)) flat.push(item);
+  }
+  return {
+    imports: records.map(toImportFact),
+    lexerError: null,
+    frontendError: null,
+    syntaxError: null,
+    fileUrl,
+    unresolved: flat,
+  };
+}
+function toImportFact(record: ModuleImport): ModuleImportFact {
+  return {
+    groupRank: GROUP_ORDER[record.group],
+    statementStart: record.statement.start,
+    statementEnd: record.statement.end,
+    argumentStart: record.argument.start,
+    argumentEnd: record.argument.end,
+    contentStart: record.content?.start ?? -1,
+    contentEnd: record.content?.end ?? -1,
+    raw: record.rawSpecifier ?? null,
+    specifier: record.specifier ?? null,
+  };
+}
+/**
+ * Refuse frontend facts at the original import-scan precedence (037): a
+ * non-offset import-frontend refusal rides the exact owner message (the
+ * old direct `scanModuleImports` path threw it); offset/syntax refusals
+ * keep their messages; free-reference issues follow. Pure over facts so
+ * the precedence contract is directly checkable.
+ */
+export function refuseModuleFrontendIssues(facts: ModuleSyntaxFacts, modulePath: string): string[] {
+  if (facts.frontendError !== null) {
+    throw new Error(facts.frontendError);
+  }
+  if (facts.lexerError !== null) {
+    throw new Error(`deploy bundle: module ${JSON.stringify(modulePath)} has invalid import syntax at offset ${facts.lexerError}`);
+  }
+  if (facts.syntaxError !== null) {
+    throw new Error(`deploy bundle: module ${JSON.stringify(modulePath)} has invalid JavaScript syntax at offset ${facts.syntaxError}`);
+  }
+  const issues: string[] = [];
+  for (const offset of facts.fileUrl) issues.push(`node file-URL import at offset ${offset}`);
   const labels = ["bare require( call", "CommonJS module.exports", "CommonJS free exports"] as const;
-  for (const [group, positions] of offsets.entries()) {
-    for (const offset of positions.sort((a, b) => a - b)) issues.push(`${labels[group]} at offset ${offset}`);
+  for (const group of [0, 1, 2] as const) {
+    for (const item of facts.unresolved) {
+      if (item.group === group) issues.push(`${labels[group]} at offset ${item.start}`);
+    }
   }
   return issues;
+}
+
+function scanModuleIssues(source: string, modulePath: string): string[] {
+  return refuseModuleFrontendIssues(scanModuleFacts(source, modulePath), modulePath);
 }
 
 /**

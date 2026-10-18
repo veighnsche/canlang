@@ -19219,3 +19219,39 @@ P11 must explicitly disclose retained host libraries. Changed source and actual
 CLI/installed consumer acceptance remain open. Continue independent integrity,
 lifetime and publication repairs. Public deployment/defaults/TS retirement and
 the complete filetree checkpoint remain held.
+
+
+### Native CLI boundary refinement031
+
+Independent source review found that the new host encoder discarded facts and
+that the existing builder checks run before later asset work. Repair the real
+wire and escaped source spans. Preserve the TS builders' policy checkpoints for
+the finite CLI/executable packet and disclose them as retained library work;
+Rust's job-side checks over the consumed facts do not establish sole module
+admission ownership. Do not make a broader two-stage module-stager extraction an
+extra prerequisite for CLI/integrity completion. Fuller original P05 module
+construction/policy criteria stay partial, with no TS retirement/default claim.
+This refines the existing retained-owner boundary using actual source evidence;
+it neither reverses the JEV advice nor treats that advice as implementation proof.
+
+
+## 2026-10-18 — integrate source-bound module facts at the retained frontend boundary
+
+Accept the finite LOAD_MODULES facts/payload/job slice while broader P05 stays
+partial. Exact source text, raw/decoded import fields and original UTF16 spans
+preserve the owning parser/scope facts and ordered Rust job-side checks. Actual
+staged binary keys join link closure; executable bytes never enter Worker maps.
+Preserve the existing TS builders' loadability/link checkpoints and build's
+original admission domain. Independent review repaired the real encoder losing
+facts, brace escapes and the ordinary TS frontend-error path; no new syntax
+parser or native-error fallback is introduced.
+
+Reuse facts24/vectors23/inputs17 and genuine native9/TS9 outcomes at the released
+producer scope, plus focused final error regression and exact-slice complexity.
+The same frozen crate builds on Linux x64 with pinned1.99 and runs its retained
+build job from a private installation without runtime Rust/Cargo. Full installed
+CLI/native readiness/integrity, confirmed mocked apply and original mixed/resource/
+rollback criteria still require their concrete outputs; producer evidence does
+not close those parents. Continue that independent work during Git integration.
+Preserve newer compiler/runtime/Work changes, complete stale filetree checkpoint
+and public deployment/default/TS-retirement holds.
