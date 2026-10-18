@@ -26,10 +26,20 @@ The affected alias/choice test passed after its last test-only additions; unchan
 results were reused. The two existing formatter consumer scripts passed with a
 frozen current compiler binary, local Values/UI output, cached dependencies and
 source-loaded Cloudflare modules. Exact limits and the TS-only lone-surrogate
-witness are retained in the current plan. No main-checkout source was edited;
-newer compiler/runtime work remains with its owner. No merge occurred, accumulated
-coverage and the complete review checkpoint remain unchanged, and UI's broader
-usage/joined completion remains unreleased. Native preparation stays **HUMAN HOLD**.
+witness are retained in the current plan. Newer compiler/runtime work remains
+with its owner; UI's broader usage/joined completion remains unreleased. Native
+preparation stays **HUMAN HOLD**.
+
+Main integration fast-forwarded `7700621fa` to `22b66ab20`. Incremental
+reconciliation covers all six compiler and seven documentation paths above,
+reusing retained accumulated checkpoint coverage and the recorded owner/target
+reviews. The private compiler parser allocation is implemented; existing
+Values/UI ownership, canonical task identities and remaining gates are retained.
+All 47 pre-existing modified/untracked main files retained their bytes and modes,
+and foreign staging was unchanged. Integration introduced no semantic edits to
+the validated packet, so its 68 Rust tests and two formatter consumer results
+are reused at their recorded scope. The complete review checkpoint remains
+unchanged; this bookkeeping releases no broader UI or native work.
 
 **Approved ICU profile and shared TS syntax, 2026-10-18 (base `5b27e7bdd`):**
 the human released the Values/UI parser packet in the
