@@ -47,9 +47,40 @@ fn checked_query_diagnostics(
         .scenario_disclosures()
         .get(&owner.id)?
         .source_facts()?;
-    let mut spans = vec![owner.span];
+    // Symbol/IR spans cover declaration names only. A refusal inside an
+    // original initializer or helper body belongs to the consumed closure too.
+    let mut spans = vec![Span::new(source.node.file, source.node.start, source.node.end)];
     let mut declaration = |id: SymbolId| -> Option<()> {
-        spans.push(program.symbols.get(id.0 as usize)?.span);
+        let symbol = program.symbols.get(id.0 as usize)?;
+        let node = match &symbol.kind {
+            SymbolKind::Scenario { .. } => Some(program.effects.scenarios.get(&id)?.node),
+            SymbolKind::DeriveFn { .. } | SymbolKind::DeriveField { .. } => {
+                Some(program.effects.derives.get(&id)?.node)
+            }
+            SymbolKind::Model { .. } => Some(program.effects.models.get(&id)?.node),
+            SymbolKind::Contract { .. } | SymbolKind::Event { .. }
+            | SymbolKind::Preferences { .. } => Some(program.effects.records.get(&id)?.node),
+            SymbolKind::Field { owner, .. } => {
+                let fields = program.effects.models.get(owner).map(|model| &model.fields)
+                    .or_else(|| program.effects.records.get(owner).map(|record| &record.fields))?;
+                Some(fields.iter().find(|field| field.field == id)?.node)
+            }
+            SymbolKind::Param { owner, .. } => {
+                let params = program.effects.scenarios.get(owner).map(|scenario| &scenario.params)
+                    .or_else(|| program.effects.derives.get(owner).map(|derive| &derive.params))?;
+                Some(params.iter().find(|parameter| parameter.param == id)?.node)
+            }
+            _ => None,
+        };
+        if let Some(node) = node {
+            if node.file != symbol.span.file || node.start > symbol.span.start
+                || node.end < symbol.span.end {
+                return None;
+            }
+            spans.push(Span::new(node.file, node.start, node.end));
+        } else {
+            spans.push(symbol.span);
+        }
         Some(())
     };
     fn type_declarations(
@@ -3123,6 +3154,33 @@ mod helper_any_plan_tests {
                         affected.span,
                     ));
                 assert!(blocked.plan(owner, &module).is_none(), "{canonical}");
+            }
+            // Actual backend failures anchor expressions, not declaration names.
+            // Related locations must carry the same closure veto as the primary.
+            let scenario = &program.effects.scenarios[&owner.id];
+            let helper = program.effects.derives.values().find(|derive| {
+                program.symbols[derive.derive.0 as usize].canonical
+                    == if renamed { "People.permitted" } else { "People.allowed" }
+            }).unwrap();
+            let input = program.effects.records.values().find(|record| {
+                program.symbols[record.record.0 as usize].canonical == "QueryConsumer.Input"
+            }).unwrap();
+            for node in [scenario.effects[0].node, helper.expr.unwrap(), input.fields[1].node] {
+                let span = Span::new(node.file, node.start, node.end);
+                for related in [false, true] {
+                    let mut blocked = PreparedQuerySources::from_context(&context);
+                    let mut diagnostic = crate::diagnostic::Diagnostic::error(
+                        "E6008", "consumed expression has no executable producer".into(),
+                        if related { Span::new(sibling, 0, 0) } else { span },
+                    );
+                    if related {
+                        diagnostic.related.push(crate::diagnostic::Related {
+                            span, message: "owning consumed expression".into(),
+                        });
+                    }
+                    blocked.diagnostics.push(diagnostic);
+                    assert!(blocked.plan(owner, &module).is_none(), "{node:?} related={related}");
+                }
             }
             let mut blocked = PreparedQuerySources::from_context(&context);
             blocked

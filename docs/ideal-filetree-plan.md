@@ -1354,3 +1354,11 @@ the compiled D1 consumer and focused checks pass, with the separate pre-existing
 caption failure recorded. Bounded reconciliation since61334d958; unfinished hook
 changes and foreign work remain outside this intake. No new carrier/package or
 complete-checkpoint advance. Full212-error work continues on main; Muse is stopped.
+
+### 2026-10-18 — consumed query declaration boundaries
+
+Compiler `scenario_queries.rs` retains this responsibility: scoped backend-gap
+filtering covers whole consumed declarations, not only symbol names. Reviewed
+its production change and existing primary/related body-span cases; focused unit
+1/1 passes, unrelated siblings and missing-analysis refusal remain. No new owner
+or package. This bounded intake leaves the complete historical checkpoint fixed.

@@ -18987,3 +18987,11 @@ cases and the changed ordering pin pass. The old table-filter driver stops on an
 unchanged E5007 rich-text caption, reproduced with the pre-batch compiler; it is
 not a passing test. Full original pages/composition remain open; no new full24
 count is claimed. Continue the all212-error goal on main with Muse stopped.
+
+2026-10-18 — accepted: Scoped query-source correspondence uses complete checked
+declaration nodes for consumed scenarios, helpers, fields, types and parameters.
+Name spans alone missed backend failures inside bodies/defaults. Primary and
+related diagnostic locations both veto the consumed closure; unrelated sibling
+E6008 remains scoped, and missing analysis remains a global refusal. The existing
+focused source-query case passes. SEND keeps its separate strict executable
+closure gate; no original24 diagnostic reduction is claimed for this repair.

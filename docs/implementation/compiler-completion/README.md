@@ -210,6 +210,15 @@ Retries stayed on the affected consumer after binder/setup corrections and the
 confirmed Money scale gap; interfaces44 ran after that host change, State21 after
 the parent-shadow repair. No additional full24 run.
 
+### Consumed query declaration boundaries — 2026-10-18
+
+Scoped fresh-IR refusals now inspect whole owning declarations, including helper
+bodies, field/default initializers and parameters, rather than name spans. The
+existing focused query-source case passes with primary and related expression
+failures, while unrelated siblings remain usable and missing-analysis errors
+remain global refusals. This tightens correspondence; it does not relax SEND
+execution proof or claim a new original24 count. Unchanged checks are reused.
+
 ### Observed repeated work — command-log snapshot
 
 Counts below distinguish command invocations from actual rebuilds/cases. Prior
