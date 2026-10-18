@@ -8,7 +8,7 @@ import { deserialize, serialize } from "node:v8";
 import type { CompileArtifact } from "@canlang/contracts";
 import type { LocalCommandLifetime } from "../cli/command-lifetime.js";
 import { cleanupAfterFailure, retryableDispose } from "../runtime/resource-lifetime.js";
-import type { BuildPackageDeployBundleOptions, PackageDeployBundle } from "./bundle.js";
+import type { BuildPackageDeployBundleOptions, PackageDeployBundle, ProducerBundleCache, ProducerBundleCandidate, ProducerBundleKind, ProducerBundleRecords } from "./bundle.js";
 
 export interface OwnedBundleOptions extends BuildPackageDeployBundleOptions {
   signal?: AbortSignal;
@@ -19,8 +19,31 @@ export interface OwnedBundleJob {
   artifact: CompileArtifact;
   options: Omit<BuildPackageDeployBundleOptions, "commandLifetime">;
 }
-export type OwnedBundleReply = { ok: true; bundle: PackageDeployBundle } |
+export type OwnedBundleReply = { ok: true; bundle: PackageDeployBundle; producers?: ProducerBundleRecords } |
   { ok: false; error: unknown; code?: unknown };
+
+/**
+ * Calling-process owner cache for invariant producer bundles. At most one
+ * completed record per kind; entries are replaced only by newer completed
+ * records and die with this process. The fresh one-build child revalidates
+ * every offered byte against its exact identity before reuse, so a stale
+ * entry here can only ever cause a rebuild, never a wrong bundle.
+ */
+const ownedProducerRecords = new Map<ProducerBundleKind, ProducerBundleCandidate>();
+
+function ownedProducerCache(): ProducerBundleCache {
+  const cache: ProducerBundleCache = {};
+  const mcp = ownedProducerRecords.get("mcp");
+  if (mcp !== undefined) cache.mcp = mcp;
+  const http = ownedProducerRecords.get("http");
+  if (http !== undefined) cache.http = http;
+  return cache;
+}
+
+function retainOwnedProducerRecords(records: ProducerBundleRecords | undefined): void {
+  if (records?.mcp !== undefined) ownedProducerRecords.set("mcp", records.mcp);
+  if (records?.http !== undefined) ownedProducerRecords.set("http", records.http);
+}
 
 function runBundleChild(job: string, result: string, signal: AbortSignal | undefined,
   lifetime: LocalCommandLifetime | undefined): Promise<void> {
@@ -97,7 +120,10 @@ export async function buildOwnedDeployBundleWithAssets(artifact: CompileArtifact
   try {
     checkpoint();
     const job = join(workDir, "job.v8"), result = join(workDir, "result.v8");
-    await writeFile(job, serialize({ artifact, options: { ...buildOptions, temporaryRoot: workDir } } satisfies OwnedBundleJob));
+    await writeFile(job, serialize({
+      artifact,
+      options: { ...buildOptions, temporaryRoot: workDir, producerCache: ownedProducerCache() },
+    } satisfies OwnedBundleJob));
     checkpoint();
     await runBundleChild(job, result, signal, commandLifetime);
     checkpoint();
@@ -107,6 +133,7 @@ export async function buildOwnedDeployBundleWithAssets(artifact: CompileArtifact
       if (reply.error instanceof Error && reply.code !== undefined) Object.assign(reply.error, { code: reply.code });
       throw reply.error;
     }
+    retainOwnedProducerRecords(reply.producers);
     await dispose();
     checkpoint();
     return reply.bundle;

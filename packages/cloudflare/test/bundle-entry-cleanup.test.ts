@@ -154,5 +154,11 @@ for (const [label, build] of [["MCP", buildMcpBundle], ["HTTP", buildHttpOperati
       expect(control.events).toEqual(["write", "process", "read", "cleanup"]);
       expect(existsSync(control.directories[0]!)).toBe(false);
     });
+    it("rebuilds every call without candidates: reuse lives only in the owner cache", () => {
+      const first = build();
+      const second = build();
+      expect(second).toBe(first);
+      expect(control.events).toEqual(["write", "process", "read", "cleanup", "write", "process", "read", "cleanup"]);
+    });
   });
 }

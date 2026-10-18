@@ -1,5 +1,27 @@
 # Canlang language design decisions
 
+## 2026-10-18 — reuse invariant producer bundles across owned builds (T22)
+
+**Accepted implementation choice:** `deploy/bundle.ts` keeps per-kind
+exact-key producer records (entry text plus metafile input-byte digests with
+nearest package.json manifests, esbuild version/binary/options, driver
+template) and reuses a validated candidate only on an exact match plus marker
+revalidation; corrupt or missing inputs fall back to fresh builds.
+`deploy/owned-bundle.ts` retains at most one completed record per kind in the
+calling process (dies with the SDK host; no repository-wide cache) and offers
+candidates through the owned job; the fresh one-build child still revalidates
+and assembles artifact-dependent output itself. First measured cost: the real
+MCP/HTTP pair takes ~220ms steady (~345ms cold) with byte-identical,
+workerd-loadable output, so a warm portable build avoids 2 esbuild spawns.
+
+**Remaining uncertainty:** full-assembly proof (warm owned build plus workerd
+load of the reused bundle) is blocked by the pre-existing values-bindings
+vendor sync gap — `vendor/state` files import
+`@canlang/values/bindings/*`, which no staged tree provides yet (another
+lane's in-flight `vendor/values-bindings/` prefix design). All full-assembly
+tests fail identically on the untouched base. Recorded under dev-server:T22
+in [REMAINING-WORK.md](../implementation/REMAINING-WORK.md).
+
 ## 2026-10-18 — admit cross-package stored-reference leaf reads in native hooks
 
 **Accepted implementation choice:** `model_policy_profile::hook_snapshot_field`

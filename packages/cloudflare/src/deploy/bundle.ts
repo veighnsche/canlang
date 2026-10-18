@@ -221,13 +221,37 @@ for (const output of Object.values(result.metafile.outputs)) {
   }
 }
 for (const output of result.outputFiles) fs.writeFileSync(output.path, output.contents);
+fs.writeFileSync(outfile + ".meta.json", JSON.stringify({ inputs: Object.keys(result.metafile.inputs) }));
 `;
 
-function runBrowserBundle(entry: string, output: string, lifetime?: LocalCommandLifetime, minifyWhitespace = false, execution: BundleExecutionOptions = {}): void {
+function runBrowserBundle(entry: string, output: string, lifetime?: LocalCommandLifetime, minifyWhitespace = false, execution: BundleExecutionOptions = {}): { metafileInputs: string[] | null } {
   execFileSync(process.execPath, ["--eval", ESBUILD_DRIVER, createRequire(import.meta.url).resolve("esbuild"), entry, output, String(minifyWhitespace)], {
     ...bundleBuildOptions(lifetime),
     ...(execution.esbuildBinaryPath === undefined ? {} : { env: { ...process.env, ESBUILD_BINARY_PATH: execution.esbuildBinaryPath } }),
   });
+  return { metafileInputs: readBundleMetafileInputs(output, entry) };
+}
+
+/**
+ * Exact esbuild input closure for one producer build, or null when the
+ * metafile is absent or unreadable (mocked subprocesses, older drivers).
+ * A null closure never qualifies for reuse: the build stays uncacheable.
+ */
+function readBundleMetafileInputs(output: string, entry: string): string[] | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(readFileSync(`${output}.meta.json`, "utf8"));
+  } catch {
+    return null;
+  }
+  if (typeof parsed !== "object" || parsed === null || !Array.isArray((parsed as { inputs?: unknown }).inputs)) return null;
+  const base = dirname(entry);
+  const inputs: string[] = [];
+  for (const input of (parsed as { inputs: unknown[] }).inputs) {
+    if (typeof input !== "string" || !input) return null;
+    inputs.push(resolve(base, input));
+  }
+  return inputs;
 }
 
 /** Thrown error `code` when the built worker entry is missing. */
@@ -269,6 +293,234 @@ export const HTTP_BUNDLE_MARKERS: readonly string[] = [
   "createSourceFormBindings",
   "IdentityError",
 ];
+
+/** Producer bundle kind covered by exact-key reuse. */
+export type ProducerBundleKind = "mcp" | "http";
+
+/**
+ * Opaque reusable producer-bundle candidate from a previous completed build.
+ * The owning caller stores these verbatim and offers them back; the builder
+ * revalidates every byte before reuse.
+ */
+export interface ProducerBundleCandidate {
+  key: string;
+  bytes: string;
+  inputs: string[];
+}
+
+/** Completed producer-bundle record for the owner cache. */
+export interface ProducerBundleRecord extends ProducerBundleCandidate {
+  kind: ProducerBundleKind;
+  reused: boolean;
+}
+
+/**
+ * Per-kind reusable candidates supplied by the calling process. The builders
+ * never trust these: an exact key match plus marker revalidation is required
+ * before skipping the esbuild subprocess.
+ */
+export interface ProducerBundleCache {
+  mcp?: ProducerBundleCandidate;
+  http?: ProducerBundleCandidate;
+}
+
+const PRODUCER_BUNDLE_KEY_VERSION = 1;
+
+/**
+ * Exact esbuild identity for one producer build, or null when unresolvable.
+ * @internal Exact key material for owning reuse fixtures; not an app API.
+ */
+export function producerToolId(execution: BundleExecutionOptions): string | null {
+  let version: unknown;
+  try {
+    version = (JSON.parse(readFileSync(
+      createRequire(import.meta.url).resolve("esbuild/package.json"), "utf8",
+    )) as { version?: unknown }).version;
+  } catch {
+    return null;
+  }
+  if (typeof version !== "string" || !version) return null;
+  return JSON.stringify({ version, binaryPath: execution.esbuildBinaryPath ?? null });
+}
+
+/**
+ * Digest over the exact consumed input bytes, or null when any input is
+ * unreadable. A null digest never qualifies for reuse. Nearest package.json
+ * files ride along because their exports maps steer module resolution without
+ * appearing in the metafile input list.
+ */
+/** @internal Exact key material for owning reuse fixtures; not an app API. */
+export function hashProducerInputs(inputs: readonly string[]): string | null {
+  const rows: string[] = [];
+  for (const file of [...inputs].sort()) {
+    let digest: string;
+    try {
+      digest = createHash("sha256").update(readFileSync(file)).digest("hex");
+    } catch {
+      return null;
+    }
+    rows.push(`${digest}  ${file}`);
+  }
+  const manifestDigests = new Map<string, string>();
+  for (const file of inputs) {
+    let dir = dirname(file);
+    for (let depth = 0; depth < 25; depth++) {
+      const manifest = join(dir, "package.json");
+      let digest = manifestDigests.get(manifest);
+      if (digest === undefined) {
+        try {
+          digest = createHash("sha256").update(readFileSync(manifest)).digest("hex");
+        } catch {
+          digest = "";
+        }
+        manifestDigests.set(manifest, digest);
+      }
+      if (digest !== "") {
+        rows.push(`manifest ${digest}  ${manifest}`);
+        break;
+      }
+      const parent = dirname(dir);
+      if (parent === dir) break;
+      dir = parent;
+    }
+  }
+  return createHash("sha256")
+    .update(JSON.stringify({ version: PRODUCER_BUNDLE_KEY_VERSION, rows }))
+    .digest("hex");
+}
+
+/** @internal Exact key material for owning reuse fixtures; not an app API. */
+export function producerBundleKey(kind: ProducerBundleKind, entrySource: string, inputsDigest: string,
+  toolId: string, minifyWhitespace: boolean): string {
+  return createHash("sha256").update(JSON.stringify({
+    version: PRODUCER_BUNDLE_KEY_VERSION,
+    kind,
+    entry: entrySource,
+    inputs: inputsDigest,
+    tool: toolId,
+    minify: minifyWhitespace,
+    // Fixed driver constants (platform/format/target) ride along verbatim:
+    // any driver template edit changes this digest and invalidates reuse.
+    driver: createHash("sha256").update(ESBUILD_DRIVER).digest("hex"),
+  })).digest("hex");
+}
+
+function producerBundleMarkers(kind: ProducerBundleKind): readonly string[] {
+  return kind === "mcp" ? MCP_BUNDLE_MARKERS : HTTP_BUNDLE_MARKERS;
+}
+
+function producerBundleFailure(kind: ProducerBundleKind, detail: string): Error {
+  if (kind === "mcp") {
+    return new Error(
+      `deploy bundle: MCP bundle build failed (\`esbuild\` on the generated entry); ` +
+      `the MCP SDK and esbuild must resolve and both producer dists must be built. ` +
+      `Underlying error: ${detail}`,
+    );
+  }
+  return new Error(
+    `deploy bundle: HTTP bundle build failed (\`esbuild\` on the generated entry); ` +
+    `the interfaces dist must be built. Underlying error: ${detail}`,
+  );
+}
+
+function producerBundleDropped(kind: ProducerBundleKind, marker: string): Error {
+  if (kind === "mcp") {
+    return new Error(
+      `deploy bundle: MCP bundle build dropped ${marker}; refusing a skewed bundle ` +
+      `(rebuild the producer dists and retry)`,
+    );
+  }
+  return new Error(
+    `deploy bundle: HTTP bundle build dropped ${marker}; refusing a skewed bundle ` +
+    `(rebuild the producer dists and retry)`,
+  );
+}
+
+/**
+ * Build one invariant producer bundle, reusing a validated candidate when its
+ * exact identity matches. Returns the bytes plus the completed record (null
+ * key when the build is uncacheable). The fresh-build path below mirrors the
+ * defining builders' failure mapping, scratch lifecycle and messages
+ * exactly; only completed, marker-checked output is ever admitted, and a
+ * corrupt candidate falls back to a fresh build.
+ */
+function buildProducerBundle(kind: ProducerBundleKind, entryFileName: string, entrySource: string,
+  lifetime: LocalCommandLifetime | undefined,
+  execution: BundleExecutionOptions, candidate: ProducerBundleCandidate | undefined,
+): { bytes: string; key: string | null; inputs: string[] | null; reused: boolean } {
+  const toolId = producerToolId(execution);
+  if (toolId !== null && candidate !== undefined) {
+    const digest = hashProducerInputs(candidate.inputs);
+    if (digest !== null &&
+        candidate.key === producerBundleKey(kind, entrySource, digest, toolId, false)) {
+      let markersOk = true;
+      for (const marker of producerBundleMarkers(kind)) {
+        if (!candidate.bytes.includes(marker)) {
+          markersOk = false;
+          break;
+        }
+      }
+      if (markersOk) {
+        lifetime?.checkpoint("deploy producer bundle verified");
+        return { bytes: candidate.bytes, key: candidate.key, inputs: candidate.inputs, reused: true };
+      }
+    }
+  }
+  const workDir = mkdtempSync(join(execution.temporaryRoot ?? tmpdir(), `can-deploy-${kind}-`));
+  const entryFile = join(workDir, entryFileName);
+  const outFile = join(workDir, `${kind}-bundle.mjs`);
+  let entryWritten = false;
+  let metafileInputs: string[] | null = null;
+  try {
+    writeFileSync(entryFile, entrySource, "utf8");
+    entryWritten = true;
+    lifetime?.checkpoint("deploy esbuild start");
+    metafileInputs = runBrowserBundle(entryFile, outFile, lifetime, false, execution).metafileInputs;
+    lifetime?.checkpoint("deploy esbuild completed");
+  } catch (err) {
+    if (!entryWritten) {
+      try {
+        rmSync(workDir, { force: true, recursive: true });
+      } finally {
+        throw err;
+      }
+    }
+    const failure = bundleStageFailure(err, lifetime);
+    try {
+      rmSync(workDir, { force: true, recursive: true });
+    } finally {
+      if (failure instanceof LocalCommandInterrupted) throw failure;
+      const detail = err instanceof Error ? err.message : String(err);
+      throw producerBundleFailure(kind, detail);
+    }
+  }
+  let contents: string;
+  try {
+    contents = readFileSync(outFile, "utf8");
+  } catch (err) {
+    try {
+      rmSync(workDir, { force: true, recursive: true });
+    } finally {
+      throw err;
+    }
+  }
+  rmSync(workDir, { force: true, recursive: true });
+  for (const marker of producerBundleMarkers(kind)) {
+    if (!contents.includes(marker)) {
+      throw producerBundleDropped(kind, marker);
+    }
+  }
+  lifetime?.checkpoint("deploy producer bundle verified");
+  if (toolId === null || metafileInputs === null) return { bytes: contents, key: null, inputs: null, reused: false };
+  const digest = hashProducerInputs(metafileInputs);
+  if (digest === null) return { bytes: contents, key: null, inputs: null, reused: false };
+  return {
+    bytes: contents,
+    key: producerBundleKey(kind, entrySource, digest, toolId, false),
+    inputs: metafileInputs,
+    reused: false,
+  };
+}
 
 interface VendorTree {
   directory: URL;
@@ -412,6 +664,12 @@ export interface BundleExecutionOptions {
 
 export interface BuildDeployBundleOptions extends BundleExecutionOptions {
   commandLifetime?: LocalCommandLifetime;
+  /**
+   * Optional reusable producer-bundle candidates from the calling process.
+   * Data-only (plain key/bytes/inputs); the builders revalidate every byte
+   * before reuse. Never carries functions or lifetimes.
+   */
+  producerCache?: ProducerBundleCache;
   /** @deprecated Ignored. Producer files resolve through installed package exports. */
   repoRoot?: string;
   /**
@@ -1140,6 +1398,10 @@ export function buildDerivedInputsModule(artifact: CompileArtifact): string {
  * using absolute dist paths so tmp paths never leak into bundle bytes.
  */
 export function buildMcpBundle(_repoRoot?: string, lifetime?: LocalCommandLifetime, execution: BundleExecutionOptions = {}): string {
+  return buildProducerBundle("mcp", "mcp-bundle-entry.js", mcpBundleEntrySource(lifetime), lifetime, execution, undefined).bytes;
+}
+
+function mcpBundleEntrySource(lifetime?: LocalCommandLifetime): string {
   lifetime?.checkpoint("deploy MCP inputs");
   const serverDist = resolveProducerFile(
     INTERFACES_MCP_SERVER_DIST,
@@ -1149,67 +1411,12 @@ export function buildMcpBundle(_repoRoot?: string, lifetime?: LocalCommandLifeti
     MCP_REGISTRY_DIST,
     "bun run --filter @canlang/cloudflare build",
   );
-  const workDir = mkdtempSync(join(execution.temporaryRoot ?? tmpdir(), "can-deploy-mcp-"));
-  const entryFile = join(workDir, "mcp-bundle-entry.js");
-  const outFile = join(workDir, "mcp-bundle.mjs");
   const toPosixAbsolute = (path: string): string => path.split(sep).join(posix.sep);
   // `createHandler` is the main's join-contract name for the real
   // `createMcpHandler` (identical `McpHandlerFactory` shape: `(deps) =>
   // (request) => Response`) — one alias, same function, no wrapper.
-  let entryWritten = false;
-  try {
-    writeFileSync(
-      entryFile,
-      `export { createMcpHandler, createMcpHandler as createHandler } from ${JSON.stringify(toPosixAbsolute(serverDist))};\n` +
-        `export { createArtifactCatalog, createArtifactRegistry } from ${JSON.stringify(toPosixAbsolute(registryDist))};\n`,
-      "utf8",
-    );
-    entryWritten = true;
-    lifetime?.checkpoint("deploy esbuild start");
-    runBrowserBundle(entryFile, outFile, lifetime, false, execution);
-    lifetime?.checkpoint("deploy esbuild completed");
-  } catch (err) {
-    if (!entryWritten) {
-      try {
-        rmSync(workDir, { force: true, recursive: true });
-      } finally {
-        throw err;
-      }
-    }
-    const failure = bundleStageFailure(err, lifetime);
-    try {
-      rmSync(workDir, { force: true, recursive: true });
-    } finally {
-      if (failure instanceof LocalCommandInterrupted) throw failure;
-      const detail = err instanceof Error ? err.message : String(err);
-      throw new Error(
-        `deploy bundle: MCP bundle build failed (\`esbuild\` on the generated entry); ` +
-        `the MCP SDK and esbuild must resolve and both producer dists must be built. ` +
-        `Underlying error: ${detail}`,
-      );
-    }
-  }
-  let contents: string;
-  try {
-    contents = readFileSync(outFile, "utf8");
-  } catch (err) {
-    try {
-      rmSync(workDir, { force: true, recursive: true });
-    } finally {
-      throw err;
-    }
-  }
-  rmSync(workDir, { force: true, recursive: true });
-  for (const marker of MCP_BUNDLE_MARKERS) {
-    if (!contents.includes(marker)) {
-      throw new Error(
-        `deploy bundle: MCP bundle build dropped ${marker}; refusing a skewed bundle ` +
-          `(rebuild the producer dists and retry)`,
-      );
-    }
-  }
-  lifetime?.checkpoint("deploy producer bundle verified");
-  return contents;
+  return `export { createMcpHandler, createMcpHandler as createHandler } from ${JSON.stringify(toPosixAbsolute(serverDist))};\n` +
+    `export { createArtifactCatalog, createArtifactRegistry } from ${JSON.stringify(toPosixAbsolute(registryDist))};\n`;
 }
 
 /**
@@ -1221,83 +1428,33 @@ export function buildMcpBundle(_repoRoot?: string, lifetime?: LocalCommandLifeti
  * instead (see `defaultLoadHttpOperationsFactory`).
  */
 export function buildHttpOperationsBundle(_repoRoot?: string, lifetime?: LocalCommandLifetime, execution: BundleExecutionOptions = {}): string {
+  return buildProducerBundle("http", "http-bundle-entry.js", httpBundleEntrySource(lifetime), lifetime, execution, undefined).bytes;
+}
+
+function httpBundleEntrySource(lifetime?: LocalCommandLifetime): string {
   lifetime?.checkpoint("deploy HTTP inputs");
   const operationsDist = resolveProducerFile(
     INTERFACES_HTTP_OPERATIONS_DIST,
     "bun run --filter @canlang/interfaces build",
   );
-  const workDir = mkdtempSync(join(execution.temporaryRoot ?? tmpdir(), "can-deploy-http-"));
-  const entryFile = join(workDir, "http-bundle-entry.js");
-  const outFile = join(workDir, "http-bundle.mjs");
   const toPosixAbsolute = (path: string): string => path.split(sep).join(posix.sep);
-  let entryWritten = false;
-  try {
-    writeFileSync(
-      entryFile,
-      `export { handleOperationRequest, createSourceFormBindings, catalogFromArtifactOperations, createSourceValidationCatalog, encodeServingLiteral, INPUT_CHOICES_VERSION } from ${JSON.stringify(toPosixAbsolute(operationsDist))};\n` +
-      `export { handleCsvRequest } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "http", "csv.js")))};\n` +
-      `export { handleExportRequest } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "http", "export.js")))};\n` +
-      `export { canonicalJson } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "http", "canonical-json.js")))};\n` +
-      `export { handleAuthRequest } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "http", "auth.js")))};\n` +
-      `export { parseJsonBody, JSON_BODY_MAX_BYTES } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "http", "limits.js")))};\n` +
-      `export { receiverFromIdentity } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "uploads", "principals.js")))};\n` +
-      `export { handleUploadRequest } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "uploads", "routes.js")))};\n` +
-      `export { createFileJourneyKernel } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "uploads", "kernel.js")))};\n` +
-      `export { buildBusinessError, fromUnknown, toHttpResponse } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "errors", "envelope.js")))};\n` +
-      `export { resolveRequestIdentity } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "http", "context.js")))};\n` +
-      `export { SESSION_EXPIRES_MS } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(identityDistribution.modules), "accounts", "registration.js")))};\n` +
-      `export { handlePageRequest, handlePagePreferencePost } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "http", "pages.js")))};\n` +
-      `export { assertTrustedAuthOrigin, caughtToBusinessError, isBusinessThrow, jsonErrorResponse } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "http", "context.js")))};\n` +
-      `export { httpStatusFor } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "errors", "envelope.js")))};\n` +
-      `export { logInternalError } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "errors", "logging.js")))};\n` +
-      `export { checkArtifactOperation, checkArtifactOperations, checkBoundArgument, checkBoundArguments, checkedToMcpInputSchema } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "mcp", "schemas.js")))};\n`,
-      "utf8",
-    );
-    entryWritten = true;
-    lifetime?.checkpoint("deploy esbuild start");
-    runBrowserBundle(entryFile, outFile, lifetime, false, execution);
-    lifetime?.checkpoint("deploy esbuild completed");
-  } catch (err) {
-    if (!entryWritten) {
-      try {
-        rmSync(workDir, { force: true, recursive: true });
-      } finally {
-        throw err;
-      }
-    }
-    const failure = bundleStageFailure(err, lifetime);
-    try {
-      rmSync(workDir, { force: true, recursive: true });
-    } finally {
-      if (failure instanceof LocalCommandInterrupted) throw failure;
-      const detail = err instanceof Error ? err.message : String(err);
-      throw new Error(
-        `deploy bundle: HTTP bundle build failed (\`esbuild\` on the generated entry); ` +
-        `the interfaces dist must be built. Underlying error: ${detail}`,
-      );
-    }
-  }
-  let contents: string;
-  try {
-    contents = readFileSync(outFile, "utf8");
-  } catch (err) {
-    try {
-      rmSync(workDir, { force: true, recursive: true });
-    } finally {
-      throw err;
-    }
-  }
-  rmSync(workDir, { force: true, recursive: true });
-  for (const marker of HTTP_BUNDLE_MARKERS) {
-    if (!contents.includes(marker)) {
-      throw new Error(
-        `deploy bundle: HTTP bundle build dropped ${marker}; refusing a skewed bundle ` +
-          `(rebuild the producer dists and retry)`,
-      );
-    }
-  }
-  lifetime?.checkpoint("deploy producer bundle verified");
-  return contents;
+  return `export { handleOperationRequest, createSourceFormBindings, catalogFromArtifactOperations, createSourceValidationCatalog, encodeServingLiteral, INPUT_CHOICES_VERSION } from ${JSON.stringify(toPosixAbsolute(operationsDist))};\n` +
+    `export { handleCsvRequest } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "http", "csv.js")))};\n` +
+    `export { handleExportRequest } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "http", "export.js")))};\n` +
+    `export { canonicalJson } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "http", "canonical-json.js")))};\n` +
+    `export { handleAuthRequest } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "http", "auth.js")))};\n` +
+    `export { parseJsonBody, JSON_BODY_MAX_BYTES } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "http", "limits.js")))};\n` +
+    `export { receiverFromIdentity } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "uploads", "principals.js")))};\n` +
+    `export { handleUploadRequest } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "uploads", "routes.js")))};\n` +
+    `export { createFileJourneyKernel } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "uploads", "kernel.js")))};\n` +
+    `export { buildBusinessError, fromUnknown, toHttpResponse } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "errors", "envelope.js")))};\n` +
+    `export { resolveRequestIdentity } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "http", "context.js")))};\n` +
+    `export { SESSION_EXPIRES_MS } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(identityDistribution.modules), "accounts", "registration.js")))};\n` +
+    `export { handlePageRequest, handlePagePreferencePost } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "http", "pages.js")))};\n` +
+    `export { assertTrustedAuthOrigin, caughtToBusinessError, isBusinessThrow, jsonErrorResponse } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "http", "context.js")))};\n` +
+    `export { httpStatusFor } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "errors", "envelope.js")))};\n` +
+    `export { logInternalError } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "errors", "logging.js")))};\n` +
+    `export { checkArtifactOperation, checkArtifactOperations, checkBoundArgument, checkBoundArguments, checkedToMcpInputSchema } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "mcp", "schemas.js")))};\n`;
 }
 
 /* ------------------------------------------------------------------ */
@@ -1616,9 +1773,20 @@ export function bundleSha256(mainModule: string, modules: Record<string, string>
  * workerd/browser separation. Deterministic: same inputs (including
  * the verdict) => identical modules + sha256.
  */
+/**
+ * Completed producer-bundle records for the calling process's owner cache.
+ * Only keyed (exactly identified) records are reported; uncacheable builds
+ * report no record for that kind.
+ */
+export interface ProducerBundleRecords {
+  mcp?: ProducerBundleCandidate;
+  http?: ProducerBundleCandidate;
+}
+
 export function buildDeployBundle(
   artifact: CompileArtifact,
   options: BuildDeployBundleOptions,
+  producerCollector?: (records: ProducerBundleRecords) => void,
 ): DeployBundle {
   options.commandLifetime?.checkpoint("deploy bundle inputs");
   let workerDistDir = options.workerDistDir;
@@ -1650,8 +1818,22 @@ export function buildDeployBundle(
   modules[JUDGMENT_SPECIFICATION_VENDOR_ENTRY] = rewriteVendorImports(readFileSync(
     resolveProducerFile(JUDGMENT_SPECIFICATION_SOURCE_SPECIFIER, "bun run --filter @canlang/services build"), "utf8",
   ), JUDGMENT_SPECIFICATION_VENDOR_ENTRY);
-  modules[MCP_HANDLER_MODULE] = buildMcpBundle(undefined, options.commandLifetime, options);
-  modules[HTTP_OPERATIONS_MODULE] = buildHttpOperationsBundle(undefined, options.commandLifetime, options);
+  const mcpProducer = buildProducerBundle("mcp", "mcp-bundle-entry.js",
+    mcpBundleEntrySource(options.commandLifetime), options.commandLifetime, options, options.producerCache?.mcp);
+  const httpProducer = buildProducerBundle("http", "http-bundle-entry.js",
+    httpBundleEntrySource(options.commandLifetime), options.commandLifetime, options, options.producerCache?.http);
+  modules[MCP_HANDLER_MODULE] = mcpProducer.bytes;
+  modules[HTTP_OPERATIONS_MODULE] = httpProducer.bytes;
+  if (producerCollector !== undefined) {
+    const records: ProducerBundleRecords = {};
+    if (mcpProducer.key !== null && mcpProducer.inputs !== null) {
+      records.mcp = { key: mcpProducer.key, bytes: mcpProducer.bytes, inputs: mcpProducer.inputs };
+    }
+    if (httpProducer.key !== null && httpProducer.inputs !== null) {
+      records.http = { key: httpProducer.key, bytes: httpProducer.bytes, inputs: httpProducer.inputs };
+    }
+    producerCollector(records);
+  }
   modules[ARTIFACT_MODULE] = renderStagedDeployment(
     artifact,
     portableAssembledModules(artifact.modules.map((mod) => mod.path), stagedArtifact.sourceMaps),
@@ -2163,10 +2345,11 @@ function installBrowserAssets(artifact: CompileArtifact, resources: ReturnType<t
 export function buildDeployBundleWithAssets(
   artifact: CompileArtifact,
   options: BuildPackageDeployBundleOptions,
+  producerCollector?: (records: ProducerBundleRecords) => void,
 ): PackageDeployBundle {
   options.commandLifetime?.checkpoint("deploy package assets inputs");
   const assets = gatherDeploymentAssets(options.assets);
-  const base = buildDeployBundle(artifact, options);
+  const base = buildDeployBundle(artifact, options, producerCollector);
   const modules = { ...base.modules };
   const resources = snapshotResources(assets.resources);
   let resourceDigest = resourcesSha256(resources);

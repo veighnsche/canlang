@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { createServer, request } from "node:http";
 import { once } from "node:events";
+import { deserialize } from "node:v8";
 import { afterAll, beforeAll, expect, it, vi } from "vitest";
 import type { CompileArtifact } from "@canlang/contracts";
 import { createLocalCommandLifetime, LocalCommandInterrupted } from "../src/cli/command-lifetime.js";
@@ -39,7 +40,11 @@ child.kill("SIGKILL");
 writeFileSync(resultPath, serialize(artifact.failure ? { ok: false, error: artifact.failure } : {
   ok: true, bundle: { mainModule: "worker/main.js", modules: { "worker/main.js": "export default {};" },
     moduleCount: 1, sha256: options.esbuildBinaryPath, mcpBundleBytes: 0, httpOperationsBytes: 0,
-    binaries: {}, mixedSha256: "mixed", resources: { test: { bytes: new Uint8Array([1,2,3]), contentType: "test" } }, resourcesSha256: "resources" }
+    binaries: {}, mixedSha256: "mixed", resources: { test: { bytes: new Uint8Array([1,2,3]), contentType: "test" } }, resourcesSha256: "resources" },
+  producers: {
+    mcp: { key: \`mcp-\${artifact.delay}\`, bytes: "mcp-bytes", inputs: [] },
+    http: { key: \`http-\${artifact.delay}\`, bytes: "http-bytes", inputs: [] },
+  }
 }));
 `);
 });
@@ -135,4 +140,33 @@ it("preserves scalar build failures and skips allocating an already cancelled jo
   const controller = new AbortController(); controller.abort("already stopped");
   await expect(buildOwnedDeployBundleWithAssets(artifact(), { verdict: { active: true }, signal: controller.signal })).rejects.toBe("already stopped");
   expect(control.jobs).toHaveLength(index + 1);
+});
+
+function jobProducerCache(jobIndex: number): unknown {
+  return (deserialize(readFileSync(control.jobs[jobIndex]!)) as { options: { producerCache: unknown } }).options.producerCache;
+}
+
+it("carries completed producer records into the next owned build", async () => {
+  const first = control.jobs.length;
+  await buildOwnedDeployBundleWithAssets(artifact(400), { verdict: { active: true } });
+  const second = buildOwnedDeployBundleWithAssets(artifact(400), { verdict: { active: true } });
+  await started(first + 1);
+  expect(jobProducerCache(first + 1)).toEqual({
+    mcp: { key: "mcp-400", bytes: "mcp-bytes", inputs: [] },
+    http: { key: "http-400", bytes: "http-bytes", inputs: [] },
+  });
+  await second;
+});
+
+it("keeps the last completed producer records across a failed owned build", async () => {
+  const base = control.jobs.length;
+  await buildOwnedDeployBundleWithAssets(artifact(200), { verdict: { active: true } });
+  await expect(buildOwnedDeployBundleWithAssets(artifact(200, "producer refusal"), { verdict: { active: true } })).rejects.toBe("producer refusal");
+  const next = buildOwnedDeployBundleWithAssets(artifact(200), { verdict: { active: true } });
+  await started(base + 2);
+  expect(jobProducerCache(base + 2)).toEqual({
+    mcp: { key: "mcp-200", bytes: "mcp-bytes", inputs: [] },
+    http: { key: "http-200", bytes: "http-bytes", inputs: [] },
+  });
+  await next;
 });
