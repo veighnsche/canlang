@@ -1,5 +1,30 @@
 # Canlang language design decisions
 
+## 2026-10-18 — accept the selected Rust integer and CSV consumer slice
+
+**Accepted implementation and integration decision.** Adopt the existing Rust
+int codec through an explicit opt-in Values backend/facade and the actual
+Interfaces CSV duplicate-key consumer. Admit primitive ASCII text under the
+existing 1MiB CSV limit before selected transport allocation; retain the derived
+tagged-envelope/escape ceiling, complete syntax before range, and signed64
+lexical decisions before successful bigint parsing. Preserve ordered SchemaError
+fields and original diagnostic text. Leading zeros and signed zero normalize
+only duplicate identity; raw CSV rows, binding order and downstream values stay
+unchanged. Non-ASCII and default callers keep their existing TypeScript route;
+native failures propagate without retry.
+
+Accept source/artifact commit `05f326154` after independent critical-path review
+and nine genuine-artifact regression probes, reusing the recorded Rust/Node,
+source-correspondence, actual installed Node24.19 and isolated Worker results.
+Wasm SHA256 is
+`2558ff71cd46bc022365c1b9633052dcb0324b1c96c13f9849fa7aea2768bb89`.
+Merge onto `eb4997001` retains the newer compiler/runtime/State commits and
+unstaged foreign notes. Reconcile the ten implementation paths and two planning
+records using retained review coverage; keep the stale-plan notice and complete
+checkpoint unchanged. Remaining Work package/vendor closure is independent.
+No native preparation, default backend switch, TS retirement or public release
+is authorized by this acceptance. Wider codec/domain qualification remains open.
+
 ## 2026-10-18 — merge reconciled Rust plan while retaining compiler recovery
 
 **Accepted integration decision.** The user authorizes merging plan `fd03732b8`

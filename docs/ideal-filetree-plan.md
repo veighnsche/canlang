@@ -7,6 +7,29 @@
 > decisions and bounded coverage evidence are retained below; that evidence
 > applies only at its recorded scope and does not establish whole-plan currency.
 
+**Accepted selected Rust integer/CSV integration, 2026-10-18:** merge
+`05f326154` onto newer main `eb4997001` preserves the compiler, Cloudflare
+runtime and State changes in `92a3281be`, `5d81e2a84` and `eb4997001`.
+Incremental coverage adds the ten Values/Interfaces source, test, artifact and
+source-correspondence paths plus this plan and DECISIONS. Values owns the bounded
+integer codec and explicit backend/error facade; Interfaces owns the existing CSV
+duplicate-identity consumer. Existing ownership, target allocations and accumulated
+checkpoint coverage are retained. This bounded reconciliation does not establish
+whole-plan currency or advance the complete review checkpoint.
+
+The explicitly selected ASCII/int profile is accepted: original 1MiB admission,
+derived tagged envelope/escape bound, syntax-before-range, signed64 lexical scan
+before successful bigint parsing, ordered owning SchemaError projection, and CSV
+normalization confined to duplicate identity. The default remains TypeScript.
+Independent source review and nine changed-artifact probes pass on genuine Wasm
+`2558ff71`; reuse the recorded Rust selected15/15, Node producer/CSV15/15,
+string-escape2/2, actual installed Node24.19 package and isolated-workerd results.
+The string fixture changes only source correspondence; semantic rows are unchanged.
+Broader codecs/Unicode, parent A04.5, native preparation P04-P11/C04.native-release,
+backend defaults, TS retirement and production/public release remain open or held.
+The separate Work fanout/delivery continuation remains under review; it is not
+required to merge this accepted producer/consumer slice.
+
 **Selected `ports:V02.6` Worker serving qualification, 2026-10-18 (base
 `3059a36af` plus local finite changes):** the released ordinary TS source-serving
 packet is complete at its selected scope. The new

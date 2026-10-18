@@ -65,6 +65,7 @@ import { CSV_GRAMMAR_MAX_ROWS, CsvGrammarError, parseCsvGrammar } from '@canlang
 import type { CsvResourceLimits } from '@canlang/ui/csv/grammar';
 import { checkCsvHeader, mapCsvCells } from '@canlang/ui';
 import { decodeValue, encodeValue, isDecimal, SchemaError } from '@canlang/values';
+import { decodeSelectedInt, encodeSelectedInt } from '@canlang/values/bindings/backend';
 import type { HttpDeps, OperationInputShape } from '../ports.js';
 import { validateOperationId, validateOperationIdShape } from '../envelope/validate.js';
 import { prepareHttpPlan, runPreparedHttpPlan } from '../envelope/prepared.js';
@@ -221,10 +222,19 @@ function duplicateKey(
       : null;
     if (type === null) continue;
     try {
-      const value = decodeValue(type, inputs[input.name]);
-      if (type === 'int' || type === 'duration') identity[input.name] = encodeValue(type, value);
-      else if (type === 'decimal' && isDecimal(value)) {
-        identity[input.name] = { coefficient: value.coef.toString(), scale: value.scale };
+      if (type === 'int') {
+        // Selected int/ASCII boundary: explicit opt-in native producer at
+        // ASCII, full-domain TypeScript route outside ASCII, no retry after
+        // native failure. Raw row spellings stay untouched; only the
+        // duplicate identity carries the normalized encode.
+        const selected = decodeSelectedInt(inputs[input.name]);
+        identity[input.name] = encodeSelectedInt(selected);
+      } else {
+        const value = decodeValue(type, inputs[input.name]);
+        if (type === 'duration') identity[input.name] = encodeValue(type, value);
+        else if (type === 'decimal' && isDecimal(value)) {
+          identity[input.name] = { coefficient: value.coef.toString(), scale: value.scale };
+        }
       }
     } catch (error) {
       if (!(error instanceof SchemaError)) throw error;
