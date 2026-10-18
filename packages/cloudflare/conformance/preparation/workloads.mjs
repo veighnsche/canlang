@@ -246,7 +246,19 @@ function subsetMatch(envelope, expected) {
   return Object.entries(expected).every(([k, v]) => envelope[k] === v);
 }
 
-export async function runWorkload(cliPath, workload) {
+/**
+ * Backend selection (P07): the backend name selects the CLI route,
+ * not just the report label. `prepared-ts` (and anything else)
+ * runs the default TS route with no flag; `native` appends the
+ * explicit `--backend native` flag, which the CLI refuses loudly
+ * until the native driver lands — never a silently mislabeled TS
+ * run.
+ */
+export function backendFlag(backend) {
+  return backend === "native" ? ["--backend", "native"] : [];
+}
+
+export async function runWorkload(cliPath, workload, backend) {
   const dir = mkdtempSync(join(tmpdir(), "can-prep-diff-"));
   const artifact = writeBundle(dir, workload.mutate);
   const runs = [];
@@ -257,9 +269,9 @@ export async function runWorkload(cliPath, workload) {
     const before = new Set(
       ["teamtasks.deploy-plan.json", "teamtasks.wrangler.toml"].filter((f) => existsSync(join(dir, f))),
     );
-    const result = await runCli(cliPath, spec.args(artifact));
+    const result = await runCli(cliPath, [...spec.args(artifact), ...backendFlag(backend)]);
     const record = {
-      args: spec.args("<ARTIFACT>"),
+      args: [...spec.args("<ARTIFACT>"), ...backendFlag(backend)],
       exit: result.code,
       durationMs: result.durationMs,
       stdout: scrub(result.stdout, dir),
@@ -310,7 +322,7 @@ export async function runWorkload(cliPath, workload) {
 export async function runAll(cliPath, backend) {
   const workloads = [];
   for (const w of WORKLOADS) {
-    workloads.push(await runWorkload(cliPath, w));
+    workloads.push(await runWorkload(cliPath, w, backend));
   }
   return {
     backend,

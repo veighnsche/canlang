@@ -178,6 +178,55 @@ remain explicit ready work, not a Git/review wait. Muse continues those joins wh
 Codex integrates this accepted slice. Reuse unchanged acceptance; public deployment,
 default switches and TS retirement stay held.
 
+### Accepted native CLI / executable-integrity slice — 18 October 2026
+
+The selected N4/N5 source adds explicit `--backend native` for build/deploy while
+keeping TS as the default. The differential selects the real route. Launch resolves
+one absolute executable and verifies its exact canonical file, bytes, host/release
+manifest before probing or starting a job. Strict readiness checks both framed
+answers and observes extra/trailing output through EOF; all waits join the owning
+cancellation and bounded settlement. Source review repaired parameterized path
+lookup, pending timers, host-callback early exits and process-group cleanup.
+Native callback failures settle before the original bare diagnostic is emitted;
+original activation/bundle/prior-plan checkpoints and lazy defaults remain.
+
+The shared host publisher reuses owning contained bundle writers and verifies
+reviewed sidecar bytes. Actual native confirmed preparation reaches one mocked
+Wrangler spawn which consumes the staged config, module closure and owning
+digest; refusal/cancellation retains honest partial-write/manual-apply context.
+No live Wrangler/provider deployment occurs. Build/package/verify remain workspace
+commands. Cargo's actual reported executable is the build input, including cached
+builds, and target-root-relative checks refuse incompatible host layouts. Existing
+recursive dist inventory covers binaries/notices; no duplicate stamp inventory or
+new package export is needed.
+
+Final installed Darwin native9/TS9 outcomes match apart from explicit backend argv;
+the same retained artifact/companions/persisted plan produces identical TS/native
+previews without conversion or stored-byte changes. Independent Linux installation
+uses a private production closure, genuine pinned1.99 ELF, no checkout links and no
+Rust/Cargo at runtime. It exposed unhandled EPIPE on wrong-architecture launch;
+repair052 owns stream errors through child lifetime and returns a bounded native
+refusal. The affected retry passes: genuine native build444ms/exit0 and wrong-arch
+481ms/exit2 with the expected JSON error. Reuse accepted TS/native equality and
+corrupt/release/missing/protocol-skew controls; genuine ELF/manifest are restored.
+Darwin private packaging now names accepted crate1e018e714 in both sidecars,
+and the affected installed build exits successfully in0.56s without timer linger.
+
+Reuse final source protocol36/38 (two unchanged adapter fixture failures),
+publication36, inputs17 and the relevant pipe/confirmed-apply/cleanup controls.
+Exact released source passes current complexity without baseline changes. Four
+foreign `runtime/invoke.ts` type errors remain; owned changed files have none, and
+whole-package typecheck is not claimed clean. The prior modules digest pin is
+unchanged. Preserve every newer compiler/runtime/Work change and foreign note.
+
+This accepts only the selected CLI/integrity/local-distribution outcomes. Broader P05 construction/policy transfer stays partial;
+current CLI is JS-only, with mixed Wasm conditional/deferred. Ten recorded full
+calls per backend cost TS299–2544ms and native300–3184ms; these are observations,
+not adoption cutoffs or a speed claim. CPU/full-tree RSS/IPC/temp-peak and ratified
+adoption remain unmeasured. Public deployment, automatic defaults and TS retirement
+stay held. The full native programme/goal is not complete merely because this
+finite slice releases its writers and commands.
+
 ## Planning refresh against current main — 18 October 2026
 
 **Planning only; implementation is not released.** Source is local main

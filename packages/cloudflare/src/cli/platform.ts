@@ -105,6 +105,8 @@ import {
   needRecord,
   needString,
   needStringArray,
+  runNativeBuild,
+  runNativeDeploy,
   runPreparedBuild,
   runPreparedDeploy,
   usage,
@@ -121,10 +123,50 @@ interface ParsedArgs {
   env: string | null;
   preview: boolean;
   yes: boolean;
+  /**
+   * Explicit preparation backend (build/deploy only). Null means the
+   * default TS route; `native` runs the native driver. No silent
+   * default switch: any other value is a usage refusal.
+   */
+  backend: "ts" | "native" | null;
   /** Requested reference locale (docs only; null means the app default). */
   locale: string | null;
   /** Versioned JSON request file (gen only; null means stdin carries it). */
   genRequest: string | null;
+}
+
+/**
+ * Take a `--name value` / `--name=value` flag value at `rest[i]`,
+ * advancing past a separate value word. Same missing-value refusal
+ * in both spellings; the returned index already skips the value.
+ */
+function takeFlagValue(rest: string[], i: number, name: string): { value: string; nextI: number } {
+  const flag = rest[i] as string;
+  if (flag.startsWith(`${name}=`)) {
+    return { value: flag.slice(name.length + 1), nextI: i };
+  }
+  if (i + 1 >= rest.length) usage(`missing value for ${name}`);
+  return { value: rest[i + 1] as string, nextI: i + 1 };
+}
+
+/** Cross-flag validation after the flag loop: same order, same refusals. */
+function validateCommandFlags(
+  command: string,
+  flags: { artifact: string | null; env: string | null; preview: boolean; yes: boolean; backend: "ts" | "native" | null; locale: string | null },
+): void {
+  const { artifact, env, preview, yes, backend, locale } = flags;
+  if ((preview || yes) && command !== "deploy") {
+    usage("--preview/--yes are deploy-only");
+  }
+  if (backend !== null && command !== "deploy" && command !== "build") {
+    usage("--backend is build/deploy-only");
+  }
+  if (command === "docs" && (artifact !== null || env !== null || preview || yes || backend !== null)) {
+    usage("docs takes only --locale; it renders the reference model piped on stdin");
+  }
+  if (locale !== null && command !== "docs") {
+    usage("--locale is docs-only");
+  }
 }
 
 function parse(argv: string[]): ParsedArgs {
@@ -158,6 +200,7 @@ function parse(argv: string[]): ParsedArgs {
   let preview = false;
   let yes = false;
   let locale: string | null = null;
+  let backend: "ts" | "native" | null = null;
   for (let i = 0; i < rest.length; i += 1) {
     const flag = rest[i];
     if (flag === "--help" || flag === "-h") {
@@ -177,43 +220,40 @@ function parse(argv: string[]): ParsedArgs {
       }
       continue;
     }
+    if (flag !== undefined && (flag === "--backend" || flag.startsWith("--backend="))) {
+      if (backend !== null) usage("duplicate --backend");
+      const taken = takeFlagValue(rest, i, "--backend");
+      i = taken.nextI;
+      if (taken.value !== "ts" && taken.value !== "native") {
+        usage(`--backend must be ts or native (got ${JSON.stringify(taken.value)})`);
+      }
+      backend = taken.value;
+      continue;
+    }
     if (flag !== undefined && (flag === "--locale" || flag.startsWith("--locale="))) {
       if (locale !== null) usage("duplicate --locale");
-      if (flag.startsWith("--locale=")) {
-        locale = flag.slice("--locale=".length);
-      } else {
-        if (i + 1 >= rest.length) usage("missing value for --locale");
-        locale = rest[i + 1] as string;
-        i += 1;
-      }
-      if (locale.length === 0) usage("--locale needs a non-empty tag");
+      const taken = takeFlagValue(rest, i, "--locale");
+      i = taken.nextI;
+      if (taken.value.length === 0) usage("--locale needs a non-empty tag");
+      locale = taken.value;
       continue;
     }
     if (flag === "--artifact" || flag === "--env") {
-      if (i + 1 >= rest.length) usage(`missing value for ${flag}`);
-      const value = rest[i + 1] as string;
+      const taken = takeFlagValue(rest, i, flag);
+      i = taken.nextI;
       if (flag === "--artifact") {
         if (artifact !== null) usage("duplicate --artifact");
-        artifact = value;
+        artifact = taken.value;
       } else {
         if (env !== null) usage("duplicate --env");
-        env = value;
+        env = taken.value;
       }
-      i += 1;
     } else {
       usage(`unexpected argument ${JSON.stringify(flag)}`);
     }
   }
-  if ((preview || yes) && command !== "deploy") {
-    usage("--preview/--yes are deploy-only");
-  }
-  if (locale !== null && command !== "docs") {
-    usage("--locale is docs-only");
-  }
-  if (command === "docs" && (artifact !== null || env !== null || preview || yes)) {
-    usage("docs takes only --locale; it renders the reference model piped on stdin");
-  }
-  return { command: command as PlatformCommand, artifact, env, preview, yes, locale, genRequest: null };
+  validateCommandFlags(command, { artifact, env, preview, yes, backend, locale });
+  return { command: command as PlatformCommand, artifact, env, preview, yes, backend, locale, genRequest: null };
 }
 
 /** Parse `gen` args: at most one `--request FILE`; stdin carries the request when bare. */
@@ -224,6 +264,7 @@ function parseGen(rest: string[]): ParsedArgs {
     env: null,
     preview: false,
     yes: false,
+    backend: null,
     locale: null,
     genRequest: null,
   };
@@ -478,19 +519,32 @@ async function runTest(artifactPath: string, lifetime: LocalCommandLifetime): Pr
   if (!result.ok) process.exitCode = 1;
 }
 
-/** `build`: prepared route; thin CLI delegation (P02.2). */
-async function runBuild(artifactPath: string, lifetime: LocalCommandLifetime): Promise<void> {
+/** `build`: prepared route; thin CLI delegation (P02.2). `--backend native` runs the native driver. */
+async function runBuild(
+  artifactPath: string,
+  lifetime: LocalCommandLifetime,
+  backend: "ts" | "native" | null,
+): Promise<void> {
+  if (backend === "native") {
+    await runNativeBuild(artifactPath, lifetime);
+    return;
+  }
   await runPreparedBuild(artifactPath, lifetime);
 }
 
-/** `deploy`: prepared route; thin CLI delegation (P02.2). */
+/** `deploy`: prepared route; thin CLI delegation (P02.2). `--backend native` runs the native driver. */
 async function runDeploy(
   artifactPath: string,
   env: string | null,
   preview: boolean,
   yes: boolean,
   lifetime: LocalCommandLifetime,
+  backend: "ts" | "native" | null,
 ): Promise<void> {
+  if (backend === "native") {
+    await runNativeDeploy(artifactPath, env, preview, yes, lifetime);
+    return;
+  }
   await runPreparedDeploy(artifactPath, env, preview, yes, lifetime);
 }
 
@@ -546,10 +600,10 @@ async function main(): Promise<void> {
       return;
     }
     if (args.command === "build") {
-      await runBuild(artifactPath, lifetime!);
+      await runBuild(artifactPath, lifetime!, args.backend);
       return;
     }
-    await runDeploy(artifactPath, args.env, args.preview, args.yes, lifetime!);
+    await runDeploy(artifactPath, args.env, args.preview, args.yes, lifetime!, args.backend);
   } finally {
     lifetime?.dispose();
   }

@@ -7,6 +7,23 @@
 > decisions and bounded coverage evidence are retained below; that evidence
 > applies only at its recorded scope and does not establish whole-plan currency.
 
+**Native CLI and executable-integrity integration, 2026-10-18:** the existing
+Cloudflare CLI/preparation/protocol, owning tests/conformance and package-local
+scripts retain their owners. Explicit selection, exact-file prelaunch integrity,
+strict readiness, original diagnostic/cancellation order, bounded session cleanup
+and reviewed local publication join the genuine native job. Build scripts consume
+the actual Cargo artifact; workspace commands and existing recursive dist inventory
+supply distribution without a second metadata framework. The current profile is
+JS-only, retains TS parser/build/library owners, and leaves broader P05 and adoption
+measurements partial. Reuse final Darwin installed9/TS9, native mocked apply and
+same-data TS rollback; the Linux wrong-architecture pipe finding is repaired under
+052; the genuine Linux installed build and affected wrong-architecture refusal
+pass (444/481ms), reusing other accepted controls. Packaging provenance names
+the actual accepted crate; no caller needs Rust/Cargo. This nine-source/five-doc intake
+preserves all newer compiler/runtime/Work history since f411ad9d8 and foreign notes;
+existing owner/target allocations, accumulated coverage and complete stale checkpoint
+remain unchanged. No public/default/retirement gate closes from this integration.
+
 **Native module-facts source integration, 2026-10-18:** accept the released
 preparation job/facts decoder, matching host frontend/payload and owning tests at
 their existing Cloudflare owner. Independent wire/Unicode/error-order review
