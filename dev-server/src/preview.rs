@@ -160,6 +160,22 @@ fn exact_artifact_json(artifact: &Value, artifact_bytes: &[u8]) -> Result<String
 }
 
 fn validate_selected_callables(artifact: &Value, plan: &bindings::Plan) -> Result<()> {
+    // Native model-policy hooks are compiler-checked with sealed bindings,
+    // so their handler callables are admitted without queue selection.
+    let hooks: BTreeSet<&str> = artifact["modelPolicies"]
+        .as_array()
+        .map(Vec::as_slice)
+        .unwrap_or(&[])
+        .iter()
+        .flat_map(|policy| {
+            policy["hooks"]
+                .as_array()
+                .map(Vec::as_slice)
+                .unwrap_or(&[])
+                .iter()
+                .filter_map(|hook| hook["id"].as_str())
+        })
+        .collect();
     for callable in artifact["callables"]
         .as_array()
         .map(Vec::as_slice)
@@ -171,6 +187,9 @@ fn validate_selected_callables(artifact: &Value, plan: &bindings::Plan) -> Resul
                     .queue_handlers
                     .iter()
                     .any(|h| callable["id"] == h.as_str())
+                && !callable["id"]
+                    .as_str()
+                    .is_some_and(|id| hooks.contains(id))
         {
             return Err(
                 "PROFILE_UNSUPPORTED: only checked selected queue handlers are admitted".into(),
@@ -1358,6 +1377,51 @@ mod tests {
                 .contains("MIXED_OWNER")
         );
         assert!(storage_mode(&json!({"models":[{"name":"A","parent":"A"}]})).is_err());
+    }
+    #[test]
+    fn native_hook_handlers_admit_without_queue_selection() {
+        let plan = bindings::Plan {
+            app: Some("Shop".into()),
+            bindings: vec![],
+            queue_handlers: vec!["shop.queued".into()],
+            no_model_storage_mode: None,
+        };
+        let artifact = json!({
+            "callables": [
+                {"id": "shop.Order.create", "kind": "operation"},
+                {"id": "shop.queued", "kind": "handler"},
+                {"id": "shop.snapshot_Order_create", "kind": "handler"},
+                {"id": "shop.unchecked", "kind": "handler"},
+            ],
+            "modelPolicies": [
+                {"model": "shop.Order", "hooks": [{"id": "shop.snapshot_Order_create", "op": "create", "operation": "shop.Order.create"}]},
+            ],
+        });
+        assert!(
+            validate_selected_callables(&artifact, &plan)
+                .unwrap_err()
+                .contains("PROFILE_UNSUPPORTED")
+        );
+        let artifact = json!({
+            "callables": [
+                {"id": "shop.Order.create", "kind": "operation"},
+                {"id": "shop.queued", "kind": "handler"},
+                {"id": "shop.snapshot_Order_create", "kind": "handler"},
+            ],
+            "modelPolicies": [
+                {"model": "shop.Order", "hooks": [{"id": "shop.snapshot_Order_create", "op": "create", "operation": "shop.Order.create"}]},
+            ],
+        });
+        assert!(validate_selected_callables(&artifact, &plan).is_ok());
+        let artifact = json!({
+            "callables": [{"id": "shop.migrate", "kind": "migration"}],
+            "modelPolicies": [],
+        });
+        assert!(
+            validate_selected_callables(&artifact, &plan)
+                .unwrap_err()
+                .contains("PROFILE_UNSUPPORTED")
+        );
     }
     #[test]
     fn serving_owner_requires_separate_existing_identity_before_state_mutation() {

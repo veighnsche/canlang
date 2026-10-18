@@ -1038,16 +1038,19 @@ function parseClaimedType(value: Record<string, unknown>, what: string): {
   return { rawType, type };
 }
 
+/** Validated string-likes the compiler may claim; all lower as string inputs. Mirrors values STRINGLIKE_NAMES. */
+const CLAIMABLE_STRINGLIKES: ReadonlySet<string> = new Set(['email', 'url', 'locale', 'timezone', 'currency']);
+
 function claimedBaseKind(type: ReturnType<typeof parseTypeId>, nominalName?: string): string | undefined {
   return type.base.kind === 'nominal' && nominalName === type.base.path ? 'nominal'
     : type.base.kind === 'scalar' ? type.base.name
-    : type.base.kind === 'stringlike' && (type.base.name === 'email' || type.base.name === 'timezone') ? type.base.name
+    : type.base.kind === 'stringlike' && CLAIMABLE_STRINGLIKES.has(type.base.name) ? type.base.name
     : type.base.kind === 'user' || type.base.kind === 'file' || type.base.kind === 'enum' ? type.base.kind : undefined;
 }
 
 function expectedInputKind(base: string): string {
   return base === 'int' ? 'integer' : base === 'bool' ? 'boolean'
-    : base === 'text' || base === 'date' || base === 'email' || base === 'timezone' ? 'string' : base;
+    : base === 'text' || base === 'date' || CLAIMABLE_STRINGLIKES.has(base) ? 'string' : base;
 }
 
 function checkClaimedAgreement(
@@ -1326,8 +1329,8 @@ function checkModelClaimedType(
   try { type = parseTypeId(claimed); }
   catch { failDescriptor('malformed_descriptor', `Invalid ${what}: invalid checked type.`); }
   const base = type.base.kind === 'scalar' ? type.base.name
-    : type.base.kind === 'stringlike' && (type.base.name === 'email' || type.base.name === 'timezone') ? type.base.name : type.base.kind;
-  const expected = base === 'int' ? 'integer' : base === 'bool' ? 'boolean' : base === 'text' || base === 'date' || base === 'email' || base === 'timezone' ? 'string' : base;
+    : type.base.kind === 'stringlike' && CLAIMABLE_STRINGLIKES.has(type.base.name) ? type.base.name : type.base.kind;
+  const expected = base === 'int' ? 'integer' : base === 'bool' ? 'boolean' : base === 'text' || base === 'date' || CLAIMABLE_STRINGLIKES.has(base) ? 'string' : base;
   if (expected !== normalized || type.array !== (array !== undefined) || type.nullable !== (nullable === true) || type.requiredArray) {
     failDescriptor('malformed_descriptor', `Invalid ${what}: checked type disagrees with owning field.`);
   }

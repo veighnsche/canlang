@@ -77,7 +77,7 @@ export {
   ValueError, int64, datetime, compareInstant, addDuration, subtractDuration, overlaps, abs, all, any, at, sum, min, max, join, trim, starts_with, compareScalar, choose, concat, flatten, format,
   parseDecimal, addDecimal, compareDecimal, money, addMoney, subtractMoney, multiplyMoney, compareMoney, equalMoney,
   divideDurationMs, remainderDuration, multiplyDuration, durationBetween, first,
-  date, add_days, local_date, local_instant, compareDate, decodeValue, encodeValue, normalizeSchema, makeMessageDescriptor,
+  date, add_days, local_date, local_instant, compareDate, dates, weekday, decodeValue, encodeValue, normalizeSchema, makeMessageDescriptor,
 } from '@canlang/values';
 export const same = sameNativeReference;
 export { active_member } from './native-membership.js';

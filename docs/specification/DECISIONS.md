@@ -20295,3 +20295,19 @@ CanTable `u1` style-inline unit was repaired with a handwritten
 bind; no generated output yet" — no generation claim is fabricated.
 `adopt` was not applicable (it reconciles legacy files, of which `u1`
 has none). Model-generated refinement remains generation-owner work.
+
+### Serving-chain admissions for native-hook closures (2026-10-18)
+
+Driving a natively-hooked closure through live preview required three
+small admissions, each fail-closed: (1) preview callable validation
+admits handler callables covered by native model-policy hooks (they
+are compiler-checked with sealed bindings, not queue work; migrations
+and uncovered handlers still refuse); (2) deploy input/model claim
+checks admit every validated string-like (email/url/locale/timezone/
+currency, mirroring values STRINGLIKE_NAMES) as string inputs —
+unknown claims still refuse; (3) the Cloudflare runtime stdlib facade
+re-exports `dates`+`weekday` alongside the existing pure helpers.
+Emission and execution semantics are unchanged throughout. Recorded
+separately: parallel workspace builds force-clean dependent dists
+mid-flight, so recovery builds run sequentially per package in
+dependency order.
