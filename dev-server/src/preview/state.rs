@@ -44,12 +44,14 @@ struct Manifest {
     database_id: String,
     owner_database_ids: Vec<String>,
     seed: Option<Value>,
+    staged: Option<Value>,
 }
 pub struct Retained {
     pub persistence: String,
     pub database_id: String,
     pub owner_database_ids: Vec<String>,
     pub seed: Option<Value>,
+    pub staged: Option<Value>,
     path: PathBuf,
     manifest: Manifest,
 }
@@ -101,6 +103,7 @@ impl Retained {
                         format!("can-preview-owner-{}", random_id()?),
                     ],
                     seed: None,
+                    staged: None,
                 };
                 let bytes = serde_json::to_vec(&value).map_err(|e| e.to_string())?;
                 write_new(&path, &bytes).map_err(|e| format!("{error}: {e}"))?;
@@ -113,12 +116,24 @@ impl Retained {
             database_id: manifest.database_id.clone(),
             owner_database_ids: manifest.owner_database_ids.clone(),
             seed: manifest.seed.clone(),
+            staged: manifest.staged.clone(),
             path,
             manifest,
         })
     }
     pub fn save_seed(&mut self, seed: Value) -> Result<()> {
         self.manifest.seed = Some(seed.clone());
+        self.persist()?;
+        self.seed = Some(seed);
+        Ok(())
+    }
+    pub fn save_staged(&mut self, staged: Value) -> Result<()> {
+        self.manifest.staged = Some(staged.clone());
+        self.persist()?;
+        self.staged = Some(staged);
+        Ok(())
+    }
+    fn persist(&self) -> Result<()> {
         let staged = self
             .path
             .with_file_name(format!("preview-{}.json", random_id()?));
@@ -135,9 +150,7 @@ impl Retained {
         if result.is_err() {
             let _ = fs::remove_file(staged);
         }
-        result?;
-        self.seed = Some(seed);
-        Ok(())
+        result
     }
 }
 fn checked_manifest(bytes: &[u8], identity: &str, schema: &str) -> Result<Manifest> {
@@ -155,6 +168,10 @@ fn checked_manifest(bytes: &[u8], identity: &str, schema: &str) -> Result<Manife
         || value.seed.as_ref().is_some_and(|v| {
             !v["actors"].is_array() || !v["owners"].is_array() || !v["probe"].is_object()
         })
+        || value
+            .staged
+            .as_ref()
+            .is_some_and(|v| !v["sourceRevision"].is_string() || !v["artifactDigest"].is_string())
     {
         return Err("preview metadata is invalid; retained state was preserved".into());
     }
@@ -396,6 +413,28 @@ mod tests {
             .unwrap()
             .contains("models changed")
         );
+    }
+    #[test]
+    fn staged_marker_round_trips_alongside_seed() {
+        let (project, request) = crate::capture::tests::fixture();
+        let capture = crate::capture::capture(
+            &request,
+            &crate::capture::tests::empty_inventory,
+            &std::sync::atomic::AtomicBool::new(false),
+        )
+        .unwrap();
+        let state_root = project.path().join("retained-staged");
+        let artifact = r#"{"models":[]}"#;
+        let mut first = Retained::open(&state_root, &capture, artifact, "team").unwrap();
+        assert!(first.staged.is_none());
+        let key = serde_json::json!({"sourceRevision":"r1","artifactDigest":"sha256:abc"});
+        first.save_staged(key.clone()).unwrap();
+        first
+            .save_seed(serde_json::json!({"actors":[],"owners":[],"probe":{}}))
+            .unwrap();
+        let second = Retained::open(&state_root, &capture, artifact, "team").unwrap();
+        assert_eq!(second.staged, Some(key));
+        assert!(second.seed.is_some());
     }
     #[test]
     fn exposed_state_and_metadata_links_are_refused_without_overwrite() {

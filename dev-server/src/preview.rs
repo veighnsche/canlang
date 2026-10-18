@@ -383,7 +383,7 @@ pub fn prepare(
         &persistence,
         &database_id,
         temporary,
-        &retained,
+        &mut retained,
         built,
         seed,
         &bridge,
@@ -397,7 +397,7 @@ fn serve_preview(
     persistence: &str,
     database_id: &str,
     temporary: Option<std::path::PathBuf>,
-    retained: &Option<state::Retained>,
+    retained: &mut Option<state::Retained>,
     built: Built,
     seed: Value,
     bridge: &Bridge<'_>,
@@ -462,6 +462,18 @@ fn serve_preview(
         &app,
         &plan,
         &constants,
+        bridge,
+    )?;
+    stage_closure_fixtures(
+        capture,
+        artifact_bytes,
+        &artifact_json,
+        &owners,
+        &seed,
+        &handle,
+        &worker_name,
+        database_id,
+        retained,
         bridge,
     )?;
     probe_r2(&bridge, &handle, &worker_name, &plan)?;
@@ -805,6 +817,94 @@ fn storage_mode(artifact: &Value) -> Result<String> {
         "global"
     }
     .into())
+}
+/// Stage the closure's fixture rows into the serving owner databases after
+/// activation created the schema and pinned the owner databases, so probes
+/// and serving workers observe populated records. The worker reuses the
+/// existing testkit fixture machinery under the seeded preview identity
+/// (Ava/Ben self/other, Cal outsider; Cedar current, Oak other); the
+/// retained marker skips staging while the artifact key still matches.
+/// Previews without owner databases stage nothing.
+#[allow(clippy::too_many_arguments)]
+fn stage_closure_fixtures(
+    capture: &Capture,
+    artifact_bytes: &[u8],
+    artifact_json: &str,
+    owners: &[Value],
+    seed: &Value,
+    handle: &str,
+    worker_name: &str,
+    database_id: &str,
+    retained: &mut Option<state::Retained>,
+    bridge: &Bridge<'_>,
+) -> Result<()> {
+    if owners.len() != 2 {
+        return Ok(());
+    }
+    let key = json!({"sourceRevision":capture.source_revision,
+        "artifactDigest":format!("sha256:{}",capture::hash(artifact_json.as_bytes()))});
+    if retained
+        .as_ref()
+        .and_then(|r| r.staged.clone())
+        .is_some_and(|staged| staged == key)
+    {
+        return Ok(());
+    }
+    let team = |index: usize| {
+        owners[index]["owner"]
+            .as_str()
+            .ok_or("preview owner team missing")
+    };
+    let binding = |index: usize| {
+        owners[index]["binding"]
+            .as_str()
+            .ok_or("preview owner binding missing")
+    };
+    let user_id = |label: &str| {
+        let email = seed["actors"]
+            .as_array()
+            .ok_or("preview seed actors missing")?
+            .iter()
+            .find(|actor| actor["label"] == label)
+            .and_then(|actor| actor["email"].as_str())
+            .ok_or(format!("preview seed actor {label} missing"))?;
+        bridge
+            .call(
+                "identity.findUserByEmail",
+                binding_input(handle, worker_name, "DB", json!({"email": email})),
+            )?
+            .get("user_id")
+            .and_then(|id| id.as_str())
+            .ok_or(format!("preview seed user {label} missing"))
+            .map(str::to_string)
+    };
+    let ava = user_id("Ava")?;
+    let ben = user_id("Ben")?;
+    let cal = user_id("Cal")?;
+    let staging_dir = std::env::temp_dir().join(format!("can-preview-stage-{}", random_id()?));
+    state::create_private_directory(&staging_dir)?;
+    let result = bridge.call(
+        "testkit.stage",
+        json!({"handle":handle,
+            "input":{"applicationRoot":capture.root,
+                "artifactBytes":STANDARD.encode(artifact_bytes),
+                "artifactLabel":capture.compiler_operand,
+                "sourceRevision":capture.source_revision,
+                "workDir":staging_dir.to_string_lossy(),
+                "bindings":{"self":{"id":ava.clone()},"other":{"id":ben.clone()},"outsider":{"id":cal.clone()}},
+                "identity":{"currentTeamId":team(0)?,"otherTeamId":team(1)?,
+                    "selfUserId":ava,"otherUserId":ben,"outsiderUserId":cal}},
+            "databases":{"d1Id":database_id,"identityBinding":"DB",
+                "currentOwnerBinding":binding(0)?,"otherOwnerBinding":binding(1)?}}),
+    );
+    let _ = std::fs::remove_dir_all(&staging_dir);
+    if !result?["materialized"].is_array() {
+        return Err("preview fixture staging returned no materialized receipt".into());
+    }
+    if let Some(retained) = retained {
+        retained.save_staged(key)?;
+    }
+    Ok(())
 }
 fn binding_input(handle: &str, worker: &str, binding: &str, input: Value) -> Value {
     json!({"handle":handle,"workerName":worker,"binding":binding,"input":input})
@@ -1478,6 +1578,114 @@ mod tests {
             Some("IDENTITY"),
         )
         .unwrap();
+    }
+    #[test]
+    fn staging_calls_testkit_stage_with_seeded_identity_and_skips_without_owners() {
+        use std::cell::RefCell;
+        let (_project, request) = crate::capture::tests::fixture();
+        let capture = crate::capture::capture(
+            &request,
+            &crate::capture::tests::empty_inventory,
+            &AtomicBool::new(false),
+        )
+        .unwrap();
+        let seed = json!({"actors":[
+            {"label":"Ava","email":"ava@preview.can.test"},
+            {"label":"Ben","email":"ben@preview.can.test"},
+            {"label":"Cal","email":"cal@preview.can.test"},
+            {"label":"Dee","email":"dee@preview.can.test"}],
+            "owners":[{"owner":"cedar","binding":"STATE_CEDAR_DB"},{"owner":"oak","binding":"STATE_OAK_DB"}]});
+        let owners = seed["owners"].as_array().unwrap().clone();
+        let seen = RefCell::new(Vec::new());
+        let call = |command: &str, _: Option<&str>, payload: Value, _: &AtomicBool| {
+            seen.borrow_mut()
+                .push((command.to_owned(), payload.clone()));
+            match command {
+                "identity.findUserByEmail" => Ok(
+                    json!({"user_id":format!("user-{}",payload["input"]["email"].as_str().unwrap())}),
+                ),
+                "testkit.stage" => Ok(json!({"materialized":["a","b"]})),
+                _ => panic!("unexpected {command}"),
+            }
+        };
+        let bridge = Bridge {
+            generation: "test",
+            call: &call,
+            cancel: &AtomicBool::new(false),
+        };
+        let mut retained: Option<state::Retained> = None;
+        stage_closure_fixtures(
+            &capture,
+            b"artifact",
+            "{\"models\":[]}",
+            &owners,
+            &seed,
+            "mf",
+            "worker",
+            "db",
+            &mut retained,
+            &bridge,
+        )
+        .unwrap();
+        {
+            let events = seen.borrow();
+            assert_eq!(events.len(), 4);
+            for (event, email) in events.iter().take(3).zip([
+                "ava@preview.can.test",
+                "ben@preview.can.test",
+                "cal@preview.can.test",
+            ]) {
+                assert_eq!(event.0, "identity.findUserByEmail");
+                assert_eq!(event.1["binding"], "DB");
+                assert_eq!(event.1["input"]["email"], email);
+            }
+            let stage = &events[3].1;
+            assert_eq!(events[3].0, "testkit.stage");
+            assert_eq!(stage["handle"], "mf");
+            assert_eq!(
+                stage["input"]["artifactLabel"].as_str(),
+                Some(capture.compiler_operand.as_str())
+            );
+            assert_eq!(
+                stage["input"]["sourceRevision"].as_str(),
+                Some(capture.source_revision.as_str())
+            );
+            assert!(stage["input"]["artifactBytes"].is_string());
+            assert!(
+                stage["input"]["workDir"]
+                    .as_str()
+                    .unwrap()
+                    .contains("can-preview-stage-")
+            );
+            assert_eq!(
+                stage["input"]["bindings"],
+                json!({"self":{"id":"user-ava@preview.can.test"},"other":{"id":"user-ben@preview.can.test"},"outsider":{"id":"user-cal@preview.can.test"}})
+            );
+            assert_eq!(
+                stage["input"]["identity"],
+                json!({"currentTeamId":"cedar","otherTeamId":"oak","selfUserId":"user-ava@preview.can.test","otherUserId":"user-ben@preview.can.test","outsiderUserId":"user-cal@preview.can.test"})
+            );
+            assert_eq!(
+                stage["databases"],
+                json!({"d1Id":"db","identityBinding":"DB","currentOwnerBinding":"STATE_CEDAR_DB","otherOwnerBinding":"STATE_OAK_DB"})
+            );
+        }
+        // Previews without owner databases stage nothing and call nothing.
+        seen.borrow_mut().clear();
+        stage_closure_fixtures(
+            &capture,
+            b"artifact",
+            "{\"models\":[]}",
+            &[],
+            &seed,
+            "mf",
+            "worker",
+            "db",
+            &mut retained,
+            &bridge,
+        )
+        .unwrap();
+        assert!(seen.borrow().is_empty());
     }
     #[test]
     fn role_aliases_must_be_unique() {

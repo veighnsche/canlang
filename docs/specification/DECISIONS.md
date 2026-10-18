@@ -20348,3 +20348,17 @@ caches (cycle detection stays per-call); recipe-only provider modules
 are skipped at load so their fresh own-recipes cannot orphan merged
 references. Staged `records.owner` stays `''` by the D1 store's own
 insert binding — team scoping is by D1 routing, not the column.
+
+### Prepare-time fixture staging (2026-10-18)
+
+`prepare()` stages the closure's fixture rows through `testkit.stage`
+against the serving worker after activation (schema present, owner DBs
+pinned) and before probes, so serving reads populated records.
+`Retained` carries a `staged` marker (`sourceRevision` plus artifact
+digest); a matching marker skips the call, fresh or temporary state
+always stages. Seeded user IDs resolve through the existing
+`identity.findUserByEmail` (Ava/Ben as self/other, Cal as outsider;
+Cedar current, Oak other); the SDK decodes `{id}` wire refs into user
+natives worker-side because Rust cannot mint them. Ownerless
+(global-mode) previews stage nothing — recorded remainder, not a
+refusal of the CanTable path.

@@ -40,6 +40,7 @@ export async function createApi(registry){
   const bundle=await module('deploy/bundle.js'),activation=await module('deploy/activate.js');
   const installed=await module('deploy/installed.js'),assembly=await module('runtime/modules.js');
   const {parse}=await sdk('acorn');
+  const values=await sdk('@canlang/values');
   const {allocate,find,dispose,tracked}=registry;
   const resource=(parent,p)=>find(parent,p.handle,'mf');
   const database=async(parent,p)=>resource(parent,p).value.getD1Database(p.binding,p.workerName);
@@ -129,7 +130,11 @@ export async function createApi(registry){
       }
       case 'testkit.stage':{
         const runtime=find(parent,p.handle,'mf'),kit=await module('runtime/example-bindings.js');
-        return kit.stageClosureFixtures({...p.input,artifactBytes:binary(p.input.artifactBytes)},{getD1Database:binding=>runtime.value.getD1Database(binding,runtime.workerName)},p.databases);
+        if(p.input.bindings===undefined||typeof p.input.bindings!=='object')throw Error('SDK stage bindings missing');
+        const actor=value=>values.decodeValue('user',value);
+        const bindings={self:actor(p.input.bindings.self),other:actor(p.input.bindings.other)};
+        if(p.input.bindings.outsider!==undefined)bindings.outsider=actor(p.input.bindings.outsider);
+        return kit.stageClosureFixtures({...p.input,artifactBytes:binary(p.input.artifactBytes),bindings},{getD1Database:binding=>runtime.value.getD1Database(binding,runtime.workerName)},p.databases);
       }
       case 'testkit.report':return (await module('runtime/example-bindings.js')).buildExampleReport(p.applicationRoot,p.artifactDigest,p.sourceRevision,p.cases);
       case 'testkit.dispose':await dispose(find(parent,p.suite,'suite'));return {released:true};
