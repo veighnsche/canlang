@@ -108,7 +108,7 @@ test('compiled standalone saved-preference filter renders, saves and serves thro
   assert.ok(!('diagnostics' in artifact), 'real fixture emits clean');
   const source = artifact.sources.find(entry => entry.path === FIXTURE);
   assert.ok(source && source.sha256 === fixtureSha, 'compiled source identity preserved');
-  assert.equal(artifact.pages.length, 3);
+  assert.equal(artifact.pages.length, 6);
   const refOf = (path: string) => {
     const ref = artifact.pages.find(entry => entry.path === path);
     assert.ok(ref, `page ${path} present in real artifact`);
@@ -186,6 +186,9 @@ test('compiled standalone saved-preference filter renders, saves and serves thro
     const dPage = await descriptorOf(dRef);
     const ePage = await descriptorOf(eRef);
     const oPage = await descriptorOf(oRef);
+    const prefs = (await descriptorOf(refOf('/prefs'))).descriptor;
+    const readonly = (await descriptorOf(refOf('/readonly'))).descriptor;
+    const otherPrefs = (await descriptorOf(refOf('/otherprefs'))).descriptor;
     const dProbe = dPage.descriptor;
     const eProbe = ePage.descriptor;
     const oOther = oPage.descriptor;
@@ -263,7 +266,7 @@ test('compiled standalone saved-preference filter renders, saves and serves thro
         return true;
       },
     };
-    const { deps, identity } = await createTestDeps({ descriptors: [dProbe, eProbe, oOther] });
+    const { deps, identity } = await createTestDeps({ descriptors: [dProbe, eProbe, oOther, prefs, readonly, otherPrefs] });
     // The REAL identity fixture store answers caller membership; public
     // grants admit without consulting it, but every lookup observes live
     // fixture state (no membership double).
@@ -529,6 +532,48 @@ test('compiled standalone saved-preference filter renders, saves and serves thro
     assert.equal(response.status, 200);
     assert.ok(checkedOption(standaloneFormOf(await response.text(), 'archived').body, 'true', 'true'),
       'explicit true selection renders checked');
+
+    // Authored inline editors use the same actor/team/owner and per-field
+    // compare-and-set transport. Read-only filter defaults gain no save right.
+    assert.deepEqual(prefs.preferenceFields?.map(field => [field.name, field.editable]),
+      [['current_only', 'bool'], ['year', 'int'], ['bucket', 'text']]);
+    assert.equal(readonly.preferenceFields?.[0]?.editable, undefined);
+    const editorHtml = async (path = '/prefs') => {
+      const reply = await get(path, new URLSearchParams());
+      const body = await reply.text();
+      assert.equal(reply.status, 200, body);
+      return body;
+    };
+    let inline = await editorHtml();
+    assert.ok(inline.includes('role="switch" aria-checked="false"'));
+    assert.ok(inline.includes('name="year" value=""'));
+    assert.ok(inline.includes('name="bucket" value=""'));
+    assert.equal((await handler(post('/prefs', 'current_only', token, 'true', '0'))).status, 303);
+    assert.ok((await editorHtml()).includes('role="switch" aria-checked="true"'));
+    assert.equal((await handler(post('/prefs', 'current_only', token, 'false', '1'))).status, 303);
+    assert.ok((await editorHtml()).includes('role="switch" aria-checked="false"'));
+    const preciseYear = '9007199254740993';
+    assert.equal((await handler(post('/prefs', 'year', token, preciseYear, '0'))).status, 303);
+    assert.ok((await editorHtml()).includes(`name="year" value="${preciseYear}"`));
+    assert.equal((await handler(post('/prefs', 'year', token, '2026', '0'))).status, 409);
+    assert.equal((await handler(post('/prefs', 'year', 'bad-csrf', '2026', '1'))).status, 403);
+    for (const value of ['1.5', '9223372036854775808']) {
+      assert.equal((await handler(post('/prefs', 'year', token, value, '1'))).status, 400);
+    }
+    assert.ok((await editorHtml('/otherprefs')).includes('name="year" value=""'),
+      'same-named foreign owner preference stays independent');
+    assert.equal((await handler(post('/otherprefs', 'year', token, '2030', '0'))).status, 303);
+    assert.ok((await editorHtml()).includes(`name="year" value="${preciseYear}"`));
+    assert.equal((await handler(post('/otherprefs', 'bucket', token, 'foreign', '0'))).status, 400);
+    assert.equal((await handler(post('/prefs', 'year', token, '', '1'))).status, 303);
+    assert.ok((await editorHtml()).includes('name="year" value=""'), 'nullable int clear reloads');
+    assert.equal((await handler(post('/prefs', 'bucket', token, '<bucket&>', '0'))).status, 303);
+    assert.ok((await editorHtml()).includes('name="bucket" value="&lt;bucket&amp;&gt;"'));
+    assert.equal((await handler(post('/readonly', 'bucket', token, 'unauthorized', '1'))).status, 400);
+    assert.equal((await handler(post('/prefs', 'bucket', token, 'line\nbreak', '1'))).status, 400);
+    assert.equal((await handler(post('/prefs', 'bucket', token, '', '1'))).status, 303);
+    assert.ok((await editorHtml()).includes('name="bucket" value=""'), 'nullable text clear reloads');
+    assert.equal((await get('/prefs', new URLSearchParams(), false)).status, 403);
 
     // Malformed selectors refuse before query or body work.
     for (const params of [new URLSearchParams([[group.name, 'yes']]),

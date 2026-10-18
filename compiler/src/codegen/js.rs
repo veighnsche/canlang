@@ -1504,6 +1504,7 @@ pub fn emit_program_with_native_source_receipts(
 /// Complete query receipts. Source inventories alone cannot activate capture.
 #[derive(Default)]
 pub(super) struct EmitDecisionSources<'a> {
+    pub source_context: Option<&'a super::scenario_decisions::FreshSourceContext<'a>>,
     pub owner_handlers: Option<&'a HashSet<SymbolId>>,
     pub local_policies: Option<&'a LocalPolicies>,
     pub unique_conditions: Option<&'a [super::model_unique_conditions::CheckedUniqueCondition]>,
@@ -2446,6 +2447,7 @@ fn emit_program_with_sources(
                     &module_path(&entry_name),
                     emitter.value_types.as_ref(),
                     super::scenario_receipts::NativeReceiptSources {
+                        source_context: decisions.source_context,
                         db,
                         send_guards: emitter.send_guards,
                         query_plan: query_receipts
@@ -3168,41 +3170,29 @@ fn collect_form_usages(node: &IrUi, page: &str, out: &mut Vec<FormUsage>) {
 /// type is an owned finite-choice (or its nullable form), options must
 /// be exactly that choice's cases in order, and the current read must
 /// be that preference.
+fn saved_preference_binding_parts(node: &IrUi) -> Option<&[(String, TypedExpr)]> {
+    let keys: std::collections::HashSet<_> = node.props.iter().map(|(key, _)| key.as_str()).collect();
+    if keys.len() != node.props.len() || keys.len() > 2 || !keys.iter().all(|key| matches!(*key, "binding" | "caption")) { return None; }
+    let (_, binding) = node.props.iter().find(|(key, _)| key == "binding")?;
+    let IrExpr::Object(parts) = &binding.expr else { return None; };
+    let expected: &[&str] = if parts.iter().any(|(key, _)| key == "editor") {
+        &["name", "options", "current", "version", "postTo", "editor", "nullable"]
+    } else { &["name", "options", "current", "version", "postTo"] };
+    (parts.len() == expected.len() && expected.iter().all(|key| parts.iter().filter(|(name, _)| name == key).count() == 1)).then_some(parts)
+}
+
+fn inline_preference_editor_matches(editor: &TypedExpr, nullable: &TypedExpr, ty: &ResolvedType, values: &[&str]) -> bool {
+    let IrExpr::Text(editor) = &editor.expr else { return false; };
+    if !matches!(nullable.expr, IrExpr::Bool(value) if value == ty.nullable_inner().is_some()) { return false; }
+    match (editor.as_str(), ty.nullable_inner().unwrap_or(ty)) {
+        ("bool", ResolvedType::Scalar(Scalar::Bool)) => values == ["true", "false"],
+        ("text", ResolvedType::Scalar(Scalar::Text)) | ("int", ResolvedType::Scalar(Scalar::Int)) => values.is_empty(),
+        _ => false,
+    }
+}
+
 fn standalone_filter_binding_is_valid(ir: &IrProgram, node: &IrUi) -> bool {
-    if node
-        .props
-        .iter()
-        .map(|(key, _)| key)
-        .collect::<std::collections::HashSet<_>>()
-        .len()
-        != node.props.len()
-    {
-        return false;
-    }
-    if node.props.len() > 2
-        || !node
-            .props
-            .iter()
-            .all(|(key, _)| matches!(key.as_str(), "binding" | "caption"))
-    {
-        return false;
-    }
-    let Some((_, binding)) = node.props.iter().find(|(key, _)| key == "binding") else {
-        return false;
-    };
-    let IrExpr::Object(parts) = &binding.expr else {
-        return false;
-    };
-    if parts.len() != 5
-        || parts
-            .iter()
-            .map(|(key, _)| key)
-            .collect::<std::collections::HashSet<_>>()
-            .len()
-            != 5
-    {
-        return false;
-    }
+    let Some(parts) = saved_preference_binding_parts(node) else { return false; };
     let part = |key: &str| parts.iter().find(|(name, _)| name == key).map(|(_, value)| value);
     let (Some(name), Some(options), Some(current), Some(version), Some(post_to)) = (
         part("name"),
@@ -3222,7 +3212,7 @@ fn standalone_filter_binding_is_valid(ir: &IrProgram, node: &IrUi) -> bool {
     let IrExpr::Array(options) = &options.expr else {
         return false;
     };
-    if options.is_empty() {
+    if options.is_empty() && part("editor").is_none() {
         return false;
     }
     let mut values = Vec::new();
@@ -3332,6 +3322,9 @@ fn standalone_filter_binding_is_valid(ir: &IrProgram, node: &IrUi) -> bool {
     };
     if current.ty != *ty {
         return false;
+    }
+    if let (Some(editor), Some(nullable)) = (part("editor"), part("nullable")) {
+        return inline_preference_editor_matches(editor, nullable, ty, &values);
     }
     let expected: &[String] = match ty.nullable_inner().unwrap_or(ty) {
         ResolvedType::Enum {
@@ -13340,7 +13333,7 @@ impl<'a> Emitter<'a> {
                         labels.push_str(&format!(",optionLabels:{{{values}}}"));
                     }
                     format!(
-                        "{{name:{},options:[{}],defaultValue:{}{}{}{}{}{labels}}}",
+                        "{{name:{},options:[{}],defaultValue:{}{}{}{}{}{labels}{editable}}}",
                         js_string(&field.name),
                         field
                             .options
@@ -13363,6 +13356,7 @@ impl<'a> Emitter<'a> {
                         // dates validated downstream.
                         if field.date { ",date:true" } else { "" },
                         field.scalar_type.as_ref().map(|ty| format!(",scalarType:{}", js_string(ty))).unwrap_or_default(),
+                        editable = field.editable.as_ref().map(|kind| format!(",editable:{}", js_string(kind))).unwrap_or_default(),
                     )
                 })
                 .collect::<Vec<_>>()

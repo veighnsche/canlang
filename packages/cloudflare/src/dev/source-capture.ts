@@ -158,13 +158,15 @@ async function readStableFile(requestedPath: string): Promise<{ canonicalPath: s
 async function readStableIdentity(requestedPath: string): Promise<{ canonicalPath: string; bytes: number; sha256: string }> {
   const result = await readStable(requestedPath, async (handle, size) => {
     if (size > MAX_INPUT_BYTES) throw new Error("capture input exceeds the finite 1 GiB limit");
-    const hash = createHash("sha256"), chunk = Buffer.alloc(HASH_CHUNK_BYTES);
+    const hash = createHash("sha256");
+    const chunk = Buffer.alloc(Math.max(1, Math.min(size, HASH_CHUNK_BYTES)));
     let bytes = 0;
     while (true) {
       const read = await handle.read(chunk, 0, chunk.length, bytes);
       if (read.bytesRead === 0) break;
       bytes += read.bytesRead;
       if (bytes > MAX_INPUT_BYTES) throw new Error("capture input exceeds the finite 1 GiB limit");
+      if (bytes > size) throw new Error(`input changed during capture: ${requestedPath}`);
       hash.update(chunk.subarray(0, read.bytesRead));
     }
     return { value: { bytes, sha256: hash.digest("hex") }, bytes };
@@ -279,7 +281,7 @@ export async function captureSingleFileSource(request: SingleFileCaptureRequest)
   const declaredPaths = namedPaths({ ...request,
     extraInputPaths: [...(request.extraInputPaths ?? []), ...browserInputs],
   });
-  if (!(await inventoryMatches(request.inputInventory, root, declaredPaths, request.compilerPath))) {
+  if (!(await inventoryMatches(request.inputInventory, root, declaredPaths, request.compilerPath, "before-read"))) {
     throw new Error("installed preview input membership changed before capture");
   }
   let inputs = await captureInputs(root, declaredPaths);
@@ -317,7 +319,7 @@ export async function captureSingleFileSource(request: SingleFileCaptureRequest)
     ...(generatedClosure === undefined || sourceSnapshot === undefined ? {} : { generatedClosure, sourceSnapshot }),
     ...(request.inputInventory === undefined ? {} : { inputInventory: request.inputInventory }),
   };
-  if (!(await inventoryMatches(request.inputInventory, root, declaredPaths, request.compilerPath))) {
+  if (!(await inventoryMatches(request.inputInventory, root, declaredPaths, request.compilerPath, "after-read"))) {
     throw new Error("installed preview input membership changed during capture");
   }
   capture.epochMaterial = epochMaterial(capture);
@@ -327,18 +329,19 @@ export async function captureSingleFileSource(request: SingleFileCaptureRequest)
 async function inventoryMatches(
   kind: SingleFileCaptureRequest["inputInventory"], root: string,
   selected: readonly { name: string; path: string | null }[], compilerPath: string,
-  runtimeOnly = false,
+  phase: "before-read" | "after-read", runtimeOnly = false,
 ): Promise<boolean> {
   if (kind === undefined) return true;
   if (kind !== "installed-local-preview") return false;
   try {
     const inputs = await import("./preview-inputs.js");
-    const current = runtimeOnly
-      ? {
-          packageInputPaths: inputs.installedPortableBundleInputs(root),
-          extraInputPaths: inputs.installedOwnedSourceInputs(root),
-        }
-      : inputs.installedLocalPreviewInputInventory(root, compilerPath);
+    let current;
+    if (runtimeOnly) {
+      const packageInputPaths = inputs.installedPortableBundleInputs(root);
+      current = { packageInputPaths, extraInputPaths: inputs.installedOwnedSourceInputs(root, packageInputPaths) };
+    } else {
+      current = inputs.installedLocalPreviewInputInventory(root, compilerPath);
+    }
     const browserInputs = runtimeOnly ? [] : await inputs.installedBrowserQualificationInputs(root);
     const expected = [
       ...current.packageInputPaths.map(item => ({ name: `package:${item.name}`, path: item.path })),
@@ -351,8 +354,13 @@ async function inventoryMatches(
     const byName = new Map(actual.map(item => [item.name, item.path]));
     const matches = await mapInputs(expected, async (item): Promise<boolean> => {
       const path = byName.get(item.name);
-      return path !== undefined && path !== null &&
-        (await realpath(resolve(root, path))) === (await realpath(item.path));
+      if (path === undefined || path === null) return false;
+      const requested = resolve(root, path);
+      // Identical requests need no alias comparison before the following stable
+      // read proves existence, canonical identity and bytes. The final capture
+      // gate has no following read, so preserve its existing filesystem checks.
+      if (phase === "before-read" && requested === resolve(item.path)) return true;
+      return (await realpath(requested)) === (await realpath(item.path));
     });
     return matches.every(Boolean);
   } catch {
@@ -428,7 +436,7 @@ async function capturedInputsAreCurrent(
         !(await inventoryMatches(capture.inputInventory, capture.root,
           capture.inputs.map(input => ({ name: input.name, path: input.requestedPath })),
           capture.inputs.find(input => input.name === "compiler")?.requestedPath ?? "",
-          runtimeOnly))) return false;
+          "before-read", runtimeOnly))) return false;
     if (capture.generatedClosure !== undefined) {
       const discovered = await (await import("./generated-capture.js")).discoverGeneratedClosure(
         capture.inputs.find(input => input.name === "compiler")!.requestedPath!, capture.root, capture.appPath);

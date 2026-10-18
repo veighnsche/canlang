@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { closeSync, copyFileSync, existsSync, lstatSync, mkdirSync, mkdtempSync, openSync, readFileSync, readSync, readdirSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, closeSync, copyFileSync, existsSync, lstatSync, mkdirSync, mkdtempSync, openSync, readFileSync, readSync, readdirSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { release } from 'node:os';
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -81,6 +81,17 @@ try {
   can = join(home, '.can/bin/can');
   const installation = realpathSync(join(home, '.can/current'));
   check('compiler version', () => { report.compilerVersion = run(can, ['--version']).trim(); assert.ok(report.compilerVersion.startsWith(`can ${version}`)); });
+  check('native development-server identity and non-starting help', () => {
+    report.devServerVersion = run(join(installation, 'libexec/can-dev'), ['--version']).trim();
+    assert.equal(report.devServerVersion, `can-dev ${version} (can.dev.control.v1)`);
+    assert.equal(JSON.parse(run(can, ['dev', '--help'])).result.schema, 'can.dev.control-help.v1');
+    assert.equal(existsSync(join(installation, 'node_modules/@canlang/cloudflare/dist/dev/control-cli.js')), false);
+    assert.equal(JSON.parse(readFileSync(join(installation, 'node_modules/@canlang/cloudflare/package.json'))).bin['can-dev'], undefined);
+    const override = join(scratch, 'private override');
+    writeFileSync(override, '#!/bin/sh\nprintf "override %s\\n" "$#"\nexit 7\n'); chmodSync(override, 0o755);
+    const selected = spawnSync(can, ['dev', 'status', '--root', app], { cwd: app, env: { ...env, CAN_DEV_BIN: override }, encoding: 'utf8', timeout: 5000 });
+    assert.equal(selected.status, 7); assert.equal(selected.stdout, 'override 3\n');
+  });
   check('exact installed bytes match the archive payload', () => {
     const { sizes, native } = inventory(installation);
     const sizePath = join(dirname(archive), 'size-report.json');
@@ -175,6 +186,14 @@ try {
        await assert.rejects(runAppAcceptance({root:${JSON.stringify(app)},candidateRoot:${JSON.stringify(candidate)},
        files:['Office.can'],compiler:process.execPath,reportDir:${JSON.stringify(join(app, 'missing-browser-report'))}}),
        /Browser development tools are not installed/);`], {env: {...env, CAN_INSTALL_ROOT: installation}});
+  });
+  check('installed native manual workflow retains login and data', () => {
+    copyFileSync(join(checkout, 'scripts/fixtures/preview-persistence.can'), join(app, 'Preview.can'));
+    const journey = join(scratch, 'native-dev-server.json');
+    run(join(installation, 'libexec/node'), [join(checkout, 'scripts/verify-installed-dev-server.mjs'), '--installation', installation,
+      '--project-root', app, '--report', journey, '--compat-cli', join(checkout, 'packages/cloudflare/dist/dev/control-cli.js')], { timeout: 240000 });
+    report.devServerJourney = JSON.parse(readFileSync(journey, 'utf8'));
+    assert.equal(report.devServerJourney.ok, true);
   });
   check('protected preview lifecycle from external source', () => {
     try {

@@ -1,5 +1,188 @@
 # Canlang language design decisions
 
+## 2026-10-18 — retain user-requested repository cleanup
+
+**Accepted.** Commit the user's deletion of the two tracked root evidence
+snapshots, the root `/output/` ignore policy and reduced-process contributor
+instructions. Reconcile historical references without regenerating evidence;
+prior snapshots remain available in Git history. Reconcile the four remaining
+compiler-test comments as documentation only, retaining test behavior. The
+existing filetree record accounts for all twelve housekeeping/documentation
+paths and retains its complete historical checkpoint. Active compiler/runtime
+edits remain with their current owner and are not qualified by this cleanup.
+
+## 2026-10-18 — source-owned inline preference editors
+
+**Accepted implementation.** An authored preference panel binds each toggle or
+input to its checked local preference field. Bool, text and int editors reuse
+the existing single-field authenticated POST, CSRF and compare-and-set route;
+nullable controls clear through the same envelope. Filter defaults alone do not
+grant an editor. Typed binding/owner correspondence survives IR and emission,
+with no app-name exceptions or CRUD write authority.
+
+The actual compiled-Can HTTP consumer passes: render/save/reload, explicit false,
+exact integer spelling, nullable clear, stale-version and CSRF refusals, escaped
+text, read-only rejection and independent same-named preferences in another
+module. The affected compiler pins pass 9/9; the refreshed compiler consumer
+passes 1/1. Independent direct consumer validation also passed; unchanged checks
+are reused. Cohesive Details/Tabs/default extraction preserves behavior and
+passes the scoped complexity gate without allowance changes. The earlier HTTP
+422 came from a stale staged UI dependency; validation selects real workspace
+UI through a task-local resolver without changing emitted code or shared links.
+Full CanCRM compilation/runtime and its next original24 capture remain open.
+
+
+## 2026-10-18 — accept the integrated native release manual workflow
+
+**Accepted finite result.** Maincdf26e070 includes the native manual server and
+released compiler context fixes while preserving24 foreign dirty tracked inputs
+byte-for-byte. Rebuild the actual integrated release compiler and checksum-install
+its archive on macOS arm64 and Linux x86_64; the affected real manual workflow
+passes on both. Reuse unchanged native94 release and installed23 criteria per
+host. Normal retired-generation waits remain observations, with cleanup admission
+unchanged. Final macOS ModelFreePreview is9.270s ready/.082s control/.182s stop;
+PreviewPersistence is9.901s macOS and14.797s Linux ready. Runtime preparation
+remains dominant; no older-tuple percentage or statistical claim. Linux requires
+glibc2.39 at the recorded host scope. Retain binaries/artifacts/evidence and the
+stopped-U stash; release owned rebuild caches only after consumers finish.
+Publication, later automation and stronger Miniflare restart controls remain
+separate from this completed integration/qualification request.
+
+## 2026-10-18 — integrate the qualified native manual development server
+
+**Accepted main integration.** The released native100-path closure through
+659b90f2b joins main9e9b1c7c4 after explicit foreign-writer/capture release.
+Preserve accepted lifecycle fixes, compiler context/source checks and all unfinished
+foreign source/test bytes in place. Reconcile the two dev documentation notes
+without discarding their historical evidence or converting proposals into new
+prerequisites. Rebuild/measure the actual integrated release compiler in the owned
+cache; unchanged native/producer/installer results retain their recorded coverage.
+No public publication or later automatic development work is inferred.
+
+## 2026-10-18 — consume the released compiler batch in native integration
+
+**Accepted intake.** Incorporate9e9b1c7c4 and retain its checked source/context
+and failure/refusal rules, owning review and27+4+original-count1 checks. It does
+not change the native server or frozen package outputs. Final integrated release
+qualification rebuilds the actual compiler and checks its installed manual
+consumer; native94 and unchanged package/installer results remain reused. Preserve
+all unfinished foreign runtime/prefs sources in place and stopped U in its named
+stash. The bounded main write window authorizes only the released native closure
+and owning documentation reconciliation.
+
+## 2026-10-18 — retain development planning notes at their declared scope
+
+**Accepted reconciliation.** Preserve the foreign paused-stage ownership,
+protocol, supervision and older38.48s provenance notes. Subsequent user resume
+instructions govern the current execution view. Proposed host relocation and
+further target/qualification helper decomposition do not reopen accepted manual
+criteria. The implemented bounded Cloudflare host remains the installed entry.
+Miniflare's internal restart has no pre-spawn veto or immediate stable notification;
+current owner health observes the host transport and preparation probes the real
+runtime. Stronger inner-restart observation remains a named limitation/proposal,
+without weakening the qualified owned-host/process-group release contract.
+
+## 2026-10-18 — qualify native release profiles without weakening retirement
+
+**Accepted qualification.** Locked release compiler/server builds and native94
+checks pass on macOS arm64 and Linux x86_64. Both actual installed archives pass23
+criteria, retaining real manual login/data, invalid-edit recovery and confirmed
+stop/restart. The verifier observes normal retired-generation cleanup before
+requesting new preview access; it never bypasses admission or retries cleanup.
+Keep the earlier failed samples and successful affected retries in their existing
+reports. Linux records Rocky10.2 and an actual glibc2.39 minimum. These host results
+close the selected release-profile/platform scope; no GitHub workflow dispatch,
+public publication or later automatic feature follows. Retain one compatible
+release cache per host for the final integrated compiler/build consumer.
+
+## 2026-10-18 — qualify committed main with the native development server
+
+**Accepted integration scope.** Incorporate committed main `a28335e6b` into the dev branch before release qualification. Retain its accepted compiler/query/hook, State, native preparation CLI/integrity and packaging owners and evidence. Main's active uncommitted consistency work is excluded and remains untouched. Preserve stopped TS/cache/UI work in named stash `c587f365e0333ea185a6be58545a3f9f1d270f4d`; reapply after capture-sensitive qualification. Actual macOS/Linux release qualification and final main integration are now authorized; public publication and later automatic work remain separate.
+
+## 2026-10-18 — preserve command policy in Rust and package the native manual entry
+
+**Accepted implementation.** Rust retains command admission, captured revisions,
+failure references, serialized example requests, exact rerun recipes, qualification
+cache/currentness and safe disclosure. The private host supplies existing semantic
+results from immutable file-backed captures/artifacts; it never wraps another
+session controller. Detach cancels and joins the caller's operation. Failed row or
+qualification cleanup retains its original release handle and primary error;
+uncertainty closes admission until actual cleanup succeeds. Verified spool outputs
+are acknowledged after copying rather than accumulating across repeated commands.
+
+The existing standalone assembler now takes a matching native server, checks host
+and release identity, carries its locked dependency notices, and uses the same
+atomic version switch. Dev help is a nonstarting preflight. The installed server
+resolves bundled Node and its subordinate bridge; explicit overrides remain.
+Conflicting TS installed/bin routes retire, while preserved source and semantic
+owners remain available. The existing Linux tool archive explicitly consumes the
+same native component so removing the old package bin cannot break its entry.
+
+Native94, bridge6/cleanup4/spool1 and existing example13 checks qualify their finite
+contracts. A real macOS installed journey preserves login/data across invalid edit,
+repair and restart, exercises failure/construct/example controls, and accepts the
+existing JSON consumer. Local archive23 checks pass. Actual Linux/release-profile
+CI, public publication and later automation retain their separate gates; no live
+external ranking or new process/profile framework is introduced.
+
+## 2026-10-18 — implement one native development owner and a subordinate runtime host
+
+**Accepted implementation at the manual core scope.** The independent
+`dev-server/` crate owns the authoritative lifecycle, capture/check operations,
+generation selection, protected access and retained cleanup. Ratatui consumes
+typed ordered observations; its connection and input state do not decide runtime
+readiness. Blocking compiler and runtime operations return correlated facts to
+one owner loop. Stop closes admission before waiting, joins work, confirms runtime
+and gateway release, flushes the final control response, and retires the private
+claim before reporting Stopped. Failed and late work cannot discard allocations
+or replace the last good preview.
+Maintenance uses an independent deadline: continuous control traffic cannot
+starve health checks or claim retirement. Actual TS/native interoperation exposed
+and verified this requirement without changing the final-response drain barrier.
+
+The bridge uses bounded `can.dev.runtime.v1` newline JSON and private byte/hash
+file references. It retains existing Miniflare/Workerd setup, actual service
+probes, explicit actor disclosure and retryable resource disposal. External-origin
+mode opens no TypeScript protected preview listener. POSIX supervision pins an
+owned private process-group leader until signaling is finished; whole-tree
+release requires observed group absence. This covers the supported non-detached
+profile, with inherited optional debugger hooks disabled; it is not a general
+container or arbitrary detached-process supervisor.
+
+[Retained JEV advice](../design/jev/dev-rust-runtime-20261018.json) records three
+equivalent bridge choices (agreement with low confidence .30/.33/.35) and three
+generic process-supervision choices (unanimous private pinned group, reported
+confidence 1.0). Advice does not establish correctness. Direct process, state,
+capture, control, terminal and HTTP checks establish their recorded finite scope.
+On ARM, enable the maintained hash dependency's runtime-detected SHA acceleration;
+bounded input readers still verify every byte and membership boundary.
+
+**Remaining uncertainty/work:** native command families for examples, retained
+failure references and construct help/ranking remain visible as unavailable.
+Automatic scheduling and stable-origin browser updates retain their later task
+owners. Full T14/T15 acceptance and installed T17 cutover remain open; the
+TypeScript installation entry and preserved lifecycle fixes remain in place.
+
+## 2026-10-18 — retain source context through finite receipt composition
+
+**Accepted compiler implementation.** Retain the exact fresh source context through
+query/count/ancestor receipt collection and native emission. A derived read must
+belong to the original checked declaration/body and its bounded transitive typed
+read closure; unrelated owner diagnostics do not orphan an otherwise checked
+member. Required-model guards and ordered create/SET/SEND receipt tails retain
+source correspondence. Foreign/nested unsupported model reads still refuse.
+
+The released compiler scope reuses focused source/context checks (27 passing),
+guarded-created-reference checks (4 passing), and the independent original
+six-query/count/ancestor witness (1 passing, 125.62 s). The actual compiled
+Maintain assignment progressed through commit, genuine mail and a failed receipt.
+This accepts the compiler mechanism, not the complete assignment/retry workflow:
+ruled-model delivery observation, staged-hook retirement and inline-preference
+HTTP materialization remain unfinished. The last complete original24 capture
+remains 212 E6008; no lower count is claimed. No app-specific exception or new
+worktree/cache was introduced.
+
+
 ## 2026-10-18 — retain native archive and hook event ownership
 
 **Accepted implementation.** List/Table archive inclusion reaches the existing
@@ -48,7 +231,6 @@ D1 consumers2/2; joint hooks13/13 include SET-to-query, revocation and rollback.
 Focused Compiler/State checks pass. Declared-event schedules retain their existing
 atomic queue and typed source payload. These finite consumers are accepted;
 remaining hook effects, guarded SEND and complete original24 acceptance stay open.
-
 
 
 ## 2026-10-18 — accept shared fanout and selected recovery delivery
@@ -18605,7 +18787,7 @@ Accepted: Conjunction first-query admission with ordered multi-dependency plans:
 
 ## 2026-10-17 — conjunction producer original24 qualification
 
-Qualified: frozen conjunction producer `e0f58507f` (binary `5921567e`, catalog `ca50`) reproduces the frozen ifbranch cohort exactly on the unchanged original24 tuple: 276 E6008, complete/omitted0, 26 sources, 24/24 authored hashes match, full diagnostic multiset identical (0 removed, 0 added vs `evidence/original24-main-20261016.json`). Capture output `/tmp/can18-main-conj/capture.json` (498s, exit 10). The CanCustomer two-predicate conjunction spans stay refused on their recorded void/context/enum prerequisites; no regression from the new admission. Evidence file unchanged (cohort definition carries no producer field).
+Qualified: frozen conjunction producer `e0f58507f` (binary `5921567e`, catalog `ca50`) reproduces the frozen ifbranch cohort exactly on the unchanged original24 tuple: 276 E6008, complete/omitted0, 26 sources, 24/24 authored hashes match, full diagnostic multiset identical (0 removed, 0 added vs `historical diagnostic snapshot (removed)`). Capture output `/tmp/can18-main-conj/capture.json` (498s, exit 10). The CanCustomer two-predicate conjunction spans stay refused on their recorded void/context/enum prerequisites; no regression from the new admission. Evidence file unchanged (cohort definition carries no producer field).
 
 
 ## 2026-10-17 — can18_merge_53_20261017
@@ -18893,6 +19075,26 @@ This is a two-operation batch, not whole CanCRM completion. Muse stays stopped;
 implementation remains on main with no new worktree or branch.
 
 
+## 2026-10-18 — observed local development-server startup
+
+Reported by the “Prevent Miniflare instance accumulation” task: one current
+contributor-build run reached an authenticated Todos page (HTTP 200) in **38.48 s**.
+Owner startup took **17.50 s**; checking, compilation, bundling, database/actor
+provisioning and runtime readiness took **20.55 s**; protected access, login and
+page response took **0.42 s**. One-time build preparation was approximately
+**33 s**, excluded from server startup.
+
+Runtime packages 0.1.1 were freshly emitted from `1527ed1e8` plus the task's
+lifecycle fixes. The reused local debug compiler reported `3059a36af`; its
+compiler inputs were frozen from main `5d81e2a8`. No published-release assets
+were used. Dependencies and OS caches were warm; application data was fresh.
+This is one observed run, not a cold-machine benchmark or latency guarantee.
+The task reported its owned daemon exited and temporary state, outputs and
+links were removed, with generated binding files restored. The earlier roughly
+20-second result used the older October 15 standalone installation and is not
+a current-source comparison. No additional run was performed to record this note.
+
+
 ## 2026-10-18 — reuse fixed D1 revision query preparation
 
 Retain the constant fence SELECT, its fixed row binding and private executor in a
@@ -19046,6 +19248,121 @@ related diagnostic locations both veto the consumed closure; unrelated sibling
 E6008 remains scoped, and missing analysis remains a global refusal. The existing
 focused source-query case passes. SEND keeps its separate strict executable
 closure gate; no original24 diagnostic reduction is claimed for this repair.
+## 2026-10-18 — retain local preview ownership until runtime cleanup succeeds
+
+- **Status and scope:** Implemented locally in the isolated Miniflare lifecycle worktree. No merge, publication, compiler semantic changes, native work or global runtime supervisor is selected. Separate applications and test/row scopes retain independent instances; one session's intended replacement overlap remains bounded.
+- **Observed gaps and choice:** Session replacement discarded failed old-preview disposals; stop discarded its serving reference, cached rejection permanently, and released control even if the runtime remained alive. Builder provisioning/preflight failure paths could lose the runtime and delete its backing files. Retain failed disposals in the owning session, retry them before another build, and keep the owner endpoint/claim after failed shutdown. Concurrent stop callers await the same attempt; retries release only resources whose prior cleanup failed. Status exposes the safe `shutdown_error: "CLEANUP_FAILED"` code and subsequent work is refused after shutdown begins. Socket directory cleanup can retry after its listener closes, including partial claim removal, using the existing directory identity guard.
+- **Startup and recovery:** `startLocalDev` awaits actual Miniflare readiness and disposes failed startups before rejecting. A small private cleanup error retains a retry callback if release itself fails; the session consumes that ownership. Pinned Miniflare's identical initialization rejection after its completed disposal `finally` is distinguished from a new cleanup failure. Disposal clears recovery scheduling and closes workerd before awaiting an in-flight scheduled dispatch. Daemon IPC size/encoding validation now precedes child creation and reply timers, avoiding a synchronous rejection leaving a pending reply promise. Existing exclusive root claiming remains before any session preview allocation; repeated starts still report a conflict rather than attach without the missing complete input handshake.
+- **Verification:** 68 distinct focused checks passed across affected-scope runs, with one Linux-only socket case skipped on macOS: 23 session-core, 27 builder, one preflight, three real-runtime lifecycle, ten socket, two service and two daemon cases. Strict targeted TypeScript checks and whitespace checks passed. Real workerd checks observed one serving child after unchanged checks and each successful rebuild, at most two during preparation, and zero additional owned workerd children/listening servers after stop; stale/canceled preparation and two startup failures also returned to baseline. Two independent callers remained independent. A real scheduled dispatch with a 60-second pending timer did not block disposal. Failure injection covers retained provisioning/serving/preflight cleanup, backing-file preservation, blocked replacement, concurrent stop and retry. Existing compiler-child cancellation passed with a task-owned frozen binary; no compiler build ran. The native watcher test initially timed out under sandboxing and passed outside it; unchanged passing results were reused.
+- **Timing and limits:** Minimal runtime start through first successful response measured 155 ms initially and 39–47 ms subsequently in the first process; the affected follow-up run measured 98 ms initially and 48–61 ms subsequently on Node 24.22.0 / Miniflare 4.20260730.0 / workerd 1.20260730.1. These are small local observations with existing installed dependencies and OS caches, not a cold-machine benchmark or full Can preview startup measurement; compilation, bundling, activation and Identity provisioning add separate work. Process/listener release is verified, not a general heap/RSS bound. The existing local-run bindings suite could not load because of its pre-existing malformed regexp at line 82; the dedicated real lifecycle checks and builder tests cover this change. Failed daemon handoff still signals its own child without awaiting process exit; the exclusive claim prevents duplicate ownership during eventual release. Unrelated live servers, chats and processes were not stopped. Temporary validation copies/links are task-owned and released after checks; the complete filetree checkpoint is unchanged because no merge occurs here.
+
+## 2026-10-18 — reduce repeated local dev capture work
+
+- **Status and choice:** Implemented locally at the user's request, preserving the preceding lifecycle patch. Share the portable package inventory within each individual source/output discovery, including runtime currency and bundle admission. Every later discovery still walks disk again. At the launcher's and child's final handoff boundaries, check current bytes, membership, canonical paths and generated closure directly against the original admitted capture instead of constructing another capture first. Initial admission retains its collection plus currency pass, and process/session/status/termination checks remain. Hash buffers now use the smaller of file size and 256 KiB, with a one-byte minimum for empty files; growth beyond initial size fails immediately. No stat-only hash cache or shared application runtime was introduced.
+- **Measured cause:** The matching baseline owner phase made 32 portable inventory walks taking 7.60 s; optimized it makes 12 taking 2.99 s. The first check's walks fell from 42 / 9.35 s to 18 / 4.87 s. The baseline daemon over startup plus one edit made 1,006,406 synchronous realpath calls and cumulatively allocated 30.40 GiB through `Buffer.alloc`; optimized observations were 468,481 calls and 2.01 GiB. These are cumulative allocations, not resident memory. All six Miniflare starts together took 0.88 s before and 0.85 s after; the initial Identity seed took 0.30 / 0.32 s. Portable bundling itself stayed near 2 s per check. Function timings include their callees and must not be added together as exclusive costs.
+- **Method:** One before/after contributor Todo run on Node 24.22.0, freshly emitted 0.1.1 packages from runtime HEAD `1527ed1e8` plus local changes, identical cached dependencies and temporary in-memory timing hooks. Both use the same frozen existing local debug compiler reporting `3059a36af` (language 1.0/schema 1); its source inventory was frozen from clean main `eb4997001`. No compiler build or change to another checkout's sources occurred. Initial binding/package preparation took 23.83 s separately; subsequent optimized Cloudflare re-emission was also outside startup. Each initial run used fresh application state with normal OS/dependency caches. The earlier unprofiled 38.476 s observation (17.503 s owner) is context; the matching profiled baseline below is the comparison, with ordinary run/cache variability.
+
+| Observable interval | Before (s) | After (s) |
+| --- | ---: | ---: |
+| Start through owner handoff | 14.142 | 7.320 |
+| First explicit check through ready preview | 20.974 | 15.148 |
+| Preview open, real login/team selection and HTTP 200 page | 0.403 | 0.535 |
+| Complete fresh-state startup | 35.520 | 23.004 |
+| Save visible title, explicit check, authenticated updated page | 21.130 | 13.699 |
+| Retained-state restart through authenticated page | — | 20.429 |
+
+- **Observed behavior:** Full startup improved 35%, owner handoff 48%, and visible iteration 35% in these samples. The edited page returned HTTP 200 with title `Todos updated — Todos`, revision `r2`, one new serving workerd child, the old child released, and unchanged global/owner database IDs. Retained-state restart used the same state directory (6.882 s owner, 13.162 s check, 0.385 s open/login/page). Each owned daemon stopped and exited before release. File watching marks dirty; the measured iteration explicitly invokes `can dev check` and reloads the authenticated page. Automatic rebuild-on-save remains outside this change.
+- **Validation and uncertainty:** Fresh Cloudflare emit/typecheck passed. Capture/inventory tests passed 31/31, covering empty/1-byte/chunk-boundary hashes, same-size mutations, aliases, membership and source freshness; preflight lifecycle passed 1/1. Daemon tests passed 4/4, including deterministic same-size source/producer mutation immediately before final parent handoff with child exit and owner cleanup. The new socket fixtures needed shorter temporary paths; sandboxed socket tests required local socket access. The initial incremental emit correctly failed the contributor freshness guard because unchanged JS outputs retained older timestamps; a full package re-emission resolved it before measurement. Existing 68 lifecycle checks retain their recorded scope. Three equivalent JEV choice requests favored direct baseline currency (probability .78–.84, confidence .67–.76); [questions, responses and residual uncertainty](../design/jev/dev-startup-20261018.json) are retained as advice alongside direct tests. Remaining repeated checks protect distinct consumption/publication boundaries; their removal and automatic rebuild are unimplemented possibilities, not accepted completion requirements. The initial table measures authenticated HTTP responses. No cold-machine, release-install, heap/RSS or rebuilt-current-compiler benchmark is claimed; actual browser rendering is measured separately below. No merge or complete filetree-checkpoint advance occurs here.
+
+### Actual browser save-to-demo follow-up
+
+The earlier 13.699 s iteration measured an authenticated HTML response. The requested browser follow-up used the same task-owned Todo root and frozen compiler, the optimized source above, freshly re-emitted 0.1.1 packages, and retained local state/seeded accounts. Dependency/OS/browser caches were warm; preparation, startup, initial login and creation of a saved task were outside the edit timer. The cached Values Cargo portion took 0.09 s; a separate full package emission round took 23.18 s, followed by Values restaging/catalog emission. Playwright 1.63.0 drove cached headless Chromium 156.0.8078.4 (revision 1248), viewport 1280×900, on Node 24.22.0 with the same timing hooks. This is a local browser observation, not qualification of the separately pinned browser-tools release or a cold-machine benchmark.
+
+In one already-running authenticated session, save changed only `card "Your tasks"` to `card "Your tasks — demo update"`. The timer began immediately before writing the source. Browser verification waited for the exact changed heading and existing task to be visible and two animation frames to pass, then submitted a new task through the real generated form and waited for its committed HTTP 200 result and visible row. The screenshot was inspected after timing.
+
+| Sequential interval | Seconds |
+| --- | ---: |
+| Save through watcher dirty observation (10 ms polling) | 0.012 |
+| Explicit `can dev check`, including capture/compile/bundle/replacement | 13.476 |
+| Explicit `can dev preview.open` | 0.317 |
+| Navigate to returned URL, load assets, verify content and paint | 0.595 |
+| Complete save through painted changed page | **14.401** |
+| Additional successful task submission/visible-row usability probe | 0.165 |
+| Complete save through verified usable page | **14.567** |
+
+Within the check, compiler invocation plus its currency check took 0.983 s; portable bundling itself 1.939 s (3.343 s including its surrounding input checks); all three runtime starts together 0.351 s. These nested function timings are diagnostic and are not additive phase totals. Source save itself took 0.0003 s. Initial owner startup/check were 6.718 / 12.705 s, excluded from this edit measurement.
+
+The same browser context retained its original login cookie and team, the pre-edit `Persisted demo task` remained visible, and `Task created after visible edit` appeared after the real form commit. Global/owner database IDs stayed identical. There was one new serving workerd child and the exact old PID no longer existed; the browser reported zero page errors. The heading and both task titles were visibly rendered in the inspected capture. The initial setup probe needed its required login Origin header and a text matcher tolerant of the renderer's bidi isolation characters; those setup retries were outside the accepted edit timer and released their owned sessions.
+
+Watching automatically marks dirty and refreshes capture. Rebuild still requires `can dev check`, followed by `can dev preview.open` and navigation to its returned URL. The replacement bridge changed port in this run, so refreshing the old URL is insufficient; the public instructions now state the observed workflow. No second login was performed after rebuild. The measured owner stopped and exited, its fixture was restored, and only task-owned state/build/dependency outputs were released. Raw timing/profile output and the inspected screenshot remain in the private temporary `can-startup-perf` directory; this concise record is the durable result. Existing checks are reused, with no new product implementation, broad test run, compiler build, merge or publication.
+
+
+Implementation-owner intake: existing worktree `0970` moved from `1527ed1e8` to current local main `71885872b`, preserving all 20 non-decision-log local files byte for byte and combining the upstream decision additions with the original local lifecycle/performance/timing record. The sole conflict was that documentation area and is resolved. The completed plan is present at the same canonical path in this worktree, with E1 identified as an available unmerged local handoff and no duplicate cleanup/inventory assignment. T14–T30 remain proposed; terminal feedback is first, and no new implementation, resource allocation or expensive validation was run for intake. Earlier results remain scoped to their recorded inputs. The recovery stash is retained until normal integration; no merge or complete filetree-checkpoint advance occurred.
+
+## 2026-10-18 — authoritative development state and foreground controls
+
+Implemented T14/T15 and explicit T19 mode locally. One owner observation separates
+lifecycle, active phase, source outcome, actual serving revision/currentness and
+cleanup/restart admission. Captured diagnostics remain revision-bound; routine
+status exposes only a safe origin. `can dev terminal --source PATH` starts the
+manual foreground view; without source it attaches. Enter runs bounded known
+commands, owned Ctrl+C waits for runtime/endpoint/process release, and attached
+Ctrl+C detaches. JSON commands retain their envelopes. Failed shutdown retains
+the exact claim for retry; the socket uses its original directory identity through
+publication and guarded partial-cleanup recovery. The launcher's failed handoff
+awaits its child's exit. Three socket-cleanup JEV responses are retained as advice
+in `docs/design/jev/dev-socket-cleanup-20261018.json`.
+
+`--check-mode automatic` opts into an initial check and newest coherent saved
+revision. One deferred demand uses the existing serial core queue; intermediate
+saves do not enqueue builds. Source errors wait for correction, identical-byte
+hints do not loop, and incomplete capture/cleanup/changed loaded producers pause
+new work. Explicit cleanup retry can resume the newest demand. No permission,
+activation or failure result is reused. Manual remains the default.
+
+Focused terminal9, observation4, publication-selection failure1 and socket6
+controls pass; the single real-compiler service test covers automatic startup,
+three-save coalescing, superseded candidate disposal, last-good/error/correction,
+identical-byte hint, producer restart refusal and owned stop in3.317s. A test-only
+dirty/coherent predicate was corrected before the affected retry. Cloudflare emit
+passes; retained earlier lifecycle and affected service/daemon results are reused.
+T17's actual terminal/current-build journey and the stable gateway/browser join
+remain open. No new startup timing, main merge or full checkpoint advance is
+claimed by this slice.
+
+## 2026-10-18 — bound unchanged-check and inventory path reuse
+
+Reuse the existing immutable check history only when the currently serving
+successful preview owns the recaptured full-input epoch. Run the ordinary final
+currency fence, cancellation and expected-revision checks; failed, unserved and
+superseded results miss. This avoids a compiler spawn on an exact no-op without
+retaining a second artifact cache, permission result or compiler process. Two
+focused controls pass: no-op skips check/build, producer-only changes miss,
+mid-reuse mutation supersedes, and failed source/build attempts always rerun.
+
+At initial/currency inventory gates, identical absolute requested paths need no
+duplicate alias resolution because stable canonical/hash reads follow. Different
+spellings retain both alias resolutions; the final post-read inventory retains
+existence checks so disappearance during rediscovery still refuses. Four focused
+same-path/missing/final-deletion/membership/retarget controls and Cloudflare
+typecheck pass. Three JEV replies favor this phased optimization (.92–.94), saved
+in `docs/design/jev/dev-inventory-path-equality-20261018.json` as advice. Add the
+already consumed Work-kernel distribution to the captured producer closure;
+T22's dependency-edge validation exposed that missing input. Actual timing of
+these changes remains pending the frozen current-build run. Compiler staging
+retention and broader partial compilation remain unselected until their separate
+cost is measured; no new resource owner or cache is justified by the aggregate
+check duration alone.
+
+Development-branch merge intake: incorporated committed main `0ec2ee9a5` through
+the existing `61334d958` base, preserving both append-only decision histories and
+all unfinished browser/gateway/cache edits. The living file-tree plan accounts
+for incoming33 paths with retained owner coverage and the branch's37 committed
+development paths. Reuse unchanged checks; no capture was active and no main
+working source/cache was changed. This partial intake does not satisfy the user's
+later final compiler-current-work handoff: that chat still has uncommitted work,
+so final synchronization and current-build timing remain pending. The complete
+historical review checkpoint stays held.
 
 
 ## 2026-10-18 — enforce changed production function complexity
@@ -19175,6 +19492,30 @@ work asynchronously during review/Git. Preserve all newer main history through
 the complete living-plan checkpoint/stale notice unchanged. The compiler batch's
 final safe worktree intake remains pending. Public deployment/default changes/TS
 retirement stay held.
+
+## 2026-10-18 — paused development-worktree sync and Rust plan intake
+
+The user's limited authorization incorporates fetched/current main `69eede1e8`
+into preserved `0970` at `b8c909700`, without creating a commit or changing main.
+The decision-log conflict retains main's edits and both appended histories. All
+stopped source edits and existing commits remain preserved; the living file-tree
+plan reuses incoming53-path owner coverage without advancing its checkpoint.
+The selected direction is the Rust owner/state/supervisor and Ratatui under
+`dev-server/`, with a subordinate Miniflare/Workerd integration bridge. Existing
+TS lifecycle and later update/reuse work supplies parity input, not Rust acceptance.
+The working tree retains the resolved, uncommitted merge. No implementation,
+agents, refactoring, builds, tests, commits, main merge or push is resumed.
+
+## 2026-10-18 — resume the Rust development server implementation
+
+The user explicitly resumes the existing plan, prioritizing the authoritative
+Rust state machine and Ratatui terminal while preserving lifecycle fixes and the
+declared dependency order. T14/T16 first release the owner/runtime contract;
+T15 consumes its typed snapshots without owning transitions. Existing stopped
+TypeScript lifecycle, terminal and reuse source remains preserved as parity input.
+Manual Rust/installed acceptance remains T17; later tasks do not become its
+prerequisites. The prior resolved main69eede1e8 intake can now be committed on the
+development branch. Unrelated compiler/platform work retains its own owner.
 
 
 ## 2026-10-18 — align native preparation to the current owning release
@@ -19388,3 +19729,17 @@ not duplicated; single-instance mode has no recurring Muse worker timer or human
 ready gate. Codex owns independent review and accepted Git/main integration while
 Muse owns implementation and the single central checklist. Public deployment,
 automatic defaults and TS retirement remain held independently of Rust completion.
+
+
+Rust completion main sync: committed main `69d45c33c` is incorporated into the
+active port branch after exact coordinator/worker writer release. Local checkpoint
+`8d5f2706f` preserves all55 unfinished planning/source/artifact inputs without
+claiming acceptance or publishing them to main. All53 nonshared inputs retain
+identical bytes/modes; both shared documentation histories merge automatically.
+Main's132-path development/compiler/preferences/distribution/cleanup coverage is
+retained in the living plan. No source conflicts occurred; focused JSON/whitespace
+checks pass. Newer bundle execution ownership and optional development browser
+resource behavior are inputs to native preparation, not behavior to overwrite.
+Continue original full outcomes and independent review; public deployment,
+automatic defaults and TS retirement remain held. The complete historical
+filetree checkpoint is unchanged.

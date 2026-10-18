@@ -327,6 +327,8 @@ export interface PageDescriptor {
     readonly date?: true;
     /** Exact scalar wire type for saved equality-filter values; no enum/save control. */
     readonly scalarType?: 'int' | 'datetime' | 'currency';
+    /** Only an authored inline editor enables scalar saves and nullable clearing. */
+    readonly editable?: 'bool' | 'text' | 'int';
   }[];
   readonly admit: AdmitFn;
   readonly render: RenderFn;
@@ -1015,7 +1017,10 @@ export interface FilterPreferenceBinding {
    * control compares strictly so an explicit false stays selected.
    * POST/store remain the existing string-valued contract.
    */
-  readonly current?: string | boolean | null;
+  readonly current?: string | boolean | bigint | null;
+  /** Checked inline preference control; omission retains finite-choice radios. */
+  readonly editor?: 'bool' | 'text' | 'int';
+  readonly nullable?: boolean;
   /** Saved snapshot version; sent with the save for compare-and-set. */
   readonly version?: string;
   /** Caller-owned persistence path; the form POSTs name=<value> + CSRF. */

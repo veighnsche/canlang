@@ -14,11 +14,12 @@ import { createD1IdentityStore, ensureIdentitySchema, hashPassword, setMemberRol
 import { checkActivationInventory } from "@canlang/state/migration/activate";
 import { buildWorkInventory } from "@canlang/work/recovery";
 import { activate } from "../deploy/activate.js";
-import { buildDeployBundleWithAssets } from "../deploy/bundle.js";
+import { buildOwnedDeployBundleWithAssets } from "../deploy/owned-bundle.js";
 import { probeInstalledRuntime } from "../deploy/installed.js";
 import { RELEASE_VERSION } from "../release/stamp.js";
 import { startLocalDev } from "./local-run.js";
-import { LOCAL_PREVIEW_CAPABILITIES, PreviewAdmissionError, createLocalPreviewBuilder, type LocalPreviewBundleRequest, type LocalPreviewSeed, type PortableBundleEvidence } from "./preview-builder.js";
+import { cleanupAfterFailure, DevCleanupError, retryableDispose } from "./cleanup.js";
+import { LOCAL_PREVIEW_CAPABILITIES, PreviewAdmissionError, createLocalPreviewBuilder, type LocalPreviewBundleRequest, type LocalPreviewSeed, type LocalPreviewBuilderOptions, type PortableBundleEvidence } from "./preview-builder.js";
 import { installedReferenceRoot, assertInstalledCatalog, bundlerExecutableInputs, compilerSourceInputs, installedOwnedSourceInputs, installedPortableBundleInputs } from "./preview-inputs.js";
 import { captureIsCurrent, type SingleFileCapture } from "./source-capture.js";
 import { PINNED_COMPATIBILITY_DATE } from "./zero-config.js";
@@ -113,6 +114,7 @@ export async function localPreviewActivationVerdict(
 /** The prebuild gate runs on a real, isolated local D1 binding. */
 export async function preflightLocalPreviewActivation(
   artifact: CompileArtifact, capture: SingleFileCapture, implementations: LocalBindingImplementations = {},
+  onAllocated?: (dispose: () => Promise<void>) => void,
 ): Promise<ActivationVerdict> {
   checkedInstalledInputs(capture);
   if (!(await captureIsCurrent(capture))) {
@@ -121,6 +123,12 @@ export async function preflightLocalPreviewActivation(
   const databaseId = `can-preview-preflight-${randomUUID()}`;
   const persistence = await mkdtemp(join(tmpdir(), "can-preview-preflight-"));
   let dev: Awaited<ReturnType<typeof startLocalDev>> | undefined;
+  let failedStartup: DevCleanupError | undefined;
+  const dispose = retryableDispose(async () => {
+    await failedStartup?.dispose(); failedStartup = undefined;
+    await dev?.dispose(); dev = undefined;
+    await rm(persistence, { recursive: true, force: true });
+  });
   try {
     const runtimeBindings = configureLocalBindings(planLocalBindings(artifact), persistence, implementations, true);
     dev = await startLocalDev({
@@ -131,9 +139,13 @@ export async function preflightLocalPreviewActivation(
       modules: { "main.js": "export default { fetch() { return new Response(null, { status: 404 }); } };" },
       d1Databases: [{ binding: BINDING_NAME, id: databaseId }],
     });
-    return await localPreviewActivationVerdict(artifact, capture, await dev.getD1Database(BINDING_NAME), databaseId, undefined, undefined, implementations);
-  } finally {
-    try { await dev?.dispose(); } finally { await rm(persistence, { recursive: true, force: true }); }
+    onAllocated?.(dispose);
+    const verdict = await localPreviewActivationVerdict(artifact, capture, await dev.getD1Database(BINDING_NAME), databaseId, undefined, undefined, implementations);
+    await dispose();
+    return verdict;
+  } catch (error) {
+    if (error instanceof DevCleanupError) failedStartup = error;
+    return cleanupAfterFailure(error, dispose);
   }
 }
 
@@ -161,7 +173,7 @@ function checkedInstalledInputs(capture: SingleFileCapture): PortableBundleEvide
   if (grammar?.state !== "present" || grammar.canonicalPath !== realpathSync(join(installedReferenceRoot(capture.root), "docs/specification/GRAMMAR.md"))) {
     throw new PreviewAdmissionError("BUNDLE_INPUTS_INCOMPLETE", "installed grammar reference was not captured");
   }
-  const sourceInputs = installedOwnedSourceInputs(capture.root);
+  const sourceInputs = installedOwnedSourceInputs(capture.root, expected);
   const capturedSources = capture.inputs.filter(input => input.name.startsWith("extra:source:"));
   if (sourceInputs.length !== capturedSources.length) {
     throw new PreviewAdmissionError("BUNDLE_INPUTS_INCOMPLETE", "captured package sources differ from installed producer closure");
@@ -200,8 +212,10 @@ function checkedInstalledInputs(capture: SingleFileCapture): PortableBundleEvide
 /** Build the real portable module map from the captured installed outputs. */
 export async function produceInstalledPortableBundle(request: LocalPreviewBundleRequest & {
   readonly commandLifetime?: LocalCommandLifetime;
+  readonly signal?: AbortSignal;
 }): Promise<PortableBundleEvidence> {
   const { artifact, capture, verdict, assets, commandLifetime } = request;
+  request.signal?.throwIfAborted();
   commandLifetime?.checkpoint("installed bundle inputs");
   const consumedInputs = checkedInstalledInputs(capture);
   if (!(await captureIsCurrent(capture))) {
@@ -209,21 +223,15 @@ export async function produceInstalledPortableBundle(request: LocalPreviewBundle
   }
   commandLifetime?.checkpoint("installed bundle source check");
   const nativeBinary = consumedInputs.find(input => input.name === "extra:esbuild")!.canonicalPath!;
-  const previousBinary = process.env.ESBUILD_BINARY_PATH;
-  let bundle: ReturnType<typeof buildDeployBundleWithAssets>;
-  try {
-    // The build is synchronous, so no other preview can observe this pin
-    // between its installation and restoration. Every child inherits it.
-    process.env.ESBUILD_BINARY_PATH = nativeBinary;
-    bundle = buildDeployBundleWithAssets(artifact, { verdict, assets,
-      ...(commandLifetime === undefined ? {} : { commandLifetime }) });
-  } finally {
-    if (previousBinary === undefined) delete process.env.ESBUILD_BINARY_PATH;
-    else process.env.ESBUILD_BINARY_PATH = previousBinary;
-  }
+  const bundle = await buildOwnedDeployBundleWithAssets(artifact, { verdict, assets,
+    esbuildBinaryPath: nativeBinary,
+    ...(request.signal === undefined ? {} : { signal: request.signal }),
+    ...(commandLifetime === undefined ? {} : { commandLifetime }),
+  });
   if (!(await captureIsCurrent(capture))) {
     throw new PreviewAdmissionError("SOURCE_CHANGED", "installed package input changed during portable bundling");
   }
+  request.signal?.throwIfAborted();
   commandLifetime?.checkpoint("installed bundle result");
   return {
     bundle, captureEpochMaterial: capture.epochMaterial,
@@ -296,16 +304,18 @@ export function localPreviewWorkerVars(): Readonly<Record<string, unknown>> {
 }
 
 /** Host hook injected into the session owner; no caller can supply `active:true`. */
-export function createInstalledLocalPreviewBuilder(previewRoles: PreviewRoles = {}, runtimeImplementations: LocalBindingImplementations = {}) {
+export function createInstalledLocalPreviewBuilder(previewRoles: PreviewRoles = {}, runtimeImplementations: LocalBindingImplementations = {},
+  target: Pick<LocalPreviewBuilderOptions, "externalOrigin" | "onAllocated" | "persistenceRoot"> = {}) {
   const roles = parsePreviewRoles(previewRoles);
   return createLocalPreviewBuilder({
     persistenceRoot: defaultPreviewStateRoot(),
+    ...target,
     runtimeImplementations,
     resources: {
       d1: { binding: BINDING_NAME, availability: "real_local" },
       identity: { backingBinding: BINDING_NAME, availability: "real_local" },
     },
-    activationVerdict: (artifact, capture) => preflightLocalPreviewActivation(artifact, capture, runtimeImplementations),
+    activationVerdict: (artifact, capture) => preflightLocalPreviewActivation(artifact, capture, runtimeImplementations, target.onAllocated),
     confirmRunningActivation: (artifact, capture, db, id, owner, identityDb) => localPreviewActivationVerdict(artifact, capture, db, id, owner, identityDb, runtimeImplementations),
     produceBundle: produceInstalledPortableBundle,
     seedLocalActors: (db, artifact, capture) => seedLocalPreviewActors(db, roles, artifact, capture),

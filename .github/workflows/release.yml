@@ -14,6 +14,11 @@ permissions:
 
 jobs:
   rust-binary:
+    env:
+      CARGO_INCREMENTAL: "0"
+      CARGO_PROFILE_DEV_DEBUG: "0"
+      CARGO_PROFILE_TEST_DEBUG: "0"
+      CARGO_BUILD_JOBS: "2"
     strategy:
       matrix:
         include:
@@ -38,17 +43,21 @@ jobs:
       - name: Build can (release, locked)
         run: cargo build --release --locked
         working-directory: compiler
+      - name: Build native development server (release, locked)
+        run: cargo build --release --locked --manifest-path dev-server/Cargo.toml --target-dir compiler/target
       - name: Size report
         run: |
           ls -l target/release/can
           printf 'bytes=%s\n' "$(wc -c < target/release/can | tr -d ' ')"
         working-directory: compiler
       - name: Prepare verified dependency notices
-        run: python3 scripts/check-compiler-release-notices.py --target "${{ matrix.target }}" --output-dir compiler/target/release
+        run: |
+          python3 scripts/check-compiler-release-notices.py --target "${{ matrix.target }}" --output-dir compiler/target/release
+          python3 scripts/check-dev-server-release-notices.py --target "${{ matrix.target }}" --output-dir compiler/target/release
       - name: Checksums (sha256)
         run: |
           cd compiler/target/release
-          shasum -a 256 can THIRD-PARTY-NOTICES.txt > "SHA256SUMS-${{ matrix.name }}.txt"
+          shasum -a 256 can can-dev THIRD-PARTY-NOTICES.txt DEV-SERVER-THIRD-PARTY-NOTICES.txt > "SHA256SUMS-${{ matrix.name }}.txt"
           cat "SHA256SUMS-${{ matrix.name }}.txt"
           shasum -a 256 -c "SHA256SUMS-${{ matrix.name }}.txt"
       - uses: actions/upload-artifact@v4
@@ -57,7 +66,9 @@ jobs:
           if-no-files-found: error
           path: |
             compiler/target/release/can
+            compiler/target/release/can-dev
             compiler/target/release/THIRD-PARTY-NOTICES.txt
+            compiler/target/release/DEV-SERVER-THIRD-PARTY-NOTICES.txt
             compiler/target/release/SHA256SUMS-${{ matrix.name }}.txt
 
   node-libraries:
@@ -157,8 +168,8 @@ jobs:
       - name: Assemble and qualify the standalone archive
         run: |
           node --test scripts/install.test.mjs
-          chmod +x output/compiler-release/can
-          node scripts/pack-install.mjs --compiler output/compiler-release/can
+          chmod +x output/compiler-release/can output/compiler-release/can-dev
+          node scripts/pack-install.mjs --compiler output/compiler-release/can --dev-server output/compiler-release/can-dev
           node scripts/verify-install.mjs
       - uses: actions/upload-artifact@v4
         with:

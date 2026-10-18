@@ -88,6 +88,8 @@ test('checksum tampering and broken launchers preserve the active release', { sk
   assert.equal(readlinkSync(join(f.root, 'current')), active);
   fails(f.install(f.archive('3', [], '#!/bin/sh\nexit 1\n')), /launcher check failed/);
   assert.equal(readlinkSync(join(f.root, 'current')), active);
+  fails(f.install(f.archive('4', [], '#!/bin/sh\ncase "$1" in dev) exit 1 ;; esac\nprintf "Can 4\\n"\n')), /development-server check failed/);
+  assert.equal(readlinkSync(join(f.root, 'current')), active);
   assert.equal(spawnSync(join(f.root, 'bin/can'), [], { encoding: 'utf8' }).stdout.trim(), 'Can 1');
 });
 

@@ -16,6 +16,8 @@ import { createD1IdentityStore, ensureIdentitySchema, resolveIdentity, sha256Hex
 import { createD1Storage, ensureSchema } from "@canlang/state/storage/d1";
 import { createD1OwnerRouter } from "@canlang/state/storage/owner-router";
 import { decodeValue, encodeValue, validateValue, parseTypeId, printTypeId, isUserRef, isDatetime, isRecordRef, type NormalizedSchema } from "@canlang/values";
+import { cleanupAfterFailure, DevCleanupError } from "./cleanup.js";
+import { RuntimeExampleResources } from "./runtime-host-example-resources.js";
 import { createLocalRowScope, type LocalRowScope } from "./row-scope.js";
 import { resolveExampleFixtureImports } from "./example-fixture-imports.js";
 import { parseArtifactText } from "../runtime/artifact.js";
@@ -456,12 +458,7 @@ async function createRowScope(input: CompiledExampleInput, moduleIndex: number, 
     };
     return scope;
   } catch (error) {
-    try {
-      await base.dispose();
-    } catch {
-      // Preserve the provisioning failure after attempting owned disposal.
-    }
-    throw error;
+    return cleanupAfterFailure(error, () => base.dispose());
   }
 }
 
@@ -982,7 +979,11 @@ export async function runCompiledExamples(input: CompiledExampleInput): Promise<
   assertNoModuleCollisions(artifact);
   const digest = createHash("sha256").update(input.artifactBytes).digest("hex");
   const workDir = await mkdtemp(join(tmpdir(), "can-example-modules-"));
-  let failed = false;
+  const resources = new RuntimeExampleResources();
+  const release = async (): Promise<void> => {
+    await resources.drain();
+    await rm(workDir, { force: true, recursive: true });
+  };
   try {
     // The production and test modules share one checked relative-import
     // graph on disk; only the separate portable Worker map enters workerd.
@@ -1052,35 +1053,24 @@ export async function runCompiledExamples(input: CompiledExampleInput): Promise<
           : Reflect.get(target, property, receiver);
         },
       });
-      const activeScopes = new Set<ExampleRowScope>();
-      const disposals = new WeakMap<ExampleRowScope, Promise<void>>();
-      const ownedScopes = new WeakMap<ExampleRowScope, ExampleRowScope>();
-      const disposeScope = (scope: ExampleRowScope): Promise<void> => {
-        const prior = disposals.get(scope);
-        if (prior !== undefined) return prior;
-        const owned = ownedScopes.get(scope);
-        if (owned === undefined) throw new Error("example runner: owned row scope is missing");
-        const disposal = owned.dispose();
-        disposals.set(scope, disposal);
-        void disposal.then(() => activeScopes.delete(scope), () => activeScopes.delete(scope));
-        return disposal;
-      };
-      const disposeActive = async (): Promise<void> => {
-        await Promise.allSettled([...activeScopes].map(disposeScope));
-      };
-      const createScope = async (rowIndex: number): Promise<ExampleRowScope> => {
+      const disposeActive = () => resources.drain();
+      const createScope = (rowIndex: number): Promise<ExampleRowScope> => resources.allocate(async () => {
         if (input.signal?.aborted) throw cancellationError();
-        const owned = await createRowScope(input, moduleIndex, rowIndex, ownerProfile);
-        if (input.signal?.aborted) {
-          try { await owned.dispose(); } catch { /* Preserve cancellation. */ }
-          throw cancellationError();
+        let owned: ExampleRowScope;
+        try { owned = await createRowScope(input, moduleIndex, rowIndex, ownerProfile); }
+        catch (error) {
+          if (error instanceof DevCleanupError) resources.retain(error, error.dispose);
+          throw error;
         }
         const scoped = Object.create(owned) as ExampleRowScope;
-        Object.defineProperty(scoped, "dispose", { value: () => disposeScope(scoped) });
-        ownedScopes.set(scoped, owned);
-        activeScopes.add(scoped);
+        resources.retain(scoped, () => owned.dispose());
+        Object.defineProperty(scoped, "dispose", { value: () => resources.dispose(scoped) });
+        if (input.signal?.aborted) {
+          await resources.dispose(scoped);
+          throw cancellationError();
+        }
         return scoped;
-      };
+      });
       const hooks: RunnerHooks = {
         prepareFixtures: async (scope, fixtures, required) => {
           const nonUser = required.filter(recipe => recipe.kind !== "user");
@@ -1211,9 +1201,11 @@ export async function runCompiledExamples(input: CompiledExampleInput): Promise<
           operation: test.scope, userFixtures: suite.userFixtures, rows, createScope,
         }), disposeActive);
       } catch (error) {
-        await disposeActive();
+        try { await disposeActive(); }
+        catch (cleanupError) { throw new DevCleanupError(error, cleanupError, release); }
         throw error;
       }
+      await disposeActive();
       if (input.signal?.aborted) throw cancellationError();
       if (result.kind !== "table" || result.rows.length !== selectedRows.length) {
         throw new Error(`example runner: testkit returned incomplete rows for ${test.scope}`);
@@ -1228,19 +1220,17 @@ export async function runCompiledExamples(input: CompiledExampleInput): Promise<
     if (report.summary.total !== expectedRows || expectedRows === 0) {
       throw new Error(`example runner: report counted ${report.summary.total}/${expectedRows} rows`);
     }
+    await release();
     return {
       ok: report.summary.failed === 0 && report.summary.setupFailed === 0 && report.summary.unsupported === 0,
       executed: report.summary.total,
       report,
     };
   } catch (error) {
-    failed = true;
-    throw error;
-  } finally {
-    try {
-      await rm(workDir, { force: true, recursive: true });
-    } catch (error) {
-      if (!failed) throw error;
+    try { await release(); }
+    catch (cleanupError) {
+      throw new DevCleanupError(error, cleanupError, release);
     }
+    throw error;
   }
 }

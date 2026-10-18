@@ -11,7 +11,7 @@
 //! directly (always current, no dist staleness).
 //!
 //! Failing-first: each class pins one recorded original24 occurrence shape
-//! (spans in `evidence/original24-20261016.json`). On the base plan they
+//! (spans in `historical diagnostic snapshot (removed)`). On the base plan they
 //! report the regrouped `E6008`s; after the repair they lower.
 
 use canlang_compiler::analysis::catalog::{Catalog, CatalogRequest, load_catalog};

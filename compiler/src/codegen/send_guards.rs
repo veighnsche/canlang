@@ -1561,6 +1561,7 @@ Then
             &BTreeMap::new(),
             &BTreeMap::new(),
             super::super::js::EmitDecisionSources {
+                source_context: None,
                 owner_handlers: None,
                 local_policies: None,
                 unique_conditions: None,
@@ -1575,24 +1576,36 @@ Then
                 read_predicates: None,
             },
         );
-        // These Create/SEND bodies lack the complete admitted receipt profile.
+        // The required-Branch ask body now carries the complete admitted receipt
+        // profile (exact requiredModel input + priorCreate SET + ordered void tail);
+        // the nullable-Template generate body still lacks it.
         // Prepared Rule syntax is independent of executable artifact admission.
+        let send_diags: Vec<_> = emitted
+            .diagnostics
+            .iter()
+            .filter(|d| d.code == "E6008" && d.message.contains("send dispatch"))
+            .collect();
+        assert_eq!(send_diags.len(), 1, "{:?}", emitted.diagnostics);
         assert_eq!(
-            emitted
-                .diagnostics
-                .iter()
-                .filter(|d| d.code == "E6008" && d.message.contains("send dispatch"))
-                .count(),
-            2,
+            (send_diags[0].primary.start, send_diags[0].primary.end),
+            (655, 663),
             "{:?}",
             emitted.diagnostics
         );
-        assert!(
-            emitted
-                .operations
-                .iter()
-                .all(|operation| operation.disclosure.is_none())
-        );
+        for operation in &emitted.operations {
+            match operation.name.as_str() {
+                "SendSources.ask" => assert!(
+                    operation.disclosure.is_some(),
+                    "ask now admits its exact receipt: {:?}",
+                    emitted.diagnostics
+                ),
+                _ => assert!(
+                    operation.disclosure.is_none(),
+                    "only ask admits a receipt: {}",
+                    operation.name
+                ),
+            }
+        }
         let js = &emitted.entry.js;
         assert_eq!(js.matches("when:{rule:").count(), 2, "{js}");
         assert_eq!(js.matches("async(c,$can$send$inputs)=>").count(), 2, "{js}");
@@ -1732,6 +1745,7 @@ await assert.rejects(()=>failed(fresh,inputs),error=>error===first);
                 &BTreeMap::new(),
                 &BTreeMap::new(),
                 EmitDecisionSources {
+                    source_context: None,
                     owner_handlers: None,
                     local_policies: None,
                     unique_conditions: None,

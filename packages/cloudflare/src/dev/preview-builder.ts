@@ -19,7 +19,8 @@ import {
   type PackageDeployBundle,
 } from "../deploy/bundle.js";
 import { PINNED_COMPATIBILITY_DATE } from "./zero-config.js";
-import { startLocalDev, type LocalDev } from "./local-run.js";
+import { startLocalDev, type LocalDev, type LocalRuntimeBackend } from "./local-run.js";
+import { cleanupAfterFailure, DevCleanupError, retryableDispose } from "./cleanup.js";
 import type { D1Database } from "@cloudflare/workers-types";
 import { startProtectedPreview, type ProtectedPreview } from "./preview-bridge.js";
 import {
@@ -70,6 +71,7 @@ export interface PortableBundleEvidence {
 }
 
 export interface LocalPreviewBundleRequest {
+  readonly signal?: AbortSignal;
   readonly artifact: CompileArtifact;
   readonly capture: SingleFileCapture;
   /** Derived only after source, capability and resource admission. */
@@ -78,6 +80,10 @@ export interface LocalPreviewBundleRequest {
 }
 
 export interface LocalPreviewBuilderOptions {
+  /** Native owner supplies access/publication; this mode opens no TS preview listener. */
+  readonly externalOrigin?: string;
+  /** Retain this disposal handle while startup/probing is still pending. */
+  readonly onAllocated?: (dispose: () => Promise<void>) => void;
   /** Real installed local providers; absent services/classes remain prerequisites. */
   readonly runtimeImplementations?: LocalBindingImplementations;
   readonly resources: LocalPreviewResources;
@@ -112,7 +118,16 @@ export interface LocalPreviewSeed {
 export type LocalPreviewWithActors = SessionServicePreview & {
   issueLocalActors(): readonly LocalPreviewActor[];
   exampleInput(): LocalPreviewExampleInput;
+  runtimeBackend?(): LocalRuntimeBackend;
+  probeRuntime?(): Promise<void>;
 };
+
+export interface LocalPreviewBuilder {
+  (artifact: CompileArtifact, capture: SingleFileCapture, artifactBytes?: Uint8Array,
+    context?: { signal?: AbortSignal }): Promise<LocalPreviewWithActors>;
+  beginStop(): void;
+  dispose(): Promise<void>;
+}
 
 export type LocalPreviewExampleInput = Omit<CompiledExampleInput, "selectedRow" | "runId" | "testkit">;
 
@@ -430,13 +445,36 @@ async function probeWorker(dev: LocalDev, bundle: PackageDeployBundle, origin: s
   }
 }
 
-/**
- * Return the session-service previewBuilder hook. A build is offered for
- * promotion only after all probes and the protected bridge are ready.
- */
-export function createLocalPreviewBuilder(options: LocalPreviewBuilderOptions):
-  (artifact: CompileArtifact, capture: SingleFileCapture, artifactBytes?: Uint8Array) => Promise<LocalPreviewWithActors> {
-  return async (artifact, capture, artifactBytes) => {
+function validatePreviewSeed(seed: LocalPreviewSeed): void {
+      if (seed.actors.length !== 4 || !seed.actors.some(actor => actor.email === seed.probe.email && actor.password === seed.probe.password) ||
+          seed.owners.length !== 2 || new Set(seed.owners.map(owner => owner.owner)).size !== 2 ||
+          new Set(seed.owners.map(owner => owner.binding)).size !== 2 ||
+          !seed.owners.some(owner => owner.owner === seed.probe.teamId) ||
+          seed.owners.some(owner => !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(owner.owner) ||
+            !["STATE_CEDAR_DB", "STATE_OAK_DB"].includes(owner.binding))) {
+        fail("IDENTITY_UNAVAILABLE", "real local Identity seed did not provide the expected isolated team matrix");
+      }
+}
+
+type PreviewBuildContext = { signal?: AbortSignal };
+function previewCheckpoint(context: PreviewBuildContext | undefined): void {
+  context?.signal?.throwIfAborted();
+}
+function checkedArtifactBytes(artifact: CompileArtifact, artifactBytes?: Uint8Array): Uint8Array {
+    if (!(artifactBytes instanceof Uint8Array) || artifactBytes.length === 0 || artifactBytes.length > 16 * 1024 * 1024) {
+      fail("ARTIFACT_BYTES_UNAVAILABLE", "exact verified compiler artifact bytes are unavailable");
+    }
+    let parsedBytes: unknown;
+    try { parsedBytes = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(artifactBytes)) as unknown; }
+    catch { fail("ARTIFACT_BYTES_INVALID", "verified compiler artifact bytes are not UTF-8 JSON"); }
+    if (JSON.stringify(parsedBytes) !== JSON.stringify(artifact)) {
+      fail("ARTIFACT_BYTES_MISMATCH", "verified compiler artifact bytes differ from the admitted artifact");
+    }
+    return new Uint8Array(artifactBytes);
+}
+
+async function preparePreviewTarget(options: LocalPreviewBuilderOptions, artifact: CompileArtifact,
+  capture: SingleFileCapture, artifactBytes: Uint8Array | undefined, context: PreviewBuildContext | undefined) {
     admitPreviewInputs(artifact, capture, options.resources);
     const bindingPlan = planLocalBindings(artifact);
     const storageMode = bindingPlan.noModelStorageMode ?? previewStorageMode(artifact);
@@ -448,34 +486,58 @@ export function createLocalPreviewBuilder(options: LocalPreviewBuilderOptions):
     const verdict = await admittedVerdict(artifact, capture, options);
     if (!(await captureIsCurrent(capture))) fail("SOURCE_CHANGED", "preview capture changed before build");
     if (options.produceBundle === undefined) fail("PORTABLE_BUNDLE_UNAVAILABLE", "no verified installed-package bundle producer is configured");
+    context?.signal?.throwIfAborted();
     const evidence = await options.produceBundle({
       artifact, capture, verdict,
+      ...(context?.signal === undefined ? {} : { signal: context.signal }),
       assets: { browser: true, valuesWasm: artifact.requires.some(item => item.capability.startsWith("values.")) },
     });
     const bundle = verifyBundle(artifact, capture, evidence);
-    if (!(artifactBytes instanceof Uint8Array) || artifactBytes.length === 0 || artifactBytes.length > 16 * 1024 * 1024) {
-      fail("ARTIFACT_BYTES_UNAVAILABLE", "exact verified compiler artifact bytes are unavailable");
-    }
-    let parsedBytes: unknown;
-    try { parsedBytes = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(artifactBytes)) as unknown; }
-    catch { fail("ARTIFACT_BYTES_INVALID", "verified compiler artifact bytes are not UTF-8 JSON"); }
-    if (JSON.stringify(parsedBytes) !== JSON.stringify(artifact)) {
-      fail("ARTIFACT_BYTES_MISMATCH", "verified compiler artifact bytes differ from the admitted artifact");
-    }
+    const exactArtifactBytes = checkedArtifactBytes(artifact, artifactBytes);
     if (!(await captureIsCurrent(capture))) fail("SOURCE_CHANGED", "preview inputs changed during bundle production");
+    return { bundle, bindingPlan, storageMode, exactArtifactBytes };
+}
+
+/**
+ * Return the session-service previewBuilder hook. A build is offered for
+ * promotion only after all probes and the protected bridge are ready.
+ */
+export function createLocalPreviewBuilder(options: LocalPreviewBuilderOptions): LocalPreviewBuilder {
+  let stopping = false;
+  const build = async (artifact: CompileArtifact, capture: SingleFileCapture, artifactBytes?: Uint8Array,
+    context?: { signal?: AbortSignal }): Promise<LocalPreviewWithActors> => {
+    if (stopping) fail("PREVIEW_STOPPING", "preview session is stopping");
+    previewCheckpoint(context);
+    const { bundle, bindingPlan, storageMode, exactArtifactBytes } = await preparePreviewTarget(options, artifact, capture, artifactBytes, context);
     let worker: LocalDev | null = null;
+    let provisioning: LocalDev | null = null;
     let bridge: ProtectedPreview | null = null;
     let persistence: string | null = null;
-    try {
-      // The bridge is inaccessible until issueOpenUrl is returned after all
-      // probes. Its chosen origin can therefore configure the real auth host.
-      bridge = await startProtectedPreview({
-        dispatchUrl(url, init) {
+    let failedStartup: DevCleanupError | null = null;
+    const dispose = retryableDispose(async () => {
+      const errors: unknown[] = [];
+      // Attempt every independent release, retaining only failed resources.
+      try { await bridge?.close(); bridge = null; } catch (error) { errors.push(error); }
+      try { await provisioning?.dispose(); provisioning = null; } catch (error) { errors.push(error); }
+      try { await worker?.dispose(); worker = null; } catch (error) { errors.push(error); }
+      try { await failedStartup?.dispose(); failedStartup = null; } catch (error) { errors.push(error); }
+      if (errors.length > 0) throw new AggregateError(errors, "preview resource cleanup failed");
+      // Never remove a runtime's backing files while it may still be alive.
+      if (persistence !== null && options.persistenceRoot === undefined) {
+        await rm(persistence, { recursive: true, force: true });
+      }
+      persistence = null;
+    });
+    const provisionTarget = async () => {
+      if (options.externalOrigin === undefined) {
+        bridge = await startProtectedPreview({ dispatchUrl(url, init) {
           if (worker === null) return Promise.reject(new Error("preview Worker is starting"));
           return worker.dispatchUrl(url, init);
-        },
-      });
-      const vars = selectPreviewWorkerVars(options, bridge.url);
+        } });
+      }
+      const protectedBridge = bridge;
+      const origin = options.externalOrigin ?? protectedBridge!.url;
+      const vars = selectPreviewWorkerVars(options, origin);
       if (bindingPlan.bindings.some(binding => Object.hasOwn(vars, binding.binding))) {
         fail("RESOURCE_INVALID", "preview vars cannot replace source-declared runtime bindings");
       }
@@ -486,15 +548,17 @@ export function createLocalPreviewBuilder(options: LocalPreviewBuilderOptions):
         fail("IDENTITY_UNAVAILABLE", "real local Identity seed producer is unavailable");
       }
       persistence = retained?.persistence ?? await mkdtemp(join(tmpdir(), "can-preview-d1-"));
-      const provisioning = await startLocalDev({
+      provisioning = await startLocalDev({
         workerName: `can-preview-provision-${randomUUID()}`,
         compatibilityDate: PINNED_COMPATIBILITY_DATE,
         mainModule: "provision.js",
         modules: { "provision.js": "export default { fetch() { return new Response(null, {status:404}); } };" },
         d1Databases: [{ binding: "DB", id: databaseId }],
-        d1Persist: persistence,
+        d1Persist: persistence!,
         d1PersistenceRequired: retained !== null,
       });
+      options.onAllocated?.(dispose);
+      context?.signal?.throwIfAborted();
       let seed: LocalPreviewSeed;
       try {
         const db = await provisioning.getD1Database("DB");
@@ -508,18 +572,19 @@ export function createLocalPreviewBuilder(options: LocalPreviewBuilderOptions):
           await retained?.saveSeed(seed);
         }
       }
-      finally { await provisioning.dispose(); }
-      if (seed.actors.length !== 4 || !seed.actors.some(actor => actor.email === seed.probe.email && actor.password === seed.probe.password) ||
-          seed.owners.length !== 2 || new Set(seed.owners.map(owner => owner.owner)).size !== 2 ||
-          new Set(seed.owners.map(owner => owner.binding)).size !== 2 ||
-          !seed.owners.some(owner => owner.owner === seed.probe.teamId) ||
-          seed.owners.some(owner => !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(owner.owner) ||
-            !["STATE_CEDAR_DB", "STATE_OAK_DB"].includes(owner.binding))) {
-        fail("IDENTITY_UNAVAILABLE", "real local Identity seed did not provide the expected isolated team matrix");
-      }
+      finally { await provisioning.dispose(); provisioning = null; }
+      validatePreviewSeed(seed);
       const ownerDatabases = (storageMode === "global" ? [] : seed.owners)
         .map((owner, index) => ({ ...owner, id: retained?.ownerDatabaseIds[index] ?? `can-preview-owner-${randomUUID()}` }));
-      const runtimeBindings = configureLocalBindings(bindingPlan, persistence, options.runtimeImplementations);
+      return { protectedBridge, origin, vars, retained, databaseId, seed, ownerDatabases };
+    };
+    try {
+      context?.signal?.throwIfAborted();
+      // One session listener configures every candidate's actual auth host.
+      // Candidates stay unroutable until the owner's publication fence.
+      const { protectedBridge, origin, vars, retained, databaseId, seed, ownerDatabases } = await provisionTarget();
+      const startServing = async (): Promise<void> => {
+      const runtimeBindings = configureLocalBindings(bindingPlan, persistence!, options.runtimeImplementations);
       if (retained !== null && runtimeBindings.worker.durableObjectsPersist !== undefined) {
         await mkdir(runtimeBindings.worker.durableObjectsPersist, { recursive: true, mode: 0o700 });
       }
@@ -532,12 +597,14 @@ export function createLocalPreviewBuilder(options: LocalPreviewBuilderOptions):
         modules: bundle.modules,
         binaryModules: bundle.binaries,
         d1Databases: [{ binding: "DB", id: databaseId }, ...ownerDatabases.map(owner => ({ binding: owner.binding, id: owner.id }))],
-        d1Persist: persistence,
+        d1Persist: persistence!,
         d1PersistenceRequired: retained !== null,
         vars: { ...vars, ...runtimeBindings.worker.vars, ...(ownerDatabases.length === 0 ? {} : { CAN_STATE_OWNERS: { version: 1, owners: ownerDatabases.map(owner => ({
           owner: owner.owner, binding: owner.binding, initializeFresh: true,
         })) } }) },
       });
+      options.onAllocated?.(dispose);
+      context?.signal?.throwIfAborted();
       if (options.confirmRunningActivation === undefined) {
         fail("ACTIVATION_UNAVAILABLE", "serving D1 activation confirmation is unavailable");
       }
@@ -555,21 +622,27 @@ export function createLocalPreviewBuilder(options: LocalPreviewBuilderOptions):
           fail("ACTIVATION_REFUSED", "serving owner D1 activation gates refused this preview build");
         }
       }
-      await probeLocalR2(worker, bindingPlan);
-      await probeWorker(worker, bundle, bridge.url, seed, artifact);
+      };
+      await startServing();
+      context?.signal?.throwIfAborted();
+      const probeRuntime = async (): Promise<void> => {
+        await probeLocalR2(worker!, bindingPlan);
+        await probeWorker(worker!, bundle, origin, seed, artifact);
+      };
+      await probeRuntime();
       if (!(await captureIsCurrent(capture))) fail("SOURCE_CHANGED", "preview inputs changed during startup");
-      const protectedBridge = bridge;
-      const builtWorker = worker;
+      context?.signal?.throwIfAborted();
+      const id = `preview-${randomUUID()}`;
       const builtBundle = bundle;
-      const ownedPersistence = persistence;
-      const exactArtifactBytes = new Uint8Array(artifactBytes);
       const workerName = `can-preview-examples-${randomUUID()}`;
       let actors: readonly LocalPreviewActor[] | null = seed.actors;
-      let disposing: Promise<void> | null = null;
       return {
-        id: `preview-${randomUUID()}`,
-        issueOpenUrl: () => protectedBridge.issueOpenUrl(),
-        observeRefusals: handler => protectedBridge.observeRefusals(handler),
+        id,
+        origin,
+        issueOpenUrl: () => { if (protectedBridge === null) throw new Error("native owner controls preview access"); return protectedBridge.issueOpenUrl(); },
+        observeRefusals: handler => protectedBridge?.observeRefusals(handler) ?? worker!.observeRefusals(handler),
+        runtimeBackend: () => worker!.backend,
+        probeRuntime,
         issueLocalActors: () => {
           if (actors === null) throw new Error("local preview actors are unavailable after disposal");
           return actors.map(actor => ({ ...actor, teams: [...actor.teams] }));
@@ -592,21 +665,17 @@ export function createLocalPreviewBuilder(options: LocalPreviewBuilderOptions):
           };
         },
         dispose() {
-          if (disposing !== null) return disposing;
           actors = null;
-          disposing = (async () => {
-            try { await protectedBridge.close(); }
-            finally { try { await builtWorker.dispose(); } finally { if (options.persistenceRoot === undefined) await rm(ownedPersistence, { recursive: true, force: true }); } }
-          })();
-          return disposing;
+          return dispose();
         },
       };
     } catch (error) {
-      try { await bridge?.close(); }
-      finally { try { await worker?.dispose(); } finally {
-        if (persistence !== null && options.persistenceRoot === undefined) await rm(persistence, { recursive: true, force: true });
-      } }
-      throw error;
+      if (error instanceof DevCleanupError) failedStartup = error;
+      return cleanupAfterFailure(error, dispose);
     }
   };
+  return Object.assign(build, {
+    beginStop(): void { stopping = true; },
+    dispose: async (): Promise<void> => { stopping = true; },
+  });
 }

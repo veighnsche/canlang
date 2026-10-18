@@ -14,6 +14,7 @@
  * inputs, agenda day grouping and agenda cell text.
  */
 
+import { encodeValue } from "@canlang/values";
 import type {
   CalendarProps,
   ColumnMeta,
@@ -481,12 +482,39 @@ function requireFilterText(field: string, value: string): string {
  * the settings frame. An unknown current selection, empty options, a
  * missing version or a missing POST target throws, never guesses.
  */
+/** Source-authored inline preferences keep the existing one-field POST/CAS
+ * envelope; they never acquire CRUD field identities or boolean sentinels. */
+function savedPreferenceEditor(props: FilterPreferenceProps): string {
+  const binding = props.binding, editor = binding.editor;
+  if (editor !== 'bool' && editor !== 'text' && editor !== 'int') throw new TypeError('Invalid preference editor.');
+  requireFilterText('binding name', binding.name);
+  if (binding.version === undefined) throw new TypeError('Preference editor requires its saved version.');
+  const target = operationPostPath(requireFilterText('binding postTo', binding.postTo));
+  const raw = binding.current ?? null;
+  if (raw === null && binding.nullable !== true) throw new TypeError('Preference value is required.');
+  const value = raw === null ? '' : String(encodeValue(editor, raw));
+  const caption = escapeHtml(resolveCaption(props.caption ?? binding.name, props.context));
+  const name = escapeAttr(binding.name);
+  const common = `<input type="hidden" name="${CSRF_FIELD}" value="${escapeAttr(props.context.csrfToken)}">` +
+    `<input type="hidden" name="_version" value="${escapeAttr(binding.version)}">`;
+  const control = editor === 'bool'
+    ? `<button type="submit" role="switch" aria-checked="${value === 'true'}" name="${name}" value="${value === 'true' ? 'false' : 'true'}" class="btn">${caption}</button>`
+    : `<label class="fieldset-label">${caption}<input type="text"${editor === 'int' ? ' inputmode="numeric"' : ' maxlength="200"'} name="${name}" value="${escapeAttr(value)}" class="input w-full"></label>` +
+      `<button type="submit" class="btn btn-primary">${escapeHtml(resolveCaption(SAVE_PREFERENCE_LABEL, props.context))}</button>`;
+  const clear = binding.nullable === true && editor === 'bool'
+    ? `<button type="submit" name="${name}" value="" class="btn btn-ghost">${escapeHtml(resolveCaption(message('Clear', { nl: 'Wissen' }), props.context))}</button>` : '';
+  // Text/int clear by submitting the empty input, so no second field value
+  // is added to the closed save envelope. Bool uses its own clear submitter.
+  return `<form action="${escapeAttr(target)}" method="post" data-can-preference-editor="${editor}">${common}<fieldset>${control}${clear}</fieldset></form>`;
+}
+
 async function filterPreference(props: FilterPreferenceProps): Promise<string> {
   if ("field" in props) {
     throw new TypeError("filter takes either an owned field or a saved-preference binding, never both");
   }
   appearanceClasses("filter", "filter", pickAppearance(props));
   const binding = props.binding;
+  if (binding.editor !== undefined) return savedPreferenceEditor(props);
   requireFilterText("binding name", binding.name);
   const postTo = operationPostPath(requireFilterText("binding postTo", binding.postTo));
   if (binding.options.length === 0) {

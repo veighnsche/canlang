@@ -138,6 +138,7 @@ tar -xzf "$archive" -C "$stage/unpacked" --no-same-owner --no-same-permissions |
 payload=$stage/unpacked/can
 [ -f "$payload/manifest.json" ] && [ -f "$payload/bin/can" ] && [ -x "$payload/bin/can" ] || fail 'archive must contain manifest.json and executable bin/can'
 "$payload/bin/can" --version >/dev/null || fail 'release launcher check failed; installation unchanged'
+"$payload/bin/can" dev --help >/dev/null || fail 'release development-server check failed; installation unchanged'
 printf '%s\n' "$checksum" > "$payload/.can-install-version"
 if [ -e "$destination" ] || [ -L "$destination" ]; then
   [ -d "$destination" ] && [ ! -L "$destination" ] && [ -f "$destination/.can-install-version" ] && [ ! -L "$destination/.can-install-version" ] && [ "$(cat "$destination/.can-install-version")" = "$checksum" ] || fail "refusing foreign version: $destination"

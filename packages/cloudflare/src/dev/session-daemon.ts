@@ -32,6 +32,7 @@ const MAX_ERROR_MESSAGE = 300;
 
 export interface DevDaemonStartOptions {
   selectedApp: string;
+  checkMode?: "manual" | "automatic";
   previewRoles?: PreviewRoles;
   capture: SingleFileCaptureRequest;
   runtimeDir?: string;
@@ -53,6 +54,7 @@ export interface DevDaemonLauncherDependencies {
 interface ChildStartMessage {
   type: "start";
   selectedApp: string;
+  checkMode?: "manual" | "automatic";
   previewRoles?: PreviewRoles;
   capture: SingleFileCaptureRequest;
   runtimeDir?: string;
@@ -134,13 +136,16 @@ function startupLimit(value: number | undefined): number {
   return selected;
 }
 
-function sendStart(child: ChildProcess, message: ChildStartMessage): Promise<void> {
+function validateStart(message: ChildStartMessage): void {
   let encoded: string;
   try { encoded = JSON.stringify(message); }
   catch { throw new SessionSocketError("INVALID_START", "daemon setup cannot be encoded"); }
   if (Buffer.byteLength(encoded) > MAX_INIT_BYTES) {
     throw new SessionSocketError("INVALID_START", "daemon setup exceeds the private IPC byte limit");
   }
+}
+
+function sendStart(child: ChildProcess, message: ChildStartMessage): Promise<void> {
   return new Promise((resolveSend, rejectSend) => {
     child.send(message, error => {
       if (error) rejectSend(new SessionSocketError("DAEMON_START_FAILED", "daemon setup could not be delivered"));
@@ -202,6 +207,9 @@ export async function startDevDaemon(
   options: DevDaemonStartOptions,
   dependencies: DevDaemonLauncherDependencies = {},
 ): Promise<DevDaemonResult> {
+  if (options.checkMode !== undefined && options.checkMode !== "manual" && options.checkMode !== "automatic") {
+    throw new SessionSocketError("INVALID_ARGUMENTS", "check mode must be manual or automatic");
+  }
   const previewRoles = parsePreviewRoles(options.previewRoles ?? {});
   const timeoutMs = startupLimit(options.startupTimeoutMs);
   const expected = await admittedCapture(options);
@@ -214,6 +222,16 @@ export async function startDevDaemon(
     profile: PROFILE,
     ...(options.runtimeDir === undefined ? {} : { runtimeDir: options.runtimeDir }),
   };
+  const request: ChildStartMessage = {
+    type: "start", selectedApp: options.selectedApp, capture: options.capture, previewRoles,
+    ...(options.checkMode === undefined ? {} : { checkMode: options.checkMode }),
+    ...(options.runtimeDir === undefined ? {} : { runtimeDir: options.runtimeDir }),
+    expectedSourceRevision: expected.sourceRevision,
+    expectedEpochMaterial: expected.epochMaterial,
+  };
+  // Validate before spawning or installing reply listeners: a synchronous
+  // setup rejection must not strand a detached child or an unhandled reply.
+  validateStart(request);
   const child = spawn(dependencies.execPath ?? process.execPath, [entryPath, "--serve"], {
     cwd: expected.root,
     detached: true,
@@ -221,14 +239,10 @@ export async function startDevDaemon(
     stdio: ["ignore", "ignore", "ignore", "ipc"],
   });
   let handedOff = false;
+  let startupFailure: unknown;
   try {
     const replyPromise = awaitReply(child, timeoutMs);
-    const delivery = sendStart(child, {
-      type: "start", selectedApp: options.selectedApp, capture: options.capture, previewRoles,
-      ...(options.runtimeDir === undefined ? {} : { runtimeDir: options.runtimeDir }),
-      expectedSourceRevision: expected.sourceRevision,
-      expectedEpochMaterial: expected.epochMaterial,
-    });
+    const delivery = sendStart(child, request);
     const [reply] = await Promise.all([replyPromise, delivery]);
     if (reply.type === "failed") throw new SessionSocketError(reply.code, reply.message);
     if (reply.identity.root !== expected.root || reply.identity.app !== options.selectedApp ||
@@ -240,47 +254,73 @@ export async function startDevDaemon(
         verified.identity.pid !== reply.identity.pid) {
       throw new SessionSocketError("SESSION_MISMATCH", "daemon startup reply differs from the verified owner");
     }
-    const current = await captureSingleFileSource(options.capture);
-    if (current.epochMaterial !== expected.epochMaterial || !(await captureIsCurrent(current))) {
+    if (!(await captureIsCurrent(expected))) {
       throw new SessionSocketError("CAPTURE_CHANGED", "source or installed inputs changed before daemon handoff");
     }
     handedOff = true;
     child.disconnect();
     child.unref();
     return verified;
+  } catch (error) {
+    startupFailure = error;
+    throw error;
   } finally {
     if (!handedOff) {
-      if (child.connected) child.disconnect();
-      if (child.exitCode === null && child.signalCode === null) child.kill("SIGTERM");
+      try { await releaseFailedChild(child); }
+      catch (cleanupError) {
+        if (startupFailure instanceof Error) {
+          startupFailure.message = safeMessage(`${startupFailure.message}; ${cleanupError instanceof Error ? cleanupError.message : "owned child cleanup incomplete"}`);
+        } else throw cleanupError;
+      }
     }
   }
 }
 
-/** Stop only the verified owner and wait for its private endpoint to vanish. */
+async function releaseFailedChild(child: ChildProcess): Promise<void> {
+  if (child.exitCode !== null || child.signalCode !== null) return;
+  await new Promise<void>((resolveRelease, rejectRelease) => {
+    const timer = setTimeout(() => {
+      child.off("exit", closed);
+      child.unref();
+      rejectRelease(new SessionSocketError("DAEMON_CLEANUP_INCOMPLETE", "owned child release is unconfirmed; inspect and retry this session's stop"));
+    }, 5_000);
+    const closed = (): void => { clearTimeout(timer); resolveRelease(); };
+    child.once("exit", closed);
+    if (child.connected) child.disconnect();
+    child.kill("SIGTERM");
+  });
+}
+
+/** Stop only the verified owner; resource confirmation and process exit are distinct. */
 export async function stopDevDaemon(lookup: SessionSocketLookup, timeoutMs = 10_000): Promise<{ session: string; stopped: true }> {
   if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 100 || timeoutMs > 30_000) {
     throw new SessionSocketError("INVALID_LIMIT", "daemon stop timeout is outside the supported range");
   }
   const client = await discoverSessionSocket(lookup);
   const session = client.identity.sessionId;
-  await client.request({ command: "stop" });
+  const reply = object(await client.request({ command: "stop.confirm" }));
+  if (reply?.schema !== "can.dev.stop-confirmed.v1" || reply.session !== session || reply.resourcesReleased !== true) {
+    throw new SessionSocketError("INVALID_RESPONSE", "owner did not confirm runtime release");
+  }
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     await new Promise(resolveDelay => setTimeout(resolveDelay, 50));
     try {
-      await discoverSessionSocket({ ...lookup, sessionId: session });
+      const current = await discoverSessionSocket({ ...lookup, sessionId: session });
+      const state = object(await current.request({ command: "status" }));
+      if (state?.shutdown_error === "CLEANUP_FAILED") throw new SessionSocketError("CLEANUP_FAILED", "owner cleanup is incomplete; retry this session's stop");
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-        return { session, stopped: true };
-      }
-      if ((error as NodeJS.ErrnoException).code === "ECONNREFUSED" ||
-          (error instanceof SessionSocketError && ["CONTROL_CLOSED", "CONTROL_TIMEOUT"].includes(error.code))) {
-        continue;
-      }
-      throw error;
+        try { process.kill(client.identity.pid, 0); }
+        catch (processError) {
+          if ((processError as NodeJS.ErrnoException).code === "ESRCH") return { session, stopped: true };
+          throw processError;
+        }
+      } else if (!(["ECONNREFUSED", "ECONNRESET"].includes((error as NodeJS.ErrnoException).code ?? "") ||
+        error instanceof SessionSocketError && ["CONTROL_CLOSED", "CONTROL_TIMEOUT"].includes(error.code))) throw error;
     }
   }
-  throw new SessionSocketError("DAEMON_STOP_TIMEOUT", "session owner did not release its control endpoint");
+  throw new SessionSocketError("DAEMON_STOP_TIMEOUT", "owner release could not be confirmed; inspect this session before retrying");
 }
 
 function childRequest(value: unknown): ChildStartMessage | null {
@@ -289,6 +329,7 @@ function childRequest(value: unknown): ChildStartMessage | null {
   if (item?.type !== "start" || typeof item.selectedApp !== "string" ||
       typeof item.expectedSourceRevision !== "string" || typeof item.expectedEpochMaterial !== "string" ||
       (item.runtimeDir !== undefined && typeof item.runtimeDir !== "string") ||
+      (item.checkMode !== undefined && item.checkMode !== "manual" && item.checkMode !== "automatic") ||
       capture === null || typeof capture.checkoutRoot !== "string" || typeof capture.appPath !== "string" ||
       typeof capture.profile !== "string" || typeof capture.compilerPath !== "string" ||
       (capture.catalogPath !== null && typeof capture.catalogPath !== "string") ||
@@ -309,13 +350,13 @@ export async function serveDevDaemonProcess(): Promise<void> {
     terminationRequested = true;
     if (owner === null) return Promise.resolve();
     if (stopping !== null) return stopping;
-    stopping = owner.stop();
+    stopping = owner.stop().catch(error => { stopping = null; throw error; });
     return stopping;
   };
-  process.once("SIGTERM", () => {
+  process.on("SIGTERM", () => {
     void stop().then(() => { process.exitCode = 0; }, () => { process.exitCode = 1; });
   });
-  process.once("SIGINT", () => {
+  process.on("SIGINT", () => {
     void stop().then(() => { process.exitCode = 0; }, () => { process.exitCode = 1; });
   });
   try {
@@ -335,6 +376,7 @@ export async function serveDevDaemonProcess(): Promise<void> {
     }
     owner = await startDevSessionService({
       selectedApp: request.selectedApp,
+      ...(request.checkMode === undefined ? {} : { checkMode: request.checkMode }),
       capture: request.capture,
       previewBuilder: createInstalledLocalPreviewBuilder(parsePreviewRoles(request.previewRoles ?? {})),
       constructRanking: { qualify: createInstalledFirstProfileQualification() },
@@ -343,9 +385,8 @@ export async function serveDevDaemonProcess(): Promise<void> {
     if (terminationRequested) {
       throw new SessionSocketError("DAEMON_START_FAILED", "launcher terminated during owner startup");
     }
-    const after = await captureSingleFileSource(request.capture);
     const status = owner.status();
-    if (after.epochMaterial !== captured.epochMaterial || !(await captureIsCurrent(after)) ||
+    if (!(await captureIsCurrent(captured)) ||
         status.source_revision !== captured.sourceRevision || status.capture_error !== null) {
       throw new SessionSocketError("CAPTURE_CHANGED", "source or installed inputs changed during owner startup");
     }
@@ -357,9 +398,10 @@ export async function serveDevDaemonProcess(): Promise<void> {
         error ? rejectSend(error) : resolveSend());
     });
   } catch (error) {
-    await stop().catch(() => undefined);
+    let cleanupFailed = false;
+    try { await stop(); } catch { cleanupFailed = true; }
     const code = error instanceof SessionSocketError ? error.code : "DAEMON_START_FAILED";
-    const message = safeMessage(error instanceof Error ? error.message : "session owner failed to start");
+    const message = safeMessage((error instanceof Error ? error.message : "session owner failed to start") + (cleanupFailed ? "; owned cleanup incomplete; retry this session stop" : ""));
     if (process.connected) {
       await new Promise<void>(resolveSend => {
         process.send!({ type: "failed", code, message } satisfies ChildReply, () => resolveSend());

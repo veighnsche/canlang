@@ -8,13 +8,14 @@ import { chmodSync, copyFileSync, existsSync, lstatSync, mkdirSync, readFileSync
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { packBrowserDevelopmentTools } from './distribution/browser-tools.mjs';
+import { nativeArtifact } from './distribution/native-artifact.mjs';
 
 const root = realpathSync(fileURLToPath(new URL('..', import.meta.url)));
 const json = path => JSON.parse(readFileSync(path, 'utf8'));
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
 const options = new Map();
 for (let i = 2; i < process.argv.length; i += 2) {
-  assert.ok(['--compiler', '--node', '--tools', '--out', '--dist-snapshot'].includes(process.argv[i]) && process.argv[i + 1], 'Usage: node scripts/pack-install.mjs [--compiler FILE] [--node FILE] [--tools DIR] [--out DIR]');
+  assert.ok(['--compiler', '--dev-server', '--node', '--tools', '--out', '--dist-snapshot'].includes(process.argv[i]) && process.argv[i + 1], 'Usage: node scripts/pack-install.mjs [--compiler FILE] [--dev-server FILE] [--node FILE] [--tools DIR] [--out DIR]');
   options.set(process.argv[i], resolve(process.argv[i + 1]));
 }
 const platform = `${process.platform}-${process.arch}`;
@@ -48,8 +49,11 @@ function write(path, contents, group, mode = 0o644) {
   files.set(relative(stage, path), { group, bytes: Buffer.byteLength(contents) });
 }
 const excluded = new Set(['node_modules', '.git', '.bin', '__tests__', '__snapshots__', 'coverage', 'CHANGELOG.md']);
+const retiredDevEntries = new Set(['control-cli.js', 'control-client.js', 'session-core.js', 'session-service.js',
+  'session-socket.js', 'session-daemon.js', 'session-daemon-entry.js', 'terminal.js', 'terminal-presenter.js']);
 function productionFile(name, path) {
   if (excluded.has(name)) return false;
+  if (path.includes('/cloudflare/dist/dev/') && retiredDevEntries.has(name)) return false;
   if (/^README(?:\.md)?$/i.test(name) && !/license|copyright|notice/i.test(readFileSync(path, 'utf8'))) return false;
   // Postinstall duplicates the host optional-package executable; runtime resolves that owner directly.
   if (/[/]csv-parse[/]dist[/](?:umd|iife)$/.test(path)) return false;
@@ -61,7 +65,13 @@ function productionFile(name, path) {
 }
 copy(join(root, 'scripts/distribution/module-resolution.mjs'), join(stage, 'libexec/module-resolution.mjs'), 'launchers');
 const compiler = options.get('--compiler') ?? join(root, 'compiler/target/release/can');
+const devServer = options.get('--dev-server') ?? join(root, 'compiler/target/release/can-dev');
 copy(compiler, join(stage, 'libexec/can'), 'compiler');
+copy(devServer, join(stage, 'libexec/can-dev'), 'dev-server');
+const nativeArtifacts = {
+  compiler: nativeArtifact(join(stage, 'libexec/can'), 'can', version, platform),
+  devServer: nativeArtifact(join(stage, 'libexec/can-dev'), 'can-dev', version, platform),
+};
 const node = options.get('--node') ?? process.execPath;
 assert.match(execFileSync(node, ['--version'], { encoding: 'utf8' }).trim(), /^v24\./, 'Release host runtime must use verified Node24');
 copy(node, join(stage, 'libexec/node'), 'node');
@@ -70,6 +80,7 @@ copy(join(root, 'LICENSE'), join(stage, 'LICENSE'), 'licenses');
 copy(join(root, 'scripts/distribution/licenses'), join(stage, 'licenses'), 'licenses');
 assert.ok(existsSync(join(dirname(compiler), 'THIRD-PARTY-NOTICES.txt')), 'Run scripts/check-compiler-release-notices.py for the host release first');
 copy(join(dirname(compiler), 'THIRD-PARTY-NOTICES.txt'), join(stage, 'licenses/compiler-THIRD-PARTY-NOTICES.txt'), 'licenses');
+copy(join(dirname(devServer), 'DEV-SERVER-THIRD-PARTY-NOTICES.txt'), join(stage, 'licenses/dev-server-THIRD-PARTY-NOTICES.txt'), 'licenses');
 
 const owners = new Map(readdirSync(join(root, 'packages')).filter(name => existsSync(join(root, 'packages', name, 'package.json')))
   .map(name => { const directory = join(root, 'packages', name); return [json(join(directory, 'package.json')).name, directory]; }));
@@ -166,6 +177,7 @@ for (const pkg of packages.values()) for (const destination of pkg.destinations)
   }
 }
 execFileSync(join(stage, 'libexec/node'), ['--input-type=module', '-e', "await import('@canlang/cloudflare'); await import('@canlang/testkit')"], { cwd: stage, stdio: 'inherit' });
+assert.ok(existsSync(join(stage, 'node_modules/@canlang/cloudflare/dist/dev/runtime-host.js')), 'Native runtime bridge is missing');
 
 
 // Existing release stamp ownership facts, without shipping development declarations.
@@ -206,7 +218,7 @@ export CAN_CATALOG CAN_PLATFORM_BIN CAN_DEV_BIN CAN_COMPILER_BIN CAN_DEV_COMPILE
 exec "$CAN_INSTALL_ROOT/libexec/can" "$@"
 `;
 write(join(stage, 'bin/can'), launch, 'launchers', 0o755);
-for (const [name, entry] of [['can-platform', 'node_modules/@canlang/cloudflare/dist/cli/platform.js'], ['can-dev', 'node_modules/@canlang/cloudflare/dist/dev/control-cli.js'], ['can-soda', 'node_modules/@canlang/cloudflare/dist/cli/soda.js'], ['wrangler', 'node_modules/wrangler/bin/wrangler.js']]) {
+for (const [name, entry] of [['can-platform', 'node_modules/@canlang/cloudflare/dist/cli/platform.js'], ['can-soda', 'node_modules/@canlang/cloudflare/dist/cli/soda.js'], ['wrangler', 'node_modules/wrangler/bin/wrangler.js']]) {
   write(join(stage, 'libexec', name), `#!/bin/sh\nset -eu\nroot=$(CDPATH= cd -P -- "$(dirname -- "$0")/.." && pwd)\nexec "$root/libexec/node" "$root/${entry}" "$@"\n`, 'launchers', 0o755);
 }
 const components = {};
@@ -217,7 +229,7 @@ assert.ok(!existsSync(join(stage, 'libexec/bun')), 'Production install must use 
 assert.ok(!existsSync(join(stage, 'browsers')), 'Production install must not contain browsers');
 const manifest = { kind: 'can-install', version, platform, scope: 'Compiler, authoring, local Worker preview, inline examples and Cloudflare CLI. Browser development tools are separately installed; no Chrome, ffmpeg or Playwright is shipped.',
   inputMode: options.has('--dist-snapshot') ? 'frozen-production-outputs' : 'built-checkout',
-  compilerVersion: execFileSync(compiler, ['--version'], { encoding: 'utf8' }).trim(),
+  compilerVersion: nativeArtifacts.compiler.version, devServerVersion: nativeArtifacts.devServer.version, nativeArtifacts,
   engines: { node: execFileSync(node, ['--version'], { encoding: 'utf8' }).trim() },
   binaryOptimizations,
   componentBytesExcludeManifest: true, components, packages: [...packages.values()].map(pkg => ({ name: pkg.name, version: pkg.manifest.version, license: pkg.manifest.license ?? null, destinations: pkg.destinations })).filter(pkg => pkg.destinations.length) };

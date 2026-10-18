@@ -1,5 +1,7 @@
 import { statSync, watch, type FSWatcher } from "node:fs";
 import { stat } from "node:fs/promises";
+import { DevCleanupError } from "./cleanup.js";
+import type { DevLifecycle, DevOperation, DevOperationOutcome, DevPhaseReporter, DevSourceResult } from "./observation.js";
 
 /** Immutable identities for one check. The producer hashes the actual inputs. */
 export interface DevInputs {
@@ -17,14 +19,17 @@ export interface DevCheck<T> {
 
 export interface DevPreview {
   readonly id: string;
+  /** Synchronous current-generation selection, only at the publication fence. */
+  activate?(): void;
   dispose(): Promise<void>;
 }
 
 export interface DevSessionHooks<T, P extends DevPreview> {
   capture(): Promise<DevInputs>;
-  check(inputs: DevInputs, signal: AbortSignal): Promise<DevCheck<T>>;
+  check(inputs: DevInputs, signal: AbortSignal, reportPhase: DevPhaseReporter): Promise<DevCheck<T>>;
+  sourceResult?(check: DevCheck<T>): DevSourceResult;
   /** Prepare a new isolated worker/data scope without changing the serving one. */
-  preparePreview(inputs: DevInputs, check: DevCheck<T>): Promise<P>;
+  preparePreview(inputs: DevInputs, check: DevCheck<T>, signal: AbortSignal, reportPhase: DevPhaseReporter): Promise<P>;
 }
 
 export interface DevSessionStatus {
@@ -38,6 +43,12 @@ export interface DevSessionStatus {
   readonly dirty: boolean;
   readonly captureError: string | null;
   readonly previewReset: boolean;
+  readonly lifecycle: DevLifecycle;
+  readonly sequence: number;
+  readonly captureState: "confirmed" | "unconfirmed" | "incomplete";
+  readonly cleanupRequired: boolean;
+  readonly operation: DevOperation | null;
+  readonly lastOutcome: DevOperationOutcome | null;
 }
 
 export type CheckPublication<T> =
@@ -80,6 +91,8 @@ export class DevSessionCore<T, P extends DevPreview> {
   private checkRevision: string | null = null;
   private buildRevision: string | null = null;
   private serving: { revision: string; preview: P } | null = null;
+  private readonly pendingCleanup = new Set<{ dispose(): Promise<void> }>();
+  private stopping: Promise<void> | null = null;
   private lastPreviewReset = false;
   private readonly history = new Map<string, CapturedCheck<T>>();
   private readonly watchers = new Map<string, { watcher: FSWatcher | null; identity: string | null; retryAt: number }>();
@@ -93,9 +106,19 @@ export class DevSessionCore<T, P extends DevPreview> {
   private checkQueue: Promise<unknown> = Promise.resolve();
   private stopped = false;
   private readonly stopChecks = new AbortController();
+  private lifecycle: DevLifecycle = "running";
+  private captureConfirmed = false;
+  private sequence = 0;
+  private operationSerial = 0;
+  private operation: DevOperation | null = null;
+  private lastOutcome: DevOperationOutcome | null = null;
+  private cleanupRetry: Promise<void> | null = null;
+  private readonly onChange: (() => void) | undefined;
 
-  constructor(hooks: DevSessionHooks<T, P>, options: { historyLimit?: number; debounceMs?: number; reconcileMs?: number; auditMs?: number } = {}) {
+
+  constructor(hooks: DevSessionHooks<T, P>, options: { historyLimit?: number; debounceMs?: number; reconcileMs?: number; auditMs?: number; onChange?: () => void } = {}) {
     this.hooks = hooks;
+    this.onChange = options.onChange;
     this.historyLimit = options.historyLimit ?? 32;
     this.debounceMs = options.debounceMs ?? 75;
     this.reconcileMs = options.reconcileMs ?? 2_000;
@@ -112,6 +135,14 @@ export class DevSessionCore<T, P extends DevPreview> {
     if (!Number.isInteger(this.auditMs) || this.auditMs < 1) {
       throw new Error("auditMs must be a positive integer");
     }
+  }
+
+  private changed(): void { this.sequence += 1; this.onChange?.(); }
+
+  private phase(id: string, phase: DevOperation["phase"], subphase: string | null = null): void {
+    if (this.operation?.id !== id || this.stopped) return;
+    this.operation = { ...this.operation, revision: this.revision(), phase, subphase, phaseStartedAt: Date.now() };
+    this.changed();
   }
 
   private revision(): string | null {
@@ -132,6 +163,11 @@ export class DevSessionCore<T, P extends DevPreview> {
       dirty: this.dirty,
       captureError: this.captureError,
       previewReset: this.lastPreviewReset,
+      lifecycle: this.lifecycle, sequence: this.sequence,
+      captureState: this.captureError !== null ? "incomplete" : this.captureConfirmed ? "confirmed" : "unconfirmed",
+      cleanupRequired: this.pendingCleanup.size > 0,
+      operation: this.operation === null ? null : { ...this.operation },
+      lastOutcome: this.lastOutcome === null ? null : { ...this.lastOutcome },
     };
   }
 
@@ -219,6 +255,8 @@ export class DevSessionCore<T, P extends DevPreview> {
     if (this.stopped) return;
     this.changeSerial += 1;
     this.dirty = true;
+    this.captureConfirmed = false;
+    this.changed();
     if (this.timer !== null) clearTimeout(this.timer);
     this.timer = setTimeout(() => {
       this.timer = null;
@@ -235,6 +273,7 @@ export class DevSessionCore<T, P extends DevPreview> {
       // A request may be canceled while its capture waits behind another one.
       // Refuse outside the capture try/finally: no identities or audit clock move.
       signal?.throwIfAborted();
+      const captureSerial = this.changeSerial;
       let captured: DevInputs;
       try {
         captured = await this.hooks.capture();
@@ -248,21 +287,27 @@ export class DevSessionCore<T, P extends DevPreview> {
         const message = errorText(error);
         if (this.captureError !== message) this.epoch += 1;
         this.captureError = message;
+        this.captureConfirmed = false;
         this.inputs = null;
+        this.changed();
         this.dirty = true;
         throw error;
       } finally {
         this.lastCaptureAt = Date.now();
       }
-      if (this.inputs?.inputDigest !== captured.inputDigest || this.captureError !== null) {
+      const identical = this.inputs?.inputDigest === captured.inputDigest && this.captureError === null;
+      if (!identical) {
         this.epoch += 1;
         this.dirty = true;
       }
       this.captureError = null;
+      this.captureConfirmed = captureSerial === this.changeSerial;
+      if (identical && this.captureConfirmed) this.dirty = false;
       this.inputs = Object.freeze({
         sourceRevision: captured.sourceRevision,
         inputDigest: captured.inputDigest,
       });
+      this.changed();
       return this.inputs;
     });
     this.captureQueue = work.then(() => undefined, () => undefined);
@@ -270,15 +315,44 @@ export class DevSessionCore<T, P extends DevPreview> {
   }
 
   check(expectedRevision?: string, requestSignal?: AbortSignal): Promise<CheckPublication<T>> {
+    if (this.stopped) return Promise.reject(new Error("session stopped"));
     const signal = requestSignal === undefined ? this.stopChecks.signal
       : AbortSignal.any([this.stopChecks.signal, requestSignal]);
-    const work = this.checkQueue.then(() => this.checkOne(expectedRevision, signal));
+    const id = `check-${++this.operationSerial}`;
+    const startedAt = Date.now();
+    if (this.operation === null) {
+      this.operation = { id, revision: this.revision(), phase: "queued", subphase: null, startedAt, phaseStartedAt: startedAt };
+      this.changed();
+    }
+    const work = this.checkQueue.then(async () => {
+      this.operation = { id, revision: this.revision(), phase: "capturing", subphase: null, startedAt, phaseStartedAt: Date.now() };
+      this.changed();
+      try {
+        const result = await this.checkOne(expectedRevision, signal, id);
+        const source = result.kind === "superseded" ? "superseded" : result.kind === "capture_incomplete" ? "incomplete"
+          : this.hooks.sourceResult?.(result.check) ?? (result.check.passed ? "valid" : result.check.complete ? "errors" : "incomplete");
+        this.lastOutcome = { id, revision: result.revision, source,
+          preview: result.kind === "superseded" ? "superseded" : result.kind === "build_failed" ? "failed" : result.kind === "checked" ? result.preview : "unavailable",
+          reason: result.kind === "build_failed" || result.kind === "capture_incomplete" ? errorText(result.error) : null,
+          startedAt, finishedAt: Date.now() };
+        return result;
+      } catch (error) {
+        if (!(error instanceof DevRevisionConflictError)) this.lastOutcome = { id, revision: this.revision(), source: signal.aborted ? "cancelled" : "tool_failure",
+          preview: "unavailable", reason: errorText(error), startedAt, finishedAt: Date.now() };
+        throw error;
+      } finally {
+        if (this.operation?.id === id) this.operation = null;
+        this.changed();
+      }
+    });
     this.checkQueue = work.then(() => undefined, () => undefined);
     return work;
   }
 
-  private async checkOne(expectedRevision: string | undefined, signal: AbortSignal): Promise<CheckPublication<T>> {
+  private async checkOne(expectedRevision: string | undefined, signal: AbortSignal, operationId: string): Promise<CheckPublication<T>> {
     if (!this.stopChecks.signal.aborted) signal.throwIfAborted();
+    // Never grow the runtime set while a previous build still needs release.
+    await this.cleanupPending();
     let inputs: DevInputs;
     try {
       inputs = await this.refresh(signal);
@@ -293,7 +367,14 @@ export class DevSessionCore<T, P extends DevPreview> {
     }
     signal.throwIfAborted();
     let check: DevCheck<T>;
-    try { check = await this.hooks.check(inputs, signal); }
+    // A currently serving, successful check already owns this exact full-input
+    // epoch. Reuse its immutable result after recapture; the ordinary final
+    // currency fence below still runs. Failed/unserved/superseded checks miss.
+    const retained = this.serving?.revision === revision ? this.history.get(revision) : undefined;
+    const reusable = retained?.check.complete === true && retained.check.passed;
+    this.phase(operationId, "checking_source", reusable ? "reusing_unchanged_check" : null);
+    try { check = reusable ? structuredClone(retained.check)
+      : await this.hooks.check(inputs, signal, subphase => this.phase(operationId, "checking_source", subphase)); }
     catch (error) {
       if (this.stopChecks.signal.aborted && error === this.stopChecks.signal.reason) {
         return { kind: "superseded", revision, sourceRevision: inputs.sourceRevision };
@@ -328,16 +409,26 @@ export class DevSessionCore<T, P extends DevPreview> {
 
     let prepared: P;
     try {
-      prepared = await this.hooks.preparePreview(inputs, check);
+      this.phase(operationId, "preparing_preview");
+      prepared = await this.hooks.preparePreview(inputs, check, signal, subphase => this.phase(operationId, "preparing_preview", subphase));
     } catch (error) {
+      if (error instanceof DevCleanupError) this.pendingCleanup.add(error);
       signal.throwIfAborted();
       return { kind: "build_failed", revision, check: structuredClone(captured), error: errorText(error) };
     }
     const current = !signal.aborted && await this.stillCurrent(inputs, revision, signal);
     if (!current || signal.aborted) {
-      await prepared.dispose();
+      this.pendingCleanup.add(prepared);
+      await this.cleanupPending();
       if (!this.stopChecks.signal.aborted) signal.throwIfAborted();
       return { kind: "superseded", revision, sourceRevision: inputs.sourceRevision };
+    }
+    this.phase(operationId, "publishing");
+    try { prepared.activate?.(); }
+    catch (error) {
+      this.pendingCleanup.add(prepared);
+      try { await this.cleanupPending(); } catch { /* retained cleanup blocks later allocation */ }
+      return { kind: "build_failed", revision, check: structuredClone(captured), error: errorText(error) };
     }
     const old = this.serving;
     // A hint during preparation may have recaptured identical inputs.
@@ -347,8 +438,9 @@ export class DevSessionCore<T, P extends DevPreview> {
     this.lastPreviewReset = old !== null;
     let cleanupError: string | undefined;
     if (old !== null) {
+      this.pendingCleanup.add(old.preview);
       try {
-        await old.preview.dispose();
+        await this.cleanupPending();
       } catch (error) {
         cleanupError = errorText(error);
       }
@@ -379,21 +471,57 @@ export class DevSessionCore<T, P extends DevPreview> {
     return false;
   }
 
-  async stop(): Promise<void> {
+  private async cleanupPending(): Promise<void> {
+    const errors: unknown[] = [];
+    for (const preview of this.pendingCleanup) {
+      try { await preview.dispose(); this.pendingCleanup.delete(preview); }
+      catch (error) { errors.push(error); }
+    }
+    if (errors.length === 1) throw errors[0];
+    if (errors.length > 1) throw new AggregateError(errors, "preview cleanup failed");
+  }
+
+  /** Retry retained retired/candidate handles without allocating another runtime. */
+  retryCleanup(): Promise<void> {
+    if (this.stopped) return Promise.reject(new Error("session shutdown has begun"));
+    if (this.cleanupRetry !== null) return this.cleanupRetry;
+    if (this.operation !== null) return Promise.reject(new Error("a check is already active"));
+    const work = this.checkQueue.then(() => this.cleanupPending());
+    this.checkQueue = work.catch(() => undefined);
+    this.cleanupRetry = work.finally(() => { this.cleanupRetry = null; this.changed(); });
+    return this.cleanupRetry;
+  }
+
+  /** Close admission and cancel work synchronously, before transport acknowledgement. */
+  beginStop(): void {
     if (this.stopped) return;
     this.stopped = true;
+    this.lifecycle = "stopping";
+    this.changed();
     this.changeSerial += 1;
     this.stopChecks.abort(new Error("session stopped"));
     if (this.timer !== null) clearTimeout(this.timer);
     if (this.pollTimer !== null) clearInterval(this.pollTimer);
     for (const entry of this.watchers.values()) entry.watcher?.close();
     this.watchers.clear();
-    await this.checkQueue;
-    await this.captureQueue;
-    if (this.serving !== null) {
-      const serving = this.serving;
-      this.serving = null;
-      await serving.preview.dispose();
-    }
+  }
+
+  stop(): Promise<void> {
+    if (this.stopping !== null) return this.stopping;
+    this.beginStop();
+    this.lifecycle = "stopping";
+    this.changed();
+    this.stopping = (async () => {
+      await this.checkQueue;
+      await this.captureQueue;
+      if (this.serving !== null) {
+        this.pendingCleanup.add(this.serving.preview);
+        this.serving = null;
+      }
+      await this.cleanupPending();
+      this.lifecycle = "stopped";
+      this.changed();
+    })().catch(error => { this.lifecycle = "shutdown_incomplete"; this.changed(); this.stopping = null; throw error; });
+    return this.stopping;
   }
 }

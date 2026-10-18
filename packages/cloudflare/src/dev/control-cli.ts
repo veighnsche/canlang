@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import { realpathSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { runDevControlArgv, type DevControlEnvelope } from "./control-client.js";
+import { runDevTerminal } from "./terminal.js";
 
 const MAX_STDOUT_BYTES = 128 * 1024;
 const USAGE_CODES = new Set([
@@ -49,6 +50,7 @@ export async function runDevControlCli(
   cwd = process.cwd(),
   write: (line: string) => void = line => { process.stdout.write(line); },
 ): Promise<number> {
+  if (argv[0] === "terminal") return runDevTerminal(argv.slice(1), { cwd });
   let envelope: DevControlEnvelope;
   try {
     envelope = await runDevControlArgv(argv, { cwd });

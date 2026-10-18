@@ -6,7 +6,7 @@
 //! A bound observation lowers inline (`await active_member(c,...)` with its
 //! source descriptor) and its builtin reference resolves to that defining
 //! owner. Only genuinely unbound sources refuse, with their exact codes.
-//! Mirrors the outcome-14 capture (evidence/original24-20261016.json), where
+//! Mirrors the outcome-14 capture (historical diagnostic snapshot (removed)), where
 //! an unrelated IR refusal orphaned the Employees.can `staff`/`can_work`
 //! observations into four `E6008` plus one catalog-external `E6007`.
 

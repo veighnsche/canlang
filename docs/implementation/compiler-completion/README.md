@@ -1,8 +1,37 @@
 # Can18 remaining work — proposed root-cause plan
 
+### Accepted inline preference editors — 2026-10-18
+
+Source-authored local bool toggles and text/int inputs now compile and execute
+through the existing preference save route. The compiled HTTP consumer passes
+render/save/reload, false, exact integers, nullable clear, CSRF/CAS, read-only,
+authentication and module-isolation checks (1/1); affected compiler pins pass9/9.
+Independent direct validation passes and the scoped complexity gate is clear.
+The stale staged UI link that caused HTTP422 is avoided with task-local real-UI
+resolution; shared links and emitted module bytes are preserved. This closes
+the inline editor mechanism, including the recorded Member/Rent/Leave source
+shapes, while full original24 compilation/runtime remains open. One fresh
+original24 capture follows this meaningful intake with frozen compiler inputs.
+
+
 ## Current remainder and finite completion
 
-**State: original Customer `recover`, Purchase `record_payable` / `return_goods`, private whole-handler queries and the declared-event/helper batch below are accepted at their recorded scopes. Latest unchanged original24: 212 E6008, down from 264; FIRST refusals 78→25. Whole CanCRM compilation/runtime remains open. Muse stays stopped and supervision disabled; work remains on main without a new branch or worktree. All remaining composition consistency errors are now authorized; Monday, 19 October is the target.**
+### Accepted finite compiler receipt composition — 2026-10-18
+
+Fresh source context now survives query/count/ancestor collection and native
+receipt emission. Derived reads retain their defining declaration/body and
+bounded typed transitive closure; unsupported foreign/nested model reads still
+refuse. Focused compiler checks pass (27 + 4), and the independent original
+six-query/count/ancestor witness passes (1/1, 125.62 s). Actual compiled Maintain
+assignment commits and sends genuine mail, recording the failed receipt.
+Complete retry/delivery source-policy integration remains open, as do original
+hook retirement and the other listed shared roots. Inline preference editors
+are accepted at their finite scope above.
+This is a completed compiler mechanism; the last complete original24 count
+remains 212 E6008 pending the next meaningful combined capture.
+
+
+**State: original Customer `recover`, Purchase `record_payable` / `return_goods`, private whole-handler queries and the declared-event/helper batch below are accepted at their recorded scopes. Latest unchanged original24: 212 E6008, down from 264; FIRST refusals 78→25. Whole CanCRM compilation/runtime remains open. Muse coordinator active on this task scope (Codex owns review/commits); work remains on main without a new branch or worktree. All remaining composition consistency errors are now authorized; Monday, 19 October is the target.**
 
 This is the **one execution plan** for general Can correctness and adoption: existing outcomes 1–18 / C01–C24 and their required executable/reference consumers. The original CanCRM composition and other draft apps are reference programs that reveal reusable language/runtime gaps, not end-user products to finish or polish. Shared work is counted once; consumers link to its output. Other roadmaps supply contracts and dependencies, not extra assignments. Product requirements remain in REQUIREMENTS, behavior in DESIGN and syntax in GRAMMAR.
 

@@ -198,7 +198,7 @@ fn original_eight_entry_request_and_messages_are_checked_before_same_created_run
             owner(&ir),
             &models,
             original,
-            &db
+            &db, None
         )
         .is_some(),
         "actual owning field/descriptor correspondence"
@@ -329,7 +329,7 @@ fn constructor_literal_schema_entries_shorthand_capture_and_foreign_import_edits
             owner(&defaulted),
             &models,
             original,
-            &db
+            &db, None
         )
         .is_none(),
         "operand constructor cannot authorize a new default scope"
