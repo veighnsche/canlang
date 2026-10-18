@@ -529,6 +529,48 @@ describe("development session revision lifecycle", () => {
 });
 
 describe("T14 observation boundaries", () => {
+  it("reuses only the currently serving successful full-input check and keeps the final currency fence", async () => {
+    let source = "same", producer = "one", checks = 0, builds = 0, mutateDuringReuse = false, reuseCaptures = 0;
+    const session = new DevSessionCore({
+      capture: async () => {
+        if (mutateDuringReuse && ++reuseCaptures === 2) source = "changed-during-reuse";
+        return { sourceRevision: source, inputDigest: `${source}:${producer}` };
+      },
+      check: async () => { checks++; return { complete: true, passed: true, detail: { message: "captured" } }; },
+      preparePreview: async inputs => { builds++; return preview(inputs.inputDigest, []); },
+    });
+    try {
+      await session.check();
+      session.markDirty();
+      expect(await session.check()).toMatchObject({ kind: "checked", revision: "r1", preview: "ready" });
+      expect([checks, builds]).toEqual([1, 1]);
+      producer = "two";
+      expect(await session.check()).toMatchObject({ kind: "checked", revision: "r2", preview: "ready" });
+      expect([checks, builds]).toEqual([2, 2]);
+      mutateDuringReuse = true;
+      expect(await session.check()).toMatchObject({ kind: "superseded", revision: "r2" });
+      expect([checks, builds]).toEqual([2, 2]);
+      expect(session.status()).toMatchObject({ servingRevision: "r2", revision: "r3", stale: true });
+    } finally { await session.stop(); }
+  });
+
+  it("does not reuse failed source checks or valid checks whose preview never became ready", async () => {
+    for (const sourceValid of [false, true]) {
+      let checks = 0, builds = 0;
+      const session = new DevSessionCore({
+        capture: async () => ({ sourceRevision: "same", inputDigest: "same" }),
+        check: async () => { checks++; return { complete: true, passed: sourceValid, detail: null }; },
+        preparePreview: async () => { builds++; throw new Error("preview failed"); },
+      });
+      try {
+        await session.check(); await session.check();
+        expect(checks).toBe(2);
+        expect(builds).toBe(sourceValid ? 2 : 0);
+        expect(session.status().servingBuild).toBeNull();
+      } finally { await session.stop(); }
+    }
+  });
+
   it("selects only at the final publication fence and preserves serving ownership if activation fails", async () => {
     let source = "old", failCleanup = true;
     const activated: string[] = [], disposed: string[] = [];

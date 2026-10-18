@@ -367,8 +367,14 @@ export class DevSessionCore<T, P extends DevPreview> {
     }
     signal.throwIfAborted();
     let check: DevCheck<T>;
-    this.phase(operationId, "checking_source");
-    try { check = await this.hooks.check(inputs, signal, subphase => this.phase(operationId, "checking_source", subphase)); }
+    // A currently serving, successful check already owns this exact full-input
+    // epoch. Reuse its immutable result after recapture; the ordinary final
+    // currency fence below still runs. Failed/unserved/superseded checks miss.
+    const retained = this.serving?.revision === revision ? this.history.get(revision) : undefined;
+    const reusable = retained?.check.complete === true && retained.check.passed;
+    this.phase(operationId, "checking_source", reusable ? "reusing_unchanged_check" : null);
+    try { check = reusable ? structuredClone(retained.check)
+      : await this.hooks.check(inputs, signal, subphase => this.phase(operationId, "checking_source", subphase)); }
     catch (error) {
       if (this.stopChecks.signal.aborted && error === this.stopChecks.signal.reason) {
         return { kind: "superseded", revision, sourceRevision: inputs.sourceRevision };

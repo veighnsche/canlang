@@ -17,10 +17,12 @@ const installedInventory = vi.hoisted(() => ({
   extraInputPaths: [] as Array<{ name: string; path: string }>,
   browserQualificationInputPaths: [] as Array<{ name: string; path: string }>,
   stale: false,
+  onRediscover: undefined as (() => void) | undefined,
 }));
 vi.mock("../src/dev/preview-inputs.js", () => ({
   installedBrowserQualificationInputs: async () => installedInventory.browserQualificationInputPaths,
   installedLocalPreviewInputInventory: () => {
+    installedInventory.onRediscover?.();
     if (installedInventory.stale) throw new Error("installed outputs are older than source");
     return { packageInputPaths: installedInventory.packageInputPaths,
       extraInputPaths: installedInventory.extraInputPaths };
@@ -275,6 +277,60 @@ describe("one-file source capture", () => {
       installedInventory.extraInputPaths = [];
       installedInventory.browserQualificationInputPaths = [];
       installedInventory.stale = false;
+    }
+  });
+
+  it("keeps stable-read refusal for same-spelled missing inputs and the final post-read membership gate", async () => {
+    const request = fixture(), runtime = request.packageInputPaths[0]!.path;
+    installedInventory.packageInputPaths = [...request.packageInputPaths];
+    installedInventory.extraInputPaths = [];
+    installedInventory.stale = false;
+    const selected = { ...request, inputInventory: "installed-local-preview" as const };
+    try {
+      const captured = await captureSingleFileSource(selected);
+      expect(await captureIsCurrent(captured)).toBe(true);
+      unlinkSync(runtime);
+      expect(await capturedProducerInputsAreCurrent(captured)).toBe(false);
+      await expect(captureSingleFileSource(selected)).rejects.toThrow();
+      writeFileSync(runtime, "runtime A");
+      let discoveries = 0;
+      installedInventory.onRediscover = () => {
+        discoveries++;
+        // The second discovery follows successful stable reads. It must still
+        // refuse disappearance even though both manifests spell the same path.
+        if (discoveries === 2) unlinkSync(runtime);
+      };
+      await expect(captureSingleFileSource(selected)).rejects.toThrow("membership changed during capture");
+      expect(discoveries).toBe(2);
+    } finally {
+      installedInventory.onRediscover = undefined;
+      installedInventory.packageInputPaths = []; installedInventory.extraInputPaths = [];
+      rmSync(request.checkoutRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("retains alias comparison for different inventory spellings and refuses a rediscovered alias retarget", async () => {
+    const request = fixture();
+    const target = join(request.checkoutRoot, "source-a.ts"), replacement = join(request.checkoutRoot, "source-b.ts");
+    const selectedAlias = join(request.checkoutRoot, "selected.ts"), discoveredAlias = join(request.checkoutRoot, "discovered.ts");
+    writeFileSync(target, "identical bytes"); writeFileSync(replacement, "identical bytes");
+    symlinkSync(target, selectedAlias); symlinkSync(target, discoveredAlias);
+    installedInventory.packageInputPaths = [...request.packageInputPaths];
+    installedInventory.extraInputPaths = [{ name: "source:runtime", path: discoveredAlias }];
+    installedInventory.stale = false;
+    try {
+      const capture = await captureSingleFileSource({ ...request,
+        extraInputPaths: [{ name: "source:runtime", path: selectedAlias }], inputInventory: "installed-local-preview" });
+      expect(await capturedRuntimeInputsAreCurrent(capture)).toBe(true);
+      expect(await captureIsCurrent(capture)).toBe(true);
+      unlinkSync(discoveredAlias); symlinkSync(replacement, discoveredAlias);
+      // The selected alias and its bytes are unchanged; only the independently
+      // rediscovered spelling moved, so the alias comparison must catch this.
+      expect(await capturedRuntimeInputsAreCurrent(capture)).toBe(false);
+      expect(await captureIsCurrent(capture)).toBe(false);
+    } finally {
+      installedInventory.packageInputPaths = []; installedInventory.extraInputPaths = [];
+      rmSync(request.checkoutRoot, { recursive: true, force: true });
     }
   });
 

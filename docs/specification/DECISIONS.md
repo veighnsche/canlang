@@ -19019,3 +19019,27 @@ passes; retained earlier lifecycle and affected service/daemon results are reuse
 T17's actual terminal/current-build journey and the stable gateway/browser join
 remain open. No new startup timing, main merge or full checkpoint advance is
 claimed by this slice.
+
+## 2026-10-18 — bound unchanged-check and inventory path reuse
+
+Reuse the existing immutable check history only when the currently serving
+successful preview owns the recaptured full-input epoch. Run the ordinary final
+currency fence, cancellation and expected-revision checks; failed, unserved and
+superseded results miss. This avoids a compiler spawn on an exact no-op without
+retaining a second artifact cache, permission result or compiler process. Two
+focused controls pass: no-op skips check/build, producer-only changes miss,
+mid-reuse mutation supersedes, and failed source/build attempts always rerun.
+
+At initial/currency inventory gates, identical absolute requested paths need no
+duplicate alias resolution because stable canonical/hash reads follow. Different
+spellings retain both alias resolutions; the final post-read inventory retains
+existence checks so disappearance during rediscovery still refuses. Four focused
+same-path/missing/final-deletion/membership/retarget controls and Cloudflare
+typecheck pass. Three JEV replies favor this phased optimization (.92–.94), saved
+in `docs/design/jev/dev-inventory-path-equality-20261018.json` as advice. Add the
+already consumed Work-kernel distribution to the captured producer closure;
+T22's dependency-edge validation exposed that missing input. Actual timing of
+these changes remains pending the frozen current-build run. Compiler staging
+retention and broader partial compilation remain unselected until their separate
+cost is measured; no new resource owner or cache is justified by the aggregate
+check duration alone.

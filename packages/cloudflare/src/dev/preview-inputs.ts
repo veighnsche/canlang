@@ -15,7 +15,7 @@ const OWNED_EXPORTS = [
   "@canlang/files/distribution",
   "@canlang/state/distribution", "@canlang/ui/distribution",
   "@canlang/stdlib/distribution", "@canlang/values/distribution",
-  "@canlang/work/distribution", "@canlang/services/distribution",
+  "@canlang/work/distribution", "@canlang/work-kernel/distribution", "@canlang/services/distribution",
   "@canlang/testkit",
 ] as const;
 const EXTERNAL_IMPORTS = [
