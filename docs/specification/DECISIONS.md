@@ -1,5 +1,24 @@
 # Canlang language design decisions
 
+## 2026-10-18 — admit cross-package stored-reference leaf reads in native hooks
+
+**Accepted implementation choice:** `model_policy_profile::hook_snapshot_field`
+resolves a read field's declaration on the read model's owning module instead of
+the hook's module. Same-module rows keep their exact gate; a stored-reference
+edge into another package (already allowed by `event_reference_target`) reads
+that package's declared leaf through the genuine linkage, with the runtime edge
+check enforcing the link. First consumer: the original `maintain.retire_asset`
+hook's `local_date(now, event.after.location.timezone)` cutoff, reusing the
+accepted Values `local_date` implementation via the Cloudflare stdlib
+re-export. Staged creates, parent linkage and foreign-model create refusal are
+unchanged.
+
+**Remaining uncertainty:** CRUD `when`-guard membership framing for the
+candidate context (no owner-stage sites or frame for `maintain.Asset.update`)
+is a separate mechanism owned by Compiler decisions, Cloudflare invoke and
+State membership; it still refuses before commit and is recorded under
+CAN18 outcome12 in [REMAINING-WORK.md](../implementation/REMAINING-WORK.md).
+
 ## 2026-10-18 — consolidate current execution in one remaining-work record
 
 **Accepted documentation choice:** [REMAINING-WORK.md](../implementation/REMAINING-WORK.md)

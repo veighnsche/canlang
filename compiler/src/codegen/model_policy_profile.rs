@@ -450,9 +450,22 @@ impl HookProfile<'_> {
         }
         // Several items may share one field name across model/CRUD
         // surfaces; admit when ANY declared field with this name on the
-        // model matches the read type and allowed shape.
+        // model matches the read type and allowed shape. The declaration
+        // lives on the read model's owning module: same-module rows keep
+        // their exact gate, while a stored-reference edge into another
+        // package reads that package's declared leaf through the genuine
+        // linkage (the runtime edge check enforces the link).
+        let Some(read_module) = self
+            .program
+            .items
+            .get(model.0 as usize)
+            .filter(|item| item.id == model)
+            .map(|item| item.module)
+        else {
+            return false;
+        };
         for item in self.program.items.iter() {
-            if item.name != name || item.module != self.module {
+            if item.name != name || item.module != read_module {
                 continue;
             }
             let IrItemKind::Field {

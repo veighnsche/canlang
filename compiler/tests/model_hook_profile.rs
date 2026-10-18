@@ -499,6 +499,44 @@ fn source_rejected_same_trigger_staging_and_metadata_writes_do_not_qualify() {
 }
 
 #[test]
+fn checked_cross_package_reference_timezone_reads_through_genuine_linkage() {
+    // Whole original asset retirement shape: a hook in one package reads a
+    // declared leaf through a stored reference owned by another package
+    // (`event.after.site.timezone`) and stages it through a pure temporal
+    // builtin. The declaration is resolved on the read model's owning
+    // module; same-module rows keep their exact gate.
+    let source = r#"app CrossPackageTimezone uses=[Work]
+package Work
+ use Catalog {Site}
+ Given
+  Asset {site:Site, retired:bool=false, epoch:int=0}
+  Ticket in Asset {cutoff:date}
+  event Stepped {ticket:Ticket}
+  policy Asset read=members
+  policy Ticket read=members
+ When
+  crud Asset by=members fields=retired,epoch
+  scenario retire on=Asset.update
+   do
+    if event.after.retired and not event.before.retired
+     create Ticket {parent=event.after,cutoff=local_date(now,event.after.site.timezone)} as ticket
+     emit Stepped {ticket=ticket}
+ Then
+package Catalog
+ Given
+  export Site {timezone:timezone}
+ When
+ Then
+"#;
+    let (program, scenario) = contextual_hook(source, true);
+    assert!(
+        local_hook_supported(&program, scenario),
+        "{:#?}",
+        program.item(scenario)
+    );
+}
+
+#[test]
 fn source_rejected_foreign_staged_models_do_not_acquire_local_hook_coverage() {
     let source = include_str!("fixtures/hook_order_rollback.can")
         .replace(
