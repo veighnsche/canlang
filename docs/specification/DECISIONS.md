@@ -14,13 +14,28 @@ and assembles artifact-dependent output itself. First measured cost: the real
 MCP/HTTP pair takes ~220ms steady (~345ms cold) with byte-identical,
 workerd-loadable output, so a warm portable build avoids 2 esbuild spawns.
 
-**Remaining uncertainty:** full-assembly proof (warm owned build plus workerd
-load of the reused bundle) is blocked by the pre-existing values-bindings
-vendor sync gap — `vendor/state` files import
-`@canlang/values/bindings/*`, which no staged tree provides yet (another
-lane's in-flight `vendor/values-bindings/` prefix design). All full-assembly
-tests fail identically on the untouched base. Recorded under dev-server:T22
-in [REMAINING-WORK.md](../implementation/REMAINING-WORK.md).
+**Remaining uncertainty:** the warm owned-build proof itself is now observed
+(~270–450ms saved per second build at identical bundle sha), but the
+full-assembly suites still carry pre-existing environment failures unrelated
+to this change (workerd boot timeouts, macOS tmp symlinks, dist-drift
+assertions, a soda version-skew preflight, and the missing `can-dev` binary
+for the node:test consumer) — all identical on the untouched base. Recorded
+under dev-server:T22 in [REMAINING-WORK.md](../implementation/REMAINING-WORK.md).
+
+## 2026-10-18 — stage Values JS bindings for unconditional vendor closure
+
+**Accepted implementation choice:** `VENDOR_TREES` also stages the Values
+sibling bindings closure (`valuesDistribution.bindings`) at
+`vendor/values/bindings/`, with a bare
+`@canlang/values/bindings/*` rewrite plus scoped relative rewrites in both
+directions (`vendor/values/*` `../bindings/*` and
+`vendor/values/bindings/*` `../src/*`), following the existing prefix-rule
+patterns. This stages JavaScript only and never selects the optional WASM
+binary; the `vendor/values-bindings/` WASM-asset path and its merge guard are
+untouched (WASM assembly passes 25/25 with no key collisions). A sibling
+test-only `work-kernel.wasm-test.js` exclusion follows the file's own
+documented suffix-filter class. No other lane owns this closure — the
+`vendor/values-bindings/` machinery serves the explicit-WASM path only.
 
 ## 2026-10-18 — admit cross-package stored-reference leaf reads in native hooks
 

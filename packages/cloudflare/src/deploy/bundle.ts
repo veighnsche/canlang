@@ -235,7 +235,11 @@ function runBrowserBundle(entry: string, output: string, lifetime?: LocalCommand
 /**
  * Exact esbuild input closure for one producer build, or null when the
  * metafile is absent or unreadable (mocked subprocesses, older drivers).
- * A null closure never qualifies for reuse: the build stays uncacheable.
+ * Metafile keys are process-relative, so they resolve against the calling
+ * process directory (the driver's inherited working directory). Generated
+ * scratch beneath the build directory is excluded: its bytes are already
+ * keyed verbatim as the entry source, while its fresh paths would otherwise
+ * defeat reuse. A null closure never qualifies for reuse.
  */
 function readBundleMetafileInputs(output: string, entry: string): string[] | null {
   let parsed: unknown;
@@ -245,13 +249,15 @@ function readBundleMetafileInputs(output: string, entry: string): string[] | nul
     return null;
   }
   if (typeof parsed !== "object" || parsed === null || !Array.isArray((parsed as { inputs?: unknown }).inputs)) return null;
-  const base = dirname(entry);
+  const scratch = dirname(entry);
   const inputs: string[] = [];
   for (const input of (parsed as { inputs: unknown[] }).inputs) {
     if (typeof input !== "string" || !input) return null;
-    inputs.push(resolve(base, input));
+    const resolved = resolve(process.cwd(), input);
+    if (resolved === scratch || resolved.startsWith(`${scratch}${sep}`)) continue;
+    inputs.push(resolved);
   }
-  return inputs;
+  return inputs.length === 0 ? null : inputs;
 }
 
 /** Thrown error `code` when the built worker entry is missing. */
@@ -536,6 +542,11 @@ const VENDOR_TREES: readonly VendorTree[] = [
   { directory: stdlibDistribution.modules, prefix: "vendor/stdlib", buildCommand: "bun run --filter @canlang/stdlib build" },
   { directory: stateDistribution.modules, prefix: "vendor/state", buildCommand: "bun run --filter @canlang/state build" },
   { directory: valuesDistribution.modules, prefix: "vendor/values", buildCommand: "bun run --filter @canlang/values build" },
+  // Values publishes its owned-input bindings beside (not beneath) the
+  // module root; stage them for the bare and relative bindings imports in
+  // the state/interfaces producers. This stages JavaScript only — the
+  // optional WASM binary stays behind its explicit valuesWasm selection.
+  { directory: valuesDistribution.bindings, prefix: "vendor/values/bindings", buildCommand: "bun run --filter @canlang/values build" },
   { directory: workKernelDistribution.modules, prefix: "vendor/work-kernel", buildCommand: "bun run --filter @canlang/work-kernel build" },
 ];
 
@@ -546,9 +557,10 @@ const VENDOR_TREES: readonly VendorTree[] = [
 const TEST_ONLY_VENDOR_KEYS: ReadonlySet<string> = new Set([
   "vendor/state/fanout/work-loader.js",
   "vendor/state/receipt/work-loader.js",
-  // Emitted work-kernel conformance module: node:test-only, and its
-  // `.wasm-test.js` name slips the shared `.test.js` suffix filter.
+  // Emitted work-kernel conformance modules: node:test-only, and their
+  // `.wasm-test.js` names slip the shared `.test.js` suffix filter.
   "vendor/work-kernel/conformance/native-recovery.wasm-test.js",
+  "vendor/work-kernel/conformance/work-kernel.wasm-test.js",
   // Shared Memory/D1/DO assertions have only maintained test importers.
   "vendor/state/storage/history-bounded-fixtures.js",
   // D3b Q3: the receipt join + worker-safe observer producers are
@@ -1209,6 +1221,18 @@ function mapVendorScopedImport(moduleKey: string, spec: string): string | null {
       return relativeSpecifier(moduleKey, `vendor/values/${target.slice("vendor/src/".length)}`);
     }
   }
+  if (moduleKey.startsWith("vendor/values/") && isRelativeSpecifier(spec)) {
+    const target = posix.normalize(posix.join(posix.dirname(moduleKey), spec));
+    if (target.startsWith("vendor/bindings/")) {
+      return relativeSpecifier(moduleKey, `vendor/values/bindings/${target.slice("vendor/bindings/".length)}`);
+    }
+  }
+  if (moduleKey.startsWith("vendor/values/bindings/") && isRelativeSpecifier(spec)) {
+    const target = posix.normalize(posix.join(posix.dirname(moduleKey), spec));
+    if (target.startsWith("vendor/values/src/")) {
+      return relativeSpecifier(moduleKey, `vendor/values/${target.slice("vendor/values/src/".length)}`);
+    }
+  }
   return null;
 }
 
@@ -1245,6 +1269,7 @@ function mapVendorExtendedImport(spec: string, moduleKey: string): string | null
   if (spec === WORK_KERNEL_ROWS_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_KERNEL_ROWS_VENDOR_ENTRY);
   if (spec.startsWith("@canlang/work-kernel/")) return relativeSpecifier(moduleKey, `vendor/work-kernel/src/${spec.slice("@canlang/work-kernel/".length)}.js`);
   if (spec === "@canlang/contracts/values") return relativeSpecifier(moduleKey, "vendor/contracts/values.js");
+  if (spec.startsWith("@canlang/values/bindings/")) return relativeSpecifier(moduleKey, `vendor/values/${spec.slice("@canlang/values/".length)}.js`);
   if (spec === "@canlang/state/effects/transition") return relativeSpecifier(moduleKey, "vendor/state/effects/transition.js");
   if (spec === "@canlang/state/effects/guards") return relativeSpecifier(moduleKey, "vendor/state/effects/guards.js");
   if (spec === "@canlang/state/effects/delivery") return relativeSpecifier(moduleKey, "vendor/state/effects/delivery.js");
