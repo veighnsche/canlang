@@ -925,16 +925,11 @@ function outcomeBanner(
  * remain visible in the unmatched top banner.
  * Transport fields, outcome banners and the submit/cancel row remain canonical.
  */
-export async function form(props: FormProps): Promise<string> {
-  const postTo = operationPostPath(props.action);
-  if (props.derived !== undefined) {
-    assertGeneratedMode(props.derived, props.mode);
-    if (props.operation !== props.derived.operation) throw new Error("form: operation disagrees with checked inputs");
-  }
-  if (props.mode === "update" && props.record === undefined) {
-    throw new Error("form: update mode requires a bound record");
-  }
-  assertUniqueFieldPaths(props.fields);
+function checkAuthoredPlacements(props: FormProps): {
+  authoredLabels: ReadonlySet<string>;
+  authoredValidators: ReadonlySet<string>;
+  authoredPaths: ReadonlySet<string>;
+} {
   const placementPaths = (list: readonly string[] | undefined, kind: string): ReadonlySet<string> => {
     const paths = new Set<string>();
     if (list === undefined) return paths;
@@ -963,6 +958,53 @@ export async function form(props: FormProps): Promise<string> {
       authoredPaths.add(path);
     }
   }
+  return { authoredLabels, authoredValidators, authoredPaths };
+}
+
+async function renderFormFields(
+  props: FormProps,
+  fieldCtx: FieldRenderContext,
+  authoredPaths: ReadonlySet<string>,
+): Promise<string[]> {
+  const rendered: string[] = [];
+  if (props.children === undefined) {
+    for (const field of props.fields) {
+      rendered.push(await renderField(field, fieldCtx));
+    }
+  } else {
+    const children = typeof props.children === "function" ? await props.children() : props.children;
+    rendered.push(...(await Promise.all(children)));
+    if (props.authoredFields !== undefined || props.authoredLabels !== undefined || props.authoredValidators !== undefined) {
+      for (const field of props.fields) {
+        if (!authoredPaths.has(field.path)) rendered.push(await renderField(field, fieldCtx));
+      }
+    }
+  }
+  return rendered;
+}
+
+function renderFormChoices(props: FormProps): string {
+  return (props.derived?.inputs ?? []).filter(input =>
+    input.choices !== undefined && props.fields.some(field => field.path === input.name),
+  ).map(input => {
+    const id = `${props.idPrefix}-choices-${input.name}`;
+    return `<div data-can-choices="${escapeAttr(input.name)}"><label for="${escapeAttr(id)}">Choose ${escapeHtml(input.name)}</label>` +
+      `<select id="${escapeAttr(id)}" data-can-choices-select disabled><option value="">Choose a value</option></select>` +
+      '<div data-can-choices-feedback role="status" aria-live="polite"></div></div>';
+  }).join("");
+}
+
+export async function form(props: FormProps): Promise<string> {
+  const postTo = operationPostPath(props.action);
+  if (props.derived !== undefined) {
+    assertGeneratedMode(props.derived, props.mode);
+    if (props.operation !== props.derived.operation) throw new Error("form: operation disagrees with checked inputs");
+  }
+  if (props.mode === "update" && props.record === undefined) {
+    throw new Error("form: update mode requires a bound record");
+  }
+  assertUniqueFieldPaths(props.fields);
+  const { authoredLabels, authoredValidators, authoredPaths } = checkAuthoredPlacements(props);
   const names = new Set<string>();
   for (const field of props.fields) {
     names.add(fieldName(props.mode, field.path));
@@ -978,28 +1020,18 @@ export async function form(props: FormProps): Promise<string> {
     authoredLabels,
     authoredValidators,
   };
-  const rendered: string[] = [];
-  if (props.children === undefined) {
-    for (const field of props.fields) {
-      rendered.push(await renderField(field, fieldCtx));
-    }
-  } else {
-    const children = typeof props.children === "function" ? await props.children() : props.children;
-    rendered.push(...(await Promise.all(children)));
-    if (props.authoredFields !== undefined || props.authoredLabels !== undefined || props.authoredValidators !== undefined) {
-      for (const field of props.fields) {
-        if (!authoredPaths.has(field.path)) rendered.push(await renderField(field, fieldCtx));
-      }
-    }
-  }
-  const choicesHtml = (props.derived?.inputs ?? []).filter(input =>
-    input.choices !== undefined && props.fields.some(field => field.path === input.name),
-  ).map(input => {
-    const id = `${props.idPrefix}-choices-${input.name}`;
-    return `<div data-can-choices="${escapeAttr(input.name)}"><label for="${escapeAttr(id)}">Choose ${escapeHtml(input.name)}</label>` +
-      `<select id="${escapeAttr(id)}" data-can-choices-select disabled><option value="">Choose a value</option></select>` +
-      '<div data-can-choices-feedback role="status" aria-live="polite"></div></div>';
-  }).join("");
+  const rendered = await renderFormFields(props, fieldCtx, authoredPaths);
+  const choicesHtml = renderFormChoices(props);
+  return completeFormRender(props, postTo, rendered, choicesHtml, unmatched);
+}
+
+async function completeFormRender(
+  props: FormProps,
+  postTo: string,
+  rendered: readonly string[],
+  choicesHtml: string,
+  unmatched: FieldError[],
+): Promise<string> {
   const formParts = partitionActionGroups(rendered);
   if (formParts.secondary !== "" || /<form\b/i.test(formParts.primary)) {
     throw new Error("form actions must be direct primary submit controls, not operation forms or secondary controls");
@@ -1095,64 +1127,67 @@ export async function deleteRecord(props: DeleteProps): Promise<string> {
  * Checked input/source metadata opts into the existing generated-form browser
  * submitter and its operation mode. Omission retains the native POST contract.
  */
-export async function action(props: ActionProps): Promise<string> {
-  const postTo = operationPostPath(props.action);
-  const associated = props.derived !== undefined || props.sourceBinding !== undefined ||
-    props.sourceBindingIdentity !== undefined || props.sourceBindingDraftIdentity !== undefined;
-  if (associated && props.actionHandle !== undefined) {
-    throw new Error("action: sealed action_handle submission is MCP-only; prepared browser actions require ordinary inputs");
+function checkActionRenderedInputs(
+  derived: DerivedOperationInputs,
+  available: readonly FormFieldDef[],
+  renderedInputs: readonly string[],
+): void {
+  const paths = new Set(available.filter(field => field.type !== "delivery").map(field => field.path));
+  for (const path of renderedInputs) {
+    if (!paths.has(path)) throw new Error(`action: input ${JSON.stringify(path)} is outside its checked operation`);
   }
-  let mode: FormMode = "scenario";
-  let renderedInputs: string[] | undefined;
-  if (associated) {
-    const derived = props.derived;
-    if (derived === undefined || derived === null || typeof derived.operation !== "string" ||
-        !Array.isArray(derived.inputs)) {
-      throw new Error("action: checked operation inputs are required for a prepared association");
-    }
-    if (props.operation !== derived.operation) throw new Error("action: operation disagrees with checked inputs");
-    if (derived.kind !== "create" && derived.kind !== "update" && derived.kind !== "scenario") {
-      throw new Error("action: checked operation has no generated mutation form");
-    }
-    mode = derived.kind;
-    for (const binding of [props.sourceBinding, props.sourceBindingIdentity, props.sourceBindingDraftIdentity]) {
-      if (binding !== undefined && (typeof binding !== "string" || binding.length === 0)) {
-        throw new Error("action: source binding metadata must be nonempty strings");
-      }
-    }
-    if (props.sourceBinding === undefined &&
-        (props.sourceBindingIdentity !== undefined || props.sourceBindingDraftIdentity !== undefined)) {
-      throw new Error("action: source binding comparison identities require a source binding");
-    }
-    // Reuse the owning generated-field mapping for supported paths and companions.
-    const available = generatedFields(derived, mode);
-    assertUniqueFieldPaths(available);
-    const paths = new Set(available.filter(field => field.type !== "delivery").map(field => field.path));
-    renderedInputs = [...(props.fields ?? []).map(field => field.path), ...Object.keys(props.inputs ?? {})];
-    for (const path of renderedInputs) {
-      if (!paths.has(path)) throw new Error(`action: input ${JSON.stringify(path)} is outside its checked operation`);
-    }
-    // generatedFields emits each base followed by its actual companions. A
-    // declared input whose own name contains a suffix is still a base input.
-    const declared = new Set(derived.inputs.map(input => input.name));
-    const rendered = new Set(renderedInputs);
-    let base: string | undefined;
-    for (const field of available) {
-      if (declared.has(field.path)) base = field.path;
-      else if (base !== undefined && rendered.has(field.path) && !rendered.has(base)) {
-        throw new Error(`action: companion input ${JSON.stringify(field.path)} requires its base input ${JSON.stringify(base)}`);
-      }
-    }
-    if (mode === "update" && props.record === undefined && props.sourceBinding === undefined) {
-      throw new Error("action: update mode requires a bound record or source binding");
-    }
-    if (props.record !== undefined && mode !== "update" && props.sourceBinding === undefined) {
-      throw new Error("action: prepared record bindings require update mode or a source binding");
+  // generatedFields emits each base followed by its actual companions. A
+  // declared input whose own name contains a suffix is still a base input.
+  const declared = new Set(derived.inputs.map(input => input.name));
+  const rendered = new Set(renderedInputs);
+  let base: string | undefined;
+  for (const field of available) {
+    if (declared.has(field.path)) base = field.path;
+    else if (base !== undefined && rendered.has(field.path) && !rendered.has(base)) {
+      throw new Error(`action: companion input ${JSON.stringify(field.path)} requires its base input ${JSON.stringify(base)}`);
     }
   }
-  // The rendering timezone is always declared so the server interprets
-  // datetime inputs unambiguously; UTC when the caller supplies none.
-  const timeZone = props.timeZone ?? "UTC";
+}
+
+function checkActionAssociation(props: ActionProps): { mode: FormMode; renderedInputs: string[] | undefined } {
+  const derived = props.derived;
+  if (derived === undefined || derived === null || typeof derived.operation !== "string" ||
+      !Array.isArray(derived.inputs)) {
+    throw new Error("action: checked operation inputs are required for a prepared association");
+  }
+  if (props.operation !== derived.operation) throw new Error("action: operation disagrees with checked inputs");
+  if (derived.kind !== "create" && derived.kind !== "update" && derived.kind !== "scenario") {
+    throw new Error("action: checked operation has no generated mutation form");
+  }
+  const mode = derived.kind;
+  for (const binding of [props.sourceBinding, props.sourceBindingIdentity, props.sourceBindingDraftIdentity]) {
+    if (binding !== undefined && (typeof binding !== "string" || binding.length === 0)) {
+      throw new Error("action: source binding metadata must be nonempty strings");
+    }
+  }
+  if (props.sourceBinding === undefined &&
+      (props.sourceBindingIdentity !== undefined || props.sourceBindingDraftIdentity !== undefined)) {
+    throw new Error("action: source binding comparison identities require a source binding");
+  }
+  // Reuse the owning generated-field mapping for supported paths and companions.
+  const available = generatedFields(derived, mode);
+  assertUniqueFieldPaths(available);
+  const renderedInputs = [...(props.fields ?? []).map(field => field.path), ...Object.keys(props.inputs ?? {})];
+  checkActionRenderedInputs(derived, available, renderedInputs);
+  checkActionRecordBinding(props, mode);
+  return { mode, renderedInputs };
+}
+
+function checkActionRecordBinding(props: ActionProps, mode: FormMode): void {
+  if (mode === "update" && props.record === undefined && props.sourceBinding === undefined) {
+    throw new Error("action: update mode requires a bound record or source binding");
+  }
+  if (props.record !== undefined && mode !== "update" && props.sourceBinding === undefined) {
+    throw new Error("action: prepared record bindings require update mode or a source binding");
+  }
+}
+
+function renderActionExtras(props: ActionProps, mode: FormMode, timeZone: string): string {
   let extras = hidden("timezone", timeZone);
   extras += props.sourceBinding === undefined ? recordHiddens(props.record) : hidden(SOURCE_FORM_BINDING_FIELD, props.sourceBinding);
   if (props.actionHandle !== undefined) {
@@ -1168,32 +1203,70 @@ export async function action(props: ActionProps): Promise<string> {
       extras += hidden(fieldName(mode, key), serializeActionScalar(key, props.inputs[key]));
     }
   }
+  return extras;
+}
+
+async function renderActionFields(
+  props: ActionProps,
+  fields: NonNullable<ActionProps["fields"]>,
+  mode: FormMode,
+  timeZone: string,
+): Promise<{ fieldsHtml: string; errorsHtml: string }> {
+  assertUniqueFieldPaths(fields);
+  const names = new Set<string>();
+  for (const field of fields) {
+    names.add(fieldName(mode, field.path));
+  }
+  const { matched, unmatched } = splitErrors(props.errors, names);
+  const fieldCtx: FieldRenderContext = {
+    context: props.context,
+    mode,
+    timeZone,
+    idPrefix: props.idPrefix,
+    errorsByName: matched,
+    errors: props.errors,
+  };
+  const rendered: string[] = [];
+  for (const field of fields) {
+    rendered.push(await renderField(field, fieldCtx));
+  }
+  return { fieldsHtml: rendered.join(""), errorsHtml: unmatchedAlert(unmatched, props.context) };
+}
+
+export async function action(props: ActionProps): Promise<string> {
+  const postTo = operationPostPath(props.action);
+  const associated = props.derived !== undefined || props.sourceBinding !== undefined ||
+    props.sourceBindingIdentity !== undefined || props.sourceBindingDraftIdentity !== undefined;
+  if (associated && props.actionHandle !== undefined) {
+    throw new Error("action: sealed action_handle submission is MCP-only; prepared browser actions require ordinary inputs");
+  }
+  let mode: FormMode = "scenario";
+  let renderedInputs: string[] | undefined;
+  if (associated) {
+    ({ mode, renderedInputs } = checkActionAssociation(props));
+  }
+  // The rendering timezone is always declared so the server interprets
+  // datetime inputs unambiguously; UTC when the caller supplies none.
+  const timeZone = props.timeZone ?? "UTC";
+  const extras = renderActionExtras(props, mode, timeZone);
   let fieldsHtml = "";
   let errorsHtml = "";
   if (props.fields !== undefined) {
-    assertUniqueFieldPaths(props.fields);
-    const names = new Set<string>();
-    for (const field of props.fields) {
-      names.add(fieldName(mode, field.path));
-    }
-    const { matched, unmatched } = splitErrors(props.errors, names);
-    const fieldCtx: FieldRenderContext = {
-      context: props.context,
-      mode,
-      timeZone,
-      idPrefix: props.idPrefix,
-      errorsByName: matched,
-      errors: props.errors,
-    };
-    const rendered: string[] = [];
-    for (const field of props.fields) {
-      rendered.push(await renderField(field, fieldCtx));
-    }
-    fieldsHtml = rendered.join("");
-    errorsHtml = unmatchedAlert(unmatched, props.context);
+    ({ fieldsHtml, errorsHtml } = await renderActionFields(props, props.fields, mode, timeZone));
   } else if (props.errors !== undefined) {
     errorsHtml = unmatchedAlert(props.errors, props.context);
   }
+  return completeActionRender(props, postTo, renderedInputs, extras, fieldsHtml, errorsHtml);
+}
+
+function completeActionRender(
+  props: ActionProps,
+  postTo: string,
+  renderedInputs: readonly string[] | undefined,
+  extras: string,
+  fieldsHtml: string,
+  errorsHtml: string,
+): string {
   const confirm =
     props.confirm === undefined
       ? ""
@@ -1361,6 +1434,26 @@ const FOLD_OPTIONS: ReadonlyArray<{ readonly value: string; readonly label: Mess
  * leaves. Anything else is not a real derivation and throws naming the
  * input — the notice below renders binding members verbatim, never guessed.
  */
+function checkDeliveryLeaves(
+  leaves: unknown,
+  fail: (detail: string) => Error,
+  arrayDetail: string,
+  leafDetail: string,
+): void {
+  if (!Array.isArray(leaves)) {
+    throw fail(arrayDetail);
+  }
+  for (const leaf of leaves) {
+    if (leaf === null || typeof leaf !== "object" || Array.isArray(leaf)) {
+      throw fail(leafDetail);
+    }
+    const leafRecord = leaf as Record<string, unknown>;
+    if (typeof leafRecord["name"] !== "string" || typeof leafRecord["type"] !== "string") {
+      throw fail(leafDetail);
+    }
+  }
+}
+
 function checkedDeliveryBinding(
   derived: DerivedOperationInputs,
   input: DerivedWritableInput,
@@ -1397,19 +1490,8 @@ function checkedDeliveryBinding(
   if (typeof resultRecord["name"] !== "string" || resultRecord["name"] === "") {
     throw fail("needs a binding with a string result name");
   }
-  const leaves = resultRecord["leaves"];
-  if (!Array.isArray(leaves)) {
-    throw fail("needs a binding with a leaves array");
-  }
-  for (const leaf of leaves) {
-    if (leaf === null || typeof leaf !== "object" || Array.isArray(leaf)) {
-      throw fail("needs leaves shaped {name, type}");
-    }
-    const leafRecord = leaf as Record<string, unknown>;
-    if (typeof leafRecord["name"] !== "string" || typeof leafRecord["type"] !== "string") {
-      throw fail("needs leaves shaped {name, type}");
-    }
-  }
+  checkDeliveryLeaves(resultRecord["leaves"], fail,
+    "needs a binding with a leaves array", "needs leaves shaped {name, type}");
   return binding;
 }
 
@@ -1428,6 +1510,90 @@ function checkedDeliveryBinding(
  * binding, and prefill keys matching no generated path all throw precisely
  * — never a guessed widget or a dropped value.
  */
+function checkGeneratedInputKind(derived: DerivedOperationInputs, input: DerivedWritableInput): string {
+  // String-indexed on purpose: kinds outside the pinned pilot table
+  // (or JS-only inventions) read undefined and throw below.
+  const table = GENERATED_FORM_TYPE_FOR_KIND as Record<string, string | undefined>;
+  const type: unknown = input.kind === "string" && input.array === undefined &&
+    (input.valueType === "date" || input.valueType === "date?") ? "date" : table[input.kind];
+  if (typeof type !== "string") {
+    throw new Error(
+      `generated form for ${JSON.stringify(derived.operation)}: ` +
+        `unknown input kind ${JSON.stringify(input.kind)} on ${JSON.stringify(input.name)}.`,
+    );
+  }
+  if (input.kind === "ref" && input.versioned !== true && input.versioned !== false) {
+    throw new Error(
+      `generated form for ${JSON.stringify(derived.operation)}: ` +
+        `ref input ${JSON.stringify(input.name)} needs a boolean versioned flag.`,
+    );
+  }
+  return type;
+}
+
+function generatedEnumOptions(
+  derived: DerivedOperationInputs,
+  input: DerivedWritableInput,
+): ReadonlyArray<{ readonly value: string; readonly label: MessageValue }> {
+  if (input.enumValues === undefined) {
+    throw new Error(
+      `generated form for ${JSON.stringify(derived.operation)}: ` +
+        `enum input ${JSON.stringify(input.name)} needs enumValues.`,
+    );
+  }
+  return input.enumValues.map((value) => ({ value, label: value }));
+}
+
+function generatedCompanionFields(
+  input: DerivedWritableInput,
+  overrides: GeneratedFormOverrides,
+): FormFieldDef[] {
+  const companions: FormFieldDef[] = [];
+  if (input.kind === "ref" && input.versioned === true) {
+    const companion = `${input.name}${GENERATED_REF_VERSION_SUFFIX}`;
+    companions.push({
+      path: companion,
+      label: generatedLabel(companion, overrides.labels),
+      type: "text",
+      required: input.required,
+    });
+  }
+  if (input.kind === "money") {
+    const companion = `${input.name}${GENERATED_MONEY_CURRENCY_SUFFIX}`;
+    const prefill = currencyPrefill(input);
+    companions.push({
+      path: companion,
+      label: generatedLabel(companion, overrides.labels),
+      type: "text",
+      required: false,
+      ...(prefill === undefined ? {} : { value: prefill }),
+    });
+  }
+  if (input.kind === "datetime") {
+    // The fold select stays statically optional: the projection
+    // requires an explicit earlier/later choice only when the
+    // submitted wall time is actually ambiguous in the form zone.
+    const companion = `${input.name}${GENERATED_DATETIME_FOLD_SUFFIX}`;
+    companions.push({
+      path: companion,
+      label: generatedLabel(companion, overrides.labels),
+      type: "enum",
+      required: false,
+      options: FOLD_OPTIONS,
+    });
+  }
+  if (input.nullable === true) {
+    const companion = `${input.name}${GENERATED_NULL_SUFFIX}`;
+    companions.push({
+      path: companion,
+      label: generatedLabel(companion, overrides.labels),
+      type: "bool",
+      required: false,
+    });
+  }
+  return companions;
+}
+
 export function generatedFields(
   derived: DerivedOperationInputs,
   mode: FormMode,
@@ -1454,86 +1620,19 @@ export function generatedFields(
       });
       continue;
     }
-    // String-indexed on purpose: kinds outside the pinned pilot table
-    // (or JS-only inventions) read undefined and throw below.
-    const table = GENERATED_FORM_TYPE_FOR_KIND as Record<string, string | undefined>;
-    const type: unknown = input.kind === "string" && input.array === undefined &&
-      (input.valueType === "date" || input.valueType === "date?") ? "date" : table[input.kind];
-    if (typeof type !== "string") {
-      throw new Error(
-        `generated form for ${JSON.stringify(derived.operation)}: ` +
-          `unknown input kind ${JSON.stringify(input.kind)} on ${JSON.stringify(input.name)}.`,
-      );
-    }
-    if (input.kind === "ref" && input.versioned !== true && input.versioned !== false) {
-      throw new Error(
-        `generated form for ${JSON.stringify(derived.operation)}: ` +
-          `ref input ${JSON.stringify(input.name)} needs a boolean versioned flag.`,
-      );
-    }
+    const type = checkGeneratedInputKind(derived, input);
     const field: FormFieldDef = {
       path: input.name,
       label: generatedLabel(input.name, overrides.labels),
       type,
       required: input.required,
       ...(input.kind === "enum"
-        ? {
-            options: ((): ReadonlyArray<{ readonly value: string; readonly label: MessageValue }> => {
-              if (input.enumValues === undefined) {
-                throw new Error(
-                  `generated form for ${JSON.stringify(derived.operation)}: ` +
-                    `enum input ${JSON.stringify(input.name)} needs enumValues.`,
-                );
-              }
-              return input.enumValues.map((value) => ({ value, label: value }));
-            })(),
-          }
+        ? { options: generatedEnumOptions(derived, input) }
         : {}),
       ...(literalPrefill(input) === undefined ? {} : { value: literalPrefill(input) }),
     };
     fields.push(field);
-    if (input.kind === "ref" && input.versioned === true) {
-      const companion = `${input.name}${GENERATED_REF_VERSION_SUFFIX}`;
-      fields.push({
-        path: companion,
-        label: generatedLabel(companion, overrides.labels),
-        type: "text",
-        required: input.required,
-      });
-    }
-    if (input.kind === "money") {
-      const companion = `${input.name}${GENERATED_MONEY_CURRENCY_SUFFIX}`;
-      const prefill = currencyPrefill(input);
-      fields.push({
-        path: companion,
-        label: generatedLabel(companion, overrides.labels),
-        type: "text",
-        required: false,
-        ...(prefill === undefined ? {} : { value: prefill }),
-      });
-    }
-    if (input.kind === "datetime") {
-      // The fold select stays statically optional: the projection
-      // requires an explicit earlier/later choice only when the
-      // submitted wall time is actually ambiguous in the form zone.
-      const companion = `${input.name}${GENERATED_DATETIME_FOLD_SUFFIX}`;
-      fields.push({
-        path: companion,
-        label: generatedLabel(companion, overrides.labels),
-        type: "enum",
-        required: false,
-        options: FOLD_OPTIONS,
-      });
-    }
-    if (input.nullable === true) {
-      const companion = `${input.name}${GENERATED_NULL_SUFFIX}`;
-      fields.push({
-        path: companion,
-        label: generatedLabel(companion, overrides.labels),
-        type: "bool",
-        required: false,
-      });
-    }
+    fields.push(...generatedCompanionFields(input, overrides));
   }
   const values = overrides.values ?? {};
   const paths = new Set(fields.map((field) => field.path));
@@ -1586,19 +1685,8 @@ function checkedDeliveryValue(fieldPath: string, value: unknown): DerivedDeliver
   if (typeof resultRecord["name"] !== "string" || resultRecord["name"] === "") {
     throw fail("delivery notice needs a string result name");
   }
-  const leaves = resultRecord["leaves"];
-  if (!Array.isArray(leaves)) {
-    throw fail("delivery notice needs a leaves array");
-  }
-  for (const leaf of leaves) {
-    if (leaf === null || typeof leaf !== "object" || Array.isArray(leaf)) {
-      throw fail("delivery notice needs leaves shaped {name, type}");
-    }
-    const leafRecord = leaf as Record<string, unknown>;
-    if (typeof leafRecord["name"] !== "string" || typeof leafRecord["type"] !== "string") {
-      throw fail("delivery notice needs leaves shaped {name, type}");
-    }
-  }
+  checkDeliveryLeaves(resultRecord["leaves"], fail,
+    "delivery notice needs a leaves array", "delivery notice needs leaves shaped {name, type}");
   return value as DerivedDeliveryBinding;
 }
 
@@ -1761,6 +1849,60 @@ function formatWallMs(timeZone: string, epochMs: number): string {
  * occurrence. Unambiguous values ignore the fold; malformed walls, zones
  * and folds all throw precisely.
  */
+function matchWallInstants(wall: string, timeZone: string, candidate: number): number[] {
+  // Distinct offsets around the wall moment: each yields at most one
+  // instant spelling this wall back. The ±25h/±12h probes span every
+  // standard/DST transition window (gaps and overlaps alike).
+  const offsets = new Set<number>();
+  for (const probe of [
+    candidate - 25 * 3600000,
+    candidate - 12 * 3600000,
+    candidate,
+    candidate + 12 * 3600000,
+    candidate + 25 * 3600000,
+  ]) {
+    offsets.add(zoneOffsetMs(timeZone, probe));
+  }
+  const matches: number[] = [];
+  for (const offset of offsets) {
+    const instant = candidate - offset;
+    if (formatWallMs(timeZone, instant) === wall && !matches.includes(instant)) {
+      matches.push(instant);
+    }
+  }
+  return matches;
+}
+
+function resolveWallMatches(
+  wall: string,
+  timeZone: string,
+  fold: string | undefined,
+  matches: number[],
+): string {
+  const single = matches.length === 1 ? matches[0] : undefined;
+  if (single !== undefined) {
+    return new Date(single).toISOString();
+  }
+  if (matches.length === 0) {
+    throw new Error(
+      `nonexistent local time ${JSON.stringify(wall)} in ${JSON.stringify(timeZone)}`,
+    );
+  }
+  if (fold !== "earlier" && fold !== "later") {
+    throw new Error(
+      `ambiguous local time ${JSON.stringify(wall)} in ${JSON.stringify(timeZone)}: ` +
+        `choose "earlier" or "later"`,
+    );
+  }
+  const ordered = [...matches].sort((a, b) => a - b);
+  const low = ordered[0];
+  const high = ordered[ordered.length - 1];
+  if (low === undefined || high === undefined) {
+    throw new Error("wallToInstant: ambiguous time lost its candidates");
+  }
+  return new Date(fold === "earlier" ? low : high).toISOString();
+}
+
 export function wallToInstant(
   wall: string,
   timeZone: string,
@@ -1786,48 +1928,7 @@ export function wallToInstant(
     Number(wall.slice(14, 16)),
   );
   try {
-    // Distinct offsets around the wall moment: each yields at most one
-    // instant spelling this wall back. The ±25h/±12h probes span every
-    // standard/DST transition window (gaps and overlaps alike).
-    const offsets = new Set<number>();
-    for (const probe of [
-      candidate - 25 * 3600000,
-      candidate - 12 * 3600000,
-      candidate,
-      candidate + 12 * 3600000,
-      candidate + 25 * 3600000,
-    ]) {
-      offsets.add(zoneOffsetMs(timeZone, probe));
-    }
-    const matches: number[] = [];
-    for (const offset of offsets) {
-      const instant = candidate - offset;
-      if (formatWallMs(timeZone, instant) === wall && !matches.includes(instant)) {
-        matches.push(instant);
-      }
-    }
-    const single = matches.length === 1 ? matches[0] : undefined;
-    if (single !== undefined) {
-      return new Date(single).toISOString();
-    }
-    if (matches.length === 0) {
-      throw new Error(
-        `nonexistent local time ${JSON.stringify(wall)} in ${JSON.stringify(timeZone)}`,
-      );
-    }
-    if (fold !== "earlier" && fold !== "later") {
-      throw new Error(
-        `ambiguous local time ${JSON.stringify(wall)} in ${JSON.stringify(timeZone)}: ` +
-          `choose "earlier" or "later"`,
-      );
-    }
-    const ordered = [...matches].sort((a, b) => a - b);
-    const low = ordered[0];
-    const high = ordered[ordered.length - 1];
-    if (low === undefined || high === undefined) {
-      throw new Error("wallToInstant: ambiguous time lost its candidates");
-    }
-    return new Date(fold === "earlier" ? low : high).toISOString();
+    return resolveWallMatches(wall, timeZone, fold, matchWallInstants(wall, timeZone, candidate));
   } catch (error) {
     // Only Intl rejects zones (RangeError); every other throw above is
     // already precise and passes through untouched.
@@ -1935,6 +2036,138 @@ function resolveProjectionZone(
  * update record hiddens still project. Omission keeps the legacy full-input
  * projection, including unchecked booleans.
  */
+type ProjectSetter = (name: string, value: unknown) => void;
+
+function projectRefInput(
+  derived: DerivedOperationInputs,
+  form: Record<string, string>,
+  root: (name: string) => string,
+  input: DerivedWritableInput,
+  setProjected: ProjectSetter,
+): void {
+  const id = form[root(input.name)];
+  if ((id === undefined || id === "") && !input.required) {
+    return;
+  }
+  if (input.versioned === true) {
+    const version = form[root(`${input.name}${GENERATED_REF_VERSION_SUFFIX}`)];
+    setProjected(input.name, {
+      id: id ?? "",
+      ...(version === undefined ? {} : { version }),
+    });
+  } else {
+    setProjected(input.name, { id: id ?? "" });
+  }
+}
+
+function projectBoolInput(
+  derived: DerivedOperationInputs,
+  raw: string | undefined,
+  input: DerivedWritableInput,
+  setProjected: ProjectSetter,
+): void {
+  if (raw === undefined) {
+    setProjected(input.name, false);
+  } else if (raw === "true") {
+    setProjected(input.name, true);
+  } else if (raw === "false") {
+    setProjected(input.name, false);
+  } else {
+    throw projectionFailure(
+      derived,
+      `bool input ${JSON.stringify(input.name)} needs "true" or "false".`,
+    );
+  }
+}
+
+function projectDatetimeInput(
+  derived: DerivedOperationInputs,
+  form: Record<string, string>,
+  root: (name: string) => string,
+  timeZone: string,
+  raw: string,
+  input: DerivedWritableInput,
+  setProjected: ProjectSetter,
+): void {
+  if (raw === "") {
+    // Cleared travels verbatim for the engine to judge, like every
+    // other cleared scalar.
+    setProjected(input.name, "");
+    return;
+  }
+  try {
+    setProjected(input.name, wallToInstant(
+      raw,
+      timeZone,
+      form[root(`${input.name}${GENERATED_DATETIME_FOLD_SUFFIX}`)],
+    ));
+  } catch (error) {
+    throw projectionFailure(
+      derived,
+      `datetime input ${JSON.stringify(input.name)}: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+}
+
+function projectRecordInput(
+  form: Record<string, string>,
+  input: DerivedWritableInput,
+  setProjected: ProjectSetter,
+): void {
+  const id = form["inputs[record][id]"];
+  const version = form["inputs[record][version]"];
+  if (id === undefined && version === undefined) {
+    return;
+  }
+  setProjected(input.name, {
+    ...(id === undefined ? {} : { id }),
+    ...(version === undefined ? {} : { version }),
+  });
+}
+
+function projectArrayInput(
+  derived: DerivedOperationInputs,
+  input: DerivedWritableInput,
+  raw: string | undefined,
+  setProjected: ProjectSetter,
+): void {
+  const projected = projectArrayValue(derived, input, raw);
+  if (!projected.omit) {
+    setProjected(input.name, projected.value);
+  }
+}
+
+function projectFileUserInput(
+  raw: string | undefined,
+  input: DerivedWritableInput,
+  setProjected: ProjectSetter,
+): void {
+  // Opaque user IDs and finalized S7 file IDs use the canonical
+  // Values wire {id}. Blank optional users omit for engine defaults;
+  // required users and empty file drafts retain correctable admission.
+  if (raw === undefined || (input.kind === "user" && raw === "" && !input.required)) {
+    return;
+  }
+  setProjected(input.name, { id: raw });
+}
+
+function projectMoneyInput(
+  form: Record<string, string>,
+  root: (name: string) => string,
+  raw: string | undefined,
+  input: DerivedWritableInput,
+  setProjected: ProjectSetter,
+): void {
+  const currency = form[root(`${input.name}${GENERATED_MONEY_CURRENCY_SUFFIX}`)];
+  if (raw === undefined && currency === undefined) {
+    return;
+  }
+  // Verbatim minor + caller-supplied currency: the exact-keys
+  // `{minor, currency}` wire shape. ISO membership is judged at
+  // the L2 values boundary, never invented here.
+  setProjected(input.name, { minor: raw ?? "", currency: currency ?? "" });
+}
+
 export function projectGeneratedInputs(
   derived: DerivedOperationInputs,
   mode: FormMode,
@@ -1952,15 +2185,7 @@ export function projectGeneratedInputs(
   };
   for (const input of derived.inputs) {
     if (isBoundRecord(input, mode)) {
-      const id = form["inputs[record][id]"];
-      const version = form["inputs[record][version]"];
-      if (id === undefined && version === undefined) {
-        continue;
-      }
-      setProjected(input.name, {
-        ...(id === undefined ? {} : { id }),
-        ...(version === undefined ? {} : { version }),
-      });
+      projectRecordInput(form, input, setProjected);
       continue;
     }
     if (input.kind === "delivery" || (rendered !== undefined && !rendered.has(input.name))) {
@@ -1978,100 +2203,52 @@ export function projectGeneratedInputs(
       continue;
     }
     if (input.kind === "ref") {
-      const id = form[root(input.name)];
-      if ((id === undefined || id === "") && !input.required) {
-        continue;
-      }
-      if (input.versioned === true) {
-        const version = form[root(`${input.name}${GENERATED_REF_VERSION_SUFFIX}`)];
-        setProjected(input.name, {
-          id: id ?? "",
-          ...(version === undefined ? {} : { version }),
-        });
-      } else {
-        setProjected(input.name, { id: id ?? "" });
-      }
+      projectRefInput(derived, form, root, input, setProjected);
       continue;
     }
     const raw = form[root(input.name)];
     if (input.array !== undefined) {
-      const projected = projectArrayValue(derived, input, raw);
-      if (!projected.omit) {
-        setProjected(input.name, projected.value);
-      }
+      projectArrayInput(derived, input, raw, setProjected);
       continue;
     }
     if (input.kind === "boolean") {
-      if (raw === undefined) {
-        setProjected(input.name, false);
-      } else if (raw === "true") {
-        setProjected(input.name, true);
-      } else if (raw === "false") {
-        setProjected(input.name, false);
-      } else {
-        throw projectionFailure(
-          derived,
-          `bool input ${JSON.stringify(input.name)} needs "true" or "false".`,
-        );
-      }
+      projectBoolInput(derived, raw, input, setProjected);
       continue;
     }
     if (input.kind === "datetime") {
       if (raw === undefined) {
         continue;
       }
-      if (raw === "") {
-        // Cleared travels verbatim for the engine to judge, like every
-        // other cleared scalar.
-        setProjected(input.name, "");
-        continue;
-      }
-      try {
-        setProjected(input.name, wallToInstant(
-          raw,
-          timeZone,
-          form[root(`${input.name}${GENERATED_DATETIME_FOLD_SUFFIX}`)],
-        ));
-      } catch (error) {
-        throw projectionFailure(
-          derived,
-          `datetime input ${JSON.stringify(input.name)}: ${error instanceof Error ? error.message : String(error)}`,
-        );
-      }
+      projectDatetimeInput(derived, form, root, timeZone, raw, input, setProjected);
       continue;
     }
     if (input.kind === "file" || input.kind === "user") {
-      // Opaque user IDs and finalized S7 file IDs use the canonical
-      // Values wire {id}. Blank optional users omit for engine defaults;
-      // required users and empty file drafts retain correctable admission.
-      if (raw === undefined || (input.kind === "user" && raw === "" && !input.required)) {
-        continue;
-      }
-      setProjected(input.name, { id: raw });
+      projectFileUserInput(raw, input, setProjected);
       continue;
     }
     if (input.kind === "money") {
-      const currency = form[root(`${input.name}${GENERATED_MONEY_CURRENCY_SUFFIX}`)];
-      if (raw === undefined && currency === undefined) {
-        continue;
-      }
-      // Verbatim minor + caller-supplied currency: the exact-keys
-      // `{minor, currency}` wire shape. ISO membership is judged at
-      // the L2 values boundary, never invented here.
-      setProjected(input.name, { minor: raw ?? "", currency: currency ?? "" });
+      projectMoneyInput(form, root, raw, input, setProjected);
       continue;
     }
-    if (raw === undefined || raw === "") {
-      if (!input.required) {
-        continue;
-      }
-      if (raw === undefined) {
-        continue;
-      }
-    }
-    setProjected(input.name, raw);
+    projectScalarDefault(input, raw, setProjected);
   }
   return out;
+}
+
+function projectScalarDefault(
+  input: DerivedWritableInput,
+  raw: string | undefined,
+  setProjected: ProjectSetter,
+): void {
+  if (raw === undefined || raw === "") {
+    if (!input.required) {
+      return;
+    }
+    if (raw === undefined) {
+      return;
+    }
+  }
+  setProjected(input.name, raw);
 }
 
 /** Plain-object check for draft subtrees (envelope members, `changes`). */
@@ -2093,6 +2270,71 @@ function isDraftRecord(value: unknown): value is Record<string, unknown> {
  * rather than guess. The interfaces error re-render calls this helper
  * for generated bindings so both sides agree on every draft shape.
  */
+function draftRefValue(
+  input: DerivedWritableInput,
+  member: Record<string, unknown>,
+  out: Record<string, unknown>,
+): void {
+  if (typeof member["id"] !== "string") {
+    return;
+  }
+  out[input.name] = member["id"];
+  if (input.versioned === true && typeof member["version"] === "string") {
+    out[`${input.name}${GENERATED_REF_VERSION_SUFFIX}`] = member["version"];
+  }
+}
+
+function draftMoneyValue(
+  input: DerivedWritableInput,
+  member: Record<string, unknown>,
+  out: Record<string, unknown>,
+): void {
+  if (typeof member["minor"] === "string") {
+    out[input.name] = member["minor"];
+  }
+  if (typeof member["currency"] === "string") {
+    out[`${input.name}${GENERATED_MONEY_CURRENCY_SUFFIX}`] = member["currency"];
+  }
+}
+
+function draftInputValue(
+  input: DerivedWritableInput,
+  member: unknown,
+  out: Record<string, unknown>,
+): void {
+  if (member === null) {
+    if (input.nullable === true) {
+      out[`${input.name}${GENERATED_NULL_SUFFIX}`] = true;
+    }
+    return;
+  }
+  if (input.kind === "ref" || input.kind === "user") {
+    if (isDraftRecord(member)) {
+      draftRefValue(input, member, out);
+    }
+    return;
+  }
+  if (input.kind === "money") {
+    if (isDraftRecord(member)) {
+      draftMoneyValue(input, member, out);
+    }
+    return;
+  }
+  if (input.array !== undefined && Array.isArray(member)) {
+    let json: string | undefined;
+    try {
+      json = JSON.stringify(member) ?? undefined;
+    } catch {
+      json = undefined;
+    }
+    if (json !== undefined) {
+      out[input.name] = json;
+    }
+    return;
+  }
+  out[input.name] = member;
+}
+
 export function generatedDraftValues(
   derived: DerivedOperationInputs,
   mode: FormMode,
@@ -2114,47 +2356,7 @@ export function generatedDraftValues(
     if (member === undefined) {
       continue;
     }
-    if (member === null) {
-      if (input.nullable === true) {
-        out[`${input.name}${GENERATED_NULL_SUFFIX}`] = true;
-      }
-      continue;
-    }
-    if (input.kind === "ref" || input.kind === "user") {
-      if (!isDraftRecord(member) || typeof member["id"] !== "string") {
-        continue;
-      }
-      out[input.name] = member["id"];
-      if (input.versioned === true && typeof member["version"] === "string") {
-        out[`${input.name}${GENERATED_REF_VERSION_SUFFIX}`] = member["version"];
-      }
-      continue;
-    }
-    if (input.kind === "money") {
-      if (!isDraftRecord(member)) {
-        continue;
-      }
-      if (typeof member["minor"] === "string") {
-        out[input.name] = member["minor"];
-      }
-      if (typeof member["currency"] === "string") {
-        out[`${input.name}${GENERATED_MONEY_CURRENCY_SUFFIX}`] = member["currency"];
-      }
-      continue;
-    }
-    if (input.array !== undefined && Array.isArray(member)) {
-      let json: string | undefined;
-      try {
-        json = JSON.stringify(member) ?? undefined;
-      } catch {
-        json = undefined;
-      }
-      if (json !== undefined) {
-        out[input.name] = json;
-      }
-      continue;
-    }
-    out[input.name] = member;
+    draftInputValue(input, member, out);
   }
   return out;
 }

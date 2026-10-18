@@ -162,24 +162,69 @@ export class PollRegion {
     }
   }
 
+  private stopIfUnusable(): boolean {
+    if (this.options.isLoggedOut()) {
+      this.stop("logout");
+      return true;
+    }
+    if (this.options.visibility.visibilityState === "hidden") {
+      this.stop("hidden");
+      return true;
+    }
+    if (!this.options.context.isAlive()) {
+      this.stop("region-gone");
+      return true;
+    }
+    if (this.options.context.key() !== this.options.contextKey) {
+      this.stop("context-changed");
+      return true;
+    }
+    return false;
+  }
+
+  // Post-fetch re-proof covers logout and context only: visibility is a
+  // paint condition, re-proved after the body read like the original.
+  private stopIfContextLost(): boolean {
+    if (this.options.isLoggedOut()) {
+      this.stop("logout");
+      return true;
+    }
+    if (!this.options.context.isAlive()) {
+      this.stop("region-gone");
+      return true;
+    }
+    if (this.options.context.key() !== this.options.contextKey) {
+      this.stop("context-changed");
+      return true;
+    }
+    return false;
+  }
+
+  private stopIfUnpaintable(): boolean {
+    if (this.options.visibility.visibilityState === "hidden") { this.stop("hidden"); return true; }
+    if (this.options.isLoggedOut()) { this.stop("logout"); return true; }
+    if (!this.options.context.isAlive()) { this.stop("region-gone"); return true; }
+    if (this.options.context.key() !== this.options.contextKey) { this.stop("context-changed"); return true; }
+    return false;
+  }
+
+  private isStale(mine: number): boolean {
+    return this.stopped || mine !== this.sequence;
+  }
+
+  private noteFailure(prefix: string, error: unknown): void {
+    this.inflight = null;
+    this.failures += 1;
+    const messageText = error instanceof Error ? error.message : String(error);
+    this.options.onError?.(`${prefix}: ${messageText}`);
+    this.reschedule(this.nextDelayMs());
+  }
+
   private async tick(): Promise<void> {
     if (this.stopped) {
       return;
     }
-    if (this.options.isLoggedOut()) {
-      this.stop("logout");
-      return;
-    }
-    if (this.options.visibility.visibilityState === "hidden") {
-      this.stop("hidden");
-      return;
-    }
-    if (!this.options.context.isAlive()) {
-      this.stop("region-gone");
-      return;
-    }
-    if (this.options.context.key() !== this.options.contextKey) {
-      this.stop("context-changed");
+    if (this.stopIfUnusable()) {
       return;
     }
     // Strict cadence: the next tick is already scheduled before the
@@ -196,37 +241,25 @@ export class PollRegion {
     try {
       response = await this.options.fetchImpl(this.options.url, { signal: controller.signal });
     } catch (error) {
-      if (this.stopped || mine !== this.sequence) {
+      if (this.isStale(mine)) {
         return;
       }
-      this.inflight = null;
       // Aborts are supersession, not failure: stay silent, keep cadence.
       if (controller.signal.aborted) {
+        this.inflight = null;
         return;
       }
-      this.failures += 1;
-      const messageText = error instanceof Error ? error.message : String(error);
-      this.options.onError?.(`Poll request failed: ${messageText}`);
-      this.reschedule(this.nextDelayMs());
+      this.noteFailure("Poll request failed", error);
       return;
     }
-    if (this.stopped || mine !== this.sequence) {
+    if (this.isStale(mine)) {
       return;
     }
     // Keep the controller owned until body reading settles, so stop or
     // supersession can also abort a cooperating transport's body read.
     // Re-prove context AFTER the await: a context that changed
     // mid-flight terminates before the response can paint.
-    if (this.options.isLoggedOut()) {
-      this.stop("logout");
-      return;
-    }
-    if (!this.options.context.isAlive()) {
-      this.stop("region-gone");
-      return;
-    }
-    if (this.options.context.key() !== this.options.contextKey) {
-      this.stop("context-changed");
+    if (this.stopIfContextLost()) {
       return;
     }
     if (response.status === 403) {
@@ -239,25 +272,20 @@ export class PollRegion {
     try {
       body = await response.text();
     } catch (error) {
-      if (this.stopped || mine !== this.sequence) {
+      if (this.isStale(mine)) {
         return;
       }
-      this.inflight = null;
-      this.failures += 1;
-      const messageText = error instanceof Error ? error.message : String(error);
-      this.options.onError?.(`Poll response unreadable: ${messageText}`);
-      this.reschedule(this.nextDelayMs());
+      this.noteFailure("Poll response unreadable", error);
       return;
     }
-    if (this.stopped || mine !== this.sequence) {
+    if (this.isStale(mine)) {
       return;
     }
     this.inflight = null;
     // Reading the body is another await: re-prove every paint condition.
-    if (this.options.visibility.visibilityState === "hidden") { this.stop("hidden"); return; }
-    if (this.options.isLoggedOut()) { this.stop("logout"); return; }
-    if (!this.options.context.isAlive()) { this.stop("region-gone"); return; }
-    if (this.options.context.key() !== this.options.contextKey) { this.stop("context-changed"); return; }
+    if (this.stopIfUnpaintable()) {
+      return;
+    }
     if (response.status < 200 || response.status >= 300) { this.stop("response-refused"); return; }
     this.failures = 0;
     if (this.options.onResponse(body, response.status) === false) this.stop("response-refused");

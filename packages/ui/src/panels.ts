@@ -39,6 +39,7 @@ import type {
   MessageParamValue,
   PageChildren,
   PresentationContext,
+  TabItem,
   TabsBinding,
   TabsProps,
 } from "@canlang/contracts";
@@ -143,6 +144,101 @@ function checkedBinding(factory: string, binding: TabsBinding): Set<string> {
  * suite or a selector binding is required; with both, options and items
  * must correspond exactly so every option reveals a panel and vice versa.
  */
+function checkTabsCorrespondence(items: readonly TabItem[], options: ReadonlySet<string>): void {
+  for (const item of items) {
+    if (!options.has(item.value)) {
+      throw new Error(`tabs item ${JSON.stringify(item.value)} is not a listed option`);
+    }
+  }
+  for (const value of options) {
+    if (!items.some((item) => item.value === value) && items.length > 0) {
+      throw new Error(`tabs option ${JSON.stringify(value)} has no tab panel`);
+    }
+  }
+}
+
+function tabsSelectorForm(props: TabsProps, binding: TabsBinding, postTo: string, modifiers: string): string {
+  // Selector-only bound tabset: no panels, just the preference form.
+  const legend =
+    props.caption === undefined
+      ? ""
+      : `<legend>${escapeHtml(resolveCaption(props.caption, props.context))}</legend>`;
+  const radios = binding.options
+    .map(
+      (option) =>
+        `<input type="radio" class="tab" name="${escapeAttr(binding.name)}" value="${escapeAttr(option.value)}"` +
+        ` aria-label="${escapeAttr(resolveCaption(option.label, props.context))}"` +
+        (option.value === binding.current ? " checked" : "") +
+        `>`,
+    )
+    .join("");
+  const save = escapeHtml(resolveCaption(SAVE_LABEL, props.context));
+  return (
+    `<form action="${escapeAttr(postTo)}" method="post" class="can-preference-tabs"${idAttr("tabs", props.id)}>` +
+    `<input type="hidden" name="${escapeAttr(CSRF_FIELD)}" value="${escapeAttr(props.context.csrfToken)}">` +
+    (binding.version === undefined ? "" : `<input type="hidden" name="_version" value="${escapeAttr(binding.version)}">`) +
+    `<fieldset>${legend}<div class="${escapeAttr(joinClasses("tabs tabs-border", modifiers))}">${radios}</div></fieldset>` +
+    `<div class="flex gap-2"><button type="submit" class="btn btn-primary" data-can-standard-submit>${save}</button></div></form>`
+  );
+}
+
+// The binding fallback stays lazy and rereads: like the original `??`
+// chain, the current reader runs only when no open item already decides the
+// default, and then at each original read site (guard, per-item comparison,
+// selected value).
+function tabsDefaultValue(items: readonly TabItem[], readCurrent: () => string | undefined): string | undefined {
+  const open = items.find((item) => item.open === true)?.value;
+  if (open !== null && open !== undefined) return open;
+  if (readCurrent() === undefined) return items[0]?.value;
+  return items.some((item) => item.value === readCurrent())
+    ? readCurrent() as string
+    : items[0]?.value;
+}
+
+async function tabsPanel(
+  item: TabItem,
+  index: number,
+  context: PresentationContext,
+  nameAttr: string,
+  idPrefix: string,
+  defaultValue: string | undefined,
+): Promise<string> {
+  requireText("tabs item", "value", item.value);
+  const caption = resolveCaption(item.caption, context);
+  if (caption === "") {
+    throw new Error("tabs item caption must not be empty");
+  }
+  const body = await renderKids("tabs item", item.children);
+  const selected = item.value === defaultValue;
+  const panelId = `${idPrefix}-panel-${String(index)}`;
+  const tabId = `${idPrefix}-tab-${String(index)}`;
+  return (
+    `<input type="radio" class="tab" role="tab" id="${escapeAttr(tabId)}" name="${nameAttr}"` +
+    ` value="${escapeAttr(item.value)}" aria-label="${escapeAttr(caption)}"` +
+    ` aria-selected="${selected ? "true" : "false"}" aria-controls="${escapeAttr(panelId)}"` +
+    (selected ? " checked" : "") +
+    ` />` +
+    `<div class="tab-content" role="tabpanel" id="${escapeAttr(panelId)}" aria-labelledby="${escapeAttr(tabId)}">${body}</div>`
+  );
+}
+
+function tabsGroupName(props: TabsProps): string {
+  const group = props.binding?.name ?? (props.id === undefined ? DEFAULT_TABS_NAME : `tabs-${props.id}`);
+  if (props.binding === undefined) {
+    requireText("tabs", "radio group name", group);
+  }
+  return group;
+}
+
+function tabsLabel(props: TabsProps): string {
+  if (props.caption === undefined) return "";
+  const caption = resolveCaption(props.caption, props.context);
+  if (caption === "") {
+    throw new Error("tabs caption must not be empty");
+  }
+  return ` aria-label="${escapeAttr(caption)}"`;
+}
+
 export async function tabs(props: TabsProps): Promise<string> {
   const modifiers = appearanceClasses("tabs", "tabs", pickAppearance(props));
   const items = props.items ?? [];
@@ -154,59 +250,18 @@ export async function tabs(props: TabsProps): Promise<string> {
   }
   const options = props.binding === undefined ? undefined : checkedBinding("tabs", props.binding);
   if (options !== undefined) {
-    for (const item of items) {
-      if (!options.has(item.value)) {
-        throw new Error(`tabs item ${JSON.stringify(item.value)} is not a listed option`);
-      }
-    }
-    for (const value of options) {
-      if (!items.some((item) => item.value === value) && items.length > 0) {
-        throw new Error(`tabs option ${JSON.stringify(value)} has no tab panel`);
-      }
-    }
+    checkTabsCorrespondence(items, options);
   }
   if (items.filter((item) => item.open === true).length > 1) {
     throw new Error("tabs admits at most one open item");
   }
-  const group = props.binding?.name ?? (props.id === undefined ? DEFAULT_TABS_NAME : `tabs-${props.id}`);
-  if (props.binding === undefined) {
-    requireText("tabs", "radio group name", group);
-  }
-  let label = "";
-  if (props.caption !== undefined) {
-    const caption = resolveCaption(props.caption, props.context);
-    if (caption === "") {
-      throw new Error("tabs caption must not be empty");
-    }
-    label = ` aria-label="${escapeAttr(caption)}"`;
-  }
+  const group = tabsGroupName(props);
+  const label = tabsLabel(props);
 
   const postTo = props.binding === undefined ? undefined : operationPostPath(props.binding.postTo);
 
-  // Selector-only bound tabset: no panels, just the preference form.
   if (items.length === 0 && props.binding !== undefined) {
-    const binding = props.binding;
-    const legend =
-      props.caption === undefined
-        ? ""
-        : `<legend>${escapeHtml(resolveCaption(props.caption, props.context))}</legend>`;
-    const radios = binding.options
-      .map(
-        (option) =>
-          `<input type="radio" class="tab" name="${escapeAttr(binding.name)}" value="${escapeAttr(option.value)}"` +
-          ` aria-label="${escapeAttr(resolveCaption(option.label, props.context))}"` +
-          (option.value === binding.current ? " checked" : "") +
-          `>`,
-      )
-      .join("");
-    const save = escapeHtml(resolveCaption(SAVE_LABEL, props.context));
-    return (
-      `<form action="${escapeAttr(postTo!)}" method="post" class="can-preference-tabs"${idAttr("tabs", props.id)}>` +
-      `<input type="hidden" name="${escapeAttr(CSRF_FIELD)}" value="${escapeAttr(props.context.csrfToken)}">` +
-      (binding.version === undefined ? "" : `<input type="hidden" name="_version" value="${escapeAttr(binding.version)}">`) +
-      `<fieldset>${legend}<div class="${escapeAttr(joinClasses("tabs tabs-border", modifiers))}">${radios}</div></fieldset>` +
-      `<div class="flex gap-2"><button type="submit" class="btn btn-primary" data-can-standard-submit>${save}</button></div></form>`
-    );
+    return tabsSelectorForm(props, props.binding, postTo!, modifiers);
   }
 
   const nameAttr = escapeAttr(group);
@@ -215,31 +270,9 @@ export async function tabs(props: TabsProps): Promise<string> {
   // (two default sets, or two sets bound to one preference without ids)
   // collide: callers must pass distinct ids (the megamenu rule).
   const idPrefix = props.id ?? group;
-  const defaultValue =
-    items.find((item) => item.open === true)?.value ??
-    (props.binding?.current !== undefined && items.some((item) => item.value === props.binding?.current)
-      ? (props.binding?.current as string)
-      : items[0]?.value);
+  const defaultValue = tabsDefaultValue(items, () => props.binding?.current);
   const panels = await Promise.all(
-    items.map(async (item, index) => {
-      requireText("tabs item", "value", item.value);
-      const caption = resolveCaption(item.caption, props.context);
-      if (caption === "") {
-        throw new Error("tabs item caption must not be empty");
-      }
-      const body = await renderKids("tabs item", item.children);
-      const selected = item.value === defaultValue;
-      const panelId = `${idPrefix}-panel-${String(index)}`;
-      const tabId = `${idPrefix}-tab-${String(index)}`;
-      return (
-        `<input type="radio" class="tab" role="tab" id="${escapeAttr(tabId)}" name="${nameAttr}"` +
-        ` value="${escapeAttr(item.value)}" aria-label="${escapeAttr(caption)}"` +
-        ` aria-selected="${selected ? "true" : "false"}" aria-controls="${escapeAttr(panelId)}"` +
-        (selected ? " checked" : "") +
-        ` />` +
-        `<div class="tab-content" role="tabpanel" id="${escapeAttr(panelId)}" aria-labelledby="${escapeAttr(tabId)}">${body}</div>`
-      );
-    }),
+    items.map(async (item, index) => tabsPanel(item, index, props.context, nameAttr, idPrefix, defaultValue)),
   );
   const setId = props.binding === undefined ? idAttr("tabs", props.id) : "";
   const container = escapeAttr(joinClasses("tabs", modifiers));
@@ -362,6 +395,47 @@ async function renderHistoryEntries(props: Pick<HistoryProps, "context" | "capti
   return `<ul${idAttr("history", props.id)}${label}>${items.join("")}</ul>`;
 }
 
+function historyRowIdentity(props: HistoryProps): { model: string; recordId: string; version: string; record: HistoryProps["record"] } {
+  const record = props.record;
+  const id = typeof record === "object" && record !== null ? Object.getOwnPropertyDescriptor(record, "id") : undefined;
+  const version = typeof record === "object" && record !== null ? Object.getOwnPropertyDescriptor(record, "version") : undefined;
+  if (typeof props.model !== "string" || props.model === "" ||
+      id === undefined || !("value" in id) || typeof id.value !== "string" || id.value === "" ||
+      version === undefined || !("value" in version) || typeof version.value !== "string" || !/^[1-9]\d*$/.test(version.value)) {
+    throw new TypeError("history needs an original projected model/row/version");
+  }
+  return { model: props.model, recordId: id.value, version: version.value, record };
+}
+
+async function readSourceHistory(
+  props: HistoryProps,
+  model: string,
+  recordId: string,
+  version: string,
+  record: HistoryProps["record"],
+): Promise<readonly Omit<HistoryEntry, "auditProjection">[] | undefined> {
+  if (props.context.readHistory === undefined) return undefined;
+  let result;
+  let refused = false;
+  try {
+    result = await props.context.readHistory({ model, record: record! });
+  } catch (error) {
+    const refusal = typeof error === "object" && error !== null &&
+      (("code" in error && BUSINESS_ERROR_CODES.some(code => code === error.code)) ||
+        ("name" in error && error.name === "FenceConflictError"));
+    if (!refusal) throw error;
+    refused = true;
+  }
+  if (refused) return undefined;
+  if (result === undefined || result === null || !Number.isSafeInteger(result.revision) || result.revision < 0 ||
+    !Array.isArray(result.entries) || result.entries.some(entry =>
+    entry.model !== model || entry.recordId !== recordId || Object.hasOwn(entry, "auditProjection")) ||
+    result.entries.length !== 0 && String(result.entries[result.entries.length - 1]!.version) !== version) {
+    throw new TypeError("history reader returned an unbound or unprojected result");
+  }
+  return result.entries;
+}
+
 /** Source history consumes only the current admitted scope's projected reader. */
 export async function history(props: HistoryProps): Promise<string> {
   if (Object.hasOwn(props, "entries")) {
@@ -371,37 +445,8 @@ export async function history(props: HistoryProps): Promise<string> {
     return renderHistoryEntries(props);
   }
   appearanceClasses("history", "history", pickAppearance(props));
-  const record = props.record;
-  const id = typeof record === "object" && record !== null ? Object.getOwnPropertyDescriptor(record, "id") : undefined;
-  const version = typeof record === "object" && record !== null ? Object.getOwnPropertyDescriptor(record, "version") : undefined;
-  if (typeof props.model !== "string" || props.model === "" ||
-      id === undefined || !("value" in id) || typeof id.value !== "string" || id.value === "" ||
-      version === undefined || !("value" in version) || typeof version.value !== "string" || !/^[1-9]\d*$/.test(version.value)) {
-    throw new TypeError("history needs an original projected model/row/version");
-  }
-  let entries: readonly Omit<HistoryEntry, "auditProjection">[] | undefined;
-  if (props.context.readHistory !== undefined) {
-    let result;
-    let refused = false;
-    try {
-      result = await props.context.readHistory({ model: props.model, record: record! });
-    } catch (error) {
-      const refusal = typeof error === "object" && error !== null &&
-        (("code" in error && BUSINESS_ERROR_CODES.some(code => code === error.code)) ||
-          ("name" in error && error.name === "FenceConflictError"));
-      if (!refusal) throw error;
-      refused = true;
-    }
-    if (!refused) {
-      if (result === undefined || result === null || !Number.isSafeInteger(result.revision) || result.revision < 0 ||
-        !Array.isArray(result.entries) || result.entries.some(entry =>
-        entry.model !== props.model || entry.recordId !== id.value || Object.hasOwn(entry, "auditProjection")) ||
-        result.entries.length !== 0 && String(result.entries[result.entries.length - 1]!.version) !== version.value) {
-        throw new TypeError("history reader returned an unbound or unprojected result");
-      }
-      entries = result.entries;
-    }
-  }
+  const { model, recordId, version, record } = historyRowIdentity(props);
+  const entries = await readSourceHistory(props, model, recordId, version, record);
   const body = entries === undefined
     ? `<p role="status" data-can-history="unavailable">${escapeHtml(resolveCaption(HISTORY_UNAVAILABLE, props.context))}</p>`
     : entries.length === 0

@@ -11,6 +11,18 @@ interface ActionGroup {
 /** A canonical group is one complete div root, never a declaration's joined
  * sibling output. Quoted attributes, comments and raw text do not affect the
  * wrapper depth; nested canonical forms/dialogs remain opaque and intact. */
+function tagEnd(html: string, start: number): number {
+  let end = start + 1;
+  let quote = '';
+  for (; end < html.length; end++) {
+    const char = html[end];
+    if (quote !== '') { if (char === quote) quote = ''; }
+    else if (char === '"' || char === "'") quote = char;
+    else if (char === '>') break;
+  }
+  return end;
+}
+
 function singleDivRoot(html: string): boolean {
   let depth = 0;
   let cursor = 0;
@@ -31,14 +43,7 @@ function singleDivRoot(html: string): boolean {
       cursor = end + 3;
       continue;
     }
-    let end = start + 1;
-    let quote = '';
-    for (; end < html.length; end++) {
-      const char = html[end];
-      if (quote !== '') { if (char === quote) quote = ''; }
-      else if (char === '"' || char === "'") quote = char;
-      else if (char === '>') break;
-    }
+    const end = tagEnd(html, start);
     if (end === html.length) return false;
     const tag = html.slice(start, end + 1);
     const parsed = /^<(\/)?([a-z][a-z0-9:-]*)\b/i.exec(tag);

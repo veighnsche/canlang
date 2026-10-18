@@ -242,6 +242,49 @@ export async function content(props: ContentProps): Promise<string> {
 /** Stamp semantic HTML with the existing CSS ownership hooks, without wrappers.
  * Already-owned children expose their host to the parent and retain their interior.
  */
+function stampTagEnd(html: string, start: number): number {
+  let end = start + 1, quote = "";
+  for (; end < html.length; end++) {
+    const char = html[end];
+    if (quote) { if (char === quote) quote = ""; }
+    else if (char === '"' || char === "'") quote = char;
+    else if (char === ">") break;
+  }
+  return end;
+}
+
+function stampOpenTag(
+  tag: string,
+  name: string,
+  stack: Array<{ name: string; blocked: boolean }>,
+  unitId: string,
+  useId: string,
+  voids: ReadonlySet<string>,
+  attr: (tag: string, name: string) => string | undefined,
+  add: (tag: string, name: string, value: string) => string,
+): string {
+  const inheritedBlock = stack[stack.length - 1]?.blocked ?? false;
+  const existing = attr(tag, "data-can-style");
+  const ownRoot = stack.length === 0 && existing === unitId;
+  // Standard action primitives own their appearance; generated styles may
+  // arrange the containing region but never acquire their control subtree.
+  const standardAction = /\sdata-can-(?:primary-actions|action-menu|standard-submit)(?:\s|>|=)/.test(tag);
+  const boundary = standardAction || (!ownRoot && (existing !== undefined || (stack.length > 0 && /\sdata-can-view\s*=/.test(tag))));
+  let stamped = tag;
+  if (!inheritedBlock) {
+    if (boundary) {
+      stamped = add(stamped, "data-can-style-host", unitId);
+      if (stack.length === 0) stamped = add(stamped, "data-can-style-root", `${unitId}:${useId}`);
+    }
+    else {
+      if (existing === undefined) stamped = add(stamped, "data-can-style", unitId);
+      if (stack.length === 0) stamped = add(stamped, "data-can-style-root", `${unitId}:${useId}`);
+    }
+  }
+  if (!voids.has(name) && !/\/\s*>$/.test(stamped)) stack.push({ name, blocked: inheritedBlock || boundary });
+  return stamped;
+}
+
 function stampStyledHtml(html: string, unitId: string, useId: string): string {
   if (!/^[a-z0-9][a-z0-9-]*$/.test(unitId) || !useId) throw new Error("Invalid compiler style identity");
   const stack: Array<{name:string; blocked:boolean}> = [];
@@ -276,13 +319,7 @@ function stampStyledHtml(html: string, unitId: string, useId: string): string {
       const next = end < 0 ? html.length : end + 3;
       output += html.slice(start, next); cursor = next; continue;
     }
-    let end = start + 1, quote = "";
-    for (; end < html.length; end++) {
-      const char = html[end];
-      if (quote) { if (char === quote) quote = ""; }
-      else if (char === '"' || char === "'") quote = char;
-      else if (char === ">") break;
-    }
+    const end = stampTagEnd(html, start);
     if (end === html.length) { output += html.slice(start); break; }
     let tag = html.slice(start, end + 1);
     const parsed = /^<(\/)?([A-Za-z][A-Za-z0-9:-]*)\b/.exec(tag);
@@ -292,24 +329,7 @@ function stampStyledHtml(html: string, unitId: string, useId: string): string {
       const index = stack.map(entry => entry.name).lastIndexOf(name);
       if (index >= 0) stack.splice(index);
     } else {
-      const inheritedBlock = stack[stack.length - 1]?.blocked ?? false;
-      const existing = attr(tag, "data-can-style");
-      const ownRoot = stack.length === 0 && existing === unitId;
-      // Standard action primitives own their appearance; generated styles may
-      // arrange the containing region but never acquire their control subtree.
-      const standardAction = /\sdata-can-(?:primary-actions|action-menu|standard-submit)(?:\s|>|=)/.test(tag);
-      const boundary = standardAction || (!ownRoot && (existing !== undefined || (stack.length > 0 && /\sdata-can-view\s*=/.test(tag))));
-      if (!inheritedBlock) {
-        if (boundary) {
-          tag = add(tag, "data-can-style-host", unitId);
-          if (stack.length === 0) tag = add(tag, "data-can-style-root", `${unitId}:${useId}`);
-        }
-        else {
-          if (existing === undefined) tag = add(tag, "data-can-style", unitId);
-          if (stack.length === 0) tag = add(tag, "data-can-style-root", `${unitId}:${useId}`);
-        }
-      }
-      if (!voids.has(name) && !/\/\s*>$/.test(tag)) stack.push({name,blocked:inheritedBlock || boundary});
+      tag = stampOpenTag(tag, name, stack, unitId, useId, voids, attr, add);
     }
     output += tag; cursor = end + 1;
   }

@@ -131,6 +131,19 @@ function asDescriptor(value: unknown): ExportDescriptorModel {
  * contract violation (missing members, mistyped flags, truncated
  * without a descriptor) — host-fatal, never rendered.
  */
+function parseExportColumns(columns: unknown): Array<{ field: string; label: string }> {
+  if (!Array.isArray(columns)) throw contractError("needs a columns list");
+  const parsedColumns: Array<{ field: string; label: string }> = [];
+  for (const entry of columns) {
+    if (!isRecord(entry) || typeof entry["field"] !== "string") {
+      throw contractError("needs columns with field names");
+    }
+    const label = entry["label"];
+    parsedColumns.push({ field: entry["field"], label: typeof label === "string" ? label : entry["field"] });
+  }
+  return parsedColumns;
+}
+
 export function parseExportPayload(value: unknown): ExportOutcomeModel {
   if (!isRecord(value)) throw contractError("needs an outcome record");
   const operation = value["operation"];
@@ -148,15 +161,7 @@ export function parseExportPayload(value: unknown): ExportOutcomeModel {
   }
   if (typeof truncated !== "boolean") throw contractError("needs a truncated flag");
   if (typeof csv !== "string") throw contractError("needs csv text");
-  if (!Array.isArray(columns)) throw contractError("needs a columns list");
-  const parsedColumns: Array<{ field: string; label: string }> = [];
-  for (const entry of columns) {
-    if (!isRecord(entry) || typeof entry["field"] !== "string") {
-      throw contractError("needs columns with field names");
-    }
-    const label = entry["label"];
-    parsedColumns.push({ field: entry["field"], label: typeof label === "string" ? label : entry["field"] });
-  }
+  const parsedColumns = parseExportColumns(columns);
   const next_cursor = value["next_cursor"];
   if (next_cursor !== undefined && typeof next_cursor !== "string") {
     throw contractError("needs a string next_cursor");
@@ -261,7 +266,7 @@ function cancelledError(): ExportBusinessError {
  * and converts late responses to `{code:'cancelled'}`. An aborted host
  * signal follows the same result contract and requests transport abort.
  */
-export async function submitExportRequest(input: SubmitExportInput): Promise<SubmitExportResult> {
+function checkExportRequest(input: SubmitExportInput): string {
   const rawAction = input.action;
   if (typeof rawAction !== "string" || rawAction === "") {
     throw new Error("submitExportRequest needs a non-empty action");
@@ -273,7 +278,41 @@ export async function submitExportRequest(input: SubmitExportInput): Promise<Sub
   if (typeof input.operation !== "string" || input.operation === "") {
     throw new Error("submitExportRequest needs the operation");
   }
-  if (input.controller?.cancelled || input.signal?.aborted) {
+  return action;
+}
+
+function exportCancelled(input: SubmitExportInput): boolean {
+  return (input.controller?.cancelled || input.signal?.aborted) === true;
+}
+
+async function finishExportRequest(input: SubmitExportInput, response: SubmitFetchResponse): Promise<SubmitExportResult> {
+  if (exportCancelled(input)) {
+    return { ok: false, error: cancelledError() };
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(await response.text());
+  } catch {
+    if (exportCancelled(input)) {
+      return { ok: false, error: cancelledError() };
+    }
+    return { ok: false, error: transportError(`Export request failed (status ${String(response.status)}).`) };
+  }
+  if (exportCancelled(input)) {
+    return { ok: false, error: cancelledError() };
+  }
+  if (response.status < 200 || response.status >= 300 || Number.isNaN(response.status)) {
+    return {
+      ok: false,
+      error: digestExportError(parsed) ?? transportError(`Export request failed (status ${String(response.status)}).`),
+    };
+  }
+  return { ok: true, outcome: parseExportPayload(parsed) };
+}
+
+export async function submitExportRequest(input: SubmitExportInput): Promise<SubmitExportResult> {
+  const action = checkExportRequest(input);
+  if (exportCancelled(input)) {
     return { ok: false, error: cancelledError() };
   }
   let response: SubmitFetchResponse;
@@ -294,33 +333,12 @@ export async function submitExportRequest(input: SubmitExportInput): Promise<Sub
       }),
     });
   } catch {
-    if (input.controller?.cancelled || input.signal?.aborted) {
+    if (exportCancelled(input)) {
       return { ok: false, error: cancelledError() };
     }
     return { ok: false, error: transportError("Export request failed.") };
   }
-  if (input.controller?.cancelled || input.signal?.aborted) {
-    return { ok: false, error: cancelledError() };
-  }
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(await response.text());
-  } catch {
-    if (input.controller?.cancelled || input.signal?.aborted) {
-      return { ok: false, error: cancelledError() };
-    }
-    return { ok: false, error: transportError(`Export request failed (status ${String(response.status)}).`) };
-  }
-  if (input.controller?.cancelled || input.signal?.aborted) {
-    return { ok: false, error: cancelledError() };
-  }
-  if (response.status < 200 || response.status >= 300 || Number.isNaN(response.status)) {
-    return {
-      ok: false,
-      error: digestExportError(parsed) ?? transportError(`Export request failed (status ${String(response.status)}).`),
-    };
-  }
-  return { ok: true, outcome: parseExportPayload(parsed) };
+  return finishExportRequest(input, response);
 }
 
 /**

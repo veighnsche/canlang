@@ -21,6 +21,23 @@ export interface AppearanceOpts {
   readonly orientation?: AppearanceOrientation;
 }
 
+function pushAppearanceToken(
+  classes: string[],
+  base: string,
+  word: string,
+  admitted: readonly string[] | undefined,
+  kind: string,
+  readValue: () => string | undefined,
+): void {
+  // Each stage rereads the token, as the original inline checks did: the
+  // guard, admission and emission each observe the current value.
+  const admittedValue = readValue();
+  if (admittedValue === undefined || !(admitted ?? []).includes(admittedValue)) {
+    throw new Error(`appearanceClasses: word ${JSON.stringify(word)} does not admit ${kind}=${JSON.stringify(readValue())}`);
+  }
+  classes.push(`${base}-${readValue()}`);
+}
+
 /**
  * Render modifier classes for `base` under `word`'s admitted matrix.
  * Throws when a token is not admitted for the word. Orientation maps to
@@ -49,31 +66,19 @@ export function appearanceClasses(
   }
   const classes: string[] = [];
   if (opts.tone !== undefined) {
-    if (!(admitted.tone ?? []).includes(opts.tone)) {
-      throw new Error(`appearanceClasses: word ${JSON.stringify(word)} does not admit tone=${JSON.stringify(opts.tone)}`);
-    }
-    classes.push(`${base}-${opts.tone}`);
+    pushAppearanceToken(classes, base, word, admitted.tone, "tone", () => opts.tone);
   }
   if (opts.size !== undefined) {
-    if (!(admitted.size ?? []).includes(opts.size)) {
-      throw new Error(`appearanceClasses: word ${JSON.stringify(word)} does not admit size=${JSON.stringify(opts.size)}`);
-    }
-    classes.push(`${base}-${opts.size}`);
+    pushAppearanceToken(classes, base, word, admitted.size, "size", () => opts.size);
   }
   if (opts.variant !== undefined && opts.variant !== "solid") {
-    if (!(admitted.variant ?? []).includes(opts.variant)) {
-      throw new Error(`appearanceClasses: word ${JSON.stringify(word)} does not admit variant=${JSON.stringify(opts.variant)}`);
-    }
-    classes.push(`${base}-${opts.variant}`);
+    pushAppearanceToken(classes, base, word, admitted.variant, "variant", () => opts.variant);
   }
   if (opts.variant !== undefined && opts.variant === "solid" && !(admitted.variant ?? []).includes("solid")) {
     throw new Error(`appearanceClasses: word ${JSON.stringify(word)} does not admit variant="solid"`);
   }
   if (opts.orientation !== undefined) {
-    if (!(admitted.orientation ?? []).includes(opts.orientation)) {
-      throw new Error(`appearanceClasses: word ${JSON.stringify(word)} does not admit orientation=${JSON.stringify(opts.orientation)}`);
-    }
-    classes.push(`${base}-${opts.orientation}`);
+    pushAppearanceToken(classes, base, word, admitted.orientation, "orientation", () => opts.orientation);
   }
   return classes.join(" ");
 }

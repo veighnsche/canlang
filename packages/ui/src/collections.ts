@@ -17,6 +17,7 @@ import type {
   GalleryProps,
   ListProps,
   ListQueryArgs,
+  ListQueryResult,
   MessageValue,
   OrderSelector,
   PageChildren,
@@ -223,26 +224,7 @@ function moreNote(props: Pick<ListProps, "context" | "page" | "occurrence">, nex
   return `<p class="can-more" data-cursor="${escapeAttr(nextCursor)}">${caption}</p>`;
 }
 
-/**
- * Render one row list. renderRow receives the shared PresentationContext as
- * its view: row scope arrives via the row argument (closure over renderRow);
- * parent-chain scopes are a later extension.
- */
-export async function list(props: ListProps): Promise<string> {
-  const occurrence = splitOccurrence(props);
-  if (props.controls !== undefined) {
-    assertControls(props.controls, "list");
-    assertConsistentContext(props.context, props.controls.context, "list");
-  }
-  const args = queryArgs(props, "list");
-  const { conditions, where } = prepareSourceFilters(props, "list");
-  const result = await props.context.query(
-    props.context.invocation,
-    props.model,
-    { ...args, ...(where === undefined ? {} : { where }) },
-  );
-  const filterControls = sourceFilterControls(props, conditions, result.columns, result.rows.length === 0, "list");
-  for (const row of result.rows) assertSourceFilterRow(props, row, "list");
+function checkListColumns(props: ListProps, result: ListQueryResult): ColumnMeta[] {
   const metas: ColumnMeta[] = [];
   if (props.columns !== undefined) {
     const byField = new Map(result.columns.map(column => [column.field, column]));
@@ -263,6 +245,51 @@ export async function list(props: ListProps): Promise<string> {
       }
     }
   }
+  return metas;
+}
+
+async function renderListRow(
+  props: ListProps,
+  row: RowView,
+  occurrence: string | undefined,
+  metas: readonly ColumnMeta[],
+): Promise<string> {
+  const selected = metas.length === 0 ? "" : `<dl>${metas.map(meta =>
+    `<dt>${escapeHtml(resolveCaption(meta.label, props.context))}</dt>` +
+    `<dd>${renderCell(meta, row.fields[meta.field], props.context)}</dd>`).join("")}</dl>`;
+  if (occurrence === undefined) {
+    const children = await props.renderRow(row, props.context);
+    const parts = typeof children === "function" ? await children() : children;
+    const { primary, secondary, body } = partitionActionGroups(await Promise.all(parts));
+    const actions = primary + secondary;
+    return actions === "" ? `<li class="list-row">${selected}${body}</li>`
+      : `<li class="list-row" data-can-row-actions><div class="can-row-content">${selected}${body}</div><div class="can-row-actions">${actions}</div></li>`;
+  }
+  const body = `<a href="${escapeAttr(selectionHref(props.context, occurrence, row.id))}"${props.context.collectionSelections?.get(occurrence) === row.id ? ' aria-current="true"' : ""}>${isolate(rowHeading(row, props.model, props.context))}</a>`;
+  return `<li class="list-row">${selected}${body}</li>`;
+}
+
+/**
+ * Render one row list. renderRow receives the shared PresentationContext as
+ * its view: row scope arrives via the row argument (closure over renderRow);
+ * parent-chain scopes are a later extension.
+ */
+export async function list(props: ListProps): Promise<string> {
+  const occurrence = splitOccurrence(props);
+  if (props.controls !== undefined) {
+    assertControls(props.controls, "list");
+    assertConsistentContext(props.context, props.controls.context, "list");
+  }
+  const args = queryArgs(props, "list");
+  const { conditions, where } = prepareSourceFilters(props, "list");
+  const result = await props.context.query(
+    props.context.invocation,
+    props.model,
+    { ...args, ...(where === undefined ? {} : { where }) },
+  );
+  const filterControls = sourceFilterControls(props, conditions, result.columns, result.rows.length === 0, "list");
+  for (const row of result.rows) assertSourceFilterRow(props, row, "list");
+  const metas = checkListColumns(props, result);
   const heading = `${filterControls}${props.search === undefined ? "" : sourceSearchForm(props.context)}` +
     sourceCount(props, result.totalCount);
   if (result.rows.length === 0) {
@@ -273,20 +300,7 @@ export async function list(props: ListProps): Promise<string> {
   }
   const items: string[] = [];
   for (const row of result.rows) {
-    const selected = metas.length === 0 ? "" : `<dl>${metas.map(meta =>
-      `<dt>${escapeHtml(resolveCaption(meta.label, props.context))}</dt>` +
-      `<dd>${renderCell(meta, row.fields[meta.field], props.context)}</dd>`).join("")}</dl>`;
-    if (occurrence === undefined) {
-      const children = await props.renderRow(row, props.context);
-      const parts = typeof children === "function" ? await children() : children;
-      const { primary, secondary, body } = partitionActionGroups(await Promise.all(parts));
-      const actions = primary + secondary;
-      items.push(actions === "" ? `<li class="list-row">${selected}${body}</li>`
-        : `<li class="list-row" data-can-row-actions><div class="can-row-content">${selected}${body}</div><div class="can-row-actions">${actions}</div></li>`);
-    } else {
-      const body = `<a href="${escapeAttr(selectionHref(props.context, occurrence, row.id))}"${props.context.collectionSelections?.get(occurrence) === row.id ? ' aria-current="true"' : ""}>${isolate(rowHeading(row, props.model, props.context))}</a>`;
-      items.push(`<li class="list-row">${selected}${body}</li>`);
-    }
+    items.push(await renderListRow(props, row, occurrence, metas));
   }
   const summaries = `<ul class="list">${items.join("")}</ul>`;
   const rowsHtml = occurrence === undefined ? summaries
@@ -329,6 +343,37 @@ function galleryImageUrls(value: unknown): { previewUrl: string; originalUrl: st
   return { previewUrl: urls.previewUrl!, originalUrl: urls.originalUrl! };
 }
 
+function checkGalleryDeclaration(props: GalleryProps, result: ListQueryResult, rows: RowView[]): void {
+  const imageColumn = result.columns.find(column => column.field === props.image);
+  if (rows.length !== 0 && imageColumn?.type !== "file") throw new Error("gallery: authorized singular File image column required");
+  if (rows.length === 0 && !result.columns.some(column => column.field === props.image && column.type === "file") &&
+      !result.emptyDeclarations?.some(column => column.field === props.image && column.type === "file")) {
+    throw new Error("gallery: checked File image declaration required");
+  }
+  for (const row of rows) {
+    assertSourceFilterRow(props, row, "gallery");
+    const descriptor = Object.getOwnPropertyDescriptor(row.fields, props.image);
+    if (descriptor === undefined || !("value" in descriptor)) throw new Error("gallery: own projected image field required");
+  }
+}
+
+async function renderGalleryItem(
+  props: GalleryProps,
+  row: RowView,
+  image: { previewUrl: string; originalUrl: string } | null,
+  unavailable: string,
+  preview: string,
+  original: string,
+): Promise<string> {
+  const imageCaption = rowHeading(row, props.model, props.context);
+  const body = props.renderRow === undefined ? "" : await resolveChildren(await props.renderRow(row, props.context));
+  const thumbnail = image === null ? `<p role="status">${unavailable}</p>` :
+    `<button type="button" data-can-gallery-preview data-can-preview-url="${escapeAttr(image.previewUrl)}" data-can-original-url="${escapeAttr(image.originalUrl)}" aria-label="${preview}: ${imageCaption}">` +
+    `<img data-can-gallery-thumb src="${escapeAttr(image.previewUrl)}" loading="lazy" alt="${imageCaption}">` +
+    `<span data-can-gallery-thumb-state role="status"></span></button><a data-can-gallery-original href="${escapeAttr(image.originalUrl)}">${original}</a>`;
+  return `<li>${thumbnail}${body}</li>`;
+}
+
 /** Authorized original-image collection; the host owns all File URL authority. */
 export async function gallery(props: GalleryProps): Promise<string> {
   if (typeof props.image !== "string" || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(props.image) ||
@@ -345,17 +390,7 @@ export async function gallery(props: GalleryProps): Promise<string> {
     { ...queryArgs(props, "gallery"), ...(where === undefined ? {} : { where }) });
   const rows = [...result.rows];
   const filterControls = sourceFilterControls(props, conditions, result.columns, rows.length === 0, "gallery");
-  const imageColumn = result.columns.find(column => column.field === props.image);
-  if (rows.length !== 0 && imageColumn?.type !== "file") throw new Error("gallery: authorized singular File image column required");
-  if (rows.length === 0 && !result.columns.some(column => column.field === props.image && column.type === "file") &&
-      !result.emptyDeclarations?.some(column => column.field === props.image && column.type === "file")) {
-    throw new Error("gallery: checked File image declaration required");
-  }
-  for (const row of rows) {
-    assertSourceFilterRow(props, row, "gallery");
-    const descriptor = Object.getOwnPropertyDescriptor(row.fields, props.image);
-    if (descriptor === undefined || !("value" in descriptor)) throw new Error("gallery: own projected image field required");
-  }
+  checkGalleryDeclaration(props, result, rows);
   const heading = filterControls + (props.search === undefined ? "" : sourceSearchForm(props.context)) + sourceCount(props, result.totalCount);
   const resolver = props.context.resolveFileImage;
   const images: Array<{ previewUrl: string; originalUrl: string } | null> = [];
@@ -369,14 +404,7 @@ export async function gallery(props: GalleryProps): Promise<string> {
   const titleId = `can-gallery-${Array.from({ length: scope.length }, (_, index) => scope.charCodeAt(index).toString(16).padStart(4, "0")).join("")}-title`;
   const items: string[] = [];
   for (const [index, row] of rows.entries()) {
-    const image = images[index]!;
-    const imageCaption = rowHeading(row, props.model, props.context);
-    const body = props.renderRow === undefined ? "" : await resolveChildren(await props.renderRow(row, props.context));
-    const thumbnail = image === null ? `<p role="status">${unavailable}</p>` :
-      `<button type="button" data-can-gallery-preview data-can-preview-url="${escapeAttr(image.previewUrl)}" data-can-original-url="${escapeAttr(image.originalUrl)}" aria-label="${preview}: ${imageCaption}">` +
-      `<img data-can-gallery-thumb src="${escapeAttr(image.previewUrl)}" loading="lazy" alt="${imageCaption}">` +
-      `<span data-can-gallery-thumb-state role="status"></span></button><a data-can-gallery-original href="${escapeAttr(image.originalUrl)}">${original}</a>`;
-    items.push(`<li>${thumbnail}${body}</li>`);
+    items.push(await renderGalleryItem(props, row, images[index]!, unavailable, preview, original));
   }
   const body = rows.length === 0 ? (props.controls === undefined
     ? await renderState({ context: props.context, kind: "empty", message: props.empty ?? EMPTY_COLLECTION })
@@ -430,6 +458,84 @@ export function assertSourceFilterRow(props: SourceFilterProps, row: RowView, fa
   }
 }
 
+function filterLabeledInput(
+  context: PresentationContext,
+  meta: ColumnMeta,
+  name: string,
+  inputType: string,
+  numeric: boolean,
+  current: string,
+): string {
+  return `<label for="${escapeAttr(name)}">${escapeHtml(resolveCaption(meta.label, context))}</label>` +
+    `<input type="${inputType}"${numeric ? ' inputmode="numeric"' : ""} id="${escapeAttr(name)}" name="${escapeAttr(name)}" value="${escapeAttr(current)}" class="input">`;
+}
+
+function filterEnumControl(
+  context: PresentationContext,
+  field: ColumnMeta,
+  meta: ColumnMeta,
+  name: string,
+  selected: ReadonlyMap<string, unknown>,
+): string {
+  // Conditions carry typed values (bool toggles arrive as booleans);
+  // controls compare against the stable option spellings ("true"/case).
+  const selectedValue = selected.get(field.field);
+  const value = selectedValue === undefined || selectedValue === null ? "" : String(selectedValue);
+  const options = `<option value=""${value === "" ? " selected" : ""}>${escapeHtml(resolveCaption(CLEAR_FILTER, context))}</option>` +
+    Object.entries(field.valueLabels!).map(([choice, label]) => `<option value="${escapeAttr(choice)}"${choice === value ? " selected" : ""}>${escapeHtml(resolveCaption(meta.valueLabels?.[choice] ?? label, context))}</option>`).join("");
+  return `<label for="${escapeAttr(name)}">${escapeHtml(resolveCaption(meta.label, context))}</label>` +
+    `<select id="${escapeAttr(name)}" name="${escapeAttr(name)}" class="select">${options}</select>`;
+}
+
+function filterFieldControl(
+  context: PresentationContext,
+  field: ColumnMeta,
+  meta: ColumnMeta,
+  name: string,
+  selected: ReadonlyMap<string, unknown>,
+): string {
+  // Reference controls take an opaque identity (the DESIGN 1034
+  // fallback: opaque-reference entry without a candidate directory),
+  // never an enum spelling. Descriptor value labels, if any, are
+  // ignored by construction.
+  if (field.type === "user" || field.type === "member" ||
+      (typeof field.type === "string" && field.type.startsWith("ref:"))) {
+    const selectedValue = selected.get(field.field);
+    const current = typeof selectedValue === "object" && selectedValue !== null &&
+      typeof (selectedValue as { readonly id?: unknown }).id === "string"
+      ? (selectedValue as { readonly id: string }).id : "";
+    return filterLabeledInput(context, meta, name, "text", false, current);
+  }
+  // C2 text-equality controls (DESIGN 975 scalar + operator table):
+  // a free-text input carrying the current exact value. Text is not
+  // finite-choice, so unlike the select below it offers no option
+  // inventory; it mirrors the reference opaque entry but submits the
+  // raw string instead of an `{id}` identity.
+  if (field.type === "text") {
+    const selectedValue = selected.get(field.field);
+    return filterLabeledInput(context, meta, name, "text", false,
+      typeof selectedValue === "string" ? selectedValue : "");
+  }
+  // C3 civil-date equality controls (DESIGN 1015-1025 operator
+  // table): a date input carrying the current civil `YYYY-MM-DD`
+  // value. Dates are not finite-choice, so unlike the select below
+  // the control offers no option inventory; the browser date picker
+  // submits the same wire string the preparer validates.
+  if (field.type === "date") {
+    const selectedValue = selected.get(field.field);
+    return filterLabeledInput(context, meta, name, "date", false,
+      typeof selectedValue === "string" ? selectedValue : "");
+  }
+  if (field.type === "int" || field.type === "datetime" || field.type === "currency") {
+    const selectedValue = selected.get(field.field);
+    // Exact instants use their canonical RFC3339 UTC representation rather
+    // than silently interpreting datetime-local text in a browser zone.
+    return filterLabeledInput(context, meta, name, "text", field.type === "int",
+      typeof selectedValue === "string" ? selectedValue : "");
+  }
+  return filterEnumControl(context, field, meta, name, selected);
+}
+
 /** Render current source selections only after the owning query has authorized them. */
 export function sourceFilterControls(
   props: SourceFilterProps,
@@ -467,60 +573,52 @@ export function sourceFilterControls(
     const meta = byField.get(field.field);
     if (meta === undefined) throw new Error(`${factory}: missing authorized filter field "${field.field}"`);
     const name = collectionFilterName(occurrence, field.field);
-    // Reference controls take an opaque identity (the DESIGN 1034
-    // fallback: opaque-reference entry without a candidate directory),
-    // never an enum spelling. Descriptor value labels, if any, are
-    // ignored by construction.
-    if (field.type === "user" || field.type === "member" ||
-        (typeof field.type === "string" && field.type.startsWith("ref:"))) {
-      const selectedValue = selected.get(field.field);
-      const current = typeof selectedValue === "object" && selectedValue !== null &&
-        typeof (selectedValue as { readonly id?: unknown }).id === "string"
-        ? (selectedValue as { readonly id: string }).id : "";
-      return `<label for="${escapeAttr(name)}">${escapeHtml(resolveCaption(meta.label, props.context))}</label>` +
-        `<input type="text" id="${escapeAttr(name)}" name="${escapeAttr(name)}" value="${escapeAttr(current)}" class="input">`;
-    }
-    // C2 text-equality controls (DESIGN 975 scalar + operator table):
-    // a free-text input carrying the current exact value. Text is not
-    // finite-choice, so unlike the select below it offers no option
-    // inventory; it mirrors the reference opaque entry but submits the
-    // raw string instead of an `{id}` identity.
-    if (field.type === "text") {
-      const selectedValue = selected.get(field.field);
-      const current = typeof selectedValue === "string" ? selectedValue : "";
-      return `<label for="${escapeAttr(name)}">${escapeHtml(resolveCaption(meta.label, props.context))}</label>` +
-        `<input type="text" id="${escapeAttr(name)}" name="${escapeAttr(name)}" value="${escapeAttr(current)}" class="input">`;
-    }
-    // C3 civil-date equality controls (DESIGN 1015-1025 operator
-    // table): a date input carrying the current civil `YYYY-MM-DD`
-    // value. Dates are not finite-choice, so unlike the select below
-    // the control offers no option inventory; the browser date picker
-    // submits the same wire string the preparer validates.
-    if (field.type === "date") {
-      const selectedValue = selected.get(field.field);
-      const current = typeof selectedValue === "string" ? selectedValue : "";
-      return `<label for="${escapeAttr(name)}">${escapeHtml(resolveCaption(meta.label, props.context))}</label>` +
-        `<input type="date" id="${escapeAttr(name)}" name="${escapeAttr(name)}" value="${escapeAttr(current)}" class="input">`;
-    }
-    if (field.type === "int" || field.type === "datetime" || field.type === "currency") {
-      const selectedValue = selected.get(field.field);
-      const current = typeof selectedValue === "string" ? selectedValue : "";
-      // Exact instants use their canonical RFC3339 UTC representation rather
-      // than silently interpreting datetime-local text in a browser zone.
-      return `<label for="${escapeAttr(name)}">${escapeHtml(resolveCaption(meta.label, props.context))}</label>` +
-        `<input type="text"${field.type === "int" ? ' inputmode="numeric"' : ''} id="${escapeAttr(name)}" name="${escapeAttr(name)}" value="${escapeAttr(current)}" class="input">`;
-    }
-    // Conditions carry typed values (bool toggles arrive as booleans);
-    // controls compare against the stable option spellings ("true"/case).
-    const selectedValue = selected.get(field.field);
-    const value = selectedValue === undefined || selectedValue === null ? "" : String(selectedValue);
-    const options = `<option value=""${value === "" ? " selected" : ""}>${escapeHtml(resolveCaption(CLEAR_FILTER, props.context))}</option>` +
-      Object.entries(field.valueLabels!).map(([choice, label]) => `<option value="${escapeAttr(choice)}"${choice === value ? " selected" : ""}>${escapeHtml(resolveCaption(meta.valueLabels?.[choice] ?? label, props.context))}</option>`).join("");
-    return `<label for="${escapeAttr(name)}">${escapeHtml(resolveCaption(meta.label, props.context))}</label>` +
-      `<select id="${escapeAttr(name)}" name="${escapeAttr(name)}" class="select">${options}</select>`;
+    return filterFieldControl(props.context, field, meta, name, selected);
   }).join("");
   return `<form method="get" action="${action}" data-can-${factory === "calendar agenda" ? "agenda" : factory}-filters>${hidden(name => name.startsWith(prefix))}${controls}` +
     `<button type="submit" class="btn">${escapeHtml(resolveCaption(APPLY_FILTERS, props.context))}</button></form>`;
+}
+
+function checkTableColumns(props: TableProps, result: ListQueryResult, byField: Map<string, ColumnMeta>): ColumnMeta[] {
+  // Empty declaration evidence validates source names; it grants no rendered metadata.
+  const validationFields = result.rows.length === 0 && result.emptyDeclarations !== undefined
+    ? new Set(result.emptyDeclarations.map((column) => column.field)) : new Set(byField.keys());
+  const missing = props.columns.filter((field) => !validationFields.has(field));
+  if (missing.length > 0) {
+    throw new Error(`table "${props.model}": missing columns: ${missing.join(", ")}`);
+  }
+  const metas: ColumnMeta[] = [];
+  if (result.rows.length !== 0) {
+    for (const field of props.columns) {
+      const meta = byField.get(field);
+      if (meta === undefined) {
+        // Unreachable: missing fields threw above.
+        throw new Error(`table "${props.model}": missing columns: ${field}`);
+      }
+      metas.push(meta);
+    }
+  }
+  return metas;
+}
+
+async function renderTableRow(
+  props: TableProps,
+  row: RowView,
+  occurrence: string | undefined,
+  metas: readonly ColumnMeta[],
+): Promise<{ cells: string; selection: string; actions: string; detail: string }> {
+  const cells = metas
+    .map((meta) => `<td>${renderCell(meta, row.fields[meta.field], props.context)}</td>`)
+    .join("");
+  const selection = occurrence === undefined ? ""
+    : `<td><a href="${escapeAttr(selectionHref(props.context, occurrence, row.id))}"${props.context.collectionSelections?.get(occurrence) === row.id ? ' aria-current="true"' : ""}>${escapeHtml(resolveCaption(OPEN_DETAILS, props.context))}</a></td>`;
+  if (occurrence === undefined && props.renderRow !== undefined) {
+    const children = await props.renderRow(row, props.context);
+    const parts = typeof children === "function" ? await children() : children;
+    const { primary, secondary, body: detail } = partitionActionGroups(await Promise.all(parts));
+    return { cells, selection, actions: primary + secondary, detail };
+  }
+  return { cells, selection, actions: "", detail: "" };
 }
 
 /** Render one model table over the requested column subset. */
@@ -543,13 +641,7 @@ export async function table(props: TableProps): Promise<string> {
   for (const column of result.columns) {
     byField.set(column.field, column);
   }
-  // Empty declaration evidence validates source names; it grants no rendered metadata.
-  const validationFields = result.rows.length === 0 && result.emptyDeclarations !== undefined
-    ? new Set(result.emptyDeclarations.map((column) => column.field)) : new Set(byField.keys());
-  const missing = props.columns.filter((field) => !validationFields.has(field));
-  if (missing.length > 0) {
-    throw new Error(`table "${props.model}": missing columns: ${missing.join(", ")}`);
-  }
+  const metas = checkTableColumns(props, result, byField);
   const searchForm = props.search === undefined ? "" : sourceSearchForm(props.context);
   if (result.rows.length === 0) {
     if (props.controls === undefined) {
@@ -557,32 +649,13 @@ export async function table(props: TableProps): Promise<string> {
     }
     return filterControls + searchForm + await wrapWithControls(props.controls, await emptyBody(props.controls, props), props);
   }
-  const metas: ColumnMeta[] = [];
-  for (const field of props.columns) {
-    const meta = byField.get(field);
-    if (meta === undefined) {
-      // Unreachable: missing fields threw above.
-      throw new Error(`table "${props.model}": missing columns: ${field}`);
-    }
-    metas.push(meta);
-  }
   let head = metas
     .map((meta) => `<th scope="col">${escapeHtml(resolveCaption(meta.label, props.context))}</th>`)
     .join("") + (occurrence === undefined ? "" : `<th scope="col">${escapeHtml(resolveCaption(DETAILS, props.context))}</th>`);
   const body: string[] = [];
   const renderedRows: { cells: string; selection: string; actions: string; detail: string }[] = [];
   for (const row of result.rows) {
-    const cells = metas
-      .map((meta) => `<td>${renderCell(meta, row.fields[meta.field], props.context)}</td>`)
-      .join("");
-    const selection = occurrence === undefined ? ""
-      : `<td><a href="${escapeAttr(selectionHref(props.context, occurrence, row.id))}"${props.context.collectionSelections?.get(occurrence) === row.id ? ' aria-current="true"' : ""}>${escapeHtml(resolveCaption(OPEN_DETAILS, props.context))}</a></td>`;
-    if (occurrence === undefined && props.renderRow !== undefined) {
-      const children = await props.renderRow(row, props.context);
-      const parts = typeof children === "function" ? await children() : children;
-      const { primary, secondary, body: detail } = partitionActionGroups(await Promise.all(parts));
-      renderedRows.push({ cells, selection, actions: primary + secondary, detail });
-    } else renderedRows.push({ cells, selection, actions: "", detail: "" });
+    renderedRows.push(await renderTableRow(props, row, occurrence, metas));
   }
   const hasActions = renderedRows.some(row => row.actions !== "");
   if (hasActions) head += `<th scope="col">${escapeHtml(resolveCaption(message("Actions", { nl: "Acties" }), props.context))}</th>`;
@@ -822,18 +895,7 @@ function assertOrder(selector: OrderSelector, index: number): void {
  * string hrefs/cursors/query, and the closed filter/order matrices. Throws;
  * never coerces or drops a malformed condition.
  */
-function assertControls(controls: CollectionControls, factory: string): void {
-  if (controls === null || typeof controls !== "object" || Array.isArray(controls)) {
-    throw new Error(`${factory}: controls must be an object`);
-  }
-  try {
-    assertRegionId(controls.regionId);
-  } catch {
-    throw new Error(`${factory}: invalid regionId`);
-  }
-  if (typeof controls.baseHref !== "string") {
-    throw new TypeError(`${factory}: controls.baseHref must be a string`);
-  }
+function assertControlsSearch(controls: CollectionControls, factory: string): void {
   if (controls.search !== undefined) {
     if (
       controls.search === null ||
@@ -843,18 +905,27 @@ function assertControls(controls: CollectionControls, factory: string): void {
       throw new Error(`${factory}: controls.search.query must be a string`);
     }
   }
+}
+
+function assertControlsFilters(controls: CollectionControls, factory: string): void {
   if (controls.filters !== undefined) {
     if (!Array.isArray(controls.filters)) {
       throw new Error(`${factory}: controls.filters must be an array`);
     }
     controls.filters.forEach((condition, index) => assertFilter(condition, index));
   }
+}
+
+function assertControlsOrder(controls: CollectionControls, factory: string): void {
   if (controls.order !== undefined) {
     if (!Array.isArray(controls.order)) {
       throw new Error(`${factory}: controls.order must be an array`);
     }
     controls.order.forEach((selector, index) => assertOrder(selector, index));
   }
+}
+
+function assertControlsPagination(controls: CollectionControls, factory: string): void {
   if (controls.pagination !== undefined) {
     const pagination = controls.pagination;
     if (pagination === null || typeof pagination !== "object" || Array.isArray(pagination)) {
@@ -867,6 +938,24 @@ function assertControls(controls: CollectionControls, factory: string): void {
       throw new Error(`${factory}: controls.pagination.prevCursor must be a string`);
     }
   }
+}
+
+function assertControls(controls: CollectionControls, factory: string): void {
+  if (controls === null || typeof controls !== "object" || Array.isArray(controls)) {
+    throw new Error(`${factory}: controls must be an object`);
+  }
+  try {
+    assertRegionId(controls.regionId);
+  } catch {
+    throw new Error(`${factory}: invalid regionId`);
+  }
+  if (typeof controls.baseHref !== "string") {
+    throw new TypeError(`${factory}: controls.baseHref must be a string`);
+  }
+  assertControlsSearch(controls, factory);
+  assertControlsFilters(controls, factory);
+  assertControlsOrder(controls, factory);
+  assertControlsPagination(controls, factory);
   if (controls.exportHref !== undefined && typeof controls.exportHref !== "string") {
     throw new TypeError(`${factory}: controls.exportHref must be a string`);
   }
@@ -881,7 +970,35 @@ function assertControls(controls: CollectionControls, factory: string): void {
  * baseHref (existing query/fragment preserved). Malformed state throws; a
  * hostile baseHref falls back to "#". Empty q/cursor are omitted.
  */
-export function controlHref(baseHref: string, state: ControlQueryState = {}): string {
+function appendFilterParam(params: URLSearchParams, condition: FilterCondition, index: number): void {
+  assertFilter(condition, index);
+  params.append(`f[${String(index)}][field]`, condition.field);
+  params.append(`f[${String(index)}][op]`, condition.op);
+  if (condition.value !== undefined) {
+    params.append(`f[${String(index)}][value]`, scalarText(condition.value, "filter value"));
+  }
+  if (condition.upper !== undefined) {
+    params.append(`f[${String(index)}][upper]`, scalarText(condition.upper, "filter upper"));
+  }
+}
+
+function appendOrderParam(params: URLSearchParams, selector: OrderSelector, index: number): void {
+  assertOrder(selector, index);
+  params.append(`o[${String(index)}][field]`, selector.field);
+  params.append(`o[${String(index)}][dir]`, selector.direction);
+}
+
+// The single captured read: the original destructured state once, then
+// validated the captured values. Returned in a fresh object so callers reuse
+// the captured values without rereading the source.
+interface CapturedControlQuery {
+  readonly q: ControlQueryState["q"] | undefined;
+  readonly filters: ControlQueryState["filters"] | undefined;
+  readonly order: ControlQueryState["order"] | undefined;
+  readonly cursor: ControlQueryState["cursor"] | undefined;
+}
+
+function checkControlQuery(baseHref: string, state: ControlQueryState): CapturedControlQuery {
   if (typeof baseHref !== "string") {
     throw new TypeError("controlHref baseHref must be a string");
   }
@@ -901,6 +1018,20 @@ export function controlHref(baseHref: string, state: ControlQueryState = {}): st
   if (order !== undefined && !Array.isArray(order)) {
     throw new Error("controlHref order must be an array");
   }
+  return { q, filters, order, cursor };
+}
+
+function joinControlHref(baseHref: string, params: URLSearchParams): string {
+  const query = params.toString();
+  const hash = baseHref.indexOf("#");
+  const path = hash === -1 ? baseHref : baseHref.slice(0, hash);
+  const fragment = hash === -1 ? "" : baseHref.slice(hash);
+  const built = query === "" ? path : `${path}${path.includes("?") ? "&" : "?"}${query}`;
+  return safeHref(`${built}${fragment}`);
+}
+
+export function controlHref(baseHref: string, state: ControlQueryState = {}): string {
+  const { q, filters, order, cursor } = checkControlQuery(baseHref, state);
   if (!isSafeUrl(baseHref)) {
     return "#";
   }
@@ -909,30 +1040,15 @@ export function controlHref(baseHref: string, state: ControlQueryState = {}): st
     params.append("q", q);
   }
   for (const [index, condition] of (filters ?? []).entries()) {
-    assertFilter(condition, index);
-    params.append(`f[${String(index)}][field]`, condition.field);
-    params.append(`f[${String(index)}][op]`, condition.op);
-    if (condition.value !== undefined) {
-      params.append(`f[${String(index)}][value]`, scalarText(condition.value, "filter value"));
-    }
-    if (condition.upper !== undefined) {
-      params.append(`f[${String(index)}][upper]`, scalarText(condition.upper, "filter upper"));
-    }
+    appendFilterParam(params, condition, index);
   }
   for (const [index, selector] of (order ?? []).entries()) {
-    assertOrder(selector, index);
-    params.append(`o[${String(index)}][field]`, selector.field);
-    params.append(`o[${String(index)}][dir]`, selector.direction);
+    appendOrderParam(params, selector, index);
   }
   if (cursor !== undefined && cursor !== "") {
     params.append("cursor", cursor);
   }
-  const query = params.toString();
-  const hash = baseHref.indexOf("#");
-  const path = hash === -1 ? baseHref : baseHref.slice(0, hash);
-  const fragment = hash === -1 ? "" : baseHref.slice(hash);
-  const built = query === "" ? path : `${path}${path.includes("?") ? "&" : "?"}${query}`;
-  return safeHref(`${built}${fragment}`);
+  return joinControlHref(baseHref, params);
 }
 
 /**
@@ -1218,31 +1334,7 @@ async function wrapWithControls(
  * in first-seen row order. Missing/non-string group values and values
  * outside a declared valueLabels universe throw. No drag/drop affordances.
  */
-export async function board(props: BoardProps): Promise<string> {
-  // board admits no appearance matrix: any runtime appearance key throws.
-  appearanceClasses("board", "board", pickAppearance(props));
-  if (typeof props.by !== "string" || props.by === "") {
-    throw new Error("board: by must be a nonempty field name");
-  }
-  if (props.controls !== undefined) {
-    assertControls(props.controls, "board");
-    assertConsistentContext(props.context, props.controls.context, "board");
-  }
-  const args = queryArgs(props, "board");
-  const { conditions, where } = prepareSourceFilters(props, "board");
-  const result = await props.context.query(
-    props.context.invocation,
-    props.model,
-    { ...args, ...(where === undefined ? {} : { where }) },
-  );
-  const filterControls = sourceFilterControls(props, conditions, result.columns, result.rows.length === 0, "board");
-  for (const row of result.rows) assertSourceFilterRow(props, row, "board");
-  const byField = new Map<string, ColumnMeta>();
-  for (const column of result.columns) {
-    byField.set(column.field, column);
-  }
-  const validationMetadata = result.rows.length === 0 && result.emptyDeclarations !== undefined
-    ? new Map(result.emptyDeclarations.map((column) => [column.field, column])) : byField;
+function checkBoardDeclaration(props: BoardProps, validationMetadata: ReadonlyMap<string, { readonly type: string }>): { readonly type: string } {
   const groupDeclaration = validationMetadata.get(props.by);
   if (groupDeclaration === undefined) {
     throw new Error(`board "${props.model}": missing group field: ${props.by}`);
@@ -1256,23 +1348,14 @@ export async function board(props: BoardProps): Promise<string> {
   if (missing.length > 0) {
     throw new Error(`board "${props.model}": missing columns: ${missing.join(", ")}`);
   }
-  if (result.rows.length === 0) {
-    if (props.controls === undefined) {
-      return `${filterControls}${await renderState({ context: props.context, kind: "empty", message: props.empty })}`;
-    }
-    return filterControls + await wrapWithControls(props.controls, await emptyBody(props.controls, props), props);
-  }
-  const byMeta = byField.get(props.by)!;
-  const metas: ColumnMeta[] = [];
-  for (const field of props.columns) {
-    const meta = byField.get(field);
-    if (meta === undefined) {
-      // Unreachable: missing fields threw above.
-      throw new Error(`board "${props.model}": missing columns: ${field}`);
-    }
-    metas.push(meta);
-  }
-  const labels = byMeta.valueLabels;
+  return groupDeclaration;
+}
+
+function groupBoardRows(
+  props: BoardProps,
+  result: ListQueryResult,
+  labels: Record<string, MessageValue> | undefined,
+): Map<string, RowView[]> {
   const groups = new Map<string, RowView[]>();
   if (labels !== undefined) {
     for (const key of Object.keys(labels)) {
@@ -1298,6 +1381,15 @@ export async function board(props: BoardProps): Promise<string> {
       bucket.push(row);
     }
   }
+  return groups;
+}
+
+async function renderBoardSections(
+  groups: Map<string, RowView[]>,
+  labels: Record<string, MessageValue> | undefined,
+  metas: readonly ColumnMeta[],
+  props: BoardProps,
+): Promise<string[]> {
   // Ordered evaluation: each card body runs sequentially in authored
   // group/row order so an earlier card's read/failure settles before any
   // later card executes (same for..of contract as list/table row bodies).
@@ -1313,6 +1405,54 @@ export async function board(props: BoardProps): Promise<string> {
     }
     sections.push(`<section data-group="${escapeAttr(key)}"><h2>${heading}</h2><ul>${cards.join("")}</ul></section>`);
   }
+  return sections;
+}
+
+export async function board(props: BoardProps): Promise<string> {
+  // board admits no appearance matrix: any runtime appearance key throws.
+  appearanceClasses("board", "board", pickAppearance(props));
+  if (typeof props.by !== "string" || props.by === "") {
+    throw new Error("board: by must be a nonempty field name");
+  }
+  if (props.controls !== undefined) {
+    assertControls(props.controls, "board");
+    assertConsistentContext(props.context, props.controls.context, "board");
+  }
+  const args = queryArgs(props, "board");
+  const { conditions, where } = prepareSourceFilters(props, "board");
+  const result = await props.context.query(
+    props.context.invocation,
+    props.model,
+    { ...args, ...(where === undefined ? {} : { where }) },
+  );
+  const filterControls = sourceFilterControls(props, conditions, result.columns, result.rows.length === 0, "board");
+  for (const row of result.rows) assertSourceFilterRow(props, row, "board");
+  const byField = new Map<string, ColumnMeta>();
+  for (const column of result.columns) {
+    byField.set(column.field, column);
+  }
+  const validationMetadata = result.rows.length === 0 && result.emptyDeclarations !== undefined
+    ? new Map(result.emptyDeclarations.map((column) => [column.field, column])) : byField;
+  checkBoardDeclaration(props, validationMetadata);
+  if (result.rows.length === 0) {
+    if (props.controls === undefined) {
+      return `${filterControls}${await renderState({ context: props.context, kind: "empty", message: props.empty })}`;
+    }
+    return filterControls + await wrapWithControls(props.controls, await emptyBody(props.controls, props), props);
+  }
+  const byMeta = byField.get(props.by)!;
+  const metas: ColumnMeta[] = [];
+  for (const field of props.columns) {
+    const meta = byField.get(field);
+    if (meta === undefined) {
+      // Unreachable: missing fields threw above.
+      throw new Error(`board "${props.model}": missing columns: ${field}`);
+    }
+    metas.push(meta);
+  }
+  const labels = byMeta.valueLabels;
+  const groups = groupBoardRows(props, result, labels);
+  const sections = await renderBoardSections(groups, labels, metas, props);
   const boardHtml = `<div class="flex gap-4">${sections.join("")}</div>`;
   if (props.controls === undefined) {
     return `${filterControls}${boardHtml}${moreNote(props, result.nextCursor)}`;

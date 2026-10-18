@@ -19755,3 +19755,19 @@ Covering role/query suites pass 169/169 with exit 0; focused default, scalar, gu
 and predicate probes match the retained prior behavior. Changed sources have clean
 scoped typing and score within 20. Full State typing and durable-suite qualification
 remain limited by unavailable environment dependencies; no full-package pass is claimed.
+
+
+## 2026-10-18 — extract UI rendering and browser phases
+
+Accepted source implementation: split rendering, input collection and browser
+lifecycle phases into private helpers, closing 50 original above-20 bodies across
+20 released sources. Independent review repaired dialog receivers/short-circuit
+reads, synchronous empty-file collection, validation/error order, polling guards,
+and the original query, button, history, tab, variant and appearance read sites.
+Scoped typing and browser build exit 0; focused validation reports 111/111 probes
+and 20/20 appearance/theme tests. Full UI results are 1184/1190 with six failures
+also seen in the comparison using shared dependencies. Full consumer qualification
+remains held: package resolution reached another checkout's live output, so an
+owned immutable dependency closure is still required. The baseline's extra ICU
+corpus failure is a missing fixture, not an implementation improvement. No behavior
+correction, test weakening or complexity configuration change is accepted here.
