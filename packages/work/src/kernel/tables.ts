@@ -674,42 +674,37 @@ export function readScheduleRow(row: StoredRow): ScheduleRowData {
   };
 }
 
+/* -- W02.5 matching ordinary row helpers: work-direction leaf facade. -- */
+
+/**
+ * LAYERING: these ten helpers NEVER re-state row mechanics. All row
+ * mechanics live in the contracts-only shared leaf
+ * (`@canlang/work-kernel/rows`, invoked with the explicit 'work'
+ * direction, including work JSON-safety-before-clone). Genuine leaf
+ * failures are *constructed* as the owning `KernelTableError` at the
+ * exact failure site via `WORK_ERRORS`; the leaf never catches caller
+ * exceptions, so caller getters/proxies throwing any value — including
+ * a retained genuine leaf error or a publicly constructed
+ * `RowsKernelError` — propagate untouched with identity. No ambient
+ * error context.
+ */
+const WORK_ERRORS: RowsErrorFactory = {
+  kernelError: (message: string): KernelTableError => new KernelTableError(message),
+};
+
 /** Rebuild the contract scope from a schedule row's flat fields. */
 export function scheduleRowScope(row: ScheduleRowData): WorkScope {
-  return {
-    app: row.scopeApp,
-    owner: row.scopeOwner,
-    ownerPackage: row.scopeOwnerPackage,
-  };
+  return leafScheduleRowScope(row);
 }
 
 /** Read one every-slot row's data, failing closed on any shape drift. */
 export function readEverySlotRow(row: StoredRow): EverySlotRowData {
-  const data = checkRecord(row.data, 'work.every_slot data');
-  const scope = data['scope'];
-  if (scope !== 'team' && scope !== 'app') {
-    throw new KernelTableError(
-      `work.every_slot.scope must be team or app, got ${JSON.stringify(scope)}.`,
-    );
-  }
-  return {
-    scopeKey: checkString(data, 'scopeKey', 'work.every_slot'),
-    app: checkString(data, 'app', 'work.every_slot'),
-    handler: checkString(data, 'handler', 'work.every_slot'),
-    scope,
-    owner: checkString(data, 'owner', 'work.every_slot'),
-    slot: checkCount(data, 'slot', 'work.every_slot'),
-  };
+  return leafReadEverySlotRow(row, WORK_ERRORS);
 }
 
 /** Read one supersession row's data, failing closed on any shape drift. */
 export function readSupersessionRow(row: StoredRow): SupersessionRowData {
-  const data = checkRecord(row.data, 'work.supersession data');
-  return {
-    outboxId: checkString(data, 'outboxId', 'work.supersession'),
-    byOccurrenceId: checkNullableString(data, 'byOccurrenceId', 'work.supersession'),
-    markedAtMs: checkInstant(data, 'markedAtMs', 'work.supersession'),
-  };
+  return leafReadSupersessionRow(row, WORK_ERRORS);
 }
 
 export interface NewRowMeta {
@@ -756,21 +751,7 @@ export function withRowData(
   meta: NewRowMeta,
   what: string,
 ): StoredRow {
-  if (!Number.isFinite(meta.nowMs) || meta.nowMs < 0) {
-    throw new KernelTableError(`${what}: nowMs must be finite epoch ms >= 0.`);
-  }
-  if (typeof meta.actor !== 'string' || meta.actor === '') {
-    throw new KernelTableError(`${what}: actor must be a non-empty string.`);
-  }
-  checkJsonSafe(data, `${what} data`);
-  return {
-    ...row,
-    version: (row.version + 1) as RecordVersion,
-    updated: meta.nowMs,
-    updatedBy: meta.actor,
-    // Deep clone: staged rows must not alias caller-owned nested data.
-    data: structuredClone(data),
-  };
+  return leafWithRowData(row, data, meta, what, WORK_ERRORS);
 }
 
 /** Producer-side insert: the pending dispatch row for one staged intent. */
@@ -850,7 +831,7 @@ export function everySlotRowId(
   scope: RecurringScope,
   owner: string,
 ): string {
-  return `every/v1/${encodeURIComponent(app)}/${encodeURIComponent(handler)}/${scope}/${encodeURIComponent(owner)}`;
+  return leafEverySlotRowId(app, handler, scope, owner);
 }
 
 /** Every-slot tracker row (id = app/handler/scope/owner tuple). */
@@ -858,12 +839,7 @@ export function newEverySlotRow(
   input: EverySlotRowData,
   meta: NewRowMeta,
 ): StoredRow {
-  return newRow(
-    everySlotRowId(input.app, input.handler, input.scope, input.owner),
-    input as unknown as Record<string, unknown>,
-    meta,
-    'work.every_slot',
-  );
+  return leafNewEverySlotRow(input, meta, WORK_ERRORS);
 }
 
 /** Supersession mark row (id = outbox id). */
@@ -871,12 +847,7 @@ export function newSupersessionRow(
   input: SupersessionRowData,
   meta: NewRowMeta,
 ): StoredRow {
-  return newRow(
-    input.outboxId,
-    input as unknown as Record<string, unknown>,
-    meta,
-    'work.supersession',
-  );
+  return leafNewSupersessionRow(input, meta, WORK_ERRORS);
 }
 
 /**
@@ -884,20 +855,12 @@ export function newSupersessionRow(
  * exactly; the predicate only narrows the scan.
  */
 export function dispatchByOriginQuery(originOccurrence: OccurrenceId): QuerySpec {
-  return {
-    model: WORK_DISPATCH_MODEL,
-    where: { op: 'eq', field: 'originOccurrence', value: originOccurrence },
-    authority: 'owner',
-  };
+  return leafDispatchByOriginQuery(originOccurrence);
 }
 
 /** Dispatch rows in one lifecycle state. Stages re-filter exactly. */
 export function dispatchByStateQuery(state: OutboxItemState): QuerySpec {
-  return {
-    model: WORK_DISPATCH_MODEL,
-    where: { op: 'eq', field: 'state', value: state },
-    authority: 'owner',
-  };
+  return leafDispatchByStateQuery(state);
 }
 
 /** Bounded recovery state window; ids are the canonical intent row keys. */
@@ -916,19 +879,7 @@ export function dispatchRecoveryPageQuery(state: 'claimed' | 'uncertain', limit:
  * here and stages re-filter exactly.
  */
 export function scheduleByKeyQuery(scope: WorkScope, key: string): QuerySpec {
-  return {
-    model: WORK_SCHEDULE_MODEL,
-    where: {
-      op: 'and',
-      args: [
-        { op: 'eq', field: 'key', value: key },
-        { op: 'eq', field: 'scopeApp', value: scope.app },
-        { op: 'eq', field: 'scopeOwner', value: scope.owner },
-        { op: 'eq', field: 'scopeOwnerPackage', value: scope.ownerPackage },
-      ],
-    },
-    authority: 'owner',
-  };
+  return leafScheduleByKeyQuery(scope, key);
 }
 
 /* -- T34-F2 durable fanout tables: work-direction leaf facade. -- */
@@ -941,9 +892,9 @@ export function scheduleByKeyQuery(scope: WorkScope, key: string): QuerySpec {
  * mechanics live in the contracts-only shared leaf
  * (`@canlang/work-kernel/rows`, invoked with the explicit 'work'
  * direction, including work JSON-safety-before-clone); this facade only
- * projects leaf `RowsKernelError` failures onto the owning
- * `KernelTableError` class so `instanceof` and messages keep working.
- * Non-leaf thrown values propagate untouched.
+ * supplies the owning `KernelTableError` factory so genuine leaf
+ * failures keep `instanceof` and messages working. Caller-thrown
+ * values propagate untouched.
  *
  * Identity/commit rules (unchanged): the deterministic cutoff+cohort id
  * keeps insert-once per source-occurrence/handler/cohort; the frozen
@@ -953,6 +904,16 @@ export function scheduleByKeyQuery(scope: WorkScope, key: string): QuerySpec {
  * that atomicity).
  */
 import {
+  dispatchByOriginQuery as leafDispatchByOriginQuery,
+  dispatchByStateQuery as leafDispatchByStateQuery,
+  everySlotRowId as leafEverySlotRowId,
+  newEverySlotRow as leafNewEverySlotRow,
+  newSupersessionRow as leafNewSupersessionRow,
+  readEverySlotRow as leafReadEverySlotRow,
+  readSupersessionRow as leafReadSupersessionRow,
+  scheduleByKeyQuery as leafScheduleByKeyQuery,
+  scheduleRowScope as leafScheduleRowScope,
+  withRowData as leafWithRowData,
   checkFanoutIdentitySet as leafCheckFanoutIdentitySet,
   fanoutCheckpointRowId as leafFanoutCheckpointRowId,
   fanoutChildIdOf as leafFanoutChildIdOf,
@@ -967,7 +928,7 @@ import {
   readFanoutCheckpointRow as leafReadFanoutCheckpointRow,
   readFanoutChildRow as leafReadFanoutChildRow,
   readFanoutIntentRow as leafReadFanoutIntentRow,
-  RowsKernelError,
+  type RowsErrorFactory,
 } from '@canlang/work-kernel/rows';
 
 /** Lane-04-owned fanout table models (branded casts, mirroring F2 usage). */
@@ -1022,22 +983,6 @@ export interface FanoutChildRowData {
 }
 
 /**
- * Run one leaf call in the work direction, projecting leaf work
- * failures onto the owning KernelTableError class. Every other thrown
- * value propagates as-is.
- */
-function ownFanout<T>(action: () => T): T {
-  try {
-    return action();
-  } catch (error) {
-    if (error instanceof RowsKernelError) {
-      throw new KernelTableError(error.message);
-    }
-    throw error;
-  }
-}
-
-/**
  * Validate one frozen identity set: an array of non-empty canonical
  * record ids, deduped, returned in sorted canonical order. Duplicates
  * fail closed (a frozen set with a duplicate is store disagreement,
@@ -1047,7 +992,7 @@ export function checkFanoutIdentitySet(
   value: unknown,
   what: string,
 ): ReadonlyArray<string> {
-  return ownFanout(() => leafCheckFanoutIdentitySet(value, what, 'work'));
+  return leafCheckFanoutIdentitySet(value, what, 'work', WORK_ERRORS);
 }
 
 /**
@@ -1060,12 +1005,12 @@ export function fanoutIntentRowId(
   handler: string,
   cohort: FanoutCohortKind,
 ): FanoutId {
-  return ownFanout(() => leafFanoutIntentRowId(sourceOccurrence, handler, cohort, 'work'));
+  return leafFanoutIntentRowId(sourceOccurrence, handler, cohort, 'work', WORK_ERRORS);
 }
 
 /** Checkpoint row id: exactly one checkpoint row per fanout id. */
 export function fanoutCheckpointRowId(fanoutId: FanoutId): string {
-  return ownFanout(() => leafFanoutCheckpointRowId(fanoutId, 'work'));
+  return leafFanoutCheckpointRowId(fanoutId, 'work', WORK_ERRORS);
 }
 
 /**
@@ -1079,7 +1024,7 @@ export function fanoutChildRowId(
   handler: string,
   recordId: string,
 ): string {
-  return ownFanout(() => leafFanoutChildRowId(parentOccurrence, handler, recordId, 'work'));
+  return leafFanoutChildRowId(parentOccurrence, handler, recordId, 'work', WORK_ERRORS);
 }
 
 /** Producer-side insert: the committed fanout intent row. */
@@ -1092,7 +1037,7 @@ export function newFanoutIntentRow(
   },
   meta: FanoutRowMeta,
 ): StoredRow {
-  return ownFanout(() => leafNewFanoutIntentRow(input, meta, 'work'));
+  return leafNewFanoutIntentRow(input, meta, 'work', WORK_ERRORS);
 }
 
 /** Producer-side insert: the checkpoint row (explicit completed + cursor). */
@@ -1104,7 +1049,7 @@ export function newFanoutCheckpointRow(
   },
   meta: FanoutRowMeta,
 ): StoredRow {
-  return ownFanout(() => leafNewFanoutCheckpointRow(input, meta, 'work'));
+  return leafNewFanoutCheckpointRow(input, meta, 'work', WORK_ERRORS);
 }
 
 /**
@@ -1118,7 +1063,7 @@ export function nextFanoutCheckpointData(
   addCompleted: ReadonlyArray<string>,
   cursor: string | null,
 ): FanoutCheckpointRowData {
-  return ownFanout(() => leafNextFanoutCheckpointData(current, addCompleted, cursor, 'work'));
+  return leafNextFanoutCheckpointData(current, addCompleted, cursor, 'work', WORK_ERRORS);
 }
 
 /** Producer-side insert: one admitted child row (default pending, zero attempts). */
@@ -1135,22 +1080,22 @@ export function newFanoutChildRow(
   },
   meta: FanoutRowMeta,
 ): StoredRow {
-  return ownFanout(() => leafNewFanoutChildRow(input, meta, 'work'));
+  return leafNewFanoutChildRow(input, meta, 'work', WORK_ERRORS);
 }
 
 /** Read one fanout intent row's data, failing closed on any shape drift. */
 export function readFanoutIntentRow(row: StoredRow): FanoutIntentRowData {
-  return ownFanout(() => leafReadFanoutIntentRow(row, 'work'));
+  return leafReadFanoutIntentRow(row, 'work', WORK_ERRORS);
 }
 
 /** Read one fanout checkpoint row's data, failing closed on any shape drift. */
 export function readFanoutCheckpointRow(row: StoredRow): FanoutCheckpointRowData {
-  return ownFanout(() => leafReadFanoutCheckpointRow(row, 'work'));
+  return leafReadFanoutCheckpointRow(row, 'work', WORK_ERRORS);
 }
 
 /** Read one fanout child row's data, failing closed on any shape drift. */
 export function readFanoutChildRow(row: StoredRow): FanoutChildRowData {
-  return ownFanout(() => leafReadFanoutChildRow(row, 'work'));
+  return leafReadFanoutChildRow(row, 'work', WORK_ERRORS);
 }
 
 /** Rebuild the contract child identity from a child row's flat fields. */
@@ -1167,7 +1112,7 @@ export function fanoutChildPageQuery(
   fanoutId: FanoutId,
   opts: { readonly cursor: string | null; readonly limit: number },
 ): QuerySpec {
-  return ownFanout(() => leafFanoutChildPageQuery(fanoutId, opts, 'work'));
+  return leafFanoutChildPageQuery(fanoutId, opts, 'work', WORK_ERRORS);
 }
 
 /** One bounded child page: rows plus the honest resume signal. */
@@ -1192,5 +1137,5 @@ export function fanoutChildPageResult(
   rows: ReadonlyArray<StoredRow>,
   limit: number,
 ): FanoutChildPage {
-  return ownFanout(() => leafFanoutChildPageResult(rows, limit, 'work'));
+  return leafFanoutChildPageResult(rows, limit, 'work', WORK_ERRORS);
 }

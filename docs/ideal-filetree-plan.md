@@ -7,6 +7,32 @@
 > decisions and bounded coverage evidence are retained below; that evidence
 > applies only at its recorded scope and does not establish whole-plan currency.
 
+**Work helper integration, 2026-10-18:** `cd2651c5e` covers exactly the existing
+Work-kernel rows owner, Work kernel-table facade and owning regression tests.
+Explicit defaulted error factories preserve owning class construction without
+intercepting caller throws, including nested fanout calls. Existing package/target
+allocation and newer dispatch/occurrence/schedule provenance duties are retained.
+Reuse the focused257-test source checks and independent actual installed Node plus
+288-module Work-facade Worker capture (two cold/warm requests). No new package,
+native algorithm or complete parent gate is introduced. Native preparation source
+release and current partial progress are reconciled in the eight existing docs.
+Preserve newer main71885872b handler-emission/runtime/Work ownership, 94e43ecc0
+development-state-machine planning and 61334d958 computed-order ownership/review:
+all24 distinct paths since d240246c2 are accounted for through their defining
+records plus this three-source/eight-doc slice. Foreign working notes stay intact;
+complete checkpoint/stale notice remain unchanged. Native implementation continues;
+public release/default switches/TS retirement remain held.
+
+**Native preparation source release, 2026-10-18:** verified human voice turn
+`01a14d5b-34bb-7880-b29b-63081f49cedd` lifts the previous implementation hold.
+Existing preparation crate/job, TS host/CLI, protocol, packaging and local consumer
+owners remain; two lanes cover Work's matching W02.5 helpers and native host →
+module → plan → executable/installed joins under the current finite checklist.
+No new package, compiler ownership or default/public release decision follows.
+Current source/target coverage remains bounded; preserve the stale notice,
+accumulated owner review and complete checkpoint. No acceptance gate closes merely
+from the release, and foreign compiler/runtime/Work writers stay untouched.
+
 **Rust readiness refresh, 2026-10-18, committed main `46cb113ad`:** the fifteen
 new compiler/runtime/advice/planning paths retain the defining owners and review
 recorded by compiler completion below. They change no proposed `/rows` input or

@@ -2,6 +2,23 @@
 
 ## Current execution view — 2026-10-18
 
+**Current release overrides the historical holds below:** Vince released native
+preparation source implementation, integration and validation in direct voice turn
+`01a14d5b-34bb-7880-b29b-63081f49cedd`. Continue the ten-helper Work packet and
+native preparation's dependency-ready host/module/plan/executable joins through the
+existing Muse coordinator. See the [active finite checklist](rust-port-orchestration/current-plan.md#active-implementation-release--native-preparation-and-work-helpers).
+Public publication/deployment, default switches and TS retirement remain held.
+Older planning-only/HUMAN HOLD statements below retain their historical scope and
+are superseded for source implementation; no accepted component is reopened.
+
+**Selected Work completion:** `cd2651c5e` implements the ten matching helpers
+with explicit owning error factories, including corrected nested fanout forwards.
+Independent actual installed Work Node/Worker qualification passes. See the
+[accepted slice](rust-port-orchestration/current-plan.md#accepted-work-helper-slice--18-october-2026).
+Native module/plan/host/CLI work continues and is still uncommitted; no native
+parent/default/public-release completion is inferred. Older proposed-W wording
+below is historical and superseded by this acceptance.
+
 This is the single current execution view, refreshed against local main
 `46cb113ad` (origin/main `82b888c8b` after fetch; local main is one commit ahead).
 This refresh authorizes planning only. The finite continuous run released by

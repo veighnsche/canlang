@@ -63,6 +63,28 @@ export class RowsKernelError extends Error {
   }
 }
 
+/**
+ * Owning error factory. The leaf never catches caller exceptions, so a
+ * retained genuine error rethrown through a caller getter/proxy keeps its
+ * identity: genuine failures are *constructed* as the owning error at the
+ * exact failure site instead. Work passes its `KernelTableError`
+ * factory; every other caller (including state) uses the default, which
+ * constructs the existing `RowsKernelError`. No ambient error context:
+ * the factory threads explicitly through the check/newRow chain.
+ */
+export interface RowsErrorFactory {
+  kernelError(message: string): Error;
+}
+
+const defaultRowsErrors: RowsErrorFactory = {
+  kernelError: (message: string): Error => new RowsKernelError(message),
+};
+
+/** Construct the owning work-direction failure at a genuine leaf site. */
+function leafKernelError(message: string, errors: RowsErrorFactory = defaultRowsErrors): never {
+  throw errors.kernelError(message);
+}
+
 /** State-direction failure. Observed error shape matches the state donor. */
 export class RowsStateError extends Error {
   readonly code: StateErrorCode;
@@ -78,18 +100,22 @@ export class RowsStateError extends Error {
   }
 }
 
-function fail(direction: RowsDirection, message: string): never {
+function fail(
+  direction: RowsDirection,
+  message: string,
+  errors: RowsErrorFactory = defaultRowsErrors,
+): never {
   if (direction === 'work') {
-    throw new RowsKernelError(message);
+    throw leafKernelError(message, errors);
   }
   throw new RowsStateError(message);
 }
 
 // ---- Shared checkers (verbatim donor logic; direction picks the error) ----
 
-function checkRecord(value: unknown, what: string, direction: RowsDirection): Record<string, unknown> {
+function checkRecord(value: unknown, what: string, direction: RowsDirection, errors: RowsErrorFactory = defaultRowsErrors): Record<string, unknown> {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    fail(direction, `${what} must be an object.`);
+    fail(direction, `${what} must be an object.`, errors);
   }
   return value as Record<string, unknown>;
 }
@@ -99,10 +125,11 @@ function checkString(
   field: string,
   what: string,
   direction: RowsDirection,
-): string {
+
+  errors: RowsErrorFactory = defaultRowsErrors): string {
   const value = record[field];
   if (typeof value !== 'string' || value === '') {
-    fail(direction, `${what}.${field} must be a non-empty string.`);
+    fail(direction, `${what}.${field} must be a non-empty string.`, errors);
   }
   return value;
 }
@@ -112,11 +139,12 @@ function checkNullableString(
   field: string,
   what: string,
   direction: RowsDirection,
-): string | null {
+
+  errors: RowsErrorFactory = defaultRowsErrors): string | null {
   const value = record[field];
   if (value === null) return null;
   if (typeof value !== 'string') {
-    fail(direction, `${what}.${field} must be a string or null.`);
+    fail(direction, `${what}.${field} must be a string or null.`, errors);
   }
   return value;
 }
@@ -126,10 +154,11 @@ function checkCount(
   field: string,
   what: string,
   direction: RowsDirection,
-): number {
+
+  errors: RowsErrorFactory = defaultRowsErrors): number {
   const value = record[field];
   if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) {
-    fail(direction, `${what}.${field} must be an integer >= 0.`);
+    fail(direction, `${what}.${field} must be an integer >= 0.`, errors);
   }
   return value;
 }
@@ -139,10 +168,11 @@ function checkInstant(
   field: string,
   what: string,
   direction: RowsDirection,
-): number {
+
+  errors: RowsErrorFactory = defaultRowsErrors): number {
   const value = record[field];
   if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
-    fail(direction, `${what}.${field} must be finite epoch ms >= 0.`);
+    fail(direction, `${what}.${field} must be finite epoch ms >= 0.`, errors);
   }
   return value;
 }
@@ -152,17 +182,18 @@ function checkNullableInstant(
   field: string,
   what: string,
   direction: RowsDirection,
-): number | null {
+
+  errors: RowsErrorFactory = defaultRowsErrors): number | null {
   const value = record[field];
   if (value === null) return null;
   if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
-    fail(direction, `${what}.${field} must be finite epoch ms or null.`);
+    fail(direction, `${what}.${field} must be finite epoch ms or null.`, errors);
   }
   return value;
 }
 
 /** Deep JSON-safety: work-profile rows must survive the store JSON round-trip. */
-function checkJsonSafe(value: unknown, what: string): void {
+function checkJsonSafe(value: unknown, what: string, errors: RowsErrorFactory = defaultRowsErrors): void {
   const seen = new Set<object>();
   const visit = (node: unknown, path: string): void => {
     if (node === null) return;
@@ -172,17 +203,17 @@ function checkJsonSafe(value: unknown, what: string): void {
         return;
       case 'number':
         if (!Number.isFinite(node)) {
-          throw new RowsKernelError(`${what}${path} must be finite JSON.`);
+          throw leafKernelError(`${what}${path} must be finite JSON.`, errors);
         }
         return;
       case 'undefined':
       case 'function':
       case 'symbol':
       case 'bigint':
-        throw new RowsKernelError(`${what}${path} is not JSON-safe.`);
+        throw leafKernelError(`${what}${path} is not JSON-safe.`, errors);
       case 'object': {
         if (seen.has(node)) {
-          throw new RowsKernelError(`${what}${path} is cyclic.`);
+          throw leafKernelError(`${what}${path} is cyclic.`, errors);
         }
         seen.add(node);
         if (Array.isArray(node)) {
@@ -199,22 +230,22 @@ function checkJsonSafe(value: unknown, what: string): void {
   visit(value, '');
 }
 
-function checkIdComponent(value: string, short: string, direction: RowsDirection): string {
+function checkIdComponent(value: string, short: string, direction: RowsDirection, errors: RowsErrorFactory = defaultRowsErrors): string {
   if (typeof value !== 'string' || value === '') {
     if (direction === 'work') {
-      fail(direction, `fanout ${short} must be a non-empty string.`);
+      fail(direction, `fanout ${short} must be a non-empty string.`, errors);
     }
-    fail(direction, `Fanout ${short} must be a non-empty string.`);
+    fail(direction, `Fanout ${short} must be a non-empty string.`, errors);
   }
   return value;
 }
 
-function checkCohort(value: unknown, direction: RowsDirection): FanoutCohortKind {
+function checkCohort(value: unknown, direction: RowsDirection, errors: RowsErrorFactory = defaultRowsErrors): FanoutCohortKind {
   if (value !== 'model' && value !== 'anchored-collection') {
     if (direction === 'work') {
-      fail(direction, `fanout cohort must be model or anchored-collection, got ${JSON.stringify(value)}.`);
+      fail(direction, `fanout cohort must be model or anchored-collection, got ${JSON.stringify(value)}.`, errors);
     }
-    fail(direction, `Fanout cohort must be model or anchored-collection, got ${JSON.stringify(value)}.`);
+    fail(direction, `Fanout cohort must be model or anchored-collection, got ${JSON.stringify(value)}.`, errors);
   }
   return value;
 }
@@ -223,12 +254,13 @@ function checkMeta(
   meta: NewRowMeta,
   what: string,
   direction: RowsDirection,
-): void {
+
+  errors: RowsErrorFactory = defaultRowsErrors): void {
   if (!Number.isFinite(meta.nowMs) || meta.nowMs < 0) {
-    fail(direction, `${what}: nowMs must be finite epoch ms >= 0.`);
+    fail(direction, `${what}: nowMs must be finite epoch ms >= 0.`, errors);
   }
   if (typeof meta.actor !== 'string' || meta.actor === '') {
-    fail(direction, `${what}: actor must be a non-empty string.`);
+    fail(direction, `${what}: actor must be a non-empty string.`, errors);
   }
 }
 
@@ -238,10 +270,11 @@ function newRowCore(
   meta: NewRowMeta,
   what: string,
   direction: RowsDirection,
-): StoredRow {
-  checkMeta(meta, what, direction);
+
+  errors: RowsErrorFactory = defaultRowsErrors): StoredRow {
+  checkMeta(meta, what, direction, errors);
   if (direction === 'work') {
-    checkJsonSafe(data, `${what} data`);
+    checkJsonSafe(data, `${what} data`, errors);
   }
   return {
     id: id as RecordId,
@@ -360,81 +393,81 @@ const SCHEDULE_STATES: ReadonlySet<string> = new Set([
 ]);
 
 /** Read one dispatch row's data, failing closed on any shape drift. */
-export function readDispatchRow(row: StoredRow): DispatchRowData {
+export function readDispatchRow(row: StoredRow, errors: RowsErrorFactory = defaultRowsErrors): DispatchRowData {
   const direction: RowsDirection = 'work';
-  const data = checkRecord(row.data, 'work.dispatch data', direction);
-  const state = checkString(data, 'state', 'work.dispatch', direction);
+  const data = checkRecord(row.data, 'work.dispatch data', direction, errors);
+  const state = checkString(data, 'state', 'work.dispatch', direction, errors);
   if (!OUTBOX_STATES.has(state)) {
-    throw new RowsKernelError(`work.dispatch.state is unknown: ${JSON.stringify(state)}.`);
+    throw leafKernelError(`work.dispatch.state is unknown: ${JSON.stringify(state)}.`, errors);
   }
   const guardVerdict = data['guardVerdict'];
   if (guardVerdict !== null && typeof guardVerdict !== 'boolean') {
-    throw new RowsKernelError('work.dispatch.guardVerdict must be boolean or null.');
+    throw leafKernelError('work.dispatch.guardVerdict must be boolean or null.', errors);
   }
   const retryClass = data['retryClass'];
   if (retryClass !== null && retryClass !== 'transient' && retryClass !== 'terminal') {
-    throw new RowsKernelError(
+    throw leafKernelError(
       'work.dispatch.retryClass must be transient, terminal or null.',
-    );
+     errors);
   }
   return {
-    intentId: checkString(data, 'intentId', 'work.dispatch', direction),
-    operationId: checkString(data, 'operationId', 'work.dispatch', direction),
-    source: checkString(data, 'source', 'work.dispatch', direction),
-    occurrenceIndex: checkCount(data, 'occurrenceIndex', 'work.dispatch', direction),
-    originOccurrence: checkNullableString(data, 'originOccurrence', 'work.dispatch', direction),
+    intentId: checkString(data, 'intentId', 'work.dispatch', direction, errors),
+    operationId: checkString(data, 'operationId', 'work.dispatch', direction, errors),
+    source: checkString(data, 'source', 'work.dispatch', direction, errors),
+    occurrenceIndex: checkCount(data, 'occurrenceIndex', 'work.dispatch', direction, errors),
+    originOccurrence: checkNullableString(data, 'originOccurrence', 'work.dispatch', direction, errors),
     state: state as OutboxItemState,
-    attempts: checkCount(data, 'attempts', 'work.dispatch', direction),
-    claimId: checkNullableString(data, 'claimId', 'work.dispatch', direction),
-    claimedAtMs: checkNullableInstant(data, 'claimedAtMs', 'work.dispatch', direction),
+    attempts: checkCount(data, 'attempts', 'work.dispatch', direction, errors),
+    claimId: checkNullableString(data, 'claimId', 'work.dispatch', direction, errors),
+    claimedAtMs: checkNullableInstant(data, 'claimedAtMs', 'work.dispatch', direction, errors),
     guardVerdict,
-    deliveryId: checkNullableString(data, 'deliveryId', 'work.dispatch', direction),
-    errorCode: checkNullableString(data, 'errorCode', 'work.dispatch', direction),
-    errorMessage: checkNullableString(data, 'errorMessage', 'work.dispatch', direction),
-    availableAtMs: checkNullableInstant(data, 'availableAtMs', 'work.dispatch', direction),
-    firstAttemptAtMs: checkNullableInstant(data, 'firstAttemptAtMs', 'work.dispatch', direction),
+    deliveryId: checkNullableString(data, 'deliveryId', 'work.dispatch', direction, errors),
+    errorCode: checkNullableString(data, 'errorCode', 'work.dispatch', direction, errors),
+    errorMessage: checkNullableString(data, 'errorMessage', 'work.dispatch', direction, errors),
+    availableAtMs: checkNullableInstant(data, 'availableAtMs', 'work.dispatch', direction, errors),
+    firstAttemptAtMs: checkNullableInstant(data, 'firstAttemptAtMs', 'work.dispatch', direction, errors),
     retryClass: retryClass as RetryClass | null,
   };
 }
 
 /** Read one occurrence row's data, failing closed on any shape drift. */
-export function readOccurrenceRow(row: StoredRow): OccurrenceRowData {
+export function readOccurrenceRow(row: StoredRow, errors: RowsErrorFactory = defaultRowsErrors): OccurrenceRowData {
   const direction: RowsDirection = 'work';
-  const data = checkRecord(row.data, 'work.occurrence data', direction);
+  const data = checkRecord(row.data, 'work.occurrence data', direction, errors);
   const status = data['status'];
   if (status !== 'completed' && status !== 'failed') {
-    throw new RowsKernelError(
+    throw leafKernelError(
       `work.occurrence.status must be completed or failed, got ${JSON.stringify(status)}.`,
-    );
+     errors);
   }
   return {
-    occurrenceId: checkString(data, 'occurrenceId', 'work.occurrence', direction),
+    occurrenceId: checkString(data, 'occurrenceId', 'work.occurrence', direction, errors),
     status,
     result: data['result'] ?? null,
-    code: checkNullableString(data, 'code', 'work.occurrence', direction),
-    message: checkNullableString(data, 'message', 'work.occurrence', direction),
-    recordedAtMs: checkInstant(data, 'recordedAtMs', 'work.occurrence', direction),
+    code: checkNullableString(data, 'code', 'work.occurrence', direction, errors),
+    message: checkNullableString(data, 'message', 'work.occurrence', direction, errors),
+    recordedAtMs: checkInstant(data, 'recordedAtMs', 'work.occurrence', direction, errors),
   };
 }
 
 /** Read one schedule row's data, failing closed on any shape drift. */
-export function readScheduleRow(row: StoredRow): ScheduleRowData {
+export function readScheduleRow(row: StoredRow, errors: RowsErrorFactory = defaultRowsErrors): ScheduleRowData {
   const direction: RowsDirection = 'work';
-  const data = checkRecord(row.data, 'work.schedule data', direction);
-  const state = checkString(data, 'state', 'work.schedule', direction);
+  const data = checkRecord(row.data, 'work.schedule data', direction, errors);
+  const state = checkString(data, 'state', 'work.schedule', direction, errors);
   if (!SCHEDULE_STATES.has(state)) {
-    throw new RowsKernelError(`work.schedule.state is unknown: ${JSON.stringify(state)}.`);
+    throw leafKernelError(`work.schedule.state is unknown: ${JSON.stringify(state)}.`, errors);
   }
   return {
-    occurrenceId: checkString(data, 'occurrenceId', 'work.schedule', direction),
-    key: checkString(data, 'key', 'work.schedule', direction),
-    scopeApp: checkString(data, 'scopeApp', 'work.schedule', direction),
-    scopeOwner: checkString(data, 'scopeOwner', 'work.schedule', direction),
-    scopeOwnerPackage: checkString(data, 'scopeOwnerPackage', 'work.schedule', direction),
-    at: checkInstant(data, 'at', 'work.schedule', direction),
-    event: checkString(data, 'event', 'work.schedule', direction),
-    payload: checkRecord(data['payload'], 'work.schedule.payload', direction),
-    replaces: checkNullableString(data, 'replaces', 'work.schedule', direction) as OccurrenceId | null,
+    occurrenceId: checkString(data, 'occurrenceId', 'work.schedule', direction, errors),
+    key: checkString(data, 'key', 'work.schedule', direction, errors),
+    scopeApp: checkString(data, 'scopeApp', 'work.schedule', direction, errors),
+    scopeOwner: checkString(data, 'scopeOwner', 'work.schedule', direction, errors),
+    scopeOwnerPackage: checkString(data, 'scopeOwnerPackage', 'work.schedule', direction, errors),
+    at: checkInstant(data, 'at', 'work.schedule', direction, errors),
+    event: checkString(data, 'event', 'work.schedule', direction, errors),
+    payload: checkRecord(data['payload'], 'work.schedule.payload', direction, errors),
+    replaces: checkNullableString(data, 'replaces', 'work.schedule', direction, errors) as OccurrenceId | null,
     state: state as ScheduledOccurrenceState,
   };
 }
@@ -449,33 +482,33 @@ export function scheduleRowScope(row: ScheduleRowData): WorkScope {
 }
 
 /** Read one every-slot row's data, failing closed on any shape drift. */
-export function readEverySlotRow(row: StoredRow): EverySlotRowData {
+export function readEverySlotRow(row: StoredRow, errors: RowsErrorFactory = defaultRowsErrors): EverySlotRowData {
   const direction: RowsDirection = 'work';
-  const data = checkRecord(row.data, 'work.every_slot data', direction);
+  const data = checkRecord(row.data, 'work.every_slot data', direction, errors);
   const scope = data['scope'];
   if (scope !== 'team' && scope !== 'app') {
-    throw new RowsKernelError(
+    throw leafKernelError(
       `work.every_slot.scope must be team or app, got ${JSON.stringify(scope)}.`,
-    );
+     errors);
   }
   return {
-    scopeKey: checkString(data, 'scopeKey', 'work.every_slot', direction),
-    app: checkString(data, 'app', 'work.every_slot', direction),
-    handler: checkString(data, 'handler', 'work.every_slot', direction),
+    scopeKey: checkString(data, 'scopeKey', 'work.every_slot', direction, errors),
+    app: checkString(data, 'app', 'work.every_slot', direction, errors),
+    handler: checkString(data, 'handler', 'work.every_slot', direction, errors),
     scope,
-    owner: checkString(data, 'owner', 'work.every_slot', direction),
-    slot: checkCount(data, 'slot', 'work.every_slot', direction),
+    owner: checkString(data, 'owner', 'work.every_slot', direction, errors),
+    slot: checkCount(data, 'slot', 'work.every_slot', direction, errors),
   };
 }
 
 /** Read one supersession row's data, failing closed on any shape drift. */
-export function readSupersessionRow(row: StoredRow): SupersessionRowData {
+export function readSupersessionRow(row: StoredRow, errors: RowsErrorFactory = defaultRowsErrors): SupersessionRowData {
   const direction: RowsDirection = 'work';
-  const data = checkRecord(row.data, 'work.supersession data', direction);
+  const data = checkRecord(row.data, 'work.supersession data', direction, errors);
   return {
-    outboxId: checkString(data, 'outboxId', 'work.supersession', direction),
-    byOccurrenceId: checkNullableString(data, 'byOccurrenceId', 'work.supersession', direction),
-    markedAtMs: checkInstant(data, 'markedAtMs', 'work.supersession', direction),
+    outboxId: checkString(data, 'outboxId', 'work.supersession', direction, errors),
+    byOccurrenceId: checkNullableString(data, 'byOccurrenceId', 'work.supersession', direction, errors),
+    markedAtMs: checkInstant(data, 'markedAtMs', 'work.supersession', direction, errors),
   };
 }
 
@@ -498,10 +531,11 @@ export function withRowData(
   data: Readonly<Record<string, unknown>>,
   meta: NewRowMeta,
   what: string,
-): StoredRow {
+
+  errors: RowsErrorFactory = defaultRowsErrors): StoredRow {
   const direction: RowsDirection = 'work';
-  checkMeta(meta, what, direction);
-  checkJsonSafe(data, `${what} data`);
+  checkMeta(meta, what, direction, errors);
+  checkJsonSafe(data, `${what} data`, errors);
   return {
     ...row,
     version: (row.version + 1) as RecordVersion,
@@ -519,7 +553,8 @@ export function newDispatchRow(
     'intentId' | 'operationId' | 'source' | 'occurrenceIndex' | 'originOccurrence'
   >,
   meta: NewRowMeta,
-): StoredRow {
+
+  errors: RowsErrorFactory = defaultRowsErrors): StoredRow {
   const data: DispatchRowData = {
     ...input,
     state: 'pending',
@@ -534,35 +569,37 @@ export function newDispatchRow(
     firstAttemptAtMs: null,
     retryClass: null,
   };
-  return newRowCore(input.intentId, data as unknown as Record<string, unknown>, meta, 'work.dispatch', 'work');
+  return newRowCore(input.intentId, data as unknown as Record<string, unknown>, meta, 'work.dispatch', 'work', errors);
 }
 
 /** Put-if-absent occurrence receipt row. */
 export function newOccurrenceRow(
   input: OccurrenceRowData,
   meta: NewRowMeta,
-): StoredRow {
+
+  errors: RowsErrorFactory = defaultRowsErrors): StoredRow {
   return newRowCore(
     input.occurrenceId,
     input as unknown as Record<string, unknown>,
     meta,
     'work.occurrence',
     'work',
-  );
+   errors);
 }
 
 /** Keyed schedule lineage row (id = occurrence id; key is looked up). */
 export function newScheduleRow(
   input: ScheduleRowData,
   meta: NewRowMeta,
-): StoredRow {
+
+  errors: RowsErrorFactory = defaultRowsErrors): StoredRow {
   return newRowCore(
     input.occurrenceId,
     input as unknown as Record<string, unknown>,
     meta,
     'work.schedule',
     'work',
-  );
+   errors);
 }
 
 /**
@@ -583,28 +620,30 @@ export function everySlotRowId(
 export function newEverySlotRow(
   input: EverySlotRowData,
   meta: NewRowMeta,
-): StoredRow {
+
+  errors: RowsErrorFactory = defaultRowsErrors): StoredRow {
   return newRowCore(
     everySlotRowId(input.app, input.handler, input.scope, input.owner),
     input as unknown as Record<string, unknown>,
     meta,
     'work.every_slot',
     'work',
-  );
+   errors);
 }
 
 /** Supersession mark row (id = outbox id). */
 export function newSupersessionRow(
   input: SupersessionRowData,
   meta: NewRowMeta,
-): StoredRow {
+
+  errors: RowsErrorFactory = defaultRowsErrors): StoredRow {
   return newRowCore(
     input.outboxId,
     input as unknown as Record<string, unknown>,
     meta,
     'work.supersession',
     'work',
-  );
+   errors);
 }
 
 /**
@@ -753,17 +792,18 @@ export function checkFanoutIdentitySet(
   value: unknown,
   what: string,
   direction: RowsDirection,
-): ReadonlyArray<string> {
+
+  errors: RowsErrorFactory = defaultRowsErrors): ReadonlyArray<string> {
   if (!Array.isArray(value)) {
-    fail(direction, `${what} must be an array of canonical record ids.`);
+    fail(direction, `${what} must be an array of canonical record ids.`, errors);
   }
   const seen = new Set<string>();
   for (const entry of value) {
     if (typeof entry !== 'string' || entry === '') {
-      fail(direction, `${what} entries must be non-empty strings.`);
+      fail(direction, `${what} entries must be non-empty strings.`, errors);
     }
     if (seen.has(entry)) {
-      fail(direction, `${what} contains a duplicate identity: ${JSON.stringify(entry)}.`);
+      fail(direction, `${what} contains a duplicate identity: ${JSON.stringify(entry)}.`, errors);
     }
     seen.add(entry);
   }
@@ -781,16 +821,17 @@ export function fanoutIntentRowId(
   handler: string,
   cohort: FanoutCohortKind,
   direction: RowsDirection,
-): FanoutId {
-  checkIdComponent(sourceOccurrence, 'sourceOccurrence', direction);
-  checkIdComponent(handler, 'handler', direction);
-  checkCohort(cohort, direction);
+
+  errors: RowsErrorFactory = defaultRowsErrors): FanoutId {
+  checkIdComponent(sourceOccurrence, 'sourceOccurrence', direction, errors);
+  checkIdComponent(handler, 'handler', direction, errors);
+  checkCohort(cohort, direction, errors);
   return `fanout/v1/${encodeURIComponent(sourceOccurrence)}/${encodeURIComponent(handler)}/${cohort}`;
 }
 
 /** Checkpoint row id: exactly one checkpoint row per fanout id. */
-export function fanoutCheckpointRowId(fanoutId: FanoutId, direction: RowsDirection): string {
-  return checkIdComponent(fanoutId, 'fanoutId', direction);
+export function fanoutCheckpointRowId(fanoutId: FanoutId, direction: RowsDirection, errors: RowsErrorFactory = defaultRowsErrors): string {
+  return checkIdComponent(fanoutId, 'fanoutId', direction, errors);
 }
 
 /**
@@ -805,10 +846,11 @@ export function fanoutChildRowId(
   handler: string,
   recordId: string,
   direction: RowsDirection,
-): string {
-  checkIdComponent(parentOccurrence, 'parentOccurrence', direction);
-  checkIdComponent(handler, 'handler', direction);
-  checkIdComponent(recordId, 'recordId', direction);
+
+  errors: RowsErrorFactory = defaultRowsErrors): string {
+  checkIdComponent(parentOccurrence, 'parentOccurrence', direction, errors);
+  checkIdComponent(handler, 'handler', direction, errors);
+  checkIdComponent(recordId, 'recordId', direction, errors);
   return `fanout-child/v1/${encodeURIComponent(parentOccurrence)}/${encodeURIComponent(handler)}/${encodeURIComponent(recordId)}`;
 }
 
@@ -822,9 +864,10 @@ export function newFanoutIntentRow(
   },
   meta: NewRowMeta,
   direction: RowsDirection,
-): StoredRow {
-  const members = checkFanoutIdentitySet(input.members, 'work.fanout_intent.members', direction);
-  const fanoutId = fanoutIntentRowId(input.sourceOccurrence, input.handler, input.cohort, direction);
+
+  errors: RowsErrorFactory = defaultRowsErrors): StoredRow {
+  const members = checkFanoutIdentitySet(input.members, 'work.fanout_intent.members', direction, errors);
+  const fanoutId = fanoutIntentRowId(input.sourceOccurrence, input.handler, input.cohort, direction, errors);
   const data: FanoutIntentRowData = {
     fanoutId,
     sourceOccurrence: input.sourceOccurrence,
@@ -833,7 +876,7 @@ export function newFanoutIntentRow(
     members,
     memberCount: members.length,
   };
-  return newRowCore(fanoutId, data as unknown as Record<string, unknown>, meta, 'work.fanout_intent', direction);
+  return newRowCore(fanoutId, data as unknown as Record<string, unknown>, meta, 'work.fanout_intent', direction, errors);
 }
 
 /** Producer-side insert: the initial checkpoint row (empty set, null cursor). */
@@ -845,22 +888,23 @@ export function newFanoutCheckpointRow(
   },
   meta: NewRowMeta,
   direction: RowsDirection,
-): StoredRow {
+
+  errors: RowsErrorFactory = defaultRowsErrors): StoredRow {
   const data: FanoutCheckpointRowData = {
-    fanoutId: checkIdComponent(input.fanoutId, 'fanoutId', direction),
-    completed: checkFanoutIdentitySet(input.completed ?? [], 'work.fanout_checkpoint.completed', direction),
+    fanoutId: checkIdComponent(input.fanoutId, 'fanoutId', direction, errors),
+    completed: checkFanoutIdentitySet(input.completed ?? [], 'work.fanout_checkpoint.completed', direction, errors),
     cursor: input.cursor ?? null,
   };
   if (data.cursor !== null && data.cursor === '') {
-    fail(direction, 'work.fanout_checkpoint.cursor must be non-empty or null.');
+    fail(direction, 'work.fanout_checkpoint.cursor must be non-empty or null.', errors);
   }
   return newRowCore(
-    fanoutCheckpointRowId(data.fanoutId, direction),
+    fanoutCheckpointRowId(data.fanoutId, direction, errors),
     data as unknown as Record<string, unknown>,
     meta,
     'work.fanout_checkpoint',
     direction,
-  );
+   errors);
 }
 
 /**
@@ -877,13 +921,14 @@ export function nextFanoutCheckpointData(
   addCompleted: ReadonlyArray<string>,
   cursor: string | null,
   direction: RowsDirection,
-): FanoutCheckpointRowData {
+
+  errors: RowsErrorFactory = defaultRowsErrors): FanoutCheckpointRowData {
   if (cursor !== null && cursor === '') {
-    fail(direction, 'work.fanout_checkpoint.cursor must be non-empty or null.');
+    fail(direction, 'work.fanout_checkpoint.cursor must be non-empty or null.', errors);
   }
   for (const entry of addCompleted) {
     if (typeof entry !== 'string' || entry === '') {
-      fail(direction, 'work.fanout_checkpoint.completed entries must be non-empty strings.');
+      fail(direction, 'work.fanout_checkpoint.completed entries must be non-empty strings.', errors);
     }
   }
   return {
@@ -898,27 +943,28 @@ function checkChildCause(
   causeKind: 'completed' | 'skipped' | 'failed' | null,
   causeReason: string | null,
   direction: RowsDirection,
-): void {
+
+  errors: RowsErrorFactory = defaultRowsErrors): void {
   if (state === 'pending' || state === 'running') {
     if (causeKind !== null || causeReason !== null) {
-      fail(direction, `work.fanout_child cause must be null until terminal, got ${JSON.stringify(causeKind)}.`);
+      fail(direction, `work.fanout_child cause must be null until terminal, got ${JSON.stringify(causeKind)}.`, errors);
     }
     return;
   }
   if (state === 'completed') {
     if (causeKind !== 'completed' || causeReason !== null) {
-      fail(direction, 'work.fanout_child completed cause must be kind completed with no reason.');
+      fail(direction, 'work.fanout_child completed cause must be kind completed with no reason.', errors);
     }
     return;
   }
   if (state === 'skipped') {
     if (causeKind !== 'skipped' || !FANOUT_SKIPPED_REASONS.has(causeReason ?? '')) {
-      fail(direction, `work.fanout_child skipped cause needs a closed reason, got ${JSON.stringify(causeReason)}.`);
+      fail(direction, `work.fanout_child skipped cause needs a closed reason, got ${JSON.stringify(causeReason)}.`, errors);
     }
     return;
   }
   if (causeKind !== 'failed' || !FANOUT_FAILED_REASONS.has(causeReason ?? '')) {
-    fail(direction, `work.fanout_child failed cause needs a closed reason, got ${JSON.stringify(causeReason)}.`);
+    fail(direction, `work.fanout_child failed cause needs a closed reason, got ${JSON.stringify(causeReason)}.`, errors);
   }
 }
 
@@ -936,21 +982,22 @@ export function newFanoutChildRow(
   },
   meta: NewRowMeta,
   direction: RowsDirection,
-): StoredRow {
+
+  errors: RowsErrorFactory = defaultRowsErrors): StoredRow {
   const state = input.state ?? 'pending';
   if (!FANOUT_CHILD_STATES.has(state)) {
-    fail(direction, `work.fanout_child.state is unknown: ${JSON.stringify(state)}.`);
+    fail(direction, `work.fanout_child.state is unknown: ${JSON.stringify(state)}.`, errors);
   }
   const attempts = input.attempts ?? 0;
   if (!Number.isInteger(attempts) || attempts < 0) {
-    fail(direction, 'work.fanout_child.attempts must be an integer >= 0.');
+    fail(direction, 'work.fanout_child.attempts must be an integer >= 0.', errors);
   }
   const causeKind = input.causeKind ?? null;
   const causeReason = (input.causeReason ?? null) as string | null;
-  checkChildCause(state, causeKind, causeReason, direction);
-  const childId = fanoutChildRowId(input.parentOccurrence, input.handler, input.recordId, direction);
+  checkChildCause(state, causeKind, causeReason, direction, errors);
+  const childId = fanoutChildRowId(input.parentOccurrence, input.handler, input.recordId, direction, errors);
   const data: FanoutChildRowData = {
-    fanoutId: checkIdComponent(input.fanoutId, 'fanoutId', direction),
+    fanoutId: checkIdComponent(input.fanoutId, 'fanoutId', direction, errors),
     parentOccurrence: input.parentOccurrence,
     handler: input.handler,
     recordId: input.recordId,
@@ -960,69 +1007,69 @@ export function newFanoutChildRow(
     causeKind,
     causeReason,
   };
-  return newRowCore(childId, data as unknown as Record<string, unknown>, meta, 'work.fanout_child', direction);
+  return newRowCore(childId, data as unknown as Record<string, unknown>, meta, 'work.fanout_child', direction, errors);
 }
 
 /** Read one fanout intent row's data, failing closed on any shape drift. */
-export function readFanoutIntentRow(row: StoredRow, direction: RowsDirection): FanoutIntentRowData {
-  const data = checkRecord(row.data, 'work.fanout_intent data', direction);
-  const cohort = checkCohort(data['cohort'], direction);
-  const members = checkFanoutIdentitySet(data['members'], 'work.fanout_intent.members', direction);
-  const memberCount = checkCount(data, 'memberCount', 'work.fanout_intent', direction);
+export function readFanoutIntentRow(row: StoredRow, direction: RowsDirection, errors: RowsErrorFactory = defaultRowsErrors): FanoutIntentRowData {
+  const data = checkRecord(row.data, 'work.fanout_intent data', direction, errors);
+  const cohort = checkCohort(data['cohort'], direction, errors);
+  const members = checkFanoutIdentitySet(data['members'], 'work.fanout_intent.members', direction, errors);
+  const memberCount = checkCount(data, 'memberCount', 'work.fanout_intent', direction, errors);
   if (memberCount !== members.length) {
-    fail(direction, `work.fanout_intent.memberCount ${memberCount} mismatches members length ${members.length}.`);
+    fail(direction, `work.fanout_intent.memberCount ${memberCount} mismatches members length ${members.length}.`, errors);
   }
-  const fanoutId = checkString(data, 'fanoutId', 'work.fanout_intent', direction);
-  const sourceOccurrence = checkString(data, 'sourceOccurrence', 'work.fanout_intent', direction);
-  const handler = checkString(data, 'handler', 'work.fanout_intent', direction);
-  if (fanoutId !== fanoutIntentRowId(sourceOccurrence, handler, cohort, direction)) {
-    fail(direction, 'work.fanout_intent.fanoutId is not the cutoff+cohort derivation.');
+  const fanoutId = checkString(data, 'fanoutId', 'work.fanout_intent', direction, errors);
+  const sourceOccurrence = checkString(data, 'sourceOccurrence', 'work.fanout_intent', direction, errors);
+  const handler = checkString(data, 'handler', 'work.fanout_intent', direction, errors);
+  if (fanoutId !== fanoutIntentRowId(sourceOccurrence, handler, cohort, direction, errors)) {
+    fail(direction, 'work.fanout_intent.fanoutId is not the cutoff+cohort derivation.', errors);
   }
   if (row.id !== fanoutId) {
-    fail(direction, 'work.fanout_intent row id must equal its fanoutId.');
+    fail(direction, 'work.fanout_intent row id must equal its fanoutId.', errors);
   }
   return { fanoutId, sourceOccurrence, handler, cohort, members, memberCount };
 }
 
 /** Read one fanout checkpoint row's data, failing closed on any shape drift. */
-export function readFanoutCheckpointRow(row: StoredRow, direction: RowsDirection): FanoutCheckpointRowData {
-  const data = checkRecord(row.data, 'work.fanout_checkpoint data', direction);
-  const fanoutId = checkString(data, 'fanoutId', 'work.fanout_checkpoint', direction);
-  const completed = checkFanoutIdentitySet(data['completed'], 'work.fanout_checkpoint.completed', direction);
-  const cursor = checkNullableString(data, 'cursor', 'work.fanout_checkpoint', direction);
+export function readFanoutCheckpointRow(row: StoredRow, direction: RowsDirection, errors: RowsErrorFactory = defaultRowsErrors): FanoutCheckpointRowData {
+  const data = checkRecord(row.data, 'work.fanout_checkpoint data', direction, errors);
+  const fanoutId = checkString(data, 'fanoutId', 'work.fanout_checkpoint', direction, errors);
+  const completed = checkFanoutIdentitySet(data['completed'], 'work.fanout_checkpoint.completed', direction, errors);
+  const cursor = checkNullableString(data, 'cursor', 'work.fanout_checkpoint', direction, errors);
   if (cursor !== null && cursor === '') {
-    fail(direction, 'work.fanout_checkpoint.cursor must be non-empty or null.');
+    fail(direction, 'work.fanout_checkpoint.cursor must be non-empty or null.', errors);
   }
   if (row.id !== fanoutId) {
-    fail(direction, 'work.fanout_checkpoint row id must equal its fanoutId.');
+    fail(direction, 'work.fanout_checkpoint row id must equal its fanoutId.', errors);
   }
   return { fanoutId, completed, cursor };
 }
 
 /** Read one fanout child row's data, failing closed on any shape drift. */
-export function readFanoutChildRow(row: StoredRow, direction: RowsDirection): FanoutChildRowData {
-  const data = checkRecord(row.data, 'work.fanout_child data', direction);
-  const state = checkString(data, 'state', 'work.fanout_child', direction);
+export function readFanoutChildRow(row: StoredRow, direction: RowsDirection, errors: RowsErrorFactory = defaultRowsErrors): FanoutChildRowData {
+  const data = checkRecord(row.data, 'work.fanout_child data', direction, errors);
+  const state = checkString(data, 'state', 'work.fanout_child', direction, errors);
   if (!FANOUT_CHILD_STATES.has(state)) {
-    fail(direction, `work.fanout_child.state is unknown: ${JSON.stringify(state)}.`);
+    fail(direction, `work.fanout_child.state is unknown: ${JSON.stringify(state)}.`, errors);
   }
   const causeKind = data['causeKind'];
   if (causeKind !== null && causeKind !== 'completed' && causeKind !== 'skipped' && causeKind !== 'failed') {
-    fail(direction, `work.fanout_child.causeKind is unknown: ${JSON.stringify(causeKind)}.`);
+    fail(direction, `work.fanout_child.causeKind is unknown: ${JSON.stringify(causeKind)}.`, errors);
   }
   const typedState = state as FanoutChildState;
-  const causeReason = checkNullableString(data, 'causeReason', 'work.fanout_child', direction);
-  checkChildCause(typedState, causeKind, causeReason, direction);
-  const fanoutId = checkString(data, 'fanoutId', 'work.fanout_child', direction);
-  const parentOccurrence = checkString(data, 'parentOccurrence', 'work.fanout_child', direction);
-  const handler = checkString(data, 'handler', 'work.fanout_child', direction);
-  const recordId = checkString(data, 'recordId', 'work.fanout_child', direction);
-  const childId = checkString(data, 'childId', 'work.fanout_child', direction);
-  if (childId !== fanoutChildRowId(parentOccurrence, handler, recordId, direction)) {
-    fail(direction, 'work.fanout_child.childId is not the parent+handler+record derivation.');
+  const causeReason = checkNullableString(data, 'causeReason', 'work.fanout_child', direction, errors);
+  checkChildCause(typedState, causeKind, causeReason, direction, errors);
+  const fanoutId = checkString(data, 'fanoutId', 'work.fanout_child', direction, errors);
+  const parentOccurrence = checkString(data, 'parentOccurrence', 'work.fanout_child', direction, errors);
+  const handler = checkString(data, 'handler', 'work.fanout_child', direction, errors);
+  const recordId = checkString(data, 'recordId', 'work.fanout_child', direction, errors);
+  const childId = checkString(data, 'childId', 'work.fanout_child', direction, errors);
+  if (childId !== fanoutChildRowId(parentOccurrence, handler, recordId, direction, errors)) {
+    fail(direction, 'work.fanout_child.childId is not the parent+handler+record derivation.', errors);
   }
   if (row.id !== childId) {
-    fail(direction, 'work.fanout_child row id must equal its childId.');
+    fail(direction, 'work.fanout_child row id must equal its childId.', errors);
   }
   return {
     fanoutId,
@@ -1031,7 +1078,7 @@ export function readFanoutChildRow(row: StoredRow, direction: RowsDirection): Fa
     recordId,
     childId,
     state: typedState,
-    attempts: checkCount(data, 'attempts', 'work.fanout_child', direction),
+    attempts: checkCount(data, 'attempts', 'work.fanout_child', direction, errors),
     causeKind,
     causeReason,
   };
@@ -1046,8 +1093,9 @@ export function withFanoutRowData(
   row: StoredRow,
   data: Readonly<Record<string, unknown>>,
   meta: FanoutRowMeta,
-): StoredRow {
-  checkMeta(meta, 'fanout', 'state');
+
+  errors: RowsErrorFactory = defaultRowsErrors): StoredRow {
+  checkMeta(meta, 'fanout', 'state', errors);
   return {
     ...row,
     version: (row.version + 1) as RecordVersion,
@@ -1076,19 +1124,20 @@ export function fanoutChildPageQuery(
   fanoutId: FanoutId,
   opts: { readonly cursor: string | null; readonly limit: number },
   direction: RowsDirection,
-): QuerySpec {
-  checkIdComponent(fanoutId, 'fanoutId', direction);
+
+  errors: RowsErrorFactory = defaultRowsErrors): QuerySpec {
+  checkIdComponent(fanoutId, 'fanoutId', direction, errors);
   if (opts.cursor !== null && opts.cursor === '') {
     if (direction === 'work') {
-      fail(direction, 'fanout page cursor must be non-empty or null.');
+      fail(direction, 'fanout page cursor must be non-empty or null.', errors);
     }
-    fail(direction, 'Fanout page cursor must be non-empty or null.');
+    fail(direction, 'Fanout page cursor must be non-empty or null.', errors);
   }
   if (!Number.isInteger(opts.limit) || opts.limit < 1) {
     if (direction === 'work') {
-      fail(direction, 'fanout page limit must be an integer >= 1.');
+      fail(direction, 'fanout page limit must be an integer >= 1.', errors);
     }
-    fail(direction, 'Fanout page limit must be an integer >= 1.');
+    fail(direction, 'Fanout page limit must be an integer >= 1.', errors);
   }
   return {
     model: WORK_FANOUT_CHILD_MODEL,
@@ -1130,18 +1179,19 @@ export function fanoutChildPageResult(
   rows: ReadonlyArray<StoredRow>,
   limit: number,
   direction: RowsDirection,
-): FanoutChildPage {
+
+  errors: RowsErrorFactory = defaultRowsErrors): FanoutChildPage {
   if (!Number.isInteger(limit) || limit < 1) {
     if (direction === 'work') {
-      fail(direction, 'fanout page limit must be an integer >= 1.');
+      fail(direction, 'fanout page limit must be an integer >= 1.', errors);
     }
-    fail(direction, 'Fanout page limit must be an integer >= 1.');
+    fail(direction, 'Fanout page limit must be an integer >= 1.', errors);
   }
   if (rows.length > limit) {
     if (direction === 'work') {
-      fail(direction, `fanout page returned ${rows.length} rows past limit ${limit}.`);
+      fail(direction, `fanout page returned ${rows.length} rows past limit ${limit}.`, errors);
     }
-    fail(direction, `Fanout page returned ${rows.length} rows past limit ${limit}.`);
+    fail(direction, `Fanout page returned ${rows.length} rows past limit ${limit}.`, errors);
   }
   if (rows.length < limit) {
     return { rows, done: true, cursor: null };
@@ -1149,9 +1199,9 @@ export function fanoutChildPageResult(
   const last = rows[rows.length - 1];
   if (last === undefined) {
     if (direction === 'work') {
-      fail(direction, 'fanout page is unreachable: full page has no last row.');
+      fail(direction, 'fanout page is unreachable: full page has no last row.', errors);
     }
-    fail(direction, 'Fanout page is unreachable: full page has no last row.');
+    fail(direction, 'Fanout page is unreachable: full page has no last row.', errors);
   }
   return { rows, done: false, cursor: last.id as string };
 }
