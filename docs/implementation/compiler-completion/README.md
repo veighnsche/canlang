@@ -1,5 +1,21 @@
 # Can18 remaining work — proposed root-cause plan
 
+### Accepted receipt-read observer census repair — 2026-10-18
+
+The checked decision consumer now traverses declared delivery reads inside
+source Requires, including the original Invoice `review_attempt` shape. A
+missing expression case previously refused the shared observer inventory and
+could also discard membership binding through that inventory. Fresh source/IR,
+field/selected-leaf correspondence and callback registration remain sealed.
+The focused compiler regression passes, including retained-IR field tampering;
+unchanged retained checks are reused. Actual CLI compilation of the focused
+Can fixture succeeds with zero diagnostics. This accepts the compiler mechanism;
+removal of the original 26 observer and 5 membership diagnostics awaits the next
+original24 capture. Maintain retry still times out: run7 reaches saved scenario
+projection after receipt joins/revalidation complete; its runtime repair remains
+open. No whole-composition or retry completion is claimed.
+
+
 ### Accepted inline preference editors — 2026-10-18
 
 Source-authored local bool toggles and text/int inputs now compile and execute

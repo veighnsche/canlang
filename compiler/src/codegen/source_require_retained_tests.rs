@@ -222,6 +222,67 @@ fn emit_after(change: impl FnOnce(&mut IrProgram)) -> (JsOutput, bool) {
 }
 
 #[test]
+fn delivery_read_require_serializes_its_source_observer() {
+    // invoice.review_attempt shape: a leading Require observing a delivery
+    // leaf (`request.reconciliation?.status`) through `not any(...)` over a
+    // parent-child collection.
+    let source = "app DeliveryReadRequire\nuse std {TextGenerationV1 as LLM} from=deployment.llm\nGiven\n P {name:text}\n C in P {kind:text,reconciliation:delivery(LLM.generate)?}\n policy P read=members\n policy C read=members\nWhen\n scenario check(p:P) -> int by=members\n  require not any(p.C as request,request.kind==\"reconcile\" and request.reconciliation?.status==pending)\n  do\n   return 1\nThen\n";
+    let (db, program, ir, catalog) = fixture_source(source);
+    let context = FreshSourceContext::prepare(&program, &ir, &db, Some(&catalog)).unwrap();
+    let sources = super::scenario_decisions::serialize_scenario_requires(&context).unwrap();
+    assert_eq!(sources.len(), 1, "delivery-read Require keeps its observer");
+    let observer = read_predicates::prepare_with_context(&context).expect("observer");
+    assert_eq!(observer.source_requires(&ir).unwrap().len(), 1);
+    // A changed delivery field refuses instead of admitting a wrong delivery
+    // observation: the fresh seal covers the tampered field (props remain
+    // under the existing global retained-IR seal).
+    fn tamper_first_delivery_read(expr: &mut TypedExpr) -> bool {
+        match &mut expr.expr {
+            IrExpr::DeliveryRead { field, .. } => {
+                field.push_str("_tampered");
+                true
+            }
+            IrExpr::Unary { operand, .. } | IrExpr::Member { base: operand, .. } => {
+                tamper_first_delivery_read(operand)
+            }
+            IrExpr::Binary { left, right, .. } => {
+                tamper_first_delivery_read(left) || tamper_first_delivery_read(right)
+            }
+            IrExpr::Call { args, .. } | IrExpr::BoundCall { args, .. } => {
+                args.iter_mut().any(tamper_first_delivery_read)
+            }
+            IrExpr::Array(items) => items.iter_mut().any(tamper_first_delivery_read),
+            IrExpr::Lambda { body, .. } => tamper_first_delivery_read(body),
+            IrExpr::Query(query) => [&mut query.where_pred]
+                .into_iter()
+                .flatten()
+                .any(|pred| match &mut pred.expr {
+                    IrExpr::Lambda { body, .. } => tamper_first_delivery_read(body),
+                    _ => tamper_first_delivery_read(pred),
+                }),
+            _ => false,
+        }
+    }
+    let mut tampered = ir.clone();
+    let check = tampered
+        .items
+        .iter_mut()
+        .find(|item| item.canonical.ends_with(".check"))
+        .expect("check");
+    let IrItemKind::Scenario { guards, .. } = &mut check.kind else {
+        panic!("check scenario")
+    };
+    let IrStmt::Require { cond, .. } = &mut guards[0] else {
+        panic!("leading Require")
+    };
+    assert!(tamper_first_delivery_read(cond), "fixture owns a delivery read");
+    assert!(
+        observer.source_requires(&tampered).is_none(),
+        "changed delivery leaf refuses"
+    );
+}
+
+#[test]
 fn original_source_require_emits_its_private_observer_and_complete_recover() {
     let (output, sealed) = emit_after(|_| {});
     assert!(sealed);
