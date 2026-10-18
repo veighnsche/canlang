@@ -1,6 +1,660 @@
-# First `can dev` implementation plan
+# `can dev` implementation plan
 
-## Current execution: finish the declared first slice
+## Current execution view — development experience, 2026-10-18
+
+**Planning artifact; implementation is owned by the designated lifecycle chat.** This is the
+single current execution view for the terminal-first development experience and
+its later save-to-presentable-preview work. The research/planning work performed no implementation, builds or servers. The
+user subsequently authorized **Prevent Miniflare instance accumulation** to proceed,
+prioritizing the state machine and terminal UX. T14–T30 below define that work;
+implementation completion must be recorded by its owner, not inferred from this
+planning handoff. Unrelated stopped work is not resumed by that authorization.
+
+The original **T00–T13 and G1/G2 remain accepted at their recorded frozen scopes**;
+consume their outputs without repeating their qualification. G3/A7 remains the
+external account/executor/protocol gate recorded below. The stopped platform
+handoffs remain stopped and outside this extension. T14–T30 add outcomes to the
+accepted session, protected preview and JSON controls; they do not replace those
+IDs or turn historical open counts into new assignments.
+
+### Evidence and intended outcome
+
+Use the [research and 24 terminal states](development-experience-research.html)
+and the [proposal decision](../../specification/DECISIONS.md#2026-10-18--proposed-terminal-first-development-experience-execution).
+The research retains source observations, official ecosystem references, three
+JEV sequencing requests and three terminal-layout requests with their disagreement.
+Those consultations are advice, not implementation approval or usability evidence.
+The offline ready/rebuild/error/narrow images were inspected; browser document
+behavior and a real terminal renderer were not tested.
+
+The supplied warm edit sample was **14.567 s save to verified usable page**;
+13.48 s was the aggregate check, not compiler time. The separate startup samples
+and minimal-runtime timings do not attribute that cost. **Roughly two seconds for
+a small edit remains an aspiration**, neither a promised ceiling nor an acceptance
+threshold. Finish the manual terminal experience first; automate the whole loop
+and reduce repeated work in parallel after its contracts are usable.
+
+Target behavior: the terminal truthfully explains the wait and available preview;
+a save eventually updates the same authenticated tab without repeated check/open
+commands; safe selective updates preserve supported interaction state; unchanged
+work is reused only under verified keys. Permissions, evaluation order, current
+source, login/data and resource ownership stay authoritative throughout.
+
+Targeted planning reads at main `71885872b` confirm the relevant owner seams:
+watch hints capture but do not check; compilation precedes the unchanged-serving
+shortcut; the protected bridge is build-owned; producer bundles use fresh
+synchronous child calls; retained preview data already survives compatible builds
+and schema mismatch refuses reuse. The earlier first-slice reset wording is
+historical, not a requirement to erase current retained data. Concurrent source
+work is not a frozen validation input. Lifecycle/performance changes observed in
+the earlier `0970` worktree are not assumed merged or qualified here.
+
+### Required handoffs, limits and decisions
+
+- **E1 — lifecycle owner output:** obtain the exact released retryable failed-cleanup
+  handle, no-growth admission and shutdown-incomplete behavior from the existing
+  lifecycle/performance owner, **Prevent Miniflare instance accumulation**. Its
+  lifecycle work and T14 share one writer; the state-machine contract below is the
+  completed planning handoff, not a new implementation dispatch. Reuse its
+  capture/inventory optimization if released.
+  T14/T15 can show current observed failures without E1. T18 routing can be developed
+  independently; T19/T21 must consume no-growth/retry semantics before accepting
+  unattended repeated replacement. If the output is still absent, name this exact
+  external dependency; do not require that owner's entire plan or duplicate it.
+- **Stable URL scope:** propose one protected origin for one live session, across
+  candidate replacement. Session restart may require explicit reconnect/new access;
+  cross-restart port persistence is not an implied requirement. T18 resolves this
+  small scope explicitly in its interface before changing listener lifetime.
+- **Human command:** T15 selects a separate explicit foreground entry/flag while
+  keeping existing JSON commands unchanged. First delivery is manual-check mode;
+  T19 later adds an explicitly labeled automatic mode with initial-check behavior.
+  Attachment never silently changes another owner's mode or acquires stop ownership.
+- **Update transport:** T20 chooses an authenticated same-origin one-way channel;
+  SSE is the proposed default, bounded polling a viable simpler alternative, and
+  WebSocket requires a concrete bidirectional need. The current buffered proxy is
+  not already a streaming channel. No external service or framework migration is needed.
+- **Measured techniques:** exact producer reuse is the first bounded partial-build
+  candidate. Persistent esbuild contexts, persistent compiler processes, semantic
+  incrementality and backend-independent CSS publication are conditional choices,
+  not established speedups. T27/T28 name the smallest experiment and stop condition.
+- For a difficult unresolved choice, the defining owner uses verified context,
+  balanced alternatives and three independently worded equivalent JEV questions,
+  retaining responses and uncertainty in this record or the existing research.
+  Reuse existing consultations when their question and inputs still apply. Routine
+  implementation choices need no new approval or consultation ceremony.
+
+### Explicit server state machine — T14 defining contract
+
+This is a **proposed extension of the existing owner state**, not a replacement
+state-machine framework or another task queue. `DevSessionCore` keeps the input
+epoch, capture/check queues, `changeSerial`, cancellation controller, retained
+checks and serving handle. `session-service.ts` projects those facts and owns
+admission; daemon/socket retain process, root-claim and transport ownership.
+Compiler/builder phases report facts into that owner. Terminal logs are an output,
+never the source from which server state is reconstructed.
+
+The implementation owner designated by the user is **Prevent Miniflare instance
+accumulation**. Its existing lifecycle work supplies E1 and the lifecycle portion
+of T14; this document does not dispatch another implementation owner. The handoff
+is the state/transition contract below plus the existing T14–T30 task boundaries.
+
+#### Related state dimensions and authoritative facts
+
+| Dimension | Proposed states / retained facts | Defining owner and meaning |
+| --- | --- | --- |
+| Server lifecycle | `starting → running → stopping → stopped`; failed release yields `shutdown_incomplete`, retry returns to `stopping` | Daemon/service and E1 cleanup owner. `running` means the control owner is usable, not that source or preview is ready. Startup failure is a retained launch outcome; if owned resources remain it must follow the same cleanup path. |
+| Check operation | No active operation, or an operation ID with `queued`, `capturing`, `checking_source`, `preparing_preview` with actual subphase, or `publishing`; retain one bounded latest terminal outcome separately | Core serializes work. Existing source result (`valid`, `errors`, `limited`, `incomplete`, `unsupported`, `tool_failure`, `superseded`) stays distinct from preview preparation/promotion outcome and cancellation reason. Source-valid does not imply preview-ready. |
+| Preview availability | `unavailable`, or `serving` with exact revision/build, safe origin and last verified readiness | Core selects the backend; builder/bridge owns readiness/release facts. A failed candidate leaves a usable previous serving handle intact. A detected dead/unavailable backend removes the availability claim; no invented background health monitor is required. |
+| Preview freshness | `not_applicable` when absent; otherwise `current`, `older`, or `unconfirmed` | Derived from the serving identity and a coherent current input generation. Watcher dirtiness, incomplete capture or unresolved newer hints mean `unconfirmed`, not proven old bytes. A confirmed different current generation means `older`; verified identical inputs can restore `current`. Never infer freshness solely from the latest check outcome. |
+| Work admission / cleanup | Bounded owner-supplied blocking reasons such as restart required or retained failed cleanup; active cleanup handle/outcome stays with E1 | A preview may be serving and current while retired cleanup has failed. No new preparation or ordinary work is admitted while the applicable cleanup/restart gate forbids it. This is a guard on transitions, not a second runtime controller. |
+| Presenter connection | `connecting`, `connected`, `lost`, `detached` with last verified snapshot | Client-only observation, not another server lifecycle. A lost connection makes server state unknown to that client; it cannot assert stopped or unavailable. Preview access expiry is likewise distinct from backend availability and application Identity. |
+
+During early launch, before a verifiable owner exists, the launcher can report its
+own observed `starting/waiting for owner` action and elapsed time. It cannot label
+compiler/runtime phases from daemon log text. Once connected, the server supplies
+one coherent snapshot with session identity, operation ID, monotonically ordered
+update sequence, revision identities, phase timestamps, latest outcome, serving
+facts and admission reasons. An additive/versioned human observation route can
+carry it without reinterpreting existing JSON envelopes. Consumers reconnect with
+a snapshot, discard events from another session or older sequence/operation, and
+resnapshot after a gap. No unbounded event log or durable workflow engine is needed.
+
+For example, this is a valid simultaneous state, **not a single `error` state that
+turns off the preview**:
+
+```text
+server: running
+check: idle; last source result = errors for r15
+preview: serving r14; freshness = older
+admission: check/open allowed; current application authorization still applies
+terminal: “Check r15 failed. Preview r14 is still serving. Fix and check again.”
+```
+
+A source-valid r16 with failed preview preparation likewise leaves r14 serving.
+A check failure against identical inputs does not by itself prove the preview is
+older. The current check response's `preview: unavailable` describes the requested
+candidate; it must not overwrite actual serving availability from owner status.
+
+```mermaid
+stateDiagram-v2
+    [*] --> starting: owned launch / claim
+    starting --> running: verified control ready
+    starting --> stopping: startup failure or owned cancellation
+    running --> stopping: stop admitted
+    stopping --> shutdown_incomplete: owned release fails
+    shutdown_incomplete --> stopping: explicit retry of same owner
+    stopping --> stopped: owned release confirmed
+    stopped --> [*]
+```
+
+Rejected duplicate starts and unattached clients do not enter this owner's
+lifecycle. A failed launch with no acquired resources can finish immediately with
+its startup error; `stopped` is not a claim that startup succeeded. After terminal
+release the final owner-confirmed outcome remains in the client transcript; if it
+was not observed, endpoint disappearance alone is insufficient evidence of full
+resource release. Do not add a persistent status file solely for that display.
+
+#### Triggers, guards, transitions and recovery
+
+| Trigger / authoritative observation | Allowed transition and action | Failure, preservation and next action |
+| --- | --- | --- |
+| Explicit start | Reuse private canonical-root claim and verified app/profile/session handshake; only the winning owner enters `starting`, then `running` when control is ready. Manual mode remains unchecked; automatic mode requests its explicitly declared initial check. | Existing live owner produces `SESSION_EXISTS`; offer explicit discover/attach, never silently start a second owner or change its seed/profile. Failed launch preserves its primary error and reports any pending owned-child cleanup. |
+| Explicit attach / reconnect | Verify private descriptor, root, app/profile/session, process identity and nonce handshake; fetch authoritative snapshot. | Unknown/unresponsive identity stays unverified. Do not reclaim merely because a socket times out; do not acquire stop ownership, switch mode or launch a substitute. |
+| Watch hint or explicit refresh | Increment existing change serial, mark freshness unconfirmed, reconcile captured membership/bytes through the existing queue. Source membership/bytes determine `sourceRevision`; changed full input identity (including tools/options) advances the core input epoch/revision even when source is unchanged. A coherent identical capture advances neither. | Capture failure records incomplete/unknown freshness and preserves last-good serving. Manual mode waits for check; automatic mode keeps only the newest pending demand. |
+| Explicit check or automatic demand while `running` and admitted | Existing check queue enters `capturing → checking_source → preparing_preview → publishing` only for phases actually performed. Each operation pins coherent inputs and retains source result separately. | Duplicate human request reports already checking; T19 coalesces automatic demand. Preserve existing expected-revision refusal and JSON behavior. Active preparation is never bypassed by another check or cache hit. |
+| Source invalid, limited, unsupported, capture/tool failure | End that attempt with its exact typed result; return operation to idle, retain bounded details and any last-good preview. | Show the failing generation and meaningful next step. Corrected input/manual check or automatic next save may retry; producer restart-required is an admission reason, not an endless retry loop. |
+| Source valid; candidate preparation/readiness fails | Record source success plus preview failure; dispose every partially allocated candidate through its existing owner. | Last-good preview is preserved. Failed disposal becomes retained cleanup/admission blocked; source success must not display a new Ready. Schema mismatch retains data and requires the existing explicit recovery choice. |
+| New inputs or cancellation during check/preparation | Keep currentness checks before and after preparation. Mark obsolete operation superseded/cancelled, reject publication, and release candidate resources. | One latest pending automatic demand may run only after safe release/admission; manual mode does not invent another check. Preserve captured diagnostic provenance and do not replay uncertain effects. |
+| Ready current candidate reaches publication | Recheck input generation, lifecycle/admission and cancellation at the owner selection point; atomically choose the candidate and its matching resources, then notify. T18 pins existing in-flight requests. | Stop/source-change winning that ordering prevents publication. Retire the previous generation through E1; a failure leaves the new serving preview plus cleanup warning, not fictitious rollback or permission-result reuse. |
+| Retired/cancelled/failed candidate cleanup fails | Retain the same failed handle under E1; report cleanup-required and refuse resource growth. An explicit supported retry targets that handle/owner. | Do not allocate another candidate, forget the handle, or turn repeated stop into false success. A successful retry clears only its own blocker; other restart/stop reasons remain. |
+| Explicit open while running with a serving preview | Use the existing explicit protected-access action; label older/unconfirmed source and keep application Identity/CSRF/current authorization unchanged. Status reads use only safe origin. | Missing serving backend or closing admission refuses. Access renewal is explicit; it does not recheck source, clear errors, refresh a tab or prove page load. |
+| First owned stop / signal | Synchronously close work/access admission **before acknowledgement**, cancel pending automatic demand, stop watchers, abort cancellable work and await owned operations/cleanup. Enter `stopping`; duplicate stop joins the same attempt. | Late check/build completions cannot publish or create another runtime. Keep necessary status/details and the same owner's retry route available while release remains incomplete. |
+| Stop cleanup fails / succeeds | Failure enters `shutdown_incomplete`, preserving handles/control ownership needed for retry. Explicit retry enters `stopping` without reopening normal work. Success reaches `stopped` only at the lifecycle owner's confirmed release boundary. | `stopping:true` is intent only. Client timeout/disconnect is unknown completion, not stopped. Endpoint disappearance cannot hide release failure. Retry failure stays incomplete; primary failure is not replaced by incidental cleanup noise. |
+| Ctrl+C in attached view; second Ctrl+C in stopping owned view | Detach that presenter and print last verified session/recovery action; no server lifecycle transition is inferred from detachment. | Never kill an unrelated owner or claim shutdown completion. New start remains subject to the existing root claim while the old owner is retained. |
+
+Read-only status/help and retained diagnostics are available whenever the verified
+owner can serve them, including cleanup failure, with retention limits stated.
+Check/example/rank work and access issuance remain subject to their existing
+revision/authority predicates plus lifecycle admission; the service must enforce
+these guards even if a client sends a command absent from its displayed menu.
+No terminal-derived guard substitutes for owner enforcement. This adds lifecycle
+gating to existing commands, not new example/ranking work or wider feature scope.
+
+#### Reused mechanisms and concrete remaining gaps
+
+- **Reuse:** `session-core.ts` already separates input/check/build/serving revisions,
+  serializes checks/captures, rejects stale promotion using `stillCurrent`, preserves
+  last-good serving after check/build failure and cancels work on stop. Add explicit
+  active/terminal operation state and safe projection around those transitions.
+  Current `dirty` conservatively persists after an identical capture: T14/T19 must
+  obtain actual coherent evidence before projecting freshness as current.
+- **Reuse:** `session-socket.ts` already uses exclusive root-directory claiming,
+  private descriptors, serialized stale recovery, process-birth checks and verified
+  handshake. Unknown process identity is conservatively live/unresponsive. Keep
+  those policies and existing accepted controls; do not add a second lock system.
+- **Source-identified overlapping-start gap:** `claimRoot()` returns no original
+  claim token/inode, while `startSessionSocket()` records `ownedDirectory` later.
+  A stalled incomplete starter can be replaced, then resume against the winner's
+  directory; the startup catch removes the observed inode without checking claim
+  session ownership. Reproduce this exact interleaving, bind cleanup to the original
+  acquired ownership, and refuse a lost claim before publishing a descriptor or
+  deleting files. Sequential duplicate-start coverage is not this race's coverage.
+- **Source-identified shutdown gaps on inspected main:** service stop closes the
+  socket/clears handles even after core disposal fails; rejected stop promises can
+  remain sticky, and socket stop marks itself stopped before cleanup completes.
+  The daemon interprets endpoint disappearance as completion; failed launcher
+  startup sends SIGTERM without observing owned-child release. E1 already proposes
+  retryable retained cleanup and `shutdown_error` in the inspected unmerged work.
+  Consume that work and address only still-uncovered wrappers/startup cases; do not
+  recreate its cleanup mechanism or assume it has reached main.
+- **Projection/admission gaps:** current status lacks lifecycle, active phase,
+  retained preview failure and cleanup health. Its single stale boolean folds
+  uncertainty into staleness; check-response candidate availability is distinct
+  from actual serving status. The current delayed stop handler also leaves an
+  acknowledgement-to-admission window. T14 provides one coherent projection and
+  immediate owner gating; T15 only renders it. Never derive state by matching logs
+  or error-message prose.
+
+#### Finite delivery and lane handoff
+
+T14 now includes the above state dimensions, legal transitions, centralized action
+admission and typed observation contract. **Lane A and E1 are the same designated
+session/lifecycle implementation owner for overlapping core/service/daemon/socket
+writes.** The minimum early output to T15 is the snapshot/event shape plus action
+rules and representative simultaneous states. T16 can proceed on its disjoint
+build-execution boundary; it reports phases/cancellation to A and cannot set
+serving or stopped. Lane C owns candidate readiness/bridge release and supplies
+those outcomes to A; only A selects/publishes or closes session admission. Lane B
+projects state and chooses no server transitions by itself. T18/T19 consume this
+contract rather than implementing competing lifecycle enums or queues.
+
+Acceptance stays with existing tasks: **T14/E1** runs focused transition checks
+for invalid-source-with-old-preview, valid-source-with-build-failure, identical
+recapture, supersession, stop/publication ordering, cleanup failure→retry and the
+specific stalled-start takeover race. Reuse unchanged duplicate-owner/identity
+controls. A delayed failing build checks status responsiveness through **T16**;
+**T15/T17** verify state-to-terminal rendering and one real lifecycle journey,
+including startup failure cleanup and owner/attached exit behavior. **T19/T21** add
+only automatic-demand/no-growth joined risks. There is no cross-product test
+matrix of every theoretical state combination and no new global integration gate.
+
+The handoff is complete when the plan names these fields/guards, the implementation
+owner has the exact E1 outputs and uncovered source gaps, and T14/T15/T18/T19 share
+that single contract. Product completion still requires their scoped implementation
+and checks; this planning turn performs none.
+
+### Dependency order and parallel lanes
+
+Arrows require the named output, not completion of a prerequisite's unrelated work.
+T14 should hand off its operation/event shape early so consumers need not wait for
+all terminal cases. T24 similarly releases the checked classification shape before
+its browser consumers finish. These are ordinary interfaces, not packaging gates.
+
+```text
+E1 + T14 lifecycle/check/preview contract (one owner; no duplicate mechanism)
+T14 owner state ──┬── T15 terminal ──────────┐
+T16 async build ──┴─────────────────────────┴── T17 terminal + phase baseline
+                  T14 origin/promotion shape ── T18 stable bridge ──┐
+T14 scheduling shape + E1 ── T19 automatic checks ───────────────────┤
+T18 publication/origin ── T20 authenticated refresh ────────────────┴── T21 automatic-loop join
+T17 phase evidence + T16 build seam ── T22 producer reuse ───────────────┐
+T17 phase evidence + E1 capture output ── T23 capture/staging reuse ─────┤
+T18/T20 generation shape ── T24 checked classification ── T25 CSS ───────┤
+                                        └────────────── T26 page morph ┤
+T25 + phase evidence ── T27 resource-only build decision/selected slice ┤
+T17/T22/T23 phase attribution ── T28 compiler decision ── T29 if selected┤
+T21 + selected outputs above ─────────────────────────────────────────┴── T30 final changed-scope join
+```
+
+| Lane | Work sequence and defining writer | Why it shortens credible wall time |
+| --- | --- | --- |
+| A — Session/control | Designated lifecycle implementation owner consumes E1 and implements T14, including daemon/socket gaps; then T19 and T23 integration in `session-core.ts`/`session-service.ts`; owns cross-lane wiring there | One writer preserves revision/publication/cancellation ordering and avoids conflicting scheduler/cache/status edits. Supplies small interfaces early. |
+| B — Human and browser presentation | T15/T17 terminal; then T20 browser consumer, T25 CSS and T26 morph in UI/browser code | Delivers the highest-priority visible result first; reuses the same presentation owner for browser lifecycle/focus/draft behavior. T26 can follow T24 without waiting for T25, but their shared browser writer serializes edits. |
+| C — Protected preview/runtime | T18 bridge/builder; T20 gateway endpoint; relevant T21/T30 routing/lifecycle joins | Stable access and candidate routing are a distinct correctness problem; this lane can work alongside session scheduling after its interface is released. |
+| D — Build/reuse | T16; then T22 and T24 resource comparison; T27 if justified; T28/T29 through the existing compiler owner when its exact files are released | Reduces computation alongside workflow delivery. It does not put an unmeasured compiler redesign on the browser critical path. |
+
+**Recommended first dispatches after implementation authorization:** T14 and T16
+on their disjoint owner paths. As soon as T14 releases the event/status and
+origin/promotion shapes, dispatch T15 and the bridge portion of T18. Transfer
+`preview-builder.ts` from T14's phase-hook edit to T18 explicitly. After T17,
+A advances T19 while C/B advance T20 and D advances T22. T23 follows A's scheduler
+write release, not a concurrent second writer. T24 can start from the checked
+artifact/resource boundary while automatic integration settles. A compiler lease
+can fill a later free slot only after T28 identifies useful finite work; no idle
+agent is a reason to invent another compiler task.
+
+The first visible critical path is **T14 + T16 → T15 → T17** (T15 development
+can overlap). The automatic-loop join waits for the slower of **T18/T20** and
+**T19/E1**, not for generalized HMR or compiler incrementality. The final responsive
+experience joins **T21**, the selected reuse path, and **T24 → T25/T26**. Which
+performance branch dominates cannot be known until phase evidence exists; no
+numerical estimates are invented. Conditional T27/T29 are kept off the automatic
+workflow release path and either finish their selected scope or remain explicitly
+deferred with the measured reason.
+
+### Finite implementation tasks
+
+All source paths below are repository-relative. `dev/` means
+`packages/cloudflare/src/dev/`; `deploy/` means `packages/cloudflare/src/deploy/`.
+Checks are requested future acceptance, not checks run during this planning turn.
+
+#### T14 — Authoritative lifecycle, check and preview state; safe status
+
+- **Owner:** designated session/lifecycle owner, `dev/session-core.ts`,
+  `session-service.ts`, `session-daemon.ts`, `session-socket.ts`; compiler phase hooks
+  in `compiler-check.ts` and small preparation hooks in `preview-builder.ts`.
+  Reuse E1 cleanup ownership; no second core/lifecycle writer.
+- **Prerequisite output:** accepted T08/T13 revision, captured diagnostic and command
+  result contracts; existing check/build/cleanup outcomes. E1 supplies retained cleanup/retry; the source-identified wrapper/startup gaps are
+  the remaining finite lifecycle work, not a dependency on its whole plan.
+- **Remaining change / observable outcome:** implement the [state-machine contract](#explicit-server-state-machine--t14-defining-contract) above: related lifecycle,
+  operation and serving/freshness dimensions, transition guards and immediate stop
+  admission, using existing queues/claims/cleanup. Close only the identified
+  duplicate-start and shutdown gaps not supplied by E1. Define one bounded operation snapshot
+  and ordered update projection: operation/revision identity, queue/start/phase
+  timing, capture uncertainty versus confirmed change, check versus serving state,
+  last preview/cleanup failure and read-only non-secret origin. Instrument actual
+  owner boundaries; before a boundary exists, say waiting for result. Reconnect
+  obtains a snapshot before accepting newer events. No fabricated logs or phases.
+- **Checks / completion:** focused state cases for dirty-but-identical capture,
+  source failure with an old serving preview, preview failure, supersession and
+  delayed events prove that check, serving and current revisions stay separate.
+  Include the specific start-takeover race, stop-versus-publication and retained
+  cleanup retry, reusing unchanged owner controls. Origin reads do not mint
+  access. Retention/drop/unavailable states are bounded and explicit. Done when
+  T15 can render these truthful states from owner data; no full telemetry platform.
+
+#### T15 — Foreground terminal, durable history, diagnostics and controls
+
+- **Owner:** terminal/control, `dev/control-cli.ts`, `control-client.ts` and a small
+  presenter module if needed; existing `session-daemon.ts` attachment boundary.
+- **Prerequisite output:** T14 published shape and accepted T13 JSON behavior;
+  inspected terminal proposal, including plain mode and owner/attachment semantics.
+  The presenter consumes the authoritative state contract, never log inference.
+- **Remaining change / observable outcome:** implement inline status after durable
+  history, normal/error/narrow layouts, real phase timers, captured-revision error
+  excerpts and retained details. Enter executes known aliases; Ctrl+C stops an
+  owned session or detaches an attached view. Offer explicit open/access/status/help;
+  disclose unavailable logs, old diagnostics and missing phases. Keep secrets out
+  of routine output and sanitize untrusted terminal controls. Plain/redirected and
+  NO_COLOR output retain meaning. Existing JSON stdout/envelope/exit behavior stays intact.
+- **Checks / completion:** finite presenter/input checks cover startup versus app
+  readiness, success, initial/source/build failure, lost connection, cleanup/stop,
+  supersession and plain/JSON separation. Inspect actual 80/44-column terminal
+  layouts once, including paste, resize and Enter versus Ctrl+C. No invented ETA,
+  browser-loaded claim, hidden shell execution or reset action. Done at manual scope.
+
+#### T16 — Responsive owned build execution
+
+- **Owner:** build adapter, `dev/preview-host.ts`, `deploy/bundle.ts`, existing
+  command lifetime/child-execution mechanism. It does not own session scheduling.
+- **Prerequisite output:** current synchronous producer boundary and existing
+  cancellation/timeout/cleanup contract; T14 shape only when wiring progress.
+- **Remaining change / observable outcome:** place blocking build work behind the
+  smallest owned async child/worker boundary, keeping local command limits,
+  admission, primary-error preservation and awaited cleanup. Pass the esbuild
+  binary/config per job; eliminate overlapping mutation of global
+  `ESBUILD_BINARY_PATH`. Preserve existing synchronous callers if still required.
+- **Checks / completion:** focused deliberately delayed build proves status and
+  stop remain responsive, timeout/cancellation cannot publish late success and
+  owned child/temp resources are released. One genuine affected bundle verifies
+  output/loadability. Done without a general worker pool or cache requirement.
+
+#### T17 — Close terminal delivery and obtain the useful phase baseline
+
+- **Owner:** terminal/session integration; existing dev tests and local-development
+  guide, consuming frozen T14–T16 outputs.
+- **Prerequisite output:** functioning manual presenter and responsive build path,
+  a currently supported existing `.can` fixture and prepared producer closure.
+- **Remaining change / observable outcome:** wire launch/attach, one check, useful
+  failure/recovery and stop into a coherent human experience. Update the guide to
+  distinguish control connected, source checked and preview ready. Capture one
+  ordinary warm edit with owner subphase durations during this same validation.
+- **Checks / completion:** direct startup→ready→invalid edit→repair→stop journey,
+  plus attached-view detach and preserved JSON consumer. Inspect actual normal,
+  error and narrow output; record the scoped result here. Baseline separates
+  capture, compiler, bundle, state/activation/readiness and publication; missing
+  timing is reported, not guessed. T14–T17 close here without waiting for auto mode.
+
+#### T18 — Session-lifetime protected origin and generation routing
+
+- **Owner:** preview gateway/runtime, `dev/preview-bridge.ts`, `preview-builder.ts`;
+  A integrates its narrow promotion/disposal seam in core/service.
+- **Prerequisite output:** T14 safe-origin/promotion interface and release of its
+  builder hook edits; current protected access and retained-state behavior (T09).
+- **Remaining change / observable outcome:** own the listener/access state at the
+  session, configure every candidate's auth host with that same origin, and select
+  only a ready current candidate. Pin each request to one backend; bound retirement
+  and compatible asset retention so an old document cannot mix incompatible
+  resources. No backend at startup means unavailable. Token issuance stays explicit.
+- **Checks / completion:** same origin across two valid replacements; protected
+  bootstrap/expiry, Identity/CSRF/host refusal and independent-session isolation;
+  in-flight read/mutation, failed/superseded candidate, asset mismatch and retirement.
+  Never replay uncertain mutation or reuse permission results. E1 is consumed for
+  repeated failure admission. Done for one session lifetime; restart scope is explicit.
+
+#### T19 — Coalesced automatic checks and recovery
+
+- **Owner:** the same session state-machine writer, `dev/session-core.ts`/`session-service.ts`; terminal
+  mode projection is a small T15 consumer update through its existing owner.
+- **Prerequisite output:** T14 operation/currentness shape, accepted capture checks,
+  and E1 no-growth/retry output before unattended replacement acceptance.
+- **Remaining change / observable outcome:** explicit automatic mode runs the
+  declared initial check and coalesces saves to one active preparation plus the
+  newest pending demand. Reconcile membership/bytes; hints are not changes. Safely
+  cancel only owned cancellable work; otherwise finish/discard/clean it. Manual
+  check and automatic demand share serialization. Source correction resumes;
+  changed imported producers and cleanup failure visibly pause instead of looping.
+- **Checks / completion:** fake-clock/state tests for burst/add/delete/rename,
+  identical hints, edit during check/preparation, manual-check collision, error then
+  correction, restart-required and stop. Only latest valid current work publishes;
+  no unbounded queue or runtime growth. Data/schema refusal stays intact. Done when
+  those scheduler outcomes feed the same truthful presenter.
+
+#### T20 — Authenticated update delivery and safe automatic reload
+
+- **Owner:** C owns `dev/preview-bridge.ts` notification route; B owns the dev-only
+  browser consumer through `packages/ui/src/browser/bootstrap.ts` or its narrow
+  dev entry. D owns only the necessary resource-injection call site in `deploy/bundle.ts`.
+- **Prerequisite output:** T18 stable origin, current ready publication and asset
+  identity; T14 ordered generation/status shape. T19 is needed for save-triggered
+  integration, not for implementing/qualifying notification after manual checks.
+- **Remaining change / observable outcome:** notify publication once, reconnect to
+  latest serving generation and reject obsolete messages. Reload the same tab
+  automatically when safe; visibly defer with unsaved drafts/in-flight mutation,
+  offer an explicit reload and resume when settled. Access expiry/disconnect is
+  actionable. Browser acknowledgement is generation-bound and optional; only its
+  receipt permits “browser applied,” never “business behavior passed.”
+- **Checks / completion:** real authenticated channel covers reconnect/lost/duplicate
+  events, old generation, access expiry, denied origin and stop; browser covers
+  clean reload and deferred draft/mutation. No token/credentials/source payload leak,
+  no automatic access renewal and no dev client in release output. Done at reload scope.
+
+#### T21 — First complete automatic save-to-page join
+
+- **Owner:** session/preview integration, existing native/browser dev fixture.
+- **Prerequisite output:** T17 terminal delivery, T18–T20 and E1; prepared current
+  compiler/runtime and retained state, with one source/asset generation frozen per check.
+- **Remaining change / observable outcome:** connect save detection, checking,
+  atomic publication and same-tab delivery. Update human mode labels and onboarding.
+- **Checks / completion:** one warm sentence edit appears without check/open;
+  a burst publishes only latest, syntax error preserves labeled last-good preview,
+  correction recovers. Same login/team/data/database identity persists; schema
+  mismatch preserves data; owned stop releases listener/runtime. Reuse component
+  security and failure checks; add only distinct joined risks. Record save→paint
+  and the relevant interaction separately. This closes automatic workflow, not a
+  two-second promise or arbitrary state-preserving HMR.
+
+#### T22 — Reuse invariant producer bundles
+
+- **Owner:** build producer, `deploy/bundle.ts` MCP/HTTP producer builders and
+  `dev/preview-host.ts` cache lifetime; same writer as T16.
+- **Prerequisite output:** T16 isolated build seam and T17 phase evidence showing
+  whether repeated producer bundling is material; current captured installed closure.
+- **Remaining change / observable outcome:** first candidate is bounded exact-key
+  reuse of invariant MCP/HTTP bundles, leaving artifact-dependent assembly fresh.
+  Key the actual consumed closure/resolution plus esbuild binary/version/options,
+  target/config and producer identities. Admit only completed coherent output,
+  bound memory/disk ownership and eviction. A retained rebuild context is an
+  alternative only if evidence favors it; do not implement both speculatively.
+- **Checks / completion:** unchanged producer hit, changed dependency/config/tool
+  miss, missing/corrupt/partial output refusal and source-current publication;
+  compare one affected warm edit to T17 with output equivalence/loadability. Report
+  measured benefit or lack of it. If cost is immaterial, close the decision as
+  deferred with evidence instead of adding a cache. Permission outcomes are never cached.
+
+#### T23 — Reuse coherent capture, compiler staging and exact unchanged checks
+
+- **Owner:** capture/compiler adapter, `dev/source-capture.ts`, `preview-inputs.ts`,
+  `compiler-check.ts`; A serially integrates core/service reuse.
+- **Prerequisite output:** T17 attribution, E1's released capture/inventory result
+  or an explicit statement of the remaining duplicate, T19's shared check admission.
+- **Remaining change / observable outcome:** reuse already coherent captures only
+  across a valid generation boundary; retain verified compiler/catalog staging by
+  identity. For an exact unchanged full input identity, reuse bounded successful
+  check/artifact output before another compiler spawn. No broader semantic cache.
+  Preserve current evidence and diagnostics provenance; a watcher alone is insufficient.
+- **Checks / completion:** no-op hit plus source membership/add/delete/symlink,
+  compiler/catalog/flag/profile/producer change and mid-capture mutation invalidate
+  correctly. Refuse incomplete/stale identity; never promote failed/superseded output.
+  One direct no-op/copy-edit comparison proves the specific avoided work. Reuse E1
+  acceptance; implement only the uncovered measured duplication, or record deferral.
+
+#### T24 — Checked change classification and compatibility facts
+
+- **Owner:** artifact/resource comparison in `deploy/bundle.ts` and dev publication;
+  compiler owner only for a demonstrated missing emitted identity. No token/text diff heuristic.
+- **Prerequisite output:** T18/T20 generation/asset shape and existing emitted style,
+  browser, route, model/policy/binding identities. Coordinate bundle writer after T22.
+- **Remaining change / observable outcome:** compare validated outputs to classify
+  no page change, CSS-only, candidate compatible page update, or reload/restart.
+  Include locales, dependencies, executable/client and authority/form identity;
+  unknown is incompatible. Publish the smallest checked facts consumers need.
+- **Checks / completion:** representative style, message/template, behavior/query,
+  route, policy/binding, schema and producer changes choose their declared path;
+  a literal change cannot masquerade as presentation-only. Done when T25/T26 have
+  evidence-backed eligibility and safe fallback, without a generalized new IR.
+
+#### T25 — CSS replacement without resetting the page
+
+- **Owner:** dev browser/resource lifecycle, B; D supplies checked resources.
+- **Prerequisite output:** T20 delivery, T24 CSS-only result and coherent versioned
+  assets from the normal validated build. Backend skipping is not a prerequisite.
+- **Remaining change / observable outcome:** load the checked new sheet before
+  removing the old one; retain DOM/focus/drafts. Reject out-of-order generations and
+  handle unavailable style bytes explicitly, falling back to safe reload as needed.
+- **Checks / completion:** one actual style edit changes the page with no reload or
+  lost draft/focus; incompatible markup/client change and failed resource fetch
+  cannot partially apply a generation. Report frontend continuity separately from
+  unchanged backend build cost. Stop at the declared CSS class.
+
+#### T26 — One bounded authorized page/region update
+
+- **Owner:** existing UI binder/mount/morph lifecycle in
+  `packages/ui/src/browser/bootstrap.ts` and owning authorized page render path.
+- **Prerequisite output:** T20 delivery and T24 compatibility facts; existing morph
+  behavior is evidence to reuse, not proof it is safe across code generation.
+- **Remaining change / observable outcome:** select one text/template edit class
+  with same route/context and compatible executable/form contract. Obtain a fresh
+  authorized render, dispose/rebind generated mounts and transfer only explicitly
+  safe draft/focus/navigation state. Do not retain obsolete nonce/CSRF/version/action
+  authority merely because ordinary in-generation morphing retains it.
+- **Checks / completion:** real selected edit preserves supported drafts/focus;
+  revoked read/action, changed binding, incompatible client, pending mutation and
+  failed render take the declared deny/defer/reload path. No duplicate handlers or
+  stale privileged controls. Done at this class; arbitrary component HMR is unselected.
+
+#### T27 — Decide and, if justified, deliver one resource-only partial build
+
+- **Owner:** resource publication/build and existing compiler asset owner.
+- **Prerequisite output:** T24/T25 classification and an observed remaining backend
+  cost for a CSS edit; complete resource/Worker digest and admission relationship.
+- **Remaining change / observable outcome:** decide whether a coherent independent
+  resource-publication boundary is worth adding. Current CSS is folded into Worker
+  resources, so a browser sheet swap alone cannot skip backend work. If justified,
+  implement only checked CSS publication with unchanged behavior/schema/policy
+  output and atomic matching resource identity; otherwise retain normal builds.
+- **Checks / completion:** selected branch proves skipped backend work, correct
+  digest/invalidation, retained access/currentness, interrupted publication and safe
+  fallback. A no-go records measured reason and closes this decision without a new
+  carrier. No general asset pipeline or claim that all UI edits can skip checking.
+
+#### T28 — Select a finite compiler reuse boundary from measured cost
+
+- **Owner:** existing compiler owner, `compiler/src/` check/source/analysis/codegen
+  boundary; dev adapter supplies T17/T22/T23 timings and actual consumed inputs.
+- **Prerequisite output:** attributed compiler cost after reusable non-compiler work
+  is accounted for, and a released finite compiler file scope. Existing active compiler
+  changes remain with their owner; this plan cannot claim those files concurrently.
+- **Remaining change / observable outcome:** compare full-check retention, persistent
+  process/parse reuse and one dependency-aware declaration/query or emitted-unit cache
+  against the same edits and correctness needs. Select the smallest material win,
+  exact dependency/invalidation key, bounded memory/cancellation and fallback contract.
+  Disk persistence is a separate decision, not implied by a persistent process.
+- **Checks / completion:** bounded experiment on unchanged, one local edit and one
+  importer/interface invalidation, preserving diagnostics/spans/source membership.
+  Record measured go/no-go and the exact T29 boundary. Stop on a no-go; never open
+  an unlimited “incremental compiler” prerequisite. Existing JEV sequencing advice
+  does not decide a new compiler architecture.
+
+#### T29 — Implement only the selected compiler partial-work slice
+
+- **Owner:** compiler, with A consuming its exact check-adapter interface.
+- **Prerequisite output:** T28 go decision, selected source/query/output boundary
+  and independent equivalence expectations. **Conditional; not ready without these.**
+- **Remaining change / observable outcome:** retain only the selected work; invalidate
+  transitive consumers on interface/policy/config/membership change. An equivalent
+  semantic output may avoid downstream work but never carries obsolete spans,
+  source evidence, evaluation order or authority. Cold/full fallback remains available.
+- **Checks / completion:** compare selected cached and full results on the bounded
+  edit set, invalidation, error/correction, cancellation and bounded repeated requests;
+  one real dev consumer proves current generated output. Record speed/memory observations.
+  Close this slice without a whole-compiler rewrite, portable cache or universal latency claim.
+
+#### T30 — Final changed-scope interaction, latency and recovery join
+
+- **Owner:** dev integration and local-development documentation, with actual
+  UI/compiler/runtime owners supplying completed selected outputs.
+- **Prerequisite output:** T21, resolved T22/T23 decisions (consume implementations
+  where selected), implemented T25/T26, and resolved T27/T28 choices with T29
+  completed only if selected. Deferred techniques remain visible, not falsely
+  “implemented,” and valid no-go decisions do not block this join.
+- **Remaining change / observable outcome:** validate the complete available
+  experience on one frozen coherent producer closure and retained authenticated
+  browser/state. Update usage/troubleshooting and record completion in this view.
+- **Checks / completion:** reuse T21 and owner results wherever inputs/behavior are
+  unchanged. Add only affected no-op, copy, CSS, rapid-save/error recovery and supported
+  morph interactions; use one relevant canonical action to distinguish painted from
+  usable. Observe current grants/login/data, generation-correct resources and owned
+  cleanup. Separate cold startup, warm edit, browser applied and usable timings;
+  report sample conditions and improvements without a two-second gate. Completed
+  selected outcomes close once; unresolved external/conditional scope stays named.
+
+### Integration, writer exclusion and validation budget
+
+1. **Shared writers serialize.** The designated lifecycle implementation owner
+   supplies E1 and T14; no separate agent competes for core/service/daemon/socket.
+   A alone edits core/service scheduling, retention
+   and promotion joins. T14 releases builder instrumentation before C/T18 edits
+   builder lifetime. C serializes bridge lifetime and notification route. D
+   serializes T16/T22/T24 edits to `deploy/bundle.ts` and preview-host; B supplies
+   browser source changes, not a competing bundle rewrite. B serializes terminal
+   then browser lifecycle changes. Compiler changes require the current compiler
+   owner's exact scope release, never a whole-owner-plan gate.
+2. **Independent work may overlap.** Terminal rendering can consume the released
+   state shape while the session implementation is finishing; bridge implementation
+   can consume the promotion interface while the scheduler is developed. Producer
+   reuse can proceed alongside automatic checking and the browser client after
+   build-path ownership is clear. Review is asynchronous; only a concrete finding
+   blocks its affected change, not unrelated dependency-ready work.
+3. **Freeze captures, not the whole project indefinitely.** T17, T21, selected
+   performance comparisons and T30 consume immutable/frozen source fixture,
+   compiler/catalog/options, installed source/output closure, executable identities,
+   browser assets and runtime profile. Keep the same owned authenticated session
+   and retained-state root across relevant saves. No producer rebuild or output
+   replacement may mutate that consumed closure until commands/captures and cleanup
+   release it. Other lanes may edit disjoint source or use genuinely independent
+   frozen inputs. Retry only an invalidated observation.
+4. **Use current compatible caches.** Check disk, lockfiles/toolchain/features/flags
+   and workspace links before any future build. Serialize shared target writers;
+   use the AGENTS.md compiler profile. Do not multiply target/node_modules for
+   disposable lanes. Cleanup only task-owned rebuildable resources after all
+   consumers and processes release them; preserve foreign/shared outputs.
+5. **Checks belong with the change.** Focused owner checks once, then T17/T21/T30
+   only for their distinct joined risks. No full-suite gate per task, nested proof
+   packets, duplicate manifests, unchanged qualification reruns or extra benchmark
+   program. Use ordinary task result notes here. Build changed producer closures
+   only when needed; an app edit consumes prepared tools and does not publish a release.
+6. **Documentation delivery only.** This task commits the plan and research on
+   main without implementing the proposed behavior. If a merge occurs, its handler
+   reconciles the living file-tree plan and DECISIONS incrementally
+   as AGENTS.md requires, retaining prior coverage and the complete checkpoint until
+   its required review is finished. This planning edit advances no file-tree checkpoint.
+
+### Research coverage and stop conditions
+
+| Research finding / requested outcome | Single owning completion point |
+| --- | --- |
+| Explicit lifecycle/check/preview state, guards, duplicate-start protection, shutdown and recovery | T14/E1 defining contract; T15 renders it, T18/T19 extend only their owning transitions |
+| Entire terminal surface: identity, history/status boundary, diagnostics, timing, check versus readiness, narrow/plain/JSON, controls and exit | T14–T17; later mode changes consume the same presenter |
+| Current/serving revision, uncertain capture, stale last-good, unsupported/restart/cleanup/disconnect | T14 state; T19 automatic recovery; E1 owns retry mechanics |
+| Stable URL, private access, login/data, request and asset generation, disposal | T18; T21 only the joined observation |
+| Save bursts, automatic checking, refresh, errors and correction | T19/T20; T21 joined outcome |
+| Safe browser feedback, drafts/mutations, no false “applied/usable,” development-only code | T20, reused by T25/T26 |
+| Avoid duplicate capture/staging, exact unchanged checks and invariant producer bundles | T22/T23, consuming existing E1 work once |
+| No-op, CSS, message/template, behavior/query, policy/identity/binding, schema and producer changes | T24 classification; T19/T25/T26 enact the corresponding path |
+| Selective CSS/page updates versus general HMR | T25/T26; broader component state replacement remains unselected |
+| Resource-only backend work and incremental/partial compiler builds | T27 decision/selected slice; T28 decision and conditional T29; T22 is the earlier bounded partial build |
+| End-to-end latency and functional availability; two-second aspiration | T17 baseline, T21 workflow, T30 affected final comparison; reuse unchanged samples |
+
+The plan is finishable without reopening Office acceptance, running new novice/JEV
+product trials, implementing Task 2/3, migrations, provider/deployment matrices,
+generic tracing or arbitrary component HMR. Those existing or optional scopes keep
+their own owners and release conditions. Conditional no-go decisions are not
+implementation successes; external E1 and G3 are named separately. No held gate
+prevents independent terminal or already dependency-ready work.
+
+## Retained first-slice acceptance and stopped platform disposition
 
 Reassessed **2026-10-12 08:55 Europe/Brussels** against reviewed LOCAL maine5be0e1 and all later qualified defining outputs. Every original first-slice/platform row was checked in the existing view; original evidence below retains its scope. No new IDs/ownership or whole-plan gate. Apply [finite execution](../../../AGENTS.md#finite-execution).
 
@@ -30,7 +684,7 @@ The declared Office first slice has **T00–T13 and G1/G2 accepted at their froz
 
 ### Prioritized existing platform handoffs
 
-**Current execution:** STOPPED at the human's wind-down request. Clean600a4e7a has no active capture/owned cleanup. All owned pending host joins/harness/controls are preserved in main as unfinished checkpoints; current337/V05 and other scoped accepted results remain at their recorded inputs. No new native retry/planner/ingress/provider task is dispatched.
+**Retained platform disposition:** STOPPED at the human's wind-down request. Clean600a4e7a has no active capture/owned cleanup. All owned pending host joins/harness/controls are preserved in main as unfinished checkpoints; current337/V05 and other scoped accepted results remain at their recorded inputs. No new native retry/planner/ingress/provider task is dispatched.
 
 | Priority / original owning scope | Remaining Dev change / observable outcome | Exact prerequisite | Finite acceptance / action |
 | --- | --- | --- | --- |
@@ -173,7 +827,7 @@ Final unchanged `draft/CanWorkbench.can:44–49` execution remains unfinished. C
 
 This plan does not replace the [seven-lane platform plan](../PLAN.md). Its paths name likely owning seams, not permission to create parallel implementations. The currently dirty worktree and installed `dist` files are baseline evidence only; an implementer must identify the source-current inputs it actually uses. A proposed construct-help card or desired generated output is not a working API.
 
-## Current checkpoint
+## Historical checkpoint
 
 **Row-policy and physical preclaim consumers (tested finite joins; native remainder unfinished):** preserve Dev70/144 and consume exact reviewed State9458e68e, Filesa5c4be7d, Work6398ba5b, Packages2d29467f and Compiler59e/d74/74ad through safe individual cherry-picks ending5305bc57. The actual Compiler row-subject SOURCE freshly compiles and passes the installed Dev loader, canonical CRUD/read, genuine coherent Identity and real D1 consumer1/1 (2.56s): title-only projection, nullable absence, independent caller/row subjects, current role revocation, zero fresh-read commits/receipt access and unchanged complete application/engine tables and Identity resources. Copied/swapped assemblies, staged-byte drift and stripped carriers refuse before any initializer/context demand. Verify actual issued assemblies and nonexecuting row-source claims before the first import; retain the original issuer through cache and callable exits. The maintained selector/security suite passes33/33. Six distinct new D1/DO preclaim checks pass, including true/false original-stage provenance, ineligible zero allocation, evidence/current-authority/physical-revision refusal and caught closed-handle reuse; reuse the two unchanged ineligible outcomes with the four corrected/changed passes. Bound Mail guarded component1/1 and the affected original compiled actor-read/localhost Email2/2 pass; native SEND lexical/source transport remains unqualified. Preserve legacy sync/unguarded and Generation control/recovery semantics. Contracts/State/Files/Work/CF clean emissions, locked native build, final root noEmit and boundaries13/918/1323/zero pass. Initial fixture/type failures are corrected without weakening disclosure, closure or provider assertions. Current Generation recheck preserves source2a72305a/artifact208fd857/revision518af09c but stops before activation (4143 inputs, epoch993d8f9f): runtime/invoke.js bare acorn import lacks workerd package resolution. Packages alone owns the exact pinned portable parser closure; priority/evidence sent, so older G1 cannot qualify this current tuple. Reviewed portable806/Interfacesbf58/State4b+d21 File APIs are now released for the next native consumer; actual File source association and original Workbench/stored-reference hydration remain defining joins. Direct native hasRole(subject), SEND, SEQ048, T04/T11, Office G2/G3 and precise human holds remain unfinished. This is a local unfinished checkpoint, never whole-plan acceptance or publication.
 
@@ -387,7 +1041,7 @@ Focused source-capture checks pass 5/5, compiler capture integration 4/4 (before
 - Pin the actual compiler, catalog/help, package outputs, artifact, source bytes and local resource profile for every integrated observation. Report unsupported capability, absent evidence and incomplete checks explicitly. A generated artifact alone is not a served app; a zero-row test is not an example pass.
 - Any Jev request uses the bounded, redacted [ranking contract](../../design/can-dev-jev-ranking.md). The earlier project-derived external comparison packets were rejected by automatic approval review and remain unsent; implementation and local checks can proceed, but those exact external trials need authorization before transmission.
 
-## Dependency-ordered tasks
+## Original first-slice task definitions — retained scope
 
 `T00` freezes the requested behavior and independent checks; its desired source witness may change spelling as owning Can capabilities land, with each change recorded. Waves and dependency cells set the execution order; task IDs remain stable ownership labels. Tasks in the same wave may proceed in parallel only with disjoint file ownership. The dependencies below are integration prerequisites, not a requirement to idle while an upstream interface is being specified.
 
@@ -408,7 +1062,7 @@ Focused source-capture checks pass 5/5, compiler capture integration 4/4 (before
 | **T12 · 2 — Isolated rerun** | Testkit/session owners | Retain bounded artifact and fixture recipe for failed rows; a requested rerun starts a new run ID and clean row data with the same artifact, then reports both observed outcomes. Refuse evicted artifact or unavailable resource. Set `replay.available=false`; classify an idempotency saved outcome separately. Focused rerun checks compare source/artifact IDs and fresh D1 state. | T07, T08, T10 | A6 |
 | **T13 · 2 — JSON CLI control** | CLI/session owner; `packages/cloudflare/src/cli/platform.ts` owns the Node session client and protocol schema, `compiler/src/main.rs` only dispatches native `can dev` | Expose machine-readable help and bounded JSON start/discover/status/stop, check, diagnostics/help/detail, preview status/open, example run/rerun and failure lookup through the owner-only Unix socket. Every stateful request resolves exact session; revision-sensitive requests carry expected revision or immutable ref. One stdout envelope distinguishes control failure from invalid source/app failure; status reports current and serving builds without leaking preview access. Focused client checks attach, race edits, use cursors and refuse foreign session IDs. | T04, T08–T12 | A4, A5, A6 |
 
-## Integration and support gates
+## Original integration and support gates — retained scope
 
 | Gate | Required result | Dependencies and evidence |
 | --- | --- | --- |
@@ -416,7 +1070,7 @@ Focused source-capture checks pass 5/5, compiler capture integration 4/4 (before
 | **G2 — Office supplies whole-app qualification** | One evaluator-owned `.can` source and its real artifact pass **A1–A6 together** through compiler, headless Chrome, Identity, local D1, business `/mcp`, compiled examples, JSON CLI, deterministic help/Jev cases, failure detail and isolated rerun. Capture the consumed version/revision set and any bounded profile limits. A clean check, handwritten fixture, zero executed rows or stale `dist` cannot replace this gate. | T00–T13; independent acceptance observations from the [slice contract](../../design/can-dev-first-slice.md#acceptance-criteria-one-complete-supported-app). |
 | **G3 — Unfamiliar-agent and help trial** | Freeze setup, run at least three fresh Task 1 attempts with the tiny introduction and require two full A1 completions with no unauthorized behavior. Run at least three fresh attempts **per condition** with identical candidates/cards and counterbalanced deterministic vs Jev ranking. Report completion, wrong suggestions/abstentions with denominators, turns, tokens including Jev, latency, cost, failure and limits. Automatic Jev or token-efficiency claims require the A7 non-regression/improvement rule; otherwise leave Jev requestable and deterministic help default. | G2 and authorized disclosure for any exact project-derived external packets; [A7](../../design/can-dev-first-slice.md#acceptance-criteria-one-complete-supported-app). |
 
-## Parallel lanes and ownership handoff
+## Original parallel lanes and ownership handoff — historical
 
 1. **Language/authoring lane:** T01, T02, T04 and T05. One compiler owner integrates their source changes in order; independent contributors can prepare gap vectors/help data without concurrently editing the same compiler modules. The compiler publishes the artifact, descriptor, diagnostic and source-capture contract to consumers.
 2. **Business/runtime lane:** T03 and T06. State/UI/Interfaces own permissions, generated controls and auth; Cloudflare owns bundle/resource admission. They can use the frozen T00 source and agreed T02 descriptors while compiler emission lands. No development-control privilege leaks into app identity.

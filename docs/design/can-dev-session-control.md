@@ -1,6 +1,6 @@
 # `can dev` session, failure evidence, replay and control
 
-**Status:** selected pre-implementation contract for the first local Unix profile. It defines what the development service should expose, not an existing `can dev` command, daemon, trace stream or replay engine. The [Generation feasibility check](evaluation/can-dev-generation-local-20261009/README.md) limits what can currently be demonstrated. The [three Jev comparisons](jev/can-dev-session-control-20261009/assessment.md) advised the transport and replay choices; they are not runtime evidence.
+**Status:** retained design contract for the first local Unix profile. The [owning plan](../implementation/can-dev-server/PLAN.md#retained-first-slice-acceptance-and-stopped-platform-disposition) records the accepted session, failure and JSON-control scope; original future-tense text below is not a current implementation inventory. The [single current execution view](../implementation/can-dev-server/PLAN.md#current-execution-view--development-experience-2026-10-18) proposes terminal feedback, automatic checking and stable preview extensions without reopening accepted results. The [three Jev comparisons](jev/can-dev-session-control-20261009/assessment.md) remain advice, not runtime evidence.
 
 ## One isolated session per checkout
 

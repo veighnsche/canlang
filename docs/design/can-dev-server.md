@@ -1,6 +1,6 @@
 # Can dev server for AI coding agents
 
-**Status:** Living design draft. The user has selected Jev decision support for the future `can dev` workflow; the server, its tool names, response schemas and delivery stages below remain proposals. Add new ideas here without treating a draft interface as an implemented API. The [decision record](../specification/DECISIONS.md) distinguishes the accepted direction from open implementation choices.
+**Status:** living design with a scoped implemented first slice and broader proposals. The [owning plan](../implementation/can-dev-server/PLAN.md#retained-first-slice-acceptance-and-stopped-platform-disposition) records accepted T00–T13/G1/G2 and the separate external G3/A7 gate. Its [single current execution view](../implementation/can-dev-server/PLAN.md#current-execution-view--development-experience-2026-10-18) is the planning-only task list for terminal-first feedback and the later save-to-preview experience. Draft APIs and future delivery stages below remain proposals unless that record credits their exact scope. The [decision record](../specification/DECISIONS.md) separates accepted outcomes from proposals.
 
 ## Purpose
 

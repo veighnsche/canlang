@@ -1,6 +1,6 @@
 # First supported `can dev` slice
 
-**Status:** selected target and acceptance contract, not implemented or qualified. The [session/control contract](can-dev-session-control.md), [compact error contract](can-dev-error-contract.md), [Jev ranking trial](can-dev-jev-ranking.md), [construct-help reference](../specification/CONSTRUCT-HELP.md) and [unfamiliar-agent tasks](can-dev-agent-tasks.md) supply the component boundaries. The dependency-ordered [implementation tasks](../implementation/can-dev-server/PLAN.md) follow this selection. Three [Jev comparisons](jev/can-dev-first-slice-20261009/assessment.md) advised the scope; observed app behavior remains the release authority.
+**Status:** retained first-slice target and acceptance contract. The [owning plan](../implementation/can-dev-server/PLAN.md#retained-first-slice-acceptance-and-stopped-platform-disposition) records T00–T13 and G1/G2 accepted at their frozen scopes; G3/A7 remains externally blocked. Earlier unimplemented/reset wording below is historical and does not override current source or those scoped results. The [current execution view](../implementation/can-dev-server/PLAN.md#current-execution-view--development-experience-2026-10-18) separately proposes terminal and later development-loop extensions. The session/control, error, ranking and unfamiliar-agent documents remain the original design references; three [Jev comparisons](jev/can-dev-first-slice-20261009/assessment.md) advised scope, not runtime acceptance.
 
 ## Selection and reason
 
