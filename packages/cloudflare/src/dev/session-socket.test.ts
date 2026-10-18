@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import fs from "node:fs/promises";
+import { syncBuiltinESMExports } from "node:module";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
-import { chmod, lstat, mkdir, mkdtemp, readFile, realpath, rm, symlink, utimes, writeFile } from "node:fs/promises";
+import { chmod, lstat, mkdir, mkdtemp, readFile, realpath, rename, rm, symlink, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { createConnection } from "node:net";
 import { dirname, join } from "node:path";
@@ -109,6 +112,164 @@ test("concurrent starts claim exactly one usable owner for the same root", async
   }
 });
 
+test("a stalled incomplete starter cannot publish into or clean up the takeover winner", { timeout: 10_000 }, async t => {
+  const { scratch, root, runtimeDir } = await fixture();
+  const sessionDir = join(await realpath(runtimeDir), createHash("sha256").update(await realpath(root)).digest("hex").slice(0, 24));
+  const originalLstat = fs.lstat;
+  let reached!: () => void;
+  const paused = new Promise<void>(resolve => { reached = resolve; });
+  let resume!: () => void;
+  const resumed = new Promise<void>(resolve => { resume = resolve; });
+  let intercepted = false;
+  const hook = t.mock.method(fs, "lstat", async (...args: Parameters<typeof fs.lstat>) => {
+    const info = await originalLstat(...args);
+    if (args[0] === sessionDir && !intercepted) {
+      intercepted = true;
+      reached();
+      await resumed;
+    }
+    return info;
+  });
+  syncBuiltinESMExports();
+  const options = { checkoutRoot: root, app: "OfficeSupplies", profile: "local-d1-identity", runtimeDir,
+    handle: () => "winner" };
+  const stalled = startSessionSocket(options);
+  let winner: Awaited<ReturnType<typeof startSessionSocket>> | undefined;
+  try {
+    await Promise.race([paused, new Promise<never>((_, reject) => {
+      t.signal.addEventListener("abort", () => reject(new Error("starter pause was not reached")), { once: true });
+    })]);
+    const old = new Date(Date.now() - 20_000);
+    await utimes(sessionDir, old, old);
+    winner = await startSessionSocket(options);
+    const descriptor = await readFile(winner.descriptorPath, "utf8");
+    const claim = await readFile(join(sessionDir, "claim.json"), "utf8");
+    resume();
+    await assert.rejects(stalled, codeIs("CLAIM_LOST"));
+    assert.equal(await readFile(winner.descriptorPath, "utf8"), descriptor);
+    assert.equal(await readFile(join(sessionDir, "claim.json"), "utf8"), claim);
+    const client = await discoverSessionSocket({ checkoutRoot: root, runtimeDir });
+    assert.equal(client.identity.sessionId, winner.identity.sessionId);
+    assert.equal(await client.request({ command: "status" }), "winner");
+  } finally {
+    resume();
+    await stalled.then(owner => owner.stop(), () => undefined);
+    hook.mock.restore();
+    syncBuiltinESMExports();
+    await winner?.stop();
+    await rm(scratch, { recursive: true, force: true });
+  }
+});
+
+test("a claim lost before descriptor publication is refused without deleting its replacement", async t => {
+  const { scratch, root, runtimeDir } = await fixture();
+  const originalWriteFile = fs.writeFile;
+  let replacedClaimPath: string | undefined;
+  const hook = t.mock.method(fs, "writeFile", async (...args: Parameters<typeof fs.writeFile>) => {
+    await originalWriteFile(...args);
+    if (typeof args[0] === "string" && /descriptor-.*\.tmp$/.test(args[0])) {
+      replacedClaimPath = join(dirname(args[0]), "claim.json");
+      const claim = JSON.parse(await readFile(replacedClaimPath, "utf8"));
+      await originalWriteFile(replacedClaimPath, JSON.stringify({ ...claim, sessionId: "replacement" }), { mode: 0o600 });
+    }
+  });
+  syncBuiltinESMExports();
+  try {
+    await assert.rejects(startSessionSocket({ checkoutRoot: root, app: "OfficeSupplies",
+      profile: "local-d1-identity", runtimeDir, handle: () => null }), codeIs("CLAIM_LOST"));
+    assert.ok(replacedClaimPath);
+    assert.equal(JSON.parse(await readFile(replacedClaimPath, "utf8")).sessionId, "replacement");
+    await assert.rejects(lstat(join(dirname(replacedClaimPath), "descriptor.json")), { code: "ENOENT" });
+  } finally {
+    hook.mock.restore();
+    syncBuiltinESMExports();
+    await rm(scratch, { recursive: true, force: true });
+  }
+});
+
+test("failed final directory release restores the same verified status and stop retry route", async t => {
+  const { scratch, root, runtimeDir } = await fixture();
+  let retried!: (value: Promise<void>) => void;
+  const retryStarted = new Promise<Promise<void>>(resolve => { retried = resolve; });
+  let owner!: Awaited<ReturnType<typeof startSessionSocket>>;
+  owner = await startSessionSocket({ checkoutRoot: root, app: "OfficeSupplies", profile: "local-d1-identity", runtimeDir,
+    handle: command => {
+      if (command.command === "stop") {
+        setTimeout(() => { retried(owner.stop()); }, 20);
+        return "retrying";
+      }
+      return "shutdown incomplete";
+    } });
+  const sessionDir = dirname(owner.descriptorPath);
+  const originalRmdir = fs.rmdir;
+  const failure = Object.assign(new Error("injected final directory release failure"), { code: "EACCES" });
+  let failed = false;
+  const hook = t.mock.method(fs, "rmdir", async (...args: Parameters<typeof fs.rmdir>) => {
+    if (args[0] === sessionDir && !failed) {
+      failed = true;
+      throw failure;
+    }
+    return originalRmdir(...args);
+  });
+  syncBuiltinESMExports();
+  try {
+    const first = owner.stop();
+    assert.equal(owner.stop(), first);
+    await assert.rejects(first, error => error === failure);
+    const client = await discoverSessionSocket({ checkoutRoot: root, runtimeDir });
+    assert.equal(client.identity.sessionId, owner.identity.sessionId);
+    assert.equal(await client.request({ command: "status" }), "shutdown incomplete");
+    assert.equal(JSON.parse(await readFile(join(sessionDir, "claim.json"), "utf8")).sessionId, owner.identity.sessionId);
+    assert.equal(await client.request({ command: "stop" }), "retrying");
+    await retryStarted;
+    await assert.rejects(lstat(sessionDir), { code: "ENOENT" });
+  } finally {
+    hook.mock.restore();
+    syncBuiltinESMExports();
+    await owner.stop();
+    await rm(scratch, { recursive: true, force: true });
+  }
+});
+
+test("cleanup recovery refuses a replacement directory and leaves its verified owner intact", async t => {
+  const { scratch, root, runtimeDir } = await fixture();
+  const options = { checkoutRoot: root, app: "OfficeSupplies", profile: "local-d1-identity", runtimeDir,
+    handle: () => "replacement owner" };
+  const original = await startSessionSocket(options);
+  const sessionDir = dirname(original.descriptorPath);
+  const displaced = `${sessionDir}.displaced`;
+  const originalRmdir = fs.rmdir;
+  let replacement: Awaited<ReturnType<typeof startSessionSocket>> | undefined;
+  const failure = Object.assign(new Error("directory replaced during failed cleanup"), { code: "EACCES" });
+  const hook = t.mock.method(fs, "rmdir", async (...args: Parameters<typeof fs.rmdir>) => {
+    if (args[0] === sessionDir && !replacement) {
+      await rename(sessionDir, displaced);
+      replacement = await startSessionSocket(options);
+      throw failure;
+    }
+    return originalRmdir(...args);
+  });
+  syncBuiltinESMExports();
+  try {
+    await assert.rejects(original.stop(), error => error === failure);
+    assert.ok(replacement);
+    const descriptor = await readFile(replacement.descriptorPath, "utf8");
+    const claim = await readFile(join(sessionDir, "claim.json"), "utf8");
+    await original.stop();
+    assert.equal(await readFile(replacement.descriptorPath, "utf8"), descriptor);
+    assert.equal(await readFile(join(sessionDir, "claim.json"), "utf8"), claim);
+    const client = await discoverSessionSocket({ checkoutRoot: root, runtimeDir });
+    assert.equal(client.identity.sessionId, replacement.identity.sessionId);
+    assert.equal(await client.request({ command: "status" }), "replacement owner");
+  } finally {
+    hook.mock.restore();
+    syncBuiltinESMExports();
+    await original.stop();
+    await replacement?.stop();
+    await rm(scratch, { recursive: true, force: true });
+  }
+});
+
 test("socket cleanup failure retains the claim and concurrent callers join a retry", {
   skip: typeof process.getuid !== "function" || process.getuid() === 0,
 }, async () => {
@@ -123,7 +284,10 @@ test("socket cleanup failure retains the claim and concurrent callers join a ret
     assert.equal(owner.stop(), firstStop);
     await assert.rejects(firstStop, error => ["EACCES", "EPERM"].includes((error as NodeJS.ErrnoException).code ?? ""));
     assert.equal(JSON.parse(await readFile(join(sessionDir, "claim.json"), "utf8")).sessionId, owner.identity.sessionId);
-    await assert.rejects(startSessionSocket(options), codeIs("OWNER_UNRESPONSIVE"));
+    const client = await discoverSessionSocket({ checkoutRoot: root, runtimeDir });
+    assert.equal(client.identity.sessionId, owner.identity.sessionId);
+    assert.equal(await client.request({ command: "status" }), null);
+    await assert.rejects(startSessionSocket(options), codeIs("SESSION_EXISTS"));
     await chmod(sessionDir, 0o700);
     // A recursive removal may remove the claim before failing on a sibling.
     await rm(join(sessionDir, "claim.json"));
@@ -349,6 +513,36 @@ test("disconnecting an authenticated pending peer aborts only its request and pr
     await assert.rejects(lstat(owner.identity.socketPath), { code: "ENOENT" });
   } finally {
     peer.destroy();
+    await owner.stop();
+    await rm(scratch, { recursive: true, force: true });
+  }
+});
+
+test("an attached request signal detaches its socket without stopping the owner", { timeout: 10_000 }, async () => {
+  const { scratch, root, runtimeDir } = await fixture();
+  let entered!: () => void;
+  const pending = new Promise<void>(resolve => { entered = resolve; });
+  let aborted!: () => void;
+  const peerAborted = new Promise<void>(resolve => { aborted = resolve; });
+  const owner = await startSessionSocket({ checkoutRoot: root, app: "OfficeSupplies", profile: "local-d1-identity", runtimeDir,
+    handle: async (command, signal) => {
+      if (command.command !== "pending") return "owner remains";
+      entered();
+      await once(signal, "abort");
+      aborted();
+      return null;
+    } });
+  try {
+    const client = await discoverSessionSocket({ checkoutRoot: root, runtimeDir });
+    const detach = new AbortController();
+    const request = client.request({ command: "pending" }, detach.signal);
+    await pending;
+    detach.abort();
+    await assert.rejects(request, codeIs("REQUEST_ABORTED"));
+    await peerAborted;
+    assert.equal(await client.request({ command: "status" }), "owner remains");
+    await assert.rejects(client.request({ command: "status" }, detach.signal), codeIs("REQUEST_ABORTED"));
+  } finally {
     await owner.stop();
     await rm(scratch, { recursive: true, force: true });
   }

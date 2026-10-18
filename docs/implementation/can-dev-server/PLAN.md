@@ -10,6 +10,20 @@ prioritizing the state machine and terminal UX. T14–T30 below define that work
 implementation completion must be recorded by its owner, not inferred from this
 planning handoff. Unrelated stopped work is not resumed by that authorization.
 
+**Implementation owner, 2026-10-18:** E1/startup capture reduction is committed
+as `da726fc78`; T16's owned asynchronous bundle adapter is committed as
+`4b6ab6ae2`. T14/T15 and explicit T19 automatic admission are implemented locally:
+the owner snapshot separates operation/source outcome from actual serving state,
+stop confirms runtime release before endpoint/process retirement, and one latest
+automatic demand reuses the existing check queue. Focused terminal9, observation4,
+publication-failure1, socket6 and automatic service1 controls pass; affected service/
+daemon integration and package emission pass at their recorded scopes. T17's real
+terminal/current-build phase run remains pending. T18/T20/T22 have their focused
+owner checks; the genuine resource/routing/browser join is still pending. T23–T30
+remain open at their defined scopes; no complete integration or two-second result
+is claimed. The compiler chat's current uncommitted work must reach its requested
+commit handoff before final synchronization and current-build measurement.
+
 The original **T00–T13 and G1/G2 remain accepted at their recorded frozen scopes**;
 consume their outputs without repeating their qualification. G3/A7 remains the
 external account/executor/protocol gate recorded below. The stopped platform
@@ -242,6 +256,27 @@ The handoff is complete when the plan names these fields/guards, the implementat
 owner has the exact E1 outputs and uncovered source gaps, and T14/T15/T18/T19 share
 that single contract. Product completion still requires their scoped implementation
 and checks; this planning turn performs none.
+
+### Implementation-owner intake — 2026-10-18
+
+The existing `0970` implementation worktree is based on local main `71885872b`.
+Its uncommitted E1 lifecycle/capture changes were preserved during the base update;
+the runtime/test files remain byte-identical to the already checked local output.
+The [lifecycle result](../../specification/DECISIONS.md#2026-10-18--retain-local-preview-ownership-until-runtime-cleanup-succeeds)
+and [startup/browser timing result](../../specification/DECISIONS.md#2026-10-18--reduce-repeated-local-dev-capture-work)
+are available here for consumption, with their recorded frozen-input limits.
+E1 is therefore a local defining-owner handoff, not a request for another team to
+reimplement cleanup or wait for this owner's entire plan. It is not yet merged.
+
+Reuse failed-disposal retention, retry-before-new-allocation, shutdown-incomplete
+status, same-discovery inventory sharing, direct final handoff currency checks and
+bounded hash buffers. T14 adds operation/phase state around those existing outcomes;
+T23 must target only the still-uncovered coherent capture/staging/exact-check reuse.
+The 14.567 s warm browser result already proves the measured manual loop, retained
+login/data and owned cleanup at its inputs; it does not close T17's new terminal
+journey, T21's automatic loop or T30's changed integration. Stable routing, automatic
+checking/delivery and selective updates remain proposed work. No implementation or
+validation rerun was dispatched by this intake.
 
 ### Dependency order and parallel lanes
 

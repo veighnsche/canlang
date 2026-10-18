@@ -5,6 +5,7 @@ import { dirname, join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { attachDevSessionService, startDevSessionService } from "./session-service.js";
+import type { DevObservation } from "./observation.js";
 import { SessionSocketError } from "./session-socket.js";
 
 const project = fileURLToPath(new URL("../../../../", import.meta.url));
@@ -173,8 +174,21 @@ test("failed preview cleanup retains ownership and concurrent stop callers join 
     const checked = await client.request({ command: "check" }) as { state: string; preview: string };
     assert.equal(checked.state, "valid");
     assert.equal(checked.preview, "ready");
+    const running = await client.request({ command: "observe" }) as DevObservation;
+    assert.equal(running.lifecycle, "running");
+    assert.equal(running.lastOutcome?.source, "valid");
+    assert.equal(running.preview.availability, "serving");
+    assert.equal(running.preview.freshness, "current");
     await assert.rejects(owner.stop(), /dispose failed/);
     assert.equal(disposals, 1);
+    const incomplete = await client.request({ command: "observe" }) as DevObservation;
+    assert.equal(incomplete.lifecycle, "shutdown_incomplete");
+    assert.equal(incomplete.admission.check, false);
+    assert.equal(incomplete.admission.open, false);
+    assert.equal(incomplete.admission.retryCleanup, true);
+    assert.equal(incomplete.shutdownError, "CLEANUP_FAILED");
+    assert.ok(incomplete.sequence > running.sequence);
+    assert.equal((await client.request({ command: "help" }) as {schema:string}).schema, "can.dev.help.v1");
     assert.equal((await attachDevSessionService({ checkoutRoot: root, runtimeDir })).identity.sessionId,
       owner.identity.sessionId);
     assert.equal((await client.request({ command: "status" }) as { shutdown_error: string }).shutdown_error, "CLEANUP_FAILED");
@@ -310,6 +324,148 @@ fs.renameSync(${JSON.stringify(`${ready}.tmp`)}, ${JSON.stringify(ready)});
     await writeFile(release, "release");
     await owner.stop();
     await pending.catch(() => undefined);
+    await rm(scratch, { recursive: true, force: true });
+  }
+});
+
+test("automatic mode coalesces saves, recovers source errors and pauses for changed producers", { timeout: 30_000 }, async t => {
+  const scratch = await mkdtemp(join(tmpdir(), "cv-"));
+  const root = join(scratch, "c");
+  const runtimeDir = join(scratch, "r");
+  await mkdir(root, { mode: 0o700 });
+  await mkdir(runtimeDir, { mode: 0o700 });
+  const sourcePath = join(root, "OfficeSupplies.can");
+  const producerPath = join(scratch, "producer.js");
+  const source = [
+    "## Automatic-mode component fixture; preview resources are mocked.",
+    "app OfficeSupplies",
+    "Given",
+    " Supply { name:text }",
+    " policy Supply read=members",
+    "When",
+    " crud Supply by=members fields=name",
+    "Then",
+    " page / title=\"Office supplies\"",
+    "  list Supply",
+    "",
+  ].join("\n");
+  const initialSource = `${source}## generation initial\n`;
+  await writeFile(sourcePath, initialSource);
+  // This private declared producer input is observed by the real capture;
+  // no installed package output is mutated by this scheduler control.
+  await writeFile(producerPath, "export const producer = 1;\n");
+  const prepared: { id: string; source: string }[] = [];
+  const activated: string[] = [];
+  const disposed: string[] = [];
+  let releaseFirst!: () => void;
+  const firstReleased = new Promise<void>(resolve => { releaseFirst = resolve; });
+  let owner: Awaited<ReturnType<typeof startDevSessionService>> | undefined;
+  const waitFor = async (label: string, ready: () => boolean | Promise<boolean>): Promise<void> => {
+    const deadline = Date.now() + 8_000;
+    while (!await ready()) {
+      t.signal.throwIfAborted();
+      assert.ok(Date.now() < deadline, `automatic mode did not reach ${label}; ${JSON.stringify(owner?.status())}`);
+      await new Promise(resolve => setTimeout(resolve, 20));
+    }
+  };
+  try {
+    owner = await startDevSessionService({
+      selectedApp: "OfficeSupplies", runtimeDir, checkMode: "automatic",
+      capture: {
+        checkoutRoot: root, appPath: "OfficeSupplies.can", profile: "local-d1-identity",
+        compilerPath: join(project, "compiler/target/debug/can"),
+        catalogPath: join(project, "packages/values/dist/catalog.json"),
+        helpIndexPath: join(project, "docs/specification/CONSTRUCT-HELP.md"),
+        packageInputPaths: [{ name: "component-producer", path: producerPath }],
+      },
+      previewBuilder: async (_artifact, capture) => {
+        const id = `automatic-preview-${prepared.length + 1}`;
+        prepared.push({ id, source: capture.sourceText });
+        if (prepared.length === 1) await firstReleased;
+        return { id, activate: () => { activated.push(id); }, dispose: async () => { disposed.push(id); } };
+      },
+    });
+    const service = owner;
+    const client = await attachDevSessionService({ checkoutRoot: root, runtimeDir });
+    const observe = async (): Promise<DevObservation> => await client.request({ command: "observe" }) as DevObservation;
+    await waitFor("initial automatic preparation", () => prepared.length === 1);
+    assert.equal((await observe()).mode, "automatic");
+    assert.equal(prepared[0]!.source, initialSource);
+    assert.equal(service.status().serving_build, null);
+    let newestSource = initialSource;
+    for (const marker of ["intermediate-one", "intermediate-two", "newest"]) {
+      const previous = service.status().source_revision;
+      newestSource = `${source}## generation ${marker}\n`;
+      await writeFile(sourcePath, newestSource);
+      await waitFor(`coherent ${marker} capture`, async () => {
+        const observed = await observe();
+        return observed.sourceRevision !== previous && observed.capture === "confirmed";
+      });
+      assert.equal(prepared.length, 1, "saves must not allocate preparations behind the active one");
+    }
+    const newestRevision = service.status().revision;
+    releaseFirst();
+    await waitFor("newest generation publication", async () => {
+      const observed = await observe();
+      return observed.operation === null && observed.preview.revision === newestRevision &&
+        observed.preview.freshness === "current";
+    });
+    assert.deepEqual(prepared.map(item => item.source), [initialSource, newestSource]);
+    assert.deepEqual(activated, [prepared[1]!.id]);
+    assert.deepEqual(disposed, [prepared[0]!.id]);
+    const lastGood = service.status().serving_build;
+
+    const invalidSource = `${source.replace("name:text", "name:")}## generation invalid\n`;
+    await writeFile(sourcePath, invalidSource);
+    await waitFor("invalid source terminal outcome", async () => {
+      const observed = await observe();
+      return observed.operation === null && observed.lastOutcome?.source === "errors" &&
+        observed.lastOutcome.revision === observed.revision && observed.capture === "confirmed";
+    });
+    const invalid = await observe();
+    assert.equal(invalid.preview.build, lastGood);
+    assert.equal(invalid.preview.freshness, "older");
+    assert.equal(prepared.length, 2);
+
+    // A real watcher hint with identical bytes must be reconciled without
+    // launching another compiler operation, including for an invalid source.
+    await writeFile(sourcePath, invalidSource);
+    await waitFor("identical-byte hint reconciliation", async () => {
+      const observed = await observe();
+      return observed.sequence > invalid.sequence && observed.capture === "confirmed" && observed.operation === null;
+    });
+    const identical = await observe();
+    assert.equal(identical.revision, invalid.revision);
+    assert.equal(identical.lastOutcome?.id, invalid.lastOutcome?.id);
+    assert.equal(prepared.length, 2);
+
+    const correctedSource = `${source}## generation corrected\n`;
+    await writeFile(sourcePath, correctedSource);
+    await waitFor("corrected generation publication", async () => {
+      const observed = await observe();
+      return observed.operation === null && observed.preview.freshness === "current" &&
+        observed.preview.build === "automatic-preview-3";
+    });
+    assert.equal(prepared[2]!.source, correctedSource);
+    assert.deepEqual(activated, [prepared[1]!.id, prepared[2]!.id]);
+    assert.deepEqual(disposed, [prepared[0]!.id, prepared[1]!.id]);
+
+    await writeFile(producerPath, "export const producer = 2;\n");
+    await waitFor("producer restart gate", async () => (await observe()).admission.reasons.includes("restart_required"));
+    const paused = await observe();
+    assert.equal(paused.operation, null);
+    assert.equal(paused.admission.check, false);
+    assert.equal(paused.preview.build, prepared[2]!.id);
+    assert.equal(prepared.length, 3);
+    await assert.rejects(client.request({ command: "check" }), error =>
+      error instanceof SessionSocketError && error.code === "RESTART_REQUIRED");
+    await service.stop();
+    assert.deepEqual(disposed, prepared.map(item => item.id));
+    await assert.rejects(lstat(service.descriptorPath), { code: "ENOENT" });
+    await assert.rejects(lstat(service.identity.socketPath), { code: "ENOENT" });
+  } finally {
+    releaseFirst();
+    await owner?.stop();
     await rm(scratch, { recursive: true, force: true });
   }
 });

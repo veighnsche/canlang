@@ -18938,3 +18938,84 @@ D1 prefix consumer now uses a computed descending helper key; source mutants,
 retained typed/stable/failure ordering and the updated former-refusal pin pass.
 This release does not claim a new original24 count. Full212-error goal continues;
 Muse remains stopped and work stays on main.
+## 2026-10-18 — retain local preview ownership until runtime cleanup succeeds
+
+- **Status and scope:** Implemented locally in the isolated Miniflare lifecycle worktree. No merge, publication, compiler semantic changes, native work or global runtime supervisor is selected. Separate applications and test/row scopes retain independent instances; one session's intended replacement overlap remains bounded.
+- **Observed gaps and choice:** Session replacement discarded failed old-preview disposals; stop discarded its serving reference, cached rejection permanently, and released control even if the runtime remained alive. Builder provisioning/preflight failure paths could lose the runtime and delete its backing files. Retain failed disposals in the owning session, retry them before another build, and keep the owner endpoint/claim after failed shutdown. Concurrent stop callers await the same attempt; retries release only resources whose prior cleanup failed. Status exposes the safe `shutdown_error: "CLEANUP_FAILED"` code and subsequent work is refused after shutdown begins. Socket directory cleanup can retry after its listener closes, including partial claim removal, using the existing directory identity guard.
+- **Startup and recovery:** `startLocalDev` awaits actual Miniflare readiness and disposes failed startups before rejecting. A small private cleanup error retains a retry callback if release itself fails; the session consumes that ownership. Pinned Miniflare's identical initialization rejection after its completed disposal `finally` is distinguished from a new cleanup failure. Disposal clears recovery scheduling and closes workerd before awaiting an in-flight scheduled dispatch. Daemon IPC size/encoding validation now precedes child creation and reply timers, avoiding a synchronous rejection leaving a pending reply promise. Existing exclusive root claiming remains before any session preview allocation; repeated starts still report a conflict rather than attach without the missing complete input handshake.
+- **Verification:** 68 distinct focused checks passed across affected-scope runs, with one Linux-only socket case skipped on macOS: 23 session-core, 27 builder, one preflight, three real-runtime lifecycle, ten socket, two service and two daemon cases. Strict targeted TypeScript checks and whitespace checks passed. Real workerd checks observed one serving child after unchanged checks and each successful rebuild, at most two during preparation, and zero additional owned workerd children/listening servers after stop; stale/canceled preparation and two startup failures also returned to baseline. Two independent callers remained independent. A real scheduled dispatch with a 60-second pending timer did not block disposal. Failure injection covers retained provisioning/serving/preflight cleanup, backing-file preservation, blocked replacement, concurrent stop and retry. Existing compiler-child cancellation passed with a task-owned frozen binary; no compiler build ran. The native watcher test initially timed out under sandboxing and passed outside it; unchanged passing results were reused.
+- **Timing and limits:** Minimal runtime start through first successful response measured 155 ms initially and 39–47 ms subsequently in the first process; the affected follow-up run measured 98 ms initially and 48–61 ms subsequently on Node 24.22.0 / Miniflare 4.20260730.0 / workerd 1.20260730.1. These are small local observations with existing installed dependencies and OS caches, not a cold-machine benchmark or full Can preview startup measurement; compilation, bundling, activation and Identity provisioning add separate work. Process/listener release is verified, not a general heap/RSS bound. The existing local-run bindings suite could not load because of its pre-existing malformed regexp at line 82; the dedicated real lifecycle checks and builder tests cover this change. Failed daemon handoff still signals its own child without awaiting process exit; the exclusive claim prevents duplicate ownership during eventual release. Unrelated live servers, chats and processes were not stopped. Temporary validation copies/links are task-owned and released after checks; the complete filetree checkpoint is unchanged because no merge occurs here.
+
+## 2026-10-18 — reduce repeated local dev capture work
+
+- **Status and choice:** Implemented locally at the user's request, preserving the preceding lifecycle patch. Share the portable package inventory within each individual source/output discovery, including runtime currency and bundle admission. Every later discovery still walks disk again. At the launcher's and child's final handoff boundaries, check current bytes, membership, canonical paths and generated closure directly against the original admitted capture instead of constructing another capture first. Initial admission retains its collection plus currency pass, and process/session/status/termination checks remain. Hash buffers now use the smaller of file size and 256 KiB, with a one-byte minimum for empty files; growth beyond initial size fails immediately. No stat-only hash cache or shared application runtime was introduced.
+- **Measured cause:** The matching baseline owner phase made 32 portable inventory walks taking 7.60 s; optimized it makes 12 taking 2.99 s. The first check's walks fell from 42 / 9.35 s to 18 / 4.87 s. The baseline daemon over startup plus one edit made 1,006,406 synchronous realpath calls and cumulatively allocated 30.40 GiB through `Buffer.alloc`; optimized observations were 468,481 calls and 2.01 GiB. These are cumulative allocations, not resident memory. All six Miniflare starts together took 0.88 s before and 0.85 s after; the initial Identity seed took 0.30 / 0.32 s. Portable bundling itself stayed near 2 s per check. Function timings include their callees and must not be added together as exclusive costs.
+- **Method:** One before/after contributor Todo run on Node 24.22.0, freshly emitted 0.1.1 packages from runtime HEAD `1527ed1e8` plus local changes, identical cached dependencies and temporary in-memory timing hooks. Both use the same frozen existing local debug compiler reporting `3059a36af` (language 1.0/schema 1); its source inventory was frozen from clean main `eb4997001`. No compiler build or change to another checkout's sources occurred. Initial binding/package preparation took 23.83 s separately; subsequent optimized Cloudflare re-emission was also outside startup. Each initial run used fresh application state with normal OS/dependency caches. The earlier unprofiled 38.476 s observation (17.503 s owner) is context; the matching profiled baseline below is the comparison, with ordinary run/cache variability.
+
+| Observable interval | Before (s) | After (s) |
+| --- | ---: | ---: |
+| Start through owner handoff | 14.142 | 7.320 |
+| First explicit check through ready preview | 20.974 | 15.148 |
+| Preview open, real login/team selection and HTTP 200 page | 0.403 | 0.535 |
+| Complete fresh-state startup | 35.520 | 23.004 |
+| Save visible title, explicit check, authenticated updated page | 21.130 | 13.699 |
+| Retained-state restart through authenticated page | — | 20.429 |
+
+- **Observed behavior:** Full startup improved 35%, owner handoff 48%, and visible iteration 35% in these samples. The edited page returned HTTP 200 with title `Todos updated — Todos`, revision `r2`, one new serving workerd child, the old child released, and unchanged global/owner database IDs. Retained-state restart used the same state directory (6.882 s owner, 13.162 s check, 0.385 s open/login/page). Each owned daemon stopped and exited before release. File watching marks dirty; the measured iteration explicitly invokes `can dev check` and reloads the authenticated page. Automatic rebuild-on-save remains outside this change.
+- **Validation and uncertainty:** Fresh Cloudflare emit/typecheck passed. Capture/inventory tests passed 31/31, covering empty/1-byte/chunk-boundary hashes, same-size mutations, aliases, membership and source freshness; preflight lifecycle passed 1/1. Daemon tests passed 4/4, including deterministic same-size source/producer mutation immediately before final parent handoff with child exit and owner cleanup. The new socket fixtures needed shorter temporary paths; sandboxed socket tests required local socket access. The initial incremental emit correctly failed the contributor freshness guard because unchanged JS outputs retained older timestamps; a full package re-emission resolved it before measurement. Existing 68 lifecycle checks retain their recorded scope. Three equivalent JEV choice requests favored direct baseline currency (probability .78–.84, confidence .67–.76); [questions, responses and residual uncertainty](../design/jev/dev-startup-20261018.json) are retained as advice alongside direct tests. Remaining repeated checks protect distinct consumption/publication boundaries; their removal and automatic rebuild are unimplemented possibilities, not accepted completion requirements. The initial table measures authenticated HTTP responses. No cold-machine, release-install, heap/RSS or rebuilt-current-compiler benchmark is claimed; actual browser rendering is measured separately below. No merge or complete filetree-checkpoint advance occurs here.
+
+### Actual browser save-to-demo follow-up
+
+The earlier 13.699 s iteration measured an authenticated HTML response. The requested browser follow-up used the same task-owned Todo root and frozen compiler, the optimized source above, freshly re-emitted 0.1.1 packages, and retained local state/seeded accounts. Dependency/OS/browser caches were warm; preparation, startup, initial login and creation of a saved task were outside the edit timer. The cached Values Cargo portion took 0.09 s; a separate full package emission round took 23.18 s, followed by Values restaging/catalog emission. Playwright 1.63.0 drove cached headless Chromium 156.0.8078.4 (revision 1248), viewport 1280×900, on Node 24.22.0 with the same timing hooks. This is a local browser observation, not qualification of the separately pinned browser-tools release or a cold-machine benchmark.
+
+In one already-running authenticated session, save changed only `card "Your tasks"` to `card "Your tasks — demo update"`. The timer began immediately before writing the source. Browser verification waited for the exact changed heading and existing task to be visible and two animation frames to pass, then submitted a new task through the real generated form and waited for its committed HTTP 200 result and visible row. The screenshot was inspected after timing.
+
+| Sequential interval | Seconds |
+| --- | ---: |
+| Save through watcher dirty observation (10 ms polling) | 0.012 |
+| Explicit `can dev check`, including capture/compile/bundle/replacement | 13.476 |
+| Explicit `can dev preview.open` | 0.317 |
+| Navigate to returned URL, load assets, verify content and paint | 0.595 |
+| Complete save through painted changed page | **14.401** |
+| Additional successful task submission/visible-row usability probe | 0.165 |
+| Complete save through verified usable page | **14.567** |
+
+Within the check, compiler invocation plus its currency check took 0.983 s; portable bundling itself 1.939 s (3.343 s including its surrounding input checks); all three runtime starts together 0.351 s. These nested function timings are diagnostic and are not additive phase totals. Source save itself took 0.0003 s. Initial owner startup/check were 6.718 / 12.705 s, excluded from this edit measurement.
+
+The same browser context retained its original login cookie and team, the pre-edit `Persisted demo task` remained visible, and `Task created after visible edit` appeared after the real form commit. Global/owner database IDs stayed identical. There was one new serving workerd child and the exact old PID no longer existed; the browser reported zero page errors. The heading and both task titles were visibly rendered in the inspected capture. The initial setup probe needed its required login Origin header and a text matcher tolerant of the renderer's bidi isolation characters; those setup retries were outside the accepted edit timer and released their owned sessions.
+
+Watching automatically marks dirty and refreshes capture. Rebuild still requires `can dev check`, followed by `can dev preview.open` and navigation to its returned URL. The replacement bridge changed port in this run, so refreshing the old URL is insufficient; the public instructions now state the observed workflow. No second login was performed after rebuild. The measured owner stopped and exited, its fixture was restored, and only task-owned state/build/dependency outputs were released. Raw timing/profile output and the inspected screenshot remain in the private temporary `can-startup-perf` directory; this concise record is the durable result. Existing checks are reused, with no new product implementation, broad test run, compiler build, merge or publication.
+
+
+Implementation-owner intake: existing worktree `0970` moved from `1527ed1e8` to current local main `71885872b`, preserving all 20 non-decision-log local files byte for byte and combining the upstream decision additions with the original local lifecycle/performance/timing record. The sole conflict was that documentation area and is resolved. The completed plan is present at the same canonical path in this worktree, with E1 identified as an available unmerged local handoff and no duplicate cleanup/inventory assignment. T14–T30 remain proposed; terminal feedback is first, and no new implementation, resource allocation or expensive validation was run for intake. Earlier results remain scoped to their recorded inputs. The recovery stash is retained until normal integration; no merge or complete filetree-checkpoint advance occurred.
+
+## 2026-10-18 — authoritative development state and foreground controls
+
+Implemented T14/T15 and explicit T19 mode locally. One owner observation separates
+lifecycle, active phase, source outcome, actual serving revision/currentness and
+cleanup/restart admission. Captured diagnostics remain revision-bound; routine
+status exposes only a safe origin. `can dev terminal --source PATH` starts the
+manual foreground view; without source it attaches. Enter runs bounded known
+commands, owned Ctrl+C waits for runtime/endpoint/process release, and attached
+Ctrl+C detaches. JSON commands retain their envelopes. Failed shutdown retains
+the exact claim for retry; the socket uses its original directory identity through
+publication and guarded partial-cleanup recovery. The launcher's failed handoff
+awaits its child's exit. Three socket-cleanup JEV responses are retained as advice
+in `docs/design/jev/dev-socket-cleanup-20261018.json`.
+
+`--check-mode automatic` opts into an initial check and newest coherent saved
+revision. One deferred demand uses the existing serial core queue; intermediate
+saves do not enqueue builds. Source errors wait for correction, identical-byte
+hints do not loop, and incomplete capture/cleanup/changed loaded producers pause
+new work. Explicit cleanup retry can resume the newest demand. No permission,
+activation or failure result is reused. Manual remains the default.
+
+Focused terminal9, observation4, publication-selection failure1 and socket6
+controls pass; the single real-compiler service test covers automatic startup,
+three-save coalescing, superseded candidate disposal, last-good/error/correction,
+identical-byte hint, producer restart refusal and owned stop in3.317s. A test-only
+dirty/coherent predicate was corrected before the affected retry. Cloudflare emit
+passes; retained earlier lifecycle and affected service/daemon results are reused.
+T17's actual terminal/current-build journey and the stable gateway/browser join
+remain open. No new startup timing, main merge or full checkpoint advance is
+claimed by this slice.
