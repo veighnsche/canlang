@@ -2,7 +2,9 @@
 
 ## Current execution view — 2026-10-18
 
-This is the single current execution view. The finite continuous run released by
+This is the single current execution view, refreshed against local main
+`46cb113ad` (origin/main `82b888c8b` after fetch; local main is one commit ahead).
+This refresh authorizes planning only. The finite continuous run released by
 Vince on 18 October is complete at its selected scopes; its original canonical
 IDs, parent dependencies and wider unmet criteria remain in
 [tasks.json](remaining-work/tasks.json) and the subsystem plans. Historical
@@ -30,7 +32,14 @@ and [machine queue](rust-port-orchestration/next-packets.json) record the result
 The default public backend remains TypeScript. Full Unicode/other codecs,
 Rust validation, other Work families and whole parent acceptance remain separate.
 The existing message syntax/compiler/UI ICU completions remain accepted.
-No new packet is queued by this completion. Native preparation P04–P11 /
+The next **proposed, dependency-ready** packet is the matching ordinary-row
+remainder of `ports:W02.5`: ten existing Work row/update/query helpers delegate
+to the already shipped `/rows` leaf. Work retains its error owner and stage
+ordering. Newer dispatch/occurrence/schedule provenance and snapshot codecs stay
+Work-owned; wholesale aliases would lose behavior. The
+[finite proposal](rust-port-orchestration/current-plan.md#planning-refresh-against-current-main--18-october-2026)
+names exact exports, inputs, writers and stop conditions. No implementation,
+implementation worker, build or supervision is started. Native preparation P04–P11 /
 C04.native-release remains **HUMAN HOLD**; default switches, TS retirement and
 production/public release remain held. See the checklist for focused validation,
 retained broader-suite failures, resource closure and source/integration bounds.
@@ -97,9 +106,9 @@ preparation was released; native preparation remains **HUMAN HOLD**.
 | --- | --- | --- |
 | R1 / `A03–A07` exact values | Registered Rust integer/decimal/money, temporal, aggregate and scalar-codec modules; broad [operation dispatcher](../../packages/values/semantics/src/transport/exact.rs); generated Wasm, synchronous bootstrap and integrity-checked assets. [Step9 acceptance](rust-port-orchestration/runs/codex-step9-20261007T012914Z/acceptance.json) credits its actual Node/Bun/workerd profile. | Six operations have the matching qualified TS comparison profile; Rust dispatch supports more. Public helpers still run TS. Full boundary parity, public routing and adoption are unfinished. |
 | R2 / `V02–V03`, `V07` validation foundation | Rust structural transport, owner/plan handles and release scaffolding. Ordinary TS has frozen parser-created input, copied Date/Decimal plan defaults, trusted serving registration, source/revision fences and request cleanup, with the selected installed isolated Worker serving join now qualified. [Current V03 record](../research/package-library-audit-20261006/repair-queue/queue.json) retains accepted components and the unfinished serving checkpoint. | [Rust profile dispatch](../../packages/values/semantics/src/profiles.rs) has input/owner/plan operations, no validation operation. TS serving is explicitly `ordinary-ts-serving`; no Rust HTTP/state/MCP adoption. |
-| R3 / `W03–W06` selected recovery | Registered Rust decision families; explicit [recovery Wasm producer](../../packages/work-kernel/package.json) and [startup-selected facade](../../packages/work-kernel/bindings/recovery-planner.ts). Accepted `TECH-W03` at `6fe652c4b932e8c095ab8c5c8fdedee9de6bd537` exercised the actual durable recovery path with TS and Wasm, 26 planner calls each. | The selected `planRecoveryScan` outcome is closed at that scope. Other families, final distribution/installed-host coverage and wider original W gates remain open; do not redispatch accepted recovery qualification. |
+| R3 / `W03–W06` selected recovery | Registered Rust decision families; explicit [recovery Wasm producer](../../packages/work-kernel/package.json) and [startup-selected facade](../../packages/work-kernel/bindings/recovery-planner.ts). Accepted `TECH-W03` at `6fe652c4b932e8c095ab8c5c8fdedee9de6bd537` exercised the actual durable recovery path with TS and Wasm, 26 planner calls each. | The selected `planRecoveryScan` outcome is closed at that scope. Other families and wider original W gates remain open; selected recovery distribution/installed-host closure is accepted above; do not redispatch accepted recovery qualification. |
 | R4 / `P04–P06` preparation candidate | Registered Rust artifact, compatibility, release, module, plan, render and review algorithms, retained protocol/job prefix and separate host/publication adapters. | Native job still omits module/plan phases; real CLI build/deploy stays TS. Executable verifier is not connected to launch. Candidate source is not full CLI acceptance. Preparation/native release remains human-held. |
-| Shared / `C04` delivery | Values generated assets are manifest-checked and staged as binary; mixed asset/bundle plumbing exists. Cloudflare now declares the work-kernel dependency, and Work has an explicit recovery asset producer. | Ordinary Work emit does not produce recovery Wasm; final Work package/deploy/release inventories and claimed host coverage remain separate. Do not require unused consumers to add dependencies. |
+| Shared / `C04` delivery | Values generated assets are manifest-checked and staged as binary; mixed asset/bundle plumbing exists. Cloudflare now declares the work-kernel dependency, and Work has an explicit recovery asset producer. | Ordinary Work emit does not produce recovery Wasm; selected explicit recovery distribution/installed coverage is accepted above. Other binary inventories, host claims and release gates remain separate. Do not require unused consumers to add dependencies. |
 
 ### Prioritized remaining work
 
@@ -108,10 +117,11 @@ Ranks order the existing outcomes, not new task identities or permission to exec
 | Rank / existing IDs | Defining owner and prerequisite output | Remaining change and finite acceptance |
 | --- | --- | --- |
 | Accepted finite slice — `V02.6`, related `V03.3`, `V08.4` / selected `TECH-V03` | R2 Values/Interfaces with R3/Dev Worker qualification; existing trusted source/catalog and copied-default producers. | Ordinary TS isolated Worker linkage/correspondence/cleanup is complete above; reuse its two passing cases and prior Node controls. No redispatch of this slice. Full protected/native/source-profile/resource and broader parent criteria remain open. |
-| Next finite — `C04.values-assets` | R3 delivery, consuming R1's committed asset/bootstrap and existing installed bundler. | Qualify current owning installed vendor bytes and isolated workerd startup/add-int/negative controls through actual `buildDeployBundleWithAssets` output. No regeneration, direct binding-smoke replay, codec/adoption/default expansion or whole A07/A08 closure. Stop at that exact delivery profile; future release required. |
-| 2 — `A04.5`, `A07.3`, `A08` | R1 shared values assembly; existing Rust semantics, committed Wasm and actual host adapters. | Complete admitted carrier/error/profile parity and the matching comparison registry, then route only proved public profiles before evaluation. Resolve exact UTF-16/truncation, signed-zero and observable-object exclusions explicitly. Done when full claimed vectors use actual delivered adapters with original error/order/identity behavior and unsupported profiles retain declared TS routing. The selected int/ASCII source/adoption slice stays held below. |
+| Accepted finite slice — `C04.values-assets`, selected `A04.5/A07.3`, fanout `W02.5` and selected recovery delivery | Existing Values/Interfaces/Work/State/Cloudflare owners and installed consumers. | Completed above. Reuse accepted int/ASCII, raw CSV, fanout and genuine installed asset results; no redispatch or whole-parent closure. |
+| Next finite proposal — matching ordinary helpers under `W02.5` | R3 Work assembly; released `/rows` export, matching W02.2 helpers/oracles and accepted production edge. | Delegate the ten named matching helpers through the owning-error projection. Preserve current row/query/clone/order behavior through real stage and installed Node/Worker consumers, then stop. Retain evolved dispatch/occurrence/schedule codecs. Source-ready; implementation remains unreleased. |
+| 2 — `A04.5`, `A07.3`, `A08` | R1 shared values assembly; existing Rust semantics, committed Wasm and actual host adapters. | Complete admitted carrier/error/profile parity and the matching comparison registry, then route only proved public profiles before evaluation. Resolve exact UTF-16/truncation, signed-zero and observable-object exclusions explicitly. Done when full claimed vectors use actual delivered adapters with original error/order/identity behavior and unsupported profiles retain declared TS routing. The selected int/ASCII source/adoption slice is complete above; wider codec profiles remain open. |
 | 3 — remaining `W03.3–W04.4`, `W05–W06`, `C04.graph`, `C04.work-assets` | R3 Work/global delivery; consume the existing recovery producer/facade and accepted durable recovery result. State and Cloudflare retain authority and commit ownership. | Complete only unmet family demand/provenance/consumer obligations and the actual required package/deploy/installed asset closure. Preserve `W05.1 → W05.2 → C04.work-assets → W05.4 → W05.3` for missing delivery, plus the original runtime writer handoff. Done when each claimed remaining family has required trace/fault/persisted behavior and its named installed/workerd evidence. Selected recovery remains credited; no scheduler expansion. |
-| 4 — `V04–V07` | R2 validation, with R1 applying shared registrations; consume released numeric/codec/error contracts and immutable owner plans. | Implement the missing ordered Rust validator, defaults/materialization, codec joins and distinct supported profiles; finish matching TS/Rust budget, retirement and cleanup policy. Done when original ordering, presence/default identity, error projection and stale/foreign/disposed refusals match through actual bindings. Work needing the held selected int/ASCII contract waits for that exact release; disjoint preparation does not inherit a blanket hold. |
+| 4 — `V04–V07` | R2 validation, with R1 applying shared registrations; consume released numeric/codec/error contracts and immutable owner plans. | Implement the missing ordered Rust validator, defaults/materialization, codec joins and distinct supported profiles; finish matching TS/Rust budget, retirement and cleanup policy. Done when original ordering, presence/default identity, error projection and stale/foreign/disposed refusals match through actual bindings. The selected int/ASCII contract is available now; other codec/default/owner requirements remain explicit and do not block disjoint work. |
 | 5 — `A09.2`, `V08–V09`, `C04.validation-join` | R2 real HTTP/state consumers with R3 delivery/runtime handoff; require the relevant proved interpreter/profile and protected parser-to-Rust boundary. | Join actual owning handlers and canonical state sequencing. Preserve raw-input hash/replay before age/auth/normalization, one selected backend and no semantic-error retry. Done at original installed/workerd/durable scopes, with actual protected input rather than fixture-only transport. Rank 1 TS serving does not satisfy this native join. |
 | 6 — `A10–A11`, `V11–V12`, `W07–W08`, shared `C02.complete`, `C03.complete`, `C04.complete`, `C05.complete` | Each defining subsystem and R3 delivery; consume the exact completed consumer/profile releases above. | Measure complete operations and resources, qualify packaged selection/disposal/persisted rollback, then record pass/retain-TS decisions and close only met original gates. Reuse unchanged evidence. No default switch or TS retirement without its existing explicit release; local/scalar timing is not full-handler acceptance. |
 
@@ -120,7 +130,7 @@ Ranks order the existing outcomes, not new task identities or permission to exec
 | Existing scope | Owner and release condition |
 | --- | --- |
 | Native preparation `P04–P11` and `C04.native-release` / selected `DEL-D05` | Human HOLD. Only explicit release permits remaining native job/module/plan joins (`P05.4`, `P06.3`), verified executable launch, exact reviewed-byte publication, actual CLI and supported-host qualification. The differential backend flag currently labels output without selecting native execution; repair it before using it as native parity evidence. This hold does not block ordinary Values/Work delivery. |
-| Selected int/ASCII codec/source-adoption `TECH-V04` within `A04.5`, `A07.3`, `V05–V08` | Human exact source/adoption release required. Retain accepted raw transport/bootstrap controls. After release, preserve int64/leading-zero/`-0`, form-before-bound checks, ordered public errors and refusal domains. No full-Unicode or all-registry acceptance inferred. |
+| Wider codecs/validation adoption beyond accepted `TECH-V04` int/ASCII and CSV | Selected source/adoption release is satisfied at its recorded scope. Full Unicode, decimal/money/temporal and other consumers require their exact contracts and finite release; no all-registry or broader V acceptance is inferred. |
 | Backend defaults, TS retirement, activation and publication | Existing explicit human/policy releases remain required. This plan selects none of them and schedules no workers or automation. |
 | `W09` request/resume scheduler; conditional `V10` MCP/forms and preparation mixed assets | Retain original deferred/conditional disposition and activation conditions. MCP SDK provenance is still deferred. Do not turn optional work into a prerequisite for required accepted outcomes. |
 
@@ -130,7 +140,16 @@ The 230 port identities and original acceptance contracts are retained. Historic
 
 Reuse the read-only audit's direct check of the current committed Values binding: all four inventory entries matched bytes/SHA-256, exact and structural ABI1 initialized on Node24.22.0, add/negate/subtract-int passed, and invalid-version/unknown-op requests refused. This is a binding smoke, not renewed full-source or host acceptance. Larger checks retain their original source/scope; no builds or product suite reruns are required for this documentation update. No merge or complete filetree checkpoint advance occurs.
 
-Documentation checks passed: all 333 ledger identities (230 ports), original acceptance/dependencies/dispositions, held/deferred/completed records and lane allocations are preserved; fifteen observations are updated, eight Work statuses move only from not-started to partial, and no full gate closes. Ledger status counts match the records, all eighteen added local Markdown destinations resolve, and the scoped diff has no whitespace errors.
+Retained earlier source-reconciliation checks: all 333 ledger identities (230 ports), original acceptance/dependencies/dispositions, held/deferred/completed records and lane allocations are preserved; fifteen observations are updated, eight Work statuses move only from not-started to partial, and no full gate closes. Ledger status counts match the records, all eighteen added local Markdown destinations resolve, and the scoped diff has no whitespace errors.
+
+The current refresh inspected main's fifteen-path compiler/runtime/advice/docs
+delta and the proposed Work helpers/callers, with one independent read-only
+readiness review. It corrects obsolete asset/fanout/selected-int queue wording;
+canonical IDs, statuses and full-parent dependencies remain intact. No product
+checks or builds were repeated, and the stale whole-tree checkpoint is unchanged.
+Current planning checks pass: eight documentation-only paths, valid JSON, four
+added local links/anchors, ten existing exports and all 333 canonical identities,
+statuses, criteria, dependencies, dispositions and counts preserved.
 
 ## Historical October 7 sequence — reference only
 

@@ -8,7 +8,9 @@ run. The Rust integer slice is explicit opt-in; default public callers remain TS
 Actual installed package gather/bundle output reaches the selected Worker consumer.
 Broader codec/validation/Work parents remain partial. Native preparation P04–P11 /
 C04.native-release, default switches, TS retirement and production/public release
-remain held; no next packet is dispatched.
+remain held. The planning-only refresh at main `46cb113ad` proposes ten matching
+ordinary Work row/update/query helpers under existing `W02.5`; see the finite
+checklist for exact scope and retained newer codecs. No next packet is dispatched.
 
 The October 7 [step9 acceptance](rust-port-orchestration/runs/codex-step9-20261007T012914Z/acceptance.json) and [prerequisite map](rust-port-orchestration/runs/codex-step9-20261007T012914Z/gate-map.json) retain their historical scopes; their Work-TS-only observations are superseded by the later selected recovery acceptance. The dispatch/release narrative below is historical procedure and evidence, not a second current queue or renewed authorization. Step8 D04 remains credited.
 

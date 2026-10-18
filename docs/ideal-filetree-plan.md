@@ -7,6 +7,23 @@
 > decisions and bounded coverage evidence are retained below; that evidence
 > applies only at its recorded scope and does not establish whole-plan currency.
 
+**Rust readiness refresh, 2026-10-18, committed main `46cb113ad`:** the fifteen
+new compiler/runtime/advice/planning paths retain the defining owners and review
+recorded by compiler completion below. They change no proposed `/rows` input or
+package edge. The next planning-only proposal reuses existing `W02.5` for ten
+matching Work row/update/query helpers; actual every-slot/supersession/staging
+callers and existing leaf/oracles are inspected, independently challenged and
+allocated to their current Work facade. Evolved dispatch/occurrence/schedule
+provenance and JSON snapshot duties remain with Work. Accepted int/CSV, fanout,
+ICU and installed recovery delivery are reused, not reopened. The Rust start
+view, finite detail/machine queue, ledger navigation, package audit and DECISIONS
+are reconciled together. This is bounded readiness coverage, not whole-tree
+source/workflow/challenge/allocation currency. Retain the stale notice and complete
+checkpoint. This integration covers exactly eight documentation paths, retaining
+main's newer compiler/runtime history and foreign working notes; source owners and
+target allocations are unchanged. No implementation, native preparation, default
+or retirement release.
+
 **Selected fanout and recovery delivery integration, 2026-10-18:** source
 `f4e067414` adds fourteen owning code/test/build/manifest paths. Work-kernel
 owns the unchanged shared TS row mechanisms and selected Wasm distribution;

@@ -1,5 +1,71 @@
 # Rust-port finite packet detail
 
+## Planning refresh against current main — 18 October 2026
+
+**Planning only; implementation is not released.** Source is local main
+`46cb113ad4831b0256b9ed97de4c3f3f15233df3`; refreshed origin/main is
+`82b888c8bcb4a59d84cad2a851c78b01044293cb` (local main is one commit ahead).
+The clean planning checkout fast-forwarded to that main. Main's concurrent uncommitted compiler/runtime/Work, guidance/decision, JEV and
+production-line inventory work remains with its owner, outside this committed-source
+assessment; no live writer lease is inferred from readiness. The completed continuous run below is historical
+acceptance, not authorization for this proposal. No supervisor is restarted.
+
+**Recommended next: `ports:W02.5`, matching ordinary Work row helpers.** This is
+a finite remainder of the existing task, not another canonical identity or a new
+Rust family. It completes useful TS consolidation before further native adoption.
+
+| Packet field | Concrete scope |
+| --- | --- |
+| Observable outcome / owner | R3 Work assembly makes ten existing synchronous Work exports call the contracts-only `@canlang/work-kernel/rows` owner; Work retains public `KernelTableError` identity and all stage/commit authority. |
+| Ready producer outputs | W02.2 shared helpers and independent frozen rows fixtures; W02.3/W02.4 extracted decisions; completed selected W02.5 fanout/C04.graph production edge, public `/rows`, installer and installed Node/Worker resolution. Full C04 or W03 completion is not required for these TS helpers. |
+| Exact exports | `readEverySlotRow`, `newEverySlotRow`, `everySlotRowId`, `readSupersessionRow`, `newSupersessionRow`, `withRowData`, `scheduleRowScope`, `dispatchByOriginQuery`, `dispatchByStateQuery`, `scheduleByKeyQuery`. |
+| Remaining change | Replace only their duplicate bodies with calls through the existing owning-error projection pattern. Reuse the current leaf, exports and dependency graph; keep shared checks still used by retained codecs. |
+| Source/test writers after a future release | `packages/work/src/kernel/tables.ts`; affected existing `packages/work/test/kernel-tables.test.ts` and `kernel-commands.test.ts`. The shared leaf and frozen fixtures are inputs, not scheduled rewrites. Use one private `can-work-rows-<run-id>/qual.mjs` capture, adapting the retained run's `codex-installed-review/qual.mjs` actual installed gather/Worker mechanism without overwriting it; only changed ordinary TS calls need capture. No manifest, Rust, compiler, State or runtime writer is required. |
+| Finite acceptance | Preserve signatures, own error fields/class/instanceof, first validation/getter order, original non-leaf thrown values, Work JSON-safety-before-clone, alias/cycle/sparse behavior, URIError on lone surrogates, row bytes/defaults/metadata/version and query predicate order. Exercise real every-slot insert/advance/no-op and supersession staging with existing command tests. |
+| Joined stop condition | Affected Work/leaf emits/typechecks, relevant frozen every-slot/supersession rows and owning regression tests, plus affected actual installed Work-to-leaf Node and staged Worker calls pass. Reuse accepted graph/fanout/recovery results; no compiler rebuild, Rust artifact regeneration, repeated full V02.6/recovery qualification or broad unrelated suite is a prerequisite. Record one concise outcome, then stop. |
+| Readiness versus authority | Source/contract dependencies are ready; no lease, runtime launch or implementation is authorized. A future release checks current source/writer custody and compatible caches. Sol medium suits these established adapters; escalate only on a concrete new seam. |
+
+The matching functions have real consumers: `kernel/commands.ts` stages every-slot
+insert/update/no-op; `kernel/staging-support.ts` creates ordered supersession
+writes and uses `withRowData`; `kernel/schedule-staging.ts` consumes the scoped
+query. `scheduleRowScope` remains an existing tested public reconstruction helper;
+no new caller is required for this consolidation. Existing `checkJsonSafe` traversal and metadata/clone
+ordering match the leaf; retain them exactly, including current alias refusal.
+The independent read-only readiness review agrees at this source pin. No product
+checks were executed for this planning refresh.
+
+**Retained owner work:** direct aliases for dispatch, occurrence and schedule
+readers/builders are unsafe. Current Work dispatch validates source guards,
+original File/queue headers, generation correlation/control pins and mail pins;
+current occurrence/schedule code validates original File headers and detaches
+JSON payloads. The old leaf lacks these duties and has different read/clone
+order. Leave those six codecs, `dispatchRecoveryPageQuery`, provenance helpers
+and their inline examples untouched in this packet. Their later W02.5 extraction
+needs current-owner cases and an order-preserving boundary; old fixtures pinned
+at `7e050080` remain independent historical oracles, not proof of newer duties.
+This packet does not close W02.5/W02 or require a new profile/carrier.
+
+**Other residuals:** A04.1 still needs the stored-scale `-0` preservation versus
+pre-evaluation TS-retention decision; full A04.5/temporal diagnostics need their
+lossless UTF16/error contracts. Selected int/ASCII and CSV are already accepted,
+so their old release hold is satisfied at that scope. V04 Rust interpretation
+still needs its exact codec/owner/default prerequisites. W03 other-family facts,
+references and demand/provenance joins need an actual named consumer; do not add
+a generic carrier merely to fill that gap. Optional ICU Rust/other package
+opportunities retain their decision/cost gates. Native preparation P04–P11 /
+C04.native-release, backend default changes, TS retirement and production/public
+release remain **HUMAN HOLD** or separately held.
+
+**Incremental source coverage:** all fifteen paths in main's `46cb113ad` delta
+were accounted for: six compiler codegen files, three JEV advice files, three
+planning/decision records and three Cloudflare runtime/test files. Reuse their
+owning compiler completion review; private-handler owner queries, installed Work
+continuation matching and min/max exports do not alter the ten proposed helpers
+or `/rows` package edge. Their source/authority semantics are retained, not
+requalified here. Broader living-plan source/workflow/challenge/allocation
+coverage and its complete checkpoint remain historical; only this packet's
+source/callers, independent readiness challenge and target allocation are current.
+
 ## Continuous authorized execution — 18 October 2026
 
 This is the one current finite execution checklist, superseding the prior
