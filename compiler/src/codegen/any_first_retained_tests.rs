@@ -44,9 +44,41 @@ When
 Then
 "#;
 
+const POSITIVE_SOURCE: &str = r#"app AnyFirstPositive
+Given
+ P {v:int,active:bool=true}
+ C in P {account:user,role:enum(administrator,booker),active:bool=true}
+ D in P {account:user,role:C.role,w:int}
+ I in P {role:C.role}
+ policy P read=members fields=v,active
+ policy C read=members fields=parent,account,role,active
+ policy D read=members fields=parent,account,role,w
+ policy I read=members fields=parent,role
+When
+ crud P by=members fields=v
+ crud C by=members fields=parent,account,role,active
+ crud D by=members fields=parent,account,role,w
+ crud I by=members fields=parent,role
+ scenario accept(invitation:I) by=members
+  require any(invitation.parent.C as grant,grant.account==actor and grant.role==invitation.role and grant.active)
+  do
+   let c=first(invitation.parent.C as c where c.account==actor and c.role==invitation.role order=c.id)
+   require c!=null
+   create D {parent=invitation.parent,account=actor,role=invitation.role,w=1} as d
+Then
+"#;
+
 fn fixture() -> (SourceDb, CheckedProgram, IrProgram) {
+    fixture_source(SOURCE, "any-first-retained.can")
+}
+
+fn positive_fixture() -> (SourceDb, CheckedProgram, IrProgram) {
+    fixture_source(POSITIVE_SOURCE, "any-first-positive.can")
+}
+
+fn fixture_source(source: &str, name: &str) -> (SourceDb, CheckedProgram, IrProgram) {
     let mut db = SourceDb::new();
-    let file = db.add("any-first-retained.can".into(), SOURCE.into());
+    let file = db.add(name.into(), source.into());
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
     let path = root.join("packages/cloudflare/dist/native-catalog.json");
     let (catalog, diagnostics) = load_catalog(&CatalogRequest {
@@ -69,6 +101,30 @@ fn accept_index(ir: &IrProgram) -> usize {
         .iter()
         .position(|item| item.canonical == "AnyFirstRetain.accept")
         .expect("retained accept scenario")
+}
+
+fn positive_accept_index(ir: &IrProgram) -> usize {
+    ir.items
+        .iter()
+        .position(|item| item.canonical == "AnyFirstPositive.accept")
+        .expect("positive accept scenario")
+}
+
+/// Leading `require any(...)` guard call: the positive-dual collection call.
+fn positive_guard_operand(item: &IrItem) -> Option<&TypedExpr> {
+    let IrItemKind::Scenario { guards, .. } = &item.kind else {
+        return None;
+    };
+    guards.iter().find_map(|statement| {
+        let IrStmt::Require { cond, .. } = statement else {
+            return None;
+        };
+        matches!(
+            &cond.expr,
+            IrExpr::Call { .. } | IrExpr::BoundCall { .. }
+        )
+        .then_some(cond)
+    })
 }
 
 /// Leading `require not any(...)` guard operand: the actual collection call.
@@ -176,6 +232,17 @@ fn shifted_parent_base_span_refuses_with_fixed_facts() {
         checked_any_first_query_ir(&retained, item, actual, &db).is_none(),
         "shifted parent base must refuse"
     );
+}
+
+#[test]
+fn positive_guard_admits_same_composition() {
+    let (db, _program, ir) = positive_fixture();
+    let item = &ir.items[positive_accept_index(&ir)];
+    let actual = positive_guard_operand(item).expect("leading positive any guard call");
+    let matched = checked_any_first_query_ir(&ir, item, actual, &db);
+    let query = matched.expect("positive dual admits the same composition");
+    assert_eq!(query.model_name, "AnyFirstPositive.C");
+    assert_eq!(query.dependencies.len(), 3);
 }
 
 #[test]

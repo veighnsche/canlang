@@ -3651,19 +3651,22 @@ pub(super) fn checked_any_first_query_ir<'a>(
     let IrItemKind::Scenario { guards, params, .. } = &owner.kind else {
         return None;
     };
-    // Exactly one leading `require not any(...)` guard carries `actual`.
+    // Exactly one leading `require any(...)` / `require not any(...)`
+    // guard carries `actual`. The negated composition and its positive
+    // dual share the same sealed narrow profile; polarity lives in the
+    // emitted guard alone, never in the receipt plan.
     let mut statements = guards.iter().filter_map(|statement| {
         let IrStmt::Require { cond, span } = statement else {
             return None;
         };
-        let IrExpr::Unary {
+        if let IrExpr::Unary {
             op: super::ir::IrUnOp::Not,
             operand,
         } = &cond.expr
-        else {
-            return None;
-        };
-        std::ptr::eq(operand.as_ref(), actual).then_some((cond, *span))
+        {
+            return std::ptr::eq(operand.as_ref(), actual).then_some((cond, *span));
+        }
+        std::ptr::eq(cond, actual).then_some((cond, *span))
     });
     let (condition, statement) = statements.next()?;
     let (target, args, slots) = match &actual.expr {
@@ -3997,17 +4000,20 @@ pub(super) fn checked_native_any_query_plan<'a>(
         let IrStmt::Require { cond, .. } = statement else {
             return None;
         };
-        let IrExpr::Unary {
-            op: super::ir::IrUnOp::Not,
-            operand,
-        } = &cond.expr
-        else {
-            return None;
+        // The legacy direct shape keeps its negated guard; the composed
+        // any/first shape additionally admits the positive dual (the
+        // defining matcher seals the same narrow profile either way).
+        let (operand, negated) = match &cond.expr {
+            IrExpr::Unary {
+                op: super::ir::IrUnOp::Not,
+                operand,
+            } => (operand.as_ref(), true),
+            _ => (cond, false),
         };
-        let legacy = checked_any_query_ir(ir, owner, operand, db) == Some(query);
+        let legacy = negated && checked_any_query_ir(ir, owner, operand, db) == Some(query);
         let composition =
             !legacy && checked_any_first_query_ir(ir, owner, operand, db) == Some(query);
-        (legacy || composition).then_some((operand.as_ref(), composition))
+        (legacy || composition).then_some((operand, composition))
     });
     let matched = calls.collect::<Vec<_>>();
     let [(operand, composition)] = matched.as_slice() else {

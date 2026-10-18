@@ -20221,3 +20221,32 @@ imports to existing native-preview test support and CLI artifact defaults. Its
 actual workerd/native Wasm consumer passes1/1 with the released native dev binary
 explicitly configured; the earlier ENOENT was a missing executable environment.
 The final Cloudflare emitted build passes. No other installed criteria are reopened.
+
+### CAN18 outcome5: positive stored ANY dual and composed-guard ownership (2026-10-18)
+
+Accepted: the positive `require any(...)` + companion `first` dual admits the
+same sealed narrow profile as the negated composition (stored ANY, navigated
+parent, sealed conjuncts, exact original call/span correspondence,
+receipt-issued callback). Polarity lives in the emitted guard only
+(`check(await executeScenarioReceiptAny…)` vs `check(!(await …))`); receipt
+plans and the LeadingRequire call record are polarity-free. The earlier
+`positive_polarity_any_refuses` expectation is superseded by
+`positive_polarity_any_admits_same_composition`, mirroring the negated admit
+(2 queries, admitted-reference parent, direct predicate metadata).
+
+Repaired blocking regression (bisected to `9e9b1c7c4` "retain source context
+through receipt composition"): its new `source_require_contained_any` began
+observer-owning the composed leading any-guard, so `walk_effect_require`
+skipped the guard in flow and the void return carried only the first query's
+influences; the native [any,first] merge then refused (E6008 "cannot lower
+first query") for negated and positive alike, breaking four previously green
+`any_first_composition` admits. `source_require_any_call` now keeps a leading
+chain-empty any receipt-owned when a companion `first` over the same stored
+model is recorded for the scenario; standalone contained anys keep observer
+support and unsealed pairs still refuse downstream. Checks: compiler
+`any_first_composition` 7/7, retained matcher 4/4, State any 11/11, any-plan
+4/4, contained-first 5/5, CLI negated/positive twins 0 diagnostics. Remaining
+lib/integration failures (lib 5, decision_source_facts 2, model_hook_profile
+2, predicate_reuse 1, query_order 3) verified identical on base. Remainder:
+the positive dual's full execute matrix (absence, mismatch, denial, rollback,
+replay, recovery) through the runtime.

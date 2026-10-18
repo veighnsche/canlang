@@ -689,15 +689,17 @@ fn resolve_composed_call(
         let IrStmt::Require { cond, span } = guard else {
             return None;
         };
-        let IrExpr::Unary {
-            op: IrUnOp::Not,
-            operand,
-        } = &cond.expr
-        else {
-            return None;
+        // Negated and positive guard polarities share the defining
+        // matcher; the bare `any(...)` cond carries its own call span.
+        let operand = match &cond.expr {
+            IrExpr::Unary {
+                op: IrUnOp::Not,
+                operand,
+            } => operand.as_ref(),
+            _ => cond,
         };
         same_span(collection.node, operand.span)
-            .then_some((operand.as_ref(), cond.span, *span))
+            .then_some((operand, cond.span, *span))
     });
     let (call, cond_span, guard_span) = actual_calls.next()?;
     if actual_calls.next().is_some() {

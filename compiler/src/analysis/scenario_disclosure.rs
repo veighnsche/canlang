@@ -8991,10 +8991,17 @@ impl<'a> Closure<'a> {
         &self,
         condition: NodeKey,
         call: NodeKey,
-    ) -> Option<&'a SyntaxNode> {
+    ) -> Option<Option<&'a SyntaxNode>> {
+        // A bare `any(...)` guard is the positive dual of the negated
+        // composition: the condition itself carries the call, with no
+        // `not` wrapper to descend through. (`query_group` sees through
+        // parentheses only, so a negated guard never takes this arm.)
+        if self.query_group(condition)? == call {
+            return Some(None);
+        }
         // A leading guard may conjoin several Requirements with `and`;
         // descend to the conjunct carrying this call. Anything else (`or`,
-        // a bare call, double negation) keeps the established refusal below:
+        // double negation) keeps the established refusal below:
         // the guard holds only if every conjunct holds, so the isolated
         // `not any(...)` conjunct is proven on its own.
         let mut cursor = condition;
@@ -9005,7 +9012,7 @@ impl<'a> Closure<'a> {
             }
             let node = self.nodes.get(&grouped)?;
             if node.kind == SyntaxKind::Unary {
-                return Some(*node);
+                return Some(Some(*node));
             }
             let (left, right) = self.query_binary(grouped, "and")?;
             let contains = |key: NodeKey| {
@@ -9080,7 +9087,8 @@ impl<'a> Closure<'a> {
     fn any_query_call_shape_ok(
         &self,
         guard: &Effect,
-        unary: &SyntaxNode,
+        condition: NodeKey,
+        unary: Option<&SyntaxNode>,
         unary_words: &[&str],
         unary_values: &[NodeKey],
         call: NodeKey,
@@ -9094,10 +9102,6 @@ impl<'a> Closure<'a> {
             hit
         }
             || self.nodes.get(&guard.node)?.kind != SyntaxKind::Require
-            || unary.kind != SyntaxKind::Unary
-            || unary_words != ["not"]
-            || unary_values.len() != 1
-            || self.query_group(unary_values[0])? != call
             || call_node.kind != SyntaxKind::Call
             || arguments != selected_arguments
             || target.kind != SyntaxKind::NameRef
@@ -9105,6 +9109,28 @@ impl<'a> Closure<'a> {
             || !matches!(self.query_binding(NodeKey::of(target)),Some(Binding::Builtin {id}) if id=="any")
         {
             return None;
+        }
+        match unary {
+            Some(unary) => {
+                if unary.kind != SyntaxKind::Unary
+                    || unary_words != ["not"]
+                    || unary_values.len() != 1
+                    || self.query_group(unary_values[0])? != call
+                {
+                    return None;
+                }
+            }
+            // Positive dual: no wrapper exists, so no wrapper words or
+            // values may travel; the guard condition itself carries the
+            // exact original call.
+            None => {
+                if !unary_words.is_empty()
+                    || !unary_values.is_empty()
+                    || self.query_group(condition)? != call
+                {
+                    return None;
+                }
+            }
         }
         Some(())
     }
@@ -9807,19 +9833,28 @@ impl<'a> Closure<'a> {
             return None;
         };
         let condition = guard.cond?;
+        // The outer refusal stays whole; the inner layer is the `not`
+        // wrapper when present and absent for the positive dual, whose
+        // guard condition carries the call itself.
         let unary = self.any_query_guard_cursor(condition, call)?;
-        let unary_values: Vec<_> = unary
-            .children
-            .iter()
-            .filter(|part| expression(part.kind))
-            .map(NodeKey::of)
-            .collect();
-        let unary_words: Vec<_> = unary
-            .children
-            .iter()
-            .filter(|part| matches!(part.kind, SyntaxKind::Name | SyntaxKind::Punct))
-            .map(|part| self.word(part))
-            .collect::<Option<Vec<_>>>()?;
+        let (unary_node, unary_words, unary_values) = match unary {
+            Some(unary) => (
+                Some(unary),
+                unary
+                    .children
+                    .iter()
+                    .filter(|part| matches!(part.kind, SyntaxKind::Name | SyntaxKind::Punct))
+                    .map(|part| self.word(part))
+                    .collect::<Option<Vec<_>>>()?,
+                unary
+                    .children
+                    .iter()
+                    .filter(|part| expression(part.kind))
+                    .map(NodeKey::of)
+                    .collect(),
+            ),
+            None => (None, Vec::new(), Vec::new()),
+        };
         let (call_node, target, arguments) = self.any_query_call_shape(call)?;
         let by = scenario.by?;
         self.any_query_signature_shape(
@@ -9836,7 +9871,8 @@ impl<'a> Closure<'a> {
         )?;
         self.any_query_call_shape_ok(
             guard,
-            unary,
+            condition,
+            unary_node,
             &unary_words,
             &unary_values,
             call,
@@ -12809,6 +12845,24 @@ impl<'a> Closure<'a> {
             if self
                 .source_require_contained_any(scenario, query, fact.model)
                 .is_none()
+            {
+                *supported = false;
+                return Some(false);
+            }
+            // A leading any that composes with a companion first over the
+            // same stored model stays receipt-owned: observer-owning it
+            // would skip its flow influences, starving the native
+            // [any, first] merge of the return correspondence it seals.
+            // Standalone contained anys keep the support above.
+            if !body
+                && scenario.effects.iter().any(|binding| {
+                    binding.verb == EffectVerb::Let
+                        && self
+                            .checked_first_query_source(scenario, binding)
+                            .is_some_and(|first| {
+                                first.first.is_some() && first.model == fact.model
+                            })
+                })
             {
                 *supported = false;
                 return Some(false);

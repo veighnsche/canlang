@@ -224,17 +224,32 @@ fn conjunct_subset_admits_smaller_census() {
 }
 
 #[test]
-fn positive_polarity_any_refuses() {
+fn positive_polarity_any_admits_same_composition() {
+    // CAN18 outcome5 (C02/C04/C19): the positive dual of the negated
+    // composition admits the same sealed narrow profile. Polarity lives
+    // in the emitted guard alone, never in the receipt plan; this
+    // supersedes the earlier positive-polarity refusal.
     let loaded = load(
         "any-first-positive.can",
         &source("AnyFirstPositive", GRANT).replace("require not any(", "require any("),
     );
     assert!(loaded.diagnostics.is_empty(), "{:?}", loaded.diagnostics);
     let Loaded { db, catalog, checked, .. } = loaded;
-    let (_, diagnostics) = prepared(&checked.unwrap(), &db, &catalog);
+    let program = checked.unwrap();
+    let (prepared, diagnostics) = prepared(&program, &db, &catalog);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let queries = accept_queries(&prepared, "AnyFirstPositive");
+    assert_eq!(queries.len(), 2, "any plus first queries, got {queries:?}");
+    let any = queries
+        .iter()
+        .find(|query| query["dependencies"].as_array().unwrap().len() == 3)
+        .expect("three-conjunct any query");
+    assert_eq!(any["parent"]["model"], "AnyFirstPositive.P");
+    assert_eq!(any["parent"]["origin"]["kind"], "admitted-reference");
+    let js = emitted_predicate(&prepared);
     assert!(
-        diagnostics.iter().any(|diagnostic| diagnostic.code == "E6008"),
-        "positive-polarity any must keep the refusal, got {diagnostics:?}"
+        js.contains(r#""kind":"predicate""#) && js.contains(r#""direct":true"#),
+        "emitted direct predicate ANY callback, got {js:?}"
     );
     let _ = db;
 }
