@@ -53,8 +53,8 @@ pub enum Punct {
 
 impl Punct {
     /// Source spelling of this punctuation token.
-    pub fn spell(self) -> &'static str {
-        match self {
+    fn delimiter_spell(self) -> Option<&'static str> {
+        Some(match self {
             Punct::LParen => "(",
             Punct::RParen => ")",
             Punct::LBracket => "[",
@@ -65,6 +65,12 @@ impl Punct {
             Punct::Dot => ".",
             Punct::Colon => ":",
             Punct::Semicolon => ";",
+            _ => return None,
+        })
+    }
+
+    fn operator_spell(self) -> Option<&'static str> {
+        Some(match self {
             Punct::Eq => "=",
             Punct::Bang => "!",
             Punct::Pipe => "|",
@@ -76,6 +82,20 @@ impl Punct {
             Punct::Lt => "<",
             Punct::Gt => ">",
             Punct::Question => "?",
+            Punct::At => "@",
+            Punct::Dollar => "$",
+            _ => return None,
+        })
+    }
+
+    pub fn spell(self) -> &'static str {
+        if let Some(single) = self.delimiter_spell() {
+            return single;
+        }
+        if let Some(single) = self.operator_spell() {
+            return single;
+        }
+        match self {
             Punct::EqEq => "==",
             Punct::NotEq => "!=",
             Punct::LtEq => "<=",
@@ -83,8 +103,7 @@ impl Punct {
             Punct::QuestionQuestion => "??",
             Punct::QuestionDot => "?.",
             Punct::Arrow => "->",
-            Punct::At => "@",
-            Punct::Dollar => "$",
+            _ => unreachable!("delimiter and operator spells cover the rest"),
         }
     }
 
@@ -634,35 +653,43 @@ fn lex_number(
     j
 }
 
-/// Lex punctuation longest-match or an unexpected character.
-fn lex_punct_or_error(
+fn lex_bare_dollar(
     file: SourceId,
-    content: &str,
-    start: u32,
     at: usize,
+    abs: u32,
+    rest: &str,
     tokens: &mut Vec<Token>,
     diagnostics: &mut Vec<Diagnostic>,
-) -> usize {
-    let rest = &content[at..];
-    let abs = start + at as u32;
+) -> Option<usize> {
     // `$` is a generation marker only when adjacent to its JSON string
     // (`$"..."`) or style name (`$Name`); a bare or spaced `$` stays an
     // unexpected character so ordinary uses keep the E1007 diagnostic.
-    if rest.as_bytes()[0] == b'$' {
-        let adjacent = rest
-            .as_bytes()
-            .get(1)
-            .is_some_and(|b| *b == b'"' || b.is_ascii_alphanumeric() || *b == b'_');
-        if !adjacent {
-            diagnostics.push(Diagnostic::error(
-                "E1007",
-                "unexpected character '$'; $ must be adjacent to a generation prompt ($\"...\") or style name ($Name)".to_string(),
-                Span::new(file, abs, abs + 1),
-            ));
-            tokens.push(Token::new(TokenKind::Error, file, abs, abs + 1));
-            return at + 1;
-        }
+    if rest.as_bytes()[0] != b'$' {
+        return None;
     }
+    let adjacent = rest
+        .as_bytes()
+        .get(1)
+        .is_some_and(|b| *b == b'"' || b.is_ascii_alphanumeric() || *b == b'_');
+    if !adjacent {
+        diagnostics.push(Diagnostic::error(
+            "E1007",
+            "unexpected character '$'; $ must be adjacent to a generation prompt ($\"...\") or style name ($Name)".to_string(),
+            Span::new(file, abs, abs + 1),
+        ));
+        tokens.push(Token::new(TokenKind::Error, file, abs, abs + 1));
+        return Some(at + 1);
+    }
+    None
+}
+
+fn lex_compound_punct(
+    file: SourceId,
+    abs: u32,
+    at: usize,
+    rest: &str,
+    tokens: &mut Vec<Token>,
+) -> Option<usize> {
     // Longest match first.
     for (spell, punct) in [
         ("==", Punct::EqEq),
@@ -680,10 +707,14 @@ fn lex_punct_or_error(
                 abs,
                 abs + spell.len() as u32,
             ));
-            return at + spell.len();
+            return Some(at + spell.len());
         }
     }
-    let single = match rest.as_bytes()[0] {
+    None
+}
+
+fn single_delimiter_punct(byte: u8) -> Option<Punct> {
+    match byte {
         b'(' => Some(Punct::LParen),
         b')' => Some(Punct::RParen),
         b'[' => Some(Punct::LBracket),
@@ -694,6 +725,12 @@ fn lex_punct_or_error(
         b'.' => Some(Punct::Dot),
         b':' => Some(Punct::Colon),
         b';' => Some(Punct::Semicolon),
+        _ => None,
+    }
+}
+
+fn single_operator_punct(byte: u8) -> Option<Punct> {
+    match byte {
         b'=' => Some(Punct::Eq),
         b'!' => Some(Punct::Bang),
         b'|' => Some(Punct::Pipe),
@@ -708,7 +745,28 @@ fn lex_punct_or_error(
         b'@' => Some(Punct::At),
         b'$' => Some(Punct::Dollar),
         _ => None,
-    };
+    }
+}
+
+/// Lex punctuation longest-match or an unexpected character.
+fn lex_punct_or_error(
+    file: SourceId,
+    content: &str,
+    start: u32,
+    at: usize,
+    tokens: &mut Vec<Token>,
+    diagnostics: &mut Vec<Diagnostic>,
+) -> usize {
+    let rest = &content[at..];
+    let abs = start + at as u32;
+    if let Some(next) = lex_bare_dollar(file, at, abs, rest, tokens, diagnostics) {
+        return next;
+    }
+    if let Some(next) = lex_compound_punct(file, abs, at, rest, tokens) {
+        return next;
+    }
+    let single =
+        single_delimiter_punct(rest.as_bytes()[0]).or_else(|| single_operator_punct(rest.as_bytes()[0]));
     match single {
         Some(punct) => {
             tokens.push(Token::new(TokenKind::Punct(punct), file, abs, abs + 1));
@@ -733,6 +791,115 @@ fn describe_char(ch: char) -> String {
         c if c.is_control() => format!("U+{:04X}", c as u32),
         c => format!("{c:?}"),
     }
+}
+
+fn decode_unicode_escape(
+    raw: &str,
+    i: &mut usize,
+    out: &mut String,
+    fail: &dyn Fn(String, usize) -> (String, Span),
+) -> Result<bool, (String, Span)> {
+    // Byte slicing here must never assume char
+    // boundaries: multibyte UTF-8 after `\u` (e.g.
+    // `"\uaabé"`) would panic. `get` turns every
+    // misshapen escape into an E1006 diagnostic.
+    let digits = match raw.get(*i + 1..*i + 5) {
+        Some(digits) => digits,
+        None => {
+            return Err(fail(
+                "malformed \\u escape; expected four hex digits".to_string(),
+                *i,
+            ));
+        }
+    };
+    let code = u32::from_str_radix(digits, 16).map_err(|_| {
+        fail(
+            "malformed \\u escape; expected four hex digits".to_string(),
+            *i + 1,
+        )
+    })?;
+    *i += 4;
+    if (0xD800..0xDC00).contains(&code) {
+        // High surrogate: require a low surrogate.
+        let low_digits = raw
+            .get(*i + 1..)
+            .filter(|rest| rest.starts_with("\\u"))
+            .and_then(|_| raw.get(*i + 3..*i + 7));
+        if let Some(low_digits) = low_digits
+            && let Ok(low) = u32::from_str_radix(low_digits, 16)
+            && (0xDC00..0xE000).contains(&low)
+        {
+            let scalar = 0x1_0000 + ((code - 0xD800) << 10) + (low - 0xDC00);
+            match char::from_u32(scalar) {
+                Some(ch) => out.push(ch),
+                None => {
+                    return Err(fail(
+                        "invalid Unicode scalar value".to_string(),
+                        *i,
+                    ));
+                }
+            }
+            *i += 7;
+            return Ok(true);
+        }
+        return Err(fail(
+            "lone surrogate in \\u escape".to_string(),
+            i.saturating_sub(4),
+        ));
+    }
+    if (0xDC00..0xE000).contains(&code) {
+        return Err(fail(
+            "lone surrogate in \\u escape".to_string(),
+            i.saturating_sub(4),
+        ));
+    }
+    match char::from_u32(code) {
+        Some(ch) => out.push(ch),
+        None => {
+            return Err(fail(
+                "invalid Unicode scalar value".to_string(),
+                i.saturating_sub(4),
+            ));
+        }
+    }
+    Ok(false)
+}
+
+fn decode_escape_char(
+    raw: &str,
+    end: usize,
+    i: &mut usize,
+    out: &mut String,
+    fail: &dyn Fn(String, usize) -> (String, Span),
+) -> Result<(), (String, Span)> {
+    *i += 1;
+    if *i >= end {
+        return Err(fail("unfinished escape at end of string".to_string(), *i));
+    }
+    match raw.as_bytes()[*i] {
+        b'"' => out.push('"'),
+        b'\\' => out.push('\\'),
+        b'/' => out.push('/'),
+        b'b' => out.push('\u{0008}'),
+        b'f' => out.push('\u{000C}'),
+        b'n' => out.push('\n'),
+        b'r' => out.push('\r'),
+        b't' => out.push('\t'),
+        b'u' => {
+            if decode_unicode_escape(raw, i, out, fail)? {
+                // Paired surrogates already advanced past the loop increment.
+                return Ok(());
+            }
+        }
+        other => {
+            return Err(fail(
+                format!("unknown string escape `\\{}`", other as char),
+                *i,
+            ));
+        }
+    }
+    *i += 1;
+    Ok(())
 }
 
 /// Decode a raw JSON string token (including quotes) to its value.
@@ -772,92 +939,7 @@ pub fn decode_json_string(raw: &str, abs: u32, file: SourceId) -> Result<String,
                 return Err(fail("unescaped quote in string".to_string(), i));
             }
             b'\\' => {
-                i += 1;
-                if i >= end {
-                    return Err(fail("unfinished escape at end of string".to_string(), i));
-                }
-                match bytes[i] {
-                    b'"' => out.push('"'),
-                    b'\\' => out.push('\\'),
-                    b'/' => out.push('/'),
-                    b'b' => out.push('\u{0008}'),
-                    b'f' => out.push('\u{000C}'),
-                    b'n' => out.push('\n'),
-                    b'r' => out.push('\r'),
-                    b't' => out.push('\t'),
-                    b'u' => {
-                        // Byte slicing here must never assume char
-                        // boundaries: multibyte UTF-8 after `\u` (e.g.
-                        // `"\uaabé"`) would panic. `get` turns every
-                        // misshapen escape into an E1006 diagnostic.
-                        let digits = match raw.get(i + 1..i + 5) {
-                            Some(digits) => digits,
-                            None => {
-                                return Err(fail(
-                                    "malformed \\u escape; expected four hex digits".to_string(),
-                                    i,
-                                ));
-                            }
-                        };
-                        let code = u32::from_str_radix(digits, 16).map_err(|_| {
-                            fail(
-                                "malformed \\u escape; expected four hex digits".to_string(),
-                                i + 1,
-                            )
-                        })?;
-                        i += 4;
-                        if (0xD800..0xDC00).contains(&code) {
-                            // High surrogate: require a low surrogate.
-                            let low_digits = raw
-                                .get(i + 1..)
-                                .filter(|rest| rest.starts_with("\\u"))
-                                .and_then(|_| raw.get(i + 3..i + 7));
-                            if let Some(low_digits) = low_digits
-                                && let Ok(low) = u32::from_str_radix(low_digits, 16)
-                                && (0xDC00..0xE000).contains(&low)
-                            {
-                                let scalar = 0x1_0000 + ((code - 0xD800) << 10) + (low - 0xDC00);
-                                match char::from_u32(scalar) {
-                                    Some(ch) => out.push(ch),
-                                    None => {
-                                        return Err(fail(
-                                            "invalid Unicode scalar value".to_string(),
-                                            i,
-                                        ));
-                                    }
-                                }
-                                i += 7;
-                                continue;
-                            }
-                            return Err(fail(
-                                "lone surrogate in \\u escape".to_string(),
-                                i.saturating_sub(4),
-                            ));
-                        }
-                        if (0xDC00..0xE000).contains(&code) {
-                            return Err(fail(
-                                "lone surrogate in \\u escape".to_string(),
-                                i.saturating_sub(4),
-                            ));
-                        }
-                        match char::from_u32(code) {
-                            Some(ch) => out.push(ch),
-                            None => {
-                                return Err(fail(
-                                    "invalid Unicode scalar value".to_string(),
-                                    i.saturating_sub(4),
-                                ));
-                            }
-                        }
-                    }
-                    other => {
-                        return Err(fail(
-                            format!("unknown string escape `\\{}`", other as char),
-                            i,
-                        ));
-                    }
-                }
-                i += 1;
+                decode_escape_char(raw, end, &mut i, &mut out, &fail)?;
             }
             0x00..=0x1F => {
                 if c == b'\t' {

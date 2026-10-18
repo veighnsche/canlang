@@ -1,5 +1,13 @@
 # Living ideal file-tree plan for Canlang
 
+**Final Rust complexity wind-down merge, 2026-10-18:** integrate released
+01c5e8b3f, retaining existing compiler ownership and the defining source observer/
+hook fixes in the extracted visitors. Newer native Values and Work-kernel owners
+supersede nine older helper-only refactors; retain both histories and the released
+native artifact closure. The existing nine affected compiler results are reused;
+merged observer/hook checks address the two actual compiler conflicts. Complete
+historical coverage does not advance, no broad completion claim or new issue intake.
+
 **Released Rust core merge, 2026-10-18:** integrate the complete98-path branch
 through9b1682598, preserving initial8d5f2706f work and final239cd0763 repairs,
 existing native ABI/validation/preparation owners, and the complexity helper

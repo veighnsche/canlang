@@ -323,6 +323,23 @@ impl ResolvedType {
     /// Same-module records render short; others canonical.
     pub fn display(&self, tables: &ResolveTables, module: ModuleId) -> String {
         match self {
+            ResolvedType::Error
+            | ResolvedType::Unknown
+            | ResolvedType::Null
+            | ResolvedType::Scalar(_)
+            | ResolvedType::Team
+            | ResolvedType::OperationContext
+            | ResolvedType::Enum { .. }
+            | ResolvedType::Record { .. }
+            | ResolvedType::InlineMessage
+            | ResolvedType::StdNominal { .. }
+            | ResolvedType::Opaque(_) => self.display_leaf(tables, module),
+            _ => self.display_composite(tables, module),
+        }
+    }
+
+    fn display_leaf(&self, tables: &ResolveTables, module: ModuleId) -> String {
+        match self {
             ResolvedType::Error => "{error}".to_string(),
             ResolvedType::Unknown => "{unknown}".to_string(),
             ResolvedType::Null => "null".to_string(),
@@ -331,10 +348,18 @@ impl ResolvedType {
             ResolvedType::OperationContext => "OperationContext".to_string(),
             ResolvedType::Enum { cases, .. } => format!("enum({})", cases.join(",")),
             ResolvedType::Record { symbol, .. } => record_name(tables, module, *symbol),
+            ResolvedType::InlineMessage => "anonymous message descriptor".to_string(),
+            ResolvedType::StdNominal { name, .. } => (*name).to_string(),
+            ResolvedType::Opaque(_) => "{opaque}".to_string(),
+            _ => unreachable!("display_leaf takes only leaf types"),
+        }
+    }
+
+    fn display_composite(&self, tables: &ResolveTables, module: ModuleId) -> String {
+        match self {
             ResolvedType::Message(id) => {
                 format!("message {}", record_name(tables, module, *id))
             }
-            ResolvedType::InlineMessage => "anonymous message descriptor".to_string(),
             ResolvedType::Action {
                 targets, external, ..
             } => {
@@ -369,13 +394,12 @@ impl ResolvedType {
                 .map(|a| record_name(tables, module, *a))
                 .collect::<Vec<_>>()
                 .join("|"),
-            ResolvedType::StdNominal { name, .. } => (*name).to_string(),
             ResolvedType::Object(fields) => {
                 let keys: Vec<&str> = fields.iter().map(|(k, _)| k.as_str()).collect();
                 format!("object{{{}}}", keys.join(","))
             }
             ResolvedType::Operation(id) => record_name(tables, module, *id),
-            ResolvedType::Opaque(_) => "{opaque}".to_string(),
+            _ => unreachable!("display_composite takes only composite types"),
         }
     }
 }
@@ -1686,6 +1710,104 @@ impl<'a> Typer<'a> {
 
     /// Check one `Field` node: initializer value, modifiers and label.
     /// `in_prefs` selects the preferences restrictions (DESIGN §9).
+    /// Check one field initializer (`default=` or `server=`): actor use
+    /// is recorded, the value must fit the declared type, and plain
+    /// defaults in preferences must be constant.
+    #[allow(clippy::too_many_arguments)]
+    fn check_field_initializer(
+        &mut self,
+        file: SourceId,
+        text: &str,
+        module: ModuleId,
+        id: SymbolId,
+        field: &SyntaxNode,
+        name: &str,
+        expected: &ResolvedType,
+        init: &SyntaxNode,
+        server: bool,
+        in_prefs: bool,
+    ) {
+        if expr_uses_name(init, text, "actor") {
+            self.default_uses_actor.insert(id);
+        }
+        let narrow = NarrowEnv::default();
+        let cx = if server {
+            Ctx {
+                module,
+                file,
+                text,
+                narrow: &narrow,
+                strict: true,
+                server_default: true,
+            }
+        } else {
+            Self::body_cx(module, file, text, &narrow)
+        };
+        let actual = self.expr(&cx, init, Some(expected.clone()));
+        self.check_field_membership_default(init, text, name);
+        if !actual.is_error() && !self.types_compatible(&actual, expected) {
+            self.diags.push(Diagnostic::error(
+                "E3011",
+                format!(
+                    "{} for '{name}': expected {}, found {}",
+                    if server {
+                        "server initializer"
+                    } else {
+                        "default"
+                    },
+                    self.show(module, expected),
+                    self.show(module, &actual)
+                ),
+                tight_span(text, init),
+            ));
+        }
+        if in_prefs && !server {
+            self.check_prefs_default_const(text, module, field, name, init);
+        }
+    }
+
+    /// Check one field's modifiers: duplicates are `E3012`, `unique` is
+    /// refused in preferences, then each modifier is checked in turn.
+    #[allow(clippy::too_many_arguments)]
+    fn check_field_modifiers(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        field: &SyntaxNode,
+        text: &str,
+        name: &str,
+        expected: &ResolvedType,
+        modifiers: &[FieldModifier<'_>],
+        in_prefs: bool,
+    ) {
+        let mut seen_modifiers: Vec<&str> = Vec::new();
+        for modifier in modifiers {
+            let which = match modifier {
+                FieldModifier::Trim(_) => "trim",
+                FieldModifier::Unique(_) => "unique",
+                FieldModifier::Machine(_) => "machine",
+                FieldModifier::Min(_) => "min",
+                FieldModifier::Max(_) => "max",
+            };
+            if seen_modifiers.contains(&which) {
+                self.diags.push(Diagnostic::error(
+                    "E3012",
+                    format!("field '{name}': duplicate {which} modifier"),
+                    tight_span(text, field),
+                ));
+            } else {
+                seen_modifiers.push(which);
+            }
+            if in_prefs && matches!(modifier, FieldModifier::Unique(_)) {
+                self.diags.push(Diagnostic::error(
+                    "E3012",
+                    format!("preferences field '{name}' cannot be unique"),
+                    tight_span(text, field),
+                ));
+            }
+            self.check_field_modifier(cx, field, name, expected, *modifier);
+        }
+    }
+
     fn phase2_field(
         &mut self,
         file: SourceId,
@@ -1753,52 +1875,14 @@ impl<'a> Typer<'a> {
         let narrow = NarrowEnv::default();
         let init = field_parts(field, text);
         if let Some(default) = init.default {
-            if expr_uses_name(default, text, "actor") {
-                self.default_uses_actor.insert(id);
-            }
-            let cx = Self::body_cx(module, file, text, &narrow);
-            let actual = self.expr(&cx, default, Some(expected.clone()));
-            self.check_field_membership_default(default, text, &name);
-            if !actual.is_error() && !self.types_compatible(&actual, &expected) {
-                self.diags.push(Diagnostic::error(
-                    "E3011",
-                    format!(
-                        "default for '{name}': expected {}, found {}",
-                        self.show(module, &expected),
-                        self.show(module, &actual)
-                    ),
-                    tight_span(text, default),
-                ));
-            }
-            if in_prefs {
-                self.check_prefs_default_const(text, module, field, &name, default);
-            }
+            self.check_field_initializer(
+                file, text, module, id, field, &name, &expected, default, false, in_prefs,
+            );
         }
         if let Some(server) = init.server {
-            if expr_uses_name(server, text, "actor") {
-                self.default_uses_actor.insert(id);
-            }
-            let cx = Ctx {
-                module,
-                file,
-                text,
-                narrow: &narrow,
-                strict: true,
-                server_default: true,
-            };
-            let actual = self.expr(&cx, server, Some(expected.clone()));
-            self.check_field_membership_default(server, text, &name);
-            if !actual.is_error() && !self.types_compatible(&actual, &expected) {
-                self.diags.push(Diagnostic::error(
-                    "E3011",
-                    format!(
-                        "server initializer for '{name}': expected {}, found {}",
-                        self.show(module, &expected),
-                        self.show(module, &actual)
-                    ),
-                    tight_span(text, server),
-                ));
-            }
+            self.check_field_initializer(
+                file, text, module, id, field, &name, &expected, server, true, in_prefs,
+            );
         }
         if in_prefs && matches!(expected, ResolvedType::Nullable(_)) {
             // Nullable preferences fields default null; nothing more.
@@ -1812,33 +1896,7 @@ impl<'a> Typer<'a> {
         let cx = Self::body_cx(module, file, text, &narrow);
         // One occurrence of each modifier (when the parser lets a
         // duplicate through, the checker still rejects it).
-        let mut seen_modifiers: Vec<&str> = Vec::new();
-        for modifier in &init.modifiers {
-            let which = match modifier {
-                FieldModifier::Trim(_) => "trim",
-                FieldModifier::Unique(_) => "unique",
-                FieldModifier::Machine(_) => "machine",
-                FieldModifier::Min(_) => "min",
-                FieldModifier::Max(_) => "max",
-            };
-            if seen_modifiers.contains(&which) {
-                self.diags.push(Diagnostic::error(
-                    "E3012",
-                    format!("field '{name}': duplicate {which} modifier"),
-                    tight_span(text, field),
-                ));
-            } else {
-                seen_modifiers.push(which);
-            }
-            if in_prefs && matches!(modifier, FieldModifier::Unique(_)) {
-                self.diags.push(Diagnostic::error(
-                    "E3012",
-                    format!("preferences field '{name}' cannot be unique"),
-                    tight_span(text, field),
-                ));
-            }
-            self.check_field_modifier(&cx, field, &name, &expected, *modifier);
-        }
+        self.check_field_modifiers(&cx, field, text, &name, &expected, &init.modifiers, in_prefs);
         self.check_min_max_order(&cx, field, &name, &init.modifiers);
         if let Some(label) = init.label {
             self.check_field_label(&cx, field, &name, &expected, label);
@@ -3459,92 +3517,10 @@ impl<'a> Typer<'a> {
         let Some(target) = target else {
             return;
         };
-        if target.kind == SyntaxKind::Member {
-            let parts = kids(target);
-            let head = parts.first().and_then(|head| nameref_word(head, cx.text));
-            let member = parts.last().and_then(|member| name_text(member, cx.text));
-            let shadowed = parts
-                .first()
-                .is_some_and(|head| self.tables.node_binding.contains_key(&NodeKey::of(head)));
-            let declaration = self
-                .types
-                .runtime_bindings
-                .get(&cx.module)
-                .into_iter()
-                .flatten()
-                .filter(|_| !shadowed)
-                .find_map(|binding| match binding {
-                    CheckedRuntimeBinding::Queue { name, payload }
-                        if Some(name.as_str()) == head =>
-                    {
-                        Some(("publish", vec![("value".to_string(), payload.clone())]))
-                    }
-                    CheckedRuntimeBinding::Analytics { name, fields }
-                        if Some(name.as_str()) == head =>
-                    {
-                        Some(("write", fields.clone()))
-                    }
-                    _ => None,
-                });
-            if let Some((operation, fields)) = declaration {
-                if member != Some(operation) {
-                    self.diags.push(Diagnostic::error(
-                        "E3010",
-                        format!("declared sink supports only '{operation}'"),
-                        tight_span(cx.text, target),
-                    ));
-                }
-                let mut seen = HashSet::new();
-                if let Some(object) = object {
-                    for (key, key_node, value) in object_entries(object, cx.text) {
-                        seen.insert(key.to_string());
-                        let expected = fields
-                            .iter()
-                            .find(|(name, _)| name == key)
-                            .map(|(_, ty)| ty.clone());
-                        let (actual, span) =
-                            self.entry_value(cx, key_node, value, expected.clone());
-                        match expected {
-                            Some(expected)
-                                if !actual.is_error()
-                                    && !self.types_compatible(&actual, &expected) =>
-                            {
-                                self.diags.push(Diagnostic::error(
-                                    "E3001",
-                                    format!(
-                                        "'{key}': expected {}, found {}",
-                                        self.show(cx.module, &expected),
-                                        self.show(cx.module, &actual)
-                                    ),
-                                    span,
-                                ))
-                            }
-                            None => self.diags.push(Diagnostic::error(
-                                "E3010",
-                                format!("declared sink has no input '{key}'"),
-                                tight_span(cx.text, key_node),
-                            )),
-                            _ => {}
-                        }
-                    }
-                }
-                for (name, ty) in fields {
-                    if !seen.contains(&name) && !matches!(ty, ResolvedType::Nullable(_)) {
-                        self.diags.push(Diagnostic::error(
-                            "E3010",
-                            format!("missing required input '{name}' to declared sink"),
-                            tight_span(cx.text, node),
-                        ));
-                    }
-                }
-                self.sends.insert(NodeKey::of(node), sink_delivery_type());
-                if let Some(when) = bare_keyword_value(node, "when", cx.text) {
-                    let ty = self.expr(cx, when, None);
-                    self.expect_bool(cx, tight_span(cx.text, when), &ty, "`when`");
-                    self.check_dispatch_when(cx, when);
-                }
-                return;
-            }
+        if target.kind == SyntaxKind::Member
+            && self.stmt_declared_sink(cx, node, target, object)
+        {
+            return;
         }
         let ty = self.expr(cx, target, None);
         match ty {
@@ -3570,54 +3546,7 @@ impl<'a> Typer<'a> {
                 // unknown op of a known capability is a wrong
                 // association (`E3010`); anything without a consumed
                 // schema stays `E3019`.
-                match self.resolve_std_send_target(cx, target) {
-                    StdTarget::Known {
-                        op,
-                        display,
-                        capability,
-                    } => {
-                        self.check_std_send_bindings(cx, node, op, &display, object);
-                        // T14c: the receipt carries its operation
-                        // identity (cross-target associations fail;
-                        // unknown positions stay opaque below).
-                        self.sends.insert(
-                            NodeKey::of(node),
-                            ResolvedType::StdDelivery { capability, op },
-                        );
-                    }
-                    StdTarget::WrongOp { capability, op } => {
-                        self.diags.push(Diagnostic::error(
-                            "E3010",
-                            format!(
-                                "'{capability}' has no sendable operation '{op}'; the delivery association names an operation outside the owner schema"
-                            ),
-                            tight_span(cx.text, target),
-                        ));
-                        if let Some(object) = object {
-                            self.walk_object_values(cx, object);
-                        }
-                    }
-                    StdTarget::NoSchema => {
-                        // A deployment-bound (external) target has no
-                        // signature to check the bindings against: the
-                        // receipt is silently opaque without this
-                        // diagnostic.
-                        if let Some(name) = self.external_target_name(cx, target) {
-                            self.diags.push(Diagnostic::error(
-                                "E3019",
-                                format!(
-                                    "cannot verify send to '{name}': deployment-bound capability signatures are opaque; the delivery receipt is unchecked"
-                                ),
-                                tight_span(cx.text, target),
-                            ));
-                        }
-                        if let Some(object) = object {
-                            self.walk_object_values(cx, object);
-                        }
-                        self.sends
-                            .insert(NodeKey::of(node), ResolvedType::Opaque("unresolved send"));
-                    }
-                }
+                self.stmt_std_send(cx, node, target, object);
             }
             ResolvedType::Error | ResolvedType::Unknown => {
                 if let Some(object) = object {
@@ -3640,10 +3569,172 @@ impl<'a> Typer<'a> {
                 }
             }
         }
+        self.check_send_when(cx, node);
+    }
+
+    fn check_send_when(&mut self, cx: &Ctx<'_, '_>, node: &SyntaxNode) {
         if let Some(when) = bare_keyword_value(node, "when", cx.text) {
             let ty = self.expr(cx, when, None);
             self.expect_bool(cx, tight_span(cx.text, when), &ty, "`when`");
             self.check_dispatch_when(cx, when);
+        }
+    }
+
+    fn stmt_declared_sink(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        node: &SyntaxNode,
+        target: &SyntaxNode,
+        object: Option<&SyntaxNode>,
+    ) -> bool {
+        let parts = kids(target);
+        let head = parts.first().and_then(|head| nameref_word(head, cx.text));
+        let member = parts.last().and_then(|member| name_text(member, cx.text));
+        let shadowed = parts
+            .first()
+            .is_some_and(|head| self.tables.node_binding.contains_key(&NodeKey::of(head)));
+        let declaration = self
+            .types
+            .runtime_bindings
+            .get(&cx.module)
+            .into_iter()
+            .flatten()
+            .filter(|_| !shadowed)
+            .find_map(|binding| match binding {
+                CheckedRuntimeBinding::Queue { name, payload }
+                    if Some(name.as_str()) == head =>
+                {
+                    Some(("publish", vec![("value".to_string(), payload.clone())]))
+                }
+                CheckedRuntimeBinding::Analytics { name, fields }
+                    if Some(name.as_str()) == head =>
+                {
+                    Some(("write", fields.clone()))
+                }
+                _ => None,
+            });
+        let Some((operation, fields)) = declaration else {
+            return false;
+        };
+        if member != Some(operation) {
+            self.diags.push(Diagnostic::error(
+                "E3010",
+                format!("declared sink supports only '{operation}'"),
+                tight_span(cx.text, target),
+            ));
+        }
+        let mut seen = HashSet::new();
+        if let Some(object) = object {
+            for (key, key_node, value) in object_entries(object, cx.text) {
+                self.check_sink_entry(cx, key_node, key, value, &fields, &mut seen);
+            }
+        }
+        for (name, ty) in fields {
+            if !seen.contains(&name) && !matches!(ty, ResolvedType::Nullable(_)) {
+                self.diags.push(Diagnostic::error(
+                    "E3010",
+                    format!("missing required input '{name}' to declared sink"),
+                    tight_span(cx.text, node),
+                ));
+            }
+        }
+        self.sends.insert(NodeKey::of(node), sink_delivery_type());
+        self.check_send_when(cx, node);
+        true
+    }
+
+    fn check_sink_entry(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        key_node: &SyntaxNode,
+        key: &str,
+        value: Option<&SyntaxNode>,
+        fields: &[(String, ResolvedType)],
+        seen: &mut HashSet<String>,
+    ) {
+        seen.insert(key.to_string());
+        let expected = fields
+            .iter()
+            .find(|(name, _)| name == key)
+            .map(|(_, ty)| ty.clone());
+        let (actual, span) = self.entry_value(cx, key_node, value, expected.clone());
+        match expected {
+            Some(expected)
+                if !actual.is_error() && !self.types_compatible(&actual, &expected) =>
+            {
+                self.diags.push(Diagnostic::error(
+                    "E3001",
+                    format!(
+                        "'{key}': expected {}, found {}",
+                        self.show(cx.module, &expected),
+                        self.show(cx.module, &actual)
+                    ),
+                    span,
+                ))
+            }
+            None => self.diags.push(Diagnostic::error(
+                "E3010",
+                format!("declared sink has no input '{key}'"),
+                tight_span(cx.text, key_node),
+            )),
+            _ => {}
+        }
+    }
+
+    fn stmt_std_send(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        node: &SyntaxNode,
+        target: &SyntaxNode,
+        object: Option<&SyntaxNode>,
+    ) {
+        match self.resolve_std_send_target(cx, target) {
+            StdTarget::Known {
+                op,
+                display,
+                capability,
+            } => {
+                self.check_std_send_bindings(cx, node, op, &display, object);
+                // T14c: the receipt carries its operation
+                // identity (cross-target associations fail;
+                // unknown positions stay opaque below).
+                self.sends.insert(
+                    NodeKey::of(node),
+                    ResolvedType::StdDelivery { capability, op },
+                );
+            }
+            StdTarget::WrongOp { capability, op } => {
+                self.diags.push(Diagnostic::error(
+                    "E3010",
+                    format!(
+                        "'{capability}' has no sendable operation '{op}'; the delivery association names an operation outside the owner schema"
+                    ),
+                    tight_span(cx.text, target),
+                ));
+                if let Some(object) = object {
+                    self.walk_object_values(cx, object);
+                }
+            }
+            StdTarget::NoSchema => {
+                // A deployment-bound (external) target has no
+                // signature to check the bindings against: the
+                // receipt is silently opaque without this
+                // diagnostic.
+                if let Some(name) = self.external_target_name(cx, target) {
+                    self.diags.push(Diagnostic::error(
+                        "E3019",
+                        format!(
+                            "cannot verify send to '{name}': deployment-bound capability signatures are opaque; the delivery receipt is unchecked"
+                        ),
+                        tight_span(cx.text, target),
+                    ));
+                }
+                if let Some(object) = object {
+                    self.walk_object_values(cx, object);
+                }
+                self.sends
+                    .insert(NodeKey::of(node), ResolvedType::Opaque("unresolved send"));
+            }
         }
     }
 
@@ -4309,19 +4400,19 @@ impl<'a> Typer<'a> {
         }
     }
 
-    /// `for item in domain limit=n ...`: collection domain, positive
-    /// integer limit, item-typed body.
-    fn stmt_for(&mut self, cx: &Ctx<'_, '_>, node: &SyntaxNode) {
-        let parts = kids(node);
+    /// Domain/limit/header-end of a `for` statement header: the first
+    /// expression is the domain, a second one is the limit only at
+    /// `limit_at + 2`.
+    fn for_header_scan<'n>(
+        parts: &[&'n SyntaxNode],
+        text: &str,
+    ) -> (Option<&'n SyntaxNode>, Option<&'n SyntaxNode>, usize) {
         let mut limit_at = None;
         for (i, part) in parts.iter().enumerate() {
-            if is_name(part, cx.text, "limit") {
+            if is_name(part, text, "limit") {
                 limit_at = Some(i);
             }
         }
-        // Header expressions (domain, then the `limit =` value) mirror
-        // resolve: the first expression is the domain, a second one is
-        // the limit only at `limit_at + 2`.
         let mut domain = None;
         let mut limit = None;
         let mut header_end = 0;
@@ -4345,48 +4436,78 @@ impl<'a> Typer<'a> {
                 header_end = i;
             }
         }
+        (domain, limit, header_end)
+    }
+
+    /// `for item in domain limit=n ...`: collection domain, positive
+    /// integer limit, item-typed body.
+    fn stmt_for(&mut self, cx: &Ctx<'_, '_>, node: &SyntaxNode) {
+        let parts = kids(node);
+        // Header expressions (domain, then the `limit =` value) mirror
+        // resolve: the first expression is the domain, a second one is
+        // the limit only at `limit_at + 2`.
+        let (domain, limit, header_end) = Self::for_header_scan(&parts, cx.text);
         // The `limit=` slot is parser-required.
         if let Some(domain) = domain {
-            let ty = self.expr(cx, domain, None);
-            match ty {
-                ResolvedType::Array { element, .. } => {
-                    self.fors.insert(NodeKey::of(node), (*element).clone());
-                }
-                ResolvedType::Error | ResolvedType::Unknown | ResolvedType::Opaque(_) => {
-                    self.fors.insert(NodeKey::of(node), ty);
-                }
-                other => {
-                    self.diags.push(Diagnostic::error(
-                        "E3001",
-                        format!(
-                            "for domain must be a collection, found {}",
-                            self.show(cx.module, &other)
-                        ),
-                        tight_span(cx.text, domain),
-                    ));
-                    self.fors.insert(NodeKey::of(node), ResolvedType::Error);
-                }
-            }
+            self.check_for_domain(cx, node, domain);
         }
         if let Some(limit) = limit {
-            let ty = self.expr(cx, limit, None);
-            let want = ResolvedType::Scalar(Scalar::Int);
-            if !ty.is_error() && !self.types_compatible(&ty, &want) {
+            self.check_for_limit(cx, limit);
+        }
+        self.walk_for_body(cx, node, &parts, domain, header_end);
+    }
+
+    fn check_for_domain(&mut self, cx: &Ctx<'_, '_>, node: &SyntaxNode, domain: &SyntaxNode) {
+        let ty = self.expr(cx, domain, None);
+        match ty {
+            ResolvedType::Array { element, .. } => {
+                self.fors.insert(NodeKey::of(node), (*element).clone());
+            }
+            ResolvedType::Error | ResolvedType::Unknown | ResolvedType::Opaque(_) => {
+                self.fors.insert(NodeKey::of(node), ty);
+            }
+            other => {
                 self.diags.push(Diagnostic::error(
                     "E3001",
-                    format!("for limit must be int, found {}", self.show(cx.module, &ty)),
-                    tight_span(cx.text, limit),
+                    format!(
+                        "for domain must be a collection, found {}",
+                        self.show(cx.module, &other)
+                    ),
+                    tight_span(cx.text, domain),
                 ));
-            } else if let Some(n) = int_literal_value(limit, cx.text)
-                && n <= 0
-            {
-                self.diags.push(Diagnostic::error(
-                    "E3001",
-                    format!("for limit must be positive, found {n}"),
-                    tight_span(cx.text, limit),
-                ));
+                self.fors.insert(NodeKey::of(node), ResolvedType::Error);
             }
         }
+    }
+
+    fn check_for_limit(&mut self, cx: &Ctx<'_, '_>, limit: &SyntaxNode) {
+        let ty = self.expr(cx, limit, None);
+        let want = ResolvedType::Scalar(Scalar::Int);
+        if !ty.is_error() && !self.types_compatible(&ty, &want) {
+            self.diags.push(Diagnostic::error(
+                "E3001",
+                format!("for limit must be int, found {}", self.show(cx.module, &ty)),
+                tight_span(cx.text, limit),
+            ));
+        } else if let Some(n) = int_literal_value(limit, cx.text)
+            && n <= 0
+        {
+            self.diags.push(Diagnostic::error(
+                "E3001",
+                format!("for limit must be positive, found {n}"),
+                tight_span(cx.text, limit),
+            ));
+        }
+    }
+
+    fn walk_for_body(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        node: &SyntaxNode,
+        parts: &[&SyntaxNode],
+        domain: Option<&SyntaxNode>,
+        header_end: usize,
+    ) {
         // T03 §4: facts established inside the body never survive
         // the loop (the body's sequence env stays inside), and facts
         // from before survive only if no iteration path invalidates
@@ -4550,6 +4671,56 @@ impl<'a> Typer<'a> {
         }
         // Leading guards narrow the `do` body.
         let mut env = NarrowEnv::default();
+        let example_event =
+            self.seed_scenario_event_env(module, text, node, committed_event, &mut env);
+        self.walk_scenario_guards(module, file, text, node, &mut env);
+        let result = self.results.get(&id).cloned().unwrap_or(None);
+        if read && result.is_none() {
+            self.diags.push(Diagnostic::error(
+                "E3001",
+                "read operations need a declared result type".to_string(),
+                tight_span(text, node),
+            ));
+        }
+        let prev_op = self.current_op.replace(id);
+        let prev_result = self.current_result.replace(result.clone());
+        let prev_hook = std::mem::replace(&mut self.current_hook, hook.flatten());
+        let prev_read = std::mem::replace(&mut self.current_read, read);
+        for child in kids(node) {
+            if child.kind == SyntaxKind::DoBlock && !has_error(child) {
+                let body_cx = Ctx {
+                    module,
+                    file,
+                    text,
+                    narrow: &env,
+                    strict: true,
+                    server_default: false,
+                };
+                self.walk_do_block(&body_cx, child);
+                if result.is_some() {
+                    self.check_body_returns(text, node, child);
+                }
+            }
+        }
+        self.current_op = prev_op;
+        self.current_result = prev_result;
+        self.current_hook = prev_hook;
+        self.current_read = prev_read;
+        for child in kids(node) {
+            if child.kind == SyntaxKind::Examples && !has_error(child) {
+                self.check_example_headers(file, text, module, child, example_event.as_ref());
+            }
+        }
+    }
+
+    fn seed_scenario_event_env(
+        &mut self,
+        module: ModuleId,
+        text: &str,
+        node: &SyntaxNode,
+        committed_event: bool,
+        env: &mut NarrowEnv,
+    ) -> Option<ResolvedType> {
         // A validated declared event types the handler payload:
         // `event` carries the event's record instead of `{opaque}`.
         let on_event = attribute_value(node, "on", text)
@@ -4629,13 +4800,24 @@ impl<'a> Typer<'a> {
                 ResolvedType::Scalar(Scalar::User),
             );
         }
+        example_event
+    }
+
+    fn walk_scenario_guards(
+        &mut self,
+        module: ModuleId,
+        file: SourceId,
+        text: &str,
+        node: &SyntaxNode,
+        env: &mut NarrowEnv,
+    ) {
         for child in kids(node) {
             if child.kind == SyntaxKind::Require && !has_error(child) {
                 let guard_cx = Ctx {
                     module,
                     file,
                     text,
-                    narrow: &env,
+                    narrow: env,
                     strict: true,
                     server_default: false,
                 };
@@ -4650,45 +4832,8 @@ impl<'a> Typer<'a> {
                         strict: true,
                         server_default: false,
                     };
-                    self.collect_narrow(&narrow_cx, cond, false, &mut env);
+                    self.collect_narrow(&narrow_cx, cond, false, env);
                 }
-            }
-        }
-        let result = self.results.get(&id).cloned().unwrap_or(None);
-        if read && result.is_none() {
-            self.diags.push(Diagnostic::error(
-                "E3001",
-                "read operations need a declared result type".to_string(),
-                tight_span(text, node),
-            ));
-        }
-        let prev_op = self.current_op.replace(id);
-        let prev_result = self.current_result.replace(result.clone());
-        let prev_hook = std::mem::replace(&mut self.current_hook, hook.flatten());
-        let prev_read = std::mem::replace(&mut self.current_read, read);
-        for child in kids(node) {
-            if child.kind == SyntaxKind::DoBlock && !has_error(child) {
-                let body_cx = Ctx {
-                    module,
-                    file,
-                    text,
-                    narrow: &env,
-                    strict: true,
-                    server_default: false,
-                };
-                self.walk_do_block(&body_cx, child);
-                if result.is_some() {
-                    self.check_body_returns(text, node, child);
-                }
-            }
-        }
-        self.current_op = prev_op;
-        self.current_result = prev_result;
-        self.current_hook = prev_hook;
-        self.current_read = prev_read;
-        for child in kids(node) {
-            if child.kind == SyntaxKind::Examples && !has_error(child) {
-                self.check_example_headers(file, text, module, child, example_event.as_ref());
             }
         }
     }
@@ -5235,6 +5380,46 @@ impl<'a> Typer<'a> {
                 .and_then(|(_, _, value)| *value)
         };
         let read = entry("read").ok_or_else(|| fail("requires read="))?;
+        let (read_operation, read_params, candidate) =
+            self.resolve_choice_read(module, text, read, owner)?;
+        let mapped = self.map_choice_read_args(
+            module,
+            metadata.span.file,
+            text,
+            read,
+            &read_params,
+            inputs,
+            assisted,
+        )?;
+        for (index, parameter) in read_params.iter().enumerate() {
+            let ty = self.decl_type(*parameter);
+            let required = !self.param_has_default(*parameter)
+                && !matches!(ty, ResolvedType::Nullable(_) | ResolvedType::Array { .. });
+            if mapped[index].is_none() && required {
+                return Err(fail("missing required read argument mapping"));
+            }
+        }
+        let (value, labels) = self.check_choice_value_labels(
+            text, entry("value"), entry("labels"), candidate, assisted,
+        )?;
+        Ok(CheckedInputChoice {
+            read_operation,
+            arguments: mapped.into_iter().flatten().collect(),
+            value,
+            labels,
+        })
+    }
+
+    /// Resolve the `read=` operation of a `choices=` metadata object to
+    /// its scenario, its parameters and its stored-model candidate.
+    fn resolve_choice_read(
+        &self,
+        module: ModuleId,
+        text: &str,
+        read: &SyntaxNode,
+        owner: SymbolId,
+    ) -> Result<(SymbolId, Vec<SymbolId>, SymbolId), String> {
+        let fail = |message: &str| format!("choices=: {message}");
         if read.kind != SyntaxKind::Call {
             return Err(fail(
                 "read= must name an owning read operation and its input mappings",
@@ -5290,8 +5475,25 @@ impl<'a> Typer<'a> {
                 "read result candidates must be stored model references",
             ));
         }
+        Ok((read_operation, read_params.clone(), *candidate))
+    }
+
+    /// Map the `read=` call arguments onto the read operation's inputs:
+    /// every mapping must be an input-rooted stable path of matching type.
+    fn map_choice_read_args(
+        &self,
+        module: ModuleId,
+        metadata_file: SourceId,
+        text: &str,
+        read: &SyntaxNode,
+        read_params: &[SymbolId],
+        inputs: &[SymbolId],
+        assisted: SymbolId,
+    ) -> Result<Vec<Option<CheckedChoiceArgument>>, String> {
+        let fail = |message: &str| format!("choices=: {message}");
         let narrow = NarrowEnv::default();
-        let cx = Self::body_cx(module, metadata.span.file, text, &narrow);
+        let cx = Self::body_cx(module, metadata_file, text, &narrow);
+        let call_parts = kids(read);
         let mut mapped: Vec<Option<CheckedChoiceArgument>> = vec![None; read_params.len()];
         let mut positional = 0;
         for arg in call_parts.iter().filter(|n| n.kind == SyntaxKind::Argument) {
@@ -5342,19 +5544,25 @@ impl<'a> Typer<'a> {
                 path,
             });
         }
-        for (index, parameter) in read_params.iter().enumerate() {
-            let ty = self.decl_type(*parameter);
-            let required = !self.param_has_default(*parameter)
-                && !matches!(ty, ResolvedType::Nullable(_) | ResolvedType::Array { .. });
-            if mapped[index].is_none() && required {
-                return Err(fail("missing required read argument mapping"));
-            }
-        }
-        let (value, actual) = if let Some(value) = entry("value") {
+        Ok(mapped)
+    }
+
+    /// Check the `value=`/`labels=` entries of a `choices=` metadata
+    /// object against the candidate's declared fields.
+    fn check_choice_value_labels(
+        &self,
+        text: &str,
+        value: Option<&SyntaxNode>,
+        labels_node: Option<&SyntaxNode>,
+        candidate: SymbolId,
+        assisted: SymbolId,
+    ) -> Result<(CheckedChoiceValue, Vec<String>), String> {
+        let fail = |message: &str| format!("choices=: {message}");
+        let (value, actual) = if let Some(value) = value {
             let field_name = string_literal_value(value)
                 .ok_or_else(|| fail("value= requires one declared candidate field name string"))?;
             let field = self
-                .record_field_named(*candidate, &field_name)
+                .record_field_named(candidate, &field_name)
                 .ok_or_else(|| fail("value= names no declared candidate field"))?;
             let actual = self.decl_type(field);
             if !self.choice_leaf_supported(&actual) {
@@ -5364,7 +5572,13 @@ impl<'a> Typer<'a> {
             }
             (CheckedChoiceValue::Field(field_name), actual)
         } else {
-            (CheckedChoiceValue::Record, element.as_ref().clone())
+            (
+                CheckedChoiceValue::Record,
+                ResolvedType::Record {
+                    symbol: candidate,
+                    stored: true,
+                },
+            )
         };
         let expected = self.decl_type(assisted);
         if !self.types_compatible(&actual, &expected) {
@@ -5372,7 +5586,7 @@ impl<'a> Typer<'a> {
                 "candidate value is incompatible with the assisted input",
             ));
         }
-        let labels_node = entry("labels").ok_or_else(|| fail("requires labels="))?;
+        let labels_node = labels_node.ok_or_else(|| fail("requires labels="))?;
         if labels_node.kind != SyntaxKind::Array {
             return Err(fail(
                 "labels= requires an array of declared candidate field name strings",
@@ -5389,7 +5603,7 @@ impl<'a> Typer<'a> {
                 return Err(fail("duplicate candidate label field"));
             }
             let field = self
-                .record_field_named(*candidate, &name)
+                .record_field_named(candidate, &name)
                 .ok_or_else(|| fail("labels= names no declared candidate field"))?;
             if !self.choice_leaf_supported(&self.decl_type(field)) {
                 return Err(fail(
@@ -5401,12 +5615,7 @@ impl<'a> Typer<'a> {
         if labels.is_empty() {
             return Err(fail("labels= requires at least one candidate field"));
         }
-        Ok(CheckedInputChoice {
-            read_operation,
-            arguments: mapped.into_iter().flatten().collect(),
-            value,
-            labels,
-        })
+        Ok((value, labels))
     }
 
     /// Only stored fields and the model's owning parent relation are stable.
@@ -5961,29 +6170,7 @@ impl<'a> Typer<'a> {
             server_default: false,
         };
         let mut header_facts = NarrowEnv::default();
-        for child in kids(node) {
-            if child.kind == SyntaxKind::Attribute
-                && let Some((key, value)) = attribute_parts(child)
-            {
-                let expect = if is_name(key, text, "event") {
-                    event_type.cloned()
-                } else {
-                    None
-                };
-                self.expr(&cx, value, expect);
-                if is_name(key, text, "event")
-                    && let Some(event_type) = event_type
-                {
-                    self.example_object_nonnull_facts(
-                        text,
-                        value,
-                        event_type,
-                        &mut Vec::new(),
-                        &mut header_facts,
-                    );
-                }
-            }
-        }
+        self.check_example_header_attrs(&cx, node, text, event_type, &mut header_facts);
         // Headers retain their type-owned unresolved diagnostics; general
         // BDD expression values retain the runner's diagnostic profile.
         let unresolved_before = self.types.unresolved_names.len();
@@ -5994,18 +6181,7 @@ impl<'a> Typer<'a> {
         // An input column can replace its header value. Descendant inputs
         // keep a parent's nonnull proof; equal/ancestor inputs cannot.
         if let Some(heading) = rows.first() {
-            for part in kids(heading) {
-                if is_punct(part, text, "->") {
-                    break;
-                }
-                if is_expression(part.kind)
-                    && let Some(target) = self.narrow_key_for(&cx, part)
-                {
-                    header_facts.retain(|key, _| {
-                        key.decl != target.decl || !key.path.starts_with(&target.path)
-                    });
-                }
-            }
+            self.prune_example_header_facts(&cx, heading, text, &mut header_facts);
         }
         narrow.extend(header_facts);
         let cx = Ctx {
@@ -6016,6 +6192,78 @@ impl<'a> Typer<'a> {
             strict: false,
             server_default: false,
         };
+        self.check_example_table_rows(&cx, text, &rows);
+        if let Some(body) = kids(node)
+            .into_iter()
+            .find(|n| n.kind == SyntaxKind::DoBlock)
+        {
+            self.check_example_body(module, file, text, body);
+        }
+        self.types.unresolved_names.truncate(unresolved_before);
+    }
+
+    /// Check `examples` header attributes: `event=` values check against
+    /// the handler payload and establish nonnull facts.
+    fn check_example_header_attrs(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        node: &SyntaxNode,
+        text: &str,
+        event_type: Option<&ResolvedType>,
+        header_facts: &mut NarrowEnv,
+    ) {
+        for child in kids(node) {
+            if child.kind == SyntaxKind::Attribute
+                && let Some((key, value)) = attribute_parts(child)
+            {
+                let expect = if is_name(key, text, "event") {
+                    event_type.cloned()
+                } else {
+                    None
+                };
+                self.expr(cx, value, expect);
+                if is_name(key, text, "event")
+                    && let Some(event_type) = event_type
+                {
+                    self.example_object_nonnull_facts(
+                        text,
+                        value,
+                        event_type,
+                        &mut Vec::new(),
+                        header_facts,
+                    );
+                }
+            }
+        }
+    }
+
+    /// Drop header nonnull facts shadowed by the heading row's input
+    /// columns: descendant inputs keep a parent proof, equal/ancestor
+    /// inputs cannot.
+    fn prune_example_header_facts(
+        &self,
+        cx: &Ctx<'_, '_>,
+        heading: &SyntaxNode,
+        text: &str,
+        header_facts: &mut NarrowEnv,
+    ) {
+        for part in kids(heading) {
+            if is_punct(part, text, "->") {
+                break;
+            }
+            if is_expression(part.kind)
+                && let Some(target) = self.narrow_key_for(cx, part)
+            {
+                header_facts.retain(|key, _| {
+                    key.decl != target.decl || !key.path.starts_with(&target.path)
+                });
+            }
+        }
+    }
+
+    /// Type the example table rows: the first row establishes the column
+    /// types, later rows check against them.
+    fn check_example_table_rows(&mut self, cx: &Ctx<'_, '_>, text: &str, rows: &[&SyntaxNode]) {
         let mut observation_types = Vec::new();
         let mut input_types = Vec::new();
         for (index, row) in rows.iter().enumerate() {
@@ -6031,9 +6279,9 @@ impl<'a> Typer<'a> {
                 }
                 if index == 0 {
                     if expected {
-                        observation_types.push(self.expr(&cx, part, None));
+                        observation_types.push(self.expr(cx, part, None));
                     } else {
-                        input_types.push(self.expr(&cx, part, None));
+                        input_types.push(self.expr(cx, part, None));
                     }
                 } else {
                     let expectation = if expected {
@@ -6041,70 +6289,95 @@ impl<'a> Typer<'a> {
                     } else {
                         input_types.get(column).cloned()
                     };
-                    self.expr(&cx, part, expectation);
+                    self.expr(cx, part, expectation);
                 }
                 column += 1;
             }
         }
-        if let Some(body) = kids(node)
-            .into_iter()
-            .find(|n| n.kind == SyntaxKind::DoBlock)
-        {
-            let mut env = NarrowEnv::default();
-            for step in kids(body) {
-                let cx = Ctx {
-                    module,
-                    file,
-                    text,
-                    narrow: &env,
-                    strict: false,
-                    server_default: false,
-                };
-                match step.kind {
-                    SyntaxKind::Let => self.stmt_let(&cx, step),
-                    SyntaxKind::ExampleCall => {
-                        for part in kids(step) {
-                            if part.kind == SyntaxKind::Object {
-                                self.expr(&cx, part, None);
-                            }
+    }
+
+    /// Check the example body steps: bindings, calls and assertions with
+    /// assertion refinements threaded into later steps.
+    fn check_example_body(
+        &mut self,
+        module: ModuleId,
+        file: SourceId,
+        text: &str,
+        body: &SyntaxNode,
+    ) {
+        let mut env = NarrowEnv::default();
+        for step in kids(body) {
+            let cx = Ctx {
+                module,
+                file,
+                text,
+                narrow: &env,
+                strict: false,
+                server_default: false,
+            };
+            match step.kind {
+                SyntaxKind::Let => self.stmt_let(&cx, step),
+                SyntaxKind::ExampleCall => {
+                    for part in kids(step) {
+                        if part.kind == SyntaxKind::Object {
+                            self.expr(&cx, part, None);
                         }
                     }
-                    SyntaxKind::ExampleAssert => {
-                        let mut expected = false;
-                        let mut observations: Vec<(&SyntaxNode, ResolvedType)> = Vec::new();
-                        let mut column = 0;
-                        let mut refinements = NarrowEnv::default();
-                        for part in kids(step) {
-                            if is_punct(part, text, "->") {
-                                expected = true;
-                            }
-                            if !is_expression(part.kind) {
-                                continue;
-                            }
-                            if expected {
-                                self.expr(
-                                    &cx,
-                                    part,
-                                    observations.get(column).map(|(_, ty)| ty.clone()),
-                                );
-                                if text[part.span.start as usize..part.span.end as usize].trim()
-                                    == "true"
-                                    && let Some((observed, _)) = observations.get(column)
-                                {
-                                    refinements.extend(self.extract_narrow(&cx, observed, false));
-                                }
-                                column += 1;
-                            } else {
-                                observations.push((part, self.expr(&cx, part, None)));
-                            }
-                        }
-                        env.extend(refinements);
-                    }
-                    _ => {}
                 }
+                SyntaxKind::ExampleAssert => {
+                    self.check_example_assert(module, file, text, step, &mut env);
+                }
+                _ => {}
             }
         }
-        self.types.unresolved_names.truncate(unresolved_before);
+    }
+
+    /// Check one example assertion: inputs establish observations, `true`
+    /// observations refine the environment for later steps.
+    fn check_example_assert(
+        &mut self,
+        module: ModuleId,
+        file: SourceId,
+        text: &str,
+        step: &SyntaxNode,
+        env: &mut NarrowEnv,
+    ) {
+        let cx = Ctx {
+            module,
+            file,
+            text,
+            narrow: &*env,
+            strict: false,
+            server_default: false,
+        };
+        let mut expected = false;
+        let mut observations: Vec<(&SyntaxNode, ResolvedType)> = Vec::new();
+        let mut column = 0;
+        let mut refinements = NarrowEnv::default();
+        for part in kids(step) {
+            if is_punct(part, text, "->") {
+                expected = true;
+            }
+            if !is_expression(part.kind) {
+                continue;
+            }
+            if expected {
+                self.expr(
+                    &cx,
+                    part,
+                    observations.get(column).map(|(_, ty)| ty.clone()),
+                );
+                if text[part.span.start as usize..part.span.end as usize].trim() == "true"
+                    && let Some((observed, _)) = observations.get(column)
+                {
+                    refinements.extend(self.extract_narrow(&cx, observed, false));
+                }
+                column += 1;
+            } else {
+                observations.push((part, self.expr(&cx, part, None)));
+            }
+        }
+        env.extend(refinements);
     }
 
     /// Only explicit, checked fixture values establish member nonnull facts.
@@ -7054,13 +7327,40 @@ impl<'a> Typer<'a> {
         let cx = Self::body_cx(module, file, text, &narrow);
         // Rule targets resolve through the production namespace (or
         // the owner's preferences for `invariant preferences:`).
+        let target_model = self.resolve_rule_target(text, module, node);
+        match node.kind {
+            SyntaxKind::Invariant => {
+                self.phase2_invariant(&cx, text, node);
+            }
+            SyntaxKind::Retain => {
+                self.phase2_retain(&cx, text, node, target_model);
+            }
+            SyntaxKind::Policy => {
+                self.phase2_policy_rule(file, module, text, node, &cx, target_model);
+            }
+            SyntaxKind::Unique => {
+                self.phase2_unique_rule(&cx, text, node, target_model);
+            }
+            SyntaxKind::Lock => {
+                self.phase2_lock_rule(&cx, text, node, target_model);
+            }
+            _ => {}
+        }
+    }
+
+    fn resolve_rule_target(
+        &mut self,
+        text: &str,
+        module: ModuleId,
+        node: &SyntaxNode,
+    ) -> Option<SymbolId> {
         let target = kids(node)
             .iter()
             .find(|n| n.kind == SyntaxKind::Path)
             .copied();
         let target_symbol =
             target.and_then(|t| self.tables.node_symbol.get(&NodeKey::of(t)).copied());
-        let target_model = match target_symbol {
+        match target_symbol {
             Some(id) => match &self.tables.symbols[id.0 as usize].kind {
                 SymbolKind::Model { .. } => Some(id),
                 SymbolKind::Preferences { .. } if node.kind == SyntaxKind::Invariant => None,
@@ -7079,95 +7379,123 @@ impl<'a> Typer<'a> {
                 }
             },
             None => None,
-        };
-        match node.kind {
-            SyntaxKind::Invariant => {
-                for child in kids(node) {
-                    if is_expression(child.kind) {
-                        let ty = self.expr(&cx, child, None);
-                        self.expect_bool(&cx, tight_span(text, child), &ty, "invariant");
-                    }
-                }
+        }
+    }
+
+    fn phase2_invariant(&mut self, cx: &Ctx<'_, '_>, text: &str, node: &SyntaxNode) {
+        for child in kids(node) {
+            if is_expression(child.kind) {
+                let ty = self.expr(cx, child, None);
+                self.expect_bool(cx, tight_span(text, child), &ty, "invariant");
             }
-            SyntaxKind::Retain => {
-                if let Some(model) = target_model {
-                    self.check_retain_dedupe(text, node, model);
-                }
-                if let Some(until) = attribute_value(node, "until", text) {
-                    self.check_retain_until(&cx, node, until);
-                }
+        }
+    }
+
+    fn phase2_retain(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        text: &str,
+        node: &SyntaxNode,
+        target_model: Option<SymbolId>,
+    ) {
+        if let Some(model) = target_model {
+            self.check_retain_dedupe(text, node, model);
+        }
+        if let Some(until) = attribute_value(node, "until", text) {
+            self.check_retain_until(cx, node, until);
+        }
+    }
+
+    fn phase2_policy_rule(
+        &mut self,
+        file: SourceId,
+        module: ModuleId,
+        text: &str,
+        node: &SyntaxNode,
+        cx: &Ctx<'_, '_>,
+        target_model: Option<SymbolId>,
+    ) {
+        if let Some(read) = attribute_value(node, "read", text) {
+            let ty = self.expr(cx, read, None);
+            self.expect_bool(cx, tight_span(text, read), &ty, "`read=`");
+        }
+        if let Some(where_) = attribute_value(node, "where", text) {
+            // `read=` authorization narrows `actor` in `where=`
+            // (DESIGN §3), exactly as scenario `by=` does.
+            let mut narrowed = NarrowEnv::default();
+            if attribute_value(node, "read", text)
+                .is_some_and(|read| self.auth_proves_actor(read, text))
+            {
+                narrowed.insert(
+                    NarrowKey {
+                        decl: DeclKey::CtxActor,
+                        path: Vec::new(),
+                    },
+                    ResolvedType::Scalar(Scalar::User),
+                );
             }
-            SyntaxKind::Policy => {
-                if let Some(read) = attribute_value(node, "read", text) {
-                    let ty = self.expr(&cx, read, None);
-                    self.expect_bool(&cx, tight_span(text, read), &ty, "`read=`");
-                }
-                if let Some(where_) = attribute_value(node, "where", text) {
-                    // `read=` authorization narrows `actor` in `where=`
-                    // (DESIGN §3), exactly as scenario `by=` does.
-                    let mut narrowed = NarrowEnv::default();
-                    if attribute_value(node, "read", text)
-                        .is_some_and(|read| self.auth_proves_actor(read, text))
-                    {
-                        narrowed.insert(
-                            NarrowKey {
-                                decl: DeclKey::CtxActor,
-                                path: Vec::new(),
-                            },
-                            ResolvedType::Scalar(Scalar::User),
-                        );
-                    }
-                    let where_cx = Ctx {
-                        module,
-                        file,
-                        text,
-                        narrow: &narrowed,
-                        strict: true,
-                        server_default: false,
-                    };
-                    let ty = self.expr(&where_cx, where_, None);
-                    self.expect_bool(&where_cx, tight_span(text, where_), &ty, "`where=`");
-                }
-                if let Some(model) = target_model
-                    && let Some(fields) = attribute_value(node, "fields", text)
-                {
-                    // Policy grants are a read context: readable
-                    // metadata is selectable (T08/R07); grants confer
-                    // no flow fact and no write permission.
-                    self.check_selectors(&cx, node, model, fields, "fields", true);
-                }
+            let where_cx = Ctx {
+                module,
+                file,
+                text,
+                narrow: &narrowed,
+                strict: true,
+                server_default: false,
+            };
+            let ty = self.expr(&where_cx, where_, None);
+            self.expect_bool(&where_cx, tight_span(text, where_), &ty, "`where=`");
+        }
+        if let Some(model) = target_model
+            && let Some(fields) = attribute_value(node, "fields", text)
+        {
+            // Policy grants are a read context: readable
+            // metadata is selectable (T08/R07); grants confer
+            // no flow fact and no write permission.
+            self.check_selectors(cx, node, model, fields, "fields", true);
+        }
+    }
+
+    fn phase2_unique_rule(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        text: &str,
+        node: &SyntaxNode,
+        target_model: Option<SymbolId>,
+    ) {
+        if let Some(value) = attribute_value(node, "where", text) {
+            let ty = self.expr(cx, value, None);
+            self.expect_bool(cx, tight_span(text, value), &ty, "`where=`");
+        }
+        if let Some(model) = target_model
+            && let Some(fields) = attribute_value(node, "fields", text)
+        {
+            self.check_selectors(cx, node, model, fields, "fields", false);
+        }
+    }
+
+    fn phase2_lock_rule(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        text: &str,
+        node: &SyntaxNode,
+        target_model: Option<SymbolId>,
+    ) {
+        if let Some(when) = attribute_value(node, "when", text) {
+            if matches!(literal_leaf(when, text), Some((_, "true"))) {
+                self.diags.push(Diagnostic::error(
+                    "E3001",
+                    "an omitted lock predicate already means true; do not repeat when=true"
+                        .to_string(),
+                    tight_span(text, when),
+                ));
             }
-            SyntaxKind::Unique => {
-                if let Some(value) = attribute_value(node, "where", text) {
-                    let ty = self.expr(&cx, value, None);
-                    self.expect_bool(&cx, tight_span(text, value), &ty, "`where=`");
-                }
-                if let Some(model) = target_model
-                    && let Some(fields) = attribute_value(node, "fields", text)
-                {
-                    self.check_selectors(&cx, node, model, fields, "fields", false);
-                }
-            }
-            SyntaxKind::Lock => {
-                if let Some(when) = attribute_value(node, "when", text) {
-                    if matches!(literal_leaf(when, text), Some((_, "true"))) {
-                        self.diags.push(Diagnostic::error(
-                            "E3001",
-                            "an omitted lock predicate already means true; do not repeat when=true"
-                                .to_string(),
-                            tight_span(text, when),
-                        ));
-                    }
-                    let ty = self.expr(&cx, when, None);
-                    self.expect_bool(&cx, tight_span(text, when), &ty, "`when=`");
-                }
-                if let Some(model) = target_model
-                    && let Some(fields) = attribute_value(node, "fields", text)
-                {
-                    self.check_selectors(&cx, node, model, fields, "fields", false);
-                }
-            }
-            _ => {}
+            let ty = self.expr(cx, when, None);
+            self.expect_bool(cx, tight_span(text, when), &ty, "`when=`");
+        }
+        if let Some(model) = target_model
+            && let Some(fields) = attribute_value(node, "fields", text)
+        {
+            self.check_selectors(cx, node, model, fields, "fields", false);
         }
     }
 
@@ -7274,83 +7602,121 @@ impl<'a> Typer<'a> {
             selectors
         };
         for child in kids(selectors) {
-            let (path, descending) = match child.kind {
-                SyntaxKind::Path => (child, false),
-                SyntaxKind::Descending => (
-                    kids(child)
-                        .iter()
-                        .find(|n| n.kind == SyntaxKind::Path)
-                        .copied()
-                        .unwrap_or(child),
-                    true,
-                ),
-                _ => continue,
-            };
-            if descending && what != "order" {
-                self.diags.push(Diagnostic::error(
-                    "E3001",
-                    format!("descending markers belong to order=, not {what}="),
-                    tight_span(cx.text, child),
-                ));
-            }
-            let source_segments = path_segments(path, cx.text);
-            let segments = if what == "order" && node.kind == SyntaxKind::Collection {
-                self.ui_order_segments(cx, node, model, &source_segments)
-            } else {
-                source_segments
-            };
-            if segments.is_empty() {
-                continue;
-            }
-            if segments.len() == 2
-                && segments[1] == "callback_diagnostics"
-                && (node.kind == SyntaxKind::Policy || what == "columns")
-                && let Some(field) = self.model_field_named(model, segments[0])
-                && let Some(source) = self.types.callback_diagnostic_sources.get(&field).cloned()
-            {
-                let canonical = segments.join(".");
-                self.types.callback_diagnostic_selectors.insert(
-                    NodeKey::of(path),
-                    CheckedGenerationCallbackObservation {
-                        node: NodeKey::of(path),
-                        path: canonical.clone(),
-                        source,
-                        ty: None,
-                    },
-                );
-                selected.push(canonical);
-                continue;
-            }
-            // Policy `fields=` and UI `columns=` additionally accept
-            // delivery-observation leaves (DESIGN §8.1, B4 scope;
-            // A5/S2 keeps `filter=`/`search=` excluded until
-            // predicate-observation lowering lands); every other
-            // selector keeps the contract-only rule below.
-            if segments.len() > 1
-                && (node.kind == SyntaxKind::Policy || what == "columns")
-                && let Some(canonical) = self.selector_delivery_leaf(model, &segments)
-            {
-                self.types
-                    .delivery_selectors
-                    .insert(NodeKey::of(path), canonical.clone());
-                selected.push(canonical);
-                continue;
-            }
-            if self.navigate_selector(cx, node, model, path, &segments, allow_reserved) {
-                selected.push(segments.join("."));
-                if what == "order" && node.kind == SyntaxKind::Collection {
-                    self.types.ui_order_selectors.insert(
-                        NodeKey::of(path),
-                        format!(
-                            "{}{}",
-                            if descending { "-" } else { "" },
-                            segments.join(".")
-                        ),
-                    );
-                }
-            }
+            self.check_selector_child(
+                cx,
+                node,
+                model,
+                what,
+                allow_reserved,
+                child,
+                &mut selected,
+            );
         }
         selected
+    }
+
+    /// A `callback_diagnostics` leaf records its observation and ends
+    /// the selector (`true`); anything else falls through (`false`).
+    fn check_callback_observation(
+        &mut self,
+        node: &SyntaxNode,
+        model: SymbolId,
+        path: &SyntaxNode,
+        segments: &[&str],
+        what: &str,
+        selected: &mut Vec<String>,
+    ) -> bool {
+        if segments.len() == 2
+            && segments[1] == "callback_diagnostics"
+            && (node.kind == SyntaxKind::Policy || what == "columns")
+            && let Some(field) = self.model_field_named(model, segments[0])
+            && let Some(source) = self.types.callback_diagnostic_sources.get(&field).cloned()
+        {
+            let canonical = segments.join(".");
+            self.types.callback_diagnostic_selectors.insert(
+                NodeKey::of(path),
+                CheckedGenerationCallbackObservation {
+                    node: NodeKey::of(path),
+                    path: canonical.clone(),
+                    source,
+                    ty: None,
+                },
+            );
+            selected.push(canonical);
+            return true;
+        }
+        false
+    }
+
+    fn check_selector_child(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        node: &SyntaxNode,
+        model: SymbolId,
+        what: &str,
+        allow_reserved: bool,
+        child: &SyntaxNode,
+        selected: &mut Vec<String>,
+    ) {
+        let (path, descending) = match child.kind {
+            SyntaxKind::Path => (child, false),
+            SyntaxKind::Descending => (
+                kids(child)
+                    .iter()
+                    .find(|n| n.kind == SyntaxKind::Path)
+                    .copied()
+                    .unwrap_or(child),
+                true,
+            ),
+            _ => return,
+        };
+        if descending && what != "order" {
+            self.diags.push(Diagnostic::error(
+                "E3001",
+                format!("descending markers belong to order=, not {what}="),
+                tight_span(cx.text, child),
+            ));
+        }
+        let source_segments = path_segments(path, cx.text);
+        let segments = if what == "order" && node.kind == SyntaxKind::Collection {
+            self.ui_order_segments(cx, node, model, &source_segments)
+        } else {
+            source_segments
+        };
+        if segments.is_empty() {
+            return;
+        }
+        if self.check_callback_observation(node, model, path, &segments, what, selected) {
+            return;
+        }
+        // Policy `fields=` and UI `columns=` additionally accept
+        // delivery-observation leaves (DESIGN §8.1, B4 scope;
+        // A5/S2 keeps `filter=`/`search=` excluded until
+        // predicate-observation lowering lands); every other
+        // selector keeps the contract-only rule below.
+        if segments.len() > 1
+            && (node.kind == SyntaxKind::Policy || what == "columns")
+            && let Some(canonical) = self.selector_delivery_leaf(model, &segments)
+        {
+            self.types
+                .delivery_selectors
+                .insert(NodeKey::of(path), canonical.clone());
+            selected.push(canonical);
+            return;
+        }
+        if self.navigate_selector(cx, node, model, path, &segments, allow_reserved) {
+            selected.push(segments.join("."));
+            if what == "order" && node.kind == SyntaxKind::Collection {
+                self.types.ui_order_selectors.insert(
+                    NodeKey::of(path),
+                    format!(
+                        "{}{}",
+                        if descending { "-" } else { "" },
+                        segments.join(".")
+                    ),
+                );
+            }
+        }
     }
 
     /// Ordered-scalar (`E3006`) validation for one fixed or
@@ -7654,137 +8020,199 @@ impl<'a> Typer<'a> {
     ) -> bool {
         // Declared fields first, exactly as expression lookup orders
         // them (a declared field shadows same-spelled metadata).
-        let mut current = if let Some(field) = self.model_field_named(model, segments[0]) {
-            self.decl_type(field)
+        let Some(mut current) =
+            self.selector_head_type(cx, node, model, path, segments, allow_reserved)
+        else {
+            return false;
+        };
+        let rest = &segments[1..];
+        for (i, segment) in rest.iter().enumerate() {
+            let last = i == rest.len() - 1;
+            match self.selector_step(cx, node, model, path, segments, segment, last, &current) {
+                Ok(next) => current = next,
+                Err(done) => return done,
+            }
+        }
+        true
+    }
+
+    fn selector_head_type(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        node: &SyntaxNode,
+        model: SymbolId,
+        path: &SyntaxNode,
+        segments: &[&str],
+        allow_reserved: bool,
+    ) -> Option<ResolvedType> {
+        if let Some(field) = self.model_field_named(model, segments[0]) {
+            Some(self.decl_type(field))
         } else if segments[0] == "parent" {
             // Contained-model `parent` (DESIGN §2/§4); terminal in
             // selectors (a grant cannot name another record's fields).
             let Some(parent) = contained_parent_of(self.tables, model) else {
                 self.selector_fail(cx, node, model, path, segments[0]);
-                return false;
+                return None;
             };
-            ResolvedType::Record {
+            Some(ResolvedType::Record {
                 symbol: parent,
                 stored: true,
-            }
+            })
         } else if is_reserved_name(segments[0]) {
             // Readable record metadata in read/grant contexts only;
             // write contexts (CRUD inputs, locks, uniqueness) keep
             // rejecting it, and metadata writes stay rejected.
             if !allow_reserved {
                 self.selector_fail(cx, node, model, path, segments[0]);
-                return false;
+                return None;
             }
             let Some(ty) = reserved_member_type(segments[0]) else {
                 self.selector_fail(cx, node, model, path, segments[0]);
-                return false;
+                return None;
             };
-            ty
+            Some(ty)
         } else {
             self.selector_fail(cx, node, model, path, segments[0]);
-            return false;
+            None
+        }
+    }
+
+    fn selector_opaque_step(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        node: &SyntaxNode,
+        model: SymbolId,
+        path: &SyntaxNode,
+        segments: &[&str],
+        segment: &str,
+        last: bool,
+        payload: &str,
+    ) -> Result<ResolvedType, bool> {
+        // Known delivery-observation leaves stay terminal
+        // on deployment-bound deliveries (B4); every other
+        // opaque member defers to the pending schema.
+        if payload == "external delivery target"
+            && matches!(segment, "id" | "status" | "error" | "result")
+            && !last
+        {
+            self.selector_fail(cx, node, model, path, &segments.join("."));
+            return Err(false);
+        }
+        Err(true)
+    }
+
+    fn selector_record_step(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        node: &SyntaxNode,
+        model: SymbolId,
+        path: &SyntaxNode,
+        segments: &[&str],
+        segment: &str,
+        symbol: SymbolId,
+    ) -> Result<ResolvedType, bool> {
+        // Interior components must be singular embedded
+        // values, never references, arrays or authorities
+        // (DESIGN §4): only contracts navigate.
+        if !matches!(
+            self.tables.symbols[symbol.0 as usize].kind,
+            SymbolKind::Contract { .. }
+        ) {
+            self.selector_fail(cx, node, model, path, &segments.join("."));
+            return Err(false);
+        }
+        let Some(next) = self.record_field_named(symbol, segment) else {
+            self.selector_fail(cx, node, model, path, &segments.join("."));
+            return Err(false);
         };
-        let rest = &segments[1..];
-        for (i, segment) in rest.iter().enumerate() {
-            let last = i == rest.len() - 1;
-            let inner = match &current {
-                ResolvedType::Nullable(inner) => inner.as_ref().clone(),
-                other => other.clone(),
-            };
-            match &inner {
-                // Deferral, mirroring expression member lookup: an
-                // already-diagnosed base stays silent (cascade
-                // suppression) and an unavailable-schema base stays
-                // silent (supported-but-unavailable; T13 schemas will
-                // type it later).
-                ResolvedType::Error | ResolvedType::Unknown => return true,
-                ResolvedType::Opaque(payload) => {
-                    // Known delivery-observation leaves stay terminal
-                    // on deployment-bound deliveries (B4); every other
-                    // opaque member defers to the pending schema.
-                    if payload == &"external delivery target"
-                        && matches!(segment, &"id" | &"status" | &"error" | &"result")
-                        && !last
-                    {
-                        self.selector_fail(cx, node, model, path, &segments.join("."));
-                        return false;
-                    }
-                    return true;
-                }
-                ResolvedType::Record { symbol, .. } => {
-                    // Interior components must be singular embedded
-                    // values, never references, arrays or authorities
-                    // (DESIGN §4): only contracts navigate.
-                    if !matches!(
-                        self.tables.symbols[symbol.0 as usize].kind,
-                        SymbolKind::Contract { .. }
-                    ) {
-                        self.selector_fail(cx, node, model, path, &segments.join("."));
-                        return false;
-                    }
-                    let Some(next) = self.record_field_named(*symbol, segment) else {
-                        self.selector_fail(cx, node, model, path, &segments.join("."));
-                        return false;
-                    };
-                    current = self.decl_type(next);
-                }
-                // Singular embedded value leaves, exactly as
-                // expressions read them (R08; DESIGN §3/§4).
-                ResolvedType::Scalar(Scalar::Money) => match *segment {
-                    "minor" => current = ResolvedType::Scalar(Scalar::Int),
-                    "currency" => current = ResolvedType::Scalar(Scalar::Currency),
-                    _ => {
-                        self.selector_fail(cx, node, model, path, &segments.join("."));
-                        return false;
-                    }
-                },
-                ResolvedType::Scalar(Scalar::User) => match *segment {
-                    // Stable `user.id` is readable (DESIGN §3);
-                    // account contact stays disclosure-gated (only
-                    // `actor.email` reads, and selectors never have an
-                    // actor root).
-                    "id" => current = ResolvedType::Scalar(Scalar::Text),
-                    _ => {
-                        self.selector_fail(cx, node, model, path, &segments.join("."));
-                        return false;
-                    }
-                },
-                ResolvedType::Scalar(Scalar::Member) => match *segment {
-                    "id" => current = ResolvedType::Scalar(Scalar::Text),
-                    "user" => current = ResolvedType::Scalar(Scalar::User),
-                    "team" => current = ResolvedType::Team,
-                    _ => {
-                        self.selector_fail(cx, node, model, path, &segments.join("."));
-                        return false;
-                    }
-                },
-                ResolvedType::Team => match *segment {
-                    "id" => current = ResolvedType::Scalar(Scalar::Text),
-                    "timezone" => current = ResolvedType::Scalar(Scalar::Timezone),
-                    _ => {
-                        self.selector_fail(cx, node, model, path, &segments.join("."));
-                        return false;
-                    }
-                },
-                ResolvedType::OperationContext => match *segment {
-                    "id" | "source" => current = ResolvedType::Scalar(Scalar::Text),
-                    _ => {
-                        self.selector_fail(cx, node, model, path, &segments.join("."));
-                        return false;
-                    }
-                },
-                // Every other base rejects deeper navigation: unknown
-                // scalar leaves, arrays, delivery interiors past the
-                // B4 observation leaves (accepted above, never
-                // descended), unions, actions and operations
-                // (DESIGN §4).
+        Ok(self.decl_type(next))
+    }
+
+    /// One navigation step: `Ok` continues with a new type, `Err(done)`
+    /// ends the traversal with the final answer.
+    fn selector_step(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        node: &SyntaxNode,
+        model: SymbolId,
+        path: &SyntaxNode,
+        segments: &[&str],
+        segment: &str,
+        last: bool,
+        current: &ResolvedType,
+    ) -> Result<ResolvedType, bool> {
+        let inner = match current {
+            ResolvedType::Nullable(inner) => inner.as_ref().clone(),
+            other => other.clone(),
+        };
+        match &inner {
+            // Deferral, mirroring expression member lookup: an
+            // already-diagnosed base stays silent (cascade
+            // suppression) and an unavailable-schema base stays
+            // silent (supported-but-unavailable; T13 schemas will
+            // type it later).
+            ResolvedType::Error | ResolvedType::Unknown => Err(true),
+            ResolvedType::Opaque(payload) => {
+                self.selector_opaque_step(cx, node, model, path, segments, segment, last, payload)
+            }
+            ResolvedType::Record { symbol, .. } => {
+                self.selector_record_step(cx, node, model, path, segments, segment, *symbol)
+            }
+            // Singular embedded value leaves, exactly as
+            // expressions read them (R08; DESIGN §3/§4).
+            ResolvedType::Scalar(Scalar::Money) => match segment {
+                "minor" => Ok(ResolvedType::Scalar(Scalar::Int)),
+                "currency" => Ok(ResolvedType::Scalar(Scalar::Currency)),
                 _ => {
                     self.selector_fail(cx, node, model, path, &segments.join("."));
-                    return false;
+                    Err(false)
                 }
+            },
+            ResolvedType::Scalar(Scalar::User) => match segment {
+                // Stable `user.id` is readable (DESIGN §3);
+                // account contact stays disclosure-gated (only
+                // `actor.email` reads, and selectors never have an
+                // actor root).
+                "id" => Ok(ResolvedType::Scalar(Scalar::Text)),
+                _ => {
+                    self.selector_fail(cx, node, model, path, &segments.join("."));
+                    Err(false)
+                }
+            },
+            ResolvedType::Scalar(Scalar::Member) => match segment {
+                "id" => Ok(ResolvedType::Scalar(Scalar::Text)),
+                "user" => Ok(ResolvedType::Scalar(Scalar::User)),
+                "team" => Ok(ResolvedType::Team),
+                _ => {
+                    self.selector_fail(cx, node, model, path, &segments.join("."));
+                    Err(false)
+                }
+            },
+            ResolvedType::Team => match segment {
+                "id" => Ok(ResolvedType::Scalar(Scalar::Text)),
+                "timezone" => Ok(ResolvedType::Scalar(Scalar::Timezone)),
+                _ => {
+                    self.selector_fail(cx, node, model, path, &segments.join("."));
+                    Err(false)
+                }
+            },
+            ResolvedType::OperationContext => match segment {
+                "id" | "source" => Ok(ResolvedType::Scalar(Scalar::Text)),
+                _ => {
+                    self.selector_fail(cx, node, model, path, &segments.join("."));
+                    Err(false)
+                }
+            },
+            // Every other base rejects deeper navigation: unknown
+            // scalar leaves, arrays, delivery interiors past the
+            // B4 observation leaves (accepted above, never
+            // descended), unions, actions and operations
+            // (DESIGN §4).
+            _ => {
+                self.selector_fail(cx, node, model, path, &segments.join("."));
+                Err(false)
             }
         }
-        true
     }
 
     /// Effectful builtin calls under `node`: (name, span) for every
@@ -8018,6 +8446,273 @@ impl<'a> Typer<'a> {
 
     // --- Phase 2: context, roles, derives, messages ----------------------
 
+    /// Check one `queue` context declaration: duplicate names are
+    /// `E2002` and a `type=` payload is recorded for scheduling.
+    fn context_queue_decl(
+        &mut self,
+        file: SourceId,
+        text: &str,
+        module: ModuleId,
+        decl: &SyntaxNode,
+        decl_name: &str,
+    ) {
+        if !decl_name.is_empty() && !self.queue_names.insert((module, decl_name.to_string())) {
+            self.diags.push(Diagnostic::error(
+                "E2002",
+                format!("duplicate queue '{decl_name}'"),
+                tight_span(text, decl),
+            ));
+        }
+        if let Some(ty) = attribute_value(decl, "type", text) {
+            let payload = self.resolve_type_node(file, text, module, ty, None);
+            self.types
+                .runtime_bindings
+                .entry(module)
+                .or_default()
+                .push(CheckedRuntimeBinding::Queue {
+                    name: decl_name.to_string(),
+                    payload,
+                });
+        }
+    }
+
+    /// Check one `binding` context declaration: a `key=` naming a root
+    /// model binds a durable object, anything else is `E3001`.
+    fn context_binding_decl(
+        &mut self,
+        text: &str,
+        module: ModuleId,
+        decl: &SyntaxNode,
+        decl_name: &str,
+    ) {
+        if let Some(key) = attribute_value(decl, "key", text)
+            .and_then(|key| self.tables.node_symbol.get(&NodeKey::of(key)))
+            .copied()
+        {
+            if matches!(
+                self.tables.symbols[key.0 as usize].kind,
+                SymbolKind::Model {
+                    owner: ModelOwner::Team | ModelOwner::App,
+                    ..
+                }
+            ) {
+                self.types
+                    .runtime_bindings
+                    .entry(module)
+                    .or_default()
+                    .push(CheckedRuntimeBinding::DurableObject {
+                        name: decl_name.to_string(),
+                        key,
+                    });
+            } else {
+                self.diags.push(Diagnostic::error(
+                    "E3001",
+                    "DurableObject key must name a root model".into(),
+                    tight_span(text, decl),
+                ));
+            }
+        }
+    }
+
+    /// Check one `cache` context declaration: `ttl=` must be a positive
+    /// static duration literal.
+    fn context_cache_decl(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        module: ModuleId,
+        decl: &SyntaxNode,
+        text: &str,
+    ) {
+        if let Some(ttl) = attribute_value(decl, "ttl", text) {
+            let ty = self.expr(cx, ttl, None);
+            match &ty {
+                ResolvedType::Scalar(Scalar::Duration) => {
+                    self.context_cache_ttl(module, text, ttl);
+                }
+                ResolvedType::Error | ResolvedType::Unknown | ResolvedType::Opaque(_) => {}
+                _ => {
+                    self.diags.push(Diagnostic::error(
+                        "E3001",
+                        "cache ttl must be a duration".to_string(),
+                        tight_span(text, ttl),
+                    ));
+                }
+            }
+        }
+    }
+
+    /// Check a duration-typed `cache ttl=`: static, positive literals bind.
+    fn context_cache_ttl(&mut self, module: ModuleId, text: &str, ttl: &SyntaxNode) {
+        if let Some(ttl_milliseconds) = duration_value(ttl, text).filter(|ms| *ms > 0) {
+            self.types.runtime_bindings.entry(module)
+                .or_default()
+                .push(CheckedRuntimeBinding::Cache { ttl_milliseconds });
+        }
+        if duration_value(ttl, text).is_none() {
+            self.diags.push(Diagnostic::error("E6008", "cache ttl requires a static duration literal in the current runtime profile".into(), tight_span(text, ttl)));
+        }
+        if duration_value(ttl, text).is_some_and(|ms| ms <= 0) {
+            self.diags.push(Diagnostic::error(
+                "E3001",
+                "cache ttl must be a positive duration".to_string(),
+                tight_span(text, ttl),
+            ));
+        }
+    }
+
+    /// Check one `files` context declaration: `max=` must be a positive
+    /// byte quantity. (`types=` format is unspecified: no value check.)
+    fn context_files_decl(&mut self, cx: &Ctx<'_, '_>, decl: &SyntaxNode, text: &str) {
+        if let Some(max) = attribute_value(decl, "max", text) {
+            let ty = self.expr(cx, max, None);
+            match &ty {
+                ResolvedType::Scalar(Scalar::Bytes) => {
+                    if bytes_value(max, text).is_some_and(|n| n <= 0) {
+                        self.diags.push(Diagnostic::error(
+                            "E3001",
+                            "files max must be a positive byte quantity".to_string(),
+                            tight_span(text, max),
+                        ));
+                    }
+                }
+                ResolvedType::Error | ResolvedType::Unknown | ResolvedType::Opaque(_) => {}
+                _ => {
+                    self.diags.push(Diagnostic::error(
+                        "E3001",
+                        "files max must be a byte quantity".to_string(),
+                        tight_span(text, max),
+                    ));
+                }
+            }
+        }
+        // `types=` is a parser-pinned STRING; the
+        // media-type allowlist format is unspecified,
+        // so no value check (reported gap).
+    }
+
+    /// Check one `theme` context declaration: closed value sets per key,
+    /// at least one key present.
+    fn context_theme_decl(&mut self, decl: &SyntaxNode, text: &str) {
+        let mut present = false;
+        for (key, allowed) in [
+            ("mode", &["system", "light", "dark"][..]),
+            ("accent", &["blue", "green", "purple"][..]),
+            ("density", &["comfortable", "compact"][..]),
+        ] {
+            if let Some(value) = attribute_value(decl, key, text) {
+                present = true;
+                let word = nameref_word(value, text).unwrap_or("");
+                if !allowed.contains(&word) {
+                    self.diags.push(Diagnostic::error(
+                        "E3001",
+                        format!("theme {key} must be one of {}", allowed.join(", ")),
+                        tight_span(text, value),
+                    ));
+                }
+            }
+        }
+        if !present {
+            self.diags.push(Diagnostic::error(
+                "E3001",
+                "theme needs at least one of mode=, accent= or density=".to_string(),
+                tight_span(text, decl),
+            ));
+        }
+    }
+
+    /// Check one `analytics` context declaration: resolve each field type
+    /// and record the event binding.
+    fn context_analytics_decl(
+        &mut self,
+        file: SourceId,
+        text: &str,
+        module: ModuleId,
+        cx: &Ctx<'_, '_>,
+        decl: &SyntaxNode,
+        decl_name: &str,
+    ) {
+        let mut fields = Vec::new();
+        for field in kids(decl) {
+            if field.kind != SyntaxKind::Field || has_error(field) {
+                continue;
+            }
+            let ty = kids(field)
+                .iter()
+                .find(|n| is_type_node(n.kind))
+                .map(|t| self.resolve_type_node(file, text, module, t, None))
+                .unwrap_or(ResolvedType::Error);
+            if let Some(name) = kids(field).into_iter().find_map(|n| name_text(n, text)) {
+                fields.push((name.to_string(), ty.clone()));
+            }
+            if let Some(label) = attribute_value(field, "label", text) {
+                let name = kids(field)
+                    .iter()
+                    .find_map(|n| name_text(n, text))
+                    .unwrap_or("field");
+                self.check_field_label(cx, field, name, &ty, label);
+            }
+        }
+        self.types
+            .runtime_bindings
+            .entry(module)
+            .or_default()
+            .push(CheckedRuntimeBinding::Analytics {
+                name: decl_name.to_string(),
+                fields,
+            });
+    }
+
+    /// Check one `locale` context declaration: the default must be a
+    /// well-formed BCP 47 tag.
+    fn context_locale_decl(&mut self, decl: &SyntaxNode, text: &str) {
+        if let Some(default) = attribute_value(decl, "default", text)
+            && let Some(tag) = string_literal_value(default)
+            && let Some(problem) = valid_locale(&tag)
+        {
+            self.diags.push(Diagnostic::error(
+                "E3001",
+                format!("locale default: {problem}"),
+                tight_span(text, default),
+            ));
+        }
+    }
+
+    /// Check declaration bookkeeping for one context row: runtime
+    /// resource conflicts and duplicate declarations are `E2002`.
+    /// Returns false when the declaration is a duplicate to skip.
+    fn check_context_decl_bookkeeping(
+        &mut self,
+        text: &str,
+        module: ModuleId,
+        decl: &SyntaxNode,
+        head: &str,
+        decl_name: &str,
+        seen: &mut HashSet<(String, String)>,
+        resource_names: &mut HashSet<String>,
+    ) -> bool {
+        if matches!(head, "queue" | "binding" | "analytics" | "cache") {
+            let resource_name = if head == "cache" { "KV" } else { decl_name };
+            if !resource_names.insert(resource_name.to_string())
+                || self.tables.module_scopes[module.0 as usize]
+                    .prod
+                    .contains_key(resource_name)
+            {
+                self.diags.push(Diagnostic::error("E2002", format!("runtime binding '{resource_name}' conflicts with another declaration or import"), tight_span(text, decl)));
+            }
+        }
+        if !matches!(head, "" | "queue")
+            && !seen.insert((head.to_string(), decl_name.to_string()))
+        {
+            self.diags.push(Diagnostic::error(
+                "E2002",
+                format!("duplicate context declaration '{head}'"),
+                tight_span(text, decl),
+            ));
+            return false;
+        }
+        true
+    }
+
     /// Check the deployment context blocks of one app/package
     /// (GRAMMAR `context_*` rows): queue names are collected for
     /// `schedule queue=` validation, `ttl=`/`max=` must be positive
@@ -8047,217 +8742,26 @@ impl<'a> Typer<'a> {
                     "queue" | "binding" | "analytics" => names.get(1).copied().unwrap_or(""),
                     _ => "",
                 };
-                if matches!(head, "queue" | "binding" | "analytics" | "cache") {
-                    let resource_name = if head == "cache" { "KV" } else { decl_name };
-                    if !resource_names.insert(resource_name.to_string())
-                        || self.tables.module_scopes[module.0 as usize]
-                            .prod
-                            .contains_key(resource_name)
-                    {
-                        self.diags.push(Diagnostic::error("E2002", format!("runtime binding '{resource_name}' conflicts with another declaration or import"), tight_span(text, decl)));
-                    }
-                }
-                if !matches!(head, "" | "queue")
-                    && !seen.insert((head.to_string(), decl_name.to_string()))
-                {
-                    self.diags.push(Diagnostic::error(
-                        "E2002",
-                        format!("duplicate context declaration '{head}'"),
-                        tight_span(text, decl),
-                    ));
+                if !self.check_context_decl_bookkeeping(
+                    text,
+                    module,
+                    decl,
+                    head,
+                    decl_name,
+                    &mut seen,
+                    &mut resource_names,
+                ) {
                     continue;
                 }
                 match head {
-                    "queue" => {
-                        if !decl_name.is_empty()
-                            && !self.queue_names.insert((module, decl_name.to_string()))
-                        {
-                            self.diags.push(Diagnostic::error(
-                                "E2002",
-                                format!("duplicate queue '{decl_name}'"),
-                                tight_span(text, decl),
-                            ));
-                        }
-                        if let Some(ty) = attribute_value(decl, "type", text) {
-                            let payload = self.resolve_type_node(file, text, module, ty, None);
-                            self.types.runtime_bindings.entry(module).or_default().push(
-                                CheckedRuntimeBinding::Queue {
-                                    name: decl_name.to_string(),
-                                    payload,
-                                },
-                            );
-                        }
-                    }
-                    "binding" => {
-                        if let Some(key) = attribute_value(decl, "key", text)
-                            .and_then(|key| self.tables.node_symbol.get(&NodeKey::of(key)))
-                            .copied()
-                        {
-                            if matches!(
-                                self.tables.symbols[key.0 as usize].kind,
-                                SymbolKind::Model {
-                                    owner: ModelOwner::Team | ModelOwner::App,
-                                    ..
-                                }
-                            ) {
-                                self.types.runtime_bindings.entry(module).or_default().push(
-                                    CheckedRuntimeBinding::DurableObject {
-                                        name: decl_name.to_string(),
-                                        key,
-                                    },
-                                );
-                            } else {
-                                self.diags.push(Diagnostic::error(
-                                    "E3001",
-                                    "DurableObject key must name a root model".into(),
-                                    tight_span(text, decl),
-                                ));
-                            }
-                        }
-                    }
-                    "cache" => {
-                        if let Some(ttl) = attribute_value(decl, "ttl", text) {
-                            let ty = self.expr(&cx, ttl, None);
-                            match &ty {
-                                ResolvedType::Scalar(Scalar::Duration) => {
-                                    if let Some(ttl_milliseconds) =
-                                        duration_value(ttl, text).filter(|ms| *ms > 0)
-                                    {
-                                        self.types
-                                            .runtime_bindings
-                                            .entry(module)
-                                            .or_default()
-                                            .push(CheckedRuntimeBinding::Cache {
-                                                ttl_milliseconds,
-                                            });
-                                    }
-                                    if duration_value(ttl, text).is_none() {
-                                        self.diags.push(Diagnostic::error("E6008", "cache ttl requires a static duration literal in the current runtime profile".into(), tight_span(text, ttl)));
-                                    }
-                                    if duration_value(ttl, text).is_some_and(|ms| ms <= 0) {
-                                        self.diags.push(Diagnostic::error(
-                                            "E3001",
-                                            "cache ttl must be a positive duration".to_string(),
-                                            tight_span(text, ttl),
-                                        ));
-                                    }
-                                }
-                                ResolvedType::Error
-                                | ResolvedType::Unknown
-                                | ResolvedType::Opaque(_) => {}
-                                _ => {
-                                    self.diags.push(Diagnostic::error(
-                                        "E3001",
-                                        "cache ttl must be a duration".to_string(),
-                                        tight_span(text, ttl),
-                                    ));
-                                }
-                            }
-                        }
-                    }
-                    "files" => {
-                        if let Some(max) = attribute_value(decl, "max", text) {
-                            let ty = self.expr(&cx, max, None);
-                            match &ty {
-                                ResolvedType::Scalar(Scalar::Bytes) => {
-                                    if bytes_value(max, text).is_some_and(|n| n <= 0) {
-                                        self.diags.push(Diagnostic::error(
-                                            "E3001",
-                                            "files max must be a positive byte quantity"
-                                                .to_string(),
-                                            tight_span(text, max),
-                                        ));
-                                    }
-                                }
-                                ResolvedType::Error
-                                | ResolvedType::Unknown
-                                | ResolvedType::Opaque(_) => {}
-                                _ => {
-                                    self.diags.push(Diagnostic::error(
-                                        "E3001",
-                                        "files max must be a byte quantity".to_string(),
-                                        tight_span(text, max),
-                                    ));
-                                }
-                            }
-                        }
-                        // `types=` is a parser-pinned STRING; the
-                        // media-type allowlist format is unspecified,
-                        // so no value check (reported gap).
-                    }
-                    "theme" => {
-                        let mut present = false;
-                        for (key, allowed) in [
-                            ("mode", &["system", "light", "dark"][..]),
-                            ("accent", &["blue", "green", "purple"][..]),
-                            ("density", &["comfortable", "compact"][..]),
-                        ] {
-                            if let Some(value) = attribute_value(decl, key, text) {
-                                present = true;
-                                let word = nameref_word(value, text).unwrap_or("");
-                                if !allowed.contains(&word) {
-                                    self.diags.push(Diagnostic::error(
-                                        "E3001",
-                                        format!(
-                                            "theme {key} must be one of {}",
-                                            allowed.join(", ")
-                                        ),
-                                        tight_span(text, value),
-                                    ));
-                                }
-                            }
-                        }
-                        if !present {
-                            self.diags.push(Diagnostic::error(
-                                "E3001",
-                                "theme needs at least one of mode=, accent= or density="
-                                    .to_string(),
-                                tight_span(text, decl),
-                            ));
-                        }
-                    }
-                    "locale" => {
-                        if let Some(default) = attribute_value(decl, "default", text)
-                            && let Some(tag) = string_literal_value(default)
-                            && let Some(problem) = valid_locale(&tag)
-                        {
-                            self.diags.push(Diagnostic::error(
-                                "E3001",
-                                format!("locale default: {problem}"),
-                                tight_span(text, default),
-                            ));
-                        }
-                    }
+                    "queue" => self.context_queue_decl(file, text, module, decl, decl_name),
+                    "binding" => self.context_binding_decl(text, module, decl, decl_name),
+                    "cache" => self.context_cache_decl(&cx, module, decl, text),
+                    "files" => self.context_files_decl(&cx, decl, text),
+                    "theme" => self.context_theme_decl(decl, text),
+                    "locale" => self.context_locale_decl(decl, text),
                     "analytics" => {
-                        let mut fields = Vec::new();
-                        for field in kids(decl) {
-                            if field.kind != SyntaxKind::Field || has_error(field) {
-                                continue;
-                            }
-                            let ty = kids(field)
-                                .iter()
-                                .find(|n| is_type_node(n.kind))
-                                .map(|t| self.resolve_type_node(file, text, module, t, None))
-                                .unwrap_or(ResolvedType::Error);
-                            if let Some(name) =
-                                kids(field).into_iter().find_map(|n| name_text(n, text))
-                            {
-                                fields.push((name.to_string(), ty.clone()));
-                            }
-                            if let Some(label) = attribute_value(field, "label", text) {
-                                let name = kids(field)
-                                    .iter()
-                                    .find_map(|n| name_text(n, text))
-                                    .unwrap_or("field");
-                                self.check_field_label(&cx, field, name, &ty, label);
-                            }
-                        }
-                        self.types.runtime_bindings.entry(module).or_default().push(
-                            CheckedRuntimeBinding::Analytics {
-                                name: decl_name.to_string(),
-                                fields,
-                            },
-                        );
+                        self.context_analytics_decl(file, text, module, &cx, decl, decl_name);
                     }
                     _ => {}
                 }
@@ -8557,70 +9061,15 @@ impl<'a> Typer<'a> {
             .into_iter()
             .filter(|n| n.kind == SyntaxKind::JudgmentItem)
         {
-            let parts = kids(item);
-            let Some(name) = parts.iter().find_map(|n| name_text(n, text)) else {
-                continue;
-            };
-            if !question_names.insert(name.to_string()) {
-                complete = false; // The owning resolver already reported E2002.
-            }
-            let Some(question) = judgment.questions.iter().find(|q| q.name == name) else {
-                complete = false;
-                continue;
-            };
-            let count = if question.kind == CheckedJudgmentKind::Choice {
-                question.options.len()
-            } else {
-                question.levels.len()
-            };
-            let allowed = match question.kind {
-                CheckedJudgmentKind::Noul => true,
-                CheckedJudgmentKind::Choice if question.runtime => count <= 26,
-                CheckedJudgmentKind::Choice => (2..=26).contains(&count),
-                CheckedJudgmentKind::Score => (2..=10).contains(&count),
-            };
-            if !allowed {
-                self.diags.push(Diagnostic::error("E3001", "static judgment choices require 2–26 options; runtime choices permit at most 26 authored options; scores require 2–10 ordered levels".to_string(), item.span));
-            }
-            let mut ids = HashSet::new();
-            for option in question.options.iter().chain(question.levels.iter()) {
-                if question.runtime && !(1..=80).contains(&option.id.chars().count()) {
-                    self.diags.push(Diagnostic::error(
-                        "E3001",
-                        "runtime judgment option IDs require 1–80 Unicode scalars matching NAME"
-                            .to_string(),
-                        item.span,
-                    ));
-                }
-                if !ids.insert(&option.id) {
-                    self.diags.push(Diagnostic::error(
-                        "E2002",
-                        format!("duplicate judgment option/level '{}'", option.id),
-                        item.span,
-                    ));
-                }
-            }
-            for caption in parts.iter().copied().filter(|n| {
-                matches!(
-                    n.kind,
-                    SyntaxKind::Literal | SyntaxKind::MessageValue | SyntaxKind::Path
-                )
-            }) {
-                combined += self.judgment_caption_scalars(&cx, caption).unwrap_or(0);
-            }
-            for option in parts
-                .iter()
-                .filter(|n| n.kind == SyntaxKind::JudgmentOption)
-            {
-                for caption in kids(option).into_iter().filter(|n| {
-                    matches!(
-                        n.kind,
-                        SyntaxKind::Literal | SyntaxKind::MessageValue | SyntaxKind::Path
-                    )
-                }) {
-                    combined += self.judgment_caption_scalars(&cx, caption).unwrap_or(0);
-                }
-            }
+            self.phase2_judgment_item(
+                &cx,
+                &judgment,
+                item,
+                text,
+                &mut question_names,
+                &mut complete,
+                &mut combined,
+            );
         }
         if combined > 24_000 {
             self.diags.push(Diagnostic::error(
@@ -8632,6 +9081,82 @@ impl<'a> Typer<'a> {
         }
         if complete && before == self.diags.len() {
             self.types.judgments.insert(owner, judgment);
+        }
+    }
+
+    fn phase2_judgment_item(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        judgment: &CheckedJudgment,
+        item: &SyntaxNode,
+        text: &str,
+        question_names: &mut HashSet<String>,
+        complete: &mut bool,
+        combined: &mut usize,
+    ) {
+        let parts = kids(item);
+        let Some(name) = parts.iter().find_map(|n| name_text(n, text)) else {
+            return;
+        };
+        if !question_names.insert(name.to_string()) {
+            *complete = false; // The owning resolver already reported E2002.
+        }
+        let Some(question) = judgment.questions.iter().find(|q| q.name == name) else {
+            *complete = false;
+            return;
+        };
+        let count = if question.kind == CheckedJudgmentKind::Choice {
+            question.options.len()
+        } else {
+            question.levels.len()
+        };
+        let allowed = match question.kind {
+            CheckedJudgmentKind::Noul => true,
+            CheckedJudgmentKind::Choice if question.runtime => count <= 26,
+            CheckedJudgmentKind::Choice => (2..=26).contains(&count),
+            CheckedJudgmentKind::Score => (2..=10).contains(&count),
+        };
+        if !allowed {
+            self.diags.push(Diagnostic::error("E3001", "static judgment choices require 2–26 options; runtime choices permit at most 26 authored options; scores require 2–10 ordered levels".to_string(), item.span));
+        }
+        let mut ids = HashSet::new();
+        for option in question.options.iter().chain(question.levels.iter()) {
+            if question.runtime && !(1..=80).contains(&option.id.chars().count()) {
+                self.diags.push(Diagnostic::error(
+                    "E3001",
+                    "runtime judgment option IDs require 1–80 Unicode scalars matching NAME"
+                        .to_string(),
+                    item.span,
+                ));
+            }
+            if !ids.insert(&option.id) {
+                self.diags.push(Diagnostic::error(
+                    "E2002",
+                    format!("duplicate judgment option/level '{}'", option.id),
+                    item.span,
+                ));
+            }
+        }
+        for caption in parts.iter().copied().filter(|n| {
+            matches!(
+                n.kind,
+                SyntaxKind::Literal | SyntaxKind::MessageValue | SyntaxKind::Path
+            )
+        }) {
+            *combined += self.judgment_caption_scalars(cx, caption).unwrap_or(0);
+        }
+        for option in parts
+            .iter()
+            .filter(|n| n.kind == SyntaxKind::JudgmentOption)
+        {
+            for caption in kids(option).into_iter().filter(|n| {
+                matches!(
+                    n.kind,
+                    SyntaxKind::Literal | SyntaxKind::MessageValue | SyntaxKind::Path
+                )
+            }) {
+                *combined += self.judgment_caption_scalars(cx, caption).unwrap_or(0);
+            }
         }
     }
 
@@ -9094,13 +9619,8 @@ impl<'a> Typer<'a> {
     /// pure-read `data=`, constant `order=`/`poll=`, static `group=`,
     /// `nav=none`, and `refresh=` naming a canonical user mutation
     /// with `poll=` present; then the widget suite.
-    fn phase2_page(&mut self, file: SourceId, text: &str, module: ModuleId, node: &SyntaxNode) {
-        let narrow = NarrowEnv::default();
-        let cx = Self::body_cx(module, file, text, &narrow);
-        self.check_action_panel_targets(&cx, node);
-        // Preserve the resolver's exact declaration association for route IR.
-        // The authored token is syntax; its Model identity is never inferred
-        // from the URL spelling during code generation.
+    /// Index page route records to their declared models for route IR.
+    fn index_page_route_records(&mut self, node: &SyntaxNode) {
         for route in kids(node)
             .into_iter()
             .filter(|part| part.kind == SyntaxKind::Route)
@@ -9129,13 +9649,10 @@ impl<'a> Typer<'a> {
                 }
             }
         }
-        // Top-level page admission guards read with the viewer's team
-        // authority wherever the owning context supplies the required
-        // facts: an incidental route record never defines permission to
-        // read (DESIGN §3). Pure guards behave identically under either
-        // purity check, so every top-level guard is registered; nested
-        // container gates keep their strict pure contract until their
-        // render-gate inventory can carry the same owning sources.
+    }
+
+    /// Register top-level page admission guards for team-authority reads.
+    fn register_page_guards(&mut self, node: &SyntaxNode, text: &str) {
         for child in kids(node) {
             if child.kind == SyntaxKind::Require
                 || child.kind == SyntaxKind::UiLeaf
@@ -9150,72 +9667,49 @@ impl<'a> Typer<'a> {
                 }
             }
         }
-        let Some(title) = attribute_value(node, "title", text) else {
+    }
+
+    /// Check one `data=` page attribute: a pure read call.
+    fn check_page_data(&mut self, cx: &Ctx<'_, '_>, text: &str, data: &SyntaxNode) {
+        if data.kind != SyntaxKind::Call {
             self.diags.push(Diagnostic::error(
                 "E3001",
-                "page needs title=".to_string(),
-                tight_span(text, node),
+                "page data must be a read call".to_string(),
+                tight_span(text, data),
             ));
             return;
-        };
-        self.check_page_static_text(&cx, title, "page title");
-        if let Some(data) = attribute_value(node, "data", text) {
-            if data.kind != SyntaxKind::Call {
+        }
+        let ty = self.expr(cx, data, None);
+        let _ = ty;
+        let callee = kids(data)
+            .iter()
+            .find(|n| n.kind == SyntaxKind::Path)
+            .and_then(|p| self.tables.node_symbol.get(&NodeKey::of(p)).copied());
+        match callee {
+            Some(id) if self.callee_is_read(id) => {}
+            _ => {
                 self.diags.push(Diagnostic::error(
-                    "E3001",
-                    "page data must be a read call".to_string(),
+                    "E3009",
+                    "page data must be a pure read call".to_string(),
                     tight_span(text, data),
                 ));
-            } else {
-                let ty = self.expr(&cx, data, None);
-                let _ = ty;
-                let callee = kids(data)
-                    .iter()
-                    .find(|n| n.kind == SyntaxKind::Path)
-                    .and_then(|p| self.tables.node_symbol.get(&NodeKey::of(p)).copied());
-                match callee {
-                    Some(id) if self.callee_is_read(id) => {}
-                    _ => {
-                        self.diags.push(Diagnostic::error(
-                            "E3009",
-                            "page data must be a pure read call".to_string(),
-                            tight_span(text, data),
-                        ));
-                    }
-                }
-                for (name, span) in self.effectful_calls(data, text) {
-                    self.diags.push(Diagnostic::error(
-                        "E3010",
-                        format!("page data must be pure; '{name}' is not allowed here"),
-                        span,
-                    ));
-                }
             }
         }
-        if let Some(order) = attribute_value(node, "order", text)
-            && int_literal_value(order, text).is_none()
-        {
+        for (name, span) in self.effectful_calls(data, text) {
             self.diags.push(Diagnostic::error(
-                "E3001",
-                "page order must be a constant integer".to_string(),
-                tight_span(text, order),
+                "E3010",
+                format!("page data must be pure; '{name}' is not allowed here"),
+                span,
             ));
         }
-        if let Some(group) = attribute_value(node, "group", text) {
-            self.check_page_static_text(&cx, group, "page group");
-        }
-        if let Some(nav) = attribute_value(node, "nav", text)
-            && nameref_word(nav, text) != Some("none")
-        {
-            self.diags.push(Diagnostic::error(
-                "E3001",
-                "page nav supports only none".to_string(),
-                tight_span(text, nav),
-            ));
-        }
+    }
+
+    /// Check the `poll=`/`refresh=` page attributes: whole-second
+    /// durations in range, and refresh naming a user mutation.
+    fn check_page_poll_refresh(&mut self, cx: &Ctx<'_, '_>, node: &SyntaxNode, text: &str) {
         let poll = attribute_value(node, "poll", text);
         if let Some(poll) = poll {
-            let _ = self.expr(&cx, poll, None);
+            let _ = self.expr(cx, poll, None);
             match duration_value(poll, text) {
                 None => {
                     self.diags.push(Diagnostic::error(
@@ -9256,6 +9750,58 @@ impl<'a> Typer<'a> {
                 }
             }
         }
+    }
+
+    fn phase2_page(&mut self, file: SourceId, text: &str, module: ModuleId, node: &SyntaxNode) {
+        let narrow = NarrowEnv::default();
+        let cx = Self::body_cx(module, file, text, &narrow);
+        self.check_action_panel_targets(&cx, node);
+        // Preserve the resolver's exact declaration association for route IR.
+        // The authored token is syntax; its Model identity is never inferred
+        // from the URL spelling during code generation.
+        self.index_page_route_records(node);
+        // Top-level page admission guards read with the viewer's team
+        // authority wherever the owning context supplies the required
+        // facts: an incidental route record never defines permission to
+        // read (DESIGN §3). Pure guards behave identically under either
+        // purity check, so every top-level guard is registered; nested
+        // container gates keep their strict pure contract until their
+        // render-gate inventory can carry the same owning sources.
+        self.register_page_guards(node, text);
+        let Some(title) = attribute_value(node, "title", text) else {
+            self.diags.push(Diagnostic::error(
+                "E3001",
+                "page needs title=".to_string(),
+                tight_span(text, node),
+            ));
+            return;
+        };
+        self.check_page_static_text(&cx, title, "page title");
+        if let Some(data) = attribute_value(node, "data", text) {
+            self.check_page_data(&cx, text, data);
+        }
+        if let Some(order) = attribute_value(node, "order", text)
+            && int_literal_value(order, text).is_none()
+        {
+            self.diags.push(Diagnostic::error(
+                "E3001",
+                "page order must be a constant integer".to_string(),
+                tight_span(text, order),
+            ));
+        }
+        if let Some(group) = attribute_value(node, "group", text) {
+            self.check_page_static_text(&cx, group, "page group");
+        }
+        if let Some(nav) = attribute_value(node, "nav", text)
+            && nameref_word(nav, text) != Some("none")
+        {
+            self.diags.push(Diagnostic::error(
+                "E3001",
+                "page nav supports only none".to_string(),
+                tight_span(text, nav),
+            ));
+        }
+        self.check_page_poll_refresh(&cx, node, text);
         for child in kids(node) {
             if matches!(child.kind, SyntaxKind::Route | SyntaxKind::Attribute) {
                 continue;
@@ -9448,52 +9994,6 @@ impl<'a> Typer<'a> {
         let Some(catalog) = self.catalog else {
             return false;
         };
-        let expected = |id: &str| -> Option<(&str, &str, &[&str], bool)> {
-            match id {
-                "list" => Some((
-                    "list",
-                    "query",
-                    &[
-                        "columns", "order", "search", "filter", "empty", "defaults", "display",
-                    ],
-                    false,
-                )),
-                "table" => Some((
-                    "table",
-                    "query",
-                    &[
-                        "columns", "order", "search", "filter", "empty", "defaults", "display",
-                    ],
-                    false,
-                )),
-                "board" => Some((
-                    "board",
-                    "query",
-                    &[
-                        "by", "columns", "order", "search", "filter", "empty", "defaults",
-                    ],
-                    false,
-                )),
-                "calendar" => Some((
-                    "calendar",
-                    "query",
-                    &[
-                        "start", "end", "columns", "order", "search", "filter", "empty", "defaults",
-                    ],
-                    false,
-                )),
-                "timeline" => Some(("timeline", "sequence", &[], true)),
-                "carousel" => Some(("carousel", "sequence", &[], true)),
-                "hover_gallery" => Some(("hoverGallery", "sequence", &[], true)),
-                "steps" => Some(("steps", "sequence", &[], true)),
-                "text_rotate" => Some(("textRotate", "sequence", &[], true)),
-                _ => None,
-            }
-        };
-        let quoted = |line: &str, key: &str| -> Option<String> {
-            let (_, value) = line.split_once(&format!("{key}: \""))?;
-            Some(value.split_once('"')?.0.to_string())
-        };
         let source = include_str!("../../../packages/ui/src/catalog.ts");
         let Some((_, declarations)) =
             source.split_once("const ENTRIES: ReadonlyArray<ComponentCatalogEntry> = [\n")
@@ -9510,110 +10010,22 @@ impl<'a> Typer<'a> {
             .map(str::trim)
             .filter(|line| !line.is_empty())
         {
-            if !line.starts_with("{ id: \"") || !line.ends_with(" },") {
-                return false;
-            }
-            let Some(id) = quoted(line, "id") else {
+            let Some((id, shape)) = Self::parse_catalog_line(line, &mut words) else {
                 return false;
             };
-            if !words.insert(id.clone()) {
-                return false;
-            }
-            let line = line
-                .split_once(", notes: ")
-                .map_or(line, |(shape, _)| shape);
-            if quoted(line, "kind").as_deref() != Some("component") {
-                return false;
-            }
-            let Some(profile) = quoted(line, "profile") else {
-                return false;
-            };
-            if profile != "collection" {
-                if line.contains("alternates: ") && line.contains("\"collection\"") {
+            if Self::catalog_quoted(shape, "profile").as_deref() == Some("collection") {
+                if !Self::verify_collection_line(shape, &id, &mut collections) {
                     return false;
                 }
-                continue;
-            }
-            let Some((js, header, attributes, item_slot)) = expected(&id) else {
-                return false;
-            };
-            if quoted(line, "owner").as_deref() != Some("lane-05")
-                || quoted(line, "js").as_deref() != Some(js)
-                || quoted(line, "availability").as_deref() != Some("implemented")
-                || quoted(line, "header").as_deref() != Some(header)
-                || line.contains("alternates: ")
-            {
+            } else if shape.contains("alternates: ") && shape.contains("\"collection\"") {
                 return false;
             }
-            let actual_attributes = if let Some((_, values)) = line.split_once("attributes: [") {
-                let Some((values, _)) = values.split_once(']') else {
-                    return false;
-                };
-                let Some(values) = values
-                    .split(", ")
-                    .map(|value| value.strip_prefix('"')?.strip_suffix('"'))
-                    .collect::<Option<Vec<_>>>()
-                else {
-                    return false;
-                };
-                values
-            } else {
-                Vec::new()
-            };
-            if actual_attributes != attributes
-                || item_slot
-                    != line
-                        .contains("slots: [{ name: \"item\", required: true, repeatable: true }]")
-                || !item_slot && line.contains("slots: ")
-            {
-                return false;
-            }
-            collections.insert(id);
         }
         if collections.len() != 9 {
             return false;
         }
         for id in catalog.ids() {
-            let Some(entry) = catalog.lookup(id) else {
-                return false;
-            };
-            let collection = entry.component.as_ref().is_some_and(|shape| {
-                shape.profile == "collection"
-                    || shape
-                        .alternates
-                        .iter()
-                        .any(|profile| profile == "collection")
-            });
-            if !collection && !collections.contains(id) {
-                continue;
-            }
-            let Some((js, header, attributes, item_slot)) = expected(id) else {
-                return false;
-            };
-            let Some(shape) = &entry.component else {
-                return false;
-            };
-            if entry.js != js
-                || entry.owner != "lane-05"
-                || entry.availability != Availability::Implemented
-                || shape.profile != "collection"
-                || shape.header != header
-                || !shape.alternates.is_empty()
-                || shape
-                    .attributes
-                    .iter()
-                    .map(String::as_str)
-                    .collect::<Vec<_>>()
-                    != attributes
-                || if item_slot {
-                    shape.slots.len() != 1
-                        || shape.slots[0].name != "item"
-                        || !shape.slots[0].required
-                        || !shape.slots[0].repeatable
-                } else {
-                    !shape.slots.is_empty()
-                }
-            {
+            if !Self::verify_catalog_entry(catalog, id, &collections) {
                 return false;
             }
         }
@@ -9623,6 +10035,167 @@ impl<'a> Typer<'a> {
         // factory. The five sequence collections require item slots and have no
         // current native factories; hover_gallery also needs image values.
         true
+    }
+
+    /// Read one `key: "value"` out of a catalog source line.
+    fn catalog_quoted(line: &str, key: &str) -> Option<String> {
+        let (_, value) = line.split_once(&format!("{key}: \""))?;
+        Some(value.split_once('"')?.0.to_string())
+    }
+
+    /// The expected compiler shape of one collection component id.
+    fn expected_collection_shape(id: &str) -> Option<(&str, &str, &[&str], bool)> {
+        match id {
+            "list" => Some((
+                "list",
+                "query",
+                &[
+                    "columns", "order", "search", "filter", "empty", "defaults", "display",
+                ],
+                false,
+            )),
+            "table" => Some((
+                "table",
+                "query",
+                &[
+                    "columns", "order", "search", "filter", "empty", "defaults", "display",
+                ],
+                false,
+            )),
+            "board" => Some((
+                "board",
+                "query",
+                &[
+                    "by", "columns", "order", "search", "filter", "empty", "defaults",
+                ],
+                false,
+            )),
+            "calendar" => Some((
+                "calendar",
+                "query",
+                &[
+                    "start", "end", "columns", "order", "search", "filter", "empty", "defaults",
+                ],
+                false,
+            )),
+            "timeline" => Some(("timeline", "sequence", &[], true)),
+            "carousel" => Some(("carousel", "sequence", &[], true)),
+            "hover_gallery" => Some(("hoverGallery", "sequence", &[], true)),
+            "steps" => Some(("steps", "sequence", &[], true)),
+            "text_rotate" => Some(("textRotate", "sequence", &[], true)),
+            _ => None,
+        }
+    }
+
+    /// Parse one catalog source line to its id and notes-stripped shape:
+    /// well-formed component entries with fresh ids only.
+    fn parse_catalog_line<'n>(line: &'n str, words: &mut HashSet<String>) -> Option<(String, &'n str)> {
+        if !line.starts_with("{ id: \"") || !line.ends_with(" },") {
+            return None;
+        }
+        let id = Self::catalog_quoted(line, "id")?;
+        if !words.insert(id.clone()) {
+            return None;
+        }
+        let shape = line
+            .split_once(", notes: ")
+            .map_or(line, |(shape, _)| shape);
+        if Self::catalog_quoted(shape, "kind").as_deref() != Some("component") {
+            return None;
+        }
+        Some((id, shape))
+    }
+
+    /// Verify one collection catalog line against its expected shape and
+    /// record its id.
+    fn verify_collection_line(
+        shape: &str,
+        id: &str,
+        collections: &mut HashSet<String>,
+    ) -> bool {
+        let Some((js, header, attributes, item_slot)) = Self::expected_collection_shape(id) else {
+            return false;
+        };
+        if Self::catalog_quoted(shape, "owner").as_deref() != Some("lane-05")
+            || Self::catalog_quoted(shape, "js").as_deref() != Some(js)
+            || Self::catalog_quoted(shape, "availability").as_deref() != Some("implemented")
+            || Self::catalog_quoted(shape, "header").as_deref() != Some(header)
+            || shape.contains("alternates: ")
+        {
+            return false;
+        }
+        let actual_attributes = if let Some((_, values)) = shape.split_once("attributes: [") {
+            let Some((values, _)) = values.split_once(']') else {
+                return false;
+            };
+            let Some(values) = values
+                .split(", ")
+                .map(|value| value.strip_prefix('"')?.strip_suffix('"'))
+                .collect::<Option<Vec<_>>>()
+            else {
+                return false;
+            };
+            values
+        } else {
+            Vec::new()
+        };
+        if actual_attributes != attributes
+            || item_slot
+                != shape.contains("slots: [{ name: \"item\", required: true, repeatable: true }]")
+            || !item_slot && shape.contains("slots: ")
+        {
+            return false;
+        }
+        collections.insert(id.to_string());
+        true
+    }
+
+    /// Verify one compiler-catalog entry against the expected collection
+    /// shape: non-collections stay out, collections match exactly.
+    fn verify_catalog_entry(
+        catalog: &Catalog,
+        id: &str,
+        collections: &HashSet<String>,
+    ) -> bool {
+        let Some(entry) = catalog.lookup(id) else {
+            return false;
+        };
+        let collection = entry.component.as_ref().is_some_and(|shape| {
+            shape.profile == "collection"
+                || shape
+                    .alternates
+                    .iter()
+                    .any(|profile| profile == "collection")
+        });
+        if !collection && !collections.contains(id) {
+            return true;
+        }
+        let Some((js, header, attributes, item_slot)) = Self::expected_collection_shape(id) else {
+            return false;
+        };
+        let Some(shape) = &entry.component else {
+            return false;
+        };
+        !(entry.js != js
+            || entry.owner != "lane-05"
+            || entry.availability != Availability::Implemented
+            || shape.profile != "collection"
+            || shape.header != header
+            || !shape.alternates.is_empty()
+            || shape
+                .attributes
+                .iter()
+                .map(String::as_str)
+                .collect::<Vec<_>>()
+                != attributes
+            || if item_slot {
+                shape.slots.len() != 1
+                    || shape.slots[0].name != "item"
+                    || !shape.slots[0].required
+                    || !shape.slots[0].repeatable
+            } else {
+                !shape.slots.is_empty()
+            })
     }
 
     /// A diagnostic-only row scope never assigns executable semantics to the
@@ -9891,20 +10464,16 @@ impl<'a> Typer<'a> {
     /// A bound tabs owner supplies its exact enum only to direct tab headers.
     /// Body/gate scopes and lexical name resolution remain the ordinary UI walk.
     #[allow(clippy::too_many_arguments)]
-    fn walk_ui_page_with_tab_case(
+    /// Check a `primary`/`secondary` action primitive against its owning
+    /// action region.
+    fn check_primitive_action(
         &mut self,
         cx: &Ctx<'_, '_>,
         node: &SyntaxNode,
-        parent: SyntaxKind,
-        tab_case: Option<&ResolvedType>,
+        word: &str,
         form_owner: bool,
-        submit_owner: bool,
         action_owner: UiActionOwner,
     ) {
-        let word = kids(node)
-            .iter()
-            .find_map(|n| name_text(n, cx.text))
-            .unwrap_or("");
         let primitive = matches!(word, "primary" | "secondary")
             && matches!(node.kind, SyntaxKind::Form | SyntaxKind::UiLeaf);
         if primitive {
@@ -9932,35 +10501,26 @@ impl<'a> Typer<'a> {
                 }, node.span));
             }
         }
-        if word == "link" {
-            self.check_ui_destination_attributes(cx, node, word);
+    }
+
+    /// The action owner children of one page node inherit.
+    fn child_action_owner_for(
+        node: &SyntaxNode,
+        text: &str,
+        word: &str,
+        form_owner: bool,
+        action_owner: UiActionOwner,
+    ) -> UiActionOwner {
+        if let Some(owner) =
+            Self::child_region_owner(node, text, word, form_owner, action_owner)
+        {
+            return owner;
         }
-        let child_action_owner = match node.kind {
+        match node.kind {
             SyntaxKind::Form | SyntaxKind::Edit => UiActionOwner::Form,
             SyntaxKind::Card if !form_owner => UiActionOwner::Card,
             SyntaxKind::Collection if !form_owner && matches!(word, "list" | "table" | "board") => {
                 UiActionOwner::Row
-            }
-            SyntaxKind::Details
-                if !form_owner
-                    && attribute_value(node, "display", cx.text)
-                        .is_some_and(|value| nameref_word(value, cx.text) == Some("drawer")) =>
-            {
-                UiActionOwner::Drawer
-            }
-            SyntaxKind::CatalogItem if !form_owner && matches!(word, "modal" | "drawer") => {
-                UiActionOwner::Panel
-            }
-            SyntaxKind::Slot
-                if !form_owner
-                    && action_owner == UiActionOwner::Panel
-                    && kids(node)
-                        .iter()
-                        .filter_map(|n| name_text(n, cx.text))
-                        .nth(1)
-                        == Some("actions") =>
-            {
-                UiActionOwner::PanelActions
             }
             SyntaxKind::UiLeaf if word == "require" => action_owner,
             SyntaxKind::Page => UiActionOwner::Page,
@@ -9975,7 +10535,971 @@ impl<'a> Typer<'a> {
             | SyntaxKind::Show
             | SyntaxKind::UiLeaf => UiActionOwner::None,
             _ => action_owner,
+        }
+    }
+
+    /// A drawer/panel region owner, when the node declares one.
+    fn child_region_owner(
+        node: &SyntaxNode,
+        text: &str,
+        word: &str,
+        form_owner: bool,
+        action_owner: UiActionOwner,
+    ) -> Option<UiActionOwner> {
+        match node.kind {
+            SyntaxKind::Details
+                if !form_owner
+                    && attribute_value(node, "display", text)
+                        .is_some_and(|value| nameref_word(value, text) == Some("drawer")) =>
+            {
+                Some(UiActionOwner::Drawer)
+            }
+            SyntaxKind::CatalogItem if !form_owner && matches!(word, "modal" | "drawer") => {
+                Some(UiActionOwner::Panel)
+            }
+            SyntaxKind::Slot
+                if !form_owner
+                    && action_owner == UiActionOwner::Panel
+                    && kids(node)
+                        .iter()
+                        .filter_map(|n| name_text(n, text))
+                        .nth(1)
+                        == Some("actions") =>
+            {
+                Some(UiActionOwner::PanelActions)
+            }
+            _ => None,
+        }
+    }
+
+    /// Walk a `show` node: exactly one `{row=expression}` object against
+    /// the view's stored model.
+    fn walk_show_node(&mut self, cx: &Ctx<'_, '_>, node: &SyntaxNode) {
+        let objects: Vec<_> = kids(node)
+            .into_iter()
+            .filter(|n| n.kind == SyntaxKind::Object)
+            .collect();
+        let entries = objects.first().map(|args| object_entries(args, cx.text));
+        let row = entries
+            .as_ref()
+            .and_then(|entries| match entries.as_slice() {
+                [("row", _, Some(value))] if objects.len() == 1 => Some(*value),
+                _ => None,
+            });
+        let Some(row) = row else {
+            self.diags.push(Diagnostic::error(
+                "E3001",
+                "show requires exactly the explicit row argument {row=expression}".to_string(),
+                tight_span(cx.text, node),
+            ));
+            for args in objects {
+                self.walk_object_values(cx, args);
+            }
+            return;
         };
+        let before = self.diags.len();
+        let actual = self.expr(cx, row, None);
+        for (name, span) in self.effectful_calls(row, cx.text) {
+            self.diags.push(Diagnostic::error(
+                "E3010",
+                format!("show row argument must be pure; '{name}' is not allowed here"),
+                span,
+            ));
+        }
+        let key = NodeKey::of(node);
+        let target = self.tables.show_views.get(&key).copied();
+        if let Some((target, model)) = target.and_then(|target| {
+            self.types
+                .view_models
+                .get(&target)
+                .copied()
+                .map(|model| (target, model))
+        }) {
+            let expected = ResolvedType::Record {
+                symbol: model,
+                stored: true,
+            };
+            if actual != expected {
+                self.diags.push(Diagnostic::error(
+                    "E3001",
+                    "show row must be the view's exact nonnullable stored model".to_string(),
+                    tight_span(cx.text, row),
+                ));
+            } else if self.diags.len() == before {
+                self.types.view_uses.insert(key, target);
+            }
+        }
+    }
+
+    /// Walk a `require` node: a pure boolean predicate.
+    fn walk_require_node(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        domain: Option<&SyntaxNode>,
+    ) {
+        if let Some(pred) = domain {
+            let ty = self.expr(cx, pred, None);
+            self.expect_bool(cx, tight_span(cx.text, pred), &ty, "`require`");
+            let forbidden = if self.membership_page_guards.contains(&NodeKey::of(pred)) {
+                self.bounded_membership_effectful_calls(pred, cx.text)
+            } else {
+                self.effectful_calls(pred, cx.text)
+            };
+            for (name, span) in forbidden {
+                self.diags.push(Diagnostic::error(
+                    "E3010",
+                    format!("page require must be pure; '{name}' is not allowed here"),
+                    span,
+                ));
+            }
+        }
+    }
+
+    /// Walk a `tabs` node: tab children or an enum preference selector;
+    /// a bound owned selector sets the expected tab case.
+    fn walk_tabs_node(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        node: &SyntaxNode,
+        domain: Option<&SyntaxNode>,
+        bound_tab_expected: &mut Option<ResolvedType>,
+    ) {
+        let has_tabs = kids(node).iter().any(|n| n.kind == SyntaxKind::Tab);
+        if !has_tabs {
+            match domain {
+                None => {
+                    self.diags.push(Diagnostic::error(
+                        "E3001",
+                        "tabs needs an enum preference selector or tab children".to_string(),
+                        tight_span(cx.text, node),
+                    ));
+                }
+                Some(domain) => {
+                    let ty = self.expr(cx, domain, None);
+                    if !matches!(
+                        ty,
+                        ResolvedType::Enum { .. }
+                            | ResolvedType::Error
+                            | ResolvedType::Unknown
+                            | ResolvedType::Opaque(_)
+                    ) {
+                        self.diags.push(Diagnostic::error(
+                            "E3001",
+                            "tabs leaf needs an enum preference selector".to_string(),
+                            tight_span(cx.text, domain),
+                        ));
+                    }
+                }
+            }
+        } else if let Some(domain) = domain {
+            self.walk_bound_tabs_selector(cx, domain, bound_tab_expected);
+        }
+    }
+
+    /// Check a bound tabs selector: an owned nonnullable enum preference
+    /// sets the expected tab case.
+    fn walk_bound_tabs_selector(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        domain: &SyntaxNode,
+        bound_tab_expected: &mut Option<ResolvedType>,
+    ) {
+        let ty = self.expr(cx, domain, None);
+        let mut selector = domain;
+        while selector.kind == SyntaxKind::Group {
+            let Some(inner) = kids(selector)
+                .into_iter()
+                .find(|child| is_expression(child.kind))
+            else {
+                break;
+            };
+            selector = inner;
+        }
+        let owned = self
+            .types
+            .preference_field_references
+            .get(&NodeKey::of(selector))
+            .and_then(|id| self.tables.symbols.get(id.0 as usize))
+            .is_some_and(|field| {
+                field.module == cx.module
+                    && matches!(&field.kind, SymbolKind::Field { owner, .. }
+                        if self.tables.symbols.get(owner.0 as usize).is_some_and(|owner|
+                            owner.module == cx.module && matches!(owner.kind, SymbolKind::Preferences { .. })))
+            });
+        if owned && matches!(ty, ResolvedType::Enum { .. }) {
+            *bound_tab_expected = Some(ty);
+        } else if !matches!(ty, ResolvedType::Error) {
+            self.diags.push(Diagnostic::error(
+                "E3001",
+                "bound tab panels need an owned nonnullable enum preference selector".to_string(),
+                tight_span(cx.text, domain),
+            ));
+        }
+    }
+
+    /// Walk a `tab` node: directly inside `tabs`, caption against the
+    /// bound case.
+    fn walk_tab_node(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        node: &SyntaxNode,
+        parent: SyntaxKind,
+        domain: Option<&SyntaxNode>,
+        tab_case: Option<&ResolvedType>,
+    ) {
+        if parent != SyntaxKind::Tabs {
+            self.diags.push(Diagnostic::error(
+                "E3001",
+                "tab must be directly inside tabs".to_string(),
+                tight_span(cx.text, node),
+            ));
+        }
+        if let Some(caption) = domain {
+            let _ = self.expr(cx, caption, tab_case.cloned());
+        }
+    }
+
+    /// Walk a `card` node: type its domain and check its layout.
+    fn walk_card_node(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        node: &SyntaxNode,
+        domain: Option<&SyntaxNode>,
+    ) {
+        if let Some(domain) = domain {
+            let _ = self.expr(cx, domain, None);
+        }
+        if let Some(layout) = attribute_value(node, "layout", cx.text) {
+            let word = nameref_word(layout, cx.text).unwrap_or("");
+            if !matches!(word, "stack" | "columns") {
+                self.diags.push(Diagnostic::error(
+                    "E3001",
+                    "card layout must be stack or columns".to_string(),
+                    tight_span(cx.text, layout),
+                ));
+            }
+        }
+    }
+
+    /// Walk a collection node: seed the row from its domain model,
+    /// check its shape attributes and selectors.
+    fn walk_collection_node(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        node: &SyntaxNode,
+        domain: Option<&SyntaxNode>,
+        row_seed: &mut Option<NarrowEnv>,
+    ) {
+        let head = kids(node).iter().find_map(|n| name_text(n, cx.text));
+        let domain_type = domain.map(|d| self.expr(cx, d, None));
+        let model = domain_type.as_ref().and_then(|ty| self.model_of_type(ty));
+        self.seed_collection_row(cx, domain, head, &domain_type, model, row_seed);
+        self.check_collection_shape(cx, node, head, model);
+        if let Some(model) = model {
+            self.check_collection_selectors(cx, node, model);
+        }
+        if let Some(empty) = attribute_value(node, "empty", cx.text) {
+            let _ = self.expr(cx, empty, None);
+        }
+        if let Some(defaults) = attribute_value(node, "defaults", cx.text) {
+            let _ = self.expr(cx, defaults, None);
+        }
+        // Preference-dispatched `order=` and `display=` remain
+        // separate runtime profiles; fixed ordering is checked above.
+    }
+
+    /// Seed a collection's row element: bare-model domains seed from the
+    /// domain model, readonly inspection fields from their schema, and
+    /// query domains contribute their `where` facts.
+    fn seed_collection_row(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        domain: Option<&SyntaxNode>,
+        head: Option<&str>,
+        domain_type: &Option<ResolvedType>,
+        model: Option<SymbolId>,
+        row_seed: &mut Option<NarrowEnv>,
+    ) {
+        // Bare-model domains (`list Expense`) never pass through
+        // query typing, so `row` would stay `Error`-typed in
+        // children (killing enum-case claims and member checks).
+        // Seed the row element from the domain model; query
+        // domains already registered their precise element
+        // above, so never overwrite.
+        if let (Some(d), Some(model)) = (domain, model) {
+            self.rows
+                .entry(NodeKey::of(d))
+                .or_insert(ResolvedType::Record {
+                    symbol: model,
+                    stored: true,
+                });
+        }
+        // WorkflowInspection's nested fields are readonly values.
+        // Seed only their exact transcribed element schema, never a
+        // stored model, under this collection's own shadowing row key.
+        if head == Some("list")
+            && let Some(d) = domain
+            && let Some(ResolvedType::Array { element, .. }) = domain_type
+            && element.as_ref() == &std_nominal_leaf_type("WorkflowField")
+        {
+            self.rows
+                .entry(NodeKey::of(d))
+                .or_insert_with(|| (**element).clone());
+        }
+        // T07: rows reaching the body satisfy every `where`,
+        // so the domain's own alias facts narrow the
+        // selected row there (CanCRM:414
+        // `deal.next_action!=null` proves `row.next_action`
+        // non-null at :416/:420). The alias facts seed the
+        // body as-is (it may name the alias) plus a copy
+        // remapped to the `row` declaration — but the row
+        // copy only when no `select` reshaped the element
+        // (narrowed paths must still resolve on the row
+        // type). Nested collections shadow `row` with their
+        // own declaration, so seeds never collide.
+        if let Some(d) = domain {
+            let query = unwrap_groups(d);
+            if query.kind == SyntaxKind::Query {
+                let facts = self.selected_row_facts(cx, query);
+                if !facts.is_empty() {
+                    let mut env = cx.narrow.clone();
+                    env.extend(facts.iter().map(|(k, v)| (k.clone(), v.clone())));
+                    if !Self::query_has_select(query, cx.text) {
+                        let row_decl = DeclKey::CtxRowQuery(NodeKey::of(d));
+                        for (key, ty) in &facts {
+                            env.insert(
+                                NarrowKey {
+                                    decl: row_decl.clone(),
+                                    path: key.path.clone(),
+                                },
+                                ty.clone(),
+                            );
+                        }
+                    }
+                    *row_seed = Some(env);
+                }
+            }
+        }
+    }
+
+    /// Check a collection's shape attributes: `table` needs `columns=`,
+    /// `board` needs `by=`, `calendar` needs `start=`/`end=`.
+    fn check_collection_shape(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        node: &SyntaxNode,
+        head: Option<&str>,
+        model: Option<SymbolId>,
+    ) {
+        if head == Some("table") && attribute_value(node, "columns", cx.text).is_none() {
+            self.diags.push(Diagnostic::error(
+                "E3001",
+                "table needs columns=".to_string(),
+                tight_span(cx.text, node),
+            ));
+        }
+        if head == Some("board") {
+            match attribute_value(node, "by", cx.text) {
+                None => {
+                    self.diags.push(Diagnostic::error(
+                        "E3001",
+                        "board needs by=".to_string(),
+                        tight_span(cx.text, node),
+                    ));
+                }
+                Some(by) => {
+                    self.check_board_by(cx, node, model, by);
+                }
+            }
+        }
+        if head == Some("calendar") {
+            for key in ["start", "end"] {
+                match attribute_value(node, key, cx.text) {
+                    None => {
+                        self.diags.push(Diagnostic::error(
+                            "E3001",
+                            format!("calendar needs {key}="),
+                            tight_span(cx.text, node),
+                        ));
+                    }
+                    Some(endpoint) => {
+                        self.check_calendar_endpoint(cx, node, model, endpoint, key);
+                    }
+                }
+            }
+        }
+    }
+
+    /// Check a collection's selectors against its domain model:
+    /// `columns=`/`search=`/`filter=`, `order=` and text-like searches.
+    fn check_collection_selectors(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        node: &SyntaxNode,
+        model: SymbolId,
+    ) {
+        for key in ["columns", "search", "filter"] {
+            if let Some(sel) = attribute_value(node, key, cx.text) {
+                self.check_selectors(cx, node, model, sel, key, true);
+            }
+        }
+        if let Some(order) = attribute_value(node, "order", cx.text) {
+            if order.kind == SyntaxKind::Selectors {
+                self.check_selectors(cx, node, model, order, "order", true);
+                self.check_order_key_list(cx, node, model, order);
+            } else if order.kind == SyntaxKind::PreferenceOrder {
+                self.check_preference_order(cx, node, model, order);
+            }
+        }
+        if let Some(search) = attribute_value(node, "search", cx.text) {
+            for selector in kids(search) {
+                if let Some(ty) = self.ui_selector_type(model, &path_segments(selector, cx.text))
+                    && !matches!(ty, ResolvedType::Scalar(s) if s.is_string_like())
+                {
+                    self.diags.push(Diagnostic::error(
+                        "E3006",
+                        "search selectors must name nonnullable text-like fields".to_string(),
+                        tight_span(cx.text, selector),
+                    ));
+                }
+            }
+        }
+    }
+
+    /// Walk a `form` node: action captions and targets, field
+    /// selectors and display/import/review attributes.
+    fn walk_form_node(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        node: &SyntaxNode,
+        domain: Option<&SyntaxNode>,
+    ) {
+        let primitive = kids(node)
+            .iter()
+            .find_map(|n| name_text(n, cx.text))
+            .is_some_and(|word| matches!(word, "primary" | "secondary"));
+        if primitive {
+            if let Some(caption) = kids(node)
+                .into_iter()
+                .filter(|n| is_expression(n.kind) || n.kind == SyntaxKind::MessageValue)
+                .next()
+            {
+                self.check_caption(cx, caption, "action caption", None);
+                let _ = self.expr(cx, caption, None);
+            }
+            if let Some(target) = attribute_value(node, "action", cx.text) {
+                self.check_form_action_target(cx, node, target);
+            }
+        }
+        let form_target = attribute_value(node, "action", cx.text).or(domain);
+        if let Some(domain) = form_target {
+            let ty = self.expr(cx, domain, None);
+            if let Some(model) = self.model_of_type(&ty)
+                && let Some(sel) = attribute_value(node, "fields", cx.text)
+            {
+                self.check_selectors(cx, node, model, sel, "fields=", true);
+            }
+        }
+        if let Some(args) = attribute_value(node, "arguments", cx.text) {
+            let _ = self.expr(cx, args, None);
+        }
+        if let Some(submit) = attribute_value(node, "submit", cx.text) {
+            let _ = self.expr(cx, submit, None);
+        }
+        self.check_form_display_import(cx, node);
+    }
+
+    /// Check a form's `display=`/`import=`/`review=` attributes.
+    fn check_form_display_import(&mut self, cx: &Ctx<'_, '_>, node: &SyntaxNode) {
+        if let Some(display) = attribute_value(node, "display", cx.text)
+            && nameref_word(display, cx.text) != Some("inline")
+        {
+            self.diags.push(Diagnostic::error(
+                "E3001",
+                "form display supports only inline".to_string(),
+                tight_span(cx.text, display),
+            ));
+        }
+        let import = attribute_value(node, "import", cx.text);
+        if let Some(import) = import
+            && nameref_word(import, cx.text) != Some("csv")
+        {
+            self.diags.push(Diagnostic::error(
+                "E3001",
+                "form import supports only csv".to_string(),
+                tight_span(cx.text, import),
+            ));
+        }
+        if attribute_value(node, "review", cx.text).is_some()
+            && import.is_some_and(|i| nameref_word(i, cx.text) != Some("csv"))
+        {
+            self.diags.push(Diagnostic::error(
+                "E3001",
+                "form review requires import=csv".to_string(),
+                tight_span(cx.text, node),
+            ));
+        }
+    }
+
+    /// Check a form action target: a declared operation with required
+    /// protected record arguments and checked argument values.
+    fn check_form_action_target(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        node: &SyntaxNode,
+        target: &SyntaxNode,
+    ) {
+        let Some(operation) = self.tables.node_symbol.get(&NodeKey::of(target)).copied() else {
+            self.diags.push(Diagnostic::error(
+                "E3001",
+                "action requires a checked declared operation".into(),
+                target.span,
+            ));
+            return;
+        };
+        let schema = self.action_inputs(operation);
+        if schema.is_empty()
+            && !matches!(
+                self.tables.symbols[operation.0 as usize].kind,
+                SymbolKind::Scenario { .. } | SymbolKind::CrudOp { .. } | SymbolKind::CapabilityOp { .. }
+            )
+        {
+            self.diags.push(Diagnostic::error(
+                "E3001",
+                "action requires a declared operation".into(),
+                target.span,
+            ));
+        }
+        if let SymbolKind::CrudOp { model, op } = self.tables.symbols[operation.0 as usize].kind {
+            if !self.crud_op_enabled(model, op) {
+                self.diags.push(Diagnostic::error(
+                    "E3001",
+                    "action CRUD operation is disabled".into(),
+                    target.span,
+                ));
+            }
+        }
+        let bound: HashSet<_> = attribute_value(node, "arguments", cx.text)
+            .map(|arguments| {
+                object_entries(arguments, cx.text)
+                    .into_iter()
+                    .map(|(name, _, _)| name)
+                    .collect()
+            })
+            .unwrap_or_default();
+        for input in &schema {
+            if matches!(
+                self.tables.symbols[operation.0 as usize].kind,
+                SymbolKind::CrudOp {
+                    op: CrudOp::Update | CrudOp::Delete,
+                    ..
+                }
+            ) && input.name == "record"
+                && !bound.contains(input.name.as_str())
+            {
+                self.diags.push(Diagnostic::error("E3001", format!("action requires explicit protected record argument '{}'", input.name), target.span));
+            }
+        }
+        if let Some(arguments) = attribute_value(node, "arguments", cx.text) {
+            for (name, key, value) in object_entries(arguments, cx.text) {
+                if !schema.iter().any(|input| input.name == name) {
+                    self.diags.push(Diagnostic::error(
+                        "E3001",
+                        format!("'{name}' is not an input of this action"),
+                        key.span,
+                    ));
+                }
+                self.check_action_value(cx, node, operation, &schema, name, key, value);
+            }
+        }
+    }
+
+    /// Walk a leaf node: primitive `target=`/`submit=` attributes and
+    /// require-leaf purity gates.
+    fn walk_ui_leaf_node(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        node: &SyntaxNode,
+        domain: Option<&SyntaxNode>,
+    ) {
+        let primitive = kids(node)
+            .iter()
+            .find_map(|n| name_text(n, cx.text))
+            .is_some_and(|word| matches!(word, "primary" | "secondary"));
+        if primitive {
+            if let Some(caption) = domain {
+                self.check_caption(cx, caption, "action caption", None);
+                let _ = self.expr(cx, caption, None);
+            }
+            for name in ["target", "submit"] {
+                self.check_leaf_action_attr(cx, node, name);
+            }
+        }
+        let require_leaf =
+            kids(node).iter().find_map(|n| name_text(n, cx.text)) == Some("require");
+        for child in kids(node) {
+            if is_expression(child.kind) {
+                let _ = self.expr(cx, child, None);
+                // Card/tab gates are checked before their subtree and
+                // skipped below. Standalone page/form require leaves
+                // retain the same pure gate, including helper closures.
+                if require_leaf {
+                    let forbidden =
+                        if self.membership_page_guards.contains(&NodeKey::of(child)) {
+                            self.bounded_membership_effectful_calls(child, cx.text)
+                        } else {
+                            self.effectful_calls(child, cx.text)
+                        };
+                    for (name, span) in forbidden {
+                        self.diags.push(Diagnostic::error(
+                            "E3010",
+                            format!("page require must be pure; '{name}' is not allowed here"),
+                            span,
+                        ));
+                    }
+                }
+            }
+        }
+    }
+
+    /// Check one leaf action attribute: `submit=` needs literal `true`,
+    /// `target=` needs a text-like target; both must be pure.
+    fn check_leaf_action_attr(&mut self, cx: &Ctx<'_, '_>, node: &SyntaxNode, name: &str) {
+        if let Some(value) = attribute_value(node, name, cx.text) {
+            let ty = self.expr(cx, value, None);
+            let valid = if name == "submit" {
+                ty == ResolvedType::Scalar(Scalar::Bool)
+                    && matches!(literal_leaf(value, cx.text), Some((_, "true")))
+            } else {
+                matches!(
+                    ty,
+                    ResolvedType::Scalar(Scalar::Text | Scalar::Url | Scalar::File)
+                        | ResolvedType::Error
+                ) || matches!(&ty, ResolvedType::Nullable(inner)
+                    if inner.as_ref() == &ResolvedType::Scalar(Scalar::File))
+            };
+            if !valid {
+                self.diags.push(Diagnostic::error(
+                    "E3001",
+                    if name == "submit" {
+                        "action submit requires literal true".into()
+                    } else {
+                        format!("action {name} has an invalid target type")
+                    },
+                    value.span,
+                ));
+            }
+            for (call, span) in self.effectful_calls(value, cx.text) {
+                self.diags.push(Diagnostic::error(
+                    "E3010",
+                    format!("action {name} must be pure; '{call}' is not allowed here"),
+                    span,
+                ));
+            }
+        }
+    }
+
+    /// Walk a catalog item: button/tooltip rules, collapse/stat/count
+    /// options, child expressions and timeline row seeding.
+    #[allow(clippy::too_many_arguments)]
+    fn walk_catalog_item_node(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        node: &SyntaxNode,
+        parent: SyntaxKind,
+        domain: Option<&SyntaxNode>,
+        word: &str,
+        submit_owner: bool,
+        unknown_presentation: bool,
+        row_seed: &mut Option<NarrowEnv>,
+    ) {
+        if word == "button" {
+            self.check_catalog_button(cx, node, submit_owner);
+        }
+        if word == "tooltip"
+            && node.descendants().any(|child| {
+                matches!(child.kind, SyntaxKind::Form | SyntaxKind::UiLeaf)
+                    && kids(child)
+                        .iter()
+                        .find_map(|part| name_text(part, cx.text))
+                        .is_some_and(|name| matches!(name, "primary" | "secondary"))
+            })
+        {
+            self.diags.push(Diagnostic::error("E3001", "tooltip is noninteractive and cannot contain primary or secondary actions, including nested owners".into(), node.span));
+        }
+        if unknown_presentation
+            && let Some(empty) = attribute_value(node, "empty", cx.text)
+        {
+            self.check_page_static_text(cx, empty, "collection empty");
+        }
+        // Collapse shares Details' expression-valued open option;
+        // retain its checked type instead of treating it as vocabulary.
+        if kids(node).iter().find_map(|n| name_text(n, cx.text)) == Some("collapse")
+            && let Some(open) = attribute_value(node, "open", cx.text)
+        {
+            let ty = self.expr(cx, open, None);
+            self.expect_bool(cx, tight_span(cx.text, open), &ty, "`collapse open=`");
+        }
+        if word == "button" {
+            self.check_ui_destination_attributes(cx, node, word);
+        }
+        self.check_catalog_stat_count(cx, node, parent);
+        for child in kids(node) {
+            if is_expression(child.kind) {
+                let _ = self.expr(cx, child, None);
+            }
+        }
+        // `timeline` binds `row` to its domain element for the
+        // `slot item` subtree (GRAMMAR: collections bind row):
+        // seed a narrowing so `row` is the timeline model
+        // rather than an enclosing collection's row.
+        // Bare-model domains are catalog vocabulary the
+        // resolver never walks (as with collections above),
+        // so resolve those from the namespace.
+        let head = kids(node).iter().find_map(|n| name_text(n, cx.text));
+        if head == Some("timeline")
+            && let Some(d) = domain
+        {
+            self.seed_timeline_row(cx, node, d, row_seed);
+        }
+    }
+
+    /// Check a catalog `button`: exactly one binding, submit only with
+    /// an owning form/edit/panel.
+    fn check_catalog_button(&mut self, cx: &Ctx<'_, '_>, node: &SyntaxNode, submit_owner: bool) {
+        let bindings = ["action", "submit", "target", "opens"]
+            .iter()
+            .filter(|name| attribute_value(node, name, cx.text).is_some())
+            .count();
+        if bindings != 1 {
+            self.diags.push(Diagnostic::error(
+                "E3001",
+                "button requires exactly one of action, submit, target or opens".into(),
+                node.span,
+            ));
+        }
+        if !submit_owner && let Some(submit) = attribute_value(node, "submit", cx.text) {
+            self.diags.push(Diagnostic::error(
+                "E3001",
+                "button submit requires an owning canonical form, edit or preferences panel"
+                    .into(),
+                tight_span(cx.text, submit),
+            ));
+        }
+    }
+
+    /// Check catalog `stat`/`count` options: text-like descriptions and
+    /// list-owned counts.
+    fn check_catalog_stat_count(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        node: &SyntaxNode,
+        parent: SyntaxKind,
+    ) {
+        if kids(node).iter().find_map(|n| name_text(n, cx.text)) == Some("stat")
+            && let Some(value) = attribute_value(node, "description", cx.text)
+        {
+            let ty = self.expr(cx, value, None);
+            if !matches!(
+                ty,
+                ResolvedType::Scalar(Scalar::Text)
+                    | ResolvedType::InlineMessage
+                    | ResolvedType::Message(_)
+                    | ResolvedType::Error
+            ) {
+                self.diags.push(Diagnostic::error(
+                    "E3001",
+                    "stat description needs text or a message descriptor".to_string(),
+                    tight_span(cx.text, value),
+                ));
+            }
+            for (name, span) in self.effectful_calls(value, cx.text) {
+                self.diags.push(Diagnostic::error(
+                    "E3010",
+                    format!("stat description must be pure; '{name}' is not allowed here"),
+                    span,
+                ));
+            }
+        }
+        if kids(node).iter().find_map(|n| name_text(n, cx.text)) == Some("count") {
+            if parent != SyntaxKind::Collection {
+                self.diags.push(Diagnostic::error(
+                    "E3001",
+                    "count belongs directly inside a list".to_string(),
+                    tight_span(cx.text, node),
+                ));
+            }
+            if let Some(label) = attribute_value(node, "label", cx.text) {
+                self.check_page_static_text(cx, label, "count label");
+            }
+        }
+    }
+
+    /// Seed a `timeline` item's `row` narrowing from its domain element,
+    /// resolving bare-model domains from the namespace.
+    fn seed_timeline_row(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        node: &SyntaxNode,
+        d: &SyntaxNode,
+        row_seed: &mut Option<NarrowEnv>,
+    ) {
+        let mut model = self
+            .types
+            .node_types
+            .get(&NodeKey::of(d))
+            .as_ref()
+            .and_then(|ty| self.model_of_type(ty));
+        if model.is_none() && d.kind == SyntaxKind::NameRef {
+            model = nameref_word(d, cx.text)
+                .and_then(|w| self.prod_or_imported(cx.module, w))
+                .filter(|id| {
+                    matches!(
+                        self.tables.symbols[id.0 as usize].kind,
+                        SymbolKind::Model { .. }
+                    )
+                });
+        }
+        if let Some(model) = model {
+            // Seed the enclosing collection's `row`
+            // declaration (resolved from a direct `row`
+            // reference outside nested collections), so
+            // shadowing rows never collide.
+            let decl = first_row_binding(node, cx.text, self.tables)
+                .map(|binding| decl_key_of_binding(&binding, "row"));
+            if let Some(decl) = decl {
+                let mut env = cx.narrow.clone();
+                env.insert(
+                    NarrowKey {
+                        decl,
+                        path: Vec::new(),
+                    },
+                    ResolvedType::Record {
+                        symbol: model,
+                        stored: true,
+                    },
+                );
+                *row_seed = Some(env);
+            }
+        }
+    }
+
+    /// Walk the simple page nodes (preference panels, details, forms,
+    /// edits, leaves and catalog items) that carry no tab case.
+    #[allow(clippy::too_many_arguments)]
+    fn walk_ui_simple_node(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        node: &SyntaxNode,
+        parent: SyntaxKind,
+        domain: Option<&SyntaxNode>,
+        word: &str,
+        submit_owner: bool,
+        unknown_presentation: Option<SymbolId>,
+        row_seed: &mut Option<NarrowEnv>,
+    ) {
+        match node.kind {
+            SyntaxKind::PreferencePanel => self.check_preference_panel(cx, node),
+            SyntaxKind::Details => self.check_details_widget(cx, node, domain),
+            SyntaxKind::Form => {
+                self.walk_form_node(cx, node, domain);
+            }
+            SyntaxKind::Edit => {
+                if let Some(sel) = attribute_value(node, "fields", cx.text)
+                    && let Some(model) = self.scope_row_model(sel)
+                {
+                    self.check_selectors(cx, node, model, sel, "fields=", true);
+                }
+            }
+            SyntaxKind::UiLeaf => {
+                self.walk_ui_leaf_node(cx, node, domain);
+            }
+            SyntaxKind::CatalogItem => {
+                self.walk_catalog_item_node(
+                    cx,
+                    node,
+                    parent,
+                    domain,
+                    word,
+                    submit_owner,
+                    unknown_presentation.is_some(),
+                    row_seed,
+                );
+            }
+            _ => {}
+        }
+    }
+
+    /// Walk a page node's children in order, skipping gates already
+    /// checked, routes, attributes, errors and plain expressions.
+    #[allow(clippy::too_many_arguments)]
+    fn walk_page_children(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        node: &SyntaxNode,
+        inner: &Ctx<'_, '_>,
+        gated: bool,
+        bound_tab_expected: Option<&ResolvedType>,
+        form_owner: bool,
+        submit_owner: bool,
+        child_action_owner: UiActionOwner,
+    ) {
+        for child in kids(node) {
+            if gated
+                && child.kind == SyntaxKind::UiLeaf
+                && kids(child).iter().find_map(|n| name_text(n, cx.text)) == Some("require")
+            {
+                continue;
+            }
+            if matches!(child.kind, SyntaxKind::Route | SyntaxKind::Attribute) {
+                continue;
+            }
+            if has_error(child) || is_expression(child.kind) {
+                continue;
+            }
+            if child.kind == SyntaxKind::Name || child.kind == SyntaxKind::Punct {
+                continue;
+            }
+            self.walk_ui_page_with_tab_case(
+                inner,
+                child,
+                node.kind,
+                if node.kind == SyntaxKind::Tabs && child.kind == SyntaxKind::Tab {
+                    bound_tab_expected
+                } else {
+                    None
+                },
+                form_owner || matches!(node.kind, SyntaxKind::Form | SyntaxKind::Edit),
+                submit_owner
+                    || matches!(
+                        node.kind,
+                        SyntaxKind::Form | SyntaxKind::Edit | SyntaxKind::PreferencePanel
+                    ),
+                child_action_owner,
+            );
+        }
+    }
+
+    fn walk_ui_page_with_tab_case(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        node: &SyntaxNode,
+        parent: SyntaxKind,
+        tab_case: Option<&ResolvedType>,
+        form_owner: bool,
+        submit_owner: bool,
+        action_owner: UiActionOwner,
+    ) {
+        let word = kids(node)
+            .iter()
+            .find_map(|n| name_text(n, cx.text))
+            .unwrap_or("");
+        self.check_primitive_action(cx, node, word, form_owner, action_owner);
+        if word == "link" {
+            self.check_ui_destination_attributes(cx, node, word);
+        }
+        let child_action_owner =
+            Self::child_action_owner_for(node, cx.text, word, form_owner, action_owner);
         let unknown_presentation = self
             .tables
             .unknown_collection_presentations
@@ -9987,677 +11511,77 @@ impl<'a> Typer<'a> {
         let mut bound_tab_expected = None;
         match node.kind {
             SyntaxKind::Show => {
-                let objects: Vec<_> = kids(node)
-                    .into_iter()
-                    .filter(|n| n.kind == SyntaxKind::Object)
-                    .collect();
-                let entries = objects.first().map(|args| object_entries(args, cx.text));
-                let row = entries
-                    .as_ref()
-                    .and_then(|entries| match entries.as_slice() {
-                        [("row", _, Some(value))] if objects.len() == 1 => Some(*value),
-                        _ => None,
-                    });
-                let Some(row) = row else {
-                    self.diags.push(Diagnostic::error(
-                        "E3001",
-                        "show requires exactly the explicit row argument {row=expression}"
-                            .to_string(),
-                        tight_span(cx.text, node),
-                    ));
-                    for args in objects {
-                        self.walk_object_values(cx, args);
-                    }
-                    return;
-                };
-                let before = self.diags.len();
-                let actual = self.expr(cx, row, None);
-                for (name, span) in self.effectful_calls(row, cx.text) {
-                    self.diags.push(Diagnostic::error(
-                        "E3010",
-                        format!("show row argument must be pure; '{name}' is not allowed here"),
-                        span,
-                    ));
-                }
-                let key = NodeKey::of(node);
-                let target = self.tables.show_views.get(&key).copied();
-                if let Some((target, model)) = target.and_then(|target| {
-                    self.types
-                        .view_models
-                        .get(&target)
-                        .copied()
-                        .map(|model| (target, model))
-                }) {
-                    let expected = ResolvedType::Record {
-                        symbol: model,
-                        stored: true,
-                    };
-                    if actual != expected {
-                        self.diags.push(Diagnostic::error(
-                            "E3001",
-                            "show row must be the view's exact nonnullable stored model"
-                                .to_string(),
-                            tight_span(cx.text, row),
-                        ));
-                    } else if self.diags.len() == before {
-                        self.types.view_uses.insert(key, target);
-                    }
-                }
+                self.walk_show_node(cx, node);
                 return;
             }
             SyntaxKind::Require => {
-                if let Some(pred) = domain {
-                    let ty = self.expr(cx, pred, None);
-                    self.expect_bool(cx, tight_span(cx.text, pred), &ty, "`require`");
-                    let forbidden = if self.membership_page_guards.contains(&NodeKey::of(pred)) {
-                        self.bounded_membership_effectful_calls(pred, cx.text)
-                    } else {
-                        self.effectful_calls(pred, cx.text)
-                    };
-                    for (name, span) in forbidden {
-                        self.diags.push(Diagnostic::error(
-                            "E3010",
-                            format!("page require must be pure; '{name}' is not allowed here"),
-                            span,
-                        ));
-                    }
-                }
+                self.walk_require_node(cx, domain);
                 return;
             }
-            SyntaxKind::Card => {
-                if let Some(domain) = domain {
-                    let _ = self.expr(cx, domain, None);
-                }
-                if let Some(layout) = attribute_value(node, "layout", cx.text) {
-                    let word = nameref_word(layout, cx.text).unwrap_or("");
-                    if !matches!(word, "stack" | "columns") {
-                        self.diags.push(Diagnostic::error(
-                            "E3001",
-                            "card layout must be stack or columns".to_string(),
-                            tight_span(cx.text, layout),
-                        ));
-                    }
-                }
-            }
-            SyntaxKind::PreferencePanel => self.check_preference_panel(cx, node),
-            SyntaxKind::Details => self.check_details_widget(cx, node, domain),
+            SyntaxKind::Card => self.walk_card_node(cx, node, domain),
             SyntaxKind::Tabs => {
-                let has_tabs = kids(node).iter().any(|n| n.kind == SyntaxKind::Tab);
-                if !has_tabs {
-                    match domain {
-                        None => {
-                            self.diags.push(Diagnostic::error(
-                                "E3001",
-                                "tabs needs an enum preference selector or tab children"
-                                    .to_string(),
-                                tight_span(cx.text, node),
-                            ));
-                        }
-                        Some(domain) => {
-                            let ty = self.expr(cx, domain, None);
-                            if !matches!(
-                                ty,
-                                ResolvedType::Enum { .. }
-                                    | ResolvedType::Error
-                                    | ResolvedType::Unknown
-                                    | ResolvedType::Opaque(_)
-                            ) {
-                                self.diags.push(Diagnostic::error(
-                                    "E3001",
-                                    "tabs leaf needs an enum preference selector".to_string(),
-                                    tight_span(cx.text, domain),
-                                ));
-                            }
-                        }
-                    }
-                } else if let Some(domain) = domain {
-                    let ty = self.expr(cx, domain, None);
-                    let mut selector = domain;
-                    while selector.kind == SyntaxKind::Group {
-                        let Some(inner) = kids(selector)
-                            .into_iter()
-                            .find(|child| is_expression(child.kind))
-                        else {
-                            break;
-                        };
-                        selector = inner;
-                    }
-                    let owned = self.types.preference_field_references
-                        .get(&NodeKey::of(selector))
-                        .and_then(|id| self.tables.symbols.get(id.0 as usize))
-                        .is_some_and(|field| {
-                            field.module == cx.module
-                                && matches!(&field.kind, SymbolKind::Field { owner, .. }
-                                    if self.tables.symbols.get(owner.0 as usize).is_some_and(|owner|
-                                        owner.module == cx.module && matches!(owner.kind, SymbolKind::Preferences { .. })))
-                        });
-                    if owned && matches!(ty, ResolvedType::Enum { .. }) {
-                        bound_tab_expected = Some(ty);
-                    } else if !matches!(ty, ResolvedType::Error) {
-                        self.diags.push(Diagnostic::error(
-                            "E3001",
-                            "bound tab panels need an owned nonnullable enum preference selector"
-                                .to_string(),
-                            tight_span(cx.text, domain),
-                        ));
-                    }
-                }
+                self.walk_tabs_node(cx, node, domain, &mut bound_tab_expected);
             }
-            SyntaxKind::Tab => {
-                if parent != SyntaxKind::Tabs {
-                    self.diags.push(Diagnostic::error(
-                        "E3001",
-                        "tab must be directly inside tabs".to_string(),
-                        tight_span(cx.text, node),
-                    ));
-                }
-                if let Some(caption) = domain {
-                    let _ = self.expr(cx, caption, tab_case.cloned());
-                }
-            }
+            SyntaxKind::Tab => self.walk_tab_node(cx, node, parent, domain, tab_case),
             SyntaxKind::Collection => {
-                let head = kids(node).iter().find_map(|n| name_text(n, cx.text));
-                let domain_type = domain.map(|d| self.expr(cx, d, None));
-                let model = domain_type.as_ref().and_then(|ty| self.model_of_type(ty));
-                // Bare-model domains (`list Expense`) never pass through
-                // query typing, so `row` would stay `Error`-typed in
-                // children (killing enum-case claims and member checks).
-                // Seed the row element from the domain model; query
-                // domains already registered their precise element
-                // above, so never overwrite.
-                if let (Some(d), Some(model)) = (domain, model) {
-                    self.rows
-                        .entry(NodeKey::of(d))
-                        .or_insert(ResolvedType::Record {
-                            symbol: model,
-                            stored: true,
-                        });
-                }
-                // WorkflowInspection's nested fields are readonly values.
-                // Seed only their exact transcribed element schema, never a
-                // stored model, under this collection's own shadowing row key.
-                if head == Some("list")
-                    && let Some(d) = domain
-                    && let Some(ResolvedType::Array { element, .. }) = &domain_type
-                    && element.as_ref() == &std_nominal_leaf_type("WorkflowField")
-                {
-                    self.rows
-                        .entry(NodeKey::of(d))
-                        .or_insert_with(|| (**element).clone());
-                }
-                // T07: rows reaching the body satisfy every `where`,
-                // so the domain's own alias facts narrow the
-                // selected row there (CanCRM:414
-                // `deal.next_action!=null` proves `row.next_action`
-                // non-null at :416/:420). The alias facts seed the
-                // body as-is (it may name the alias) plus a copy
-                // remapped to the `row` declaration — but the row
-                // copy only when no `select` reshaped the element
-                // (narrowed paths must still resolve on the row
-                // type). Nested collections shadow `row` with their
-                // own declaration, so seeds never collide.
-                if let Some(d) = domain {
-                    let query = unwrap_groups(d);
-                    if query.kind == SyntaxKind::Query {
-                        let facts = self.selected_row_facts(cx, query);
-                        if !facts.is_empty() {
-                            let mut env = cx.narrow.clone();
-                            env.extend(facts.iter().map(|(k, v)| (k.clone(), v.clone())));
-                            if !Self::query_has_select(query, cx.text) {
-                                let row_decl = DeclKey::CtxRowQuery(NodeKey::of(d));
-                                for (key, ty) in &facts {
-                                    env.insert(
-                                        NarrowKey {
-                                            decl: row_decl.clone(),
-                                            path: key.path.clone(),
-                                        },
-                                        ty.clone(),
-                                    );
-                                }
-                            }
-                            row_seed = Some(env);
-                        }
-                    }
-                }
-                if head == Some("table") && attribute_value(node, "columns", cx.text).is_none() {
-                    self.diags.push(Diagnostic::error(
-                        "E3001",
-                        "table needs columns=".to_string(),
-                        tight_span(cx.text, node),
-                    ));
-                }
-                if head == Some("board") {
-                    match attribute_value(node, "by", cx.text) {
-                        None => {
-                            self.diags.push(Diagnostic::error(
-                                "E3001",
-                                "board needs by=".to_string(),
-                                tight_span(cx.text, node),
-                            ));
-                        }
-                        Some(by) => {
-                            self.check_board_by(cx, node, model, by);
-                        }
-                    }
-                }
-                if head == Some("calendar") {
-                    for key in ["start", "end"] {
-                        match attribute_value(node, key, cx.text) {
-                            None => {
-                                self.diags.push(Diagnostic::error(
-                                    "E3001",
-                                    format!("calendar needs {key}="),
-                                    tight_span(cx.text, node),
-                                ));
-                            }
-                            Some(endpoint) => {
-                                self.check_calendar_endpoint(cx, node, model, endpoint, key);
-                            }
-                        }
-                    }
-                }
-                if let Some(model) = model {
-                    for key in ["columns", "search", "filter"] {
-                        if let Some(sel) = attribute_value(node, key, cx.text) {
-                            self.check_selectors(cx, node, model, sel, key, true);
-                        }
-                    }
-                    if let Some(order) = attribute_value(node, "order", cx.text) {
-                        if order.kind == SyntaxKind::Selectors {
-                            self.check_selectors(cx, node, model, order, "order", true);
-                            self.check_order_key_list(cx, node, model, order);
-                        } else if order.kind == SyntaxKind::PreferenceOrder {
-                            self.check_preference_order(cx, node, model, order);
-                        }
-                    }
-                    if let Some(search) = attribute_value(node, "search", cx.text) {
-                        for selector in kids(search) {
-                            if let Some(ty) =
-                                self.ui_selector_type(model, &path_segments(selector, cx.text))
-                                && !matches!(ty, ResolvedType::Scalar(s) if s.is_string_like())
-                            {
-                                self.diags.push(Diagnostic::error(
-                                    "E3006",
-                                    "search selectors must name nonnullable text-like fields"
-                                        .to_string(),
-                                    tight_span(cx.text, selector),
-                                ));
-                            }
-                        }
-                    }
-                }
-                if let Some(empty) = attribute_value(node, "empty", cx.text) {
-                    let _ = self.expr(cx, empty, None);
-                }
-                if let Some(defaults) = attribute_value(node, "defaults", cx.text) {
-                    let _ = self.expr(cx, defaults, None);
-                }
-                // Preference-dispatched `order=` and `display=` remain
-                // separate runtime profiles; fixed ordering is checked above.
-            }
-            SyntaxKind::Form => {
-                let primitive = kids(node)
-                    .iter()
-                    .find_map(|n| name_text(n, cx.text))
-                    .is_some_and(|word| matches!(word, "primary" | "secondary"));
-                if primitive {
-                    if let Some(caption) = kids(node)
-                        .into_iter()
-                        .filter(|n| is_expression(n.kind) || n.kind == SyntaxKind::MessageValue)
-                        .next()
-                    {
-                        self.check_caption(cx, caption, "action caption", None);
-                        let _ = self.expr(cx, caption, None);
-                    }
-                    if let Some(target) = attribute_value(node, "action", cx.text) {
-                        if let Some(operation) =
-                            self.tables.node_symbol.get(&NodeKey::of(target)).copied()
-                        {
-                            let schema = self.action_inputs(operation);
-                            if schema.is_empty()
-                                && !matches!(
-                                    self.tables.symbols[operation.0 as usize].kind,
-                                    SymbolKind::Scenario { .. }
-                                        | SymbolKind::CrudOp { .. }
-                                        | SymbolKind::CapabilityOp { .. }
-                                )
-                            {
-                                self.diags.push(Diagnostic::error(
-                                    "E3001",
-                                    "action requires a declared operation".into(),
-                                    target.span,
-                                ));
-                            }
-                            if let SymbolKind::CrudOp { model, op } =
-                                self.tables.symbols[operation.0 as usize].kind
-                            {
-                                if !self.crud_op_enabled(model, op) {
-                                    self.diags.push(Diagnostic::error(
-                                        "E3001",
-                                        "action CRUD operation is disabled".into(),
-                                        target.span,
-                                    ));
-                                }
-                            }
-                            let bound: HashSet<_> = attribute_value(node, "arguments", cx.text)
-                                .map(|arguments| {
-                                    object_entries(arguments, cx.text)
-                                        .into_iter()
-                                        .map(|(name, _, _)| name)
-                                        .collect()
-                                })
-                                .unwrap_or_default();
-                            for input in &schema {
-                                if matches!(
-                                    self.tables.symbols[operation.0 as usize].kind,
-                                    SymbolKind::CrudOp {
-                                        op: CrudOp::Update | CrudOp::Delete,
-                                        ..
-                                    }
-                                ) && input.name == "record"
-                                    && !bound.contains(input.name.as_str())
-                                {
-                                    self.diags.push(Diagnostic::error("E3001", format!("action requires explicit protected record argument '{}'", input.name), target.span));
-                                }
-                            }
-                            if let Some(arguments) = attribute_value(node, "arguments", cx.text) {
-                                for (name, key, value) in object_entries(arguments, cx.text) {
-                                    if !schema.iter().any(|input| input.name == name) {
-                                        self.diags.push(Diagnostic::error(
-                                            "E3001",
-                                            format!("'{name}' is not an input of this action"),
-                                            key.span,
-                                        ));
-                                    }
-                                    self.check_action_value(
-                                        cx, node, operation, &schema, name, key, value,
-                                    );
-                                }
-                            }
-                        } else {
-                            self.diags.push(Diagnostic::error(
-                                "E3001",
-                                "action requires a checked declared operation".into(),
-                                target.span,
-                            ));
-                        }
-                    }
-                }
-                let form_target = attribute_value(node, "action", cx.text).or(domain);
-                if let Some(domain) = form_target {
-                    let ty = self.expr(cx, domain, None);
-                    if let Some(model) = self.model_of_type(&ty)
-                        && let Some(sel) = attribute_value(node, "fields", cx.text)
-                    {
-                        self.check_selectors(cx, node, model, sel, "fields=", true);
-                    }
-                }
-                if let Some(args) = attribute_value(node, "arguments", cx.text) {
-                    let _ = self.expr(cx, args, None);
-                }
-                if let Some(submit) = attribute_value(node, "submit", cx.text) {
-                    let _ = self.expr(cx, submit, None);
-                }
-                if let Some(display) = attribute_value(node, "display", cx.text)
-                    && nameref_word(display, cx.text) != Some("inline")
-                {
-                    self.diags.push(Diagnostic::error(
-                        "E3001",
-                        "form display supports only inline".to_string(),
-                        tight_span(cx.text, display),
-                    ));
-                }
-                let import = attribute_value(node, "import", cx.text);
-                if let Some(import) = import
-                    && nameref_word(import, cx.text) != Some("csv")
-                {
-                    self.diags.push(Diagnostic::error(
-                        "E3001",
-                        "form import supports only csv".to_string(),
-                        tight_span(cx.text, import),
-                    ));
-                }
-                if attribute_value(node, "review", cx.text).is_some()
-                    && import.is_some_and(|i| nameref_word(i, cx.text) != Some("csv"))
-                {
-                    self.diags.push(Diagnostic::error(
-                        "E3001",
-                        "form review requires import=csv".to_string(),
-                        tight_span(cx.text, node),
-                    ));
-                }
-            }
-            SyntaxKind::Edit => {
-                if let Some(sel) = attribute_value(node, "fields", cx.text)
-                    && let Some(model) = self.scope_row_model(sel)
-                {
-                    self.check_selectors(cx, node, model, sel, "fields=", true);
-                }
-            }
-            SyntaxKind::UiLeaf => {
-                let primitive = kids(node)
-                    .iter()
-                    .find_map(|n| name_text(n, cx.text))
-                    .is_some_and(|word| matches!(word, "primary" | "secondary"));
-                if primitive {
-                    if let Some(caption) = domain {
-                        self.check_caption(cx, caption, "action caption", None);
-                        let _ = self.expr(cx, caption, None);
-                    }
-                    for name in ["target", "submit"] {
-                        if let Some(value) = attribute_value(node, name, cx.text) {
-                            let ty = self.expr(cx, value, None);
-                            let valid = if name == "submit" {
-                                ty == ResolvedType::Scalar(Scalar::Bool)
-                                    && matches!(literal_leaf(value, cx.text), Some((_, "true")))
-                            } else {
-                                matches!(
-                                    ty,
-                                    ResolvedType::Scalar(Scalar::Text | Scalar::Url | Scalar::File)
-                                        | ResolvedType::Error
-                                ) || matches!(&ty, ResolvedType::Nullable(inner)
-                                    if inner.as_ref() == &ResolvedType::Scalar(Scalar::File))
-                            };
-                            if !valid {
-                                self.diags.push(Diagnostic::error(
-                                    "E3001",
-                                    if name == "submit" {
-                                        "action submit requires literal true".into()
-                                    } else {
-                                        format!("action {name} has an invalid target type")
-                                    },
-                                    value.span,
-                                ));
-                            }
-                            for (call, span) in self.effectful_calls(value, cx.text) {
-                                self.diags.push(Diagnostic::error(
-                                    "E3010",
-                                    format!(
-                                        "action {name} must be pure; '{call}' is not allowed here"
-                                    ),
-                                    span,
-                                ));
-                            }
-                        }
-                    }
-                }
-                let require_leaf =
-                    kids(node).iter().find_map(|n| name_text(n, cx.text)) == Some("require");
-                for child in kids(node) {
-                    if is_expression(child.kind) {
-                        let _ = self.expr(cx, child, None);
-                        // Card/tab gates are checked before their subtree and
-                        // skipped below. Standalone page/form require leaves
-                        // retain the same pure gate, including helper closures.
-                        if require_leaf {
-                            let forbidden =
-                                if self.membership_page_guards.contains(&NodeKey::of(child)) {
-                                    self.bounded_membership_effectful_calls(child, cx.text)
-                                } else {
-                                    self.effectful_calls(child, cx.text)
-                                };
-                            for (name, span) in forbidden {
-                                self.diags.push(Diagnostic::error(
-                                    "E3010",
-                                    format!(
-                                        "page require must be pure; '{name}' is not allowed here"
-                                    ),
-                                    span,
-                                ));
-                            }
-                        }
-                    }
-                }
+                self.walk_collection_node(cx, node, domain, &mut row_seed);
             }
             // Catalog positional domains are expressions, like leaf
             // domains; `NAME=word` options stay untyped (PR5 words).
-            SyntaxKind::CatalogItem => {
-                if word == "button" {
-                    let bindings = ["action", "submit", "target", "opens"]
-                        .iter()
-                        .filter(|name| attribute_value(node, name, cx.text).is_some())
-                        .count();
-                    if bindings != 1 {
-                        self.diags.push(Diagnostic::error(
-                            "E3001",
-                            "button requires exactly one of action, submit, target or opens".into(),
-                            node.span,
-                        ));
-                    }
-                    if !submit_owner && let Some(submit) = attribute_value(node, "submit", cx.text)
-                    {
-                        self.diags.push(Diagnostic::error(
-                            "E3001",
-                            "button submit requires an owning canonical form, edit or preferences panel"
-                                .into(),
-                            tight_span(cx.text, submit),
-                        ));
-                    }
-                }
-                if word == "tooltip"
-                    && node.descendants().any(|child| {
-                        matches!(child.kind, SyntaxKind::Form | SyntaxKind::UiLeaf)
-                            && kids(child)
-                                .iter()
-                                .find_map(|part| name_text(part, cx.text))
-                                .is_some_and(|name| matches!(name, "primary" | "secondary"))
-                    })
-                {
-                    self.diags.push(Diagnostic::error("E3001", "tooltip is noninteractive and cannot contain primary or secondary actions, including nested owners".into(), node.span));
-                }
-                if unknown_presentation.is_some()
-                    && let Some(empty) = attribute_value(node, "empty", cx.text)
-                {
-                    self.check_page_static_text(cx, empty, "collection empty");
-                }
-                // Collapse shares Details' expression-valued open option;
-                // retain its checked type instead of treating it as vocabulary.
-                if kids(node).iter().find_map(|n| name_text(n, cx.text)) == Some("collapse")
-                    && let Some(open) = attribute_value(node, "open", cx.text)
-                {
-                    let ty = self.expr(cx, open, None);
-                    self.expect_bool(cx, tight_span(cx.text, open), &ty, "`collapse open=`");
-                }
-                if word == "button" {
-                    self.check_ui_destination_attributes(cx, node, word);
-                }
-                if kids(node).iter().find_map(|n| name_text(n, cx.text)) == Some("stat")
-                    && let Some(value) = attribute_value(node, "description", cx.text)
-                {
-                    let ty = self.expr(cx, value, None);
-                    if !matches!(
-                        ty,
-                        ResolvedType::Scalar(Scalar::Text)
-                            | ResolvedType::InlineMessage
-                            | ResolvedType::Message(_)
-                            | ResolvedType::Error
-                    ) {
-                        self.diags.push(Diagnostic::error(
-                            "E3001",
-                            "stat description needs text or a message descriptor".to_string(),
-                            tight_span(cx.text, value),
-                        ));
-                    }
-                    for (name, span) in self.effectful_calls(value, cx.text) {
-                        self.diags.push(Diagnostic::error(
-                            "E3010",
-                            format!("stat description must be pure; '{name}' is not allowed here"),
-                            span,
-                        ));
-                    }
-                }
-                if kids(node).iter().find_map(|n| name_text(n, cx.text)) == Some("count") {
-                    if parent != SyntaxKind::Collection {
-                        self.diags.push(Diagnostic::error(
-                            "E3001",
-                            "count belongs directly inside a list".to_string(),
-                            tight_span(cx.text, node),
-                        ));
-                    }
-                    if let Some(label) = attribute_value(node, "label", cx.text) {
-                        self.check_page_static_text(cx, label, "count label");
-                    }
-                }
-                for child in kids(node) {
-                    if is_expression(child.kind) {
-                        let _ = self.expr(cx, child, None);
-                    }
-                }
-                // `timeline` binds `row` to its domain element for the
-                // `slot item` subtree (GRAMMAR: collections bind row):
-                // seed a narrowing so `row` is the timeline model
-                // rather than an enclosing collection's row.
-                // Bare-model domains are catalog vocabulary the
-                // resolver never walks (as with collections above),
-                // so resolve those from the namespace.
-                let head = kids(node).iter().find_map(|n| name_text(n, cx.text));
-                if head == Some("timeline")
-                    && let Some(d) = domain
-                {
-                    let mut model = self
-                        .types
-                        .node_types
-                        .get(&NodeKey::of(d))
-                        .as_ref()
-                        .and_then(|ty| self.model_of_type(ty));
-                    if model.is_none() && d.kind == SyntaxKind::NameRef {
-                        model = nameref_word(d, cx.text)
-                            .and_then(|w| self.prod_or_imported(cx.module, w))
-                            .filter(|id| {
-                                matches!(
-                                    self.tables.symbols[id.0 as usize].kind,
-                                    SymbolKind::Model { .. }
-                                )
-                            });
-                    }
-                    if let Some(model) = model {
-                        // Seed the enclosing collection's `row`
-                        // declaration (resolved from a direct `row`
-                        // reference outside nested collections), so
-                        // shadowing rows never collide.
-                        let decl = first_row_binding(node, cx.text, self.tables)
-                            .map(|binding| decl_key_of_binding(&binding, "row"));
-                        if let Some(decl) = decl {
-                            let mut env = cx.narrow.clone();
-                            env.insert(
-                                NarrowKey {
-                                    decl,
-                                    path: Vec::new(),
-                                },
-                                ResolvedType::Record {
-                                    symbol: model,
-                                    stored: true,
-                                },
-                            );
-                            row_seed = Some(env);
-                        }
-                    }
-                }
-            }
-            _ => {}
+            _ => self.walk_ui_simple_node(
+                cx,
+                node,
+                parent,
+                domain,
+                word,
+                submit_owner,
+                unknown_presentation,
+                &mut row_seed,
+            ),
         }
         // Direct card/tab gates run before the container's children. Their
         // stable-path facts belong only to that gated subtree, like row seeds.
+        let gated = self.walk_gated_requires(cx, node, &mut row_seed);
+        // Child contexts never escape into sibling subtrees.
+        let timeline_cx;
+        let inner: &Ctx<'_, '_> = if let Some(ref env) = row_seed {
+            timeline_cx = Ctx {
+                module: cx.module,
+                file: cx.file,
+                text: cx.text,
+                narrow: env,
+                strict: cx.strict,
+                server_default: cx.server_default,
+            };
+            &timeline_cx
+        } else {
+            cx
+        };
+        self.walk_page_children(
+            cx,
+            node,
+            inner,
+            gated,
+            bound_tab_expected.as_ref(),
+            form_owner,
+            submit_owner,
+            child_action_owner,
+        );
+        if let Some(model) = unknown_presentation {
+            self.diagnose_unknown_collection_presentation(cx, node, model, before_presentation);
+        }
+        self.check_bound_tabs(cx, node, domain, bound_tab_expected);
+    }
+
+    /// Check direct card/tab `require` gates before the container's
+    /// children; their facts belong only to that gated subtree.
+    /// Returns whether the node is gated.
+    fn walk_gated_requires(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        node: &SyntaxNode,
+        row_seed: &mut Option<NarrowEnv>,
+    ) -> bool {
         let gated = matches!(node.kind, SyntaxKind::Card | SyntaxKind::Tab);
         if gated {
             let mut env = row_seed.take().unwrap_or_else(|| cx.narrow.clone());
@@ -10693,185 +11617,182 @@ impl<'a> Typer<'a> {
                     env.extend(facts);
                 }
             }
-            row_seed = Some(env);
+            *row_seed = Some(env);
         }
-        // Child contexts never escape into sibling subtrees.
-        let timeline_cx;
-        let inner: &Ctx<'_, '_> = if let Some(ref env) = row_seed {
-            timeline_cx = Ctx {
-                module: cx.module,
-                file: cx.file,
-                text: cx.text,
-                narrow: env,
-                strict: cx.strict,
-                server_default: cx.server_default,
-            };
-            &timeline_cx
-        } else {
-            cx
+        gated
+    }
+
+    /// Check bound tab panels against their owning enum preference: every
+    /// case exactly once, then record the binding.
+    fn check_bound_tabs(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        node: &SyntaxNode,
+        domain: Option<&SyntaxNode>,
+        bound: Option<ResolvedType>,
+    ) {
+        let Some(ty @ ResolvedType::Enum { .. }) = bound else {
+            return;
         };
-        for child in kids(node) {
-            if gated
-                && child.kind == SyntaxKind::UiLeaf
-                && kids(child).iter().find_map(|n| name_text(n, cx.text)) == Some("require")
-            {
-                continue;
-            }
-            if matches!(child.kind, SyntaxKind::Route | SyntaxKind::Attribute) {
-                continue;
-            }
-            if has_error(child) || is_expression(child.kind) {
-                continue;
-            }
-            if child.kind == SyntaxKind::Name || child.kind == SyntaxKind::Punct {
-                continue;
-            }
-            self.walk_ui_page_with_tab_case(
-                inner,
-                child,
-                node.kind,
-                if node.kind == SyntaxKind::Tabs && child.kind == SyntaxKind::Tab {
-                    bound_tab_expected.as_ref()
-                } else {
-                    None
-                },
-                form_owner || matches!(node.kind, SyntaxKind::Form | SyntaxKind::Edit),
-                submit_owner
-                    || matches!(
-                        node.kind,
-                        SyntaxKind::Form | SyntaxKind::Edit | SyntaxKind::PreferencePanel
-                    ),
-                child_action_owner,
-            );
-        }
-        if let Some(model) = unknown_presentation {
-            self.diagnose_unknown_collection_presentation(cx, node, model, before_presentation);
-        }
-        if let Some(ty @ ResolvedType::Enum { .. }) = bound_tab_expected {
-            let ResolvedType::Enum { cases, owner } = &ty else {
-                unreachable!()
-            };
-            let mut panels = Vec::new();
-            let mut nodes = Vec::new();
-            let mut seen = HashSet::new();
-            for tab in kids(node)
+        let ResolvedType::Enum { cases, owner } = &ty else {
+            unreachable!()
+        };
+        let (panels, nodes, seen) = self.collect_bound_tab_panels(cx, node, &ty, cases);
+        self.record_bound_tabs(cx, node, domain, ty.clone(), cases, *owner, panels, nodes, seen);
+    }
+
+    /// Collect bound tab panels: each tab header must name an exact case
+    /// of the owning enum preference, exactly once.
+    fn collect_bound_tab_panels(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        node: &SyntaxNode,
+        ty: &ResolvedType,
+        cases: &[String],
+    ) -> (
+        Vec<(NodeKey, NodeKey, String)>,
+        Vec<(NodeKey, ResolvedType)>,
+        HashSet<String>,
+    ) {
+        let mut panels = Vec::new();
+        let mut nodes = Vec::new();
+        let mut seen = HashSet::new();
+        for tab in kids(node)
+            .into_iter()
+            .filter(|child| child.kind == SyntaxKind::Tab)
+        {
+            let Some(header) = kids(tab)
                 .into_iter()
-                .filter(|child| child.kind == SyntaxKind::Tab)
-            {
-                let Some(header) = kids(tab)
+                .find(|child| is_expression(child.kind))
+            else {
+                continue;
+            };
+            let mut case = header;
+            nodes.push((NodeKey::of(header), ty.clone()));
+            while case.kind == SyntaxKind::Group {
+                let Some(inner) = kids(case)
                     .into_iter()
                     .find(|child| is_expression(child.kind))
                 else {
-                    continue;
+                    break;
                 };
-                let mut case = header;
-                nodes.push((NodeKey::of(header), ty.clone()));
-                while case.kind == SyntaxKind::Group {
-                    let Some(inner) = kids(case)
-                        .into_iter()
-                        .find(|child| is_expression(child.kind))
-                    else {
-                        break;
-                    };
-                    case = inner;
-                    nodes.push((NodeKey::of(case), ty.clone()));
-                }
-                let name = nameref_word(case, cx.text);
-                if case.kind != SyntaxKind::NameRef
-                    || !self.types.resolved_cases.contains(&NodeKey::of(case))
-                    || !name.is_some_and(|name| cases.iter().any(|known| known == name))
-                {
-                    self.diags.push(Diagnostic::error(
-                        "E3001",
-                        "bound tab header must name an exact case of its owning enum preference"
-                            .to_string(),
-                        tight_span(cx.text, header),
-                    ));
-                    continue;
-                }
-                let name = name.expect("checked exact enum case").to_string();
-                panels.push((NodeKey::of(tab), NodeKey::of(case), name.clone()));
-                if !seen.insert(name.clone()) {
-                    self.diags.push(Diagnostic::error(
-                        "E3001",
-                        format!("bound tabs repeats case '{name}'"),
-                        tight_span(cx.text, header),
-                    ));
-                }
+                case = inner;
+                nodes.push((NodeKey::of(case), ty.clone()));
             }
-            let missing: Vec<_> = cases
-                .iter()
-                .filter(|case| !seen.contains(*case))
-                .cloned()
-                .collect();
-            if !missing.is_empty() {
+            let name = nameref_word(case, cx.text);
+            if case.kind != SyntaxKind::NameRef
+                || !self.types.resolved_cases.contains(&NodeKey::of(case))
+                || !name.is_some_and(|name| cases.iter().any(|known| known == name))
+            {
                 self.diags.push(Diagnostic::error(
                     "E3001",
-                    format!(
-                        "bound tabs needs every owning enum case exactly once; missing {}",
-                        missing.join(", ")
-                    ),
-                    tight_span(cx.text, domain.expect("bound selector")),
+                    "bound tab header must name an exact case of its owning enum preference"
+                        .to_string(),
+                    tight_span(cx.text, header),
+                ));
+                continue;
+            }
+            let name = name.expect("checked exact enum case").to_string();
+            panels.push((NodeKey::of(tab), NodeKey::of(case), name.clone()));
+            if !seen.insert(name.clone()) {
+                self.diags.push(Diagnostic::error(
+                    "E3001",
+                    format!("bound tabs repeats case '{name}'"),
+                    tight_span(cx.text, header),
                 ));
             }
-            if missing.is_empty() && panels.len() == cases.len() && seen.len() == cases.len() {
-                let mut selector = domain.expect("bound selector");
+        }
+        (panels, nodes, seen)
+    }
+
+    /// Record a complete bound-tabs binding: every owning enum case
+    /// present exactly once, with its selector and symbol inventory.
+    #[allow(clippy::too_many_arguments)]
+    fn record_bound_tabs(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        node: &SyntaxNode,
+        domain: Option<&SyntaxNode>,
+        ty: ResolvedType,
+        cases: &[String],
+        owner: Option<SymbolId>,
+        panels: Vec<(NodeKey, NodeKey, String)>,
+        nodes: Vec<(NodeKey, ResolvedType)>,
+        seen: HashSet<String>,
+    ) {
+        let mut nodes = nodes;
+        let missing: Vec<_> = cases
+            .iter()
+            .filter(|case| !seen.contains(*case))
+            .cloned()
+            .collect();
+        if !missing.is_empty() {
+            self.diags.push(Diagnostic::error(
+                "E3001",
+                format!(
+                    "bound tabs needs every owning enum case exactly once; missing {}",
+                    missing.join(", ")
+                ),
+                tight_span(cx.text, domain.expect("bound selector")),
+            ));
+        }
+        if missing.is_empty() && panels.len() == cases.len() && seen.len() == cases.len() {
+            let mut selector = domain.expect("bound selector");
+            nodes.push((NodeKey::of(selector), ty.clone()));
+            while selector.kind == SyntaxKind::Group {
+                let Some(inner) = kids(selector)
+                    .into_iter()
+                    .find(|child| is_expression(child.kind))
+                else {
+                    break;
+                };
+                selector = inner;
                 nodes.push((NodeKey::of(selector), ty.clone()));
-                while selector.kind == SyntaxKind::Group {
-                    let Some(inner) = kids(selector)
-                        .into_iter()
-                        .find(|child| is_expression(child.kind))
-                    else {
-                        break;
+            }
+            if let Some(field) = self
+                .types
+                .preference_field_references
+                .get(&NodeKey::of(selector))
+                .copied()
+            {
+                let mut symbols = Vec::new();
+                let mut reuse = Vec::new();
+                let mut pending = vec![field];
+                if let Some(owner) = owner {
+                    pending.push(owner);
+                }
+                let mut visited = HashSet::new();
+                while let Some(id) = pending.pop() {
+                    if !visited.insert(id) {
+                        continue;
+                    }
+                    let Some(symbol) = self.tables.symbols.get(id.0 as usize) else {
+                        continue;
                     };
-                    selector = inner;
-                    nodes.push((NodeKey::of(selector), ty.clone()));
-                }
-                if let Some(field) = self
-                    .types
-                    .preference_field_references
-                    .get(&NodeKey::of(selector))
-                    .copied()
-                {
-                    let mut symbols = Vec::new();
-                    let mut reuse = Vec::new();
-                    let mut pending = vec![field];
-                    if let Some(owner) = owner {
-                        pending.push(*owner);
-                    }
-                    let mut visited = HashSet::new();
-                    while let Some(id) = pending.pop() {
-                        if !visited.insert(id) {
-                            continue;
-                        }
-                        let Some(symbol) = self.tables.symbols.get(id.0 as usize) else {
-                            continue;
-                        };
-                        symbols.push((symbol.clone(), self.decl.get(&id).cloned()));
-                        if let SymbolKind::Field { owner, .. } = symbol.kind {
-                            pending.push(owner);
-                            let source = self.types.field_reuse_sources.get(&id).copied();
-                            reuse.push((id, source));
-                            if let Some(source) = source {
-                                pending.push(source);
-                            }
+                    symbols.push((symbol.clone(), self.decl.get(&id).cloned()));
+                    if let SymbolKind::Field { owner, .. } = symbol.kind {
+                        pending.push(owner);
+                        let source = self.types.field_reuse_sources.get(&id).copied();
+                        reuse.push((id, source));
+                        if let Some(source) = source {
+                            pending.push(source);
                         }
                     }
-                    self.types.bound_tabs.insert(
-                        NodeKey::of(node),
-                        CheckedBoundTabs {
-                            module: cx.module,
-                            owner_module: self.tables.modules[cx.module.0 as usize].clone(),
-                            selector: NodeKey::of(selector),
-                            field,
-                            ty,
-                            panels,
-                            nodes,
-                            symbols,
-                            reuse,
-                        },
-                    );
                 }
+                self.types.bound_tabs.insert(
+                    NodeKey::of(node),
+                    CheckedBoundTabs {
+                        module: cx.module,
+                        owner_module: self.tables.modules[cx.module.0 as usize].clone(),
+                        selector: NodeKey::of(selector),
+                        field,
+                        ty,
+                        panels,
+                        nodes,
+                        symbols,
+                        reuse,
+                    },
+                );
             }
         }
     }
@@ -11520,150 +12441,183 @@ impl<'a> Typer<'a> {
         for (key, key_node, value) in object_entries(request, cx.text) {
             seen.push(key.to_string());
             match op_kind {
-                CrudOp::Create => {
-                    if key == "parent" {
-                        let parent = match &self.tables.symbols[model.0 as usize].kind {
-                            SymbolKind::Model {
-                                owner: ModelOwner::ChildOf(parent),
-                                ..
-                            } => Some(*parent),
-                            _ => None,
-                        };
-                        match parent {
-                            Some(parent) => {
-                                let expected = ResolvedType::Record {
-                                    symbol: parent,
-                                    stored: true,
-                                };
-                                let (actual, value_span) =
-                                    self.entry_value(cx, key_node, value, Some(expected.clone()));
-                                if !actual.is_error() && !self.types_compatible(&actual, &expected)
-                                {
-                                    self.diags.push(Diagnostic::error(
-                                        "E3015",
-                                        format!(
-                                            "'parent': expected {}, found {}",
-                                            self.show(cx.module, &expected),
-                                            self.show(cx.module, &actual)
-                                        ),
-                                        value_span,
-                                    ));
-                                }
-                            }
-                            None => {
-                                self.diags.push(Diagnostic::error(
-                                    "E3015",
-                                    format!(
-                                        "'{}' is not contained; only child models take parent=",
-                                        record_name(self.tables, cx.module, model)
-                                    ),
-                                    tight_span(cx.text, key_node),
-                                ));
-                                self.entry_value(cx, key_node, value, None);
-                            }
-                        }
-                        continue;
-                    }
-                    let Some(field) = self.model_field_named(model, key) else {
-                        self.diags.push(Diagnostic::error(
-                            "E3015",
-                            format!("unknown request input '{key}'"),
-                            tight_span(cx.text, key_node),
-                        ));
-                        self.entry_value(cx, key_node, value, None);
-                        continue;
-                    };
-                    let expected = self.decl_type(field);
-                    let (actual, value_span) =
-                        self.entry_value(cx, key_node, value, Some(expected.clone()));
-                    if !actual.is_error() && !self.types_compatible(&actual, &expected) {
-                        self.diags.push(Diagnostic::error(
-                            "E3015",
-                            format!(
-                                "'{key}': expected {}, found {}",
-                                self.show(cx.module, &expected),
-                                self.show(cx.module, &actual)
-                            ),
-                            value_span,
-                        ));
-                    }
-                }
-                CrudOp::Update => {
-                    if key == "record" {
-                        let expected = ResolvedType::Record {
-                            symbol: model,
-                            stored: true,
-                        };
-                        let (actual, value_span) =
-                            self.entry_value(cx, key_node, value, Some(expected.clone()));
-                        if !actual.is_error() && !self.types_compatible(&actual, &expected) {
-                            self.diags.push(Diagnostic::error(
-                                "E3015",
-                                format!(
-                                    "'record': expected {}, found {}",
-                                    self.show(cx.module, &expected),
-                                    self.show(cx.module, &actual)
-                                ),
-                                value_span,
-                            ));
-                        }
-                    } else if key == "changes" {
-                        match value {
-                            Some(changes) if changes.kind == SyntaxKind::Object => {
-                                self.check_fixture_changes(cx, model, changes);
-                            }
-                            _ => {
-                                self.diags.push(Diagnostic::error(
-                                    "E3015",
-                                    "changes= must be an object of field updates".to_string(),
-                                    tight_span(cx.text, key_node),
-                                ));
-                                self.entry_value(cx, key_node, value, None);
-                            }
-                        }
-                    } else {
-                        self.diags.push(Diagnostic::error(
-                            "E3015",
-                            format!(
-                                "unknown request input '{key}'; update takes record= and changes="
-                            ),
-                            tight_span(cx.text, key_node),
-                        ));
-                        self.entry_value(cx, key_node, value, None);
-                    }
-                }
-                CrudOp::Delete => {
-                    if key == "record" {
-                        let expected = ResolvedType::Record {
-                            symbol: model,
-                            stored: true,
-                        };
-                        let (actual, value_span) =
-                            self.entry_value(cx, key_node, value, Some(expected.clone()));
-                        if !actual.is_error() && !self.types_compatible(&actual, &expected) {
-                            self.diags.push(Diagnostic::error(
-                                "E3015",
-                                format!(
-                                    "'record': expected {}, found {}",
-                                    self.show(cx.module, &expected),
-                                    self.show(cx.module, &actual)
-                                ),
-                                value_span,
-                            ));
-                        }
-                    } else {
-                        self.diags.push(Diagnostic::error(
-                            "E3015",
-                            format!("unknown request input '{key}'; delete takes record="),
-                            tight_span(cx.text, key_node),
-                        ));
-                        self.entry_value(cx, key_node, value, None);
-                    }
-                }
+                CrudOp::Create => self.check_fixture_create_entry(cx, model, key, key_node, value),
+                CrudOp::Update => self.check_fixture_update_entry(cx, model, key, key_node, value),
+                CrudOp::Delete => self.check_fixture_delete_entry(cx, model, key, key_node, value),
             }
         }
         // Completeness: required create fields, update's record and
         // changes, delete's record.
+        self.check_fixture_request_complete(cx, model, op_kind, request, &seen);
+    }
+
+    /// Check one request entry value against its expected type (`E3015`
+    /// on mismatch).
+    fn check_fixture_typed_entry(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        key_node: &SyntaxNode,
+        value: Option<&SyntaxNode>,
+        expected: ResolvedType,
+        what: &str,
+    ) {
+        let (actual, value_span) = self.entry_value(cx, key_node, value, Some(expected.clone()));
+        if !actual.is_error() && !self.types_compatible(&actual, &expected) {
+            self.diags.push(Diagnostic::error(
+                "E3015",
+                format!(
+                    "'{what}': expected {}, found {}",
+                    self.show(cx.module, &expected),
+                    self.show(cx.module, &actual)
+                ),
+                value_span,
+            ));
+        }
+    }
+
+    /// Check one `create` request entry: `parent=` for child models,
+    /// otherwise a known field with a compatible value.
+    fn check_fixture_create_entry(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        model: SymbolId,
+        key: &str,
+        key_node: &SyntaxNode,
+        value: Option<&SyntaxNode>,
+    ) {
+        if key == "parent" {
+            let parent = match &self.tables.symbols[model.0 as usize].kind {
+                SymbolKind::Model {
+                    owner: ModelOwner::ChildOf(parent),
+                    ..
+                } => Some(*parent),
+                _ => None,
+            };
+            match parent {
+                Some(parent) => {
+                    self.check_fixture_typed_entry(
+                        cx,
+                        key_node,
+                        value,
+                        ResolvedType::Record {
+                            symbol: parent,
+                            stored: true,
+                        },
+                        "parent",
+                    );
+                }
+                None => {
+                    self.diags.push(Diagnostic::error(
+                        "E3015",
+                        format!(
+                            "'{}' is not contained; only child models take parent=",
+                            record_name(self.tables, cx.module, model)
+                        ),
+                        tight_span(cx.text, key_node),
+                    ));
+                    self.entry_value(cx, key_node, value, None);
+                }
+            }
+            return;
+        }
+        let Some(field) = self.model_field_named(model, key) else {
+            self.diags.push(Diagnostic::error(
+                "E3015",
+                format!("unknown request input '{key}'"),
+                tight_span(cx.text, key_node),
+            ));
+            self.entry_value(cx, key_node, value, None);
+            return;
+        };
+        let expected = self.decl_type(field);
+        self.check_fixture_typed_entry(cx, key_node, value, expected, key);
+    }
+
+    /// Check one `update` request entry: `record=` plus a `changes=`
+    /// object of field updates.
+    fn check_fixture_update_entry(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        model: SymbolId,
+        key: &str,
+        key_node: &SyntaxNode,
+        value: Option<&SyntaxNode>,
+    ) {
+        if key == "record" {
+            self.check_fixture_typed_entry(
+                cx,
+                key_node,
+                value,
+                ResolvedType::Record {
+                    symbol: model,
+                    stored: true,
+                },
+                "record",
+            );
+        } else if key == "changes" {
+            match value {
+                Some(changes) if changes.kind == SyntaxKind::Object => {
+                    self.check_fixture_changes(cx, model, changes);
+                }
+                _ => {
+                    self.diags.push(Diagnostic::error(
+                        "E3015",
+                        "changes= must be an object of field updates".to_string(),
+                        tight_span(cx.text, key_node),
+                    ));
+                    self.entry_value(cx, key_node, value, None);
+                }
+            }
+        } else {
+            self.diags.push(Diagnostic::error(
+                "E3015",
+                format!("unknown request input '{key}'; update takes record= and changes="),
+                tight_span(cx.text, key_node),
+            ));
+            self.entry_value(cx, key_node, value, None);
+        }
+    }
+
+    /// Check one `delete` request entry: only `record=`.
+    fn check_fixture_delete_entry(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        model: SymbolId,
+        key: &str,
+        key_node: &SyntaxNode,
+        value: Option<&SyntaxNode>,
+    ) {
+        if key == "record" {
+            self.check_fixture_typed_entry(
+                cx,
+                key_node,
+                value,
+                ResolvedType::Record {
+                    symbol: model,
+                    stored: true,
+                },
+                "record",
+            );
+        } else {
+            self.diags.push(Diagnostic::error(
+                "E3015",
+                format!("unknown request input '{key}'; delete takes record="),
+                tight_span(cx.text, key_node),
+            ));
+            self.entry_value(cx, key_node, value, None);
+        }
+    }
+
+    /// Check request completeness: required create fields, update's
+    /// record and changes, delete's record.
+    fn check_fixture_request_complete(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        model: SymbolId,
+        op_kind: CrudOp,
+        request: &SyntaxNode,
+        seen: &[String],
+    ) {
         match op_kind {
             CrudOp::Create => {
                 for field in self.model_fields(model) {
@@ -12129,6 +13083,24 @@ enum DeclKey {
 fn decl_key_of_binding(binding: &Binding, spelling: &str) -> DeclKey {
     match binding {
         Binding::Symbol(id) => DeclKey::Symbol(*id),
+        Binding::Let { .. }
+        | Binding::QueryAlias { .. }
+        | Binding::ForItem { .. }
+        | Binding::CohortChild { .. }
+        | Binding::CreateAs { .. }
+        | Binding::CallAs { .. }
+        | Binding::SendAs { .. }
+        | Binding::RouteParam { .. } => node_binding_decl_key(binding),
+        Binding::Context(context) => context_decl_key(context),
+        Binding::Builtin { .. }
+        | Binding::Predicate
+        | Binding::External { .. }
+        | Binding::Error => DeclKey::Unresolved(spelling.to_string()),
+    }
+}
+
+fn node_binding_decl_key(binding: &Binding) -> DeclKey {
+    match binding {
         Binding::Let { node } => DeclKey::Let(*node),
         Binding::QueryAlias { node } => DeclKey::QueryAlias(*node),
         Binding::ForItem { node } => DeclKey::ForItem(*node),
@@ -12137,19 +13109,23 @@ fn decl_key_of_binding(binding: &Binding, spelling: &str) -> DeclKey {
         Binding::CallAs { node } => DeclKey::CallAs(*node),
         Binding::SendAs { node } => DeclKey::SendAs(*node),
         Binding::RouteParam { node } => DeclKey::RouteParam(*node),
-        Binding::Context(ContextVar::Actor(_)) => DeclKey::CtxActor,
-        Binding::Context(ContextVar::Team) => DeclKey::CtxTeam,
-        Binding::Context(ContextVar::Now) => DeclKey::CtxNow,
-        Binding::Context(ContextVar::Operation) => DeclKey::CtxOperation,
-        Binding::Context(ContextVar::Event) => DeclKey::CtxEvent,
-        Binding::Context(ContextVar::RowModel(model)) => DeclKey::CtxRowModel(*model),
-        Binding::Context(ContextVar::RowQuery { node }) => DeclKey::CtxRowQuery(*node),
-        Binding::Context(ContextVar::Parent { model }) => DeclKey::CtxParent(*model),
-        Binding::Context(ContextVar::Preferences { module }) => DeclKey::CtxPreferences(*module),
-        Binding::Context(ContextVar::Result { scenario, crud_op }) => {
-            DeclKey::CtxResult(*scenario, *crud_op)
-        }
-        Binding::Context(ContextVar::TestAccount(account)) => {
+        _ => unreachable!("node_binding_decl_key takes only node-carrying bindings"),
+    }
+}
+
+fn context_decl_key(context: &ContextVar) -> DeclKey {
+    match context {
+        ContextVar::Actor(_) => DeclKey::CtxActor,
+        ContextVar::Team => DeclKey::CtxTeam,
+        ContextVar::Now => DeclKey::CtxNow,
+        ContextVar::Operation => DeclKey::CtxOperation,
+        ContextVar::Event => DeclKey::CtxEvent,
+        ContextVar::RowModel(model) => DeclKey::CtxRowModel(*model),
+        ContextVar::RowQuery { node } => DeclKey::CtxRowQuery(*node),
+        ContextVar::Parent { model } => DeclKey::CtxParent(*model),
+        ContextVar::Preferences { module } => DeclKey::CtxPreferences(*module),
+        ContextVar::Result { scenario, crud_op } => DeclKey::CtxResult(*scenario, *crud_op),
+        ContextVar::TestAccount(account) => {
             let slot = match account {
                 super::resolve::TestAccount::Slf => 0,
                 super::resolve::TestAccount::Other => 1,
@@ -12157,10 +13133,6 @@ fn decl_key_of_binding(binding: &Binding, spelling: &str) -> DeclKey {
             };
             DeclKey::CtxTestAccount(slot)
         }
-        Binding::Builtin { .. }
-        | Binding::Predicate
-        | Binding::External { .. }
-        | Binding::Error => DeclKey::Unresolved(spelling.to_string()),
     }
 }
 
@@ -12275,6 +13247,24 @@ struct Typer<'a> {
     strict_purity_roots: Vec<SyntaxNode>,
     membership_derive_bodies: HashMap<SymbolId, SyntaxNode>,
     membership_page_guards: HashSet<NodeKey>,
+}
+
+/// Peel single-expression `Group` wrappers (at most 64 deep).
+fn ungroup(mut current: &SyntaxNode) -> Option<&SyntaxNode> {
+    for _ in 0..64 {
+        if current.kind != SyntaxKind::Group {
+            return Some(current);
+        }
+        let mut children = current
+            .children
+            .iter()
+            .filter(|child| is_expression(child.kind));
+        current = children.next()?;
+        if children.next().is_some() {
+            return None;
+        }
+    }
+    None
 }
 
 impl<'a> Typer<'a> {
@@ -12465,6 +13455,23 @@ enum FieldModifier<'n> {
     Max(&'n SyntaxNode),
 }
 
+/// One `min`/`max`/flag modifier word of a field, if `part` names one.
+fn field_modifier<'n>(part: &'n SyntaxNode, text: &str) -> Option<FieldModifier<'n>> {
+    if is_name(part, text, "trim") {
+        Some(FieldModifier::Trim(part))
+    } else if is_name(part, text, "unique") {
+        Some(FieldModifier::Unique(part))
+    } else if is_name(part, text, "machine") {
+        Some(FieldModifier::Machine(part))
+    } else if is_name(part, text, "min") {
+        Some(FieldModifier::Min(part))
+    } else if is_name(part, text, "max") {
+        Some(FieldModifier::Max(part))
+    } else {
+        None
+    }
+}
+
 /// Read the shape of a `Field`/`Parameter` node: `name : type
 /// [= default] [server = expr] [modifiers] [label = caption] [!]`.
 /// Duplicate attributes are the parser's (`E1202`); unknown words are
@@ -12515,16 +13522,8 @@ fn field_parts<'n>(node: &'n SyntaxNode, text: &str) -> FieldParts<'n> {
             if let Some(value) = children.get(i + 2) {
                 parts.label = Some(*value);
             }
-        } else if is_name(part, text, "trim") {
-            parts.modifiers.push(FieldModifier::Trim(part));
-        } else if is_name(part, text, "unique") {
-            parts.modifiers.push(FieldModifier::Unique(part));
-        } else if is_name(part, text, "machine") {
-            parts.modifiers.push(FieldModifier::Machine(part));
-        } else if is_name(part, text, "min") {
-            parts.modifiers.push(FieldModifier::Min(part));
-        } else if is_name(part, text, "max") {
-            parts.modifiers.push(FieldModifier::Max(part));
+        } else if let Some(modifier) = field_modifier(part, text) {
+            parts.modifiers.push(modifier);
         }
         i += 1;
     }
@@ -12691,41 +13690,10 @@ impl<'a> Typer<'a> {
     fn phase1_given(&mut self, file: SourceId, text: &str, module: ModuleId, node: &SyntaxNode) {
         match node.kind {
             SyntaxKind::Model | SyntaxKind::Contract | SyntaxKind::Event => {
-                let head = match node.kind {
-                    SyntaxKind::Model => "model",
-                    SyntaxKind::Contract => "contract",
-                    _ => "event",
-                };
-                if let Some(owner) = self.decl_symbol(module, text, node, &["export", head]) {
-                    for field in node.children.iter().filter(|c| c.kind == SyntaxKind::Field) {
-                        self.phase1_field(file, text, module, owner, field);
-                    }
-                }
+                self.phase1_record(file, text, module, node);
             }
             SyntaxKind::Capability => {
-                if let Some(cap) = self.decl_symbol(module, text, node, &["export", "capability"]) {
-                    for child in node.children.iter().filter(|c| {
-                        matches!(c.kind, SyntaxKind::CapabilityOp | SyntaxKind::Event)
-                            && !has_error(c)
-                    }) {
-                        if child.kind == SyntaxKind::CapabilityOp {
-                            if let Some(op) = self.member_symbol(cap, text, child) {
-                                self.phase1_params(file, text, module, op, child);
-                                let result = arrow_result(child)
-                                    .map(|t| self.resolve_type_node(file, text, module, t, None));
-                                self.results.insert(op, result);
-                            }
-                        } else if let Some(event) = self.member_symbol(cap, text, child) {
-                            for field in child
-                                .children
-                                .iter()
-                                .filter(|c| c.kind == SyntaxKind::Field)
-                            {
-                                self.phase1_field(file, text, module, event, field);
-                            }
-                        }
-                    }
-                }
+                self.phase1_capability(file, text, module, node);
             }
             SyntaxKind::Message => {
                 if let Some(message) = self.decl_symbol(module, text, node, &["export", "message"])
@@ -12734,53 +13702,113 @@ impl<'a> Typer<'a> {
                 }
             }
             SyntaxKind::Derive => {
-                let parts = kids(node);
-                let is_function = parts.iter().any(|n| is_punct(n, text, "("));
-                if is_function {
-                    let name = parts
-                        .iter()
-                        .find(|n| n.kind == SyntaxKind::Path)
-                        .map(|p| path_segments(p, text).join("."))
-                        .unwrap_or_default();
-                    if let Some(id) = self.prod_symbol(module, &name) {
-                        self.phase1_params(file, text, module, id, node);
-                        // Derived functions spell the result `: type`.
-                        let mut result = None;
-                        for i in 0..parts.len() {
-                            if is_punct(parts[i], text, ":")
-                                && let Some(next) = parts.get(i + 1)
-                                && is_type_node(next.kind)
-                            {
-                                result =
-                                    Some(self.resolve_type_node(file, text, module, next, None));
-                            }
-                        }
-                        self.results.insert(id, result);
+                self.phase1_derive(file, text, module, node);
+            }
+            _ => {}
+        }
+    }
+
+    fn phase1_record(&mut self, file: SourceId, text: &str, module: ModuleId, node: &SyntaxNode) {
+        let head = match node.kind {
+            SyntaxKind::Model => "model",
+            SyntaxKind::Contract => "contract",
+            _ => "event",
+        };
+        if let Some(owner) = self.decl_symbol(module, text, node, &["export", head]) {
+            for field in node.children.iter().filter(|c| c.kind == SyntaxKind::Field) {
+                self.phase1_field(file, text, module, owner, field);
+            }
+        }
+    }
+
+    fn phase1_capability(
+        &mut self,
+        file: SourceId,
+        text: &str,
+        module: ModuleId,
+        node: &SyntaxNode,
+    ) {
+        if let Some(cap) = self.decl_symbol(module, text, node, &["export", "capability"]) {
+            for child in node.children.iter().filter(|c| {
+                matches!(c.kind, SyntaxKind::CapabilityOp | SyntaxKind::Event)
+                    && !has_error(c)
+            }) {
+                if child.kind == SyntaxKind::CapabilityOp {
+                    if let Some(op) = self.member_symbol(cap, text, child) {
+                        self.phase1_params(file, text, module, op, child);
+                        let result = arrow_result(child)
+                            .map(|t| self.resolve_type_node(file, text, module, t, None));
+                        self.results.insert(op, result);
                     }
-                } else if let Some(path) = parts.iter().find(|n| n.kind == SyntaxKind::Path) {
-                    // Derived field: owner is the model symbol; the
-                    // DeriveField symbol carries the type node.
-                    let segments = path_segments(path, text);
-                    if segments.len() == 2
-                        && let Some(model) = self.prod_symbol(module, segments[0])
+                } else if let Some(event) = self.member_symbol(cap, text, child) {
+                    for field in child
+                        .children
+                        .iter()
+                        .filter(|c| c.kind == SyntaxKind::Field)
                     {
-                        let field_name = segments[1].to_string();
-                        let found = self.tables.symbols[model.0 as usize]
-                            .fields_of()
-                            .iter()
-                            .find(|f| self.tables.symbols[f.0 as usize].name == field_name)
-                            .copied();
-                        if let Some(field) = found
-                            && let Some(ty) = parts.iter().find(|n| is_type_node(n.kind))
-                        {
-                            let resolved =
-                                self.resolve_type_node(file, text, module, ty, Some(field));
-                            self.decl.insert(field, resolved);
-                        }
+                        self.phase1_field(file, text, module, event, field);
                     }
                 }
             }
-            _ => {}
+        }
+    }
+
+    fn phase1_derive(&mut self, file: SourceId, text: &str, module: ModuleId, node: &SyntaxNode) {
+        let parts = kids(node);
+        let is_function = parts.iter().any(|n| is_punct(n, text, "("));
+        if is_function {
+            self.phase1_derive_function(file, text, module, node, &parts);
+        } else if let Some(path) = parts.iter().find(|n| n.kind == SyntaxKind::Path) {
+            // Derived field: owner is the model symbol; the
+            // DeriveField symbol carries the type node.
+            let segments = path_segments(path, text);
+            if segments.len() == 2
+                && let Some(model) = self.prod_symbol(module, segments[0])
+            {
+                let field_name = segments[1].to_string();
+                let found = self.tables.symbols[model.0 as usize]
+                    .fields_of()
+                    .iter()
+                    .find(|f| self.tables.symbols[f.0 as usize].name == field_name)
+                    .copied();
+                if let Some(field) = found
+                    && let Some(ty) = parts.iter().find(|n| is_type_node(n.kind))
+                {
+                    let resolved =
+                        self.resolve_type_node(file, text, module, ty, Some(field));
+                    self.decl.insert(field, resolved);
+                }
+            }
+        }
+    }
+
+    fn phase1_derive_function(
+        &mut self,
+        file: SourceId,
+        text: &str,
+        module: ModuleId,
+        node: &SyntaxNode,
+        parts: &[&SyntaxNode],
+    ) {
+        let name = parts
+            .iter()
+            .find(|n| n.kind == SyntaxKind::Path)
+            .map(|p| path_segments(p, text).join("."))
+            .unwrap_or_default();
+        if let Some(id) = self.prod_symbol(module, &name) {
+            self.phase1_params(file, text, module, id, node);
+            // Derived functions spell the result `: type`.
+            let mut result = None;
+            for i in 0..parts.len() {
+                if is_punct(parts[i], text, ":")
+                    && let Some(next) = parts.get(i + 1)
+                    && is_type_node(next.kind)
+                {
+                    result =
+                        Some(self.resolve_type_node(file, text, module, next, None));
+                }
+            }
+            self.results.insert(id, result);
         }
     }
 
@@ -13079,90 +14107,120 @@ impl<'a> Typer<'a> {
                 }
             }
             SyntaxKind::NullableType => {
-                let inner = kids(node)
-                    .iter()
-                    .find(|n| is_type_node(n.kind))
-                    .map(|t| self.resolve_type_node(file, text, module, t, owner))
-                    .unwrap_or(ResolvedType::Error);
-                match inner {
-                    ResolvedType::Error | ResolvedType::Opaque(_) => inner,
-                    ResolvedType::Nullable(_) => {
-                        self.diags.push(Diagnostic::error(
-                            "E3008",
-                            format!(
-                                "type '{}' is already nullable; `?` applies once",
-                                self.show(module, &inner)
-                            ),
-                            tight_span(text, node),
-                        ));
-                        ResolvedType::Error
-                    }
-                    other => ResolvedType::Nullable(Box::new(other)),
-                }
+                self.resolve_nullable_type(file, text, module, node, owner)
             }
             SyntaxKind::ArrayType => {
-                let inner = kids(node)
-                    .iter()
-                    .find(|n| is_type_node(n.kind))
-                    .map(|t| self.resolve_type_node(file, text, module, t, owner))
-                    .unwrap_or(ResolvedType::Error);
-                // Scalar alias bounds belong to each element. The alias
-                // retains them; outer field bounds describe array length.
-                if matches!(inner, ResolvedType::Scalar(_))
-                    && let Some(owner) = owner
-                    && let Some(constraints) = self.types.value_constraints.get_mut(&owner)
-                    && constraints.alias.is_some()
-                {
-                    constraints.min = None;
-                    constraints.max = None;
-                    constraints.format = None;
-                }
-                match inner {
-                    ResolvedType::Error | ResolvedType::Opaque(_) => inner,
-                    ResolvedType::Array { .. } => {
-                        self.diags.push(Diagnostic::error(
-                            "E3008",
-                            "nested arrays are not permitted; use one `[]` suffix".to_string(),
-                            tight_span(text, node),
-                        ));
-                        ResolvedType::Error
-                    }
-                    ResolvedType::Nullable(_) => {
-                        self.diags.push(Diagnostic::error(
-                            "E3008",
-                            "nullable array elements are not permitted".to_string(),
-                            tight_span(text, node),
-                        ));
-                        ResolvedType::Error
-                    }
-                    other => ResolvedType::Array {
-                        element: Box::new(other),
-                        // Every array value is ordered (authored
-                        // order, `created,id`, or encounter order);
-                        // only the nonempty proof is literal-based.
-                        ordered: true,
-                        nonempty: false,
-                    },
-                }
+                self.resolve_array_type(file, text, module, node, owner)
             }
             SyntaxKind::UnionType => self.resolve_union(file, text, module, node),
             SyntaxKind::EnumType => {
-                let mut cases = Vec::new();
-                for child in kids(node) {
-                    if child.kind != SyntaxKind::Path {
-                        continue;
-                    }
-                    for case in path_segments(child, text) {
-                        cases.push(case.to_string());
-                    }
-                }
-                ResolvedType::Enum { cases, owner }
+                Self::resolve_enum_type_node(node, text, owner)
             }
             SyntaxKind::ActionType => self.resolve_action(file, text, module, node),
             SyntaxKind::DeliveryType => self.resolve_delivery(file, text, module, node),
             SyntaxKind::InvocationType => self.resolve_invocation(file, text, module, node),
             _ => ResolvedType::Error,
         }
+    }
+
+    fn resolve_nullable_type(
+        &mut self,
+        file: SourceId,
+        text: &str,
+        module: ModuleId,
+        node: &SyntaxNode,
+        owner: Option<SymbolId>,
+    ) -> ResolvedType {
+        let inner = kids(node)
+            .iter()
+            .find(|n| is_type_node(n.kind))
+            .map(|t| self.resolve_type_node(file, text, module, t, owner))
+            .unwrap_or(ResolvedType::Error);
+        match inner {
+            ResolvedType::Error | ResolvedType::Opaque(_) => inner,
+            ResolvedType::Nullable(_) => {
+                self.diags.push(Diagnostic::error(
+                    "E3008",
+                    format!(
+                        "type '{}' is already nullable; `?` applies once",
+                        self.show(module, &inner)
+                    ),
+                    tight_span(text, node),
+                ));
+                ResolvedType::Error
+            }
+            other => ResolvedType::Nullable(Box::new(other)),
+        }
+    }
+
+    fn resolve_array_type(
+        &mut self,
+        file: SourceId,
+        text: &str,
+        module: ModuleId,
+        node: &SyntaxNode,
+        owner: Option<SymbolId>,
+    ) -> ResolvedType {
+        let inner = kids(node)
+            .iter()
+            .find(|n| is_type_node(n.kind))
+            .map(|t| self.resolve_type_node(file, text, module, t, owner))
+            .unwrap_or(ResolvedType::Error);
+        // Scalar alias bounds belong to each element. The alias
+        // retains them; outer field bounds describe array length.
+        if matches!(inner, ResolvedType::Scalar(_))
+            && let Some(owner) = owner
+            && let Some(constraints) = self.types.value_constraints.get_mut(&owner)
+            && constraints.alias.is_some()
+        {
+            constraints.min = None;
+            constraints.max = None;
+            constraints.format = None;
+        }
+        match inner {
+            ResolvedType::Error | ResolvedType::Opaque(_) => inner,
+            ResolvedType::Array { .. } => {
+                self.diags.push(Diagnostic::error(
+                    "E3008",
+                    "nested arrays are not permitted; use one `[]` suffix".to_string(),
+                    tight_span(text, node),
+                ));
+                ResolvedType::Error
+            }
+            ResolvedType::Nullable(_) => {
+                self.diags.push(Diagnostic::error(
+                    "E3008",
+                    "nullable array elements are not permitted".to_string(),
+                    tight_span(text, node),
+                ));
+                ResolvedType::Error
+            }
+            other => ResolvedType::Array {
+                element: Box::new(other),
+                // Every array value is ordered (authored
+                // order, `created,id`, or encounter order);
+                // only the nonempty proof is literal-based.
+                ordered: true,
+                nonempty: false,
+            },
+        }
+    }
+
+    fn resolve_enum_type_node(
+        node: &SyntaxNode,
+        text: &str,
+        owner: Option<SymbolId>,
+    ) -> ResolvedType {
+        let mut cases = Vec::new();
+        for child in kids(node) {
+            if child.kind != SyntaxKind::Path {
+                continue;
+            }
+            for case in path_segments(child, text) {
+                cases.push(case.to_string());
+            }
+        }
+        ResolvedType::Enum { cases, owner }
     }
 
     /// Resolve a `NamedType` path via the resolver's [`TypeRef`].
@@ -13963,6 +15021,9 @@ impl<'a> Typer<'a> {
             (ResolvedType::Nullable(a), ResolvedType::Nullable(b)) => self.types_compatible(a, b),
             (_, ResolvedType::Nullable(b)) => self.types_compatible(actual, b),
             (ResolvedType::Scalar(a), ResolvedType::Scalar(b)) => a == b,
+            (ResolvedType::Message(a), ResolvedType::Message(b)) => a == b,
+            (ResolvedType::Delivery { op: a }, ResolvedType::Delivery { op: b }) => a == b,
+            (ResolvedType::Operation(a), ResolvedType::Operation(b)) => a == b,
             (ResolvedType::Team, ResolvedType::Team)
             | (ResolvedType::OperationContext, ResolvedType::OperationContext) => true,
             (
@@ -13974,17 +15035,7 @@ impl<'a> Typer<'a> {
                     cases: bc,
                     owner: bo,
                 },
-            ) => {
-                ao == bo
-                    && (ao.is_some()
-                        || ac == bc
-                        // A terminal completion outcome fits its owning
-                        // receipt status. This exact std relation is one-way;
-                        // named enum identity and other anonymous sets stay strict.
-                        || (ao.is_none()
-                            && *actual == completion_status_type()
-                            && *expected == delivery_status_type()))
-            }
+            ) => Self::enums_compatible(actual, expected, ac, ao, bc, bo),
             (
                 ResolvedType::Record {
                     symbol: a,
@@ -13994,21 +15045,65 @@ impl<'a> Typer<'a> {
                     symbol: b,
                     stored: sb,
                 },
-            ) => {
-                if a != b {
-                    return false;
-                }
-                // Detached constructs cannot stand in for stored model
-                // rows (no id/version); contracts/events are values.
-                if *sb && !*sa {
-                    return !matches!(
-                        self.tables.symbols[a.0 as usize].kind,
-                        SymbolKind::Model { .. }
-                    );
-                }
-                true
-            }
-            (ResolvedType::Message(a), ResolvedType::Message(b)) => a == b,
+            ) => self.records_compatible(a, *sa, b, *sb),
+            _ => self.types_compatible_composite(actual, expected),
+        }
+    }
+
+    /// Whether two enum shapes are compatible: same owner, same
+    /// anonymous cases, or the one-way completion-to-delivery status
+    /// relation.
+    fn enums_compatible(
+        actual: &ResolvedType,
+        expected: &ResolvedType,
+        ac: &[String],
+        ao: &Option<SymbolId>,
+        bc: &[String],
+        bo: &Option<SymbolId>,
+    ) -> bool {
+        ao == bo
+            && (ao.is_some()
+                || ac == bc
+                // A terminal completion outcome fits its owning
+                // receipt status. This exact std relation is one-way;
+                // named enum identity and other anonymous sets stay strict.
+                || (ao.is_none()
+                    && *actual == completion_status_type()
+                    && *expected == delivery_status_type()))
+    }
+
+    /// Whether two record shapes are compatible: same symbol, and a
+    /// detached construct never stands in for stored model rows.
+    fn records_compatible(
+        &self,
+        a: &SymbolId,
+        sa: bool,
+        b: &SymbolId,
+        sb: bool,
+    ) -> bool {
+        if a != b {
+            return false;
+        }
+        // Detached constructs cannot stand in for stored model
+        // rows (no id/version); contracts/events are values.
+        if sb && !sa {
+            return !matches!(
+                self.tables.symbols[a.0 as usize].kind,
+                SymbolKind::Model { .. }
+            );
+        }
+        true
+    }
+
+    /// Whether two composite shapes are compatible: action/invocation
+    /// containment, std-delivery association, structural element, union,
+    /// nominal and object width rules.
+    fn types_compatible_composite(
+        &self,
+        actual: &ResolvedType,
+        expected: &ResolvedType,
+    ) -> bool {
+        match (actual, expected) {
             (
                 ResolvedType::Action {
                     targets: a,
@@ -14024,7 +15119,6 @@ impl<'a> Typer<'a> {
             (ResolvedType::Invocation { targets: a }, ResolvedType::Invocation { targets: b }) => {
                 a.iter().all(|t| b.contains(t))
             }
-            (ResolvedType::Delivery { op: a }, ResolvedType::Delivery { op: b }) => a == b,
             // T14c: same-target std receipts associate; cross-target
             // ones (including local-vs-std, which falls to `_`) are
             // wrong associations and incompatible.
@@ -14053,17 +15147,27 @@ impl<'a> Typer<'a> {
                     fields: bf,
                 },
             ) => a == b && af == bf,
-            (ResolvedType::Object(a), ResolvedType::Object(b)) => b.iter().all(|(k, t)| {
-                match a.iter().find(|(ak, _)| ak == k) {
-                    Some((_, at)) => self.types_compatible(at, t),
-                    // Published std object schemas use nullable fields
-                    // for omissible entries, like contract/event fields.
-                    None => matches!(t, ResolvedType::Nullable(_)),
-                }
-            }),
-            (ResolvedType::Operation(a), ResolvedType::Operation(b)) => a == b,
+            (ResolvedType::Object(a), ResolvedType::Object(b)) => {
+                self.objects_compatible(a, b)
+            }
             _ => false,
         }
+    }
+
+    /// Whether object `actual` covers object `expected`: every expected
+    /// entry is present and compatible; missing entries must be
+    /// nullable (omissible, like contract/event fields).
+    fn objects_compatible(
+        &self,
+        a: &[(String, ResolvedType)],
+        b: &[(String, ResolvedType)],
+    ) -> bool {
+        b.iter().all(|(k, t)| match a.iter().find(|(ak, _)| ak == k) {
+            Some((_, at)) => self.types_compatible(at, t),
+            // Published std object schemas use nullable fields
+            // for omissible entries, like contract/event fields.
+            None => matches!(t, ResolvedType::Nullable(_)),
+        })
     }
 
     /// Whether `actual` fits a `bool` slot (`E3007` otherwise).
@@ -14111,28 +15215,7 @@ impl<'a> Typer<'a> {
                 // `decimalFromInteger`). Only this literal arm (plus `-` and
                 // groups forwarding the expectation) inhabits decimal, so
                 // int-typed variables and computed values never coerce.
-                if expect.is_some_and(decimal_expectation) {
-                    if cx.strict
-                        && let Some(problem) = integral_decimal_range(slice)
-                    {
-                        self.diags.push(Diagnostic::error(
-                            "E3001",
-                            format!("integer literal `{slice}` {problem}"),
-                            tight_span(cx.text, node),
-                        ));
-                        return ResolvedType::Error;
-                    }
-                    return ResolvedType::Scalar(Scalar::Decimal);
-                }
-                if cx.strict && slice.parse::<i64>().is_err() {
-                    self.diags.push(Diagnostic::error(
-                        "E3001",
-                        format!("integer literal `{slice}` overflows int64"),
-                        tight_span(cx.text, node),
-                    ));
-                    return ResolvedType::Error;
-                }
-                ResolvedType::Scalar(Scalar::Int)
+                return self.type_integer_literal(cx, node, slice, expect);
             }
             SyntaxKind::Decimal => {
                 if cx.strict
@@ -14170,32 +15253,7 @@ impl<'a> Typer<'a> {
                 ResolvedType::Scalar(Scalar::Bytes)
             }
             SyntaxKind::String => {
-                let Some(value) = string_literal_value(node) else {
-                    return ResolvedType::Error;
-                };
-                if let Some(expected) = expect {
-                    let unwrapped = match expected {
-                        ResolvedType::Nullable(inner) => inner.as_ref(),
-                        other => other,
-                    };
-                    if let ResolvedType::Scalar(s) = unwrapped
-                        && s.is_string_like()
-                        && *s != Scalar::Text
-                    {
-                        if cx.strict
-                            && let Some(problem) = validated_shape(*s, &value)
-                        {
-                            self.diags.push(Diagnostic::error(
-                                "E3001",
-                                format!("`{value}` is not a valid {}: {problem}", s.as_str()),
-                                tight_span(cx.text, node),
-                            ));
-                            return ResolvedType::Error;
-                        }
-                        return ResolvedType::Scalar(*s);
-                    }
-                }
-                ResolvedType::Scalar(Scalar::Text)
+                return self.type_string_literal(cx, node, expect);
             }
             SyntaxKind::Name => match slice {
                 "true" | "false" => ResolvedType::Scalar(Scalar::Bool),
@@ -14204,6 +15262,71 @@ impl<'a> Typer<'a> {
             },
             _ => ResolvedType::Error,
         }
+    }
+
+    fn type_integer_literal(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        node: &SyntaxNode,
+        slice: &str,
+        expect: Option<&ResolvedType>,
+    ) -> ResolvedType {
+        if expect.is_some_and(decimal_expectation) {
+            if cx.strict
+                && let Some(problem) = integral_decimal_range(slice)
+            {
+                self.diags.push(Diagnostic::error(
+                    "E3001",
+                    format!("integer literal `{slice}` {problem}"),
+                    tight_span(cx.text, node),
+                ));
+                return ResolvedType::Error;
+            }
+            return ResolvedType::Scalar(Scalar::Decimal);
+        }
+        if cx.strict && slice.parse::<i64>().is_err() {
+            self.diags.push(Diagnostic::error(
+                "E3001",
+                format!("integer literal `{slice}` overflows int64"),
+                tight_span(cx.text, node),
+            ));
+            return ResolvedType::Error;
+        }
+        ResolvedType::Scalar(Scalar::Int)
+    }
+
+    fn type_string_literal(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        node: &SyntaxNode,
+        expect: Option<&ResolvedType>,
+    ) -> ResolvedType {
+        let Some(value) = string_literal_value(node) else {
+            return ResolvedType::Error;
+        };
+        if let Some(expected) = expect {
+            let unwrapped = match expected {
+                ResolvedType::Nullable(inner) => inner.as_ref(),
+                other => other,
+            };
+            if let ResolvedType::Scalar(s) = unwrapped
+                && s.is_string_like()
+                && *s != Scalar::Text
+            {
+                if cx.strict
+                    && let Some(problem) = validated_shape(*s, &value)
+                {
+                    self.diags.push(Diagnostic::error(
+                        "E3001",
+                        format!("`{value}` is not a valid {}: {problem}", s.as_str()),
+                        tight_span(cx.text, node),
+                    ));
+                    return ResolvedType::Error;
+                }
+                return ResolvedType::Scalar(*s);
+            }
+        }
+        ResolvedType::Scalar(Scalar::Text)
     }
 
     /// Type a `NameRef`: lexical bindings first (a bound name never
@@ -14417,24 +15540,7 @@ impl<'a> Typer<'a> {
             SymbolKind::Field { .. }
             | SymbolKind::Param { .. }
             | SymbolKind::DeriveField { .. } => self.decl_type(id),
-            SymbolKind::Fixture { target } => match target {
-                FixtureTarget::Model(model) => ResolvedType::Record {
-                    symbol: *model,
-                    stored: true,
-                },
-                FixtureTarget::User => ResolvedType::Scalar(Scalar::User),
-                FixtureTarget::File => ResolvedType::Scalar(Scalar::File),
-                FixtureTarget::Operation(Some(op))
-                    if matches!(
-                        self.tables.symbols[op.0 as usize].kind,
-                        SymbolKind::CapabilityOp { .. }
-                    ) =>
-                {
-                    ResolvedType::Delivery { op: *op }
-                }
-                FixtureTarget::Operation(_) => ResolvedType::Opaque("operation fixture"),
-                FixtureTarget::Unknown => ResolvedType::Error,
-            },
+            SymbolKind::Fixture { target } => Self::fixture_value_type(self.tables, *target),
             SymbolKind::DeriveFn { .. } => {
                 if cx.strict {
                     self.diags.push(Diagnostic::error(
@@ -14461,6 +15567,28 @@ impl<'a> Typer<'a> {
                 }
                 ResolvedType::Error
             }
+        }
+    }
+
+    /// Value type of a fixture recipe target.
+    fn fixture_value_type(tables: &ResolveTables, target: FixtureTarget) -> ResolvedType {
+        match target {
+            FixtureTarget::Model(model) => ResolvedType::Record {
+                symbol: model,
+                stored: true,
+            },
+            FixtureTarget::User => ResolvedType::Scalar(Scalar::User),
+            FixtureTarget::File => ResolvedType::Scalar(Scalar::File),
+            FixtureTarget::Operation(Some(op))
+                if matches!(
+                    tables.symbols[op.0 as usize].kind,
+                    SymbolKind::CapabilityOp { .. }
+                ) =>
+            {
+                ResolvedType::Delivery { op }
+            }
+            FixtureTarget::Operation(_) => ResolvedType::Opaque("operation fixture"),
+            FixtureTarget::Unknown => ResolvedType::Error,
         }
     }
 
@@ -14537,96 +15665,12 @@ impl<'a> Typer<'a> {
         };
         // An explicit case is a checked declaration path, never a runtime
         // field read. Resolve the root through the ordinary lexical binding.
-        if !safe && receiver.kind == SyntaxKind::Member {
-            let field_parts = kids(receiver);
-            if field_parts.len() == 3
-                && is_punct(field_parts[1], cx.text, ".")
-                && let Some(owner) = self.symbol_receiver(cx, field_parts[0])
-                && matches!(
-                    self.tables.symbols[owner.0 as usize].kind,
-                    SymbolKind::Model { .. } | SymbolKind::Contract { .. }
-                )
-                && let Some(field_name) = name_text(field_parts[2], cx.text)
-            {
-                let Some(field) = self.record_field_named(owner, field_name) else {
-                    self.unknown_member(
-                        cx,
-                        receiver,
-                        field_parts[2],
-                        field_name,
-                        "enum case owner",
-                    );
-                    return ResolvedType::Error;
-                };
-                let ty = self.decl_type(field);
-                let ResolvedType::Enum { cases, .. } = &ty else {
-                    self.unknown_member(
-                        cx,
-                        node,
-                        name_node,
-                        name,
-                        "singular nonnullable enum field",
-                    );
-                    return ResolvedType::Error;
-                };
-                if !cases.iter().any(|case| case == name) {
-                    self.unknown_member(cx, node, name_node, name, "enum field");
-                    return ResolvedType::Error;
-                }
-                self.types.resolved_cases.insert(NodeKey::of(node));
-                return ty;
-            }
+        if let Some(ty) = self.type_enum_case_member(cx, node, receiver, name_node, name, safe)
+        {
+            return ty;
         }
         if name == "callback_diagnostics" {
-            let base = self.expr(cx, receiver, None);
-            if matches!(base, ResolvedType::Error | ResolvedType::Null) {
-                return self.member_on(cx, node, name_node, name, &base, safe);
-            }
-            let source = if receiver.kind == SyntaxKind::Member {
-                let receipt_parts = kids(receiver);
-                receipt_parts
-                    .first()
-                    .and_then(|record| self.types.node_types.get(&NodeKey::of(record)))
-                    .and_then(|ty| match ty.nullable_inner().unwrap_or(ty) {
-                        ResolvedType::Record {
-                            symbol,
-                            stored: true,
-                        } => Some(*symbol),
-                        _ => None,
-                    })
-                    .and_then(|model| {
-                        receipt_parts
-                            .get(2)
-                            .and_then(|field_name| name_text(field_name, cx.text))
-                            .and_then(|field_name| self.model_field_named(model, field_name))
-                    })
-                    .and_then(|field| self.types.callback_diagnostic_sources.get(&field).cloned())
-            } else {
-                None
-            };
-            if let Some(source) = source {
-                if matches!(base, ResolvedType::Nullable(_)) && !safe {
-                    return self.member_on(cx, node, name_node, name, &base, safe);
-                }
-                let ty = if matches!(base, ResolvedType::Nullable(_)) {
-                    ResolvedType::Nullable(Box::new(callback_diagnostic_result(None)))
-                } else {
-                    callback_diagnostic_result(None)
-                };
-                let field_name = &self.tables.symbols[source.field.0 as usize].name;
-                self.types.callback_diagnostic_reads.insert(
-                    NodeKey::of(node),
-                    CheckedGenerationCallbackObservation {
-                        node: NodeKey::of(node),
-                        path: format!("{field_name}.callback_diagnostics"),
-                        source,
-                        ty: Some(ty.clone()),
-                    },
-                );
-                return ty;
-            }
-            self.unknown_member(cx, node, name_node, name, "checked generation association");
-            return ResolvedType::Error;
+            return self.type_callback_diagnostics(cx, node, receiver, name_node, name, safe);
         }
         // Narrowed chain (safe-access/`is` continuation): the whole
         // chain proven a type is that type; otherwise a narrowed
@@ -14646,66 +15690,8 @@ impl<'a> Typer<'a> {
             return self.member_on(cx, node, name_node, name, &narrowed, safe);
         }
         // Model/capability symbol receivers (operations, not fields).
-        if let Some(id) = self.symbol_receiver(cx, receiver) {
-            if self.tables.judgments.contains(&id) {
-                if let Some(judgment) = self.tables.judgment_declarations.get(&id) {
-                    if !safe && name == "evaluate" {
-                        return ResolvedType::Operation(judgment.evaluate);
-                    }
-                    if !safe && name == "specification" {
-                        if let Some(function) = judgment.specification {
-                            return ResolvedType::Operation(function);
-                        }
-                        if let Some(symbol) = self
-                            .tables
-                            .judgment_standard_records
-                            .get("JudgmentSpec")
-                            .copied()
-                        {
-                            self.types
-                                .judgment_specifications
-                                .insert(NodeKey::of(node), id);
-                            return ResolvedType::Record {
-                                symbol,
-                                stored: true,
-                            };
-                        }
-                        self.diags.push(Diagnostic::error("E6006", "static judgment specification requires the consumed std.JudgmentSpec schema".to_string(), tight_span(cx.text, node)));
-                        return ResolvedType::Error;
-                    }
-                }
-                self.member_fail(
-                    node,
-                    name_node.span,
-                    format!("judgment {}", record_name(self.tables, cx.module, id)),
-                    name.to_string(),
-                );
-                return ResolvedType::Error;
-            }
-            let symbol = &self.tables.symbols[id.0 as usize];
-            match &symbol.kind {
-                SymbolKind::Model { .. } => {
-                    return self.model_member(cx, node, name_node, id, name);
-                }
-                SymbolKind::Capability { ops, .. } => {
-                    let ops = ops.clone();
-                    for op in ops {
-                        if self.tables.symbols[op.0 as usize].name == name {
-                            return ResolvedType::Operation(op);
-                        }
-                    }
-                    if cx.strict {
-                        self.member_fail(
-                            node,
-                            name_node.span,
-                            format!("capability {}", record_name(self.tables, cx.module, id)),
-                            name.to_string(),
-                        );
-                    }
-                    return ResolvedType::Error;
-                }
-                _ => {}
-            }
+        if let Some(ty) = self.type_symbol_member(cx, node, receiver, name_node, name, safe) {
+            return ty;
         }
         // Hook payload sides (T30/C6): `event.after`/`event.before`
         // in a pre-commit hook carry the hooked model's record. The
@@ -14721,6 +15707,200 @@ impl<'a> Typer<'a> {
         }
         let base = self.expr(cx, receiver, None);
         self.member_on(cx, node, name_node, name, &base, safe)
+    }
+
+    fn type_enum_case_member(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        node: &SyntaxNode,
+        receiver: &SyntaxNode,
+        name_node: &SyntaxNode,
+        name: &str,
+        safe: bool,
+    ) -> Option<ResolvedType> {
+        if safe || receiver.kind != SyntaxKind::Member {
+            return None;
+        }
+        let field_parts = kids(receiver);
+        if field_parts.len() == 3
+            && is_punct(field_parts[1], cx.text, ".")
+            && let Some(owner) = self.symbol_receiver(cx, field_parts[0])
+            && matches!(
+                self.tables.symbols[owner.0 as usize].kind,
+                SymbolKind::Model { .. } | SymbolKind::Contract { .. }
+            )
+            && let Some(field_name) = name_text(field_parts[2], cx.text)
+        {
+            let Some(field) = self.record_field_named(owner, field_name) else {
+                self.unknown_member(
+                    cx,
+                    receiver,
+                    field_parts[2],
+                    field_name,
+                    "enum case owner",
+                );
+                return Some(ResolvedType::Error);
+            };
+            let ty = self.decl_type(field);
+            let ResolvedType::Enum { cases, .. } = &ty else {
+                self.unknown_member(
+                    cx,
+                    node,
+                    name_node,
+                    name,
+                    "singular nonnullable enum field",
+                );
+                return Some(ResolvedType::Error);
+            };
+            if !cases.iter().any(|case| case == name) {
+                self.unknown_member(cx, node, name_node, name, "enum field");
+                return Some(ResolvedType::Error);
+            }
+            self.types.resolved_cases.insert(NodeKey::of(node));
+            return Some(ty);
+        }
+        None
+    }
+
+    fn type_callback_diagnostics(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        node: &SyntaxNode,
+        receiver: &SyntaxNode,
+        name_node: &SyntaxNode,
+        name: &str,
+        safe: bool,
+    ) -> ResolvedType {
+        let base = self.expr(cx, receiver, None);
+        if matches!(base, ResolvedType::Error | ResolvedType::Null) {
+            return self.member_on(cx, node, name_node, name, &base, safe);
+        }
+        let source = if receiver.kind == SyntaxKind::Member {
+            let receipt_parts = kids(receiver);
+            receipt_parts
+                .first()
+                .and_then(|record| self.types.node_types.get(&NodeKey::of(record)))
+                .and_then(|ty| match ty.nullable_inner().unwrap_or(ty) {
+                    ResolvedType::Record {
+                        symbol,
+                        stored: true,
+                    } => Some(*symbol),
+                    _ => None,
+                })
+                .and_then(|model| {
+                    receipt_parts
+                        .get(2)
+                        .and_then(|field_name| name_text(field_name, cx.text))
+                        .and_then(|field_name| self.model_field_named(model, field_name))
+                })
+                .and_then(|field| self.types.callback_diagnostic_sources.get(&field).cloned())
+        } else {
+            None
+        };
+        if let Some(source) = source {
+            if matches!(base, ResolvedType::Nullable(_)) && !safe {
+                return self.member_on(cx, node, name_node, name, &base, safe);
+            }
+            let ty = if matches!(base, ResolvedType::Nullable(_)) {
+                ResolvedType::Nullable(Box::new(callback_diagnostic_result(None)))
+            } else {
+                callback_diagnostic_result(None)
+            };
+            let field_name = &self.tables.symbols[source.field.0 as usize].name;
+            self.types.callback_diagnostic_reads.insert(
+                NodeKey::of(node),
+                CheckedGenerationCallbackObservation {
+                    node: NodeKey::of(node),
+                    path: format!("{field_name}.callback_diagnostics"),
+                    source,
+                    ty: Some(ty.clone()),
+                },
+            );
+            return ty;
+        }
+        self.unknown_member(cx, node, name_node, name, "checked generation association");
+        ResolvedType::Error
+    }
+
+    fn type_symbol_member(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        node: &SyntaxNode,
+        receiver: &SyntaxNode,
+        name_node: &SyntaxNode,
+        name: &str,
+        safe: bool,
+    ) -> Option<ResolvedType> {
+        let id = self.symbol_receiver(cx, receiver)?;
+        if self.tables.judgments.contains(&id) {
+            return Some(self.type_judgment_member(cx, node, name_node, name, safe, id));
+        }
+        let symbol = &self.tables.symbols[id.0 as usize];
+        match &symbol.kind {
+            SymbolKind::Model { .. } => Some(self.model_member(cx, node, name_node, id, name)),
+            SymbolKind::Capability { ops, .. } => {
+                let ops = ops.clone();
+                for op in ops {
+                    if self.tables.symbols[op.0 as usize].name == name {
+                        return Some(ResolvedType::Operation(op));
+                    }
+                }
+                if cx.strict {
+                    self.member_fail(
+                        node,
+                        name_node.span,
+                        format!("capability {}", record_name(self.tables, cx.module, id)),
+                        name.to_string(),
+                    );
+                }
+                Some(ResolvedType::Error)
+            }
+            _ => None,
+        }
+    }
+
+    fn type_judgment_member(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        node: &SyntaxNode,
+        name_node: &SyntaxNode,
+        name: &str,
+        safe: bool,
+        id: SymbolId,
+    ) -> ResolvedType {
+        if let Some(judgment) = self.tables.judgment_declarations.get(&id) {
+            if !safe && name == "evaluate" {
+                return ResolvedType::Operation(judgment.evaluate);
+            }
+            if !safe && name == "specification" {
+                if let Some(function) = judgment.specification {
+                    return ResolvedType::Operation(function);
+                }
+                if let Some(symbol) = self
+                    .tables
+                    .judgment_standard_records
+                    .get("JudgmentSpec")
+                    .copied()
+                {
+                    self.types
+                        .judgment_specifications
+                        .insert(NodeKey::of(node), id);
+                    return ResolvedType::Record {
+                        symbol,
+                        stored: true,
+                    };
+                }
+                self.diags.push(Diagnostic::error("E6006", "static judgment specification requires the consumed std.JudgmentSpec schema".to_string(), tight_span(cx.text, node)));
+                return ResolvedType::Error;
+            }
+        }
+        self.member_fail(
+            node,
+            name_node.span,
+            format!("judgment {}", record_name(self.tables, cx.module, id)),
+            name.to_string(),
+        );
+        ResolvedType::Error
     }
 
     /// Member lookup on an already-typed receiver.
@@ -14794,6 +15974,52 @@ impl<'a> Typer<'a> {
             ResolvedType::Record { symbol, stored } => {
                 self.record_member(cx, node, name_node, name, *symbol, *stored)
             }
+            ResolvedType::Scalar(_)
+            | ResolvedType::Team
+            | ResolvedType::OperationContext => {
+                self.scalar_member(cx, node, name_node, name, base)
+            }
+            ResolvedType::Scalar(other) => {
+                self.unknown_member(cx, node, name_node, name, other.as_str());
+                None
+            }
+            ResolvedType::Array { .. } => {
+                self.unknown_member(cx, node, name_node, name, "array");
+                None
+            }
+            ResolvedType::Union(arms) => self.union_member(cx, node, name_node, name, arms),
+            ResolvedType::Object(fields) | ResolvedType::StdNominal { fields, .. } => {
+                match fields.iter().find(|(k, _)| k == name) {
+                    Some((_, ty)) => Some(ty.clone()),
+                    None => {
+                        self.unknown_member(cx, node, name_node, name, "object");
+                        None
+                    }
+                }
+            }
+            ResolvedType::Delivery { op } => {
+                self.delivery_member(cx, node, name_node, name, *op)
+            }
+            ResolvedType::StdDelivery { capability, op } => {
+                self.std_delivery_member(cx, node, name_node, name, *capability, *op)
+            }
+            other => {
+                let base_name = self.show(cx.module, other);
+                self.unknown_member(cx, node, name_node, name, &base_name);
+                None
+            }
+        }
+    }
+
+    fn scalar_member(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        node: &SyntaxNode,
+        name_node: &SyntaxNode,
+        name: &str,
+        base: &ResolvedType,
+    ) -> Option<ResolvedType> {
+        match base {
             ResolvedType::Scalar(Scalar::Money) => match name {
                 "minor" => Some(ResolvedType::Scalar(Scalar::Int)),
                 "currency" => Some(ResolvedType::Scalar(Scalar::Currency)),
@@ -14802,31 +16028,7 @@ impl<'a> Typer<'a> {
                     None
                 }
             },
-            ResolvedType::Scalar(Scalar::User) => match name {
-                "id" => Some(ResolvedType::Scalar(Scalar::Text)),
-                "email" | "email_verified" => {
-                    if self.is_actor_root(cx, node) {
-                        Some(match name {
-                            "email" => ResolvedType::Scalar(Scalar::Email),
-                            _ => ResolvedType::Scalar(Scalar::Bool),
-                        })
-                    } else {
-                        if cx.strict {
-                            self.member_fail(
-                                node,
-                                name_node.span,
-                                "user".to_string(),
-                                format!("{name} (only actor.{name} is readable)"),
-                            );
-                        }
-                        None
-                    }
-                }
-                _ => {
-                    self.unknown_member(cx, node, name_node, name, "user");
-                    None
-                }
-            },
+            ResolvedType::Scalar(Scalar::User) => self.user_member(cx, node, name_node, name),
             ResolvedType::Scalar(Scalar::Member) => match name {
                 "id" => Some(ResolvedType::Scalar(Scalar::Text)),
                 "user" => Some(ResolvedType::Scalar(Scalar::User)),
@@ -14855,79 +16057,114 @@ impl<'a> Typer<'a> {
                 self.unknown_member(cx, node, name_node, name, other.as_str());
                 None
             }
-            ResolvedType::Array { .. } => {
-                self.unknown_member(cx, node, name_node, name, "array");
+            _ => {
+                let base_name = self.show(cx.module, base);
+                self.unknown_member(cx, node, name_node, name, &base_name);
                 None
             }
-            ResolvedType::Union(arms) => self.union_member(cx, node, name_node, name, arms),
-            ResolvedType::Object(fields) | ResolvedType::StdNominal { fields, .. } => {
-                match fields.iter().find(|(k, _)| k == name) {
-                    Some((_, ty)) => Some(ty.clone()),
-                    None => {
-                        self.unknown_member(cx, node, name_node, name, "object");
-                        None
-                    }
-                }
-            }
-            ResolvedType::Delivery { op } => {
-                let op = *op;
-                match name {
-                    "id" => Some(ResolvedType::Scalar(Scalar::Text)),
-                    "status" => Some(delivery_status_type()),
-                    "error" => Some(delivery_error_type()),
-                    "result" => Some(match self.results.get(&op).cloned() {
-                        Some(Some(ty)) => ResolvedType::Nullable(Box::new(ty)),
-                        Some(None) | None => ResolvedType::Null,
-                    }),
-                    _ => {
-                        self.unknown_member(
-                            cx,
+        }
+    }
+
+    fn user_member(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        node: &SyntaxNode,
+        name_node: &SyntaxNode,
+        name: &str,
+    ) -> Option<ResolvedType> {
+        match name {
+            "id" => Some(ResolvedType::Scalar(Scalar::Text)),
+            "email" | "email_verified" => {
+                if self.is_actor_root(cx, node) {
+                    Some(match name {
+                        "email" => ResolvedType::Scalar(Scalar::Email),
+                        _ => ResolvedType::Scalar(Scalar::Bool),
+                    })
+                } else {
+                    if cx.strict {
+                        self.member_fail(
                             node,
-                            name_node,
-                            name,
-                            &format!("delivery({})", record_name(self.tables, cx.module, op)),
+                            name_node.span,
+                            "user".to_string(),
+                            format!("{name} (only actor.{name} is readable)"),
                         );
-                        None
                     }
+                    None
                 }
             }
-            ResolvedType::StdDelivery { capability, op } => {
-                let (capability, op) = (*capability, *op);
-                match name {
-                    "id" => Some(ResolvedType::Scalar(Scalar::Text)),
-                    "status" => Some(delivery_status_type()),
-                    "error" => Some(delivery_error_type()),
-                    // T14d: `attempt.result` types against the
-                    // consumed owner result shape (DESIGN §8.1:
-                    // `result:R?` is the only nominal-typed leaf).
-                    // Scalar/enum results reuse the existing
-                    // vocabulary; transcribed T13c nominals resolve
-                    // to their closed field object; unknown/absent
-                    // nominals stay opaque, never guessed.
-                    "result" => Some(std_delivery_result_type(op)),
-                    "progress"
-                        if delivery_progress_alias(&ResolvedType::StdDelivery {
-                            capability,
-                            op,
-                        }) =>
-                    {
-                        Some(std_delivery_result_type(op))
-                    }
-                    _ => {
-                        self.unknown_member(
-                            cx,
-                            node,
-                            name_node,
-                            name,
-                            &format!("delivery({capability}.{})", op.name),
-                        );
-                        None
-                    }
-                }
+            _ => {
+                self.unknown_member(cx, node, name_node, name, "user");
+                None
             }
-            other => {
-                let base_name = self.show(cx.module, other);
-                self.unknown_member(cx, node, name_node, name, &base_name);
+        }
+    }
+
+    fn delivery_member(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        node: &SyntaxNode,
+        name_node: &SyntaxNode,
+        name: &str,
+        op: SymbolId,
+    ) -> Option<ResolvedType> {
+        match name {
+            "id" => Some(ResolvedType::Scalar(Scalar::Text)),
+            "status" => Some(delivery_status_type()),
+            "error" => Some(delivery_error_type()),
+            "result" => Some(match self.results.get(&op).cloned() {
+                Some(Some(ty)) => ResolvedType::Nullable(Box::new(ty)),
+                Some(None) | None => ResolvedType::Null,
+            }),
+            _ => {
+                self.unknown_member(
+                    cx,
+                    node,
+                    name_node,
+                    name,
+                    &format!("delivery({})", record_name(self.tables, cx.module, op)),
+                );
+                None
+            }
+        }
+    }
+
+    fn std_delivery_member(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        node: &SyntaxNode,
+        name_node: &SyntaxNode,
+        name: &str,
+        capability: &'static str,
+        op: &'static StdOperation,
+    ) -> Option<ResolvedType> {
+        match name {
+            "id" => Some(ResolvedType::Scalar(Scalar::Text)),
+            "status" => Some(delivery_status_type()),
+            "error" => Some(delivery_error_type()),
+            // T14d: `attempt.result` types against the
+            // consumed owner result shape (DESIGN §8.1:
+            // `result:R?` is the only nominal-typed leaf).
+            // Scalar/enum results reuse the existing
+            // vocabulary; transcribed T13c nominals resolve
+            // to their closed field object; unknown/absent
+            // nominals stay opaque, never guessed.
+            "result" => Some(std_delivery_result_type(op)),
+            "progress"
+                if delivery_progress_alias(&ResolvedType::StdDelivery {
+                    capability,
+                    op,
+                }) =>
+            {
+                Some(std_delivery_result_type(op))
+            }
+            _ => {
+                self.unknown_member(
+                    cx,
+                    node,
+                    name_node,
+                    name,
+                    &format!("delivery({capability}.{})", op.name),
+                );
                 None
             }
         }
@@ -15497,6 +16734,16 @@ fn member_path(node: &SyntaxNode, text: &str) -> Option<(String, Vec<String>)> {
     }
 }
 
+/// Shared narrowed facts across one binary worklist.
+type SharedNarrow = std::rc::Rc<NarrowEnv>;
+
+/// One pending binary-operand step: evaluate, combine first, combine second.
+enum BinaryWork<'n> {
+    Eval(&'n SyntaxNode, Option<ResolvedType>, SharedNarrow),
+    First(&'n SyntaxNode, SharedNarrow, bool),
+    Second(&'n SyntaxNode, SharedNarrow, ResolvedType, bool),
+}
+
 /// Unwrap an enum expectation through nullability.
 fn enum_expectation(expect: &ResolvedType) -> ResolvedType {
     match expect {
@@ -15515,19 +16762,17 @@ impl<'a> Typer<'a> {
     fn type_binary(&mut self, cx: &Ctx<'_, '_>, node: &SyntaxNode) -> ResolvedType {
         // Continuations retain the operand expectation, typing order and
         // short-circuit environment without one native frame per operator.
-        type SharedNarrow = std::rc::Rc<NarrowEnv>;
-        enum Work<'n> {
-            Eval(&'n SyntaxNode, Option<ResolvedType>, SharedNarrow),
-            First(&'n SyntaxNode, SharedNarrow, bool),
-            Second(&'n SyntaxNode, SharedNarrow, ResolvedType, bool),
-        }
-        let mut work = vec![Work::Eval(node, None, std::rc::Rc::new(cx.narrow.clone()))];
+        let mut work = vec![BinaryWork::Eval(
+            node,
+            None,
+            std::rc::Rc::new(cx.narrow.clone()),
+        )];
         let mut value = ResolvedType::Error;
         while let Some(step) = work.pop() {
             let (current, narrow) = match &step {
-                Work::Eval(n, _, env) | Work::First(n, env, _) | Work::Second(n, env, _, _) => {
-                    (*n, env.clone())
-                }
+                BinaryWork::Eval(n, _, env)
+                | BinaryWork::First(n, env, _)
+                | BinaryWork::Second(n, env, _, _) => (*n, env.clone()),
             };
             let local = Ctx {
                 module: cx.module,
@@ -15540,147 +16785,195 @@ impl<'a> Typer<'a> {
             let parts = kids(current);
             let op = op_text(current, cx.text).unwrap_or("");
             match step {
-                Work::Eval(current, expect, narrow) => {
-                    if current.kind != SyntaxKind::Binary {
-                        value = self.expr(&local, current, expect);
-                        continue;
-                    }
-                    if has_error(current)
-                        || !self.tables.expr_scope.contains_key(&NodeKey::of(current))
-                    {
-                        value = ResolvedType::Error;
-                        continue;
-                    }
-                    if parts.len() != 3
-                        || !matches!(
-                            op,
-                            "and"
-                                | "or"
-                                | "??"
-                                | "is"
-                                | "in"
-                                | "=="
-                                | "!="
-                                | "<"
-                                | "<="
-                                | ">"
-                                | ">="
-                                | "+"
-                                | "-"
-                                | "*"
-                                | "/"
-                                | "%"
-                        )
-                    {
-                        value = self.record(current, ResolvedType::Error);
-                        continue;
-                    }
-                    let reverse = matches!(op, "==" | "!=")
-                        && self.is_case_candidate(parts[0])
-                        && !self.is_case_candidate(parts[2]);
-                    let first = if reverse { parts[2] } else { parts[0] };
-                    work.push(Work::First(current, narrow.clone(), reverse));
-                    work.push(Work::Eval(first, None, narrow));
+                BinaryWork::Eval(current, expect, narrow) => {
+                    self.binary_step_eval(
+                        cx, &local, current, &parts, op, expect, narrow, &mut work, &mut value,
+                    );
                 }
-                Work::First(current, narrow, reverse) => {
-                    if op == "is" {
-                        value = self.type_is(&local, current, parts[2], value);
-                        self.record(current, value.clone());
-                        continue;
-                    }
-                    let mut right_narrow = narrow.clone();
-                    if matches!(op, "and" | "or") {
-                        self.expect_bool(
-                            &local,
-                            tight_span(cx.text, parts[0]),
-                            &value,
-                            "`and`/`or` operand",
-                        );
-                        let mut extended = (*narrow).clone();
-                        extended.extend(self.extract_narrow(&local, parts[0], op == "or"));
-                        right_narrow = std::rc::Rc::new(extended);
-                    }
-                    let expect = match op {
-                        "==" | "!=" => Some(value.clone()),
-                        "??" if unwrap_groups(parts[2]).kind == SyntaxKind::Array
-                            && !kids(unwrap_groups(parts[2]))
-                                .into_iter()
-                                .any(|child| is_expression(child.kind)) =>
-                        {
-                            // The fallback supplies no elements to infer. Use
-                            // only the checked nullable left array; all nonempty
-                            // and mismatched fallbacks keep ordinary checking.
-                            value
-                                .nullable_inner()
-                                .filter(|inner| matches!(inner, ResolvedType::Array { .. }))
-                                .cloned()
-                        }
-                        "in" if matches!(
-                            value,
-                            ResolvedType::Enum { .. } | ResolvedType::Nullable(_)
-                        ) =>
-                        {
-                            Some(ResolvedType::Array {
-                                element: Box::new(value.clone()),
-                                ordered: false,
-                                nonempty: false,
-                            })
-                        }
-                        _ => None,
-                    };
-                    let second = if reverse { parts[0] } else { parts[2] };
-                    work.push(Work::Second(current, narrow, value, reverse));
-                    work.push(Work::Eval(second, expect, right_narrow));
-                    value = ResolvedType::Error;
+                BinaryWork::First(current, narrow, reverse) => {
+                    self.binary_step_first(
+                        cx, &local, current, &parts, op, narrow, reverse, &mut work, &mut value,
+                    );
                 }
-                Work::Second(current, _, first, reverse) => {
+                BinaryWork::Second(current, _, first, reverse) => {
                     let (left, right) = if reverse {
                         (value, first)
                     } else {
                         (first, value)
                     };
-                    value = match op {
-                        "and" | "or" => {
-                            self.expect_bool(
-                                &local,
-                                tight_span(cx.text, parts[2]),
-                                &right,
-                                "`and`/`or` operand",
-                            );
-                            if left.is_error() || right.is_error() {
-                                ResolvedType::Error
-                            } else if matches!(
-                                left,
-                                ResolvedType::Opaque(_) | ResolvedType::Unknown
-                            ) || matches!(
-                                right,
-                                ResolvedType::Opaque(_) | ResolvedType::Unknown
-                            ) {
-                                ResolvedType::Opaque("logical operand")
-                            } else {
-                                ResolvedType::Scalar(Scalar::Bool)
-                            }
-                        }
-                        "??" => self.type_coalesce(&local, current, left, right),
-                        "in" => self.type_in(&local, current, parts[0], &left, parts[2], &right),
-                        "==" | "!=" => {
-                            let (left, right) = self
-                                .claim_comparison_sides(&local, parts[0], left, parts[2], right);
-                            self.type_equality(&local, current, op, &left, &right)
-                        }
-                        "<" | "<=" | ">" | ">=" => {
-                            self.type_ordering(&local, current, op, &left, &right)
-                        }
-                        "+" | "-" | "*" | "/" | "%" => {
-                            self.type_arithmetic(&local, current, op, &left, &right)
-                        }
-                        _ => ResolvedType::Error,
-                    };
+                    value = self.binary_step_second(&local, current, &parts, op, left, right);
                     self.record(current, value.clone());
                 }
             }
         }
         value
+    }
+
+    fn binary_step_eval<'n>(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        local: &Ctx<'_, '_>,
+        current: &'n SyntaxNode,
+        parts: &[&'n SyntaxNode],
+        op: &str,
+        expect: Option<ResolvedType>,
+        narrow: SharedNarrow,
+        work: &mut Vec<BinaryWork<'n>>,
+        value: &mut ResolvedType,
+    ) {
+        if current.kind != SyntaxKind::Binary {
+            *value = self.expr(local, current, expect);
+            return;
+        }
+        if has_error(current) || !self.tables.expr_scope.contains_key(&NodeKey::of(current)) {
+            *value = ResolvedType::Error;
+            return;
+        }
+        if parts.len() != 3
+            || !matches!(
+                op,
+                "and"
+                    | "or"
+                    | "??"
+                    | "is"
+                    | "in"
+                    | "=="
+                    | "!="
+                    | "<"
+                    | "<="
+                    | ">"
+                    | ">="
+                    | "+"
+                    | "-"
+                    | "*"
+                    | "/"
+                    | "%"
+            )
+        {
+            *value = self.record(current, ResolvedType::Error);
+            return;
+        }
+        let reverse = matches!(op, "==" | "!=")
+            && self.is_case_candidate(parts[0])
+            && !self.is_case_candidate(parts[2]);
+        let first = if reverse { parts[2] } else { parts[0] };
+        work.push(BinaryWork::First(current, narrow.clone(), reverse));
+        work.push(BinaryWork::Eval(first, None, narrow));
+    }
+
+    fn binary_step_first<'n>(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        local: &Ctx<'_, '_>,
+        current: &'n SyntaxNode,
+        parts: &[&'n SyntaxNode],
+        op: &str,
+        narrow: SharedNarrow,
+        reverse: bool,
+        work: &mut Vec<BinaryWork<'n>>,
+        value: &mut ResolvedType,
+    ) {
+        if op == "is" {
+            *value = self.type_is(local, current, parts[2], std::mem::replace(value, ResolvedType::Error));
+            self.record(current, value.clone());
+            return;
+        }
+        let mut right_narrow = narrow.clone();
+        if matches!(op, "and" | "or") {
+            self.expect_bool(
+                local,
+                tight_span(cx.text, parts[0]),
+                value,
+                "`and`/`or` operand",
+            );
+            let mut extended = (*narrow).clone();
+            extended.extend(self.extract_narrow(local, parts[0], op == "or"));
+            right_narrow = std::rc::Rc::new(extended);
+        }
+        let expect = match op {
+            "==" | "!=" => Some(value.clone()),
+            "??" if unwrap_groups(parts[2]).kind == SyntaxKind::Array
+                && !kids(unwrap_groups(parts[2]))
+                    .into_iter()
+                    .any(|child| is_expression(child.kind)) =>
+            {
+                // The fallback supplies no elements to infer. Use
+                // only the checked nullable left array; all nonempty
+                // and mismatched fallbacks keep ordinary checking.
+                value
+                    .nullable_inner()
+                    .filter(|inner| matches!(inner, ResolvedType::Array { .. }))
+                    .cloned()
+            }
+            "in" if matches!(
+                *value,
+                ResolvedType::Enum { .. } | ResolvedType::Nullable(_)
+            ) =>
+            {
+                Some(ResolvedType::Array {
+                    element: Box::new(value.clone()),
+                    ordered: false,
+                    nonempty: false,
+                })
+            }
+            _ => None,
+        };
+        let second = if reverse { parts[0] } else { parts[2] };
+        work.push(BinaryWork::Second(
+            current,
+            narrow,
+            std::mem::replace(value, ResolvedType::Error),
+            reverse,
+        ));
+        work.push(BinaryWork::Eval(second, expect, right_narrow));
+    }
+
+    fn binary_step_second(
+        &mut self,
+        local: &Ctx<'_, '_>,
+        current: &SyntaxNode,
+        parts: &[&SyntaxNode],
+        op: &str,
+        left: ResolvedType,
+        right: ResolvedType,
+    ) -> ResolvedType {
+        match op {
+            "and" | "or" => self.binary_logical(local, parts, left, right),
+            "??" => self.type_coalesce(local, current, left, right),
+            "in" => self.type_in(local, current, parts[0], &left, parts[2], &right),
+            "==" | "!=" => {
+                let (left, right) =
+                    self.claim_comparison_sides(local, parts[0], left, parts[2], right);
+                self.type_equality(local, current, op, &left, &right)
+            }
+            "<" | "<=" | ">" | ">=" => self.type_ordering(local, current, op, &left, &right),
+            "+" | "-" | "*" | "/" | "%" => self.type_arithmetic(local, current, op, &left, &right),
+            _ => ResolvedType::Error,
+        }
+    }
+
+    fn binary_logical(
+        &mut self,
+        local: &Ctx<'_, '_>,
+        parts: &[&SyntaxNode],
+        left: ResolvedType,
+        right: ResolvedType,
+    ) -> ResolvedType {
+        self.expect_bool(
+            local,
+            tight_span(local.text, parts[2]),
+            &right,
+            "`and`/`or` operand",
+        );
+        if left.is_error() || right.is_error() {
+            ResolvedType::Error
+        } else if matches!(left, ResolvedType::Opaque(_) | ResolvedType::Unknown)
+            || matches!(right, ResolvedType::Opaque(_) | ResolvedType::Unknown)
+        {
+            ResolvedType::Opaque("logical operand")
+        } else {
+            ResolvedType::Scalar(Scalar::Bool)
+        }
     }
 
     /// Claim pass: when exactly one side of `==`/`!=`/`in` is an
@@ -16059,17 +17352,10 @@ impl<'a> Typer<'a> {
         left: &ResolvedType,
         right: &ResolvedType,
     ) -> Option<ResolvedType> {
-        let int = || ResolvedType::Scalar(Scalar::Int);
-        let decimal = || ResolvedType::Scalar(Scalar::Decimal);
-        let money = || ResolvedType::Scalar(Scalar::Money);
-        let duration = || ResolvedType::Scalar(Scalar::Duration);
-        let datetime = || ResolvedType::Scalar(Scalar::Datetime);
         match (left, right) {
-            (ResolvedType::Scalar(Scalar::Int), ResolvedType::Scalar(Scalar::Int)) => match op {
-                "+" | "-" | "*" | "%" => Some(int()),
-                "/" => Some(decimal()),
-                _ => None,
-            },
+            (ResolvedType::Scalar(Scalar::Int), ResolvedType::Scalar(Scalar::Int)) => {
+                Self::arith_ints(op)
+            }
             (ResolvedType::Scalar(a), ResolvedType::Scalar(b))
                 if matches!(
                     (a, b),
@@ -16078,83 +17364,118 @@ impl<'a> Typer<'a> {
                         | (Scalar::Decimal, Scalar::Decimal)
                 ) =>
             {
-                match op {
-                    "+" | "-" | "*" | "/" => Some(decimal()),
-                    _ => None,
-                }
+                Self::arith_decimals(op)
             }
             (ResolvedType::Scalar(Scalar::Money), ResolvedType::Scalar(Scalar::Money)) => {
-                match op {
-                    "+" | "-" => Some(money()),
-                    "/" => Some(decimal()),
-                    _ => None,
-                }
+                Self::arith_money_pair(op)
             }
             (
                 ResolvedType::Scalar(Scalar::Money),
                 ResolvedType::Scalar(Scalar::Int | Scalar::Decimal),
-            ) => match op {
-                "*" | "/" => Some(money()),
-                _ => None,
-            },
+            ) => Self::arith_money_scaled(op),
             (
                 ResolvedType::Scalar(Scalar::Int | Scalar::Decimal),
                 ResolvedType::Scalar(Scalar::Money),
-            ) => match op {
-                "*" => Some(money()),
-                _ => None,
-            },
-            (ResolvedType::Scalar(Scalar::Duration), ResolvedType::Scalar(Scalar::Duration)) => {
-                match op {
-                    "+" | "-" | "%" => Some(duration()),
-                    "/" => Some(decimal()),
-                    _ => None,
-                }
-            }
-            (ResolvedType::Scalar(Scalar::Duration), ResolvedType::Scalar(Scalar::Int)) => match op
+            ) => Self::arith_scaled_money(op),
+            (ResolvedType::Scalar(left), ResolvedType::Scalar(right))
+                if matches!(
+                    left,
+                    Scalar::Duration | Scalar::Datetime | Scalar::Int
+                ) && matches!(
+                    right,
+                    Scalar::Duration | Scalar::Datetime | Scalar::Int
+                ) =>
             {
-                "*" | "/" => Some(duration()),
-                _ => None,
-            },
-            (ResolvedType::Scalar(Scalar::Int), ResolvedType::Scalar(Scalar::Duration)) => match op
-            {
-                "*" => Some(duration()),
-                _ => None,
-            },
-            (ResolvedType::Scalar(Scalar::Datetime), ResolvedType::Scalar(Scalar::Duration)) => {
-                match op {
-                    "+" | "-" => Some(datetime()),
-                    _ => None,
-                }
-            }
-            (ResolvedType::Scalar(Scalar::Duration), ResolvedType::Scalar(Scalar::Datetime)) => {
-                match op {
-                    "+" => Some(datetime()),
-                    _ => None,
-                }
-            }
-            (ResolvedType::Scalar(Scalar::Datetime), ResolvedType::Scalar(Scalar::Datetime)) => {
-                match op {
-                    "-" => Some(duration()),
-                    _ => None,
-                }
+                Self::arith_temporal(op, left, right)
             }
             (ResolvedType::Array { element: a, .. }, ResolvedType::Array { element: b, .. })
                 if op == "+" =>
             {
-                let (a, _) = strip_nullable(a);
-                let (b, _) = strip_nullable(b);
-                if loose_equal(&a, &b) {
-                    Some(ResolvedType::Array {
-                        element: a.clone().into(),
-                        ordered: true,
-                        nonempty: false,
-                    })
-                } else {
-                    None
-                }
+                Self::arith_concat(a, b)
             }
             _ => None,
+        }
+    }
+
+    fn arith_ints(op: &str) -> Option<ResolvedType> {
+        match op {
+            "+" | "-" | "*" | "%" => Some(ResolvedType::Scalar(Scalar::Int)),
+            "/" => Some(ResolvedType::Scalar(Scalar::Decimal)),
+            _ => None,
+        }
+    }
+
+    fn arith_decimals(op: &str) -> Option<ResolvedType> {
+        match op {
+            "+" | "-" | "*" | "/" => Some(ResolvedType::Scalar(Scalar::Decimal)),
+            _ => None,
+        }
+    }
+
+    fn arith_money_pair(op: &str) -> Option<ResolvedType> {
+        match op {
+            "+" | "-" => Some(ResolvedType::Scalar(Scalar::Money)),
+            "/" => Some(ResolvedType::Scalar(Scalar::Decimal)),
+            _ => None,
+        }
+    }
+
+    fn arith_money_scaled(op: &str) -> Option<ResolvedType> {
+        match op {
+            "*" | "/" => Some(ResolvedType::Scalar(Scalar::Money)),
+            _ => None,
+        }
+    }
+
+    fn arith_scaled_money(op: &str) -> Option<ResolvedType> {
+        match op {
+            "*" => Some(ResolvedType::Scalar(Scalar::Money)),
+            _ => None,
+        }
+    }
+
+    fn arith_temporal(op: &str, left: &Scalar, right: &Scalar) -> Option<ResolvedType> {
+        match (left, right) {
+            (Scalar::Duration, Scalar::Duration) => match op {
+                "+" | "-" | "%" => Some(ResolvedType::Scalar(Scalar::Duration)),
+                "/" => Some(ResolvedType::Scalar(Scalar::Decimal)),
+                _ => None,
+            },
+            (Scalar::Duration, Scalar::Int) => match op {
+                "*" | "/" => Some(ResolvedType::Scalar(Scalar::Duration)),
+                _ => None,
+            },
+            (Scalar::Int, Scalar::Duration) => match op {
+                "*" => Some(ResolvedType::Scalar(Scalar::Duration)),
+                _ => None,
+            },
+            (Scalar::Datetime, Scalar::Duration) => match op {
+                "+" | "-" => Some(ResolvedType::Scalar(Scalar::Datetime)),
+                _ => None,
+            },
+            (Scalar::Duration, Scalar::Datetime) => match op {
+                "+" => Some(ResolvedType::Scalar(Scalar::Datetime)),
+                _ => None,
+            },
+            (Scalar::Datetime, Scalar::Datetime) => match op {
+                "-" => Some(ResolvedType::Scalar(Scalar::Duration)),
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+
+    fn arith_concat(a: &Box<ResolvedType>, b: &Box<ResolvedType>) -> Option<ResolvedType> {
+        let (a, _) = strip_nullable(a);
+        let (b, _) = strip_nullable(b);
+        if loose_equal(&a, &b) {
+            Some(ResolvedType::Array {
+                element: a.clone().into(),
+                ordered: true,
+                nonempty: false,
+            })
+        } else {
+            None
         }
     }
 
@@ -17090,46 +18411,70 @@ impl<'a> Typer<'a> {
             .iter()
             .filter(|c| c.kind == SyntaxKind::ObjectEntry)
         {
-            if has_error(entry) {
-                bad = true;
-                continue;
-            }
-            let entry_parts = kids(entry);
-            let Some(name_node) = entry_parts.first().filter(|n| n.kind == SyntaxKind::Name) else {
-                continue;
-            };
-            let Some(key) = name_text(name_node, cx.text) else {
-                continue;
-            };
-            let value_node = entry_parts.iter().find(|n| is_expression(n.kind)).copied();
-            let entry_expect = match expect.map(|ty| ty.nullable_inner().unwrap_or(ty)) {
-                Some(ResolvedType::Object(exp) | ResolvedType::StdNominal { fields: exp, .. }) => {
-                    exp.iter().find(|(k, _)| k == key).map(|(_, t)| t.clone())
-                }
-                _ => None,
-            };
-            let value_ty = match value_node {
-                Some(value) => self.expr(cx, value, entry_expect.clone()),
-                None => self.type_shorthand(cx, entry, name_node, key, entry_expect.clone()),
-            };
-            if value_ty.is_error() {
-                bad = true;
-            }
-            if check_entries && let Some(expected) = entry_expect {
-                self.assign_ok(
-                    cx,
-                    tight_span(cx.text, entry),
-                    &value_ty,
-                    &expected,
-                    &format!("field '{key}'"),
-                );
-            }
-            fields.push((key.to_string(), value_ty));
+            self.type_object_entry(cx, entry, expect, check_entries, &mut fields, &mut bad);
         }
         if bad {
             // Entries keep their recorded types; the object itself is
             // still usable for member lookup of its good fields.
         }
+        self.check_std_nominal_object(cx, node, expect, &fields, bad, check_entries)
+    }
+
+    fn type_object_entry(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        entry: &SyntaxNode,
+        expect: Option<&ResolvedType>,
+        check_entries: bool,
+        fields: &mut Vec<(String, ResolvedType)>,
+        bad: &mut bool,
+    ) {
+        if has_error(entry) {
+            *bad = true;
+            return;
+        }
+        let entry_parts = kids(entry);
+        let Some(name_node) = entry_parts.first().filter(|n| n.kind == SyntaxKind::Name) else {
+            return;
+        };
+        let Some(key) = name_text(name_node, cx.text) else {
+            return;
+        };
+        let value_node = entry_parts.iter().find(|n| is_expression(n.kind)).copied();
+        let entry_expect = match expect.map(|ty| ty.nullable_inner().unwrap_or(ty)) {
+            Some(ResolvedType::Object(exp) | ResolvedType::StdNominal { fields: exp, .. }) => {
+                exp.iter().find(|(k, _)| k == key).map(|(_, t)| t.clone())
+            }
+            _ => None,
+        };
+        let value_ty = match value_node {
+            Some(value) => self.expr(cx, value, entry_expect.clone()),
+            None => self.type_shorthand(cx, entry, name_node, key, entry_expect.clone()),
+        };
+        if value_ty.is_error() {
+            *bad = true;
+        }
+        if check_entries && let Some(expected) = entry_expect {
+            self.assign_ok(
+                cx,
+                tight_span(cx.text, entry),
+                &value_ty,
+                &expected,
+                &format!("field '{key}'"),
+            );
+        }
+        fields.push((key.to_string(), value_ty));
+    }
+
+    fn check_std_nominal_object(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        node: &SyntaxNode,
+        expect: Option<&ResolvedType>,
+        fields: &[(String, ResolvedType)],
+        bad: bool,
+        check_entries: bool,
+    ) -> ResolvedType {
         if let Some(ResolvedType::StdNominal {
             name,
             fields: declared,
@@ -17175,7 +18520,7 @@ impl<'a> Typer<'a> {
                 };
             }
         }
-        ResolvedType::Object(fields)
+        ResolvedType::Object(fields.to_vec())
     }
 
     /// Type a bare object literal against a known contract/event
@@ -17346,45 +18691,12 @@ impl<'a> Typer<'a> {
         };
         let key = NodeKey::of(head);
         let head_ty = match self.tables.node_typeref.get(&key).cloned() {
-            Some(TypeRef::Symbol(id)) => match &self.tables.symbols[id.0 as usize].kind {
-                SymbolKind::Model { .. }
-                | SymbolKind::Contract { .. }
-                | SymbolKind::Event { .. } => ResolvedType::Record {
-                    symbol: id,
-                    stored: false,
-                },
-                SymbolKind::Message { params } => {
-                    if cx.strict {
-                        let guidance = if params.is_empty() {
-                            "reference a zero-parameter message directly"
-                        } else {
-                            "use an ordinary call to bind its parameters"
-                        };
-                        self.diags.push(Diagnostic::error(
-                            "E3008",
-                            format!(
-                                "cannot construct message '{}' with an object; {guidance}",
-                                record_name(self.tables, cx.module, id)
-                            ),
-                            tight_span(cx.text, head),
-                        ));
-                    }
+            Some(TypeRef::Symbol(id)) => {
+                let Some(record) = self.construct_symbol_type(cx, head, id) else {
                     return ResolvedType::Error;
-                }
-                _ => {
-                    if cx.strict {
-                        self.diags.push(Diagnostic::error(
-                            "E3008",
-                            format!(
-                                "cannot construct '{}'; only models, contracts and events construct",
-                                record_name(self.tables, cx.module, id)
-                            ),
-                            tight_span(cx.text, head),
-                        ));
-                    }
-                    return ResolvedType::Error;
-                }
-            },
+                };
+                record
+            }
             Some(TypeRef::Scalar(name)) => {
                 if cx.strict {
                     self.diags.push(Diagnostic::error(
@@ -17407,56 +18719,7 @@ impl<'a> Typer<'a> {
                 return ResolvedType::Error;
             }
             Some(TypeRef::External) => {
-                // The imported owner name, rather than the source alias,
-                // selects a consumed std schema. Other providers and
-                // nominal names without a schema retain the opaque path.
-                let schema = nameref_word(head, cx.text)
-                    .and_then(|name| {
-                        self.tables.module_scopes[cx.module.0 as usize]
-                            .prod
-                            .get(name)
-                    })
-                    .and_then(|binding| match binding {
-                        ScopedName::External { provider, name }
-                            if provider == "std" && name != "WorkflowField" =>
-                        {
-                            nominal_schema(name)
-                        }
-                        _ => None,
-                    });
-                let Some(schema) = schema else {
-                    return ResolvedType::Opaque("external construct");
-                };
-                let expected = std_nominal_object(schema);
-                if let Some(object) = object {
-                    self.type_object(cx, object, Some(&expected), true);
-                    if cx.strict {
-                        let entries = object_entries(object, cx.text);
-                        for (name, key, _) in &entries {
-                            if !schema.fields.iter().any(|(field, _)| field == name) {
-                                self.member_fail(
-                                    key,
-                                    key.span,
-                                    format!("std {}", schema.name),
-                                    name.to_string(),
-                                );
-                            }
-                        }
-                        for (name, declared) in schema.fields {
-                            if !entries.iter().any(|(key, _, _)| key == name)
-                                && !declared.ends_with('?')
-                                && !declared.ends_with("[]")
-                            {
-                                self.diags.push(Diagnostic::error(
-                                    "E3001",
-                                    format!("missing required field '{name}' of {}", schema.name),
-                                    tight_span(cx.text, node),
-                                ));
-                            }
-                        }
-                    }
-                }
-                return expected;
+                return self.type_external_construct(cx, node, head, object);
             }
             None => return ResolvedType::Error,
         };
@@ -17473,6 +18736,126 @@ impl<'a> Typer<'a> {
             _ => {}
         }
         head_ty
+    }
+
+    /// Record type of a construct head symbol, or `None` with the
+    /// `E3008` diagnostic recorded (message/foreign heads never build).
+    fn construct_symbol_type(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        head: &SyntaxNode,
+        id: SymbolId,
+    ) -> Option<ResolvedType> {
+        match &self.tables.symbols[id.0 as usize].kind {
+            SymbolKind::Model { .. }
+            | SymbolKind::Contract { .. }
+            | SymbolKind::Event { .. } => Some(ResolvedType::Record {
+                symbol: id,
+                stored: false,
+            }),
+            SymbolKind::Message { params } => {
+                if cx.strict {
+                    let guidance = if params.is_empty() {
+                        "reference a zero-parameter message directly"
+                    } else {
+                        "use an ordinary call to bind its parameters"
+                    };
+                    self.diags.push(Diagnostic::error(
+                        "E3008",
+                        format!(
+                            "cannot construct message '{}' with an object; {guidance}",
+                            record_name(self.tables, cx.module, id)
+                        ),
+                        tight_span(cx.text, head),
+                    ));
+                }
+                None
+            }
+            _ => {
+                if cx.strict {
+                    self.diags.push(Diagnostic::error(
+                        "E3008",
+                        format!(
+                            "cannot construct '{}'; only models, contracts and events construct",
+                            record_name(self.tables, cx.module, id)
+                        ),
+                        tight_span(cx.text, head),
+                    ));
+                }
+                None
+            }
+        }
+    }
+
+    /// Externally-owned construct head: a consumed std schema object,
+    /// or the opaque external path.
+    fn type_external_construct(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        node: &SyntaxNode,
+        head: &SyntaxNode,
+        object: Option<&SyntaxNode>,
+    ) -> ResolvedType {
+        // The imported owner name, rather than the source alias,
+        // selects a consumed std schema. Other providers and
+        // nominal names without a schema retain the opaque path.
+        let schema = nameref_word(head, cx.text)
+            .and_then(|name| {
+                self.tables.module_scopes[cx.module.0 as usize]
+                    .prod
+                    .get(name)
+            })
+            .and_then(|binding| match binding {
+                ScopedName::External { provider, name }
+                    if provider == "std" && name != "WorkflowField" =>
+                {
+                    nominal_schema(name)
+                }
+                _ => None,
+            });
+        let Some(schema) = schema else {
+            return ResolvedType::Opaque("external construct");
+        };
+        let expected = std_nominal_object(schema);
+        if let Some(object) = object {
+            self.type_object(cx, object, Some(&expected), true);
+            if cx.strict {
+                self.check_std_schema_entries(cx, node, object, schema);
+            }
+        }
+        expected
+    }
+
+    fn check_std_schema_entries(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        node: &SyntaxNode,
+        object: &SyntaxNode,
+        schema: &StdNominal,
+    ) {
+        let entries = object_entries(object, cx.text);
+        for (name, key, _) in &entries {
+            if !schema.fields.iter().any(|(field, _)| field == name) {
+                self.member_fail(
+                    key,
+                    key.span,
+                    format!("std {}", schema.name),
+                    name.to_string(),
+                );
+            }
+        }
+        for (name, declared) in schema.fields {
+            if !entries.iter().any(|(key, _, _)| key == name)
+                && !declared.ends_with('?')
+                && !declared.ends_with("[]")
+            {
+                self.diags.push(Diagnostic::error(
+                    "E3001",
+                    format!("missing required field '{name}' of {}", schema.name),
+                    tight_span(cx.text, node),
+                ));
+            }
+        }
     }
 
     /// Check construct/fixture entries against record fields. Unknown
@@ -17495,96 +18878,131 @@ impl<'a> Typer<'a> {
             .iter()
             .filter(|c| c.kind == SyntaxKind::ObjectEntry)
         {
-            if has_error(entry) {
-                continue;
-            }
-            let entry_parts = kids(entry);
-            let Some(name_node) = entry_parts.first().filter(|n| n.kind == SyntaxKind::Name) else {
-                continue;
-            };
-            let Some(key) = name_text(name_node, cx.text) else {
-                continue;
-            };
-            seen.insert(key.to_string());
-            let field = fields
-                .iter()
-                .find_map(|f| (self.tables.symbols[f.0 as usize].name == key).then_some(*f));
-            let Some(field) = field else {
-                if cx.strict {
-                    let record = &self.tables.symbols[symbol.0 as usize];
-                    let kind = match record.kind {
-                        SymbolKind::Model { .. } => "model",
-                        SymbolKind::Contract { .. } => "contract",
-                        SymbolKind::Event { .. } => "event",
-                        _ => "record",
-                    };
-                    self.member_fail(
-                        entry,
-                        name_node.span,
-                        format!("{kind} {}", record_name(self.tables, cx.module, symbol)),
-                        key.to_string(),
-                    );
-                }
-                // Still type the value (inner errors surface) but
-                // suppress its own unbound `E2001`.
-                if let Some(value) = entry_parts.iter().find(|n| is_expression(n.kind)) {
-                    let ty = self.expr(cx, value, None);
-                    if ty.is_error() && self.is_claimable_name(value) {
-                        self.types.resolved_cases.insert(NodeKey::of(value));
-                    }
-                } else if self.is_shorthand_unbound(name_node) {
-                    self.types.resolved_cases.insert(NodeKey::of(name_node));
-                }
-                continue;
-            };
-            if matches!(
-                self.tables.symbols[field.0 as usize].kind,
-                SymbolKind::DeriveField { .. }
-            ) && cx.strict
-            {
-                self.diags.push(Diagnostic::error(
-                    "E3001",
-                    format!("derived field '{key}' is computed and cannot be supplied"),
-                    tight_span(cx.text, entry),
-                ));
-            }
-            let expected = self.decl_type(field);
-            if strict_entries && self.field_has_server(field) && cx.strict {
-                self.diags.push(Diagnostic::error(
-                    "E3001",
-                    format!("field '{key}' is server-initialized and cannot be supplied here"),
-                    tight_span(cx.text, entry),
-                ));
-            }
-            let value_node = entry_parts.iter().find(|n| is_expression(n.kind)).copied();
-            let value_ty = match value_node {
-                Some(value) => self.expr(cx, value, Some(expected.clone())),
-                None => self.type_shorthand(cx, entry, name_node, key, Some(expected.clone())),
-            };
-            self.assign_ok(
-                cx,
-                tight_span(cx.text, entry),
-                &value_ty,
-                &expected,
-                &format!("field '{key}'"),
-            );
+            self.check_record_entry(cx, entry, &fields, symbol, strict_entries, &mut seen);
         }
         if strict_entries {
-            for field in &fields {
-                let name = self.tables.symbols[field.0 as usize].name.clone();
-                if seen.contains(&name) {
-                    continue;
-                }
-                if self.field_is_required(*field) && cx.strict {
-                    self.diags.push(Diagnostic::error(
-                        "E3001",
-                        format!(
-                            "missing required field '{name}' of {}",
-                            record_name(self.tables, cx.module, symbol)
-                        ),
-                        tight_span(cx.text, node),
-                    ));
-                }
+            self.check_missing_required_fields(cx, node, &fields, symbol, &seen);
+        }
+    }
+
+    fn check_record_entry(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        entry: &SyntaxNode,
+        fields: &[SymbolId],
+        symbol: SymbolId,
+        strict_entries: bool,
+        seen: &mut HashSet<String>,
+    ) {
+        if has_error(entry) {
+            return;
+        }
+        let entry_parts = kids(entry);
+        let Some(name_node) = entry_parts.first().filter(|n| n.kind == SyntaxKind::Name) else {
+            return;
+        };
+        let Some(key) = name_text(name_node, cx.text) else {
+            return;
+        };
+        seen.insert(key.to_string());
+        let field = fields
+            .iter()
+            .find_map(|f| (self.tables.symbols[f.0 as usize].name == key).then_some(*f));
+        let Some(field) = field else {
+            self.check_unknown_record_entry(cx, entry, &entry_parts, name_node, key, symbol);
+            return;
+        };
+        if matches!(
+            self.tables.symbols[field.0 as usize].kind,
+            SymbolKind::DeriveField { .. }
+        ) && cx.strict
+        {
+            self.diags.push(Diagnostic::error(
+                "E3001",
+                format!("derived field '{key}' is computed and cannot be supplied"),
+                tight_span(cx.text, entry),
+            ));
+        }
+        let expected = self.decl_type(field);
+        if strict_entries && self.field_has_server(field) && cx.strict {
+            self.diags.push(Diagnostic::error(
+                "E3001",
+                format!("field '{key}' is server-initialized and cannot be supplied here"),
+                tight_span(cx.text, entry),
+            ));
+        }
+        let value_node = entry_parts.iter().find(|n| is_expression(n.kind)).copied();
+        let value_ty = match value_node {
+            Some(value) => self.expr(cx, value, Some(expected.clone())),
+            None => self.type_shorthand(cx, entry, name_node, key, Some(expected.clone())),
+        };
+        self.assign_ok(
+            cx,
+            tight_span(cx.text, entry),
+            &value_ty,
+            &expected,
+            &format!("field '{key}'"),
+        );
+    }
+
+    fn check_unknown_record_entry(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        entry: &SyntaxNode,
+        entry_parts: &[&SyntaxNode],
+        name_node: &SyntaxNode,
+        key: &str,
+        symbol: SymbolId,
+    ) {
+        if cx.strict {
+            let record = &self.tables.symbols[symbol.0 as usize];
+            let kind = match record.kind {
+                SymbolKind::Model { .. } => "model",
+                SymbolKind::Contract { .. } => "contract",
+                SymbolKind::Event { .. } => "event",
+                _ => "record",
+            };
+            self.member_fail(
+                entry,
+                name_node.span,
+                format!("{kind} {}", record_name(self.tables, cx.module, symbol)),
+                key.to_string(),
+            );
+        }
+        // Still type the value (inner errors surface) but
+        // suppress its own unbound `E2001`.
+        if let Some(value) = entry_parts.iter().find(|n| is_expression(n.kind)) {
+            let ty = self.expr(cx, value, None);
+            if ty.is_error() && self.is_claimable_name(value) {
+                self.types.resolved_cases.insert(NodeKey::of(value));
+            }
+        } else if self.is_shorthand_unbound(name_node) {
+            self.types.resolved_cases.insert(NodeKey::of(name_node));
+        }
+    }
+
+    fn check_missing_required_fields(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        node: &SyntaxNode,
+        fields: &[SymbolId],
+        symbol: SymbolId,
+        seen: &HashSet<String>,
+    ) {
+        for field in fields {
+            let name = self.tables.symbols[field.0 as usize].name.clone();
+            if seen.contains(&name) {
+                continue;
+            }
+            if self.field_is_required(*field) && cx.strict {
+                self.diags.push(Diagnostic::error(
+                    "E3001",
+                    format!(
+                        "missing required field '{name}' of {}",
+                        record_name(self.tables, cx.module, symbol)
+                    ),
+                    tight_span(cx.text, node),
+                ));
             }
         }
     }
@@ -17710,6 +19128,49 @@ impl<'a> Typer<'a> {
         expression: &SyntaxNode,
         alias: NodeKey,
     ) -> Option<CheckedQueryProjection> {
+        let (contract, model, expression, declared_fields, model_fields, entries) =
+            self.query_projection_shape(cx.text, expression, alias)?;
+        let mut seen = HashSet::new();
+        let mut fields = Vec::new();
+        for (name, key, value) in entries {
+            fields.push(self.query_projection_field(
+                cx,
+                alias,
+                model,
+                contract,
+                declared_fields,
+                model_fields,
+                &mut seen,
+                name,
+                key,
+                value,
+            )?);
+        }
+        Some(CheckedQueryProjection {
+            node: NodeKey::of(expression),
+            contract,
+            model,
+            alias,
+            fields,
+        })
+    }
+
+    /// Resolve the contract/model shape behind a query projection: the
+    /// alias must be a stored model row and the expression a construct
+    /// of the contract with exactly its declared entries.
+    fn query_projection_shape<'n, 's>(
+        &'s self,
+        text: &'n str,
+        expression: &'n SyntaxNode,
+        alias: NodeKey,
+    ) -> Option<(
+        SymbolId,
+        SymbolId,
+        &'n SyntaxNode,
+        &'s [SymbolId],
+        &'s [SymbolId],
+        Vec<(&'n str, &'n SyntaxNode, Option<&'n SyntaxNode>)>,
+    )> {
         fn grouped(mut node: &SyntaxNode) -> Option<&SyntaxNode> {
             for _ in 0..64 {
                 if node.kind != SyntaxKind::Group {
@@ -17720,16 +19181,6 @@ impl<'a> Typer<'a> {
                     .find(|node| is_expression(node.kind))?;
             }
             None
-        }
-        fn scalar_field(mut ty: &ResolvedType) -> bool {
-            for _ in 0..64 {
-                match ty {
-                    ResolvedType::Nullable(inner) => ty = inner,
-                    ResolvedType::Scalar(_) | ResolvedType::Enum { .. } => return true,
-                    _ => return false,
-                }
-            }
-            false
         }
         let ResolvedType::Record {
             symbol: model,
@@ -17773,85 +19224,341 @@ impl<'a> Typer<'a> {
             .iter()
             .find(|node| node.kind == SyntaxKind::Object)
             .copied()?;
-        let entries = object_entries(object, cx.text);
+        let entries = object_entries(object, text);
         if entries.len() != declared_fields.len() || entries.len() > 200 {
             return None;
+        }
+        Some((
+            *contract,
+            *model,
+            expression,
+            declared_fields,
+            model_symbol.fields_of(),
+            entries,
+        ))
+    }
+
+    /// Check one query-projection entry against the contract's declared
+    /// fields: stored-row references, `version` or direct scalar fields.
+    #[allow(clippy::too_many_arguments)]
+    fn query_projection_field(
+        &self,
+        cx: &Ctx<'_, '_>,
+        alias: NodeKey,
+        model: SymbolId,
+        contract: SymbolId,
+        declared_fields: &[SymbolId],
+        model_fields: &[SymbolId],
+        seen: &mut HashSet<SymbolId>,
+        name: &str,
+        key: &SyntaxNode,
+        value: Option<&SyntaxNode>,
+    ) -> Option<CheckedQueryProjectionField> {
+        fn grouped(mut node: &SyntaxNode) -> Option<&SyntaxNode> {
+            for _ in 0..64 {
+                if node.kind != SyntaxKind::Group {
+                    return Some(node);
+                }
+                node = kids(node)
+                    .into_iter()
+                    .find(|node| is_expression(node.kind))?;
+            }
+            None
+        }
+        fn scalar_field(mut ty: &ResolvedType) -> bool {
+            for _ in 0..64 {
+                match ty {
+                    ResolvedType::Nullable(inner) => ty = inner,
+                    ResolvedType::Scalar(_) | ResolvedType::Enum { .. } => return true,
+                    _ => return false,
+                }
+            }
+            false
         }
         let is_row = |node: &SyntaxNode| {
             matches!(self.tables.node_binding.get(&NodeKey::of(node)), Some(Binding::QueryAlias {node: bound}) if *bound == alias)
                 && self.types.node_types.get(&NodeKey::of(node))
                     == Some(&ResolvedType::Record {
-                        symbol: *model,
+                        symbol: model,
                         stored: true,
                     })
         };
-        let mut seen = HashSet::new();
-        let mut fields = Vec::new();
-        for (name, key, value) in entries {
-            let field = *declared_fields.iter().find(|field| {
-                self.tables
-                    .symbols
-                    .get(field.0 as usize)
-                    .is_some_and(|symbol| symbol.name == name)
-            })?;
-            if !seen.insert(field) {
+        let field = *declared_fields.iter().find(|field| {
+            self.tables
+                .symbols
+                .get(field.0 as usize)
+                .is_some_and(|symbol| symbol.name == name)
+        })?;
+        if !seen.insert(field) {
+            return None;
+        }
+        let field_symbol = self.tables.symbols.get(field.0 as usize)?;
+        if !matches!(field_symbol.kind, SymbolKind::Field {owner,..} if owner == contract) {
+            return None;
+        }
+        let original = value.unwrap_or(key);
+        let node = grouped(original)?;
+        let ty = self.types.node_types.get(&NodeKey::of(original))?.clone();
+        let mapping = if is_row(node) {
+            CheckedQueryProjectionMapping::StoredReference
+        } else {
+            if node.kind != SyntaxKind::Member {
                 return None;
             }
-            let field_symbol = self.tables.symbols.get(field.0 as usize)?;
-            if !matches!(field_symbol.kind, SymbolKind::Field {owner,..} if owner == *contract) {
+            let parts = kids(node);
+            if parts.len() != 3
+                || !is_punct(parts[1], cx.text, ".")
+                || !is_row(grouped(parts[0])?)
+            {
                 return None;
             }
-            let original = value.unwrap_or(key);
-            let node = grouped(original)?;
-            let ty = self.types.node_types.get(&NodeKey::of(original))?.clone();
-            let mapping = if is_row(node) {
-                CheckedQueryProjectionMapping::StoredReference
-            } else {
-                if node.kind != SyntaxKind::Member {
+            let name = name_text(parts[2], cx.text)?;
+            if name == "version" {
+                if ty != ResolvedType::Scalar(Scalar::Int) {
                     return None;
                 }
-                let parts = kids(node);
-                if parts.len() != 3
-                    || !is_punct(parts[1], cx.text, ".")
-                    || !is_row(grouped(parts[0])?)
+                CheckedQueryProjectionMapping::Version
+            } else {
+                let source = *model_fields.iter().find(|field| {
+                    self.tables
+                        .symbols
+                        .get(field.0 as usize)
+                        .is_some_and(|symbol| symbol.name == name)
+                })?;
+                if !matches!(self.tables.symbols.get(source.0 as usize)?.kind, SymbolKind::Field {owner,..} if owner == model)
+                    || !scalar_field(&ty)
                 {
                     return None;
                 }
-                let name = name_text(parts[2], cx.text)?;
-                if name == "version" {
-                    if ty != ResolvedType::Scalar(Scalar::Int) {
-                        return None;
-                    }
-                    CheckedQueryProjectionMapping::Version
-                } else {
-                    let source = *model_symbol.fields_of().iter().find(|field| {
-                        self.tables
-                            .symbols
-                            .get(field.0 as usize)
-                            .is_some_and(|symbol| symbol.name == name)
-                    })?;
-                    if !matches!(self.tables.symbols.get(source.0 as usize)?.kind, SymbolKind::Field {owner,..} if owner == *model)
-                        || !scalar_field(&ty)
-                    {
-                        return None;
-                    }
-                    CheckedQueryProjectionMapping::DirectField { field: source }
-                }
-            };
-            fields.push(CheckedQueryProjectionField {
-                field,
-                node: NodeKey::of(original),
-                ty,
-                mapping,
-            });
-        }
-        Some(CheckedQueryProjection {
-            node: NodeKey::of(expression),
-            contract: *contract,
-            model: *model,
-            alias,
-            fields,
+                CheckedQueryProjectionMapping::DirectField { field: source }
+            }
+        };
+        Some(CheckedQueryProjectionField {
+            field,
+            node: NodeKey::of(original),
+            ty,
+            mapping,
         })
+    }
+
+    /// Rebind `cx` onto a clause environment: clause expressions see
+    /// the accumulated `where` facts.
+    fn clause_cx<'b, 'n>(cx: &Ctx<'b, 'n>, clause_env: &'n NarrowEnv) -> Ctx<'b, 'n> {
+        Ctx {
+            module: cx.module,
+            file: cx.file,
+            text: cx.text,
+            narrow: clause_env,
+            strict: cx.strict,
+            server_default: cx.server_default,
+        }
+    }
+
+    /// Resolve a `NameRef` query domain: a bare bound model is its
+    /// ordered record collection, otherwise the base type rules apply.
+    /// `Err` carries the early-exit type.
+    fn query_nameref_domain(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        base: &SyntaxNode,
+    ) -> Result<ResolvedType, ResolvedType> {
+        let key = NodeKey::of(base);
+        match self.tables.node_binding.get(&key).cloned() {
+            Some(Binding::Symbol(id))
+                if matches!(
+                    self.tables.symbols[id.0 as usize].kind,
+                    SymbolKind::Model { .. }
+                ) =>
+            {
+                let ty = ResolvedType::Record {
+                    symbol: id,
+                    stored: true,
+                };
+                self.types.node_types.insert(
+                    key,
+                    ResolvedType::Array {
+                        element: Box::new(ty.clone()),
+                        ordered: true,
+                        nonempty: false,
+                    },
+                );
+                Ok(ty)
+            }
+            Some(Binding::Error) => Err(ResolvedType::Error),
+            _ => {
+                let base_ty = self.expr(cx, base, None);
+                self.query_base_element(cx, base, base_ty)
+            }
+        }
+    }
+
+    /// Resolve a non-model query domain to its element: collections
+    /// unwrap, poison passes through, anything else is `E3006`.
+    /// `Err` carries the early-exit type.
+    fn query_base_element(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        base: &SyntaxNode,
+        base_ty: ResolvedType,
+    ) -> Result<ResolvedType, ResolvedType> {
+        match base_ty {
+            ResolvedType::Array { element, .. } => Ok((*element).clone()),
+            ResolvedType::Error | ResolvedType::Opaque(_) | ResolvedType::Unknown => {
+                Err(base_ty)
+            }
+            other => {
+                if cx.strict {
+                    self.diags.push(Diagnostic::error(
+                        "E3006",
+                        format!(
+                            "query domain must be a model or collection, found {}",
+                            self.show(cx.module, &other)
+                        ),
+                        tight_span(cx.text, base),
+                    ));
+                }
+                Err(ResolvedType::Error)
+            }
+        }
+    }
+
+    /// Check one `where` clause: every value must be boolean, and its
+    /// true-facts narrow the row for the following clauses.
+    fn check_where_clause(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        part: &SyntaxNode,
+        clause_env: &mut NarrowEnv,
+    ) {
+        for value in kids(part) {
+            if is_expression(value.kind) {
+                let ty = {
+                    let clause_cx = Self::clause_cx(cx, clause_env);
+                    self.expr(&clause_cx, value, None)
+                };
+                self.expect_bool(cx, tight_span(cx.text, value), &ty, "`where` clause");
+                // Collect after typing: narrowing reads
+                // the recorded types of the tested paths.
+                let mut fresh = NarrowEnv::new();
+                {
+                    let clause_cx = Self::clause_cx(cx, clause_env);
+                    self.collect_narrow(&clause_cx, value, false, &mut fresh);
+                }
+                clause_env.extend(fresh);
+            }
+        }
+    }
+
+    /// Check one `order` clause: leading `-` selects descending order,
+    /// keys must be ordered scalars.
+    fn check_order_clause(&mut self, cx: &Ctx<'_, '_>, part: &SyntaxNode, clause_env: &NarrowEnv) {
+        let clause_cx = Self::clause_cx(cx, clause_env);
+        for value in kids(part) {
+            if is_expression(value.kind) {
+                // In an order clause, leading '-' selects descending
+                // order; it does not negate the checked scalar key.
+                let key = if value.kind == SyntaxKind::Unary
+                    && kids(value).iter().any(|part| is_punct(part, cx.text, "-"))
+                {
+                    kids(value)
+                        .into_iter()
+                        .find(|part| is_expression(part.kind))
+                        .unwrap_or(value)
+                } else {
+                    value
+                };
+                let ty = self.expr(&clause_cx, key, None);
+                if !std::ptr::eq(key, value) {
+                    self.types
+                        .node_types
+                        .insert(NodeKey::of(value), ty.clone());
+                }
+                self.check_order_key(&clause_cx, value, &ty);
+            }
+        }
+    }
+
+    /// Check one `select` clause: the first value may project through
+    /// the row alias; every non-error value rebinds the element.
+    #[allow(clippy::too_many_arguments)]
+    fn check_select_clause(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        part: &SyntaxNode,
+        clause_env: &NarrowEnv,
+        projection_alias: Option<NodeKey>,
+        select_count: &mut usize,
+        projection: &mut Option<Box<CheckedQueryProjection>>,
+        projected: &mut Option<ResolvedType>,
+        element: &mut ResolvedType,
+    ) {
+        let clause_cx = Self::clause_cx(cx, clause_env);
+        for value in kids(part) {
+            if is_expression(value.kind) {
+                let ty = self.expr(&clause_cx, value, None);
+                *select_count += 1;
+                *projection = if *select_count == 1 {
+                    projection_alias.and_then(|alias| {
+                        self.checked_query_projection(&clause_cx, value, alias)
+                            .map(Box::new)
+                    })
+                } else {
+                    None
+                };
+                if !ty.is_error() {
+                    *projected = Some(ty);
+                    *element = projected.clone().unwrap_or(ResolvedType::Error);
+                }
+            }
+        }
+    }
+
+    /// Classify one query clause head: `as` binds its name, the rest
+    /// are fixed clause kinds, anything else is not a clause.
+    fn query_clause_kind(
+        part: &SyntaxNode,
+        head: &str,
+        text: &str,
+    ) -> Option<CheckedQueryClauseKind> {
+        match head {
+            "as" => kids(part)
+                .get(1)
+                .and_then(|name| name_text(name, text))
+                .map(|name| CheckedQueryClauseKind::As {
+                    name: name.to_owned(),
+                }),
+            "where" => Some(CheckedQueryClauseKind::Where),
+            "order" => Some(CheckedQueryClauseKind::Order),
+            "limit" => Some(CheckedQueryClauseKind::Limit),
+            "archived" => Some(CheckedQueryClauseKind::Archived),
+            "select" => Some(CheckedQueryClauseKind::Select),
+            _ => None,
+        }
+    }
+
+    /// Whether a query is fully resolved: domain and result contain no
+    /// poison, every clause expression is typed, and no new error was
+    /// recorded while checking the query.
+    fn query_fully_resolved(
+        &self,
+        base_ty: &ResolvedType,
+        result: &ResolvedType,
+        checked_clauses: &[CheckedQueryClause],
+        diagnostic_start: usize,
+    ) -> bool {
+        Self::query_type_resolved(base_ty)
+            && Self::query_type_resolved(result)
+            && checked_clauses.iter().all(|clause| {
+                clause.expressions.iter().all(|expression| {
+                    self.types
+                        .node_types
+                        .get(expression)
+                        .is_some_and(Self::query_type_resolved)
+                })
+            })
+            && !self.diags[diagnostic_start..]
+                .iter()
+                .any(|diag| diag.severity == crate::diagnostic::Severity::Error)
     }
 
     /// Type a model/collection query and its authored clause scopes. The
@@ -17866,75 +19573,17 @@ impl<'a> Typer<'a> {
             return ResolvedType::Error;
         };
         // A bare model domain is its ordered record collection.
+        // Helpers return `Err` for the early-exit type.
         let mut element = match base.kind {
-            SyntaxKind::NameRef => {
-                let key = NodeKey::of(base);
-                match self.tables.node_binding.get(&key).cloned() {
-                    Some(Binding::Symbol(id))
-                        if matches!(
-                            self.tables.symbols[id.0 as usize].kind,
-                            SymbolKind::Model { .. }
-                        ) =>
-                    {
-                        let ty = ResolvedType::Record {
-                            symbol: id,
-                            stored: true,
-                        };
-                        self.types.node_types.insert(
-                            key,
-                            ResolvedType::Array {
-                                element: Box::new(ty.clone()),
-                                ordered: true,
-                                nonempty: false,
-                            },
-                        );
-                        ty
-                    }
-                    Some(Binding::Error) => return ResolvedType::Error,
-                    _ => {
-                        let base_ty = self.expr(cx, base, None);
-                        match base_ty {
-                            ResolvedType::Array { element, .. } => (*element).clone(),
-                            ResolvedType::Error
-                            | ResolvedType::Opaque(_)
-                            | ResolvedType::Unknown => return base_ty,
-                            other => {
-                                if cx.strict {
-                                    self.diags.push(Diagnostic::error(
-                                        "E3006",
-                                        format!(
-                                            "query domain must be a model or collection, found {}",
-                                            self.show(cx.module, &other)
-                                        ),
-                                        tight_span(cx.text, base),
-                                    ));
-                                }
-                                return ResolvedType::Error;
-                            }
-                        }
-                    }
-                }
-            }
+            SyntaxKind::NameRef => match self.query_nameref_domain(cx, base) {
+                Ok(element) => element,
+                Err(early) => return early,
+            },
             _ => {
                 let base_ty = self.expr(cx, base, None);
-                match base_ty {
-                    ResolvedType::Array { element, .. } => (*element).clone(),
-                    ResolvedType::Error | ResolvedType::Opaque(_) | ResolvedType::Unknown => {
-                        return base_ty;
-                    }
-                    other => {
-                        if cx.strict {
-                            self.diags.push(Diagnostic::error(
-                                "E3006",
-                                format!(
-                                    "query domain must be a model or collection, found {}",
-                                    self.show(cx.module, &other)
-                                ),
-                                tight_span(cx.text, base),
-                            ));
-                        }
-                        return ResolvedType::Error;
-                    }
+                match self.query_base_element(cx, base, base_ty) {
+                    Ok(element) => element,
+                    Err(early) => return early,
                 }
             }
         };
@@ -17974,20 +19623,7 @@ impl<'a> Typer<'a> {
                 .iter()
                 .find_map(|n| name_text(n, cx.text))
                 .unwrap_or("");
-            let kind = match head {
-                "as" => kids(part)
-                    .get(1)
-                    .and_then(|name| name_text(name, cx.text))
-                    .map(|name| CheckedQueryClauseKind::As {
-                        name: name.to_owned(),
-                    }),
-                "where" => Some(CheckedQueryClauseKind::Where),
-                "order" => Some(CheckedQueryClauseKind::Order),
-                "limit" => Some(CheckedQueryClauseKind::Limit),
-                "archived" => Some(CheckedQueryClauseKind::Archived),
-                "select" => Some(CheckedQueryClauseKind::Select),
-                _ => None,
-            };
+            let kind = Self::query_clause_kind(part, head, cx.text);
             if let Some(kind) = kind {
                 checked_clauses.push(CheckedQueryClause {
                     node: NodeKey::of(part),
@@ -18007,98 +19643,18 @@ impl<'a> Typer<'a> {
                     projection_alias = Some(NodeKey::of(part));
                 }
                 "archived" => {}
-                "where" => {
-                    for value in kids(part) {
-                        if is_expression(value.kind) {
-                            let ty = {
-                                let clause_cx = Ctx {
-                                    module: cx.module,
-                                    file: cx.file,
-                                    text: cx.text,
-                                    narrow: &clause_env,
-                                    strict: cx.strict,
-                                    server_default: cx.server_default,
-                                };
-                                self.expr(&clause_cx, value, None)
-                            };
-                            self.expect_bool(cx, tight_span(cx.text, value), &ty, "`where` clause");
-                            // Collect after typing: narrowing reads
-                            // the recorded types of the tested paths.
-                            let mut fresh = NarrowEnv::new();
-                            {
-                                let clause_cx = Ctx {
-                                    module: cx.module,
-                                    file: cx.file,
-                                    text: cx.text,
-                                    narrow: &clause_env,
-                                    strict: cx.strict,
-                                    server_default: cx.server_default,
-                                };
-                                self.collect_narrow(&clause_cx, value, false, &mut fresh);
-                            }
-                            clause_env.extend(fresh);
-                        }
-                    }
-                }
-                "order" => {
-                    let clause_cx = Ctx {
-                        module: cx.module,
-                        file: cx.file,
-                        text: cx.text,
-                        narrow: &clause_env,
-                        strict: cx.strict,
-                        server_default: cx.server_default,
-                    };
-                    for value in kids(part) {
-                        if is_expression(value.kind) {
-                            // In an order clause, leading '-' selects descending
-                            // order; it does not negate the checked scalar key.
-                            let key = if value.kind == SyntaxKind::Unary
-                                && kids(value).iter().any(|part| is_punct(part, cx.text, "-"))
-                            {
-                                kids(value)
-                                    .into_iter()
-                                    .find(|part| is_expression(part.kind))
-                                    .unwrap_or(value)
-                            } else {
-                                value
-                            };
-                            let ty = self.expr(&clause_cx, key, None);
-                            if !std::ptr::eq(key, value) {
-                                self.types.node_types.insert(NodeKey::of(value), ty.clone());
-                            }
-                            self.check_order_key(&clause_cx, value, &ty);
-                        }
-                    }
-                }
-                "select" => {
-                    let clause_cx = Ctx {
-                        module: cx.module,
-                        file: cx.file,
-                        text: cx.text,
-                        narrow: &clause_env,
-                        strict: cx.strict,
-                        server_default: cx.server_default,
-                    };
-                    for value in kids(part) {
-                        if is_expression(value.kind) {
-                            let ty = self.expr(&clause_cx, value, None);
-                            select_count += 1;
-                            projection = if select_count == 1 {
-                                projection_alias.and_then(|alias| {
-                                    self.checked_query_projection(&clause_cx, value, alias)
-                                        .map(Box::new)
-                                })
-                            } else {
-                                None
-                            };
-                            if !ty.is_error() {
-                                projected = Some(ty);
-                                element = projected.clone().unwrap_or(ResolvedType::Error);
-                            }
-                        }
-                    }
-                }
+                "where" => self.check_where_clause(cx, part, &mut clause_env),
+                "order" => self.check_order_clause(cx, part, &clause_env),
+                "select" => self.check_select_clause(
+                    cx,
+                    part,
+                    &clause_env,
+                    projection_alias,
+                    &mut select_count,
+                    &mut projection,
+                    &mut projected,
+                    &mut element,
+                ),
                 _ => {}
             }
         }
@@ -18115,44 +19671,8 @@ impl<'a> Typer<'a> {
                 _ => ResolvedType::Error,
             },
         );
-        fn resolved(ty: &ResolvedType) -> bool {
-            let mut pending = vec![(ty, 0usize)];
-            let mut steps = 0usize;
-            while let Some((ty, depth)) = pending.pop() {
-                steps += 1;
-                if steps > 4096 || depth > 64 {
-                    return false;
-                }
-                match ty {
-                    ResolvedType::Error | ResolvedType::Unknown | ResolvedType::Opaque(_) => {
-                        return false;
-                    }
-                    ResolvedType::Array { element, .. } | ResolvedType::Nullable(element) => {
-                        pending.push((element, depth + 1))
-                    }
-                    ResolvedType::Object(fields) | ResolvedType::StdNominal { fields, .. } => {
-                        pending.extend(fields.iter().map(|(_, ty)| (ty, depth + 1)))
-                    }
-                    _ => {}
-                }
-                if pending.len() > 4096 {
-                    return false;
-                }
-            }
-            true
-        }
         if complete_clauses
-            && resolved(&base_ty)
-            && resolved(&result)
-            && checked_clauses.iter().all(|clause| {
-                clause
-                    .expressions
-                    .iter()
-                    .all(|expression| self.types.node_types.get(expression).is_some_and(resolved))
-            })
-            && !self.diags[diagnostic_start..]
-                .iter()
-                .any(|diag| diag.severity == crate::diagnostic::Severity::Error)
+            && self.query_fully_resolved(&base_ty, &result, &checked_clauses, diagnostic_start)
         {
             self.types.checked_queries.insert(
                 query_key,
@@ -18167,6 +19687,35 @@ impl<'a> Typer<'a> {
             );
         }
         result
+    }
+
+    /// Whether one query type is fully resolved: no poison anywhere
+    /// in the shape (bounded walk).
+    fn query_type_resolved(ty: &ResolvedType) -> bool {
+        let mut pending = vec![(ty, 0usize)];
+        let mut steps = 0usize;
+        while let Some((ty, depth)) = pending.pop() {
+            steps += 1;
+            if steps > 4096 || depth > 64 {
+                return false;
+            }
+            match ty {
+                ResolvedType::Error | ResolvedType::Unknown | ResolvedType::Opaque(_) => {
+                    return false;
+                }
+                ResolvedType::Array { element, .. } | ResolvedType::Nullable(element) => {
+                    pending.push((element, depth + 1))
+                }
+                ResolvedType::Object(fields) | ResolvedType::StdNominal { fields, .. } => {
+                    pending.extend(fields.iter().map(|(_, ty)| (ty, depth + 1)))
+                }
+                _ => {}
+            }
+            if pending.len() > 4096 {
+                return false;
+            }
+        }
+        true
     }
 
     /// True-facts of a query's `where` clauses about the
@@ -18360,77 +19909,91 @@ impl<'a> Typer<'a> {
                     current = *inner;
                 }
                 SyntaxKind::NameRef => {
-                    let key = NodeKey::of(current);
-                    let name = kids(current)
-                        .iter()
-                        .find_map(|n| name_text(n, cx.text))
-                        .unwrap_or("?");
-                    return match self.tables.node_binding.get(&key).cloned() {
-                        None => CalleeKind::Error,
-                        Some(Binding::Error) => CalleeKind::Error,
-                        Some(Binding::External { .. }) => CalleeKind::Opaque,
-                        Some(Binding::Builtin { id }) => CalleeKind::Builtin(id),
-                        Some(Binding::Symbol(id)) => {
-                            match &self.tables.symbols[id.0 as usize].kind {
-                                SymbolKind::DeriveFn { .. } => CalleeKind::DeriveFn(id),
-                                SymbolKind::Message { .. } => CalleeKind::Message(id),
-                                SymbolKind::Role => CalleeKind::Role(id),
-                                SymbolKind::Scenario { .. }
-                                | SymbolKind::CapabilityOp { .. }
-                                | SymbolKind::CrudOp { .. } => CalleeKind::NotCallable(format!(
-                                    "'{}' is an operation; invoke it with a `call` statement, not an expression call",
-                                    record_name(self.tables, cx.module, id)
-                                )),
-                                SymbolKind::Model { .. } => CalleeKind::NotCallable(format!(
-                                    "'{}' is a model; create rows with `create` or construct values with {} {{…}}",
-                                    record_name(self.tables, cx.module, id),
-                                    record_name(self.tables, cx.module, id),
-                                )),
-                                SymbolKind::Contract { .. } | SymbolKind::Event { .. } => {
-                                    CalleeKind::NotCallable(format!(
-                                        "'{}' is not callable; construct values with {} {{…}}",
-                                        record_name(self.tables, cx.module, id),
-                                        record_name(self.tables, cx.module, id),
-                                    ))
-                                }
-                                _ => CalleeKind::NotCallable(format!("'{name}' is not callable")),
-                            }
-                        }
-                        _ => CalleeKind::NotCallable(format!("'{name}' is not callable")),
-                    };
+                    return self.callee_name_ref_kind(cx, current);
                 }
                 SyntaxKind::Member => {
                     // `Mail.send(…)` in an expression: operations are
                     // still invoked with `call` statements.
-                    let ty = self.expr(cx, current, None);
-                    return match ty {
-                        ResolvedType::Operation(id)
-                            if self.tables.judgment_generated_symbols.contains(&id)
-                                && matches!(
-                                    self.tables.symbols[id.0 as usize].kind,
-                                    SymbolKind::DeriveFn { .. }
-                                ) =>
-                        {
-                            CalleeKind::DeriveFn(id)
-                        }
-                        ResolvedType::Operation(id) => CalleeKind::NotCallable(format!(
-                            "'{}' is an operation; invoke it with a `call` statement, not an expression call",
-                            record_name(self.tables, cx.module, id)
-                        )),
-                        ResolvedType::Error => CalleeKind::Error,
-                        ResolvedType::Opaque(_) | ResolvedType::Unknown => CalleeKind::Opaque,
-                        _ => CalleeKind::NotCallable("this value is not callable".to_string()),
-                    };
+                    return self.callee_member_kind(cx, current);
                 }
                 _ => {
-                    let ty = self.expr(cx, current, None);
-                    return match ty {
-                        ResolvedType::Error => CalleeKind::Error,
-                        ResolvedType::Opaque(_) | ResolvedType::Unknown => CalleeKind::Opaque,
-                        _ => CalleeKind::NotCallable("this value is not callable".to_string()),
-                    };
+                    return self.callee_value_kind(cx, current);
                 }
             }
+        }
+    }
+
+    fn callee_name_ref_kind(&mut self, cx: &Ctx<'_, '_>, current: &SyntaxNode) -> CalleeKind {
+        let key = NodeKey::of(current);
+        let name = kids(current)
+            .iter()
+            .find_map(|n| name_text(n, cx.text))
+            .unwrap_or("?");
+        match self.tables.node_binding.get(&key).cloned() {
+            None => CalleeKind::Error,
+            Some(Binding::Error) => CalleeKind::Error,
+            Some(Binding::External { .. }) => CalleeKind::Opaque,
+            Some(Binding::Builtin { id }) => CalleeKind::Builtin(id),
+            Some(Binding::Symbol(id)) => self.callee_symbol_kind(cx, id, name),
+            _ => CalleeKind::NotCallable(format!("'{name}' is not callable")),
+        }
+    }
+
+    fn callee_symbol_kind(&mut self, cx: &Ctx<'_, '_>, id: SymbolId, name: &str) -> CalleeKind {
+        match &self.tables.symbols[id.0 as usize].kind {
+            SymbolKind::DeriveFn { .. } => CalleeKind::DeriveFn(id),
+            SymbolKind::Message { .. } => CalleeKind::Message(id),
+            SymbolKind::Role => CalleeKind::Role(id),
+            SymbolKind::Scenario { .. }
+            | SymbolKind::CapabilityOp { .. }
+            | SymbolKind::CrudOp { .. } => CalleeKind::NotCallable(format!(
+                "'{}' is an operation; invoke it with a `call` statement, not an expression call",
+                record_name(self.tables, cx.module, id)
+            )),
+            SymbolKind::Model { .. } => CalleeKind::NotCallable(format!(
+                "'{}' is a model; create rows with `create` or construct values with {} {{…}}",
+                record_name(self.tables, cx.module, id),
+                record_name(self.tables, cx.module, id),
+            )),
+            SymbolKind::Contract { .. } | SymbolKind::Event { .. } => {
+                CalleeKind::NotCallable(format!(
+                    "'{}' is not callable; construct values with {} {{…}}",
+                    record_name(self.tables, cx.module, id),
+                    record_name(self.tables, cx.module, id),
+                ))
+            }
+            _ => CalleeKind::NotCallable(format!("'{name}' is not callable")),
+        }
+    }
+
+    fn callee_member_kind(&mut self, cx: &Ctx<'_, '_>, current: &SyntaxNode) -> CalleeKind {
+        let ty = self.expr(cx, current, None);
+        match ty {
+            ResolvedType::Operation(id)
+                if self.tables.judgment_generated_symbols.contains(&id)
+                    && matches!(
+                        self.tables.symbols[id.0 as usize].kind,
+                        SymbolKind::DeriveFn { .. }
+                    ) =>
+            {
+                CalleeKind::DeriveFn(id)
+            }
+            ResolvedType::Operation(id) => CalleeKind::NotCallable(format!(
+                "'{}' is an operation; invoke it with a `call` statement, not an expression call",
+                record_name(self.tables, cx.module, id)
+            )),
+            ResolvedType::Error => CalleeKind::Error,
+            ResolvedType::Opaque(_) | ResolvedType::Unknown => CalleeKind::Opaque,
+            _ => CalleeKind::NotCallable("this value is not callable".to_string()),
+        }
+    }
+
+    fn callee_value_kind(&mut self, cx: &Ctx<'_, '_>, current: &SyntaxNode) -> CalleeKind {
+        let ty = self.expr(cx, current, None);
+        match ty {
+            ResolvedType::Error => CalleeKind::Error,
+            ResolvedType::Opaque(_) | ResolvedType::Unknown => CalleeKind::Opaque,
+            _ => CalleeKind::NotCallable("this value is not callable".to_string()),
         }
     }
 
@@ -18453,36 +20016,13 @@ impl<'a> Typer<'a> {
         };
         // Availability: planned builtins cannot compile (`E6001`,
         // even in light positions — a position-independent fact).
-        if catalog.availability(id) == Some(Availability::Planned) {
-            let owner = catalog.lookup(id).map(|e| e.owner.as_str()).unwrap_or("");
-            self.diags.push(Diagnostic::error(
-                "E6001",
-                if owner.is_empty() {
-                    format!("builtin '{id}' is planned but not implemented yet")
-                } else {
-                    format!("builtin '{id}' is planned but not implemented yet (owner: {owner})")
-                },
-                tight_span(cx.text, callee),
-            ));
-            for arg in args {
-                self.expr(cx, arg.value, None);
-            }
+        if self.check_planned_builtin(cx, callee, catalog, id, args) {
             return ResolvedType::Error;
         }
         // Defensive only: the resolver already reports helper uses
         // as `E2006` and binds them `Error`, so a helper callee never
         // reaches this builtin path (N12).
-        if catalog.is_helper(id) {
-            if cx.strict {
-                self.diags.push(Diagnostic::error(
-                    "E3005",
-                    format!("'{id}' is a code-generation helper, not a callable builtin"),
-                    tight_span(cx.text, callee),
-                ));
-            }
-            for arg in args {
-                self.expr(cx, arg.value, None);
-            }
+        if self.check_helper_builtin(cx, callee, catalog, id, args) {
             return ResolvedType::Error;
         }
         // `random_secret()` is server-default-only (DESIGN §3).
@@ -18507,147 +20047,276 @@ impl<'a> Typer<'a> {
         let names_ok = self.check_catalog_arg_names(cx, id, args, &overloads);
         let arity_ok = self.check_catalog_arity(cx, node, id, args, &overloads);
         if names_ok && arity_ok {
-            let mut literal_fail: Option<(Span, String)> = None;
-            let mut cases_fail: Option<(NodeKey, Span, Vec<String>)> = None;
             // Best match wins: DESIGN §3 lists general overloads before
             // their `nonempty`/`ordered` twins, which would be dead under
             // first-match (every nonempty domain also inhabits the
             // general shape). Ties keep catalog order.
-            let mut best: Option<(usize, ResolvedType, usize, Trial, Vec<usize>)> = None;
-            for (index, overload) in overloads.iter().enumerate() {
-                let mut trial = Trial::default();
-                if let Some((result, slots)) =
-                    self.try_overload(cx, overload, args, &typed, &mut trial)
-                {
-                    let score: usize = overload
-                        .params
-                        .iter()
-                        .map(|param| Self::overload_specificity_count(&param.ty))
-                        .sum();
-                    let replace = best.as_ref().is_none_or(|(_, _, held, _, _)| score > *held);
-                    if replace {
-                        best = Some((index, result, score, trial, slots));
-                    }
-                    continue;
-                }
-                if literal_fail.is_none() {
-                    literal_fail = trial.literal_fail;
-                }
-                if cases_fail.is_none() {
-                    cases_fail = trial.cases_fail;
-                }
-            }
+            let (best, literal_fail, cases_fail) =
+                self.find_best_overload(cx, &overloads, args, &typed);
             if let Some((index, result, _, trial, slots)) = best {
-                for (key, ty) in &trial.literal_retypes {
-                    self.types.node_types.insert(*key, ty.clone());
-                }
-                for (key, ty) in &trial.claimed {
-                    self.types.resolved_cases.insert(*key);
-                    self.types.node_types.insert(*key, ty.clone());
-                }
-                self.types.selected_calls.insert(
-                    NodeKey::of(node),
-                    SelectedCall {
-                        target: SelectedCallTarget::Builtin {
-                            id: id.to_string(),
-                            overload: index,
-                        },
-                        arguments: args.iter().map(|arg| NodeKey::of(arg.value)).collect(),
-                        slots: slots.iter().copied().map(Some).collect(),
-                    },
-                );
-                let ordered_args: Vec<_> = slots.iter().map(|&slot| args[slot].clone()).collect();
-                let ordered_types: Vec<_> = slots.iter().map(|&slot| typed[slot].clone()).collect();
-                let result = self.finish_builtin_call(
+                return self.record_best_builtin_call(
                     cx,
-                    &overloads[index],
+                    node,
                     id,
-                    &ordered_args,
-                    &ordered_types,
+                    &overloads,
+                    index,
                     result,
+                    trial,
+                    slots,
+                    args,
+                    &typed,
+                    diagnostic_start,
                 );
-                if id == "choose"
-                    && result == ResolvedType::InlineMessage
-                    && !self.diags[diagnostic_start..]
-                        .iter()
-                        .any(|diagnostic| diagnostic.severity == crate::diagnostic::Severity::Error)
-                    && let [_, yes, no] = ordered_args.as_slice()
-                    && let Some(yes) = self.checked_message_descriptor_origin(yes.value)
-                    && let Some(no) = self.checked_message_descriptor_origin(no.value)
-                {
-                    let mut leaves = Vec::new();
-                    for origin in [yes, no] {
-                        for leaf in self
-                            .types
-                            .anonymous_message_choices
-                            .get(&origin)
-                            .map(Vec::as_slice)
-                            .unwrap_or(std::slice::from_ref(&origin))
-                        {
-                            if !leaves.contains(leaf) {
-                                leaves.push(*leaf);
-                            }
-                        }
-                    }
-                    self.types
-                        .anonymous_message_choices
-                        .insert(NodeKey::of(node), leaves);
-                }
-                if !result.is_error()
-                    && !self.diags[diagnostic_start..]
-                        .iter()
-                        .any(|diagnostic| diagnostic.severity == crate::diagnostic::Severity::Error)
-                    && let Some(fact) =
-                        self.checked_collection_call(node, &overloads[index], &ordered_args)
-                {
-                    self.types
-                        .checked_collection_calls
-                        .insert(NodeKey::of(node), fact);
-                }
-                if !result.is_error()
-                    && !self.diags[diagnostic_start..]
-                        .iter()
-                        .any(|diagnostic| diagnostic.severity == crate::diagnostic::Severity::Error)
-                    && let Some(fact) = self.checked_contract_collection_call(
-                        cx,
-                        node,
-                        &overloads[index],
-                        &ordered_args,
-                    )
-                {
-                    self.types
-                        .checked_contract_collection_calls
-                        .insert(NodeKey::of(node), fact);
-                }
-                return result;
             }
             // Failure precedence: precise literal shape (`E3001`) >
             // precise case expectation (`E3005`) > generic mismatch
             // (`E3005`, suppressed when an unbound name explains it).
-            if cx.strict {
-                if let Some((span, message)) = literal_fail {
-                    self.diags.push(Diagnostic::error("E3001", message, span));
-                } else if let Some((key, span, cases)) = cases_fail {
-                    // The precise expectation covers this name: no
-                    // separate `E2001`.
-                    self.types.resolved_cases.insert(key);
-                    self.diags.push(Diagnostic::error(
-                        "E3005",
-                        format!("expected one of {}", cases.join("|")),
-                        span,
-                    ));
-                } else if !self.any_unclaimed_name(args) {
-                    let actuals: Vec<String> =
-                        typed.iter().map(|t| self.show(cx.module, t)).collect();
-                    self.diags.push(Diagnostic::error(
-                        "E3005",
-                        format!("no overload of '{id}' matches ({})", actuals.join(", ")),
-                        tight_span(cx.text, node),
-                    ));
-                }
-            }
+            self.report_overload_failure(
+                cx,
+                node,
+                id,
+                args,
+                &typed,
+                literal_fail,
+                cases_fail,
+            );
         }
         ResolvedType::Error
+    }
+
+    fn check_planned_builtin(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        callee: &SyntaxNode,
+        catalog: &Catalog,
+        id: &str,
+        args: &[CallArg],
+    ) -> bool {
+        if catalog.availability(id) != Some(Availability::Planned) {
+            return false;
+        }
+        let owner = catalog.lookup(id).map(|e| e.owner.as_str()).unwrap_or("");
+        self.diags.push(Diagnostic::error(
+            "E6001",
+            if owner.is_empty() {
+                format!("builtin '{id}' is planned but not implemented yet")
+            } else {
+                format!("builtin '{id}' is planned but not implemented yet (owner: {owner})")
+            },
+            tight_span(cx.text, callee),
+        ));
+        for arg in args {
+            self.expr(cx, arg.value, None);
+        }
+        true
+    }
+
+    fn check_helper_builtin(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        callee: &SyntaxNode,
+        catalog: &Catalog,
+        id: &str,
+        args: &[CallArg],
+    ) -> bool {
+        if !catalog.is_helper(id) {
+            return false;
+        }
+        if cx.strict {
+            self.diags.push(Diagnostic::error(
+                "E3005",
+                format!("'{id}' is a code-generation helper, not a callable builtin"),
+                tight_span(cx.text, callee),
+            ));
+        }
+        for arg in args {
+            self.expr(cx, arg.value, None);
+        }
+        true
+    }
+
+    fn find_best_overload(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        overloads: &[SigOverload],
+        args: &[CallArg],
+        typed: &[ResolvedType],
+    ) -> (
+        Option<(usize, ResolvedType, usize, Trial, Vec<usize>)>,
+        Option<(Span, String)>,
+        Option<(NodeKey, Span, Vec<String>)>,
+    ) {
+        let mut literal_fail: Option<(Span, String)> = None;
+        let mut cases_fail: Option<(NodeKey, Span, Vec<String>)> = None;
+        let mut best: Option<(usize, ResolvedType, usize, Trial, Vec<usize>)> = None;
+        for (index, overload) in overloads.iter().enumerate() {
+            let mut trial = Trial::default();
+            if let Some((result, slots)) =
+                self.try_overload(cx, overload, args, typed, &mut trial)
+            {
+                let score: usize = overload
+                    .params
+                    .iter()
+                    .map(|param| Self::overload_specificity_count(&param.ty))
+                    .sum();
+                let replace = best.as_ref().is_none_or(|(_, _, held, _, _)| score > *held);
+                if replace {
+                    best = Some((index, result, score, trial, slots));
+                }
+                continue;
+            }
+            if literal_fail.is_none() {
+                literal_fail = trial.literal_fail;
+            }
+            if cases_fail.is_none() {
+                cases_fail = trial.cases_fail;
+            }
+        }
+        (best, literal_fail, cases_fail)
+    }
+
+    fn record_best_builtin_call(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        node: &SyntaxNode,
+        id: &str,
+        overloads: &[SigOverload],
+        index: usize,
+        result: ResolvedType,
+        trial: Trial,
+        slots: Vec<usize>,
+        args: &[CallArg],
+        typed: &[ResolvedType],
+        diagnostic_start: usize,
+    ) -> ResolvedType {
+        for (key, ty) in &trial.literal_retypes {
+            self.types.node_types.insert(*key, ty.clone());
+        }
+        for (key, ty) in &trial.claimed {
+            self.types.resolved_cases.insert(*key);
+            self.types.node_types.insert(*key, ty.clone());
+        }
+        self.types.selected_calls.insert(
+            NodeKey::of(node),
+            SelectedCall {
+                target: SelectedCallTarget::Builtin {
+                    id: id.to_string(),
+                    overload: index,
+                },
+                arguments: args.iter().map(|arg| NodeKey::of(arg.value)).collect(),
+                slots: slots.iter().copied().map(Some).collect(),
+            },
+        );
+        let ordered_args: Vec<_> = slots.iter().map(|&slot| args[slot].clone()).collect();
+        let ordered_types: Vec<_> = slots.iter().map(|&slot| typed[slot].clone()).collect();
+        let result = self.finish_builtin_call(
+            cx,
+            &overloads[index],
+            id,
+            &ordered_args,
+            &ordered_types,
+            result,
+        );
+        self.record_choose_leaves(node, id, &result, &ordered_args, diagnostic_start);
+        if !result.is_error()
+            && !self.diags[diagnostic_start..]
+                .iter()
+                .any(|diagnostic| diagnostic.severity == crate::diagnostic::Severity::Error)
+            && let Some(fact) =
+                self.checked_collection_call(node, &overloads[index], &ordered_args)
+        {
+            self.types
+                .checked_collection_calls
+                .insert(NodeKey::of(node), fact);
+        }
+        if !result.is_error()
+            && !self.diags[diagnostic_start..]
+                .iter()
+                .any(|diagnostic| diagnostic.severity == crate::diagnostic::Severity::Error)
+            && let Some(fact) = self.checked_contract_collection_call(
+                cx,
+                node,
+                &overloads[index],
+                &ordered_args,
+            )
+        {
+            self.types
+                .checked_contract_collection_calls
+                .insert(NodeKey::of(node), fact);
+        }
+        result
+    }
+
+    fn record_choose_leaves(
+        &mut self,
+        node: &SyntaxNode,
+        id: &str,
+        result: &ResolvedType,
+        ordered_args: &[CallArg],
+        diagnostic_start: usize,
+    ) {
+        if id == "choose"
+            && *result == ResolvedType::InlineMessage
+            && !self.diags[diagnostic_start..]
+                .iter()
+                .any(|diagnostic| diagnostic.severity == crate::diagnostic::Severity::Error)
+            && let [_, yes, no] = ordered_args
+            && let Some(yes) = self.checked_message_descriptor_origin(yes.value)
+            && let Some(no) = self.checked_message_descriptor_origin(no.value)
+        {
+            let mut leaves = Vec::new();
+            for origin in [yes, no] {
+                for leaf in self
+                    .types
+                    .anonymous_message_choices
+                    .get(&origin)
+                    .map(Vec::as_slice)
+                    .unwrap_or(std::slice::from_ref(&origin))
+                {
+                    if !leaves.contains(leaf) {
+                        leaves.push(*leaf);
+                    }
+                }
+            }
+            self.types
+                .anonymous_message_choices
+                .insert(NodeKey::of(node), leaves);
+        }
+    }
+
+    fn report_overload_failure(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        node: &SyntaxNode,
+        id: &str,
+        args: &[CallArg],
+        typed: &[ResolvedType],
+        literal_fail: Option<(Span, String)>,
+        cases_fail: Option<(NodeKey, Span, Vec<String>)>,
+    ) {
+        if !cx.strict {
+            return;
+        }
+        if let Some((span, message)) = literal_fail {
+            self.diags.push(Diagnostic::error("E3001", message, span));
+        } else if let Some((key, span, cases)) = cases_fail {
+            // The precise expectation covers this name: no
+            // separate `E2001`.
+            self.types.resolved_cases.insert(key);
+            self.diags.push(Diagnostic::error(
+                "E3005",
+                format!("expected one of {}", cases.join("|")),
+                span,
+            ));
+        } else if !self.any_unclaimed_name(args) {
+            let actuals: Vec<String> =
+                typed.iter().map(|t| self.show(cx.module, t)).collect();
+            self.diags.push(Diagnostic::error(
+                "E3005",
+                format!("no overload of '{id}' matches ({})", actuals.join(", ")),
+                tight_span(cx.text, node),
+            ));
+        }
     }
 
     fn checked_collection_call(
@@ -18656,6 +20325,59 @@ impl<'a> Typer<'a> {
         overload: &SigOverload,
         ordered_args: &[CallArg],
     ) -> Option<CheckedCollectionCall> {
+        let (id, index, has_predicate) =
+            self.check_collection_call_shape(node, overload, ordered_args)?;
+        let (query, element, model) = self.collection_call_model_query(node, ordered_args)?;
+        // The resolver exports the first actual top-level As declaration to
+        // later arguments. No spelling-based search through unrelated aliases.
+        let alias = query
+            .clauses
+            .iter()
+            .find(|clause| matches!(clause.kind, CheckedQueryClauseKind::As { .. }))?
+            .node;
+        if self.aliases.get(&alias) != Some(element)
+            || self
+                .types
+                .node_types
+                .get(&NodeKey::of(ordered_args[0].value))
+                != Some(&query.result)
+        {
+            return None;
+        }
+        let predicate = if has_predicate {
+            let argument = ordered_args.get(1)?;
+            let key = NodeKey::of(argument.value);
+            let ty = self.types.node_types.get(&key)?;
+            if ty != &ResolvedType::Scalar(Scalar::Bool) {
+                return None;
+            }
+            Some(CheckedCollectionPredicate {
+                node: key,
+                ty: ty.clone(),
+            })
+        } else {
+            None
+        };
+        Some(CheckedCollectionCall {
+            node: NodeKey::of(node),
+            builtin: id,
+            overload: index,
+            query: query.node,
+            alias,
+            model,
+            predicate,
+        })
+    }
+
+    /// Validate the target/arity/shape of an `any`/`all`/`count`/`first`
+    /// builtin call: the builtin id, its overload index and whether a
+    /// predicate argument is required.
+    fn check_collection_call_shape(
+        &self,
+        node: &SyntaxNode,
+        overload: &SigOverload,
+        ordered_args: &[CallArg],
+    ) -> Option<(String, usize, bool)> {
         let selected = self.types.selected_calls.get(&NodeKey::of(node))?;
         let SelectedCallTarget::Builtin {
             id,
@@ -18695,6 +20417,18 @@ impl<'a> Typer<'a> {
                 return None;
             }
         }
+        Some((id.clone(), *index, has_predicate))
+    }
+
+    /// Resolve the model query behind a collection builtin call: slots
+    /// must line up with the arguments and the first argument must be a
+    /// checked query over one stored model.
+    fn collection_call_model_query(
+        &self,
+        node: &SyntaxNode,
+        ordered_args: &[CallArg],
+    ) -> Option<(&CheckedQuery, &ResolvedType, SymbolId)> {
+        let selected = self.types.selected_calls.get(&NodeKey::of(node))?;
         for (slot, argument) in selected.slots.iter().zip(ordered_args) {
             if selected.arguments.get((*slot)?) != Some(&NodeKey::of(argument.value)) {
                 return None;
@@ -18731,45 +20465,7 @@ impl<'a> Typer<'a> {
         ) {
             return None;
         }
-        // The resolver exports the first actual top-level As declaration to
-        // later arguments. No spelling-based search through unrelated aliases.
-        let alias = query
-            .clauses
-            .iter()
-            .find(|clause| matches!(clause.kind, CheckedQueryClauseKind::As { .. }))?
-            .node;
-        if self.aliases.get(&alias) != Some(element.as_ref())
-            || self
-                .types
-                .node_types
-                .get(&NodeKey::of(ordered_args[0].value))
-                != Some(&query.result)
-        {
-            return None;
-        }
-        let predicate = if has_predicate {
-            let argument = ordered_args.get(1)?;
-            let key = NodeKey::of(argument.value);
-            let ty = self.types.node_types.get(&key)?;
-            if ty != &ResolvedType::Scalar(Scalar::Bool) {
-                return None;
-            }
-            Some(CheckedCollectionPredicate {
-                node: key,
-                ty: ty.clone(),
-            })
-        } else {
-            None
-        };
-        Some(CheckedCollectionCall {
-            node: NodeKey::of(node),
-            builtin: id.clone(),
-            overload: *index,
-            query: query.node,
-            alias,
-            model: *model,
-            predicate,
-        })
+        Some((query, element.as_ref(), *model))
     }
 
     fn checked_contract_collection_call(
@@ -18779,6 +20475,50 @@ impl<'a> Typer<'a> {
         overload: &SigOverload,
         ordered_args: &[CallArg],
     ) -> Option<CheckedContractCollectionCall> {
+        let (id, index, arguments, slots) =
+            self.contract_call_shape(node, overload, ordered_args)?;
+        let (query_node, query, alias, contract) = self.contract_call_query(ordered_args)?;
+        let domain_node = ungroup(
+            kids(query_node)
+                .into_iter()
+                .find(|child| is_expression(child.kind))?,
+        )?;
+        let call = self.contract_call_domain(cx, query, domain_node)?;
+        let predicate = ordered_args[1].value;
+        let boolean = ResolvedType::Scalar(Scalar::Bool);
+        if self.types.node_types.get(&NodeKey::of(predicate)) != Some(&boolean) {
+            return None;
+        }
+        // Direct scalar/ref leaves, literals and checked nested any/all cannot
+        // suspend the Values callback. Disclosure joins their actual fields,
+        // bindings, operators and retained child/stored provenance separately.
+        if !self.contract_predicate_suspends(predicate, &boolean) {
+            return None;
+        }
+        Some(CheckedContractCollectionCall {
+            node: NodeKey::of(node),
+            builtin: id,
+            overload: index,
+            arguments,
+            slots,
+            query: query.node,
+            domain: query.domain,
+            call,
+            alias: alias.node,
+            contract,
+            predicate: CheckedCollectionPredicate {
+                node: NodeKey::of(predicate),
+                ty: boolean,
+            },
+        })
+    }
+
+    fn contract_call_shape(
+        &self,
+        node: &SyntaxNode,
+        overload: &SigOverload,
+        ordered_args: &[CallArg],
+    ) -> Option<(String, usize, Vec<NodeKey>, [usize; 2])> {
         let selected = self.types.selected_calls.get(&NodeKey::of(node))?;
         let SelectedCallTarget::Builtin {
             id,
@@ -18820,23 +20560,14 @@ impl<'a> Typer<'a> {
                 return None;
             }
         }
-        fn grouped(mut current: &SyntaxNode) -> Option<&SyntaxNode> {
-            for _ in 0..64 {
-                if current.kind != SyntaxKind::Group {
-                    return Some(current);
-                }
-                let mut children = current
-                    .children
-                    .iter()
-                    .filter(|child| is_expression(child.kind));
-                current = children.next()?;
-                if children.next().is_some() {
-                    return None;
-                }
-            }
-            None
-        }
-        let query_node = grouped(ordered_args[0].value)?;
+        Some((id.clone(), *index, selected.arguments.clone(), slots))
+    }
+
+    fn contract_call_query<'n, 's>(
+        &'s self,
+        ordered_args: &[CallArg<'n>],
+    ) -> Option<(&'n SyntaxNode, &'s CheckedQuery, &'s CheckedQueryClause, SymbolId)> {
+        let query_node = ungroup(ordered_args[0].value)?;
         if query_node.kind != SyntaxKind::Query {
             return None;
         }
@@ -18872,12 +20603,16 @@ impl<'a> Typer<'a> {
         {
             return None;
         }
-        let domain_node = grouped(
-            kids(query_node)
-                .into_iter()
-                .find(|child| is_expression(child.kind))?,
-        )?;
-        let call = match domain_node.kind {
+        Some((query_node, query, alias, *contract))
+    }
+
+    fn contract_call_domain(
+        &self,
+        cx: &Ctx<'_, '_>,
+        query: &CheckedQuery,
+        domain_node: &SyntaxNode,
+    ) -> Option<Option<NodeKey>> {
+        match domain_node.kind {
             SyntaxKind::NameRef => {
                 let Binding::CallAs { node: call } =
                     self.tables.node_binding.get(&NodeKey::of(domain_node))?
@@ -18893,7 +20628,7 @@ impl<'a> Typer<'a> {
                 {
                     return None;
                 }
-                Some(*call)
+                Some(Some(*call))
             }
             SyntaxKind::Member => {
                 let parts = kids(domain_node);
@@ -18924,61 +20659,80 @@ impl<'a> Typer<'a> {
                 {
                     return None;
                 }
-                None
+                Some(None)
             }
-            _ => return None,
-        };
-        let predicate = ordered_args[1].value;
-        let boolean = ResolvedType::Scalar(Scalar::Bool);
-        if self.types.node_types.get(&NodeKey::of(predicate)) != Some(&boolean) {
-            return None;
+            _ => None,
         }
-        // Direct scalar/ref leaves, literals and checked nested any/all cannot
-        // suspend the Values callback. Disclosure joins their actual fields,
-        // bindings, operators and retained child/stored provenance separately.
+    }
+
+    fn contract_predicate_suspends(
+        &self,
+        predicate: &SyntaxNode,
+        boolean: &ResolvedType,
+    ) -> bool {
         let mut pending = vec![predicate];
         let mut visits = 0;
         while let Some(expression) = pending.pop() {
             visits += 1;
             if visits > 4096 {
-                return None;
+                return false;
             }
             if expression.kind == SyntaxKind::Call {
                 let key = NodeKey::of(expression);
-                let nested = self.types.checked_contract_collection_calls.get(&key)?;
+                let Some(nested) = self.types.checked_contract_collection_calls.get(&key) else {
+                    return false;
+                };
                 if nested.node != key
                     || !matches!(nested.builtin.as_str(), "any" | "all")
-                    || nested.predicate.ty != boolean
-                    || self.types.node_types.get(&key) != Some(&boolean)
+                    || nested.predicate.ty != *boolean
+                    || self.types.node_types.get(&key) != Some(boolean)
                 {
-                    return None;
+                    return false;
                 }
                 // The nested call was checked independently. Traverse only its
                 // actual value domain and predicate, never arbitrary query syntax.
-                let nested_query = self.types.checked_queries.get(&nested.query)?;
-                let nested_domain_key = *nested.arguments.get(nested.slots[0])?;
-                let nested_domain = kids(expression).into_iter().find_map(|argument| {
-                    kids(argument)
-                        .into_iter()
-                        .find(|value| NodeKey::of(value) == nested_domain_key)
-                })?;
-                let nested_query_node = grouped(nested_domain)?;
+                let Some(nested_query) = self.types.checked_queries.get(&nested.query) else {
+                    return false;
+                };
+                let Some(nested_domain_key) = nested.arguments.get(nested.slots[0]).copied()
+                else {
+                    return false;
+                };
+                let Some(nested_domain) =
+                    kids(expression).into_iter().find_map(|argument| {
+                        kids(argument)
+                            .into_iter()
+                            .find(|value| NodeKey::of(value) == nested_domain_key)
+                    })
+                else {
+                    return false;
+                };
+                let Some(nested_query_node) = ungroup(nested_domain) else {
+                    return false;
+                };
                 if nested_query_node.kind != SyntaxKind::Query
                     || nested_query.node != NodeKey::of(nested_query_node)
                     || nested_query.domain != nested.domain
                 {
-                    return None;
+                    return false;
                 }
-                pending.push(
-                    kids(nested_query_node)
-                        .into_iter()
-                        .find(|value| NodeKey::of(value) == nested.domain)?,
-                );
-                pending.push(kids(expression).into_iter().find_map(|argument| {
-                    kids(argument)
-                        .into_iter()
-                        .find(|value| NodeKey::of(value) == nested.predicate.node)
-                })?);
+                let Some(domain) = kids(nested_query_node)
+                    .into_iter()
+                    .find(|value| NodeKey::of(value) == nested.domain)
+                else {
+                    return false;
+                };
+                pending.push(domain);
+                let Some(predicate) =
+                    kids(expression).into_iter().find_map(|argument| {
+                        kids(argument)
+                            .into_iter()
+                            .find(|value| NodeKey::of(value) == nested.predicate.node)
+                    })
+                else {
+                    return false;
+                };
+                pending.push(predicate);
                 continue;
             }
             if !matches!(
@@ -18991,7 +20745,7 @@ impl<'a> Typer<'a> {
                     | SyntaxKind::Unary
                     | SyntaxKind::Binary
             ) {
-                return None;
+                return false;
             }
             pending.extend(
                 expression
@@ -19000,22 +20754,7 @@ impl<'a> Typer<'a> {
                     .filter(|child| is_expression(child.kind)),
             );
         }
-        Some(CheckedContractCollectionCall {
-            node: NodeKey::of(node),
-            builtin: id.clone(),
-            overload: *index,
-            arguments: selected.arguments.clone(),
-            slots,
-            query: query.node,
-            domain: query.domain,
-            call,
-            alias: alias.node,
-            contract: *contract,
-            predicate: CheckedCollectionPredicate {
-                node: NodeKey::of(predicate),
-                ty: boolean,
-            },
-        })
+        true
     }
 
     /// Count of `nonempty`/`ordered` collection markers in one
@@ -19781,142 +21520,217 @@ impl<'a> Typer<'a> {
         }
         match shape {
             SigType::Any => self.bind_var(trial, SigVar::T, actual),
-            SigType::Ordered => match actual {
-                ResolvedType::Scalar(s) if s.is_ordered() => {
-                    self.bind_var(trial, SigVar::O, actual)
-                }
-                ResolvedType::Unknown | ResolvedType::Opaque(_) => true,
-                _ => false,
-            },
-            SigType::StringLike => match actual {
-                ResolvedType::Scalar(s) if s.is_string_like() => {
-                    self.bind_var(trial, SigVar::S, actual)
-                }
-                ResolvedType::Unknown | ResolvedType::Opaque(_) => true,
-                _ => false,
-            },
-            SigType::GroupKey => {
-                if !group_key_ok(actual) {
-                    return false;
-                }
-                self.bind_var(trial, SigVar::K, actual)
+            SigType::Ordered => {
+                self.match_scalar_class(actual, Scalar::is_ordered, SigVar::O, trial)
             }
-            SigType::Display => {
-                if !display_ok(actual) {
-                    return false;
-                }
-                self.bind_var(trial, SigVar::D, actual)
+            SigType::StringLike => {
+                self.match_scalar_class(actual, Scalar::is_string_like, SigVar::S, trial)
             }
+            SigType::GroupKey => self.match_guarded_shape(actual, group_key_ok, SigVar::K, trial),
+            SigType::Display => self.match_guarded_shape(actual, display_ok, SigVar::D, trial),
             SigType::Named(name) => self.match_named(cx, arg, actual, name, trial),
-            SigType::Collection(inner) => match actual {
-                ResolvedType::Array { element, .. } => {
-                    self.match_shape(cx, arg, element, inner, trial)
-                }
-                ResolvedType::Unknown | ResolvedType::Opaque(_) => true,
-                _ => false,
-            },
-            SigType::OrderedCollection(inner) => match actual {
-                ResolvedType::Array {
-                    element, ordered, ..
-                } if *ordered => self.match_shape(cx, arg, element, inner, trial),
-                ResolvedType::Unknown | ResolvedType::Opaque(_) => true,
-                _ => false,
-            },
-            SigType::NonemptyCollection(inner) => match actual {
-                ResolvedType::Array {
-                    element, nonempty, ..
-                } if *nonempty => self.match_shape(cx, arg, element, inner, trial),
-                ResolvedType::Unknown | ResolvedType::Opaque(_) => true,
-                _ => false,
-            },
-            SigType::Array(inner) => match actual {
-                ResolvedType::Array { element, .. } => {
-                    self.match_shape(cx, arg, element, inner, trial)
-                }
-                ResolvedType::Unknown | ResolvedType::Opaque(_) => true,
-                _ => false,
-            },
-            SigType::Nullable(inner) => match actual {
-                ResolvedType::Nullable(inner_actual) => {
-                    self.match_shape(cx, arg, inner_actual, inner, trial)
-                }
-                ResolvedType::Null => true,
-                // Non-null values inhabit nullable shapes.
-                _ => self.match_shape(cx, arg, actual, inner, trial),
-            },
-            SigType::Union(arms) => {
-                for arm in arms {
-                    let mut fork = trial.fork();
-                    if self.match_shape(cx, arg, actual, arm, &mut fork) {
-                        trial.commit(fork);
-                        return true;
-                    }
-                }
-                false
+            SigType::Collection(inner)
+            | SigType::OrderedCollection(inner)
+            | SigType::NonemptyCollection(inner)
+            | SigType::Array(inner) => self.match_collection_shape(cx, arg, actual, shape, inner, trial),
+            SigType::Nullable(inner) => {
+                self.match_nullable_shape(cx, arg, actual, inner, trial)
             }
-            SigType::EnumCases(cases) => {
-                // An already-enum-typed value matches when every one
-                // of its cases is admitted (width-subtyping on case
-                // sets: each possible value inhabits the shape);
-                // anything else falls through to literal claiming.
-                if let ResolvedType::Enum {
-                    cases: actual_cases,
-                    ..
-                } = actual
-                {
-                    return actual_cases.iter().all(|c| cases.contains(c));
-                }
-                let claim_as = ResolvedType::Enum {
-                    cases: cases.clone(),
-                    owner: None,
-                };
-                self.claim_enum_case(cx, arg.value, cases, claim_as, trial)
-            }
+            SigType::Union(arms) => self.match_union_shape(cx, arg, actual, arms, trial),
+            SigType::EnumCases(cases) => self.match_enum_claim(cx, arg, actual, cases, trial),
             SigType::Object(fields) => {
-                let (ResolvedType::Object(actual_fields)
-                | ResolvedType::StdNominal {
-                    fields: actual_fields,
-                    ..
-                }) = actual
-                else {
-                    return matches!(actual, ResolvedType::Unknown | ResolvedType::Opaque(_));
-                };
-                // Closed: exact key sets.
-                if actual_fields.len() != fields.len() {
-                    return false;
-                }
-                for (name, ty) in fields {
-                    let Some((_, value)) = actual_fields.iter().find(|(k, _)| k == name) else {
-                        return false;
-                    };
-                    if !self.match_shape(cx, arg, value, ty, trial) {
-                        return false;
-                    }
-                }
-                true
+                self.match_object_shape(cx, arg, actual, fields, trial)
             }
-            SigType::ClosedDisplayObject => match actual {
-                ResolvedType::Object(actual_fields)
-                | ResolvedType::StdNominal {
-                    fields: actual_fields,
-                    ..
-                } => actual_fields.iter().all(|(_, v)| display_nonnull(v)),
-                ResolvedType::Unknown | ResolvedType::Opaque(_) => true,
-                _ => false,
-            },
-            SigType::Message => {
-                matches!(
-                    actual,
-                    ResolvedType::Message(_) | ResolvedType::Unknown | ResolvedType::Opaque(_)
-                ) || (matches!(actual, ResolvedType::InlineMessage)
-                    && self.is_checked_message_descriptor(arg.value))
-            }
+            SigType::ClosedDisplayObject => self.match_display_object(actual),
+            SigType::Message => self.match_message_shape(arg, actual),
             SigType::ActionTarget => self.match_action_target(cx, arg, actual, trial),
             SigType::ActionBindings => self.match_action_bindings(cx, arg, actual, trial),
             SigType::InvocationArgs => self.match_invocation_args(cx, arg, actual, trial),
             // Results-only shapes never appear as parameters.
             SigType::ActionResult | SigType::InvocationResult => false,
         }
+    }
+
+    /// Match a scalar class (`O`/`S`): scalars passing the predicate
+    /// bind the class variable.
+    fn match_scalar_class(
+        &self,
+        actual: &ResolvedType,
+        ok: fn(Scalar) -> bool,
+        var: SigVar,
+        trial: &mut Trial,
+    ) -> bool {
+        match actual {
+            ResolvedType::Scalar(s) if ok(*s) => self.bind_var(trial, var, actual),
+            ResolvedType::Unknown | ResolvedType::Opaque(_) => true,
+            _ => false,
+        }
+    }
+
+    /// Match a nullable shape: null inhabits, nullable unwraps,
+    /// non-null values match the inner shape.
+    fn match_nullable_shape(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        arg: &CallArg,
+        actual: &ResolvedType,
+        inner: &SigType,
+        trial: &mut Trial,
+    ) -> bool {
+        match actual {
+            ResolvedType::Nullable(inner_actual) => {
+                self.match_shape(cx, arg, inner_actual, inner, trial)
+            }
+            ResolvedType::Null => true,
+            // Non-null values inhabit nullable shapes.
+            _ => self.match_shape(cx, arg, actual, inner, trial),
+        }
+    }
+
+    /// Match a guarded scalar class: values the guard admits bind the
+    /// class variable.
+    fn match_guarded_shape(
+        &self,
+        actual: &ResolvedType,
+        ok: fn(&ResolvedType) -> bool,
+        var: SigVar,
+        trial: &mut Trial,
+    ) -> bool {
+        if !ok(actual) {
+            return false;
+        }
+        self.bind_var(trial, var, actual)
+    }
+
+    /// Match an enum shape: already-enum values match by case-set width
+    /// subtyping, anything else falls through to literal claiming.
+    fn match_enum_claim(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        arg: &CallArg,
+        actual: &ResolvedType,
+        cases: &[String],
+        trial: &mut Trial,
+    ) -> bool {
+        // An already-enum-typed value matches when every one
+        // of its cases is admitted (width-subtyping on case
+        // sets: each possible value inhabits the shape);
+        // anything else falls through to literal claiming.
+        if let ResolvedType::Enum {
+            cases: actual_cases, ..
+        } = actual
+        {
+            return actual_cases.iter().all(|c| cases.contains(c));
+        }
+        let claim_as = ResolvedType::Enum {
+            cases: cases.to_vec(),
+            owner: None,
+        };
+        self.claim_enum_case(cx, arg.value, cases, claim_as, trial)
+    }
+
+    /// Match a closed display object: every field must be displayable.
+    fn match_display_object(&self, actual: &ResolvedType) -> bool {
+        match actual {
+            ResolvedType::Object(actual_fields)
+            | ResolvedType::StdNominal {
+                fields: actual_fields,
+                ..
+            } => actual_fields.iter().all(|(_, v)| display_nonnull(v)),
+            ResolvedType::Unknown | ResolvedType::Opaque(_) => true,
+            _ => false,
+        }
+    }
+
+    /// Match a message shape: descriptors, or inline messages already
+    /// checked as descriptors.
+    fn match_message_shape(&self, arg: &CallArg, actual: &ResolvedType) -> bool {
+        matches!(
+            actual,
+            ResolvedType::Message(_) | ResolvedType::Unknown | ResolvedType::Opaque(_)
+        ) || (matches!(actual, ResolvedType::InlineMessage)
+            && self.is_checked_message_descriptor(arg.value))
+    }
+
+    /// Match an array-carrying shape, enforcing the ordered/nonempty
+    /// flag the shape requires before matching the element.
+    fn match_collection_shape(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        arg: &CallArg,
+        actual: &ResolvedType,
+        shape: &SigType,
+        inner: &SigType,
+        trial: &mut Trial,
+    ) -> bool {
+        let flags_ok = match shape {
+            SigType::OrderedCollection(_) => {
+                matches!(actual, ResolvedType::Array { ordered: true, .. })
+            }
+            SigType::NonemptyCollection(_) => {
+                matches!(actual, ResolvedType::Array { nonempty: true, .. })
+            }
+            _ => true,
+        };
+        match actual {
+            ResolvedType::Array { element, .. } if flags_ok => {
+                self.match_shape(cx, arg, element, inner, trial)
+            }
+            ResolvedType::Unknown | ResolvedType::Opaque(_) => true,
+            _ => false,
+        }
+    }
+
+    /// Match a closed object shape: exact key sets, each value
+    /// matching its declared field shape.
+    fn match_object_shape(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        arg: &CallArg,
+        actual: &ResolvedType,
+        fields: &[(String, SigType)],
+        trial: &mut Trial,
+    ) -> bool {
+        let (ResolvedType::Object(actual_fields)
+        | ResolvedType::StdNominal {
+            fields: actual_fields,
+            ..
+        }) = actual
+        else {
+            return matches!(actual, ResolvedType::Unknown | ResolvedType::Opaque(_));
+        };
+        // Closed: exact key sets.
+        if actual_fields.len() != fields.len() {
+            return false;
+        }
+        for (name, ty) in fields {
+            let Some((_, value)) = actual_fields.iter().find(|(k, _)| k == name) else {
+                return false;
+            };
+            if !self.match_shape(cx, arg, value, ty, trial) {
+                return false;
+            }
+        }
+        true
+    }
+
+    /// Match a union shape: the first admitting arm commits its trial.
+    fn match_union_shape(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        arg: &CallArg,
+        actual: &ResolvedType,
+        arms: &[SigType],
+        trial: &mut Trial,
+    ) -> bool {
+        for arm in arms {
+            let mut fork = trial.fork();
+            if self.match_shape(cx, arg, actual, arm, &mut fork) {
+                trial.commit(fork);
+                return true;
+            }
+        }
+        false
     }
 
     /// Bind a signature variable: first binding wins, later matches
@@ -20432,6 +22246,23 @@ impl<'a> Typer<'a> {
     /// Substitute trial bindings into a result shape.
     fn subst_shape(&self, shape: &SigType, trial: &Trial) -> ResolvedType {
         match shape {
+            SigType::Any
+            | SigType::Ordered
+            | SigType::StringLike
+            | SigType::GroupKey
+            | SigType::Display => Self::subst_shape_var(shape, trial),
+            SigType::Collection(_)
+            | SigType::OrderedCollection(_)
+            | SigType::Array(_)
+            | SigType::NonemptyCollection(_)
+            | SigType::Nullable(_)
+            | SigType::Union(_) => self.subst_shape_collection(shape, trial),
+            _ => self.subst_shape_leaf(shape, trial),
+        }
+    }
+
+    fn subst_shape_var(shape: &SigType, trial: &Trial) -> ResolvedType {
+        match shape {
             SigType::Any => trial
                 .bindings
                 .get(&SigVar::T)
@@ -20457,18 +22288,12 @@ impl<'a> Typer<'a> {
                 .get(&SigVar::D)
                 .cloned()
                 .unwrap_or(ResolvedType::Opaque("unbound result")),
-            SigType::Named(name) => {
-                if name == "Team" {
-                    return ResolvedType::Team;
-                }
-                if name == "OperationContext" {
-                    return ResolvedType::OperationContext;
-                }
-                match scalar_named(name) {
-                    Some(scalar) => ResolvedType::Scalar(scalar),
-                    None => ResolvedType::Opaque("lane-owned result"),
-                }
-            }
+            _ => unreachable!("subst_shape_var takes only variable shapes"),
+        }
+    }
+
+    fn subst_shape_collection(&self, shape: &SigType, trial: &Trial) -> ResolvedType {
+        match shape {
             SigType::Collection(inner) => ResolvedType::Array {
                 element: Box::new(self.subst_shape(inner, trial)),
                 // Encounter order (group) — stable.
@@ -20505,6 +22330,24 @@ impl<'a> Typer<'a> {
                     ResolvedType::Opaque("scalar union result")
                 }
             }
+            _ => unreachable!("subst_shape_collection takes only collection shapes"),
+        }
+    }
+
+    fn subst_shape_leaf(&self, shape: &SigType, trial: &Trial) -> ResolvedType {
+        match shape {
+            SigType::Named(name) => {
+                if name == "Team" {
+                    return ResolvedType::Team;
+                }
+                if name == "OperationContext" {
+                    return ResolvedType::OperationContext;
+                }
+                match scalar_named(name) {
+                    Some(scalar) => ResolvedType::Scalar(scalar),
+                    None => ResolvedType::Opaque("lane-owned result"),
+                }
+            }
             SigType::EnumCases(cases) => ResolvedType::Enum {
                 cases: cases.clone(),
                 owner: None,
@@ -20532,6 +22375,7 @@ impl<'a> Typer<'a> {
                 Some(op) => ResolvedType::Invocation { targets: vec![op] },
                 None => ResolvedType::Opaque("unbound invocation result"),
             },
+            _ => unreachable!("subst_shape_leaf takes only leaf shapes"),
         }
     }
 }
@@ -20582,6 +22426,12 @@ fn loose_equal(a: &ResolvedType, b: &ResolvedType) -> bool {
         (ResolvedType::Scalar(a), ResolvedType::Scalar(b)) => a == b,
         (ResolvedType::Team, ResolvedType::Team)
         | (ResolvedType::OperationContext, ResolvedType::OperationContext) => true,
+        _ => loose_equal_structured(a, b),
+    }
+}
+
+fn loose_equal_structured(a: &ResolvedType, b: &ResolvedType) -> bool {
+    match (a, b) {
         (
             ResolvedType::Enum {
                 cases: ac,
@@ -20591,7 +22441,7 @@ fn loose_equal(a: &ResolvedType, b: &ResolvedType) -> bool {
                 cases: bc,
                 owner: bo,
             },
-        ) => ao == bo && (ao.is_some() || ac == bc),
+        ) => loose_equal_enum(ao, bo, ac, bc),
         (ResolvedType::Record { symbol: a, .. }, ResolvedType::Record { symbol: b, .. }) => a == b,
         (ResolvedType::Message(a), ResolvedType::Message(b)) => a == b,
         (ResolvedType::InlineMessage, ResolvedType::InlineMessage) => true,
@@ -20606,7 +22456,7 @@ fn loose_equal(a: &ResolvedType, b: &ResolvedType) -> bool {
                 bound: bb,
                 external: be,
             },
-        ) => a == b && ab == bb && ae == be,
+        ) => loose_equal_action(a, ab, ae, b, bb, be),
         (ResolvedType::Invocation { targets: a }, ResolvedType::Invocation { targets: b }) => {
             a == b
         }
@@ -20638,17 +22488,39 @@ fn loose_equal(a: &ResolvedType, b: &ResolvedType) -> bool {
                 fields: bf,
             },
         ) => a == b && af == bf,
-        (ResolvedType::Object(a), ResolvedType::Object(b)) => {
-            a.len() == b.len()
-                && a.iter().all(|(k, t)| {
-                    b.iter()
-                        .find(|(bk, _)| bk == k)
-                        .is_some_and(|(_, bt)| loose_equal(t, bt))
-                })
-        }
+        (ResolvedType::Object(a), ResolvedType::Object(b)) => loose_equal_fields(a, b),
         (ResolvedType::Operation(a), ResolvedType::Operation(b)) => a == b,
         _ => false,
     }
+}
+
+fn loose_equal_action(
+    a: &[SymbolId],
+    ab: &Option<Vec<String>>,
+    ae: &[String],
+    b: &[SymbolId],
+    bb: &Option<Vec<String>>,
+    be: &[String],
+) -> bool {
+    a == b && ab == bb && ae == be
+}
+
+fn loose_equal_enum(
+    ao: &Option<SymbolId>,
+    bo: &Option<SymbolId>,
+    ac: &[String],
+    bc: &[String],
+) -> bool {
+    ao == bo && (ao.is_some() || ac == bc)
+}
+
+fn loose_equal_fields(a: &[(String, ResolvedType)], b: &[(String, ResolvedType)]) -> bool {
+    a.len() == b.len()
+        && a.iter().all(|(k, t)| {
+            b.iter()
+                .find(|(bk, _)| bk == k)
+                .is_some_and(|(_, bt)| loose_equal(t, bt))
+        })
 }
 
 /// Signature type variables bound during one overload trial.
@@ -21174,6 +23046,20 @@ fn valid_datetime(value: &str) -> Result<(), String> {
 }
 
 fn datetime_literal_millis(value: &str) -> Result<i64, String> {
+    let (year, month, day, hour, minute, second, rest) = parse_datetime_parts(value)?;
+    // Optional fraction, then the required zone.
+    let (millis, rest) = parse_datetime_fraction(rest)?;
+    let offset_ms = parse_zone_offset(rest)?;
+    let days = days_from_civil(year, month, day);
+    let instant = days * 86_400_000 + hour * 3_600_000 + minute * 60_000 + second * 1_000 + millis
+        - offset_ms;
+    if !(DATETIME_MIN_MS..=DATETIME_MAX_MS).contains(&instant) {
+        return Err("instant outside the supported range".to_string());
+    }
+    Ok(instant)
+}
+
+fn parse_datetime_parts(value: &str) -> Result<(i64, i64, i64, i64, i64, i64, &str), String> {
     let bytes = value.as_bytes();
     if bytes.len() < 20
         || bytes[4] != b'-'
@@ -21209,25 +23095,31 @@ fn datetime_literal_millis(value: &str) -> Result<i64, String> {
     if hour > 23 || minute > 59 || second > 59 {
         return Err("invalid time of day".to_string());
     }
-    // Optional fraction, then the required zone.
-    let mut rest = &value[19..];
-    let mut millis = 0i64;
-    if let Some(fraction) = rest.strip_prefix('.') {
-        let end = fraction.bytes().take_while(|b| b.is_ascii_digit()).count();
-        if end == 0 {
-            return Err("empty fractional seconds".to_string());
-        }
-        let digits = &fraction[..end];
-        let padded = format!("{digits:0<3}");
-        millis = padded[..3].parse::<i64>().unwrap_or(0);
-        if digits.len() > 3 && !digits[3..].bytes().all(|b| b == b'0') {
-            return Err("nonzero sub-millisecond fraction rejected".to_string());
-        }
-        rest = &fraction[end..];
+    Ok((year, month, day, hour, minute, second, &value[19..]))
+}
+
+fn parse_datetime_fraction(rest: &str) -> Result<(i64, &str), String> {
+    let Some(fraction) = rest.strip_prefix('.') else {
+        return Ok((0, rest));
+    };
+    let end = fraction.bytes().take_while(|b| b.is_ascii_digit()).count();
+    if end == 0 {
+        return Err("empty fractional seconds".to_string());
     }
-    let offset_ms = if rest.eq_ignore_ascii_case("z") {
-        0
-    } else if rest.len() == 6
+    let digits = &fraction[..end];
+    let padded = format!("{digits:0<3}");
+    let millis = padded[..3].parse::<i64>().unwrap_or(0);
+    if digits.len() > 3 && !digits[3..].bytes().all(|b| b == b'0') {
+        return Err("nonzero sub-millisecond fraction rejected".to_string());
+    }
+    Ok((millis, &fraction[end..]))
+}
+
+fn parse_zone_offset(rest: &str) -> Result<i64, String> {
+    if rest.eq_ignore_ascii_case("z") {
+        return Ok(0);
+    }
+    if rest.len() == 6
         && (rest.as_bytes()[0] == b'+' || rest.as_bytes()[0] == b'-')
         && rest.as_bytes()[3] == b':'
         && rest[1..3].bytes().all(|b| b.is_ascii_digit())
@@ -21240,20 +23132,13 @@ fn datetime_literal_millis(value: &str) -> Result<i64, String> {
         }
         let magnitude = (off_hour * 60 + off_minute) * 60_000;
         if rest.as_bytes()[0] == b'+' {
-            magnitude
+            Ok(magnitude)
         } else {
-            -magnitude
+            Ok(-magnitude)
         }
     } else {
-        return Err("want a Z or ±HH:MM zone offset".to_string());
-    };
-    let days = days_from_civil(year, month, day);
-    let instant = days * 86_400_000 + hour * 3_600_000 + minute * 60_000 + second * 1_000 + millis
-        - offset_ms;
-    if !(DATETIME_MIN_MS..=DATETIME_MAX_MS).contains(&instant) {
-        return Err("instant outside the supported range".to_string());
+        Err("want a Z or ±HH:MM zone offset".to_string())
     }
-    Ok(instant)
 }
 
 /// Constructor literals use the same checked instant in canonical wire metadata.
@@ -22013,6 +23898,29 @@ struct GivenCarrierRefusal {
 /// contribution declarations only; anything else is hidden authority.
 fn given_carrier_refused_kind(kind: SyntaxKind) -> Option<&'static str> {
     match kind {
+        SyntaxKind::Scenario
+        | SyntaxKind::Crud
+        | SyntaxKind::Policy
+        | SyntaxKind::Invariant
+        | SyntaxKind::Unique
+        | SyntaxKind::Lock
+        | SyntaxKind::Retain
+        | SyntaxKind::Fixture
+        | SyntaxKind::Capability
+        | SyntaxKind::CapabilityOp
+        | SyntaxKind::Message
+        | SyntaxKind::Contract
+        | SyntaxKind::Event
+        | SyntaxKind::Role
+        | SyntaxKind::Derive => carrier_authority_refusal(kind),
+        _ => carrier_content_refusal(kind),
+    }
+}
+
+/// Operations and scenarios, Given rules and authority: hidden authority
+/// a contributions carrier may never hold.
+fn carrier_authority_refusal(kind: SyntaxKind) -> Option<&'static str> {
+    match kind {
         SyntaxKind::Scenario => Some("scenario"),
         SyntaxKind::Crud => Some("crud"),
         SyntaxKind::Policy => Some("policy"),
@@ -22025,6 +23933,14 @@ fn given_carrier_refused_kind(kind: SyntaxKind) -> Option<&'static str> {
         SyntaxKind::Message => Some("message"),
         SyntaxKind::Contract | SyntaxKind::Event | SyntaxKind::Role => Some("contract"),
         SyntaxKind::Derive => Some("derive"),
+        _ => None,
+    }
+}
+
+/// Examples, presentation, generation carriers and migrations: content a
+/// contributions carrier may never hold.
+fn carrier_content_refusal(kind: SyntaxKind) -> Option<&'static str> {
+    match kind {
         SyntaxKind::Preferences => Some("preferences"),
         SyntaxKind::Corpus => Some("corpus"),
         SyntaxKind::Judgment => Some("judgment"),
@@ -22205,6 +24121,342 @@ fn given_bounds_contradict(mins: &[&str], maxes: &[&str]) -> bool {
     seen.len() > 1 && !mins.is_empty() && !maxes.is_empty()
 }
 
+fn check_trait_template_field(
+    field: &GivenCarrierField,
+    failed: &mut bool,
+    diags: &mut Vec<Diagnostic>,
+) -> Option<GivenContributedField> {
+    // Generated captions are static literals only. Retain their checked
+    // text for the ordinary label pipeline; never resolve ambient names
+    // or silently drop a descriptor/table that this contract cannot carry.
+    let label = if let Some(node) = &field.label {
+        let Some(text) = string_literal_value(node) else {
+            *failed = true;
+            diags.push(Diagnostic::error(
+                "E3016",
+                "contributed field label must be a static text literal; generated descriptor, reference and table captions are not admitted".to_string(),
+                node.span,
+            ));
+            return None;
+        };
+        if let Some(problem) = super::icu::static_caption_error(&text) {
+            *failed = true;
+            diags.push(Diagnostic::error(
+                "E5007",
+                format!("invalid contributed field label: {problem}"),
+                node.span,
+            ));
+            return None;
+        }
+        Some(text)
+    } else {
+        None
+    };
+    if field.unique {
+        *failed = true;
+        diags.push(super::effects::refuse_given_authority(
+            &format!("contributed field `{}`", field.name),
+            "claims unique storage semantics, which traits never invent",
+            field.span,
+        ));
+        return None;
+    }
+    if field.machine {
+        *failed = true;
+        diags.push(super::effects::refuse_given_authority(
+            &format!("contributed field `{}`", field.name),
+            "claims machine lifecycle semantics, which need explicit integration",
+            field.span,
+        ));
+        return None;
+    }
+    if field.server {
+        *failed = true;
+        diags.push(super::effects::refuse_given_authority(
+            &format!("contributed field `{}`", field.name),
+            "claims server-only semantics, which traits never invent",
+            field.span,
+        ));
+        return None;
+    }
+    if !given_wellformed_leaf(&field.type_text) {
+        // A declared model name in this position is a scope refusal,
+        // not a dangling reference: v1 contributions are leaves.
+        *failed = true;
+        diags.push(given_target_mismatch(
+            &format!("contributed field `{}`", field.name),
+            &format!(
+                "has type `{}`; v1 trait contributions require supported native scalar/enum leaves with at most one array and optional outer nullability",
+                field.type_text
+            ),
+            field.span,
+        ));
+        return None;
+    }
+    if let Some(default) = field.default.as_deref()
+        && !given_const_matches_type(&field.type_text, default)
+    {
+        *failed = true;
+        diags.push(given_bad_value(
+            &format!("contributed field `{}`", field.name),
+            &format!(
+                "default `{default}` does not inhabit `{}`",
+                field.type_text
+            ),
+            field.span,
+        ));
+        return None;
+    }
+    if field.trim
+        && !matches!(
+            field.type_text.trim_end_matches('?'),
+            "text" | "email" | "timezone"
+        )
+    {
+        *failed = true;
+        diags.push(given_bad_value(
+            &format!("contributed field `{}`", field.name),
+            "trim requires a string-like native field",
+            field.span,
+        ));
+        return None;
+    }
+    if let Some((which, value)) = [("min", &field.min), ("max", &field.max)]
+        .into_iter()
+        .find_map(|(which, value)| {
+            value
+                .as_deref()
+                .filter(|value| !given_bound_matches_type(&field.type_text, value))
+                .map(|value| (which, value))
+        })
+    {
+        *failed = true;
+        diags.push(given_bad_value(
+            &format!("contributed field `{}`", field.name),
+            &format!(
+                "{which} bound `{value}` is not a supported native bound for `{}`",
+                field.type_text
+            ),
+            field.span,
+        ));
+        return None;
+    }
+    if let (Some(min), Some(max)) = (field.min.as_deref(), field.max.as_deref())
+        && given_bounds_contradict(&[min], &[max])
+    {
+        *failed = true;
+        diags.push(given_bad_value(
+            &format!("contributed field `{}`", field.name),
+            &format!("bounds contradict: min={min} exceeds max={max}"),
+            field.span,
+        ));
+        return None;
+    }
+    Some(GivenContributedField {
+        label,
+        name: field.name.clone(),
+        type_name: field.type_text.clone(),
+        default: field.default.clone(),
+        trim: field.trim,
+        min: field.min.clone(),
+        max: field.max.clone(),
+    })
+}
+
+fn collect_trait_applications(
+    inline: bool,
+    descriptors: &[super::generation::GenerationDescriptor],
+    def: &super::generation::GenerationDescriptor,
+    refs: &super::resolve::GivenReferenceTables,
+    label: &str,
+) -> Vec<CheckedTraitApplication> {
+    use super::generation::GenerationKind;
+    let mut apps: Vec<CheckedTraitApplication> = Vec::new();
+    if inline {
+        let target = def.target.as_deref().unwrap_or_default();
+        let mut parts = target.splitn(2, '.');
+        let (model, field) = (parts.next().unwrap_or_default(), parts.next());
+        if super::resolve::resolve_given_model(refs, &def.owner, model).is_some()
+            && field.is_none_or(|f| {
+                super::resolve::resolve_given_field(refs, &def.owner, model, f).is_some()
+            })
+        {
+            let canonical = format!("{}.{target}", def.owner);
+            apps.push(CheckedTraitApplication {
+                target_model: model.to_string(),
+                target_field: field.map(str::to_string),
+                target_canonical: canonical,
+                span: def.span,
+                order: 0,
+            });
+        }
+        // Dangling inline targets stay silent here: the attachment sits
+        // on its target, so a missing model is the pipeline's own error.
+    } else {
+        let mut uses: Vec<&super::generation::GenerationDescriptor> = descriptors
+            .iter()
+            .filter(|d| {
+                d.kind == GenerationKind::TraitApplication
+                    && d.owner == def.owner
+                    && d.label.as_deref() == Some(label)
+            })
+            .collect();
+        uses.sort_by_key(|d| (d.span.file.0, d.span.start));
+        for (order, app) in uses.iter().enumerate() {
+            let target = app.target.as_deref().unwrap_or_default();
+            let mut parts = target.splitn(2, '.');
+            let (model, field) = (parts.next().unwrap_or_default(), parts.next());
+            if super::resolve::resolve_given_model(refs, &def.owner, model).is_none() {
+                // Dangling targets are the resolve helper's `E2011`.
+                continue;
+            }
+            if let Some(field) = field
+                && super::resolve::resolve_given_field(refs, &def.owner, model, field).is_none()
+            {
+                continue;
+            }
+            apps.push(CheckedTraitApplication {
+                target_model: model.to_string(),
+                target_field: field.map(str::to_string),
+                target_canonical: format!("{}.{target}", def.owner),
+                span: app.span,
+                order,
+            });
+        }
+    }
+    apps
+}
+
+#[allow(clippy::too_many_arguments)]
+fn apply_trait_model_fields(
+    label: &str,
+    app: &CheckedTraitApplication,
+    model_canonical: &str,
+    template_fields: &[GivenContributedField],
+    has_check: bool,
+    authored: &HashMap<String, GivenAuthoredModel>,
+    contributed_by: &mut HashMap<(String, String), String>,
+    failed: &mut bool,
+    diags: &mut Vec<Diagnostic>,
+) {
+    if has_check {
+        *failed = true;
+        diags.push(super::effects::refuse_given_authority(
+            "saved JavaScript on a model trait",
+            "is not admitted; pure checks attach only to nonnullable native text fields",
+            app.span,
+        ));
+    }
+    for field in template_fields {
+        if field.default.is_none() {
+            *failed = true;
+            diags.push(given_bad_value(
+                &format!("trait `{label}` on {}", app.target_canonical),
+                &format!(
+                    "contributes `{}` with no default; existing creates and fixtures stay valid only with one",
+                    field.name
+                ),
+                app.span,
+            ));
+            continue;
+        }
+        let key = (model_canonical.to_string(), field.name.clone());
+        if authored
+            .get(model_canonical)
+            .is_some_and(|m| m.fields.contains_key(&field.name))
+        {
+            *failed = true;
+            diags.push(given_conflict(
+                &format!("trait `{label}` on {}", app.target_canonical),
+                &format!("contributes `{}`, already declared", field.name),
+                app.span,
+            ));
+            continue;
+        }
+        if let Some(first) = contributed_by.get(&key) {
+            *failed = true;
+            diags.push(given_conflict(
+                &format!("trait `{label}` on {}", app.target_canonical),
+                &format!(
+                    "contributes `{}`, already contributed by {first}",
+                    field.name
+                ),
+                app.span,
+            ));
+            continue;
+        }
+        contributed_by.insert(key, format!("trait `{label}`"));
+    }
+}
+
+fn apply_trait_field_constraints(
+    label: &str,
+    app: &CheckedTraitApplication,
+    field_name: &str,
+    model: &GivenAuthoredModel,
+    template_fields: &[GivenContributedField],
+    failed: &mut bool,
+    diags: &mut Vec<Diagnostic>,
+) {
+    if template_fields.len() != 1 {
+        *failed = true;
+        diags.push(given_target_mismatch(
+            &format!("trait `{label}` on {}", app.target_canonical),
+            "needs a single-field constraint template for a field attachment",
+            app.span,
+        ));
+        return;
+    }
+    let Some(authored_field) = model.fields.get(field_name) else {
+        // Dangling field: the resolve helper owns `E2011`.
+        return;
+    };
+    let template = &template_fields[0];
+    if template.type_name != authored_field.type_text {
+        *failed = true;
+        diags.push(given_target_mismatch(
+            &format!("trait `{label}` on {}", app.target_canonical),
+            &format!(
+                "has type `{}`, cannot change `{field_name}` from `{}`",
+                template.type_name, authored_field.type_text
+            ),
+            app.span,
+        ));
+        return;
+    }
+    match (&authored_field.default, template.default.as_deref()) {
+        (Some(authored), Some(contributed)) if authored != contributed => {
+            *failed = true;
+            diags.push(given_bad_value(
+                &format!("trait `{label}` on {}", app.target_canonical),
+                &format!("default `{contributed}` contradicts declared `{authored}`"),
+                app.span,
+            ));
+        }
+        _ => {}
+    }
+    let mut mins: Vec<&str> = Vec::new();
+    let mut maxes: Vec<&str> = Vec::new();
+    for bound in [&authored_field.min, &template.min] {
+        if let Some(b) = bound {
+            mins.push(b.as_str());
+        }
+    }
+    for bound in [&authored_field.max, &template.max] {
+        if let Some(b) = bound {
+            maxes.push(b.as_str());
+        }
+    }
+    if given_bounds_contradict(&mins, &maxes) {
+        *failed = true;
+        diags.push(given_bad_value(
+            &format!("trait `{label}` on {}", app.target_canonical),
+            "bounds contradict the declared bounds",
+            app.span,
+        ));
+    }
+}
+
 /// Check one trait definition's saved template and instantiate it at
 /// every compatible application in source order. Named traits reuse one
 /// template across applications; inline attachments own their one-off
@@ -22223,7 +24475,6 @@ fn given_check_trait_definition(
     contributed_by: &mut HashMap<(String, String), String>,
     diags: &mut Vec<Diagnostic>,
 ) -> Option<CheckedTraitContract> {
-    use super::generation::GenerationKind;
     use super::generation_intake::{AssociationKey, UnitKind};
     let label = def.label.clone().unwrap_or_default();
     let kind = if inline {
@@ -22322,135 +24573,20 @@ fn given_check_trait_definition(
         ));
     }
     let template = templates[0];
+    drop(fail);
     // Template field checks: well-formed leaf types, admitted modifiers
     // and required checked defaults.
     let mut template_fields: Vec<GivenContributedField> = Vec::new();
     for field in &template.fields {
-        // Generated captions are static literals only. Retain their checked
-        // text for the ordinary label pipeline; never resolve ambient names
-        // or silently drop a descriptor/table that this contract cannot carry.
-        let label = if let Some(node) = &field.label {
-            let Some(text) = string_literal_value(node) else {
-                fail(Diagnostic::error(
-                    "E3016",
-                    "contributed field label must be a static text literal; generated descriptor, reference and table captions are not admitted".to_string(),
-                    node.span,
-                ));
-                continue;
-            };
-            if let Some(problem) = super::icu::static_caption_error(&text) {
-                fail(Diagnostic::error(
-                    "E5007",
-                    format!("invalid contributed field label: {problem}"),
-                    node.span,
-                ));
-                continue;
-            }
-            Some(text)
-        } else {
-            None
-        };
-        if field.unique {
-            fail(super::effects::refuse_given_authority(
-                &format!("contributed field `{}`", field.name),
-                "claims unique storage semantics, which traits never invent",
-                field.span,
-            ));
-            continue;
-        }
-        if field.machine {
-            fail(super::effects::refuse_given_authority(
-                &format!("contributed field `{}`", field.name),
-                "claims machine lifecycle semantics, which need explicit integration",
-                field.span,
-            ));
-            continue;
-        }
-        if field.server {
-            fail(super::effects::refuse_given_authority(
-                &format!("contributed field `{}`", field.name),
-                "claims server-only semantics, which traits never invent",
-                field.span,
-            ));
-            continue;
-        }
-        if !given_wellformed_leaf(&field.type_text) {
-            // A declared model name in this position is a scope refusal,
-            // not a dangling reference: v1 contributions are leaves.
-            fail(given_target_mismatch(
-                &format!("contributed field `{}`", field.name),
-                &format!(
-                    "has type `{}`; v1 trait contributions require supported native scalar/enum leaves with at most one array and optional outer nullability",
-                    field.type_text
-                ),
-                field.span,
-            ));
-            continue;
-        }
-        if let Some(default) = field.default.as_deref()
-            && !given_const_matches_type(&field.type_text, default)
+        if let Some(contributed) =
+            check_trait_template_field(field, &mut failed, diags)
         {
-            fail(given_bad_value(
-                &format!("contributed field `{}`", field.name),
-                &format!("default `{default}` does not inhabit `{}`", field.type_text),
-                field.span,
-            ));
-            continue;
+            template_fields.push(contributed);
         }
-        if field.trim
-            && !matches!(
-                field.type_text.trim_end_matches('?'),
-                "text" | "email" | "timezone"
-            )
-        {
-            fail(given_bad_value(
-                &format!("contributed field `{}`", field.name),
-                "trim requires a string-like native field",
-                field.span,
-            ));
-            continue;
-        }
-        if let Some((which, value)) = [("min", &field.min), ("max", &field.max)]
-            .into_iter()
-            .find_map(|(which, value)| {
-                value
-                    .as_deref()
-                    .filter(|value| !given_bound_matches_type(&field.type_text, value))
-                    .map(|value| (which, value))
-            })
-        {
-            fail(given_bad_value(
-                &format!("contributed field `{}`", field.name),
-                &format!(
-                    "{which} bound `{value}` is not a supported native bound for `{}`",
-                    field.type_text
-                ),
-                field.span,
-            ));
-            continue;
-        }
-        if let (Some(min), Some(max)) = (field.min.as_deref(), field.max.as_deref())
-            && given_bounds_contradict(&[min], &[max])
-        {
-            fail(given_bad_value(
-                &format!("contributed field `{}`", field.name),
-                &format!("bounds contradict: min={min} exceeds max={max}"),
-                field.span,
-            ));
-            continue;
-        }
-        template_fields.push(GivenContributedField {
-            label,
-            name: field.name.clone(),
-            type_name: field.type_text.clone(),
-            default: field.default.clone(),
-            trim: field.trim,
-            min: field.min.clone(),
-            max: field.max.clone(),
-        });
     }
     if has_check && (template_fields.len() != 1 || template_fields[0].type_name != "text") {
-        fail(given_target_mismatch(
+        failed = true;
+        diags.push(given_target_mismatch(
             &format!("trait `{label}` field check"),
             "requires one nonnullable native text field template",
             def.span,
@@ -22458,166 +24594,34 @@ fn given_check_trait_definition(
     }
     // Applications in explicit source order. Inline attachments apply
     // once at their own target; named traits apply at every written use.
-    let mut apps: Vec<CheckedTraitApplication> = Vec::new();
-    if inline {
-        let target = def.target.as_deref().unwrap_or_default();
-        let mut parts = target.splitn(2, '.');
-        let (model, field) = (parts.next().unwrap_or_default(), parts.next());
-        if super::resolve::resolve_given_model(refs, &def.owner, model).is_some()
-            && field.is_none_or(|f| {
-                super::resolve::resolve_given_field(refs, &def.owner, model, f).is_some()
-            })
-        {
-            let canonical = format!("{}.{target}", def.owner);
-            apps.push(CheckedTraitApplication {
-                target_model: model.to_string(),
-                target_field: field.map(str::to_string),
-                target_canonical: canonical,
-                span: def.span,
-                order: 0,
-            });
-        }
-        // Dangling inline targets stay silent here: the attachment sits
-        // on its target, so a missing model is the pipeline's own error.
-    } else {
-        let mut uses: Vec<&super::generation::GenerationDescriptor> = descriptors
-            .iter()
-            .filter(|d| {
-                d.kind == GenerationKind::TraitApplication
-                    && d.owner == def.owner
-                    && d.label.as_deref() == Some(label.as_str())
-            })
-            .collect();
-        uses.sort_by_key(|d| (d.span.file.0, d.span.start));
-        for (order, app) in uses.iter().enumerate() {
-            let target = app.target.as_deref().unwrap_or_default();
-            let mut parts = target.splitn(2, '.');
-            let (model, field) = (parts.next().unwrap_or_default(), parts.next());
-            if super::resolve::resolve_given_model(refs, &def.owner, model).is_none() {
-                // Dangling targets are the resolve helper's `E2011`.
-                continue;
-            }
-            if let Some(field) = field
-                && super::resolve::resolve_given_field(refs, &def.owner, model, field).is_none()
-            {
-                continue;
-            }
-            apps.push(CheckedTraitApplication {
-                target_model: model.to_string(),
-                target_field: field.map(str::to_string),
-                target_canonical: format!("{}.{target}", def.owner),
-                span: app.span,
-                order,
-            });
-        }
-    }
+    let apps =
+        collect_trait_applications(inline, descriptors, def, refs, &label);
     // Instantiate the template at every application: model attachments
     // add fields, field attachments add compatible constraints/defaults.
     for app in &apps {
         let model_canonical = format!("{}.{}", def.owner, app.target_model);
         let authored_model = authored.get(&model_canonical);
         match (&app.target_field, authored_model) {
-            (None, _) => {
-                if has_check {
-                    fail(super::effects::refuse_given_authority(
-                        "saved JavaScript on a model trait",
-                        "is not admitted; pure checks attach only to nonnullable native text fields",
-                        app.span,
-                    ));
-                }
-                for field in &template_fields {
-                    if field.default.is_none() {
-                        fail(given_bad_value(
-                            &format!("trait `{label}` on {}", app.target_canonical),
-                            &format!(
-                                "contributes `{}` with no default; existing creates and fixtures stay valid only with one",
-                                field.name
-                            ),
-                            app.span,
-                        ));
-                        continue;
-                    }
-                    let key = (model_canonical.clone(), field.name.clone());
-                    if authored
-                        .get(&model_canonical)
-                        .is_some_and(|m| m.fields.contains_key(&field.name))
-                    {
-                        fail(given_conflict(
-                            &format!("trait `{label}` on {}", app.target_canonical),
-                            &format!("contributes `{}`, already declared", field.name),
-                            app.span,
-                        ));
-                        continue;
-                    }
-                    if let Some(first) = contributed_by.get(&key) {
-                        fail(given_conflict(
-                            &format!("trait `{label}` on {}", app.target_canonical),
-                            &format!(
-                                "contributes `{}`, already contributed by {first}",
-                                field.name
-                            ),
-                            app.span,
-                        ));
-                        continue;
-                    }
-                    contributed_by.insert(key, format!("trait `{label}`"));
-                }
-            }
-            (Some(field_name), Some(model)) => {
-                if template_fields.len() != 1 {
-                    fail(given_target_mismatch(
-                        &format!("trait `{label}` on {}", app.target_canonical),
-                        "needs a single-field constraint template for a field attachment",
-                        app.span,
-                    ));
-                    continue;
-                }
-                let Some(authored_field) = model.fields.get(field_name) else {
-                    // Dangling field: the resolve helper owns `E2011`.
-                    continue;
-                };
-                let template = &template_fields[0];
-                if template.type_name != authored_field.type_text {
-                    fail(given_target_mismatch(
-                        &format!("trait `{label}` on {}", app.target_canonical),
-                        &format!(
-                            "has type `{}`, cannot change `{field_name}` from `{}`",
-                            template.type_name, authored_field.type_text
-                        ),
-                        app.span,
-                    ));
-                    continue;
-                }
-                match (&authored_field.default, template.default.as_deref()) {
-                    (Some(authored), Some(contributed)) if authored != contributed => {
-                        fail(given_bad_value(
-                            &format!("trait `{label}` on {}", app.target_canonical),
-                            &format!("default `{contributed}` contradicts declared `{authored}`"),
-                            app.span,
-                        ));
-                    }
-                    _ => {}
-                }
-                let mut mins: Vec<&str> = Vec::new();
-                let mut maxes: Vec<&str> = Vec::new();
-                for bound in [&authored_field.min, &template.min] {
-                    if let Some(b) = bound {
-                        mins.push(b.as_str());
-                    }
-                }
-                for bound in [&authored_field.max, &template.max] {
-                    if let Some(b) = bound {
-                        maxes.push(b.as_str());
-                    }
-                }
-                if given_bounds_contradict(&mins, &maxes) {
-                    fail(given_bad_value(
-                        &format!("trait `{label}` on {}", app.target_canonical),
-                        "bounds contradict the declared bounds",
-                        app.span,
-                    ));
-                }
-            }
+            (None, _) => apply_trait_model_fields(
+                &label,
+                app,
+                &model_canonical,
+                &template_fields,
+                has_check,
+                authored,
+                contributed_by,
+                &mut failed,
+                diags,
+            ),
+            (Some(field_name), Some(model)) => apply_trait_field_constraints(
+                &label,
+                app,
+                field_name,
+                model,
+                &template_fields,
+                &mut failed,
+                diags,
+            ),
             (Some(_), None) => {
                 // Dangling model: the resolve helper owns `E2011`.
             }
@@ -22769,100 +24773,20 @@ fn given_check_keyword_definition(
     uses.sort_by_key(|d| (d.span.file.0, d.span.start));
     let mut apps: Vec<CheckedKeywordApplication> = Vec::new();
     for (order, app) in uses.iter().enumerate() {
-        let by_name: HashMap<&str, &str> = app
-            .args
-            .iter()
-            .map(|a| (a.name.as_str(), a.value.trim()))
-            .collect();
-        let model_value = def
-            .params
-            .iter()
-            .find(|p| p.kind == "model")
-            .and_then(|p| by_name.get(p.name.as_str()).copied())
-            .unwrap_or_default();
-        let field_value = def
-            .params
-            .iter()
-            .find(|p| p.kind == "field")
-            .and_then(|p| by_name.get(p.name.as_str()).copied())
-            .unwrap_or_default();
-        // Missing/unknown arguments are discovery's `E2001`; unusable
-        // applications simply do not bind here.
-        if model_value.is_empty() || field_value.is_empty() {
-            continue;
-        }
-        if super::resolve::resolve_given_model(refs, &def.owner, model_value).is_none() {
-            continue;
-        }
-        let mut parts = field_value.splitn(2, '.');
-        let (field_model, field_name) = (
-            parts.next().unwrap_or_default(),
-            parts.next().unwrap_or_default(),
-        );
-        let field_symbol =
-            super::resolve::resolve_given_field(refs, &def.owner, field_model, field_name);
-        if field_symbol.is_none() {
-            continue;
-        }
-        // The bound field must be checked `text`: `state.unique-key@1`
-        // computes over text only (no nullable/model-typed keys without
-        // explicit null-key semantics).
-        let field_type = field_symbol.and_then(|s| program.types.symbol_types.get(&s));
-        if !matches!(field_type, Some(ResolvedType::Scalar(Scalar::Text))) {
-            if field_type.is_some_and(|t| !matches!(t, ResolvedType::Error)) {
-                fail(given_target_mismatch(
-                    &format!("keyword `{label}` on {field_value}"),
-                    "needs a checked text field",
-                    app.span,
-                ));
-            }
-            continue;
-        }
-        let model_canonical = format!("{}.{model_value}", def.owner);
-        let field_canonical = format!("{model_canonical}.{field_name}");
-        if authored
-            .get(&model_canonical)
-            .and_then(|m| m.fields.get(field_name))
-            .is_some_and(|f| f.unique)
-        {
-            fail(given_conflict(
-                &format!("keyword `{label}` on {field_value}"),
-                "conflicts with the declared builtin unique",
-                app.span,
-            ));
-            continue;
-        }
-        let bind_key = (model_canonical.clone(), field_name.to_string());
-        if let Some(first) = bound_by.get(&bind_key) {
-            fail(given_conflict(
-                &format!("keyword `{label}` on {field_value}"),
-                &format!("is already bound by {first}"),
-                app.span,
-            ));
-            continue;
-        }
-        bound_by.insert(bind_key, format!("keyword `{label}`"));
-        let mut args: Vec<(String, String)> = Vec::new();
-        for param in &def.params {
-            let Some(value) = by_name.get(param.name.as_str()) else {
-                continue;
-            };
-            let resolved = match param.kind.as_str() {
-                "model" => format!("{}.{value}", def.owner),
-                "field" => format!("{}.{value}", def.owner),
-                "operation" => format!("{}.{value}", def.owner),
-                _ => value.to_string(),
-            };
-            args.push((param.name.clone(), resolved));
-        }
-        apps.push(CheckedKeywordApplication {
-            rule_id: format!("{field_canonical}#{label}"),
-            target_model: model_canonical.clone(),
-            target_field: field_canonical.clone(),
-            args,
-            span: app.span,
+        if let Some(bound) = bind_keyword_application(
+            program,
+            refs,
+            authored,
+            def,
+            &label,
+            app,
             order,
-        });
+            bound_by,
+            &mut failed,
+            diags,
+        ) {
+            apps.push(bound);
+        }
     }
     if failed {
         return None;
@@ -22903,6 +24827,117 @@ fn given_check_keyword_definition(
             given_closure_fingerprint(js.as_bytes(), &closure)
         },
         applications: apps,
+    })
+}
+
+fn bind_keyword_application(
+    program: &super::CheckedProgram,
+    refs: &super::resolve::GivenReferenceTables,
+    authored: &HashMap<String, GivenAuthoredModel>,
+    def: &super::generation::GenerationDescriptor,
+    label: &str,
+    app: &super::generation::GenerationDescriptor,
+    order: usize,
+    bound_by: &mut HashMap<(String, String), String>,
+    failed: &mut bool,
+    diags: &mut Vec<Diagnostic>,
+) -> Option<CheckedKeywordApplication> {
+    let by_name: HashMap<&str, &str> = app
+        .args
+        .iter()
+        .map(|a| (a.name.as_str(), a.value.trim()))
+        .collect();
+    let model_value = def
+        .params
+        .iter()
+        .find(|p| p.kind == "model")
+        .and_then(|p| by_name.get(p.name.as_str()).copied())
+        .unwrap_or_default();
+    let field_value = def
+        .params
+        .iter()
+        .find(|p| p.kind == "field")
+        .and_then(|p| by_name.get(p.name.as_str()).copied())
+        .unwrap_or_default();
+    // Missing/unknown arguments are discovery's `E2001`; unusable
+    // applications simply do not bind here.
+    if model_value.is_empty() || field_value.is_empty() {
+        return None;
+    }
+    if super::resolve::resolve_given_model(refs, &def.owner, model_value).is_none() {
+        return None;
+    }
+    let mut parts = field_value.splitn(2, '.');
+    let (field_model, field_name) = (
+        parts.next().unwrap_or_default(),
+        parts.next().unwrap_or_default(),
+    );
+    let field_symbol =
+        super::resolve::resolve_given_field(refs, &def.owner, field_model, field_name);
+    if field_symbol.is_none() {
+        return None;
+    }
+    // The bound field must be checked `text`: `state.unique-key@1`
+    // computes over text only (no nullable/model-typed keys without
+    // explicit null-key semantics).
+    let field_type = field_symbol.and_then(|s| program.types.symbol_types.get(&s));
+    if !matches!(field_type, Some(ResolvedType::Scalar(Scalar::Text))) {
+        if field_type.is_some_and(|t| !matches!(t, ResolvedType::Error)) {
+            *failed = true;
+            diags.push(given_target_mismatch(
+                &format!("keyword `{label}` on {field_value}"),
+                "needs a checked text field",
+                app.span,
+            ));
+        }
+        return None;
+    }
+    let model_canonical = format!("{}.{model_value}", def.owner);
+    let field_canonical = format!("{model_canonical}.{field_name}");
+    if authored
+        .get(&model_canonical)
+        .and_then(|m| m.fields.get(field_name))
+        .is_some_and(|f| f.unique)
+    {
+        *failed = true;
+        diags.push(given_conflict(
+            &format!("keyword `{label}` on {field_value}"),
+            "conflicts with the declared builtin unique",
+            app.span,
+        ));
+        return None;
+    }
+    let bind_key = (model_canonical.clone(), field_name.to_string());
+    if let Some(first) = bound_by.get(&bind_key) {
+        *failed = true;
+        diags.push(given_conflict(
+            &format!("keyword `{label}` on {field_value}"),
+            &format!("is already bound by {first}"),
+            app.span,
+        ));
+        return None;
+    }
+    bound_by.insert(bind_key, format!("keyword `{label}`"));
+    let mut args: Vec<(String, String)> = Vec::new();
+    for param in &def.params {
+        let Some(value) = by_name.get(param.name.as_str()) else {
+            continue;
+        };
+        let resolved = match param.kind.as_str() {
+            "model" => format!("{}.{value}", def.owner),
+            "field" => format!("{}.{value}", def.owner),
+            "operation" => format!("{}.{value}", def.owner),
+            _ => value.to_string(),
+        };
+        args.push((param.name.clone(), resolved));
+    }
+    Some(CheckedKeywordApplication {
+        rule_id: format!("{field_canonical}#{label}"),
+        target_model: model_canonical.clone(),
+        target_field: field_canonical.clone(),
+        args,
+        span: app.span,
+        order,
     })
 }
 

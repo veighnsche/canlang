@@ -1098,6 +1098,33 @@ enum DescCtx {
     Orphan,
 }
 
+/// One reference-traversal step: continue with a new type, stop with
+/// the final answer, or dead-end the whole traversal.
+enum Traverse {
+    Next(ResolvedType),
+    Stop(Option<&'static str>),
+    Dead,
+}
+
+fn traverse_object_step(fields: &[(String, ResolvedType)], segment: &str) -> Traverse {
+    match fields.iter().find(|(name, _)| name == segment) {
+        Some((_, ty)) => Traverse::Next(ty.clone()),
+        None => Traverse::Dead,
+    }
+}
+
+fn traverse_delivery_tail(
+    segment: &str,
+    last: bool,
+    traversed: &mut Option<&'static str>,
+) -> Traverse {
+    if !last || !matches!(segment, "id" | "status" | "error" | "result") {
+        Traverse::Dead
+    } else {
+        Traverse::Stop(*traversed)
+    }
+}
+
 impl<'a> Cx<'a> {
     fn new(
         db: &'a SourceDb,
@@ -2360,77 +2387,124 @@ impl<'a> Cx<'a> {
             if let ResolvedType::Nullable(inner) = current {
                 current = *inner;
             }
-            match current {
-                ResolvedType::Error | ResolvedType::Unknown | ResolvedType::Opaque(_) => {
-                    return None;
-                }
-                ResolvedType::Record { symbol, .. } => {
-                    if !matches!(
-                        self.tables.symbols[symbol.0 as usize].kind,
-                        SymbolKind::Contract { .. } | SymbolKind::Event { .. }
-                    ) {
-                        return None;
-                    }
-                    let next = self.record_field_named(symbol, segment)?;
-                    current = self.types.symbol_types.get(&next).cloned()?;
-                }
-                ResolvedType::StdDelivery { op, .. }
-                    if *segment == "result"
-                        || (*segment == "progress"
-                            && super::types::delivery_progress_alias(&current)) =>
-                {
-                    if last {
-                        return traversed;
-                    }
-                    current = super::types::std_delivery_result_type(op);
-                }
-                ResolvedType::Object(fields) | ResolvedType::StdNominal { fields, .. } => {
-                    current = fields.iter().find(|(name, _)| name == segment)?.1.clone();
-                }
-                ResolvedType::Delivery { .. } | ResolvedType::StdDelivery { .. } => {
-                    if !last || !matches!(*segment, "id" | "status" | "error" | "result") {
-                        return None;
-                    }
-                    return traversed;
-                }
-                ResolvedType::Scalar(Scalar::User) => {
-                    if *segment != "id" {
-                        return None;
-                    }
-                    if traversed.is_none() {
-                        traversed = Some("user");
-                    }
-                    current = ResolvedType::Scalar(Scalar::Text);
-                }
-                ResolvedType::Scalar(Scalar::Member) => {
-                    match *segment {
-                        "id" => current = ResolvedType::Scalar(Scalar::Text),
-                        "user" => current = ResolvedType::Scalar(Scalar::User),
-                        "team" => current = ResolvedType::Team,
-                        _ => return None,
-                    }
-                    if traversed.is_none() {
-                        traversed = Some("member");
-                    }
-                }
-                ResolvedType::Scalar(Scalar::Money) => match *segment {
-                    "minor" => current = ResolvedType::Scalar(Scalar::Int),
-                    "currency" => current = ResolvedType::Scalar(Scalar::Currency),
-                    _ => return None,
-                },
-                ResolvedType::Team => match *segment {
-                    "id" => current = ResolvedType::Scalar(Scalar::Text),
-                    "timezone" => current = ResolvedType::Scalar(Scalar::Timezone),
-                    _ => return None,
-                },
-                ResolvedType::OperationContext => match *segment {
-                    "id" | "source" => current = ResolvedType::Scalar(Scalar::Text),
-                    _ => return None,
-                },
-                _ => return None,
+            match self.traverse_step(current, segment, last, &mut traversed) {
+                Traverse::Next(next) => current = next,
+                Traverse::Stop(done) => return done,
+                Traverse::Dead => return None,
             }
         }
         traversed
+    }
+
+    fn traverse_step(
+        &self,
+        current: ResolvedType,
+        segment: &str,
+        last: bool,
+        traversed: &mut Option<&'static str>,
+    ) -> Traverse {
+        match &current {
+            ResolvedType::Error | ResolvedType::Unknown | ResolvedType::Opaque(_) => {
+                Traverse::Dead
+            }
+            ResolvedType::Record { symbol, .. } => {
+                match self.traverse_record_step(*symbol, segment) {
+                    Some(next) => Traverse::Next(next),
+                    None => Traverse::Dead,
+                }
+            }
+            ResolvedType::StdDelivery { op, .. }
+                if segment == "result"
+                    || (segment == "progress"
+                        && super::types::delivery_progress_alias(&current)) =>
+            {
+                self.traverse_std_delivery_step(op, last, traversed)
+            }
+            ResolvedType::Object(fields) | ResolvedType::StdNominal { fields, .. } => {
+                traverse_object_step(fields, segment)
+            }
+            ResolvedType::Delivery { .. } | ResolvedType::StdDelivery { .. } => {
+                traverse_delivery_tail(segment, last, traversed)
+            }
+            ResolvedType::Scalar(_) | ResolvedType::Team | ResolvedType::OperationContext => {
+                self.traverse_scalar_leaf(&current, segment, traversed)
+            }
+            _ => Traverse::Dead,
+        }
+    }
+
+    fn traverse_record_step(
+        &self,
+        symbol: SymbolId,
+        segment: &str,
+    ) -> Option<ResolvedType> {
+        if !matches!(
+            self.tables.symbols[symbol.0 as usize].kind,
+            SymbolKind::Contract { .. } | SymbolKind::Event { .. }
+        ) {
+            return None;
+        }
+        let next = self.record_field_named(symbol, segment)?;
+        self.types.symbol_types.get(&next).cloned()
+    }
+
+    fn traverse_std_delivery_step(
+        &self,
+        op: &super::catalog::StdOperation,
+        last: bool,
+        traversed: &mut Option<&'static str>,
+    ) -> Traverse {
+        if last {
+            Traverse::Stop(*traversed)
+        } else {
+            Traverse::Next(super::types::std_delivery_result_type(op))
+        }
+    }
+
+    fn traverse_scalar_leaf(
+        &self,
+        current: &ResolvedType,
+        segment: &str,
+        traversed: &mut Option<&'static str>,
+    ) -> Traverse {
+        match current {
+            ResolvedType::Scalar(Scalar::User) => {
+                if segment != "id" {
+                    return Traverse::Dead;
+                }
+                if traversed.is_none() {
+                    *traversed = Some("user");
+                }
+                Traverse::Next(ResolvedType::Scalar(Scalar::Text))
+            }
+            ResolvedType::Scalar(Scalar::Member) => {
+                let next = match segment {
+                    "id" => ResolvedType::Scalar(Scalar::Text),
+                    "user" => ResolvedType::Scalar(Scalar::User),
+                    "team" => ResolvedType::Team,
+                    _ => return Traverse::Dead,
+                };
+                if traversed.is_none() {
+                    *traversed = Some("member");
+                }
+                Traverse::Next(next)
+            }
+            ResolvedType::Scalar(Scalar::Money) => match segment {
+                "minor" => Traverse::Next(ResolvedType::Scalar(Scalar::Int)),
+                "currency" => Traverse::Next(ResolvedType::Scalar(Scalar::Currency)),
+                _ => Traverse::Dead,
+            },
+            ResolvedType::Team => match segment {
+                "id" => Traverse::Next(ResolvedType::Scalar(Scalar::Text)),
+                "timezone" => Traverse::Next(ResolvedType::Scalar(Scalar::Timezone)),
+                _ => Traverse::Dead,
+            },
+            ResolvedType::OperationContext => match segment {
+                "id" | "source" => Traverse::Next(ResolvedType::Scalar(Scalar::Text)),
+                _ => Traverse::Dead,
+            },
+            _ => Traverse::Dead,
+        }
     }
 
     // --- When: crud --------------------------------------------------------
@@ -3218,302 +3292,464 @@ impl<'a> Cx<'a> {
         let parts = significant_children(node);
         match node.kind {
             SyntaxKind::Let => {
-                effect.verb = EffectVerb::Let;
-                effect.binding = parts.iter().find_map(|n| {
-                    let word = name_text(n, text)?;
-                    (word != "let").then(|| word.to_string())
-                });
-                effect.value = parts
-                    .iter()
-                    .find(|n| is_expression(n.kind))
-                    .copied()
-                    .map(NodeKey::of);
+                self.walk_let_effect(text, &parts, &mut effect);
             }
             SyntaxKind::Require => {
-                effect.verb = EffectVerb::Require;
-                effect.cond = parts
-                    .iter()
-                    .find(|n| is_expression(n.kind))
-                    .copied()
-                    .map(NodeKey::of);
-                effect.message = attribute_value(node, "message", text).map(NodeKey::of);
+                self.walk_require_effect(text, node, &parts, &mut effect);
             }
             SyntaxKind::Create => {
-                effect.verb = EffectVerb::Create;
-                let path = parts.iter().find(|n| n.kind == SyntaxKind::Path).copied();
-                let model =
-                    path.and_then(|p| self.tables.node_symbol.get(&NodeKey::of(p)).copied());
-                if let Some(model) = model
-                    && matches!(
-                        self.tables.symbols[model.0 as usize].kind,
-                        SymbolKind::Model { .. }
-                    )
-                {
-                    effect.target = Some(EffectTarget::Model(model));
-                    if self.checks_on {
-                        self.check_own_mutation(module, text, node, path, model, "create");
-                        self.check_hook_staging_create(module, text, node, model);
-                    }
-                }
-                effect.args = effect_args(text, node);
-                effect.binding = as_binding(text, node);
+                self.walk_create_effect(module, text, node, &parts, &mut effect);
             }
             SyntaxKind::Set | SyntaxKind::Transition => {
-                effect.verb = if node.kind == SyntaxKind::Transition {
-                    EffectVerb::Transition
-                } else {
-                    EffectVerb::Set
-                };
-                let path = parts.iter().find(|n| n.kind == SyntaxKind::Path).copied();
-                effect.target = path.and_then(|p| self.record_target(module, text, p));
-                if self.checks_on
-                    && let Some(EffectTarget::Record { model: Some(model) }) = &effect.target
-                {
-                    self.check_own_mutation(module, text, node, path, *model, "set");
-                }
-                if self.checks_on {
-                    let target = effect.target.clone();
-                    self.check_hook_staging_set(module, text, node, &target);
-                }
-                effect.args = effect_args(text, node);
+                self.walk_set_effect(module, text, node, &parts, &mut effect);
             }
             SyntaxKind::Delete => {
-                effect.verb = EffectVerb::Delete;
-                let path = parts.iter().find(|n| n.kind == SyntaxKind::Path).copied();
-                effect.target = path.and_then(|p| self.record_target(module, text, p));
-                if self.checks_on
-                    && let Some(EffectTarget::Record { model: Some(model) }) = &effect.target
-                {
-                    self.check_own_mutation(module, text, node, path, *model, "delete");
-                    if self.crud_disables(*model, CrudOp::Delete) {
-                        self.diags.push(Diagnostic::error(
-                            "E4042",
-                            format!(
-                                "delete is disabled for '{}' (delete=none)",
-                                self.show(module, *model),
-                            ),
-                            tight_span(text, path.unwrap_or(node)),
-                        ));
-                    }
-                }
-                if self.checks_on {
-                    let target = effect.target.clone();
-                    self.check_hook_staging_delete(module, text, node, &target);
-                }
+                self.walk_delete_effect(module, text, node, &parts, &mut effect);
             }
             SyntaxKind::Call => {
-                effect.verb = EffectVerb::Call;
-                let target = parts.iter().find(|n| is_expression(n.kind)).copied();
-                effect.target_node = target.map(NodeKey::of);
-                effect.target = target.and_then(|t| self.operation_target(module, text, t));
-                if self.checks_on
-                    && let Some(target) = target
-                    && let Some(op) = operation_id(self.types, target)
-                {
-                    self.check_call_local(module, text, target, op);
-                }
-                if let (Some(target), Some(caller)) = (target, self.current_scenario) {
-                    for callee in callee_ids(self.types, target) {
-                        push_unique(self.callable_calls.entry(caller).or_default(), callee);
-                    }
-                }
-                if self.checks_on
-                    && let Some(target) = target
-                {
-                    self.check_action_call(module, text, node, target);
-                }
-                effect.args = effect_args(text, node);
-                if let (Some(EffectTarget::Operation(callee)), Some(caller)) =
-                    (&effect.target, self.current_scenario)
-                {
-                    let supplied = effect.args.iter().map(|arg| arg.key.clone()).collect();
-                    match self.tables.symbols[callee.0 as usize].kind {
-                        SymbolKind::Scenario { .. } => self
-                            .callable_scenario_inputs
-                            .entry(caller)
-                            .or_default()
-                            .push((*callee, supplied)),
-                        SymbolKind::CrudOp {
-                            model,
-                            op: CrudOp::Create,
-                        } => self
-                            .callable_creates
-                            .entry(caller)
-                            .or_default()
-                            .push((model, supplied)),
-                        _ => {}
-                    }
-                }
-                effect.binding = as_binding(text, node);
+                self.walk_call_effect(module, text, node, &parts, &mut effect);
             }
             SyntaxKind::Emit => {
-                effect.verb = EffectVerb::Emit;
-                let path = parts.iter().find(|n| n.kind == SyntaxKind::Path).copied();
-                let event =
-                    path.and_then(|p| self.tables.node_symbol.get(&NodeKey::of(p)).copied());
-                if let Some(event) = event
-                    && matches!(
-                        self.tables.symbols[event.0 as usize].kind,
-                        SymbolKind::Event { .. }
-                    )
-                {
-                    effect.target = Some(EffectTarget::Event(event));
-                }
-                effect.args = effect_args(text, node);
+                self.walk_emit_effect(text, node, &parts, &mut effect);
             }
             SyntaxKind::Send => {
-                effect.verb = EffectVerb::Send;
-                let target = parts.iter().find(|n| is_expression(n.kind)).copied();
-                effect.target_node = target.map(NodeKey::of);
-                effect.target = target.and_then(|t| self.operation_target(module, text, t));
-                effect.when = bare_keyword_value(node, "when", text).map(NodeKey::of);
-                effect.args = effect_args(text, node);
-                effect.binding = as_binding(text, node);
+                self.walk_send_effect(module, text, node, &parts, &mut effect);
             }
             SyntaxKind::Schedule => {
-                effect.verb = EffectVerb::Schedule;
-                effect.key = parts
-                    .iter()
-                    .find(|n| is_expression(n.kind))
-                    .copied()
-                    .map(NodeKey::of);
-                effect.at = bare_keyword_value(node, "at", text).map(NodeKey::of);
-                let mut event_path = None;
-                for (i, part) in parts.iter().enumerate() {
-                    if is_name(part, text, "event") {
-                        event_path = parts.get(i + 2).copied();
-                    }
-                }
-                let event =
-                    event_path.and_then(|p| self.tables.node_symbol.get(&NodeKey::of(p)).copied());
-                if let Some(event) = event
-                    && matches!(
-                        self.tables.symbols[event.0 as usize].kind,
-                        SymbolKind::Event { .. }
-                    )
-                {
-                    effect.target = Some(EffectTarget::Event(event));
-                }
-                effect.args = effect_args(text, node);
-                if self.checks_on {
-                    self.check_hook_staging_timer(module, text, node);
-                }
+                self.walk_schedule_effect(module, text, node, &parts, &mut effect);
             }
             SyntaxKind::Cancel => {
-                effect.verb = EffectVerb::Cancel;
-                effect.value = parts
-                    .iter()
-                    .find(|n| is_expression(n.kind))
-                    .copied()
-                    .map(NodeKey::of);
-                if self.checks_on {
-                    self.check_hook_staging_timer(module, text, node);
-                }
+                self.walk_cancel_effect(module, text, node, &parts, &mut effect);
             }
             SyntaxKind::Return => {
-                effect.verb = EffectVerb::Return;
-                let value = parts.iter().find(|n| is_expression(n.kind)).copied();
-                effect.value = value.map(NodeKey::of);
-                if self.checks_on
-                    && let Some(value) = value
-                {
-                    self.check_secret_return(text, value);
-                }
+                self.walk_return_effect(text, &parts, &mut effect);
             }
             SyntaxKind::If => {
-                effect.verb = EffectVerb::If;
-                let mut else_at = None;
-                for (i, part) in parts.iter().enumerate() {
-                    if is_name(part, text, "else") {
-                        else_at = Some(i);
-                    }
-                }
-                let cond = parts.iter().find(|n| is_expression(n.kind)).copied();
-                effect.cond = cond.map(NodeKey::of);
-                let mut then_parts = Vec::new();
-                let mut else_parts = Vec::new();
-                for (i, part) in parts.iter().enumerate() {
-                    if part.kind == SyntaxKind::Name || cond.is_some_and(|c| std::ptr::eq(*part, c))
-                    {
-                        continue;
-                    }
-                    if else_at.is_some_and(|at| i > at) {
-                        else_parts.push(*part);
-                    } else {
-                        then_parts.push(*part);
-                    }
-                }
-                effect.then_effects = self.walk_stmt_list(module, text, &then_parts);
-                effect.else_effects = self.walk_stmt_list(module, text, &else_parts);
+                self.walk_if_effect(module, text, &parts, &mut effect);
             }
             SyntaxKind::Match => {
-                effect.verb = EffectVerb::Match;
-                effect.value = parts
-                    .iter()
-                    .find(|n| is_expression(n.kind))
-                    .copied()
-                    .map(NodeKey::of);
-                for arm in parts.iter().filter(|n| n.kind == SyntaxKind::MatchArm) {
-                    let statements: Vec<_> = significant_children(arm)
-                        .into_iter()
-                        .filter(|n| !matches!(n.kind, SyntaxKind::Name | SyntaxKind::Punct))
-                        .collect();
-                    let node = NodeKey::of(arm);
-                    let case = self.types.enum_match_cases.get(&node).cloned();
-                    let effects = self.walk_stmt_list(module, text, &statements);
-                    effect.match_arms.push(EffectMatchArm {
-                        node,
-                        case,
-                        effects,
-                    });
-                }
+                self.walk_match_effect(module, text, &parts, &mut effect);
             }
             SyntaxKind::For => {
-                effect.verb = EffectVerb::For;
-                let mut limit_at = None;
-                for (i, part) in parts.iter().enumerate() {
-                    if is_name(part, text, "for")
-                        && let Some(name) = parts.get(i + 1).and_then(|n| name_text(n, text))
-                    {
-                        effect.item = Some(name.to_string());
-                    }
-                    if is_name(part, text, "limit") {
-                        limit_at = Some(i);
-                    }
-                }
-                let mut domain = None;
-                let mut limit = None;
-                let mut header_end = 0;
-                let mut seen_domain = false;
-                for (i, part) in parts.iter().enumerate() {
-                    if !is_expression(part.kind) {
-                        continue;
-                    }
-                    let is_header = if !seen_domain {
-                        seen_domain = true;
-                        true
-                    } else {
-                        limit_at.is_some_and(|at| i == at + 2)
-                    };
-                    if is_header {
-                        if domain.is_none() {
-                            domain = Some(*part);
-                        } else {
-                            limit = Some(*part);
-                        }
-                        header_end = i;
-                    }
-                }
-                effect.domain = domain.map(NodeKey::of);
-                effect.limit = limit.map(NodeKey::of);
-                let body: Vec<&SyntaxNode> = parts.iter().skip(header_end + 1).copied().collect();
-                effect.then_effects = self.walk_stmt_list(module, text, &body);
+                self.walk_for_effect(module, text, &parts, &mut effect);
             }
             _ => return None,
         }
         Some(effect)
     }
 
+    fn walk_let_effect(&mut self, text: &str, parts: &[&SyntaxNode], effect: &mut Effect) {
+        effect.verb = EffectVerb::Let;
+        effect.binding = parts.iter().find_map(|n| {
+            let word = name_text(n, text)?;
+            (word != "let").then(|| word.to_string())
+        });
+        effect.value = parts
+            .iter()
+            .find(|n| is_expression(n.kind))
+            .copied()
+            .map(NodeKey::of);
+    }
+
+    fn walk_require_effect(
+        &mut self,
+        text: &str,
+        node: &SyntaxNode,
+        parts: &[&SyntaxNode],
+        effect: &mut Effect,
+    ) {
+        effect.verb = EffectVerb::Require;
+        effect.cond = parts
+            .iter()
+            .find(|n| is_expression(n.kind))
+            .copied()
+            .map(NodeKey::of);
+        effect.message = attribute_value(node, "message", text).map(NodeKey::of);
+    }
+
+    fn walk_create_effect(
+        &mut self,
+        module: ModuleId,
+        text: &str,
+        node: &SyntaxNode,
+        parts: &[&SyntaxNode],
+        effect: &mut Effect,
+    ) {
+        effect.verb = EffectVerb::Create;
+        let path = parts.iter().find(|n| n.kind == SyntaxKind::Path).copied();
+        let model = path.and_then(|p| self.tables.node_symbol.get(&NodeKey::of(p)).copied());
+        if let Some(model) = model
+            && matches!(
+                self.tables.symbols[model.0 as usize].kind,
+                SymbolKind::Model { .. }
+            )
+        {
+            effect.target = Some(EffectTarget::Model(model));
+            if self.checks_on {
+                self.check_own_mutation(module, text, node, path, model, "create");
+                self.check_hook_staging_create(module, text, node, model);
+            }
+        }
+        effect.args = effect_args(text, node);
+        effect.binding = as_binding(text, node);
+    }
+
+    fn walk_set_effect(
+        &mut self,
+        module: ModuleId,
+        text: &str,
+        node: &SyntaxNode,
+        parts: &[&SyntaxNode],
+        effect: &mut Effect,
+    ) {
+        effect.verb = if node.kind == SyntaxKind::Transition {
+            EffectVerb::Transition
+        } else {
+            EffectVerb::Set
+        };
+        let path = parts.iter().find(|n| n.kind == SyntaxKind::Path).copied();
+        effect.target = path.and_then(|p| self.record_target(module, text, p));
+        if self.checks_on
+            && let Some(EffectTarget::Record { model: Some(model) }) = &effect.target
+        {
+            self.check_own_mutation(module, text, node, path, *model, "set");
+        }
+        if self.checks_on {
+            let target = effect.target.clone();
+            self.check_hook_staging_set(module, text, node, &target);
+        }
+        effect.args = effect_args(text, node);
+    }
+
+    fn walk_delete_effect(
+        &mut self,
+        module: ModuleId,
+        text: &str,
+        node: &SyntaxNode,
+        parts: &[&SyntaxNode],
+        effect: &mut Effect,
+    ) {
+        effect.verb = EffectVerb::Delete;
+        let path = parts.iter().find(|n| n.kind == SyntaxKind::Path).copied();
+        effect.target = path.and_then(|p| self.record_target(module, text, p));
+        if self.checks_on
+            && let Some(EffectTarget::Record { model: Some(model) }) = &effect.target
+        {
+            self.check_own_mutation(module, text, node, path, *model, "delete");
+            if self.crud_disables(*model, CrudOp::Delete) {
+                self.diags.push(Diagnostic::error(
+                    "E4042",
+                    format!(
+                        "delete is disabled for '{}' (delete=none)",
+                        self.show(module, *model),
+                    ),
+                    tight_span(text, path.unwrap_or(node)),
+                ));
+            }
+        }
+        if self.checks_on {
+            let target = effect.target.clone();
+            self.check_hook_staging_delete(module, text, node, &target);
+        }
+    }
+
+    fn walk_call_effect(
+        &mut self,
+        module: ModuleId,
+        text: &str,
+        node: &SyntaxNode,
+        parts: &[&SyntaxNode],
+        effect: &mut Effect,
+    ) {
+        effect.verb = EffectVerb::Call;
+        let target = parts.iter().find(|n| is_expression(n.kind)).copied();
+        effect.target_node = target.map(NodeKey::of);
+        effect.target = target.and_then(|t| self.operation_target(module, text, t));
+        if self.checks_on
+            && let Some(target) = target
+            && let Some(op) = operation_id(self.types, target)
+        {
+            self.check_call_local(module, text, target, op);
+        }
+        if let (Some(target), Some(caller)) = (target, self.current_scenario) {
+            for callee in callee_ids(self.types, target) {
+                push_unique(self.callable_calls.entry(caller).or_default(), callee);
+            }
+        }
+        if self.checks_on
+            && let Some(target) = target
+        {
+            self.check_action_call(module, text, node, target);
+        }
+        effect.args = effect_args(text, node);
+        self.record_callable_inputs(&effect.target, effect);
+        effect.binding = as_binding(text, node);
+    }
+
+    fn record_callable_inputs(&mut self, target: &Option<EffectTarget>, effect: &Effect) {
+        if let (Some(EffectTarget::Operation(callee)), Some(caller)) =
+            (target, self.current_scenario)
+        {
+            let supplied = effect.args.iter().map(|arg| arg.key.clone()).collect();
+            match self.tables.symbols[callee.0 as usize].kind {
+                SymbolKind::Scenario { .. } => self
+                    .callable_scenario_inputs
+                    .entry(caller)
+                    .or_default()
+                    .push((*callee, supplied)),
+                SymbolKind::CrudOp {
+                    model,
+                    op: CrudOp::Create,
+                } => self
+                    .callable_creates
+                    .entry(caller)
+                    .or_default()
+                    .push((model, supplied)),
+                _ => {}
+            }
+        }
+    }
+
+    fn walk_emit_effect(
+        &mut self,
+        text: &str,
+        node: &SyntaxNode,
+        parts: &[&SyntaxNode],
+        effect: &mut Effect,
+    ) {
+        effect.verb = EffectVerb::Emit;
+        let path = parts.iter().find(|n| n.kind == SyntaxKind::Path).copied();
+        let event = path.and_then(|p| self.tables.node_symbol.get(&NodeKey::of(p)).copied());
+        if let Some(event) = event
+            && matches!(
+                self.tables.symbols[event.0 as usize].kind,
+                SymbolKind::Event { .. }
+            )
+        {
+            effect.target = Some(EffectTarget::Event(event));
+        }
+        effect.args = effect_args(text, node);
+    }
+
+    fn walk_send_effect(
+        &mut self,
+        module: ModuleId,
+        text: &str,
+        node: &SyntaxNode,
+        parts: &[&SyntaxNode],
+        effect: &mut Effect,
+    ) {
+        effect.verb = EffectVerb::Send;
+        let target = parts.iter().find(|n| is_expression(n.kind)).copied();
+        effect.target_node = target.map(NodeKey::of);
+        effect.target = target.and_then(|t| self.operation_target(module, text, t));
+        effect.when = bare_keyword_value(node, "when", text).map(NodeKey::of);
+        effect.args = effect_args(text, node);
+        effect.binding = as_binding(text, node);
+    }
+
+    fn walk_schedule_effect(
+        &mut self,
+        module: ModuleId,
+        text: &str,
+        node: &SyntaxNode,
+        parts: &[&SyntaxNode],
+        effect: &mut Effect,
+    ) {
+        effect.verb = EffectVerb::Schedule;
+        effect.key = parts
+            .iter()
+            .find(|n| is_expression(n.kind))
+            .copied()
+            .map(NodeKey::of);
+        effect.at = bare_keyword_value(node, "at", text).map(NodeKey::of);
+        let mut event_path = None;
+        for (i, part) in parts.iter().enumerate() {
+            if is_name(part, text, "event") {
+                event_path = parts.get(i + 2).copied();
+            }
+        }
+        let event =
+            event_path.and_then(|p| self.tables.node_symbol.get(&NodeKey::of(p)).copied());
+        if let Some(event) = event
+            && matches!(
+                self.tables.symbols[event.0 as usize].kind,
+                SymbolKind::Event { .. }
+            )
+        {
+            effect.target = Some(EffectTarget::Event(event));
+        }
+        effect.args = effect_args(text, node);
+        if self.checks_on {
+            self.check_hook_staging_timer(module, text, node);
+        }
+    }
+
+    fn walk_cancel_effect(
+        &mut self,
+        module: ModuleId,
+        text: &str,
+        node: &SyntaxNode,
+        parts: &[&SyntaxNode],
+        effect: &mut Effect,
+    ) {
+        effect.verb = EffectVerb::Cancel;
+        effect.value = parts
+            .iter()
+            .find(|n| is_expression(n.kind))
+            .copied()
+            .map(NodeKey::of);
+        if self.checks_on {
+            self.check_hook_staging_timer(module, text, node);
+        }
+    }
+
+    fn walk_return_effect(
+        &mut self,
+        text: &str,
+        parts: &[&SyntaxNode],
+        effect: &mut Effect,
+    ) {
+        effect.verb = EffectVerb::Return;
+        let value = parts.iter().find(|n| is_expression(n.kind)).copied();
+        effect.value = value.map(NodeKey::of);
+        if self.checks_on
+            && let Some(value) = value
+        {
+            self.check_secret_return(text, value);
+        }
+    }
+
+    fn walk_if_effect(
+        &mut self,
+        module: ModuleId,
+        text: &str,
+        parts: &[&SyntaxNode],
+        effect: &mut Effect,
+    ) {
+        effect.verb = EffectVerb::If;
+        let mut else_at = None;
+        for (i, part) in parts.iter().enumerate() {
+            if is_name(part, text, "else") {
+                else_at = Some(i);
+            }
+        }
+        let cond = parts.iter().find(|n| is_expression(n.kind)).copied();
+        effect.cond = cond.map(NodeKey::of);
+        let mut then_parts = Vec::new();
+        let mut else_parts = Vec::new();
+        for (i, part) in parts.iter().enumerate() {
+            if part.kind == SyntaxKind::Name || cond.is_some_and(|c| std::ptr::eq(*part, c)) {
+                continue;
+            }
+            if else_at.is_some_and(|at| i > at) {
+                else_parts.push(*part);
+            } else {
+                then_parts.push(*part);
+            }
+        }
+        effect.then_effects = self.walk_stmt_list(module, text, &then_parts);
+        effect.else_effects = self.walk_stmt_list(module, text, &else_parts);
+    }
+
+    fn walk_match_effect(
+        &mut self,
+        module: ModuleId,
+        text: &str,
+        parts: &[&SyntaxNode],
+        effect: &mut Effect,
+    ) {
+        effect.verb = EffectVerb::Match;
+        effect.value = parts
+            .iter()
+            .find(|n| is_expression(n.kind))
+            .copied()
+            .map(NodeKey::of);
+        for arm in parts.iter().filter(|n| n.kind == SyntaxKind::MatchArm) {
+            let statements: Vec<_> = significant_children(arm)
+                .into_iter()
+                .filter(|n| !matches!(n.kind, SyntaxKind::Name | SyntaxKind::Punct))
+                .collect();
+            let node = NodeKey::of(arm);
+            let case = self.types.enum_match_cases.get(&node).cloned();
+            let effects = self.walk_stmt_list(module, text, &statements);
+            effect.match_arms.push(EffectMatchArm {
+                node,
+                case,
+                effects,
+            });
+        }
+    }
+
+    fn walk_for_effect(
+        &mut self,
+        module: ModuleId,
+        text: &str,
+        parts: &[&SyntaxNode],
+        effect: &mut Effect,
+    ) {
+        effect.verb = EffectVerb::For;
+        let limit_at = self.scan_for_header(text, parts, effect);
+        let (domain, limit, header_end) = scan_for_domain(parts, limit_at);
+        effect.domain = domain.map(NodeKey::of);
+        effect.limit = limit.map(NodeKey::of);
+        let body: Vec<&SyntaxNode> = parts.iter().skip(header_end + 1).copied().collect();
+        effect.then_effects = self.walk_stmt_list(module, text, &body);
+    }
+
+    fn scan_for_header(
+        &mut self,
+        text: &str,
+        parts: &[&SyntaxNode],
+        effect: &mut Effect,
+    ) -> Option<usize> {
+        let mut limit_at = None;
+        for (i, part) in parts.iter().enumerate() {
+            if is_name(part, text, "for")
+                && let Some(name) = parts.get(i + 1).and_then(|n| name_text(n, text))
+            {
+                effect.item = Some(name.to_string());
+            }
+            if is_name(part, text, "limit") {
+                limit_at = Some(i);
+            }
+        }
+        limit_at
+    }
+}
+
+/// Domain/limit expressions and body start of a `for` effect header.
+fn scan_for_domain<'n>(
+    parts: &[&'n SyntaxNode],
+    limit_at: Option<usize>,
+) -> (Option<&'n SyntaxNode>, Option<&'n SyntaxNode>, usize) {
+    let mut domain = None;
+    let mut limit = None;
+    let mut header_end = 0;
+    let mut seen_domain = false;
+    for (i, part) in parts.iter().enumerate() {
+        if !is_expression(part.kind) {
+            continue;
+        }
+        let is_header = if !seen_domain {
+            seen_domain = true;
+            true
+        } else {
+            limit_at.is_some_and(|at| i == at + 2)
+        };
+        if is_header {
+            if domain.is_none() {
+                domain = Some(*part);
+            } else {
+                limit = Some(*part);
+            }
+            header_end = i;
+        }
+    }
+    (domain, limit, header_end)
+}
+
+impl<'a> Cx<'a> {
     /// Resolve a `set`/`delete` path target: the pending hook record or a
     /// typed stored record.
     fn record_target(
@@ -4385,12 +4621,25 @@ impl<'a> Cx<'a> {
     /// Follow only executed owning initializer anchors after declaration collection.
     fn record_creation_dependencies(&mut self, trees: &[(SourceId, SyntaxNode)]) {
         let mut pending = Vec::new();
+        self.seed_policy_dependencies(&mut pending);
+        self.seed_hook_dependencies();
+        self.seed_crud_dependencies(&mut pending);
+        self.seed_default_call_dependencies(&mut pending);
+        self.seed_scenario_input_dependencies(&mut pending);
+        self.seed_create_dependencies(&mut pending);
+        self.drain_creation_dependencies(&mut pending, trees);
+    }
+
+    fn seed_policy_dependencies(&self, pending: &mut Vec<(SymbolId, NodeKey)>) {
         for model in self.out.models.values() {
             pending.extend(model.policies.iter().map(|rule| (model.model, rule.node)));
             pending.extend(model.invariants.iter().map(|rule| (model.model, rule.node)));
             pending.extend(model.locks.iter().map(|rule| (model.model, rule.node)));
             pending.extend(model.uniques.iter().map(|rule| (model.model, rule.node)));
         }
+    }
+
+    fn seed_hook_dependencies(&mut self) {
         for scenario in self.out.scenarios.values() {
             if let Some(HandlerSource::Hook { model, .. }) = scenario.on {
                 push_unique(
@@ -4399,6 +4648,9 @@ impl<'a> Cx<'a> {
                 );
             }
         }
+    }
+
+    fn seed_crud_dependencies(&mut self, pending: &mut Vec<(SymbolId, NodeKey)>) {
         for crud in self.out.cruds.values() {
             for operation in &crud.ops {
                 push_unique(
@@ -4408,6 +4660,9 @@ impl<'a> Cx<'a> {
                 pending.push((*operation, crud.node));
             }
         }
+    }
+
+    fn seed_default_call_dependencies(&self, pending: &mut Vec<(SymbolId, NodeKey)>) {
         for (caller, calls) in &self.callable_default_calls {
             for call in calls {
                 pending.extend(
@@ -4417,6 +4672,9 @@ impl<'a> Cx<'a> {
                 );
             }
         }
+    }
+
+    fn seed_scenario_input_dependencies(&self, pending: &mut Vec<(SymbolId, NodeKey)>) {
         for (caller, calls) in &self.callable_scenario_inputs {
             for (callee, supplied) in calls {
                 if let Some(data) = self.out.scenarios.get(callee) {
@@ -4431,6 +4689,9 @@ impl<'a> Cx<'a> {
                 }
             }
         }
+    }
+
+    fn seed_create_dependencies(&self, pending: &mut Vec<(SymbolId, NodeKey)>) {
         for (caller, creates) in &self.callable_creates {
             for (model, supplied) in creates {
                 if let Some(data) = self.out.models.get(model) {
@@ -4447,6 +4708,13 @@ impl<'a> Cx<'a> {
                 }
             }
         }
+    }
+
+    fn drain_creation_dependencies(
+        &mut self,
+        pending: &mut Vec<(SymbolId, NodeKey)>,
+        trees: &[(SourceId, SyntaxNode)],
+    ) {
         let mut visited = HashSet::new();
         while let Some((caller, key)) = pending.pop() {
             if !visited.insert((caller, key)) {
@@ -5513,26 +5781,8 @@ fn decode_description_suffix(file: SourceId, fragment: &str, base: u32) -> Vec<M
         if i < bytes.len() && bytes[i] == b'}' {
             break;
         }
-        // Key: identifier or quoted tag.
-        let key = if i < bytes.len() && bytes[i] == b'"' {
-            let start = i;
-            if !scan_quoted(bytes, &mut i) {
-                break;
-            }
-            decode_json_string(&fragment[start..i], base + start as u32, file)
-                .ok()
-                .unwrap_or_default()
-        } else {
-            let start = i;
-            while i < bytes.len()
-                && (bytes[i].is_ascii_alphanumeric() || matches!(bytes[i], b'_' | b'-' | b'.'))
-            {
-                i += 1;
-            }
-            if start == i {
-                break;
-            }
-            fragment[start..i].to_string()
+        let Some(key) = scan_suffix_key(bytes, fragment, &mut i, file, base) else {
+            break;
         };
         skip_ws(&mut i);
         if i >= bytes.len() || bytes[i] != b'=' {
@@ -5540,17 +5790,7 @@ fn decode_description_suffix(file: SourceId, fragment: &str, base: u32) -> Vec<M
         }
         i += 1;
         skip_ws(&mut i);
-        // Value: JSON string or null.
-        let value = if i < bytes.len() && bytes[i] == b'"' {
-            let start = i;
-            if !scan_quoted(bytes, &mut i) {
-                break;
-            }
-            decode_json_string(&fragment[start..i], base + start as u32, file).ok()
-        } else if fragment[i..].starts_with("null") {
-            i += 4;
-            None
-        } else {
+        let Some(value) = scan_suffix_value(bytes, fragment, &mut i, file, base) else {
             break;
         };
         variants.push(MessageVariant { locale: key, value });
@@ -5565,6 +5805,63 @@ fn decode_description_suffix(file: SourceId, fragment: &str, base: u32) -> Vec<M
         break;
     }
     variants
+}
+
+/// One `key=` tag inside a description suffix; `None` ends the scan.
+fn scan_suffix_key(
+    bytes: &[u8],
+    fragment: &str,
+    i: &mut usize,
+    file: SourceId,
+    base: u32,
+) -> Option<String> {
+    // Key: identifier or quoted tag.
+    if *i < bytes.len() && bytes[*i] == b'"' {
+        let start = *i;
+        if !scan_quoted(bytes, i) {
+            return None;
+        }
+        Some(
+            decode_json_string(&fragment[start..*i], base + start as u32, file)
+                .ok()
+                .unwrap_or_default(),
+        )
+    } else {
+        let start = *i;
+        while *i < bytes.len()
+            && (bytes[*i].is_ascii_alphanumeric() || matches!(bytes[*i], b'_' | b'-' | b'.'))
+        {
+            *i += 1;
+        }
+        if start == *i {
+            return None;
+        }
+        Some(fragment[start..*i].to_string())
+    }
+}
+
+/// One `=value` (JSON string or null) inside a description suffix;
+/// outer `None` ends the scan, inner `None` is an explicit null.
+fn scan_suffix_value(
+    bytes: &[u8],
+    fragment: &str,
+    i: &mut usize,
+    file: SourceId,
+    base: u32,
+) -> Option<Option<String>> {
+    // Value: JSON string or null.
+    if *i < bytes.len() && bytes[*i] == b'"' {
+        let start = *i;
+        if !scan_quoted(bytes, i) {
+            return None;
+        }
+        Some(decode_json_string(&fragment[start..*i], base + start as u32, file).ok())
+    } else if fragment[*i..].starts_with("null") {
+        *i += 4;
+        Some(None)
+    } else {
+        None
+    }
 }
 
 /// Advance `i` past one quoted string starting at the opening quote;
@@ -5744,94 +6041,16 @@ fn collect_subtree_models(
     }
     match node.kind {
         SyntaxKind::Call if !is_statement_call(node) && !has_error(node) => {
-            let mut callee = significant_children(node)
-                .into_iter()
-                .find(|n| is_expression(n.kind));
-            while let Some(group) = callee.filter(|n| n.kind == SyntaxKind::Group) {
-                callee = significant_children(group)
-                    .into_iter()
-                    .find(|n| is_expression(n.kind));
-            }
-            if let Some(Binding::Symbol(id)) =
-                callee.and_then(|n| tables.node_binding.get(&NodeKey::of(n)))
-                && matches!(
-                    tables.symbols[id.0 as usize].kind,
-                    SymbolKind::DeriveFn { .. }
-                )
-            {
-                push_unique(calls, *id);
-            }
+            collect_call_models(tables, node, calls);
         }
         SyntaxKind::Create => {
-            let path = significant_children(node)
-                .iter()
-                .find(|n| n.kind == SyntaxKind::Path)
-                .copied();
-            if let Some(model) = path.and_then(|p| tables.node_symbol.get(&NodeKey::of(p)).copied())
-                && matches!(
-                    tables.symbols[model.0 as usize].kind,
-                    SymbolKind::Model { .. }
-                )
-            {
-                push_unique(out, model);
-                let supplied = significant_children(node)
-                    .into_iter()
-                    .find(|n| n.kind == SyntaxKind::Object)
-                    .map(|object| {
-                        object_entries(object, text)
-                            .into_iter()
-                            .map(|(key, _, _)| key.to_string())
-                            .collect()
-                    })
-                    .unwrap_or_default();
-                creates.push((model, supplied));
-            }
+            collect_create_models(tables, text, node, out, creates);
         }
         SyntaxKind::Set | SyntaxKind::Transition | SyntaxKind::Delete => {
-            let path = significant_children(node)
-                .iter()
-                .find(|n| n.kind == SyntaxKind::Path)
-                .copied();
-            if let Some(path) = path
-                && let Some(ResolvedType::Record { symbol, .. }) =
-                    types.node_types.get(&NodeKey::of(path))
-                && matches!(
-                    tables.symbols[symbol.0 as usize].kind,
-                    SymbolKind::Model { .. }
-                )
-            {
-                push_unique(out, *symbol);
-            }
+            collect_write_models(tables, types, node, out);
         }
         SyntaxKind::Member => {
-            let parts = significant_children(node);
-            if let (Some(receiver), Some(name)) = (
-                parts.first(),
-                parts.last().and_then(|part| name_text(part, text)),
-            ) {
-                let ty = types.node_types.get(&NodeKey::of(receiver));
-                let ty = ty.map(|ty| ty.nullable_inner().unwrap_or(ty));
-                if let Some(ResolvedType::Record {
-                    symbol,
-                    stored: true,
-                }) = ty
-                    && matches!(tables.symbols[symbol.0 as usize].kind, SymbolKind::Model { .. })
-                {
-                    if let Some(field) = tables.symbols[symbol.0 as usize]
-                        .fields_of()
-                        .iter()
-                        .find(|field| tables.symbols[field.0 as usize].name == name)
-                    {
-                        match tables.symbols[field.0 as usize].kind {
-                            SymbolKind::Field { .. } => push_unique(out, *symbol),
-                            SymbolKind::DeriveField { .. } => push_unique(calls, *field),
-                            _ => {}
-                        }
-                    } else if matches!(name, "version" | "created" | "updated" | "archived") {
-                        push_unique(out, *symbol);
-                    }
-                }
-            }
+            collect_member_models(tables, types, text, node, out, calls);
         }
         SyntaxKind::NameRef => {
             // Bare model domains (`count(Todo)`) are owner-bound reads.
@@ -5842,36 +6061,167 @@ fn collect_subtree_models(
             }
         }
         SyntaxKind::Query => {
-            let base = significant_children(node)
-                .iter()
-                .find(|n| is_expression(n.kind))
-                .copied();
-            if let Some(base) = base {
-                let mut pushed = false;
-                if base.kind == SyntaxKind::NameRef
-                    && let Some(Binding::Symbol(id)) = tables.node_binding.get(&NodeKey::of(base))
-                    && matches!(tables.symbols[id.0 as usize].kind, SymbolKind::Model { .. })
-                {
-                    push_unique(out, *id);
-                    pushed = true;
-                }
-                if !pushed
-                    && let Some(ResolvedType::Array { element, .. }) =
-                        types.node_types.get(&NodeKey::of(base))
-                    && let ResolvedType::Record { symbol, .. } = element.as_ref()
-                    && matches!(
-                        tables.symbols[symbol.0 as usize].kind,
-                        SymbolKind::Model { .. }
-                    )
-                {
-                    push_unique(out, *symbol);
-                }
-            }
+            collect_query_models(tables, types, node, out);
         }
         _ => {}
     }
     for child in &node.children {
         collect_subtree_models(tables, types, text, child, out, calls, creates);
+    }
+}
+
+fn collect_call_models(tables: &ResolveTables, node: &SyntaxNode, calls: &mut Vec<SymbolId>) {
+    let mut callee = significant_children(node)
+        .into_iter()
+        .find(|n| is_expression(n.kind));
+    while let Some(group) = callee.filter(|n| n.kind == SyntaxKind::Group) {
+        callee = significant_children(group)
+            .into_iter()
+            .find(|n| is_expression(n.kind));
+    }
+    if let Some(Binding::Symbol(id)) =
+        callee.and_then(|n| tables.node_binding.get(&NodeKey::of(n)))
+        && matches!(
+            tables.symbols[id.0 as usize].kind,
+            SymbolKind::DeriveFn { .. }
+        )
+    {
+        push_unique(calls, *id);
+    }
+}
+
+fn collect_create_models(
+    tables: &ResolveTables,
+    text: &str,
+    node: &SyntaxNode,
+    out: &mut Vec<SymbolId>,
+    creates: &mut Vec<(SymbolId, Vec<String>)>,
+) {
+    let path = significant_children(node)
+        .iter()
+        .find(|n| n.kind == SyntaxKind::Path)
+        .copied();
+    if let Some(model) = path.and_then(|p| tables.node_symbol.get(&NodeKey::of(p)).copied())
+        && matches!(
+            tables.symbols[model.0 as usize].kind,
+            SymbolKind::Model { .. }
+        )
+    {
+        push_unique(out, model);
+        let supplied = significant_children(node)
+            .into_iter()
+            .find(|n| n.kind == SyntaxKind::Object)
+            .map(|object| {
+                object_entries(object, text)
+                    .into_iter()
+                    .map(|(key, _, _)| key.to_string())
+                    .collect()
+            })
+            .unwrap_or_default();
+        creates.push((model, supplied));
+    }
+}
+
+fn collect_write_models(
+    tables: &ResolveTables,
+    types: &TypeTable,
+    node: &SyntaxNode,
+    out: &mut Vec<SymbolId>,
+) {
+    let path = significant_children(node)
+        .iter()
+        .find(|n| n.kind == SyntaxKind::Path)
+        .copied();
+    if let Some(path) = path
+        && let Some(ResolvedType::Record { symbol, .. }) =
+            types.node_types.get(&NodeKey::of(path))
+        && matches!(
+            tables.symbols[symbol.0 as usize].kind,
+            SymbolKind::Model { .. }
+        )
+    {
+        push_unique(out, *symbol);
+    }
+}
+
+fn collect_member_models(
+    tables: &ResolveTables,
+    types: &TypeTable,
+    text: &str,
+    node: &SyntaxNode,
+    out: &mut Vec<SymbolId>,
+    calls: &mut Vec<SymbolId>,
+) {
+    let parts = significant_children(node);
+    if let (Some(receiver), Some(name)) = (
+        parts.first(),
+        parts.last().and_then(|part| name_text(part, text)),
+    ) {
+        let ty = types.node_types.get(&NodeKey::of(receiver));
+        let ty = ty.map(|ty| ty.nullable_inner().unwrap_or(ty));
+        if let Some(ResolvedType::Record {
+            symbol,
+            stored: true,
+        }) = ty
+            && matches!(tables.symbols[symbol.0 as usize].kind, SymbolKind::Model { .. })
+        {
+            collect_member_field_models(tables, *symbol, name, out, calls);
+        }
+    }
+}
+
+fn collect_member_field_models(
+    tables: &ResolveTables,
+    symbol: SymbolId,
+    name: &str,
+    out: &mut Vec<SymbolId>,
+    calls: &mut Vec<SymbolId>,
+) {
+    if let Some(field) = tables.symbols[symbol.0 as usize]
+        .fields_of()
+        .iter()
+        .find(|field| tables.symbols[field.0 as usize].name == name)
+    {
+        match tables.symbols[field.0 as usize].kind {
+            SymbolKind::Field { .. } => push_unique(out, symbol),
+            SymbolKind::DeriveField { .. } => push_unique(calls, *field),
+            _ => {}
+        }
+    } else if matches!(name, "version" | "created" | "updated" | "archived") {
+        push_unique(out, symbol);
+    }
+}
+
+fn collect_query_models(
+    tables: &ResolveTables,
+    types: &TypeTable,
+    node: &SyntaxNode,
+    out: &mut Vec<SymbolId>,
+) {
+    let base = significant_children(node)
+        .iter()
+        .find(|n| is_expression(n.kind))
+        .copied();
+    if let Some(base) = base {
+        let mut pushed = false;
+        if base.kind == SyntaxKind::NameRef
+            && let Some(Binding::Symbol(id)) = tables.node_binding.get(&NodeKey::of(base))
+            && matches!(tables.symbols[id.0 as usize].kind, SymbolKind::Model { .. })
+        {
+            push_unique(out, *id);
+            pushed = true;
+        }
+        if !pushed
+            && let Some(ResolvedType::Array { element, .. }) =
+                types.node_types.get(&NodeKey::of(base))
+            && let ResolvedType::Record { symbol, .. } = element.as_ref()
+            && matches!(
+                tables.symbols[symbol.0 as usize].kind,
+                SymbolKind::Model { .. }
+            )
+        {
+            push_unique(out, *symbol);
+        }
     }
 }
 

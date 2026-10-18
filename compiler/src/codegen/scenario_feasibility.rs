@@ -10,14 +10,15 @@ use crate::analysis::scenario_disclosure::{
     CheckedScenarioSource, CheckedStoredContractSchema, DisclosureChoice, DisclosureReturn,
     ScenarioDisclosure,
 };
-use crate::analysis::{CheckedProgram, NodeKey, ResolvedType, Scalar, SymbolId};
+use crate::analysis::{CheckedProgram, ModuleId, NodeKey, ResolvedType, Scalar, SymbolId};
 use crate::source::{SourceDb, Span};
 use crate::syntax::SyntaxKind;
 
 #[cfg(test)]
 use super::ir;
 use super::ir::{
-    IrBinOp, IrCallTarget, IrExpr, IrItem, IrItemKind, IrProgram, IrStmt, IrType, TypedExpr,
+    IrBinOp, IrCallTarget, IrDefault, IrExpr, IrItem, IrItemKind, IrParameterArrayBounds,
+    IrProgram, IrStmt, IrType, TypedExpr,
 };
 
 /// Only this producer constructs the subset. The borrowed immutable IR is the
@@ -160,58 +161,26 @@ pub(super) fn requires_projection(original: &CheckedScenarioDisclosure, _ir: &Ir
     })
 }
 
-fn prepare_owner(
-    program: &CheckedProgram,
+fn check_owner_hook(
+    trusted: bool,
+    declared_event: bool,
+    event_present: bool,
+    hook_present: bool,
+    cohort_present: bool,
+) -> Option<()> {
+    let hook_feasible = trusted && declared_event && !hook_present && !cohort_present;
+    if !hook_feasible && (trusted || event_present || hook_present || cohort_present) {
+        return None;
+    }
+    Some(())
+}
+
+fn match_contract_schemas(
     ir: &IrProgram,
     fresh: &IrProgram,
-    owner: &IrItem,
     original: &CheckedScenarioDisclosure,
     db: &SourceDb,
-    catalog: Option<&Catalog>,
-) -> Option<Vec<usize>> {
-    let IrItemKind::Scenario {
-        guards,
-        effects,
-        trusted,
-        read: false,
-        event_source,
-        hook,
-        cohort,
-        ..
-    } = &owner.kind
-    else {
-        return None;
-    };
-    // C23 hook slice: the declared-event void single-first handler shares
-    // the generic decision/return inventory below; every other trusted
-    // shape keeps the refusal (mirrors the native receipt gate).
-    let hook_feasible = *trusted
-        && matches!(
-            event_source,
-            Some(crate::codegen::ir::IrEventSource::Declared(_))
-        )
-        && hook.is_none()
-        && cohort.is_none();
-    if !hook_feasible && (*trusted || event_source.is_some() || hook.is_some() || cohort.is_some())
-    {
-        return None;
-    }
-    super::scenario_decisions::same_scenario_semantics(program, ir, fresh, owner)?;
-    super::scenario_decisions::same_scenario_semantics(
-        program,
-        ir,
-        fresh,
-        ir.items.get(owner.id.0 as usize)?,
-    )?;
-    let sites = super::scenario_decisions::collect_decision_sources_with_fresh(
-        program, ir, owner, db, catalog, fresh,
-    )?;
-    // Accepted bounded native profiles keep their original transport inventory.
-    // Projection is needed only for the demonstrated oversized source closure
-    // or a nullable stored reference narrowed by its compulsory requirements.
-    if !requires_projection(original, ir) {
-        return Some((0..original.returns.len()).collect());
-    }
+) -> Option<()> {
     for schema in original
         .source_facts
         .as_deref()?
@@ -238,6 +207,57 @@ fn prepare_owner(
             }
         }
     }
+    Some(())
+}
+
+type Requirement<'a> = (
+    &'a TypedExpr,
+    Span,
+    &'a CheckedDecisionSite,
+    Vec<(Span, DisclosureChoice)>,
+);
+
+fn push_branch_statements<'a>(
+    then_branch: &'a [IrStmt],
+    else_branch: &'a [IrStmt],
+    span: Span,
+    position: &[CheckedDecisionPosition],
+    branches: &[(Span, DisclosureChoice)],
+    pending: &mut Vec<(
+        &'a IrStmt,
+        bool,
+        Vec<CheckedDecisionPosition>,
+        Vec<(Span, DisclosureChoice)>,
+    )>,
+) {
+    for (then, statements) in [(false, else_branch), (true, then_branch)] {
+        for (index, nested) in statements.iter().enumerate().rev() {
+            let mut nested_position = position.to_vec();
+            nested_position.push(if then {
+                CheckedDecisionPosition::Then(index)
+            } else {
+                CheckedDecisionPosition::Else(index)
+            });
+            let mut nested_branches = branches.to_vec();
+            nested_branches.push((
+                span,
+                if then {
+                    DisclosureChoice::Then
+                } else {
+                    DisclosureChoice::Else
+                },
+            ));
+            pending.push((nested, false, nested_position, nested_branches));
+        }
+    }
+}
+
+fn collect_requirements<'a>(
+    sites: &'a [CheckedDecisionSite],
+    owner: &IrItem,
+    effects: &'a [IrStmt],
+    guards: &'a [IrStmt],
+) -> Option<Vec<Requirement<'a>>> {
     let mut requirements = Vec::new();
     let mut pending = Vec::new();
     for (leading, statements) in [(false, effects), (true, guards)] {
@@ -286,61 +306,121 @@ fn prepare_owner(
                 span,
                 ..
             } if !leading => {
-                for (then, statements) in [(false, else_branch), (true, then_branch)] {
-                    for (index, nested) in statements.iter().enumerate().rev() {
-                        let mut nested_position = position.clone();
-                        nested_position.push(if then {
-                            CheckedDecisionPosition::Then(index)
-                        } else {
-                            CheckedDecisionPosition::Else(index)
-                        });
-                        let mut nested_branches = branches.clone();
-                        nested_branches.push((
-                            *span,
-                            if then {
-                                DisclosureChoice::Then
-                            } else {
-                                DisclosureChoice::Else
-                            },
-                        ));
-                        pending.push((nested, false, nested_position, nested_branches));
-                    }
-                }
+                push_branch_statements(
+                    then_branch,
+                    else_branch,
+                    *span,
+                    &position,
+                    &branches,
+                    &mut pending,
+                );
             }
             // Other conditional forms stay unknown, as before. This finite
             // extension only proves original If choices; no leaf is evaluated.
             _ => {}
         }
     }
+    Some(requirements)
+}
+
+fn return_possible(
+    input: (&CheckedProgram, &IrProgram, &IrProgram),
+    original: &CheckedScenarioDisclosure,
+    requirements: &[Requirement<'_>],
+    returned: &DisclosureReturn,
+    steps: &mut usize,
+) -> Option<bool> {
+    for (condition, span, site, branches) in requirements {
+        // A conditional requirement constrains only a return whose actual
+        // original branch choices prove that this requirement was reached.
+        if (returned.node == original.node
+            || span.file == returned.node.file && span.end <= returned.node.start)
+            && branches_reached(returned, branches)?
+            && !possibly_true(
+                (input.0, input.1, input.2),
+                condition,
+                (site, returned),
+                &[],
+                &mut HashSet::new(),
+                0,
+                steps,
+            )?
+        {
+            return Some(false);
+        }
+    }
+    Some(true)
+}
+
+fn select_possible_returns(
+    input: (&CheckedProgram, &IrProgram, &IrProgram),
+    original: &CheckedScenarioDisclosure,
+    requirements: &[Requirement<'_>],
+) -> Option<Vec<usize>> {
     let mut selected = Vec::new();
     let mut steps = 0;
     for (index, returned) in original.returns.iter().enumerate() {
-        let mut possible = true;
-        for (condition, span, site, branches) in &requirements {
-            // A conditional requirement constrains only a return whose actual
-            // original branch choices prove that this requirement was reached.
-            if (returned.node == original.node
-                || span.file == returned.node.file && span.end <= returned.node.start)
-                && branches_reached(returned, branches)?
-                && !possibly_true(
-                    (program, ir, fresh),
-                    condition,
-                    (site, returned),
-                    &[],
-                    &mut HashSet::new(),
-                    0,
-                    &mut steps,
-                )?
-            {
-                possible = false;
-                break;
-            }
-        }
-        if possible {
+        if return_possible(input, original, requirements, returned, &mut steps)? {
             selected.push(index);
         }
     }
     Some(selected)
+}
+
+fn prepare_owner(
+    program: &CheckedProgram,
+    ir: &IrProgram,
+    fresh: &IrProgram,
+    owner: &IrItem,
+    original: &CheckedScenarioDisclosure,
+    db: &SourceDb,
+    catalog: Option<&Catalog>,
+) -> Option<Vec<usize>> {
+    let IrItemKind::Scenario {
+        guards,
+        effects,
+        trusted,
+        read: false,
+        event_source,
+        hook,
+        cohort,
+        ..
+    } = &owner.kind
+    else {
+        return None;
+    };
+    // C23 hook slice: the declared-event void single-first handler shares
+    // the generic decision/return inventory below; every other trusted
+    // shape keeps the refusal (mirrors the native receipt gate).
+    check_owner_hook(
+        *trusted,
+        matches!(
+            event_source,
+            Some(crate::codegen::ir::IrEventSource::Declared(_))
+        ),
+        event_source.is_some(),
+        hook.is_some(),
+        cohort.is_some(),
+    )?;
+    super::scenario_decisions::same_scenario_semantics(program, ir, fresh, owner)?;
+    super::scenario_decisions::same_scenario_semantics(
+        program,
+        ir,
+        fresh,
+        ir.items.get(owner.id.0 as usize)?,
+    )?;
+    let sites = super::scenario_decisions::collect_decision_sources_with_fresh(
+        program, ir, owner, db, catalog, fresh,
+    )?;
+    // Accepted bounded native profiles keep their original transport inventory.
+    // Projection is needed only for the demonstrated oversized source closure
+    // or a nullable stored reference narrowed by its compulsory requirements.
+    if !requires_projection(original, ir) {
+        return Some((0..original.returns.len()).collect());
+    }
+    match_contract_schemas(ir, fresh, original, db)?;
+    let requirements = collect_requirements(&sites, owner, effects, guards)?;
+    select_possible_returns((program, ir, fresh), original, &requirements)
 }
 
 fn branches_reached(
@@ -371,6 +451,303 @@ fn branches_reached(
     Some(true)
 }
 
+fn eval_and(
+    input: (&CheckedProgram, &IrProgram, &IrProgram),
+    expression: &TypedExpr,
+    returned: &DisclosureReturn,
+    site: &CheckedDecisionSite,
+    chain: &[CheckedDecisionCallFrame],
+    stack: &mut HashSet<SymbolId>,
+    depth: usize,
+    steps: &mut usize,
+    left: &TypedExpr,
+    right: &TypedExpr,
+) -> Option<bool> {
+    let (program, ir, fresh) = input;
+    let node = NodeKey {
+        file: expression.span.file,
+        start: expression.span.start,
+        end: expression.span.end,
+        kind: SyntaxKind::Binary as u8,
+    };
+    if program.types.node_types.get(&node) != Some(&expression.ty) {
+        return None;
+    }
+    let calls: Vec<_> = chain.iter().map(|frame| frame.node).collect();
+    let mut choices = returned
+        .decisions
+        .iter()
+        .filter(|decision| decision.node == node && decision.calls == calls);
+    let choice = &choices.next()?.choice;
+    if choices.next().is_some() {
+        return None;
+    }
+    match choice {
+        DisclosureChoice::RhsSkipped => Some(false),
+        DisclosureChoice::RhsEvaluated => Some(
+            possibly_true(
+                (program, ir, fresh),
+                left,
+                (site, returned),
+                chain,
+                stack,
+                depth + 1,
+                steps,
+            )? && possibly_true(
+                (program, ir, fresh),
+                right,
+                (site, returned),
+                chain,
+                stack,
+                depth + 1,
+                steps,
+            )?,
+        ),
+        _ => None,
+    }
+}
+
+fn param_identity_mismatch(
+    actual: &IrItem,
+    expected: &IrItem,
+    parameter: SymbolId,
+    callee_module: ModuleId,
+    id: SymbolId,
+    index: usize,
+    owner: SymbolId,
+    expected_owner: SymbolId,
+    ordinal: usize,
+    expected_ordinal: usize,
+) -> bool {
+    actual.id != parameter
+        || expected.id != parameter
+        || actual.module != callee_module
+        || actual.module != expected.module
+        || actual.span != expected.span
+        || actual.name != expected.name
+        || actual.canonical != expected.canonical
+        || owner != id
+        || owner != expected_owner
+        || ordinal != index
+        || ordinal != expected_ordinal
+}
+
+fn param_shape_mismatch(
+    ty: &IrType,
+    expected_ty: &IrType,
+    default: &Option<IrDefault>,
+    expected_default: &Option<IrDefault>,
+    default_node: &Option<NodeKey>,
+    expected_node: &Option<NodeKey>,
+    default_copy: &Option<SymbolId>,
+    expected_copy: &Option<SymbolId>,
+    array_bounds: &Option<IrParameterArrayBounds>,
+    expected_bounds: &Option<IrParameterArrayBounds>,
+    parameter: SymbolId,
+    actual: &IrProgram,
+    fresh: &IrProgram,
+) -> bool {
+    !matches!((ty, expected_ty), (IrType::Known(a), IrType::Known(b)) if a == b)
+        || default.is_some()
+        || expected_default.is_some()
+        || default_node != expected_node
+        || default_copy != expected_copy
+        || !match (array_bounds, expected_bounds) {
+            (None, None) => true,
+            (Some(a), Some(b)) => a.min == b.min && a.max == b.max,
+            _ => false,
+        }
+        || actual.value_constraints.get(&parameter) != fresh.value_constraints.get(&parameter)
+}
+
+fn check_derive_params(
+    actual: &IrProgram,
+    fresh: &IrProgram,
+    callee_module: ModuleId,
+    id: SymbolId,
+    params: &[SymbolId],
+) -> Option<()> {
+    for (index, parameter) in params.iter().enumerate() {
+        let actual_item = actual.items.get(parameter.0 as usize)?;
+        let expected_item = fresh.items.get(parameter.0 as usize)?;
+        let (
+            IrItemKind::Param {
+                owner,
+                index: ordinal,
+                ty,
+                default,
+                default_node,
+                default_copy_source,
+                array_bounds,
+                ..
+            },
+            IrItemKind::Param {
+                owner: expected_owner,
+                index: expected_ordinal,
+                ty: expected_ty,
+                default: expected_default,
+                default_node: expected_node,
+                default_copy_source: expected_copy,
+                array_bounds: expected_bounds,
+                ..
+            },
+        ) = (&actual_item.kind, &expected_item.kind)
+        else {
+            return None;
+        };
+        if param_identity_mismatch(
+            actual_item,
+            expected_item,
+            *parameter,
+            callee_module,
+            id,
+            index,
+            *owner,
+            *expected_owner,
+            *ordinal,
+            *expected_ordinal,
+        ) || param_shape_mismatch(
+            ty,
+            expected_ty,
+            default,
+            expected_default,
+            default_node,
+            expected_node,
+            default_copy_source,
+            expected_copy,
+            array_bounds,
+            expected_bounds,
+            *parameter,
+            actual,
+            fresh,
+        ) {
+            return None;
+        }
+    }
+    Some(())
+}
+
+fn callee_mismatch(
+    callee: &IrItem,
+    expected: &IrItem,
+    id: SymbolId,
+    name: &String,
+    params: &[SymbolId],
+    expected_params: &[SymbolId],
+    result: &ResolvedType,
+    expected_result: &ResolvedType,
+    body: &TypedExpr,
+    expected_body: &TypedExpr,
+    call_slots: &[Option<usize>],
+    slots: &[Option<usize>],
+    args_len: usize,
+    defaults_empty: bool,
+    stack: &mut HashSet<SymbolId>,
+) -> bool {
+    callee.id != id
+        || callee.canonical != *name
+        || callee.module != expected.module
+        || callee.canonical != expected.canonical
+        || callee.span != expected.span
+        || params != expected_params
+        || result != &ResolvedType::Scalar(Scalar::Bool)
+        || expected_result != result
+        || body.ty != *result
+        || expected_body.ty != *result
+        || call_slots != slots
+        || slots.len() != params.len()
+        || args_len != params.len()
+        || slots.iter().any(Option::is_none)
+        || !defaults_empty
+        || !stack.insert(id)
+}
+
+fn eval_derive_call(
+    input: (&CheckedProgram, &IrProgram, &IrProgram),
+    expression: &TypedExpr,
+    site: &CheckedDecisionSite,
+    returned: &DisclosureReturn,
+    chain: &[CheckedDecisionCallFrame],
+    stack: &mut HashSet<SymbolId>,
+    depth: usize,
+    steps: &mut usize,
+    name: &String,
+    args: &[TypedExpr],
+) -> Option<bool> {
+    let (program, ir, fresh) = input;
+    let mut matching = site.calls.iter().filter(|call| {
+        same_span(call.node, expression.span)
+            && call.chain == chain
+            && matches!(call.target, CheckedDecisionCallTarget::DeriveFn(_))
+    });
+    let call = matching.next()?;
+    if matching.next().is_some() {
+        return None;
+    }
+    let CheckedDecisionCallTarget::DeriveFn(id) = call.target else {
+        return None;
+    };
+    let callee = ir.items.get(id.0 as usize)?;
+    let expected = fresh.items.get(id.0 as usize)?;
+    let (
+        IrItemKind::DeriveFn {
+            params,
+            result: IrType::Known(result),
+            expr: Some(body),
+        },
+        IrItemKind::DeriveFn {
+            params: expected_params,
+            result: IrType::Known(expected_result),
+            expr: Some(expected_body),
+        },
+    ) = (&callee.kind, &expected.kind)
+    else {
+        return None;
+    };
+    let slots: Vec<_> = match &expression.expr {
+        IrExpr::BoundCall { slots, .. } => slots.clone(),
+        _ => (0..args.len()).map(Some).collect(),
+    };
+    if callee_mismatch(
+        callee,
+        expected,
+        id,
+        name,
+        params,
+        expected_params,
+        result,
+        expected_result,
+        body,
+        expected_body,
+        &call.slots,
+        &slots,
+        args.len(),
+        call.defaults.is_empty(),
+        stack,
+    ) {
+        return None;
+    }
+    check_derive_params(ir, fresh, callee.module, id, params)?;
+    let mut nested = chain.to_vec();
+    nested.push(CheckedDecisionCallFrame {
+        node: call.node,
+        module: call.module,
+        source: call.source.clone(),
+        derive: id,
+    });
+    let possible = possibly_true(
+        (program, ir, fresh),
+        body,
+        (site, returned),
+        &nested,
+        stack,
+        depth + 1,
+        steps,
+    );
+    stack.remove(&id);
+    possible
+}
+
 fn possibly_true(
     input: (&CheckedProgram, &IrProgram, &IrProgram),
     expression: &TypedExpr,
@@ -396,47 +773,18 @@ fn possibly_true(
             left,
             right,
         } => {
-            let node = NodeKey {
-                file: expression.span.file,
-                start: expression.span.start,
-                end: expression.span.end,
-                kind: SyntaxKind::Binary as u8,
-            };
-            if program.types.node_types.get(&node) != Some(&expression.ty) {
-                return None;
-            }
-            let calls: Vec<_> = chain.iter().map(|frame| frame.node).collect();
-            let mut choices = returned
-                .decisions
-                .iter()
-                .filter(|decision| decision.node == node && decision.calls == calls);
-            let choice = &choices.next()?.choice;
-            if choices.next().is_some() {
-                return None;
-            }
-            match choice {
-                DisclosureChoice::RhsSkipped => Some(false),
-                DisclosureChoice::RhsEvaluated => Some(
-                    possibly_true(
-                        (program, ir, fresh),
-                        left,
-                        (site, returned),
-                        chain,
-                        stack,
-                        depth + 1,
-                        steps,
-                    )? && possibly_true(
-                        (program, ir, fresh),
-                        right,
-                        (site, returned),
-                        chain,
-                        stack,
-                        depth + 1,
-                        steps,
-                    )?,
-                ),
-                _ => None,
-            }
+            eval_and(
+                (program, ir, fresh),
+                expression,
+                returned,
+                site,
+                chain,
+                stack,
+                depth,
+                steps,
+                left,
+                right,
+            )
         }
         IrExpr::Call {
             target: IrCallTarget::DeriveFn(name),
@@ -447,130 +795,18 @@ fn possibly_true(
             args,
             ..
         } => {
-            let mut matching = site.calls.iter().filter(|call| {
-                same_span(call.node, expression.span)
-                    && call.chain == chain
-                    && matches!(call.target, CheckedDecisionCallTarget::DeriveFn(_))
-            });
-            let call = matching.next()?;
-            if matching.next().is_some() {
-                return None;
-            }
-            let CheckedDecisionCallTarget::DeriveFn(id) = call.target else {
-                return None;
-            };
-            let callee = ir.items.get(id.0 as usize)?;
-            let expected = fresh.items.get(id.0 as usize)?;
-            let (
-                IrItemKind::DeriveFn {
-                    params,
-                    result: IrType::Known(result),
-                    expr: Some(body),
-                },
-                IrItemKind::DeriveFn {
-                    params: expected_params,
-                    result: IrType::Known(expected_result),
-                    expr: Some(expected_body),
-                },
-            ) = (&callee.kind, &expected.kind)
-            else {
-                return None;
-            };
-            let slots: Vec<_> = match &expression.expr {
-                IrExpr::BoundCall { slots, .. } => slots.clone(),
-                _ => (0..args.len()).map(Some).collect(),
-            };
-            if callee.id != id
-                || callee.canonical != *name
-                || callee.module != expected.module
-                || callee.canonical != expected.canonical
-                || callee.span != expected.span
-                || params != expected_params
-                || result != &ResolvedType::Scalar(Scalar::Bool)
-                || expected_result != result
-                || body.ty != *result
-                || expected_body.ty != *result
-                || call.slots != slots
-                || slots.len() != params.len()
-                || args.len() != params.len()
-                || slots.iter().any(Option::is_none)
-                || !call.defaults.is_empty()
-                || !stack.insert(id)
-            {
-                return None;
-            }
-            for (index, parameter) in params.iter().enumerate() {
-                let actual = ir.items.get(parameter.0 as usize)?;
-                let expected = fresh.items.get(parameter.0 as usize)?;
-                let (
-                    IrItemKind::Param {
-                        owner,
-                        index: ordinal,
-                        ty,
-                        default,
-                        default_node,
-                        default_copy_source,
-                        array_bounds,
-                        ..
-                    },
-                    IrItemKind::Param {
-                        owner: expected_owner,
-                        index: expected_ordinal,
-                        ty: expected_ty,
-                        default: expected_default,
-                        default_node: expected_node,
-                        default_copy_source: expected_copy,
-                        array_bounds: expected_bounds,
-                        ..
-                    },
-                ) = (&actual.kind, &expected.kind)
-                else {
-                    return None;
-                };
-                if actual.id != *parameter
-                    || expected.id != *parameter
-                    || actual.module != callee.module
-                    || actual.module != expected.module
-                    || actual.span != expected.span
-                    || actual.name != expected.name
-                    || actual.canonical != expected.canonical
-                    || *owner != id
-                    || owner != expected_owner
-                    || *ordinal != index
-                    || ordinal != expected_ordinal
-                    || !matches!((ty, expected_ty), (IrType::Known(a), IrType::Known(b)) if a == b)
-                    || default.is_some()
-                    || expected_default.is_some()
-                    || default_node != expected_node
-                    || default_copy_source != expected_copy
-                    || !match (array_bounds, expected_bounds) {
-                        (None, None) => true,
-                        (Some(a), Some(b)) => a.min == b.min && a.max == b.max,
-                        _ => false,
-                    }
-                    || ir.value_constraints.get(parameter) != fresh.value_constraints.get(parameter)
-                {
-                    return None;
-                }
-            }
-            let mut nested = chain.to_vec();
-            nested.push(CheckedDecisionCallFrame {
-                node: call.node,
-                module: call.module,
-                source: call.source.clone(),
-                derive: id,
-            });
-            let possible = possibly_true(
+            eval_derive_call(
                 (program, ir, fresh),
-                body,
-                (site, returned),
-                &nested,
+                expression,
+                site,
+                returned,
+                chain,
                 stack,
-                depth + 1,
+                depth,
                 steps,
-            );
-            stack.remove(&id);
-            possible
+                name,
+                args,
+            )
         }
         // Member/equality/builtin values, OR/NOT and other shapes remain
         // unknown: either value is possible. No leaf is evaluated or promoted.

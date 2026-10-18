@@ -20,8 +20,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createWorkKernel } from "@canlang/work-kernel";
 import { gatherDeploymentAssets } from "../deploy/package-assets.js";
-import { startLocalDev } from "../dev/local-run.js";
-import { PINNED_COMPATIBILITY_DATE } from "../dev/zero-config.js";
+import { startLocalDev } from "./native-preview.test-support.js";
+import { PINNED_COMPATIBILITY_DATE } from "../cli/artifact-defaults.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const WORK_KERNEL_DIST = join(HERE, "..", "..", "..", "work-kernel", "dist");

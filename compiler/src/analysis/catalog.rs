@@ -468,6 +468,35 @@ fn parse_catalog(text: &str, origin: &str, primary: Span) -> (Option<Catalog>, V
 }
 
 /// Parse one entry object into its checkable shape.
+fn parse_entry_effects(
+    id: &str,
+    kind: EntryKind,
+    entry: &Json,
+) -> Result<Option<Effects>, (&'static str, String)> {
+    match kind {
+        EntryKind::Component => match entry.get("effects") {
+            None | Some(Json::Null) => Ok(None),
+            Some(_) => Err((
+                "E6003",
+                format!("entry '{id}' is a component and must not carry an effects field"),
+            )),
+        },
+        EntryKind::Builtin | EntryKind::Helper => match entry.get("effects").and_then(Json::as_str)
+        {
+            Some("pure") => Ok(Some(Effects::Pure)),
+            Some("server-default-only") => Ok(Some(Effects::ServerDefaultOnly)),
+            Some("state-read") => Ok(Some(Effects::StateRead)),
+            other => Err((
+                "E6003",
+                format!(
+                    "entry '{id}' has unknown effects {}, want pure|server-default-only|state-read",
+                    other.map_or("missing".to_string(), |v| format!("'{v}'")),
+                ),
+            )),
+        },
+    }
+}
+
 fn parse_entry(entry: &Json) -> Result<CatalogEntry, (&'static str, String)> {
     let id = entry
         .get("id")
@@ -490,32 +519,7 @@ fn parse_entry(entry: &Json) -> Result<CatalogEntry, (&'static str, String)> {
             ));
         }
     };
-    let effects = match kind {
-        EntryKind::Component => match entry.get("effects") {
-            None | Some(Json::Null) => None,
-            Some(_) => {
-                return Err((
-                    "E6003",
-                    format!("entry '{id}' is a component and must not carry an effects field"),
-                ));
-            }
-        },
-        EntryKind::Builtin | EntryKind::Helper => match entry.get("effects").and_then(Json::as_str)
-        {
-            Some("pure") => Some(Effects::Pure),
-            Some("server-default-only") => Some(Effects::ServerDefaultOnly),
-            Some("state-read") => Some(Effects::StateRead),
-            other => {
-                return Err((
-                    "E6003",
-                    format!(
-                        "entry '{id}' has unknown effects {}, want pure|server-default-only|state-read",
-                        other.map_or("missing".to_string(), |v| format!("'{v}'")),
-                    ),
-                ));
-            }
-        },
-    };
+    let effects = parse_entry_effects(id, kind, entry)?;
     let availability = match entry.get("availability").and_then(Json::as_str) {
         Some("planned") => Availability::Planned,
         Some("implemented") => Availability::Implemented,
@@ -961,38 +965,16 @@ impl SigParser<'_> {
         self.skip_ws();
         let rest = &self.text[self.pos..];
         if rest.starts_with("nonempty C<") {
-            self.pos += "nonempty C<".len();
-            let inner = self.parse_shape()?;
-            self.expect('>')?;
-            return Ok(SigType::NonemptyCollection(Box::new(inner)));
+            return self.parse_prefixed_collection("nonempty C<", SigType::NonemptyCollection);
         }
         if rest.starts_with("ordered C<") {
-            self.pos += "ordered C<".len();
-            let inner = self.parse_shape()?;
-            self.expect('>')?;
-            return Ok(SigType::OrderedCollection(Box::new(inner)));
+            return self.parse_prefixed_collection("ordered C<", SigType::OrderedCollection);
         }
         if rest.starts_with("C<") {
-            self.pos += 2;
-            let inner = self.parse_shape()?;
-            self.expect('>')?;
-            return Ok(SigType::Collection(Box::new(inner)));
+            return self.parse_prefixed_collection("C<", SigType::Collection);
         }
         if rest.starts_with("enum(") {
-            self.pos += "enum(".len();
-            let mut cases = Vec::new();
-            loop {
-                self.skip_ws();
-                let case = self.parse_ident()?;
-                cases.push(case);
-                self.skip_ws();
-                if self.consume(',') {
-                    continue;
-                }
-                break;
-            }
-            self.expect(')')?;
-            return Ok(SigType::EnumCases(cases));
+            return Ok(SigType::EnumCases(self.parse_enum_cases()?));
         }
         if rest.starts_with("closed object of Display") {
             self.pos += "closed object of Display".len();
@@ -1014,12 +996,8 @@ impl SigParser<'_> {
         // for an untrusted local operation target. The `local` collapse
         // is deliberately vacuous (N15): same-app operations only, never
         // bound remote ones, so both spellings check identically.
-        if let Some(after) = rest.strip_prefix("canonical ") {
-            let after = after.strip_prefix("local ").unwrap_or(after);
-            if let Some(tail) = after.strip_prefix("user mutation") {
-                self.pos += rest.len() - tail.len();
-                return Ok(SigType::ActionTarget);
-            }
+        if let Some(target) = self.parse_action_target()? {
+            return Ok(target);
         }
         if rest.starts_with("singleton action(target)") {
             self.pos += "singleton action(target)".len();
@@ -1032,44 +1010,82 @@ impl SigParser<'_> {
             return Ok(SigType::InvocationResult);
         }
         if rest.starts_with('{') {
-            self.pos += 1;
-            let mut fields = Vec::new();
-            loop {
-                self.skip_ws();
-                if self.consume('}') {
-                    break;
-                }
-                let name = self.parse_ident()?;
-                self.skip_ws();
-                self.expect(':')?;
-                let ty = self.parse_shape()?;
-                fields.push((name, ty));
-                self.skip_ws();
-                if self.consume(',') {
-                    self.skip_ws();
-                    if self.text[self.pos..].starts_with('}') {
-                        continue;
-                    }
-                    continue;
-                }
+            return Ok(SigType::Object(self.parse_object_fields()?));
+        }
+        let ident = self.parse_ident()?;
+        Ok(ident_atom(ident))
+    }
+
+    fn parse_prefixed_collection(
+        &mut self,
+        prefix: &str,
+        wrap: fn(Box<SigType>) -> SigType,
+    ) -> Result<SigType, (&'static str, String)> {
+        self.pos += prefix.len();
+        let inner = self.parse_shape()?;
+        self.expect('>')?;
+        Ok(wrap(Box::new(inner)))
+    }
+
+    fn parse_enum_cases(&mut self) -> Result<Vec<String>, (&'static str, String)> {
+        self.pos += "enum(".len();
+        let mut cases = Vec::new();
+        loop {
+            self.skip_ws();
+            let case = self.parse_ident()?;
+            cases.push(case);
+            self.skip_ws();
+            if self.consume(',') {
+                continue;
+            }
+            break;
+        }
+        self.expect(')')?;
+        Ok(cases)
+    }
+
+    fn parse_object_fields(
+        &mut self,
+    ) -> Result<Vec<(String, SigType)>, (&'static str, String)> {
+        self.pos += 1;
+        let mut fields = Vec::new();
+        loop {
+            self.skip_ws();
+            if self.consume('}') {
+                break;
+            }
+            let name = self.parse_ident()?;
+            self.skip_ws();
+            self.expect(':')?;
+            let ty = self.parse_shape()?;
+            fields.push((name, ty));
+            self.skip_ws();
+            if self.consume(',') {
                 self.skip_ws();
                 if self.text[self.pos..].starts_with('}') {
                     continue;
                 }
-                return Err(self.error(&format!("expected ',' or '}}' in '{}'", self.text)));
+                continue;
             }
-            return Ok(SigType::Object(fields));
+            self.skip_ws();
+            if self.text[self.pos..].starts_with('}') {
+                continue;
+            }
+            return Err(self.error(&format!("expected ',' or '}}' in '{}'", self.text)));
         }
-        let ident = self.parse_ident()?;
-        match ident.as_str() {
-            "T" => Ok(SigType::Any),
-            "O" => Ok(SigType::Ordered),
-            "S" => Ok(SigType::StringLike),
-            "K" => Ok(SigType::GroupKey),
-            "Display" => Ok(SigType::Display),
-            "message" => Ok(SigType::Message),
-            _ => Ok(SigType::Named(ident)),
+        Ok(fields)
+    }
+
+    fn parse_action_target(&mut self) -> Result<Option<SigType>, (&'static str, String)> {
+        let rest = &self.text[self.pos..];
+        if let Some(after) = rest.strip_prefix("canonical ") {
+            let after = after.strip_prefix("local ").unwrap_or(after);
+            if let Some(tail) = after.strip_prefix("user mutation") {
+                self.pos += rest.len() - tail.len();
+                return Ok(Some(SigType::ActionTarget));
+            }
         }
+        Ok(None)
     }
 
     fn parse_ident(&mut self) -> Result<String, (&'static str, String)> {
@@ -1114,6 +1130,18 @@ impl SigParser<'_> {
         } else {
             Err(self.error(&format!("expected '{c}' in '{}'", self.text)))
         }
+    }
+}
+
+fn ident_atom(ident: String) -> SigType {
+    match ident.as_str() {
+        "T" => SigType::Any,
+        "O" => SigType::Ordered,
+        "S" => SigType::StringLike,
+        "K" => SigType::GroupKey,
+        "Display" => SigType::Display,
+        "message" => SigType::Message,
+        _ => SigType::Named(ident),
     }
 }
 

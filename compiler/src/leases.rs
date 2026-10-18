@@ -362,6 +362,113 @@ fn io_error(context: impl Into<String>, error: std::io::Error) -> LeaseError {
 /// cooperative callers retry. Read-sharing, exact ownership/tokens, and
 /// stopped-writer recovery are unchanged: this arbitrates cooperative
 /// writers only, never filesystem CAS.
+fn check_lease_conflict(
+    root: &Path,
+    rel: &str,
+    held: &[String],
+    mode: LeaseMode,
+    token: &LeaseToken,
+) -> Result<(), LeaseError> {
+    if write_lock_path(root, rel).exists() {
+        release_paths(root, held, mode, token)?;
+        return Err(LeaseError::new(
+            "conflict",
+            format!(
+                "{} lease on `{rel}` conflicts with a held write lease",
+                mode.as_str()
+            ),
+        ));
+    }
+    if mode == LeaseMode::Write && !present_read_locks(root, rel).is_empty() {
+        release_paths(root, held, mode, token)?;
+        return Err(LeaseError::new(
+            "conflict",
+            format!("write lease on `{rel}` conflicts with a held read lease"),
+        ));
+    }
+    Ok(())
+}
+
+fn create_lease_lock(
+    root: &Path,
+    rel: &str,
+    holder: &str,
+    mode: LeaseMode,
+    token: &LeaseToken,
+    held: &[String],
+) -> Result<PathBuf, LeaseError> {
+    let body = LockFile {
+        version: PROTOCOL_VERSION,
+        holder: holder.to_string(),
+        token: token.as_str().to_string(),
+        mode: mode.as_str().to_string(),
+        path: rel.to_string(),
+    };
+    let text = serde_json::to_string(&body).map_err(|e| io_error("encode lock", e.into()))?;
+    let lock_path = match mode {
+        LeaseMode::Write => write_lock_path(root, rel),
+        LeaseMode::Read => read_lock_path(root, rel, token),
+    };
+    match OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&lock_path)
+    {
+        Ok(mut file) => {
+            file.write_all(text.as_bytes())
+                .map_err(|e| io_error("write lock", e))?;
+        }
+        Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
+            release_paths(root, held, mode, token)?;
+            return Err(LeaseError::new(
+                "conflict",
+                format!(
+                    "{} lease on `{rel}` lost a racing acquisition",
+                    mode.as_str()
+                ),
+            ));
+        }
+        Err(e) => {
+            release_paths(root, held, mode, token)?;
+            return Err(io_error("create lock", e));
+        }
+    }
+    Ok(lock_path)
+}
+
+fn withdraw_raced_lock(
+    root: &Path,
+    rel: &str,
+    mode: LeaseMode,
+    token: &LeaseToken,
+    held: &[String],
+    lock_path: &Path,
+) -> Result<(), LeaseError> {
+    // Admission arbitration: a racing incompatible lease passed its own
+    // pre-check and created a different-named file. Whoever observes the
+    // other removes its just-created lock and reports conflict.
+    let raced = match mode {
+        LeaseMode::Read => write_lock_path(root, rel).exists(),
+        LeaseMode::Write => !present_read_locks(root, rel).is_empty(),
+    };
+    if !raced {
+        return Ok(());
+    }
+    match fs::remove_file(lock_path) {
+        Ok(()) => {}
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+        Err(e) => return Err(io_error("withdraw racing lock", e)),
+    }
+    release_paths(root, held, mode, token)?;
+    Err(LeaseError::new(
+        "conflict",
+        format!(
+            "{} lease on `{rel}` lost a racing acquisition",
+            mode.as_str()
+        ),
+    ))
+}
+
 pub fn acquire(
     root: &Path,
     paths: &[&str],
@@ -376,81 +483,9 @@ pub fn acquire(
     let token = new_token();
     let mut held: Vec<String> = Vec::new();
     for rel in &ordered {
-        if write_lock_path(root, rel).exists() {
-            release_paths(root, &held, mode, &token)?;
-            return Err(LeaseError::new(
-                "conflict",
-                format!(
-                    "{} lease on `{rel}` conflicts with a held write lease",
-                    mode.as_str()
-                ),
-            ));
-        }
-        if mode == LeaseMode::Write && !present_read_locks(root, rel).is_empty() {
-            release_paths(root, &held, mode, &token)?;
-            return Err(LeaseError::new(
-                "conflict",
-                format!("write lease on `{rel}` conflicts with a held read lease"),
-            ));
-        }
-        let body = LockFile {
-            version: PROTOCOL_VERSION,
-            holder: holder.to_string(),
-            token: token.as_str().to_string(),
-            mode: mode.as_str().to_string(),
-            path: rel.clone(),
-        };
-        let text = serde_json::to_string(&body).map_err(|e| io_error("encode lock", e.into()))?;
-        let lock_path = match mode {
-            LeaseMode::Write => write_lock_path(root, rel),
-            LeaseMode::Read => read_lock_path(root, rel, &token),
-        };
-        match OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&lock_path)
-        {
-            Ok(mut file) => {
-                file.write_all(text.as_bytes())
-                    .map_err(|e| io_error("write lock", e))?;
-            }
-            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
-                release_paths(root, &held, mode, &token)?;
-                return Err(LeaseError::new(
-                    "conflict",
-                    format!(
-                        "{} lease on `{rel}` lost a racing acquisition",
-                        mode.as_str()
-                    ),
-                ));
-            }
-            Err(e) => {
-                release_paths(root, &held, mode, &token)?;
-                return Err(io_error("create lock", e));
-            }
-        }
-        // Admission arbitration: a racing incompatible lease passed its own
-        // pre-check and created a different-named file. Whoever observes the
-        // other removes its just-created lock and reports conflict.
-        let raced = match mode {
-            LeaseMode::Read => write_lock_path(root, rel).exists(),
-            LeaseMode::Write => !present_read_locks(root, rel).is_empty(),
-        };
-        if raced {
-            match fs::remove_file(&lock_path) {
-                Ok(()) => {}
-                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
-                Err(e) => return Err(io_error("withdraw racing lock", e)),
-            }
-            release_paths(root, &held, mode, &token)?;
-            return Err(LeaseError::new(
-                "conflict",
-                format!(
-                    "{} lease on `{rel}` lost a racing acquisition",
-                    mode.as_str()
-                ),
-            ));
-        }
+        check_lease_conflict(root, rel, &held, mode, &token)?;
+        let lock_path = create_lease_lock(root, rel, holder, mode, &token, &held)?;
+        withdraw_raced_lock(root, rel, mode, &token, &held, &lock_path)?;
         held.push(rel.clone());
     }
     Ok(LeaseSet {
@@ -783,15 +818,7 @@ pub fn stage_journal_with_deletions(
     )
 }
 
-fn stage_journal_with_mode(
-    root: &Path,
-    run_id: &str,
-    scope: &[&str],
-    replacements: &[Replacement],
-    deletions: &[(&str, &str)],
-    mode: JournalMode,
-) -> Result<RunJournal, LeaseError> {
-    validate_run_id(run_id)?;
+fn prepare_journal_scope(scope: &[&str]) -> Result<Vec<String>, LeaseError> {
     let mut ordered_scope: Vec<String> = Vec::new();
     for unit in scope {
         let parsed = validate_unit_id(unit)?;
@@ -805,22 +832,16 @@ fn stage_journal_with_mode(
             "journal scope must name at least one unit",
         ));
     }
-    let dir = run_dir(root, run_id);
-    if let Some(parent) = dir.parent() {
-        fs::create_dir_all(parent).map_err(|e| io_error("create runs dir", e))?;
-    }
-    match fs::create_dir(&dir) {
-        Ok(()) => {}
-        Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
-            return Err(LeaseError::new(
-                "already-staged",
-                format!("run `{run_id}` is already staged; recover it or use a fresh run id"),
-            ));
-        }
-        Err(e) => return Err(io_error("create run dir", e)),
-    }
+    Ok(ordered_scope)
+}
+
+fn snapshot_journal_units(
+    root: &Path,
+    dir: &Path,
+    ordered_scope: &[String],
+) -> Result<(), LeaseError> {
     // Complete prior set first: every scope unit's whole current group.
-    for unit in &ordered_scope {
+    for unit in ordered_scope {
         let group = group_dir(root, unit);
         let old_unit = dir.join(OLD_DIR).join(unit);
         if group.exists() {
@@ -829,6 +850,16 @@ fn stage_journal_with_mode(
             fs::create_dir_all(&old_unit).map_err(|e| io_error("create old unit dir", e))?;
         }
     }
+    Ok(())
+}
+
+fn collect_journal_changes(
+    replacements: &[Replacement],
+    deletions: &[(&str, &str)],
+    mode: JournalMode,
+    dir: &Path,
+    ordered_scope: &[String],
+) -> Result<Vec<(String, String, Option<Vec<u8>>)>, LeaseError> {
     let mut changes: Vec<(String, String, Option<Vec<u8>>)> = replacements
         .iter()
         .map(|r| (r.unit.clone(), r.path.clone(), Some(r.bytes.clone())))
@@ -839,7 +870,7 @@ fn stage_journal_with_mode(
             .map(|(unit, path)| (unit.to_string(), path.to_string(), None)),
     );
     if mode == JournalMode::Replace {
-        for unit in &ordered_scope {
+        for unit in ordered_scope {
             for path in list_files_rel(&dir.join(OLD_DIR).join(unit))? {
                 if !replacements
                     .iter()
@@ -850,9 +881,18 @@ fn stage_journal_with_mode(
             }
         }
     }
+    Ok(changes)
+}
+
+fn build_journal_entries(
+    root: &Path,
+    dir: &Path,
+    ordered_scope: &[String],
+    changes: &[(String, String, Option<Vec<u8>>)],
+) -> Result<Vec<JournalEntry>, LeaseError> {
     let mut entries: Vec<JournalEntry> = Vec::new();
     let mut seen: BTreeMap<(String, String), ()> = BTreeMap::new();
-    for (unit_name, path, bytes) in &changes {
+    for (unit_name, path, bytes) in changes {
         let unit = validate_unit_id(unit_name)?;
         if !ordered_scope.iter().any(|s| s == unit.as_str()) {
             return Err(LeaseError::new(
@@ -881,7 +921,7 @@ fn stage_journal_with_mode(
             .as_ref()
             .map(|_| format!("{NEW_DIR}/{}/{}", unit.as_str(), path));
         if let (Some(staged), Some(bytes)) = (&staged_rel, bytes) {
-            persist_file(&join_rel(&dir, staged)?, bytes)?;
+            persist_file(&join_rel(dir, staged)?, bytes)?;
         }
         entries.push(JournalEntry {
             unit: unit.as_str().to_string(),
@@ -892,6 +932,36 @@ fn stage_journal_with_mode(
         });
     }
     entries.sort_by(|a, b| (&a.unit, &a.path).cmp(&(&b.unit, &b.path)));
+    Ok(entries)
+}
+
+fn stage_journal_with_mode(
+    root: &Path,
+    run_id: &str,
+    scope: &[&str],
+    replacements: &[Replacement],
+    deletions: &[(&str, &str)],
+    mode: JournalMode,
+) -> Result<RunJournal, LeaseError> {
+    validate_run_id(run_id)?;
+    let ordered_scope = prepare_journal_scope(scope)?;
+    let dir = run_dir(root, run_id);
+    if let Some(parent) = dir.parent() {
+        fs::create_dir_all(parent).map_err(|e| io_error("create runs dir", e))?;
+    }
+    match fs::create_dir(&dir) {
+        Ok(()) => {}
+        Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
+            return Err(LeaseError::new(
+                "already-staged",
+                format!("run `{run_id}` is already staged; recover it or use a fresh run id"),
+            ));
+        }
+        Err(e) => return Err(io_error("create run dir", e)),
+    }
+    snapshot_journal_units(root, &dir, &ordered_scope)?;
+    let changes = collect_journal_changes(replacements, deletions, mode, &dir, &ordered_scope)?;
+    let entries = build_journal_entries(root, &dir, &ordered_scope, &changes)?;
     let journal = RunJournal {
         version: JOURNAL_VERSION,
         mode,
@@ -1211,6 +1281,86 @@ fn remove_empty_parents(path: &Path, stop: &Path) -> Result<(), LeaseError> {
     Ok(())
 }
 
+enum EntryApply {
+    Applied,
+    Conflict {
+        mismatches: Vec<ByteMismatch>,
+        conflict_path: PathBuf,
+    },
+}
+
+fn retain_previous_groups(root: &Path, dir: &Path, scope: &[String]) -> Result<(), LeaseError> {
+    // Retain one previous group per scope unit from the staged complete old
+    // set, wholesale, before replacing anything current.
+    for unit in scope {
+        validate_unit_id(unit)?;
+        let previous_unit = root.join(PREVIOUS_DIR).join(unit);
+        remove_tree(&previous_unit)?;
+        let staged_old = dir.join(OLD_DIR).join(unit);
+        if staged_old.exists() {
+            copy_tree(&staged_old, &previous_unit)?;
+        } else {
+            fs::create_dir_all(&previous_unit).map_err(|e| io_error("create previous dir", e))?;
+        }
+    }
+    Ok(())
+}
+
+fn apply_journal_entry(
+    root: &Path,
+    run_id: &str,
+    dir: &Path,
+    entry: &JournalEntry,
+) -> Result<EntryApply, LeaseError> {
+    let target = join_rel(&group_dir(root, &entry.unit), &entry.path)?;
+    let observed = current_sha256(&target)?;
+    if observed == entry.new_sha256 {
+        if entry.new_sha256.is_none() {
+            remove_empty_parents(&target, &group_dir(root, &entry.unit))?;
+        }
+        return Ok(EntryApply::Applied);
+    }
+    if observed != entry.old_sha256 {
+        let mismatches = vec![ByteMismatch {
+            unit: entry.unit.clone(),
+            path: entry.path.clone(),
+            expected_sha256: entry.old_sha256.clone(),
+            observed_sha256: observed,
+        }];
+        let conflict_path = write_conflict(root, run_id, "apply", mismatches.clone())?;
+        return Ok(EntryApply::Conflict {
+            mismatches,
+            conflict_path,
+        });
+    }
+    let Some(new_sha256) = &entry.new_sha256 else {
+        fs::remove_file(&target).map_err(|e| io_error("delete replaced file", e))?;
+        remove_empty_parents(&target, &group_dir(root, &entry.unit))?;
+        return Ok(EntryApply::Applied);
+    };
+    let staged_path = join_rel(dir, entry.staged.as_ref().unwrap())?;
+    let staged_bytes = fs::read(&staged_path).map_err(|e| io_error("read staged file", e))?;
+    if sha256_of(&staged_bytes) != *new_sha256 {
+        return Err(LeaseError::new(
+            "io",
+            format!(
+                "staged payload for `{}` in unit `{}` no longer matches the journal",
+                entry.path, entry.unit
+            ),
+        ));
+    }
+    // Keep temporary payloads in the ignored run, never in current membership.
+    // Rename remains atomic on supported same-filesystem layouts; EXDEV refuses.
+    fs::create_dir_all(target.parent().unwrap())
+        .map_err(|e| io_error("create replacement parent", e))?;
+    let tmp = create_replace_temp(&staged_path, &staged_bytes)?;
+    if let Err(e) = fs::rename(&tmp, &target) {
+        let _ = fs::remove_file(&tmp);
+        return Err(io_error("atomic replace", e));
+    }
+    Ok(EntryApply::Applied)
+}
+
 pub fn apply_committed(root: &Path, run_id: &str) -> Result<ApplyOutcome, LeaseError> {
     let journal = read_journal(root, run_id)?;
     if journal.state != JournalState::Committed {
@@ -1228,19 +1378,7 @@ pub fn apply_committed(root: &Path, run_id: &str) -> Result<ApplyOutcome, LeaseE
             conflict_path,
         });
     }
-    // Retain one previous group per scope unit from the staged complete old
-    // set, wholesale, before replacing anything current.
-    for unit in &journal.scope {
-        validate_unit_id(unit)?;
-        let previous_unit = root.join(PREVIOUS_DIR).join(unit);
-        remove_tree(&previous_unit)?;
-        let staged_old = dir.join(OLD_DIR).join(unit);
-        if staged_old.exists() {
-            copy_tree(&staged_old, &previous_unit)?;
-        } else {
-            fs::create_dir_all(&previous_unit).map_err(|e| io_error("create previous dir", e))?;
-        }
-    }
+    retain_previous_groups(root, &dir, &journal.scope)?;
     let mut files = 0usize;
     // Delete before additions to permit file/directory shape changes.
     for entry in journal
@@ -1249,55 +1387,18 @@ pub fn apply_committed(root: &Path, run_id: &str) -> Result<ApplyOutcome, LeaseE
         .filter(|e| e.new_sha256.is_none())
         .chain(journal.entries.iter().filter(|e| e.new_sha256.is_some()))
     {
-        let target = join_rel(&group_dir(root, &entry.unit), &entry.path)?;
-        let observed = current_sha256(&target)?;
-        if observed == entry.new_sha256 {
-            if entry.new_sha256.is_none() {
-                remove_empty_parents(&target, &group_dir(root, &entry.unit))?;
-            }
-            files += 1;
-            continue;
-        }
-        if observed != entry.old_sha256 {
-            let mismatches = vec![ByteMismatch {
-                unit: entry.unit.clone(),
-                path: entry.path.clone(),
-                expected_sha256: entry.old_sha256.clone(),
-                observed_sha256: observed,
-            }];
-            let conflict_path = write_conflict(root, run_id, "apply", mismatches.clone())?;
-            return Ok(ApplyOutcome::Conflict {
+        match apply_journal_entry(root, run_id, &dir, entry)? {
+            EntryApply::Applied => files += 1,
+            EntryApply::Conflict {
                 mismatches,
                 conflict_path,
-            });
+            } => {
+                return Ok(ApplyOutcome::Conflict {
+                    mismatches,
+                    conflict_path,
+                });
+            }
         }
-        let Some(new_sha256) = &entry.new_sha256 else {
-            fs::remove_file(&target).map_err(|e| io_error("delete replaced file", e))?;
-            remove_empty_parents(&target, &group_dir(root, &entry.unit))?;
-            files += 1;
-            continue;
-        };
-        let staged_path = join_rel(&dir, entry.staged.as_ref().unwrap())?;
-        let staged_bytes = fs::read(&staged_path).map_err(|e| io_error("read staged file", e))?;
-        if sha256_of(&staged_bytes) != *new_sha256 {
-            return Err(LeaseError::new(
-                "io",
-                format!(
-                    "staged payload for `{}` in unit `{}` no longer matches the journal",
-                    entry.path, entry.unit
-                ),
-            ));
-        }
-        // Keep temporary payloads in the ignored run, never in current membership.
-        // Rename remains atomic on supported same-filesystem layouts; EXDEV refuses.
-        fs::create_dir_all(target.parent().unwrap())
-            .map_err(|e| io_error("create replacement parent", e))?;
-        let tmp = create_replace_temp(&staged_path, &staged_bytes)?;
-        if let Err(e) = fs::rename(&tmp, &target) {
-            let _ = fs::remove_file(&tmp);
-            return Err(io_error("atomic replace", e));
-        }
-        files += 1;
     }
     resolve_journal(root, run_id)?;
     Ok(ApplyOutcome::Applied { files })

@@ -1339,6 +1339,48 @@ fn given_wire_constant(type_name: &str, source: &str) -> Result<serde_json::Valu
 /// nullability and array marker. Mirrors `model_field_parts`/
 /// `model_field_tag`/`model_value_type` over the carrier spellings the
 /// Given check admits (one outer `?`, one `[]`, native scalar/enum leaves).
+fn scalar_field_tag(rest: &str) -> Option<JsModelFieldType> {
+    match rest {
+        "text" | "email" | "url" | "locale" | "timezone" | "currency" => {
+            Some(JsModelFieldType::String)
+        }
+        "int" | "integer" => Some(JsModelFieldType::Integer),
+        "decimal" => Some(JsModelFieldType::Decimal),
+        "money" => Some(JsModelFieldType::Money),
+        "datetime" => Some(JsModelFieldType::Datetime),
+        "bool" | "boolean" => Some(JsModelFieldType::Boolean),
+        "file" => Some(JsModelFieldType::File),
+        "date" => Some(JsModelFieldType::Date),
+        "duration" => Some(JsModelFieldType::Duration),
+        "secret" => Some(JsModelFieldType::Secret),
+        "user" => Some(JsModelFieldType::User),
+        "member" => Some(JsModelFieldType::Member),
+        "json" => Some(JsModelFieldType::Json),
+        "bytes" => Some(JsModelFieldType::Bytes),
+        _ => None,
+    }
+}
+
+fn scalar_value_type(
+    rest: &str,
+    type_name: &str,
+    is_array: bool,
+    nullable: bool,
+) -> Option<String> {
+    // Value-type selectivity mirrors `model_value_type`: only the
+    // ambiguous leaves carry their written identity (`boolean`
+    // normalizes to the canonical `bool` spelling authored fields use).
+    match rest {
+        "bool" | "boolean" => Some(format!(
+            "bool{arr}{null}",
+            arr = if is_array { "[]" } else { "" },
+            null = if nullable { "?" } else { "" }
+        )),
+        "text" | "date" | "file" | "email" | "url" | "timezone" => Some(type_name.to_string()),
+        _ => None,
+    }
+}
+
 fn given_field_tag(type_name: &str) -> (JsModelFieldType, Option<String>, bool, bool) {
     let mut rest = type_name;
     let mut nullable = false;
@@ -1378,44 +1420,17 @@ fn given_field_tag(type_name: &str) -> (JsModelFieldType, Option<String>, bool, 
             is_array,
         );
     }
-    let tag = match rest {
-        "text" | "email" | "url" | "locale" | "timezone" | "currency" => JsModelFieldType::String,
-        "int" | "integer" => JsModelFieldType::Integer,
-        "decimal" => JsModelFieldType::Decimal,
-        "money" => JsModelFieldType::Money,
-        "datetime" => JsModelFieldType::Datetime,
-        "bool" | "boolean" => JsModelFieldType::Boolean,
-        "file" => JsModelFieldType::File,
-        "date" => JsModelFieldType::Date,
-        "duration" => JsModelFieldType::Duration,
-        "secret" => JsModelFieldType::Secret,
-        "user" => JsModelFieldType::User,
-        "member" => JsModelFieldType::Member,
-        "json" => JsModelFieldType::Json,
-        "bytes" => JsModelFieldType::Bytes,
-        _ => {
-            return (
-                JsModelFieldType::Other {
-                    type_id: type_name.to_string(),
-                },
-                None,
-                nullable,
-                is_array,
-            );
-        }
+    let Some(tag) = scalar_field_tag(rest) else {
+        return (
+            JsModelFieldType::Other {
+                type_id: type_name.to_string(),
+            },
+            None,
+            nullable,
+            is_array,
+        );
     };
-    // Value-type selectivity mirrors `model_value_type`: only the
-    // ambiguous leaves carry their written identity (`boolean`
-    // normalizes to the canonical `bool` spelling authored fields use).
-    let value_type = match rest {
-        "bool" | "boolean" => Some(format!(
-            "bool{arr}{null}",
-            arr = if is_array { "[]" } else { "" },
-            null = if nullable { "?" } else { "" }
-        )),
-        "text" | "date" | "file" | "email" | "url" | "timezone" => Some(type_name.to_string()),
-        _ => None,
-    };
+    let value_type = scalar_value_type(rest, type_name, is_array, nullable);
     (tag, value_type, nullable, is_array)
 }
 
@@ -1730,12 +1745,9 @@ pub struct ArtifactStyleAsset {
 }
 
 /// Finite MIME admission shared by style validation and packing.
-pub fn style_asset_content_type(path: &str, bytes: &[u8]) -> Result<&'static str, String> {
-    let extension = path.rsplit('.').next().unwrap_or("").to_ascii_lowercase();
-    if extension == "css" { return Ok("text/css"); }
-    if extension == "js" || extension == "mjs" { return Ok("application/javascript"); }
+fn detect_asset_bytes(bytes: &[u8]) -> Option<&'static str> {
     let ascii = |start: usize, end: usize| bytes.get(start..end).unwrap_or(&[]);
-    let detected = if bytes.starts_with(&[137,80,78,71,13,10,26,10]) { Some("image/png") }
+    if bytes.starts_with(&[137,80,78,71,13,10,26,10]) { Some("image/png") }
         else if bytes.starts_with(&[255,216,255]) { Some("image/jpeg") }
         else if ascii(0,6) == b"GIF87a" || ascii(0,6) == b"GIF89a" { Some("image/gif") }
         else if ascii(0,4) == b"RIFF" && ascii(8,12) == b"WEBP" { Some("image/webp") }
@@ -1745,15 +1757,30 @@ pub fn style_asset_content_type(path: &str, bytes: &[u8]) -> Result<&'static str
         else if bytes.starts_with(&[0,1,0,0]) { Some("font/ttf") }
         else if ascii(0,4) == b"OTTO" { Some("font/otf") }
         else {
-            let prefix = String::from_utf8_lossy(&bytes[..bytes.len().min(512)]);
-            let mut prefix = prefix.trim_start_matches('\u{feff}').trim_start();
-            if prefix.starts_with("<?xml") { if let Some(end) = prefix.find("?>") { prefix = prefix[end + 2..].trim_start(); } }
-            let root = prefix.get(..4).is_some_and(|head| head.eq_ignore_ascii_case("<svg")) && prefix[4..].chars().next().is_some_and(|ch| ch.is_whitespace() || ch == '>');
-            root.then_some("image/svg+xml")
-        };
-    let expected = match extension.as_str() {
+            detect_svg_bytes(bytes)
+        }
+}
+
+fn detect_svg_bytes(bytes: &[u8]) -> Option<&'static str> {
+    let prefix = String::from_utf8_lossy(&bytes[..bytes.len().min(512)]);
+    let mut prefix = prefix.trim_start_matches('\u{feff}').trim_start();
+    if prefix.starts_with("<?xml") { if let Some(end) = prefix.find("?>") { prefix = prefix[end + 2..].trim_start(); } }
+    let root = prefix.get(..4).is_some_and(|head| head.eq_ignore_ascii_case("<svg")) && prefix[4..].chars().next().is_some_and(|ch| ch.is_whitespace() || ch == '>');
+    root.then_some("image/svg+xml")
+}
+
+fn expected_asset_mime(extension: &str) -> &'static str {
+    match extension {
         "png" => "image/png", "jpg" | "jpeg" => "image/jpeg", "gif" => "image/gif", "webp" => "image/webp", "avif" => "image/avif", "svg" => "image/svg+xml", "woff" => "font/woff", "woff2" => "font/woff2", "ttf" => "font/ttf", "otf" => "font/otf", _ => "",
-    };
+    }
+}
+
+pub fn style_asset_content_type(path: &str, bytes: &[u8]) -> Result<&'static str, String> {
+    let extension = path.rsplit('.').next().unwrap_or("").to_ascii_lowercase();
+    if extension == "css" { return Ok("text/css"); }
+    if extension == "js" || extension == "mjs" { return Ok("application/javascript"); }
+    let detected = detect_asset_bytes(bytes);
+    let expected = expected_asset_mime(extension.as_str());
     detected.filter(|mime| extension == "bin" || *mime == expected).ok_or_else(|| format!("unsupported or mismatched owned asset type for `{path}`; submit a supported image/font with matching bytes"))
 }
 

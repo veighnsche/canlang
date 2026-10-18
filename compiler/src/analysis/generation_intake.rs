@@ -887,41 +887,13 @@ pub fn bind_legacy_unit(
     source: &SourceAssociation,
     contract: &UnitContract,
 ) -> Result<(UnitRecord, Vec<SavedFile>), String> {
-    for path in [dir.to_path_buf(), dir.join(UNIT_FILE)] {
-        if std::fs::symlink_metadata(&path)
-            .map_err(|error| error.to_string())?
-            .file_type()
-            .is_symlink()
-        {
-            return Err("legacy binding requires its own regular saved group and record".into());
-        }
-    }
+    ensure_bind_group_has_no_symlink(dir)?;
     let text = std::fs::read_to_string(dir.join(UNIT_FILE)).map_err(|error| error.to_string())?;
     if !is_legacy_bind_record(&text, id) {
         return Err("saved record is not a recognized handwritten legacy unit".into());
     }
     let doc: LegacyUnitDoc = serde_json::from_str(&text).map_err(|error| error.to_string())?;
-    let compatible = match doc.kind.as_str() {
-        "given_trait" => match doc.label {
-            Some(_) => source.kind == UnitKind::NamedTrait && doc.label == source.label,
-            None => source.kind == UnitKind::InlineTrait,
-        },
-        "given_keyword" => {
-            source.kind == UnitKind::Keyword && doc.label.is_some() && doc.label == source.label
-        }
-        "then_view" => {
-            source.kind == UnitKind::View && doc.label.is_some() && doc.label == source.label
-        }
-        "style" => match doc.label {
-            Some(_) => source.kind == UnitKind::Style && doc.label == source.label,
-            None => matches!(
-                source.kind,
-                UnitKind::StyleInline | UnitKind::ViewStyleInline
-            ),
-        },
-        _ => false,
-    };
-    if !compatible {
+    if !legacy_kind_matches_source(&doc, source) {
         return Err(format!(
             "legacy {} unit `{id}` does not match selected {} {:?}",
             doc.kind,
@@ -931,29 +903,8 @@ pub fn bind_legacy_unit(
     }
     let mut files = Vec::new();
     collect_current_files(dir, dir, &mut files)?;
-    let mut copied_primary = false;
-    if matches!(
-        source.kind,
-        UnitKind::Keyword | UnitKind::View | UnitKind::NamedTrait | UnitKind::InlineTrait
-    ) && !files
-        .iter()
-        .any(|file| file.rel_path == "implementation.js")
-        && let Some(server) = files.iter().find(|file| file.rel_path == "server.js")
-    {
-        files.push(SavedFile {
-            rel_path: "implementation.js".into(),
-            bytes: server.bytes.clone(),
-            sha256: server.sha256.clone(),
-        });
-        copied_primary = true;
-    }
-    for required in source.kind.required_primary_outputs() {
-        if !files.iter().any(|file| file.rel_path == *required) {
-            return Err(format!(
-                "legacy unit `{id}` is missing required output `{required}`"
-            ));
-        }
-    }
+    let copied_primary = maybe_copy_server_primary(source, &mut files);
+    ensure_required_primary_outputs(source, &files, id)?;
     files.sort_by(|a, b| a.rel_path.cmp(&b.rel_path));
     let original_prompt = sha256_hex(doc.prompt.as_deref().unwrap_or_default().as_bytes());
     let record = UnitRecord {
@@ -984,6 +935,76 @@ pub fn bind_legacy_unit(
         },
     };
     Ok((record, files))
+}
+
+fn ensure_bind_group_has_no_symlink(dir: &Path) -> Result<(), String> {
+    for path in [dir.to_path_buf(), dir.join(UNIT_FILE)] {
+        if std::fs::symlink_metadata(&path)
+            .map_err(|error| error.to_string())?
+            .file_type()
+            .is_symlink()
+        {
+            return Err("legacy binding requires its own regular saved group and record".into());
+        }
+    }
+    Ok(())
+}
+
+fn legacy_kind_matches_source(doc: &LegacyUnitDoc, source: &SourceAssociation) -> bool {
+    match doc.kind.as_str() {
+        "given_trait" => match doc.label {
+            Some(_) => source.kind == UnitKind::NamedTrait && doc.label == source.label,
+            None => source.kind == UnitKind::InlineTrait,
+        },
+        "given_keyword" => {
+            source.kind == UnitKind::Keyword && doc.label.is_some() && doc.label == source.label
+        }
+        "then_view" => {
+            source.kind == UnitKind::View && doc.label.is_some() && doc.label == source.label
+        }
+        "style" => match doc.label {
+            Some(_) => source.kind == UnitKind::Style && doc.label == source.label,
+            None => matches!(
+                source.kind,
+                UnitKind::StyleInline | UnitKind::ViewStyleInline
+            ),
+        },
+        _ => false,
+    }
+}
+
+fn maybe_copy_server_primary(source: &SourceAssociation, files: &mut Vec<SavedFile>) -> bool {
+    if matches!(
+        source.kind,
+        UnitKind::Keyword | UnitKind::View | UnitKind::NamedTrait | UnitKind::InlineTrait
+    ) && !files
+        .iter()
+        .any(|file| file.rel_path == "implementation.js")
+        && let Some(server) = files.iter().find(|file| file.rel_path == "server.js")
+    {
+        files.push(SavedFile {
+            rel_path: "implementation.js".into(),
+            bytes: server.bytes.clone(),
+            sha256: server.sha256.clone(),
+        });
+        return true;
+    }
+    false
+}
+
+fn ensure_required_primary_outputs(
+    source: &SourceAssociation,
+    files: &[SavedFile],
+    id: &GenerationUnitId,
+) -> Result<(), String> {
+    for required in source.kind.required_primary_outputs() {
+        if !files.iter().any(|file| file.rel_path == *required) {
+            return Err(format!(
+                "legacy unit `{id}` is missing required output `{required}`"
+            ));
+        }
+    }
+    Ok(())
 }
 
 /// Bind-time evidence for a legacy adoption: the inspected source

@@ -20059,3 +20059,47 @@ Integrated validation: Values/Work-kernel/Interfaces/State/Work emitted builds p
 in dependency order. Actual-Wasm HTTP owned validation and exact backend consumers
 pass27/27; merged Work facade/kernel selection passes3/3 using the released,
 manifest-verified native artifact. No whole-application acceptance is inferred.
+
+## 2026-10-18 — finish the released Rust complexity batch
+
+Accepted implementation: retain the 52 released Compiler, native Values and
+Work-kernel helper extractions at the user's wind-down boundary. Correct the
+extracted types/lifetimes and restore original rejection polarity, non-Query/UI
+skips, derived-member receiver, Contract-before-Model handling, and source
+correspondence/Require guard order. The finite predicate repair was independently
+compared with its original guards; no acceptance widening or test weakening is
+intended. Native workers and coordinator are stopped, with their source and viewer
+preserved. The unchanged original census now measures 849 resolved identities of
+1070 (468 TypeScript, 381 Rust), with 221 deferred (162 TypeScript, 59 Rust);
+remaining work is deferred by the human cutoff rather than claimed blocked/done.
+
+Validation uses existing external dependency artifacts read-only and task-owned
+Rust outputs, with no shared/private Cargo cache writes. Compiler metadata and
+unit-test compilation succeed. Values tests pass 15/15; Work-kernel passes 322
+with two ignored observer cases. The unchanged compiler base passes 277/297,
+with 20 failures retained for missing catalog/fixture and existing qualification
+limits. A later current full run passed 268/297 with nine new failures; all nine
+affected cases now pass after the finite guard repairs, including the complete
+original query composition (156.81 seconds for the affected run). Unchanged
+results are reused; no clean whole-suite or whole-application claim is made.
+The final combined source metric and main reconciliation remain with closeout.
+
+
+### Final Rust complexity merge at wind-down (2026-10-18)
+
+Integrate released01c5e8b3f after its nine affected compiler cases pass. Preserve
+DeliveryRead traversal/callback correspondence and nullable declared hook inputs
+inside the extracted visitors. Restore DurationMs in the extracted consumed-leaf
+set, retaining the original accepted match arm. The newer native core versions
+of five Values Rust owners and four Work-kernel Rust owners supersede conflicting
+or stale helper-only extractions; both authored histories remain in the merge.
+Keep the released generated native artifacts coherent with those retained core
+sources. No new cleanup is started and branch-only metric counts are not claims
+about the final combined tree. Original CanCRM retry/hook/full-composition residuals
+remain open as recorded; neither main integration nor wind-down closes them.
+
+Final integration also migrates the new T34c installed consumer's two retired dev
+imports to existing native-preview test support and CLI artifact defaults. Its
+actual workerd/native Wasm consumer passes1/1 with the released native dev binary
+explicitly configured; the earlier ENOENT was a missing executable environment.
+The final Cloudflare emitted build passes. No other installed criteria are reopened.

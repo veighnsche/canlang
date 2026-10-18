@@ -487,6 +487,100 @@ impl<'a> Snapshot<'a> {
     /// resolved name must keep its declaration identity, including names outside
     /// the edit set. This catches duplicate declarations and silent capture.
     /// Existing unrelated partial-buffer diagnostics may remain unchanged.
+    fn check_rename_diagnostics(
+        &self,
+        candidate: &Snapshot<'_>,
+        translate: &impl Fn(SourceId, u32) -> u32,
+    ) -> bool {
+        let mut remaining: HashMap<_, usize> = HashMap::new();
+        for diagnostic in self.diagnostics.iter() {
+            *remaining
+                .entry((
+                    diagnostic.code,
+                    diagnostic.primary.file,
+                    translate(diagnostic.primary.file, diagnostic.primary.start),
+                ))
+                .or_default() += 1;
+        }
+        for diagnostic in candidate.diagnostics.iter() {
+            let Some(count) = remaining.get_mut(&(
+                diagnostic.code,
+                diagnostic.primary.file,
+                diagnostic.primary.start,
+            )) else {
+                return false;
+            };
+            if *count == 0 {
+                return false;
+            }
+            *count -= 1;
+        }
+        true
+    }
+
+    fn check_rename_identities(
+        &self,
+        candidate: &Snapshot<'_>,
+        rename: &Rename,
+        translate: &impl Fn(SourceId, u32) -> u32,
+        original_name: &str,
+    ) -> bool {
+        for (file, tree) in self.trees.iter() {
+            let Some(before_view) = self.view(*file) else {
+                return false;
+            };
+            let Some(after_view) = candidate.view(*file) else {
+                return false;
+            };
+            for node in tree.descendants().filter(|n| n.kind == SyntaxKind::Name) {
+                let before = before_view.resolve_at(node.span.start);
+                let after = after_view.resolve_at(translate(*file, node.span.start));
+                match (before, after) {
+                    (Some(before), Some(after)) => {
+                        if self.target_identity(&before.target, translate)
+                            != candidate.target_identity(&after.target, &|_, n| n)
+                        {
+                            return false;
+                        }
+                    }
+                    (None, None) => {
+                        // Same-spelled unclaimed tokens may be incomplete member
+                        // or selector uses; their identity cannot be certified.
+                        if name_text(node, before_view.text()) == Some(original_name) {
+                            return false;
+                        }
+                    }
+                    _ => return false,
+                }
+            }
+        }
+        true
+    }
+
+    fn check_rename_spans(
+        candidate: &Snapshot<'_>,
+        rename: &Rename,
+        translate: &impl Fn(SourceId, u32) -> u32,
+        new_name: &str,
+    ) -> bool {
+        // Each edit must remain exactly one name token (reject punctuation,
+        // whitespace, keywords, and lexer-invalid names even in partial input).
+        for span in &rename.spans {
+            let start = translate(span.file, span.start);
+            let Some(view) = candidate.view(span.file) else {
+                return false;
+            };
+            if !view.tree.descendants().any(|node| {
+                node.kind == SyntaxKind::Name
+                    && node.span.start == start
+                    && node.span.end == start + new_name.len() as u32
+            }) {
+                return false;
+            }
+        }
+        true
+    }
+
     pub fn safe_rename_at(&self, offset: u32, new_name: &str) -> Option<Rename> {
         // The parser is the authority on identifiers and reserved words.
         let rename = self.rename_at(offset)?;
@@ -509,63 +603,16 @@ impl<'a> Snapshot<'a> {
         {
             return None;
         }
-        let mut remaining: HashMap<_, usize> = HashMap::new();
-        for diagnostic in self.diagnostics.iter() {
-            *remaining
-                .entry((
-                    diagnostic.code,
-                    diagnostic.primary.file,
-                    translate(diagnostic.primary.file, diagnostic.primary.start),
-                ))
-                .or_default() += 1;
+        if !self.check_rename_diagnostics(&candidate, &translate) {
+            return None;
         }
-        for diagnostic in candidate.diagnostics.iter() {
-            let count = remaining.get_mut(&(
-                diagnostic.code,
-                diagnostic.primary.file,
-                diagnostic.primary.start,
-            ))?;
-            if *count == 0 {
-                return None;
-            }
-            *count -= 1;
-        }
-        for (file, tree) in self.trees.iter() {
-            let before_view = self.view(*file)?;
-            let after_view = candidate.view(*file)?;
-            for node in tree.descendants().filter(|n| n.kind == SyntaxKind::Name) {
-                let before = before_view.resolve_at(node.span.start);
-                let after = after_view.resolve_at(translate(*file, node.span.start));
-                match (before, after) {
-                    (Some(before), Some(after)) => {
-                        if self.target_identity(&before.target, &translate)
-                            != candidate.target_identity(&after.target, &|_, n| n)
-                        {
-                            return None;
-                        }
-                    }
-                    (None, None) => {
-                        // Same-spelled unclaimed tokens may be incomplete member
-                        // or selector uses; their identity cannot be certified.
-                        if name_text(node, before_view.text()) == Some(original_name) {
-                            return None;
-                        }
-                    }
-                    _ => return None,
-                }
-            }
+        if !self.check_rename_identities(&candidate, &rename, &translate, original_name) {
+            return None;
         }
         // Each edit must remain exactly one name token (reject punctuation,
         // whitespace, keywords, and lexer-invalid names even in partial input).
-        for span in &rename.spans {
-            let start = translate(span.file, span.start);
-            if !candidate.view(span.file)?.tree.descendants().any(|node| {
-                node.kind == SyntaxKind::Name
-                    && node.span.start == start
-                    && node.span.end == start + new_name.len() as u32
-            }) {
-                return None;
-            }
+        if !Self::check_rename_spans(&candidate, &rename, &translate, new_name) {
+            return None;
         }
         Some(rename)
     }
@@ -612,6 +659,87 @@ impl<'a> Snapshot<'a> {
     /// Scope-aware completion candidates for a byte offset: visible
     /// scope bindings, same-module symbols, catalog builtins and
     /// keywords for the GRAMMAR position. Sorted by label; never fails.
+    fn collect_scope_completions(
+        &self,
+        offset: u32,
+        type_position: bool,
+        push: &mut dyn FnMut(&str, &'static str, Option<String>),
+    ) {
+        // Expression scope at the offset, else the module scope.
+        let Some(scope) = self.scope_at(offset) else {
+            return;
+        };
+        let mut bindings: Vec<(&String, _)> = Vec::new();
+        let mut current = Some(scope);
+        while let Some(id) = current {
+            let Some(scope_data) = self.tables.scopes.get(id.0 as usize) else {
+                break;
+            };
+            for (name, binding) in &scope_data.bindings {
+                if !type_position && self.binding_visible_at(binding, offset) {
+                    bindings.push((name, binding));
+                }
+            }
+            current = scope_data.parent;
+        }
+        bindings.sort_by(|a, b| a.0.cmp(b.0));
+        bindings.dedup_by(|a, b| a.0 == b.0);
+        for (name, binding) in bindings {
+            push(
+                name,
+                binding_completion_kind(binding, &self.tables),
+                binding_detail(binding, &self.tables),
+            );
+        }
+    }
+
+    fn collect_module_completions(
+        &self,
+        offset: u32,
+        type_position: bool,
+        push: &mut dyn FnMut(&str, &'static str, Option<String>),
+    ) {
+        // Same-module symbols.
+        let Some(module) = self.module_at(offset) else {
+            return;
+        };
+        let mut names: Vec<(&String, &crate::analysis::resolve::ScopedName)> = self
+            .tables
+            .module_scopes
+            .get(module.0 as usize)
+            .map(|s| s.prod.iter().collect())
+            .unwrap_or_default();
+        names.sort_by(|a, b| a.0.cmp(b.0));
+        for (name, scoped) in names {
+            if type_position && !self.scoped_type_candidate(scoped) {
+                continue;
+            }
+            let (kind, detail) = scoped_completion(scoped, &self.tables);
+            push(name, kind, detail);
+        }
+    }
+
+    fn collect_catalog_completions(
+        &self,
+        type_position: bool,
+        push: &mut dyn FnMut(&str, &'static str, Option<String>),
+    ) {
+        // Catalog builtins (callable entries only, read-only).
+        if type_position {
+            return;
+        }
+        let Some(catalog) = self.catalog() else {
+            return;
+        };
+        for id in catalog.ids() {
+            if catalog.is_builtin(id)
+                && let Some(entry) = catalog.lookup(id)
+            {
+                push(id, "Function", Some(builtin_signatures(entry).join("; ")));
+            }
+        }
+    }
+
     pub fn completions_at(&self, offset: u32) -> Vec<Completion> {
         let text = self.text();
         if offset as usize > text.len() || !text.is_char_boundary(offset as usize) {
@@ -644,59 +772,9 @@ impl<'a> Snapshot<'a> {
                 });
             }
         };
-        // Expression scope at the offset, else the module scope.
-        let scope = self.scope_at(offset);
-        if let Some(scope) = scope {
-            let mut bindings: Vec<(&String, _)> = Vec::new();
-            let mut current = Some(scope);
-            while let Some(id) = current {
-                let Some(scope_data) = self.tables.scopes.get(id.0 as usize) else {
-                    break;
-                };
-                for (name, binding) in &scope_data.bindings {
-                    if !type_position && self.binding_visible_at(binding, offset) {
-                        bindings.push((name, binding));
-                    }
-                }
-                current = scope_data.parent;
-            }
-            bindings.sort_by(|a, b| a.0.cmp(b.0));
-            bindings.dedup_by(|a, b| a.0 == b.0);
-            for (name, binding) in bindings {
-                push(
-                    name,
-                    binding_completion_kind(binding, &self.tables),
-                    binding_detail(binding, &self.tables),
-                );
-            }
-        }
-        // Same-module symbols.
-        if let Some(module) = self.module_at(offset) {
-            let mut names: Vec<(&String, &crate::analysis::resolve::ScopedName)> = self
-                .tables
-                .module_scopes
-                .get(module.0 as usize)
-                .map(|s| s.prod.iter().collect())
-                .unwrap_or_default();
-            names.sort_by(|a, b| a.0.cmp(b.0));
-            for (name, scoped) in names {
-                if type_position && !self.scoped_type_candidate(scoped) {
-                    continue;
-                }
-                let (kind, detail) = scoped_completion(scoped, &self.tables);
-                push(name, kind, detail);
-            }
-        }
-        // Catalog builtins (callable entries only, read-only).
-        if !type_position && let Some(catalog) = self.catalog() {
-            for id in catalog.ids() {
-                if catalog.is_builtin(id)
-                    && let Some(entry) = catalog.lookup(id)
-                {
-                    push(id, "Function", Some(builtin_signatures(entry).join("; ")));
-                }
-            }
-        }
+        self.collect_scope_completions(offset, type_position, &mut push);
+        self.collect_module_completions(offset, type_position, &mut push);
+        self.collect_catalog_completions(type_position, &mut push);
         // Keywords for the syntactic position.
         let keywords = if type_position {
             type_keywords()
@@ -924,79 +1002,100 @@ impl<'a> Snapshot<'a> {
 
     /// Associate exact member and object-key tokens with declared fields using
     /// checked receiver/target types, never a global same-spelled name lookup.
+    fn typed_member_field(
+        &self,
+        parent: &SyntaxNode,
+        name: &SyntaxNode,
+        word: &str,
+    ) -> Option<SymbolId> {
+        let parts = kids(parent);
+        if parts.get(2)?.span != name.span {
+            return None;
+        }
+        let receiver = parts.first()?;
+        let ty = self.program.types.node_types.get(&NodeKey::of(receiver))?;
+        self.field_named(ty, word)
+    }
+
+    fn typed_path_field(&self, parent: &SyntaxNode, name: &SyntaxNode) -> Option<SymbolId> {
+        let segments: Vec<_> = parent
+            .children
+            .iter()
+            .filter(|n| n.kind == SyntaxKind::Name)
+            .collect();
+        let index = segments.iter().position(|n| n.span == name.span)?;
+        if index == 0 {
+            return None;
+        }
+        let binding = self.tables.node_binding.get(&NodeKey::of(segments[0]))?;
+        let mut ty = self.binding_value_type(binding)?;
+        for segment in segments.iter().take(index + 1).skip(1) {
+            let field = self.field_named(&ty, name_text(segment, self.text())?)?;
+            if segment.span == name.span {
+                return Some(field);
+            }
+            ty = self.program.types.symbol_types.get(&field)?.clone();
+        }
+        None
+    }
+
+    fn entry_owner_type(&self, owner: &SyntaxNode) -> Option<ResolvedType> {
+        match owner.kind {
+            SyntaxKind::Set => {
+                let path = kids(owner)
+                    .into_iter()
+                    .find(|n| n.kind == SyntaxKind::Path)?;
+                Some(self.program
+                    .types
+                    .node_types
+                    .get(&NodeKey::of(path))?
+                    .clone())
+            }
+            SyntaxKind::Create => {
+                let path = kids(owner)
+                    .into_iter()
+                    .find(|n| n.kind == SyntaxKind::Path)?;
+                Some(ResolvedType::Record {
+                    symbol: *self.tables.node_symbol.get(&NodeKey::of(path))?,
+                    stored: true,
+                })
+            }
+            SyntaxKind::Construct => Some(self
+                .program
+                .types
+                .node_types
+                .get(&NodeKey::of(owner))?
+                .clone()),
+            _ => None,
+        }
+    }
+
+    fn typed_entry_field(
+        &self,
+        chain: &[&SyntaxNode],
+        parent: &SyntaxNode,
+        name: &SyntaxNode,
+        word: &str,
+    ) -> Option<SymbolId> {
+        let parts = kids(parent);
+        // Shorthand keys also denote a value binding. A one-token edit
+        // cannot rename those two identities independently.
+        if parts.len() < 3 || parts.first()?.span != name.span {
+            return None;
+        }
+        let owner = *chain.get(chain.len().checked_sub(4)?)?;
+        let ty = self.entry_owner_type(owner)?;
+        self.field_named(&ty, word)
+    }
+
     fn typed_field_at(&self, name: &SyntaxNode) -> Option<SymbolId> {
         let chain = chain_at(&self.tree, name.span.start);
         let parent = *chain.get(chain.len().checked_sub(2)?)?;
         let word = name_text(name, self.text())?;
         match parent.kind {
-            SyntaxKind::Member => {
-                let parts = kids(parent);
-                if parts.get(2)?.span != name.span {
-                    return None;
-                }
-                let receiver = parts.first()?;
-                let ty = self.program.types.node_types.get(&NodeKey::of(receiver))?;
-                self.field_named(ty, word)
-            }
-            SyntaxKind::Path => {
-                let segments: Vec<_> = parent
-                    .children
-                    .iter()
-                    .filter(|n| n.kind == SyntaxKind::Name)
-                    .collect();
-                let index = segments.iter().position(|n| n.span == name.span)?;
-                if index == 0 {
-                    return None;
-                }
-                let binding = self.tables.node_binding.get(&NodeKey::of(segments[0]))?;
-                let mut ty = self.binding_value_type(binding)?;
-                for segment in segments.iter().take(index + 1).skip(1) {
-                    let field = self.field_named(&ty, name_text(segment, self.text())?)?;
-                    if segment.span == name.span {
-                        return Some(field);
-                    }
-                    ty = self.program.types.symbol_types.get(&field)?.clone();
-                }
-                None
-            }
-            SyntaxKind::ObjectEntry => {
-                let parts = kids(parent);
-                // Shorthand keys also denote a value binding. A one-token edit
-                // cannot rename those two identities independently.
-                if parts.len() < 3 || parts.first()?.span != name.span {
-                    return None;
-                }
-                let owner = *chain.get(chain.len().checked_sub(4)?)?;
-                let ty = match owner.kind {
-                    SyntaxKind::Set => {
-                        let path = kids(owner)
-                            .into_iter()
-                            .find(|n| n.kind == SyntaxKind::Path)?;
-                        self.program
-                            .types
-                            .node_types
-                            .get(&NodeKey::of(path))?
-                            .clone()
-                    }
-                    SyntaxKind::Create => {
-                        let path = kids(owner)
-                            .into_iter()
-                            .find(|n| n.kind == SyntaxKind::Path)?;
-                        ResolvedType::Record {
-                            symbol: *self.tables.node_symbol.get(&NodeKey::of(path))?,
-                            stored: true,
-                        }
-                    }
-                    SyntaxKind::Construct => self
-                        .program
-                        .types
-                        .node_types
-                        .get(&NodeKey::of(owner))?
-                        .clone(),
-                    _ => return None,
-                };
-                self.field_named(&ty, word)
-            }
+            SyntaxKind::Member => self.typed_member_field(parent, name, word),
+            SyntaxKind::Path => self.typed_path_field(parent, name),
+            SyntaxKind::ObjectEntry => self.typed_entry_field(&chain, parent, name, word),
             _ => None,
         }
     }
@@ -1327,20 +1426,12 @@ impl<'a> Snapshot<'a> {
         }
     }
 
-    /// Target for a `Path` node: type references, declaration paths and
-    /// module-qualified segments, mapped per segment.
-    fn path_target(&self, node: &SyntaxNode, offset: u32) -> Option<Resolved> {
-        let text = self.text();
-        let segments: Vec<&SyntaxNode> = node
-            .children
-            .iter()
-            .filter(|c| c.kind == SyntaxKind::Name)
-            .collect();
-        let here = segments
-            .iter()
-            .position(|s| s.span.start <= offset && offset < s.span.end)?;
-        let key = NodeKey::of(node);
-        let seg_text: Vec<&str> = segments.iter().filter_map(|s| name_text(s, text)).collect();
+    fn path_head_target(
+        &self,
+        segments: &[&SyntaxNode],
+        seg_text: &[&str],
+        here: usize,
+    ) -> Option<Resolved> {
         // Mutation targets carry the statement-time binding on their
         // head token. The remaining path segments are field selectors.
         if here == 0
@@ -1359,64 +1450,54 @@ impl<'a> Snapshot<'a> {
                 span: segments[0].span,
             });
         }
-        if let Some(typeref) = self.tables.node_typeref.get(&key) {
-            match typeref {
-                TypeRef::Symbol(id) => {
-                    if here == segments.len() - 1 {
-                        return Some(Resolved {
-                            target: Target::Symbol(*id),
-                            span: segments[here].span,
-                        });
-                    }
-                    return None;
-                }
-                TypeRef::Scalar(name) => {
+        None
+    }
+
+    fn typeref_target(typeref: &TypeRef, segments: &[&SyntaxNode], here: usize) -> Option<Resolved> {
+        match typeref {
+            TypeRef::Symbol(id) => {
+                if here == segments.len() - 1 {
                     return Some(Resolved {
-                        target: Target::Scalar(name.clone()),
+                        target: Target::Symbol(*id),
                         span: segments[here].span,
                     });
                 }
-                TypeRef::External => {
+                None
+            }
+            TypeRef::Scalar(name) => Some(Resolved {
+                target: Target::Scalar(name.clone()),
+                span: segments[here].span,
+            }),
+            TypeRef::External => Some(Resolved {
+                target: Target::External,
+                span: segments[here].span,
+            }),
+            TypeRef::FieldChain {
+                head,
+                fields,
+                consumed,
+            } => {
+                let field_base = consumed.saturating_sub(fields.len());
+                let head_index = field_base.saturating_sub(1);
+                if here == head_index {
                     return Some(Resolved {
-                        target: Target::External,
+                        target: Target::Symbol(*head),
                         span: segments[here].span,
                     });
                 }
-                TypeRef::FieldChain {
-                    head,
-                    fields,
-                    consumed,
-                } => {
-                    let field_base = consumed.saturating_sub(fields.len());
-                    let head_index = field_base.saturating_sub(1);
-                    if here == head_index {
-                        return Some(Resolved {
-                            target: Target::Symbol(*head),
-                            span: segments[here].span,
-                        });
-                    }
-                    if here >= field_base && here < *consumed {
-                        let field = fields[here - field_base];
-                        return Some(Resolved {
-                            target: Target::Symbol(field),
-                            span: segments[here].span,
-                        });
-                    }
-                    return None;
+                if here >= field_base && here < *consumed {
+                    let field = fields[here - field_base];
+                    return Some(Resolved {
+                        target: Target::Symbol(field),
+                        span: segments[here].span,
+                    });
                 }
+                None
             }
         }
-        if let Some(id) = self.tables.node_symbol.get(&key) {
-            // Declaration and operation paths denote their symbol in the
-            // last segment (`policy Todo`, `Mail.send`, `Pkg.msg`).
-            if here == segments.len() - 1 {
-                return Some(Resolved {
-                    target: Target::Symbol(*id),
-                    span: segments[here].span,
-                });
-            }
-            return None;
-        }
+    }
+
+    fn lone_module_target(&self, segments: &[&SyntaxNode], seg_text: &[&str]) -> Option<Resolved> {
         // A lone package name misused outside a qualified path still
         // denotes the module (the E2001 explains the misuse).
         if segments.len() == 1
@@ -1429,6 +1510,40 @@ impl<'a> Snapshot<'a> {
             });
         }
         None
+    }
+
+    /// Target for a `Path` node: type references, declaration paths and
+    /// module-qualified segments, mapped per segment.
+    fn path_target(&self, node: &SyntaxNode, offset: u32) -> Option<Resolved> {
+        let text = self.text();
+        let segments: Vec<&SyntaxNode> = node
+            .children
+            .iter()
+            .filter(|c| c.kind == SyntaxKind::Name)
+            .collect();
+        let here = segments
+            .iter()
+            .position(|s| s.span.start <= offset && offset < s.span.end)?;
+        let key = NodeKey::of(node);
+        let seg_text: Vec<&str> = segments.iter().filter_map(|s| name_text(s, text)).collect();
+        if let Some(target) = self.path_head_target(&segments, &seg_text, here) {
+            return Some(target);
+        }
+        if let Some(typeref) = self.tables.node_typeref.get(&key) {
+            return Self::typeref_target(typeref, &segments, here);
+        }
+        if let Some(id) = self.tables.node_symbol.get(&key) {
+            // Declaration and operation paths denote their symbol in the
+            // last segment (`policy Todo`, `Mail.send`, `Pkg.msg`).
+            if here == segments.len() - 1 {
+                return Some(Resolved {
+                    target: Target::Symbol(*id),
+                    span: segments[here].span,
+                });
+            }
+            return None;
+        }
+        self.lone_module_target(&segments, &seg_text)
     }
 
     /// Resolve an import-member name to its imported symbol via the
@@ -2105,17 +2220,15 @@ fn builtin_signatures(entry: &CatalogEntry) -> Vec<String> {
         .collect()
 }
 
-fn signature_type(ty: &SigType) -> String {
+fn signature_collection_type(ty: &SigType) -> Option<String> {
     match ty {
-        SigType::Any => "T".into(),
-        SigType::Named(name) => name.clone(),
-        SigType::Ordered => "O".into(),
-        SigType::StringLike => "S".into(),
-        SigType::GroupKey => "K".into(),
-        SigType::Display => "Display".into(),
-        SigType::Collection(inner) => format!("C<{}>", signature_type(inner)),
-        SigType::NonemptyCollection(inner) => format!("nonempty C<{}>", signature_type(inner)),
-        SigType::OrderedCollection(inner) => format!("ordered C<{}>", signature_type(inner)),
+        SigType::Collection(inner) => Some(format!("C<{}>", signature_type(inner))),
+        SigType::NonemptyCollection(inner) => {
+            Some(format!("nonempty C<{}>", signature_type(inner)))
+        }
+        SigType::OrderedCollection(inner) => {
+            Some(format!("ordered C<{}>", signature_type(inner)))
+        }
         SigType::Nullable(inner) | SigType::Array(inner) => {
             let rendered = signature_type(inner);
             let rendered = if matches!(**inner, SigType::Union(_)) {
@@ -2123,15 +2236,30 @@ fn signature_type(ty: &SigType) -> String {
             } else {
                 rendered
             };
-            format!(
+            Some(format!(
                 "{rendered}{}",
                 if matches!(ty, SigType::Nullable(_)) {
                     "?"
                 } else {
                     "[]"
                 }
-            )
+            ))
         }
+        _ => None,
+    }
+}
+
+fn signature_type(ty: &SigType) -> String {
+    if let Some(rendered) = signature_collection_type(ty) {
+        return rendered;
+    }
+    match ty {
+        SigType::Any => "T".into(),
+        SigType::Named(name) => name.clone(),
+        SigType::Ordered => "O".into(),
+        SigType::StringLike => "S".into(),
+        SigType::GroupKey => "K".into(),
+        SigType::Display => "Display".into(),
         SigType::Union(arms) => arms
             .iter()
             .map(signature_type)
@@ -2153,6 +2281,7 @@ fn signature_type(ty: &SigType) -> String {
         SigType::ActionResult => "singleton action(target)".into(),
         SigType::InvocationArgs => "complete owning input object".into(),
         SigType::InvocationResult => "singleton invocation(target)".into(),
+        _ => unreachable!("signature_collection_type covers the remaining variants"),
     }
 }
 
@@ -2230,27 +2359,10 @@ fn scoped_completion(
 }
 
 /// Keywords valid at the syntactic position of `offset` (GRAMMAR roles).
-fn keywords_at(tree: &SyntaxNode, text: &str, offset: u32) -> Vec<&'static str> {
-    let chain = chain_at(tree, offset.min(text.len() as u32));
-    // Type position: annotation keywords plus builtin type names.
-    if chain.iter().any(|n| {
-        matches!(
-            n.kind,
-            SyntaxKind::NamedType
-                | SyntaxKind::UnionType
-                | SyntaxKind::ArrayType
-                | SyntaxKind::NullableType
-                | SyntaxKind::EnumType
-                | SyntaxKind::ActionType
-                | SyntaxKind::DeliveryType
-                | SyntaxKind::InvocationType
-        )
-    }) {
-        return type_keywords();
-    }
+fn statement_introducer_at(chain: &[&SyntaxNode], text: &str, offset: u32) -> bool {
     // Statement nodes also enclose their expressions. At the written
     // introducer, offer statements; its RHS keeps expression completion.
-    if chain.iter().any(|node| node.kind == SyntaxKind::DoBlock)
+    chain.iter().any(|node| node.kind == SyntaxKind::DoBlock)
         && chain.iter().any(|node| {
             if !matches!(
                 node.kind,
@@ -2279,7 +2391,119 @@ fn keywords_at(tree: &SyntaxNode, text: &str, offset: u32) -> Vec<&'static str> 
                     && name_text(head, text).is_some_and(|word| effect_keywords().contains(&word))
             })
         })
+}
+
+fn action_group_keywords(
+    chain: &[&SyntaxNode],
+    text: &str,
+    offset: u32,
+) -> Option<Vec<&'static str>> {
+    // Contextual action groups are child introducers, never attribute,
+    // field, expression or nested-control vocabulary.
+    let before = &text[..offset.min(text.len() as u32) as usize];
+    let line_head = before.rsplit('\n').next().unwrap_or("").trim_start();
+    if !line_head
+        .chars()
+        .all(|ch| ch.is_ascii_alphanumeric() || ch == '_')
     {
+        return None;
+    }
+    let host = chain.iter().rev().find(|node| {
+        matches!(
+            node.kind,
+            SyntaxKind::Page
+                | SyntaxKind::View
+                | SyntaxKind::Card
+                | SyntaxKind::Details
+                | SyntaxKind::Collection
+                | SyntaxKind::Form
+                | SyntaxKind::Edit
+                | SyntaxKind::UiLeaf
+                | SyntaxKind::CatalogItem
+                | SyntaxKind::Slot
+                | SyntaxKind::Tabs
+                | SyntaxKind::Tab
+                | SyntaxKind::Show
+        ) && !kids(node).first().is_some_and(|head| {
+            head.kind == SyntaxKind::Name
+                && head.span.start <= offset
+                && offset <= head.span.end
+        })
+    });
+    let word = |node: &SyntaxNode| {
+        kids(node)
+            .into_iter()
+            .find_map(|child| name_text(child, text))
+            .unwrap_or("")
+    };
+    let active_form = chain.iter().any(|node| {
+        node.kind == SyntaxKind::Edit || (node.kind == SyntaxKind::Form && word(node) == "form")
+    });
+    let Some(host) = host else {
+        return None;
+    };
+    if active_form {
+        if host.kind == SyntaxKind::Edit
+            || (host.kind == SyntaxKind::Form && word(host) == "form")
+        {
+            return Some(vec!["primary"]);
+        }
+        return Some(Vec::new());
+    }
+    let drawer_details = host.kind == SyntaxKind::Details
+        && kids(host).into_iter().any(|attr| {
+            attr.kind == SyntaxKind::Attribute
+                && word(attr) == "display"
+                && kids(attr).into_iter().any(|value| {
+                    value.kind == SyntaxKind::NameRef
+                        && text[value.span.start as usize..value.span.end as usize].trim()
+                            == "drawer"
+                })
+        });
+    let panel_actions = host.kind == SyntaxKind::Slot
+        && kids(host)
+            .into_iter()
+            .filter_map(|child| name_text(child, text))
+            .nth(1)
+            == Some("actions")
+        && chain
+            .iter()
+            .position(|node| std::ptr::eq(*node, *host))
+            .and_then(|index| index.checked_sub(1))
+            .and_then(|index| chain.get(index))
+            .is_some_and(|parent| {
+                parent.kind == SyntaxKind::CatalogItem
+                    && matches!(word(parent), "modal" | "drawer")
+            });
+    if matches!(host.kind, SyntaxKind::Page | SyntaxKind::Card)
+        || (host.kind == SyntaxKind::Collection && matches!(word(host), "list" | "table"))
+        || drawer_details
+        || panel_actions
+    {
+        return Some(vec!["primary", "secondary"]);
+    }
+    None
+}
+
+fn keywords_at(tree: &SyntaxNode, text: &str, offset: u32) -> Vec<&'static str> {
+    let chain = chain_at(tree, offset.min(text.len() as u32));
+    // Type position: annotation keywords plus builtin type names.
+    if chain.iter().any(|n| {
+        matches!(
+            n.kind,
+            SyntaxKind::NamedType
+                | SyntaxKind::UnionType
+                | SyntaxKind::ArrayType
+                | SyntaxKind::NullableType
+                | SyntaxKind::EnumType
+                | SyntaxKind::ActionType
+                | SyntaxKind::DeliveryType
+                | SyntaxKind::InvocationType
+        )
+    }) {
+        return type_keywords();
+    }
+    if statement_introducer_at(&chain, text, offset) {
         return effect_keywords();
     }
     // Expression position: operators, literals and query clauses.
@@ -2317,85 +2541,8 @@ fn keywords_at(tree: &SyntaxNode, text: &str, offset: u32) -> Vec<&'static str> 
     }
     // Contextual action groups are child introducers, never attribute,
     // field, expression or nested-control vocabulary.
-    let before = &text[..offset.min(text.len() as u32) as usize];
-    let line_head = before.rsplit('\n').next().unwrap_or("").trim_start();
-    if line_head
-        .chars()
-        .all(|ch| ch.is_ascii_alphanumeric() || ch == '_')
-    {
-        let host = chain.iter().rev().find(|node| {
-            matches!(
-                node.kind,
-                SyntaxKind::Page
-                    | SyntaxKind::View
-                    | SyntaxKind::Card
-                    | SyntaxKind::Details
-                    | SyntaxKind::Collection
-                    | SyntaxKind::Form
-                    | SyntaxKind::Edit
-                    | SyntaxKind::UiLeaf
-                    | SyntaxKind::CatalogItem
-                    | SyntaxKind::Slot
-                    | SyntaxKind::Tabs
-                    | SyntaxKind::Tab
-                    | SyntaxKind::Show
-            ) && !kids(node).first().is_some_and(|head| {
-                head.kind == SyntaxKind::Name
-                    && head.span.start <= offset
-                    && offset <= head.span.end
-            })
-        });
-        let word = |node: &SyntaxNode| {
-            kids(node)
-                .into_iter()
-                .find_map(|child| name_text(child, text))
-                .unwrap_or("")
-        };
-        let active_form = chain.iter().any(|node| {
-            node.kind == SyntaxKind::Edit || (node.kind == SyntaxKind::Form && word(node) == "form")
-        });
-        if let Some(host) = host {
-            if active_form {
-                if host.kind == SyntaxKind::Edit
-                    || (host.kind == SyntaxKind::Form && word(host) == "form")
-                {
-                    return vec!["primary"];
-                }
-                return Vec::new();
-            }
-            let drawer_details = host.kind == SyntaxKind::Details
-                && kids(host).into_iter().any(|attr| {
-                    attr.kind == SyntaxKind::Attribute
-                        && word(attr) == "display"
-                        && kids(attr).into_iter().any(|value| {
-                            value.kind == SyntaxKind::NameRef
-                                && text[value.span.start as usize..value.span.end as usize].trim()
-                                    == "drawer"
-                        })
-                });
-            let panel_actions = host.kind == SyntaxKind::Slot
-                && kids(host)
-                    .into_iter()
-                    .filter_map(|child| name_text(child, text))
-                    .nth(1)
-                    == Some("actions")
-                && chain
-                    .iter()
-                    .position(|node| std::ptr::eq(*node, *host))
-                    .and_then(|index| index.checked_sub(1))
-                    .and_then(|index| chain.get(index))
-                    .is_some_and(|parent| {
-                        parent.kind == SyntaxKind::CatalogItem
-                            && matches!(word(parent), "modal" | "drawer")
-                    });
-            if matches!(host.kind, SyntaxKind::Page | SyntaxKind::Card)
-                || (host.kind == SyntaxKind::Collection && matches!(word(host), "list" | "table"))
-                || drawer_details
-                || panel_actions
-            {
-                return vec!["primary", "secondary"];
-            }
-        }
+    if let Some(group) = action_group_keywords(&chain, text, offset) {
+        return group;
     }
     // Section body: declaration introducers for the enclosing section.
     if let Some(marker) = enclosing_section_marker(tree, text, offset) {

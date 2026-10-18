@@ -12,7 +12,7 @@
 //! truth for the legend; the LSP server advertises exactly these.
 
 use crate::analysis::NodeKey;
-use crate::analysis::resolve::{Binding, SymbolKind};
+use crate::analysis::resolve::{Binding, ResolveTables, SymbolKind};
 use crate::ide::queries::{LocalKind, Snapshot};
 use crate::source::LineIndex;
 use crate::syntax::{SyntaxKind, SyntaxNode};
@@ -141,9 +141,32 @@ fn walk_inner(
     }
 }
 
-/// Classify a `Name` leaf: declarations and resolved uses first, then
-/// syntactic keyword roles, else no token.
-fn classify_name(
+fn classify_binding_use(
+    tables: &ResolveTables,
+    binding: &Binding,
+) -> Option<(&'static str, u32)> {
+    match binding {
+        Binding::Symbol(id) => {
+            let symbol = tables.symbols.get(id.0 as usize)?;
+            Some((symbol_token_type(&symbol.kind), 0))
+        }
+        Binding::Builtin { .. } => Some(("function", MOD_DEFAULT_LIBRARY)),
+        Binding::Predicate => Some(("keyword", 0)),
+        Binding::Context(_) => Some(("variable", MOD_READONLY)),
+        Binding::External { .. } => Some(("variable", 0)),
+        Binding::Let { .. }
+        | Binding::QueryAlias { .. }
+        | Binding::ForItem { .. }
+        | Binding::CohortChild { .. }
+        | Binding::CreateAs { .. }
+        | Binding::CallAs { .. }
+        | Binding::SendAs { .. }
+        | Binding::RouteParam { .. } => Some(("variable", 0)),
+        Binding::Error => None,
+    }
+}
+
+fn classify_declaration_name(
     snapshot: &Snapshot,
     text: &str,
     node: &SyntaxNode,
@@ -163,6 +186,72 @@ fn classify_name(
             return Some((local_token_type(kind), MOD_DECLARATION));
         }
     }
+    None
+}
+
+fn classify_keyword_name(
+    word: &str,
+    parent_kind: Option<SyntaxKind>,
+    parent: Option<&SyntaxNode>,
+    node: &SyntaxNode,
+) -> Option<(&'static str, u32)> {
+    if word == "export" && is_first_name_child_opt(parent, node) {
+        return Some(("keyword", 0));
+    }
+    if is_introducer(parent_kind, word) && is_first_name_child_opt(parent, node) {
+        return Some(("keyword", 0));
+    }
+    // `as` alias markers, `by`/`request` example markers,
+    // `when` send guards and `at`/`event` schedule markers.
+    if matches!(word, "as" | "by" | "request" | "when")
+        && matches!(
+            parent_kind,
+            Some(
+                SyntaxKind::ImportMember
+                    | SyntaxKind::Create
+                    | SyntaxKind::Call
+                    | SyntaxKind::Send
+                    | SyntaxKind::ExampleCall
+            )
+        )
+    {
+        return Some(("keyword", 0));
+    }
+    if matches!(word, "at" | "event") && parent_kind == Some(SyntaxKind::Schedule) {
+        return Some(("keyword", 0));
+    }
+    if matches!(word, "for" | "in" | "limit") && parent_kind == Some(SyntaxKind::For) {
+        return Some(("keyword", 0));
+    }
+    if word == "match" && parent_kind == Some(SyntaxKind::Match) {
+        return Some(("keyword", 0));
+    }
+    if matches!(word, "if" | "else") && parent_kind == Some(SyntaxKind::If) {
+        return Some(("keyword", 0));
+    }
+    if matches!(word, "to" | "owner" | "before")
+        && matches!(
+            parent_kind,
+            Some(SyntaxKind::Rename | SyntaxKind::Drop | SyntaxKind::Invalidate)
+        )
+    {
+        return Some(("keyword", 0));
+    }
+    None
+}
+
+/// Classify a `Name` leaf: declarations and resolved uses first, then
+/// syntactic keyword roles, else no token.
+fn classify_name(
+    snapshot: &Snapshot,
+    text: &str,
+    node: &SyntaxNode,
+    parent: Option<&SyntaxNode>,
+) -> Option<(&'static str, u32)> {
+    if let Some(decl) = classify_declaration_name(snapshot, text, node, parent) {
+        return Some(decl);
+    }
+    let tables = snapshot.tables();
     let word = node.token().map(|t| t.text(text)).unwrap_or("");
     let parent_kind = parent.map(|p| p.kind);
     match parent_kind {
@@ -170,25 +259,7 @@ fn classify_name(
             let binding = tables
                 .node_binding
                 .get(&NodeKey::of(parent.expect("matched")))?;
-            match binding {
-                Binding::Symbol(id) => {
-                    let symbol = tables.symbols.get(id.0 as usize)?;
-                    Some((symbol_token_type(&symbol.kind), 0))
-                }
-                Binding::Builtin { .. } => Some(("function", MOD_DEFAULT_LIBRARY)),
-                Binding::Predicate => Some(("keyword", 0)),
-                Binding::Context(_) => Some(("variable", MOD_READONLY)),
-                Binding::External { .. } => Some(("variable", 0)),
-                Binding::Let { .. }
-                | Binding::QueryAlias { .. }
-                | Binding::ForItem { .. }
-                | Binding::CohortChild { .. }
-                | Binding::CreateAs { .. }
-                | Binding::CallAs { .. }
-                | Binding::SendAs { .. }
-                | Binding::RouteParam { .. } => Some(("variable", 0)),
-                Binding::Error => None,
-            }
+            classify_binding_use(tables, binding)
         }
         Some(SyntaxKind::Path) => Some(classify_path_segment(snapshot, text, node, parent)),
         Some(SyntaxKind::Member) => {
@@ -234,51 +305,7 @@ fn classify_name(
                 None
             }
         }
-        _ => {
-            if word == "export" && is_first_name_child_opt(parent, node) {
-                return Some(("keyword", 0));
-            }
-            if is_introducer(parent_kind, word) && is_first_name_child_opt(parent, node) {
-                return Some(("keyword", 0));
-            }
-            // `as` alias markers, `by`/`request` example markers,
-            // `when` send guards and `at`/`event` schedule markers.
-            if matches!(word, "as" | "by" | "request" | "when")
-                && matches!(
-                    parent_kind,
-                    Some(
-                        SyntaxKind::ImportMember
-                            | SyntaxKind::Create
-                            | SyntaxKind::Call
-                            | SyntaxKind::Send
-                            | SyntaxKind::ExampleCall
-                    )
-                )
-            {
-                return Some(("keyword", 0));
-            }
-            if matches!(word, "at" | "event") && parent_kind == Some(SyntaxKind::Schedule) {
-                return Some(("keyword", 0));
-            }
-            if matches!(word, "for" | "in" | "limit") && parent_kind == Some(SyntaxKind::For) {
-                return Some(("keyword", 0));
-            }
-            if word == "match" && parent_kind == Some(SyntaxKind::Match) {
-                return Some(("keyword", 0));
-            }
-            if matches!(word, "if" | "else") && parent_kind == Some(SyntaxKind::If) {
-                return Some(("keyword", 0));
-            }
-            if matches!(word, "to" | "owner" | "before")
-                && matches!(
-                    parent_kind,
-                    Some(SyntaxKind::Rename | SyntaxKind::Drop | SyntaxKind::Invalidate)
-                )
-            {
-                return Some(("keyword", 0));
-            }
-            None
-        }
+        _ => classify_keyword_name(word, parent_kind, parent, node),
     }
 }
 

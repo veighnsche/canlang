@@ -477,6 +477,205 @@ impl<'a> Emitter<'a> {
     /// `" "`). The decision is a pure function of token kinds, head word,
     /// route span, brace/bracket classes and depths, which is what makes
     /// formatting idempotent.
+    fn gap_after_route(context: &LineContext<'a>, index: usize) -> Option<&'static str> {
+        let end = context.route_end?;
+        if index == 1 {
+            return Some(" ");
+        }
+        if index < end {
+            return Some("");
+        }
+        if index == end {
+            // First attribute after the route: the `/`-after rule for
+            // division must not glue it to a route-final slash.
+            return Some(" ");
+        }
+        None
+    }
+
+    fn gap_for_current(
+        &self,
+        context: &LineContext<'a>,
+        previous: &Token,
+        punct: Punct,
+        line: usize,
+        index: usize,
+        current_depth: i32,
+    ) -> Option<&'static str> {
+        match punct {
+            Punct::Arrow => Some(" "),
+            Punct::Dollar => Some(" "),
+            Punct::RBrace => {
+                // The matching `{` is the stack top.
+                if self.top_is_schema_brace() {
+                    return Some(" ");
+                }
+                Some("")
+            }
+            Punct::Eq => {
+                if self.is_loose_eq(context, index, current_depth) {
+                    return Some(" ");
+                }
+                // `! =` keeps its space: joining would lex as `!=`.
+                if previous.is_punct(Punct::Bang) {
+                    return Some(" ");
+                }
+                Some("")
+            }
+            Punct::LParen | Punct::LBracket => {
+                self.gap_before_open_paren(context, previous, punct, line, index)
+            }
+            Punct::LBrace => {
+                if matches!(
+                    previous.kind,
+                    TokenKind::Punct(
+                        Punct::At
+                            | Punct::LParen
+                            | Punct::LBracket
+                            | Punct::LBrace
+                            | Punct::Comma
+                            | Punct::Eq
+                            | Punct::EqEq
+                            | Punct::NotEq
+                            | Punct::LtEq
+                            | Punct::GtEq
+                            | Punct::Lt
+                            | Punct::Gt
+                            | Punct::Plus
+                            | Punct::Minus
+                            | Punct::Star
+                            | Punct::Slash
+                            | Punct::Percent
+                            | Punct::QuestionQuestion
+                            | Punct::Pipe
+                    )
+                ) {
+                    return Some("");
+                }
+                // `Todo {`, `) {`, `} {`: previous-token rules (`;`,
+                // `->`) or the default space decide.
+                None
+            }
+            // Everything else binds tightly on its left: closers,
+            // member dots, type colons, suffixes, separators and the
+            // compact operators.
+            _ => Some(""),
+        }
+    }
+
+    fn gap_before_open_paren(
+        &self,
+        context: &LineContext<'a>,
+        previous: &Token,
+        punct: Punct,
+        line: usize,
+        index: usize,
+    ) -> Option<&'static str> {
+        // Judgment score level lists are option maps: a space
+        // before `[` (matching choice `{...}` maps), wherever
+        // the caption ends (a string or an `@{...}` suffix).
+        if punct == Punct::LBracket && self.option_brackets.contains(&(line, index)) {
+            return Some(" ");
+        }
+        if previous.kind == TokenKind::Name {
+            // A depth-0 `->` marks an operation signature, an
+            // example row or a result annotation, where a name
+            // paren is always call-shaped: `cancel(x) -> T`.
+            if !context.loose_arrow {
+                let word = previous.text(self.source);
+                if is_expr_keyword(word) {
+                    return Some(" ");
+                }
+                // Statement position (first token on the line,
+                // or just after `;`) holds a head word, never
+                // a call: bare calls are invalid statements,
+                // Given/When heads never take a paren, and
+                // example rows always carry `->` (see above).
+                // This covers the fixed heads (`require (ok)`,
+                // `list (Todo)`, `gallery (Items)`) and the
+                // open catalog-UI vocabulary (`countdown (x)`)
+                // alike. The same words mid-line are calls,
+                // types or suffixes and stay tight:
+                // `action(...)`, `text[]`, `x=require(y)`.
+                // Calls chain tightly off values, literals and closers:
+                // `f()(x)`, `"Hi"@{..}(name=n)`, `enum(A)[]`.
+                if index == 1 || context.tokens[index - 2].is_punct(Punct::Semicolon) {
+                    return Some(" ");
+                }
+            }
+            return Some("");
+        }
+        // Calls chain tightly off values, literals and closers:
+        // `f()(x)`, `"Hi"@{..}(name=n)`, `enum(A)[]`.
+        if matches!(
+            previous.kind,
+            TokenKind::Punct(Punct::RParen | Punct::RBracket | Punct::RBrace)
+                | TokenKind::String
+                | TokenKind::Integer
+                | TokenKind::Decimal
+                | TokenKind::Duration
+                | TokenKind::Bytes
+        ) {
+            return Some("");
+        }
+        // After `,`/operators/`(`/`[` the previous-token rules
+        // below decide; anything else takes a space.
+        None
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn gap_after_previous(
+        &self,
+        context: &LineContext<'a>,
+        punct: Punct,
+        current: &Token,
+        index: usize,
+        previous_depth: i32,
+    ) -> Option<&'static str> {
+        match punct {
+            Punct::Arrow | Punct::Semicolon => Some(" "),
+            Punct::Eq => {
+                if context.derive_eq == Some(index - 1)
+                    || context.head_word == Some("message")
+                        && previous_depth == 0
+                        && current.kind == TokenKind::String
+                {
+                    Some(" ")
+                } else {
+                    Some("")
+                }
+            }
+            Punct::Colon => {
+                // `invariant Target: body` breathes after the colon;
+                // type colons (`name:type`, routes, derives) stay tight.
+                if context.head_word == Some("invariant") && previous_depth == 0 {
+                    Some(" ")
+                } else {
+                    Some("")
+                }
+            }
+            Punct::Comma => {
+                if self.top_is_schema_brace() {
+                    Some(" ")
+                } else {
+                    Some("")
+                }
+            }
+            Punct::LBrace => {
+                // The brace just opened, so it is the stack top.
+                if self.top_is_schema_brace() {
+                    Some(" ")
+                } else {
+                    Some("")
+                }
+            }
+            Punct::RParen | Punct::RBracket | Punct::RBrace | Punct::Question | Punct::Bang => None,
+            // Tight on the right: openers, member dots, the message
+            // marker and the compact operators.
+            _ => Some(""),
+        }
+    }
+
     fn gap(
         &self,
         context: &LineContext<'a>,
@@ -498,18 +697,8 @@ impl<'a> Emitter<'a> {
         }
         // Routes are contiguous: space after `page`, tight inside, and the
         // normal rules resume at the first attribute.
-        if let Some(end) = context.route_end {
-            if index == 1 {
-                return " ";
-            }
-            if index < end {
-                return "";
-            }
-            if index == end {
-                // First attribute after the route: the `/`-after rule for
-                // division must not glue it to a route-final slash.
-                return " ";
-            }
+        if let Some(route_gap) = Self::gap_after_route(context, index) {
+            return route_gap;
         }
         // Loose separators force a space after them whatever follows
         // (`-> -50`, `; set ...`), ahead of the tight current-token rules.
@@ -519,191 +708,18 @@ impl<'a> Emitter<'a> {
         // Current-token rules: gaps that never take a space (plus the
         // loose `=`, `(`, `[`, `{`, `}` handled below).
         if let TokenKind::Punct(punct) = current.kind {
-            match punct {
-                Punct::Arrow => return " ",
-                Punct::Dollar => return " ",
-                Punct::RBrace => {
-                    // The matching `{` is the stack top.
-                    if self.top_is_schema_brace() {
-                        return " ";
-                    }
-                    return "";
-                }
-                Punct::Eq => {
-                    if self.is_loose_eq(context, index, current_depth) {
-                        return " ";
-                    }
-                    // `! =` keeps its space: joining would lex as `!=`.
-                    if previous.is_punct(Punct::Bang) {
-                        return " ";
-                    }
-                    return "";
-                }
-                Punct::LParen | Punct::LBracket => {
-                    // Judgment score level lists are option maps: a space
-                    // before `[` (matching choice `{...}` maps), wherever
-                    // the caption ends (a string or an `@{...}` suffix).
-                    if punct == Punct::LBracket && self.option_brackets.contains(&(line, index)) {
-                        return " ";
-                    }
-                    if previous.kind == TokenKind::Name {
-                        // A depth-0 `->` marks an operation signature, an
-                        // example row or a result annotation, where a name
-                        // paren is always call-shaped: `cancel(x) -> T`.
-                        if !context.loose_arrow {
-                            let word = previous.text(self.source);
-                            if is_expr_keyword(word) {
-                                return " ";
-                            }
-                            // Statement position (first token on the line,
-                            // or just after `;`) holds a head word, never
-                            // a call: bare calls are invalid statements,
-                            // Given/When heads never take a paren, and
-                            // example rows always carry `->` (see above).
-                            // This covers the fixed heads (`require (ok)`,
-                            // `list (Todo)`, `gallery (Items)`) and the
-                            // open catalog-UI vocabulary (`countdown (x)`)
-                            // alike. The same words mid-line are calls,
-                            // types or suffixes and stay tight:
-                            // `action(...)`, `text[]`, `x=require(y)`.
-                            if index == 1 || tokens[index - 2].is_punct(Punct::Semicolon) {
-                                return " ";
-                            }
-                        }
-                        return "";
-                    }
-                    // Calls chain tightly off values, literals and closers:
-                    // `f()(x)`, `"Hi"@{..}(name=n)`, `enum(A)[]`.
-                    if matches!(
-                        previous.kind,
-                        TokenKind::Punct(Punct::RParen | Punct::RBracket | Punct::RBrace)
-                            | TokenKind::String
-                            | TokenKind::Integer
-                            | TokenKind::Decimal
-                            | TokenKind::Duration
-                            | TokenKind::Bytes
-                    ) {
-                        return "";
-                    }
-                    // After `,`/operators/`(`/`[` the previous-token rules
-                    // below decide; anything else takes a space.
-                }
-                Punct::LBrace => {
-                    if matches!(
-                        previous.kind,
-                        TokenKind::Punct(
-                            Punct::At
-                                | Punct::LParen
-                                | Punct::LBracket
-                                | Punct::LBrace
-                                | Punct::Comma
-                                | Punct::Eq
-                                | Punct::EqEq
-                                | Punct::NotEq
-                                | Punct::LtEq
-                                | Punct::GtEq
-                                | Punct::Lt
-                                | Punct::Gt
-                                | Punct::Plus
-                                | Punct::Minus
-                                | Punct::Star
-                                | Punct::Slash
-                                | Punct::Percent
-                                | Punct::QuestionQuestion
-                                | Punct::Pipe
-                        )
-                    ) {
-                        return "";
-                    }
-                    // `Todo {`, `) {`, `} {`: previous-token rules (`;`,
-                    // `->`) or the default space decide.
-                }
-                // Everything else binds tightly on its left: closers,
-                // member dots, type colons, suffixes, separators and the
-                // compact operators.
-                Punct::RParen
-                | Punct::RBracket
-                | Punct::Comma
-                | Punct::Dot
-                | Punct::Colon
-                | Punct::Semicolon
-                | Punct::Bang
-                | Punct::Pipe
-                | Punct::Plus
-                | Punct::Minus
-                | Punct::Star
-                | Punct::Slash
-                | Punct::Percent
-                | Punct::Lt
-                | Punct::Gt
-                | Punct::Question
-                | Punct::EqEq
-                | Punct::NotEq
-                | Punct::LtEq
-                | Punct::GtEq
-                | Punct::QuestionQuestion
-                | Punct::QuestionDot
-                | Punct::At => return "",
+            if let Some(current_gap) =
+                self.gap_for_current(context, previous, punct, line, index, current_depth)
+            {
+                return current_gap;
             }
         }
         // Previous-token rules, then the default single space.
         if let TokenKind::Punct(punct) = previous.kind {
-            match punct {
-                Punct::Arrow | Punct::Semicolon => return " ",
-                Punct::Eq => {
-                    if context.derive_eq == Some(index - 1)
-                        || context.head_word == Some("message")
-                            && previous_depth == 0
-                            && current.kind == TokenKind::String
-                    {
-                        return " ";
-                    }
-                    return "";
-                }
-                Punct::Colon => {
-                    // `invariant Target: body` breathes after the colon;
-                    // type colons (`name:type`, routes, derives) stay tight.
-                    if context.head_word == Some("invariant") && previous_depth == 0 {
-                        return " ";
-                    }
-                    return "";
-                }
-                Punct::Comma => {
-                    if self.top_is_schema_brace() {
-                        return " ";
-                    }
-                    return "";
-                }
-                Punct::LBrace => {
-                    // The brace just opened, so it is the stack top.
-                    if self.top_is_schema_brace() {
-                        return " ";
-                    }
-                    return "";
-                }
-                // Tight on the right: openers, member dots, the message
-                // marker and the compact operators.
-                Punct::LParen
-                | Punct::LBracket
-                | Punct::Dot
-                | Punct::QuestionDot
-                | Punct::At
-                | Punct::Pipe
-                | Punct::Plus
-                | Punct::Minus
-                | Punct::Star
-                | Punct::Slash
-                | Punct::Percent
-                | Punct::Lt
-                | Punct::Gt
-                | Punct::EqEq
-                | Punct::NotEq
-                | Punct::LtEq
-                | Punct::GtEq
-                | Punct::QuestionQuestion => return "",
-                Punct::Dollar => return "",
-                Punct::RParen | Punct::RBracket | Punct::RBrace | Punct::Question | Punct::Bang => {
-                }
+            if let Some(previous_gap) =
+                self.gap_after_previous(context, punct, current, index, previous_depth)
+            {
+                return previous_gap;
             }
         }
         " "

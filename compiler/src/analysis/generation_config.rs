@@ -569,6 +569,96 @@ pub fn resolve_recipe(
     declaration_agent: Option<&str>,
     overrides: &RunOverrides,
 ) -> Result<EffectiveRecipe, ConfigError> {
+    check_run_overrides(overrides)?;
+    // Base recipe row: explicit run profile, else declaration agent,
+    // else the category default (the frontend profile only when
+    // settings exist to supply it, else shared). Unknown explicit
+    // profiles diagnose; an unknown declaration agent is equally
+    // explicit (it names a profile that must exist).
+    let base_name: Option<String> = match (&overrides.profile, declaration_agent) {
+        (Some(profile), _) => Some(profile.clone()),
+        (None, Some(agent)) => Some(agent.to_string()),
+        (None, None) if loaded.is_some() && matches!(category, RecipeCategory::Frontend) => {
+            Some(FRONTEND_PROFILE.to_string())
+        }
+        (None, None) => None,
+    };
+    let settings_path = loaded.map(|found| found.source.path().to_path_buf());
+    // Only the implicit Then category default falls back to shared
+    // when no `frontend` profile is configured; an explicit
+    // declaration `agent=frontend` (or run profile) names a profile
+    // that must exist, so it diagnoses like any unknown profile.
+    let (base_runner, base_model, base_attempts, base_timeout, base_native, base_label): BaseRow =
+        resolve_base_row(
+            loaded,
+            base_name,
+            declaration_agent,
+            overrides.profile.as_deref(),
+            &settings_path,
+        )?;
+    // Runner/model: overrides win, but a runner override requires an
+    // explicit model in the same run (no cross-runner inheritance).
+    // A model-only override keeps the base runner.
+    if overrides.runner.is_some() && overrides.model.is_none() {
+        return Err(ConfigError::new(
+            "runner-override-needs-model",
+            "a run runner override requires an explicit compatible model in the same run; models never carry across runners",
+        ));
+    }
+    let mut origins = BTreeMap::new();
+    let runner = resolve_recipe_identity(
+        "runner",
+        overrides.runner.as_ref(),
+        base_runner,
+        &base_label,
+        &mut origins,
+    )?;
+    let model = resolve_recipe_identity(
+        "model",
+        overrides.model.as_ref(),
+        base_model,
+        &base_label,
+        &mut origins,
+    )?;
+    let (max_attempts, attempts_origin) = resolve_recipe_limit(
+        "max_attempts",
+        overrides.max_attempts,
+        base_attempts,
+        DEFAULT_MAX_ATTEMPTS,
+        &base_label,
+        loaded,
+    );
+    origins.insert("max_attempts".to_string(), attempts_origin);
+    let (timeout_seconds, timeout_origin) = resolve_recipe_limit(
+        "timeout_seconds",
+        overrides.timeout_seconds,
+        base_timeout,
+        DEFAULT_TIMEOUT_SECONDS,
+        &base_label,
+        loaded,
+    );
+    origins.insert("timeout_seconds".to_string(), timeout_origin);
+    // Native maps replace wholesale: an explicit run map wins, else
+    // the selected recipe's own table (profiles never inherit shared
+    // native controls across runners).
+    let (native, native_origin) = match &overrides.native {
+        Some(map) => (map.clone(), "run override".to_string()),
+        None => (base_native, base_label.clone()),
+    };
+    origins.insert("native".to_string(), native_origin);
+    Ok(EffectiveRecipe {
+        runner,
+        model,
+        max_attempts,
+        timeout_seconds,
+        native,
+        origins,
+        settings: settings_path,
+        recipe_source: base_label,
+    })
+}
+
+fn check_run_overrides(overrides: &RunOverrides) -> Result<(), ConfigError> {
     if let Some(runner) = &overrides.runner {
         check_runner(runner, "run overrides")?;
     }
@@ -597,156 +687,113 @@ pub fn resolve_recipe(
             ));
         }
     }
-    // Base recipe row: explicit run profile, else declaration agent,
-    // else the category default (the frontend profile only when
-    // settings exist to supply it, else shared). Unknown explicit
-    // profiles diagnose; an unknown declaration agent is equally
-    // explicit (it names a profile that must exist).
-    let base_name: Option<String> = match (&overrides.profile, declaration_agent) {
-        (Some(profile), _) => Some(profile.clone()),
-        (None, Some(agent)) => Some(agent.to_string()),
-        (None, None) if loaded.is_some() && matches!(category, RecipeCategory::Frontend) => {
-            Some(FRONTEND_PROFILE.to_string())
-        }
-        (None, None) => None,
-    };
-    let settings_path = loaded.map(|found| found.source.path().to_path_buf());
+    Ok(())
+}
+
+fn resolve_base_row(
+    loaded: Option<&LoadedSettings>,
+    base_name: Option<String>,
+    declaration_agent: Option<&str>,
+    profile_override: Option<&str>,
+    settings_path: &Option<PathBuf>,
+) -> Result<BaseRow, ConfigError> {
     let describe_settings = || {
         settings_path
             .as_ref()
             .map(|p| format!(" ({})", p.display()))
             .unwrap_or_default()
     };
-    // Only the implicit Then category default falls back to shared
-    // when no `frontend` profile is configured; an explicit
-    // declaration `agent=frontend` (or run profile) names a profile
-    // that must exist, so it diagnoses like any unknown profile.
-    let (base_runner, base_model, base_attempts, base_timeout, base_native, base_label): BaseRow =
-        match (loaded, base_name) {
-            (Some(found), Some(name)) => match found.settings.profiles.get(&name) {
-                Some(profile) => (
-                    Some(profile.runner.clone()),
-                    Some(profile.model.clone()),
-                    profile.max_attempts.or(found.settings.shared.max_attempts),
-                    profile
-                        .timeout_seconds
-                        .or(found.settings.shared.timeout_seconds),
-                    profile.native.clone(),
-                    format!("profile '{name}'{}", describe_settings()),
-                ),
-                None if name == FRONTEND_PROFILE
-                    && overrides.profile.is_none()
-                    && declaration_agent.is_none() =>
-                {
-                    shared_base(&found.settings.shared, &describe_settings)
-                }
-                None => {
-                    let known: Vec<&str> =
-                        found.settings.profiles.keys().map(String::as_str).collect();
-                    let hint = if known.is_empty() {
-                        "the settings define no profiles".to_string()
-                    } else {
-                        format!("known profiles: {}", known.join(", "))
-                    };
-                    return Err(ConfigError::new(
-                        "unknown-profile",
-                        format!(
-                            "unknown profile '{name}'{hint_tail}; {hint}",
-                            hint_tail = describe_settings()
-                        ),
-                    ));
-                }
-            },
-            (Some(found), None) => shared_base(&found.settings.shared, &describe_settings),
-            (None, Some(name)) => {
-                return Err(ConfigError::new(
+    match (loaded, base_name) {
+        (Some(found), Some(name)) => match found.settings.profiles.get(&name) {
+            Some(profile) => Ok((
+                Some(profile.runner.clone()),
+                Some(profile.model.clone()),
+                profile.max_attempts.or(found.settings.shared.max_attempts),
+                profile
+                    .timeout_seconds
+                    .or(found.settings.shared.timeout_seconds),
+                profile.native.clone(),
+                format!("profile '{name}'{}", describe_settings()),
+            )),
+            None if name == FRONTEND_PROFILE
+                && profile_override.is_none()
+                && declaration_agent.is_none() =>
+            {
+                Ok(shared_base(&found.settings.shared, &describe_settings))
+            }
+            None => {
+                let known: Vec<&str> =
+                    found.settings.profiles.keys().map(String::as_str).collect();
+                let hint = if known.is_empty() {
+                    "the settings define no profiles".to_string()
+                } else {
+                    format!("known profiles: {}", known.join(", "))
+                };
+                Err(ConfigError::new(
                     "unknown-profile",
                     format!(
-                        "unknown profile '{name}': no settings file supplies profiles (explicit run overrides still need no settings)"
+                        "unknown profile '{name}'{hint_tail}; {hint}",
+                        hint_tail = describe_settings()
                     ),
-                ));
+                ))
             }
-            (None, None) => (
-                None,
-                None,
-                None,
-                None,
-                BTreeMap::new(),
-                "run overrides".to_string(),
+        },
+        (Some(found), None) => Ok(shared_base(&found.settings.shared, &describe_settings)),
+        (None, Some(name)) => Err(ConfigError::new(
+            "unknown-profile",
+            format!(
+                "unknown profile '{name}': no settings file supplies profiles (explicit run overrides still need no settings)"
             ),
-        };
-    // Runner/model: overrides win, but a runner override requires an
-    // explicit model in the same run (no cross-runner inheritance).
-    // A model-only override keeps the base runner.
-    if overrides.runner.is_some() && overrides.model.is_none() {
-        return Err(ConfigError::new(
-            "runner-override-needs-model",
-            "a run runner override requires an explicit compatible model in the same run; models never carry across runners",
-        ));
+        )),
+        (None, None) => Ok((
+            None,
+            None,
+            None,
+            None,
+            BTreeMap::new(),
+            "run overrides".to_string(),
+        )),
     }
-    let mut origins = BTreeMap::new();
-    let runner = match (&overrides.runner, base_runner) {
-        (Some(runner), _) => {
-            origins.insert("runner".to_string(), "run override".to_string());
-            runner.clone()
+}
+
+fn resolve_recipe_identity(
+    field: &str,
+    override_value: Option<&String>,
+    base_value: Option<String>,
+    base_label: &str,
+    origins: &mut BTreeMap<String, String>,
+) -> Result<String, ConfigError> {
+    match (override_value, base_value) {
+        (Some(value), _) => {
+            origins.insert(field.to_string(), "run override".to_string());
+            Ok(value.clone())
         }
-        (None, Some(runner)) => {
-            origins.insert("runner".to_string(), base_label.clone());
-            runner
+        (None, Some(value)) => {
+            origins.insert(field.to_string(), base_label.to_string());
+            Ok(value)
         }
-        (None, None) => {
-            return Err(ConfigError::new(
-                "missing-recipe",
-                "no runner resolves: configure shared `runner`/`model`, select a profile, or pass explicit run overrides",
-            ));
-        }
-    };
-    let model = match (&overrides.model, base_model) {
-        (Some(model), _) => {
-            origins.insert("model".to_string(), "run override".to_string());
-            model.clone()
-        }
-        (None, Some(model)) => {
-            origins.insert("model".to_string(), base_label.clone());
-            model
-        }
-        (None, None) => {
-            return Err(ConfigError::new(
-                "missing-recipe",
-                "no model resolves: configure shared `runner`/`model`, select a profile, or pass explicit run overrides",
-            ));
-        }
-    };
-    let (max_attempts, attempts_origin) = match (overrides.max_attempts, base_attempts) {
+        (None, None) => Err(ConfigError::new(
+            "missing-recipe",
+            format!(
+                "no {field} resolves: configure shared `runner`/`model`, select a profile, or pass explicit run overrides"
+            ),
+        )),
+    }
+}
+
+fn resolve_recipe_limit(
+    key: &str,
+    override_value: Option<u32>,
+    base_value: Option<u32>,
+    default: u32,
+    base_label: &str,
+    loaded: Option<&LoadedSettings>,
+) -> (u32, String) {
+    match (override_value, base_value) {
         (Some(value), _) => (value, "run override".to_string()),
-        (None, Some(value)) => (value, limit_origin(&base_label, loaded, "max_attempts")),
-        (None, None) => (DEFAULT_MAX_ATTEMPTS, "built-in default".to_string()),
-    };
-    origins.insert("max_attempts".to_string(), attempts_origin);
-    let (timeout_seconds, timeout_origin) = match (overrides.timeout_seconds, base_timeout) {
-        (Some(value), _) => (value, "run override".to_string()),
-        (None, Some(value)) => (value, limit_origin(&base_label, loaded, "timeout_seconds")),
-        (None, None) => (DEFAULT_TIMEOUT_SECONDS, "built-in default".to_string()),
-    };
-    origins.insert("timeout_seconds".to_string(), timeout_origin);
-    // Native maps replace wholesale: an explicit run map wins, else
-    // the selected recipe's own table (profiles never inherit shared
-    // native controls across runners).
-    let (native, native_origin) = match &overrides.native {
-        Some(map) => (map.clone(), "run override".to_string()),
-        None => (base_native, base_label.clone()),
-    };
-    origins.insert("native".to_string(), native_origin);
-    Ok(EffectiveRecipe {
-        runner,
-        model,
-        max_attempts,
-        timeout_seconds,
-        native,
-        origins,
-        settings: settings_path,
-        recipe_source: base_label,
-    })
+        (None, Some(value)) => (value, limit_origin(base_label, loaded, key)),
+        (None, None) => (default, "built-in default".to_string()),
+    }
 }
 
 /// One unresolved base recipe row: runner, model, attempt/timeout

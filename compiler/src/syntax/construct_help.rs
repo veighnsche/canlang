@@ -1,6 +1,7 @@
 //! Source-qualified routing for a finite set of originating parser failures.
 use super::{LogicalLine, Punct, SyntaxKind, SyntaxNode, TokenKind};
 use crate::diagnostic::{ConstructCandidates, ConstructRankingContext, Diagnostic};
+use crate::source::Span;
 
 #[derive(Clone, Copy)]
 pub(super) enum Branch {
@@ -74,6 +75,71 @@ fn lines<'a>(roots: &'a [LogicalLine], found: &mut Vec<&'a LogicalLine>) {
     }
 }
 
+fn line_balance(line: &LogicalLine) -> (bool, bool) {
+    let mut stack = Vec::new();
+    let mut balanced = true;
+    let mut semicolon = false;
+    for token in &line.tokens {
+        if let TokenKind::Punct(punct) = token.kind {
+            semicolon |= punct == Punct::Semicolon;
+            if punct.is_opener() {
+                stack.push(punct.matching_closer().unwrap());
+            }
+            if punct.is_closer() && stack.pop() != Some(punct) {
+                balanced = false;
+            }
+        }
+        balanced &= token.kind != TokenKind::Error;
+    }
+    balanced &= stack.is_empty();
+    (balanced, semicolon)
+}
+
+fn detect_section(
+    tree: &SyntaxNode,
+    branch: &Branch,
+    line: &LogicalLine,
+    primary: Span,
+    text: &str,
+) -> Option<&'static str> {
+    let sections: Vec<_> = tree
+        .descendants()
+        .filter(|node| {
+            node.kind == SyntaxKind::Section
+                && node.span.start <= primary.start
+                && node.span.end >= primary.end
+        })
+        .collect();
+    if matches!(branch, Branch::Root) && line.indent == 0 && sections.is_empty() {
+        Some("root")
+    } else if let [section] = sections.as_slice() {
+        section
+            .children
+            .iter()
+            .filter_map(|node| node.token())
+            .find_map(|token| match token.text(text) {
+                "Given" => Some("Given"),
+                "When" => Some("When"),
+                "Then" => Some("Then"),
+                _ => None,
+            })
+    } else {
+        None
+    }
+}
+
+fn has_other_fault(diagnostics: &[Diagnostic], index: usize, line: &LogicalLine) -> bool {
+    let start = line.tokens.first().unwrap().span.start;
+    let end = line.tokens.last().unwrap().span.end;
+    diagnostics.iter().enumerate().any(|(other, diagnostic)| {
+        other != index
+            && (diagnostic.code.starts_with("E10")
+                || diagnostic.code.starts_with("E11")
+                || diagnostic.code == "E1211"
+                || (diagnostic.primary.start <= end && diagnostic.primary.end >= start))
+    })
+}
+
 /// Qualify seeds only after lexer, layout, recovery and the CST are available.
 /// Unrelated ordinary parse errors do not erase a proven local inventory;
 /// structural and lexical/layout errors conservatively do.
@@ -113,61 +179,14 @@ pub(super) fn qualify(
                 && guess.bytes().enumerate().all(|(i, byte)| {
                     byte.is_ascii_alphabetic() || byte == b'_' || (i > 0 && byte.is_ascii_digit())
                 });
-            let mut stack = Vec::new();
-            let mut balanced = true;
-            let mut semicolon = false;
-            for token in &line.tokens {
-                if let TokenKind::Punct(punct) = token.kind {
-                    semicolon |= punct == Punct::Semicolon;
-                    if punct.is_opener() {
-                        stack.push(punct.matching_closer().unwrap());
-                    }
-                    if punct.is_closer() && stack.pop() != Some(punct) {
-                        balanced = false;
-                    }
-                }
-                balanced &= token.kind != TokenKind::Error;
-            }
-            balanced &= stack.is_empty();
-            let sections: Vec<_> = tree
-                .descendants()
-                .filter(|node| {
-                    node.kind == SyntaxKind::Section
-                        && node.span.start <= primary.start
-                        && node.span.end >= primary.end
-                })
-                .collect();
-            let section =
-                if matches!(branch, Branch::Root) && line.indent == 0 && sections.is_empty() {
-                    Some("root")
-                } else if let [section] = sections.as_slice() {
-                    section
-                        .children
-                        .iter()
-                        .filter_map(|node| node.token())
-                        .find_map(|token| match token.text(text) {
-                            "Given" => Some("Given"),
-                            "When" => Some("When"),
-                            "Then" => Some("Then"),
-                            _ => None,
-                        })
-                } else {
-                    None
-                };
+            let (balanced, semicolon) = line_balance(line);
+            let section = detect_section(tree, &branch, line, primary, text);
             let section_legal = match branch {
                 Branch::Root => section == Some("root"),
                 Branch::When | Branch::ExportedWhen => section == Some("When"),
                 Branch::FieldLabel => section.is_some_and(|value| value != "root"),
             };
-            let start = line.tokens.first().unwrap().span.start;
-            let end = line.tokens.last().unwrap().span.end;
-            let other_fault = diagnostics.iter().enumerate().any(|(other, diagnostic)| {
-                other != index
-                    && (diagnostic.code.starts_with("E10")
-                        || diagnostic.code.starts_with("E11")
-                        || diagnostic.code == "E1211"
-                        || (diagnostic.primary.start <= end && diagnostic.primary.end >= start))
-            });
+            let other_fault = has_other_fault(&diagnostics[..], index, line);
             let recovery_complete =
                 balanced && line.children.is_empty() && !semicolon && !other_fault && section_legal;
             if exact_source_span && recovery_complete {

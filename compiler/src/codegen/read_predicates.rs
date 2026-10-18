@@ -3,17 +3,16 @@ use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 use std::hash::Hash;
 
-#[cfg(test)]
 use crate::analysis::CheckedProgram;
 #[cfg(test)]
 use crate::analysis::catalog::Catalog;
 use crate::analysis::resolve::SymbolKind;
 use crate::analysis::types::CheckedQueryClauseKind;
 use crate::analysis::{NodeKey, ResolvedType, Scalar, kids};
-use crate::source::{SourceDb, Span};
-use crate::syntax::SyntaxKind;
+use crate::source::{Source, SourceDb, Span};
+use crate::syntax::{SyntaxKind, SyntaxNode};
 
-use super::ir::{IrExpr, IrProgram};
+use super::ir::{IrExpr, IrModule, IrPage, IrProgram, IrUi, TypedExpr};
 
 /// Only original checked source can construct this inventory. Every IR field
 /// is sealed before a consumer receives the immutable predicate map.
@@ -162,143 +161,219 @@ pub(super) fn prepare_requires_with_context(
     })
 }
 
-pub(super) fn prepare_with_context(
-    context: &super::scenario_decisions::FreshSourceContext<'_>,
-) -> Option<PreparedReadPredicates> {
-    checked_context(context)?;
-    let ir = context.ir();
-    let db = context.db();
-    let original = context.original();
-    let trees = context.trees();
-    // Only the sealed pages spend the finite lookup budget. Unrelated
-    // Given/When bulk remains in the checked/fresh cohort unvisited.
-    let mut seal_steps = 0usize;
-    let mut predicates = HashMap::new();
-    for module in &ir.modules {
-        let source = db.get(module.file)?;
-        if db
-            .iter()
-            .filter(|(_, file)| file.path == source.path)
-            .count()
-            != 1
-        {
-            return None;
-        }
-        for page in &module.pages {
-            // The sealed page subtree carries this owner's CST; a missing
-            // anchor refuses exactly like the previous whole-tree lookup did.
-            let (_, tree) = trees.iter().find(|(file, _)| *file == page.span.file)?;
-            let page_node = super::scenario_decisions::find_page_root(
-                tree,
-                NodeKey {
-                    file: page.span.file,
-                    start: page.span.start,
-                    end: page.span.end,
-                    kind: SyntaxKind::Page as u8,
-                },
-                &mut seal_steps,
-            )?;
-            if page.owner != module.name || !contains(module.span, page.span) {
-                return None;
-            }
-            let mut pending = page.render.iter().rev().collect::<Vec<_>>();
-            while let Some(ui) = pending.pop() {
-                pending.extend(ui.children.iter().rev());
-                if !matches!(ui.factory.as_str(), "list" | "table" | "calendar" | "board") {
-                    continue;
-                }
-                let mut wheres = ui.props.iter().filter(|(name, _)| name == "where");
-                let Some((_, predicate)) = wheres.next() else {
-                    continue;
-                };
-                if wheres.next().is_some() || !contains(page_node.span, ui.span) {
-                    return None;
-                }
-                // This separately sealed transport is not a callable. Its
-                // presence must not discard original callables on other pages.
-                // Fresh complete IR equality above also authenticates checked
-                // Bool-field data objects; they are not original callables.
-                if matches!(
-                    &predicate.expr,
-                    IrExpr::PageTimePredicate(_) | IrExpr::Object(_)
-                ) {
-                    continue;
-                }
-                let IrExpr::Lambda { body, .. } = &predicate.expr else {
-                    return None;
-                };
-                let collection = super::scenario_decisions::find_page_key(
-                    page_node,
-                    NodeKey {
-                        file: ui.span.file,
-                        start: ui.span.start,
-                        end: ui.span.end,
-                        kind: SyntaxKind::Collection as u8,
-                    },
-                    &mut seal_steps,
-                )?;
-                let query = super::scenario_decisions::collection_source_query(collection)?;
-                if !contains(collection.span, query.span) {
-                    return None;
-                }
-                let checked = original.types.checked_queries.get(&NodeKey::of(query))?;
-                let ResolvedType::Array { element, .. } = &checked.domain_type else {
-                    return None;
-                };
-                let ResolvedType::Record {
-                    symbol,
-                    stored: true,
-                } = element.as_ref()
-                else {
-                    return None;
-                };
-                if !matches!(
-                    original.symbols.get(symbol.0 as usize)?.kind,
-                    SymbolKind::Model { .. }
-                ) {
-                    return None;
-                }
-                let mut clauses = checked
-                    .clauses
-                    .iter()
-                    .filter(|c| c.kind == CheckedQueryClauseKind::Where);
-                let clause = clauses.next()?;
-                let [key] = clause.expressions.as_slice() else {
-                    return None;
-                };
-                let expression =
-                    super::scenario_decisions::find_page_key(page_node, *key, &mut seal_steps)?;
-                let source_clause = super::scenario_decisions::find_page_key(
-                    page_node,
-                    clause.node,
-                    &mut seal_steps,
-                )?;
-                if clauses.next().is_some()
-                    || source_clause.kind != SyntaxKind::QueryClause
-                    || !kids(query).iter().any(|n| NodeKey::of(n) == clause.node)
-                    || !kids(source_clause).iter().any(|n| NodeKey::of(n) == *key)
-                    || expression.span != body.span
-                    || !contains(query.span, expression.span)
-                    || expression.span.start >= expression.span.end
-                    || original.types.node_types.get(key)
-                        != Some(&ResolvedType::Scalar(Scalar::Bool))
-                    || body.ty != ResolvedType::Scalar(Scalar::Bool)
-                {
-                    return None;
-                }
-                let identity = serde_json::json!({
-                    "source":{"path":source.path,"sha256":source.sha256,"module":module.name},
-                    "owner":format!("{}.{}", page.owner, page.fn_name),
-                    "node":{"start":key.start,"end":key.end},
-                    "statement":{"start":query.span.start,"end":query.span.end},
-                });
-                if predicates.len() >= 200 || predicates.insert(expression.span, identity).is_some()
-                {
-                    return None;
-                }
-            }
-        }
+fn lambda_body(ui: &IrUi, page_span: Span) -> Option<Option<&TypedExpr>> {
+    if !matches!(ui.factory.as_str(), "list" | "table" | "calendar" | "board") {
+        return Some(None);
     }
+    let mut wheres = ui.props.iter().filter(|(name, _)| name == "where");
+    let Some((_, predicate)) = wheres.next() else {
+        return Some(None);
+    };
+    if wheres.next().is_some() || !contains(page_span, ui.span) {
+        return None;
+    }
+    // This separately sealed transport is not a callable. Its
+    // presence must not discard original callables on other pages.
+    // Fresh complete IR equality above also authenticates checked
+    // Bool-field data objects; they are not original callables.
+    if matches!(
+        &predicate.expr,
+        IrExpr::PageTimePredicate(_) | IrExpr::Object(_)
+    ) {
+        return Some(None);
+    }
+    let IrExpr::Lambda { body, .. } = &predicate.expr else {
+        return None;
+    };
+    Some(Some(body))
+}
+
+fn clause_topology_mismatch(
+    original: &CheckedProgram,
+    query: &SyntaxNode,
+    source_clause: &SyntaxNode,
+    expression: &SyntaxNode,
+    clause_node: NodeKey,
+    key: NodeKey,
+    body: &TypedExpr,
+) -> bool {
+    source_clause.kind != SyntaxKind::QueryClause
+        || !kids(query).iter().any(|n| NodeKey::of(n) == clause_node)
+        || !kids(source_clause).iter().any(|n| NodeKey::of(n) == key)
+        || expression.span != body.span
+        || !contains(query.span, expression.span)
+        || expression.span.start >= expression.span.end
+        || original.types.node_types.get(&key) != Some(&ResolvedType::Scalar(Scalar::Bool))
+        || body.ty != ResolvedType::Scalar(Scalar::Bool)
+}
+
+fn resolve_lambda_query(
+    context: &super::scenario_decisions::FreshSourceContext<'_>,
+    original: &CheckedProgram,
+    page_node: &SyntaxNode,
+    seal_steps: &mut usize,
+    ui_span: Span,
+    body: &TypedExpr,
+) -> Option<(Span, NodeKey, Span)> {
+    let collection = super::scenario_decisions::find_page_key(
+        page_node,
+        NodeKey {
+            file: ui_span.file,
+            start: ui_span.start,
+            end: ui_span.end,
+            kind: SyntaxKind::Collection as u8,
+        },
+        seal_steps,
+    )?;
+    let query = super::scenario_decisions::collection_source_query(collection)?;
+    if !contains(collection.span, query.span) {
+        return None;
+    }
+    let checked = original.types.checked_queries.get(&NodeKey::of(query))?;
+    let ResolvedType::Array { element, .. } = &checked.domain_type else {
+        return None;
+    };
+    let ResolvedType::Record {
+        symbol,
+        stored: true,
+    } = element.as_ref()
+    else {
+        return None;
+    };
+    if !matches!(
+        original.symbols.get(symbol.0 as usize)?.kind,
+        SymbolKind::Model { .. }
+    ) {
+        return None;
+    }
+    let mut clauses = checked
+        .clauses
+        .iter()
+        .filter(|c| c.kind == CheckedQueryClauseKind::Where);
+    let clause = clauses.next()?;
+    let [key] = clause.expressions.as_slice() else {
+        return None;
+    };
+    let expression = super::scenario_decisions::find_page_key(page_node, *key, seal_steps)?;
+    let source_clause =
+        super::scenario_decisions::find_page_key(page_node, clause.node, seal_steps)?;
+    if clauses.next().is_some()
+        || clause_topology_mismatch(
+            original,
+            query,
+            source_clause,
+            expression,
+            clause.node,
+            *key,
+            body,
+        )
+    {
+        return None;
+    }
+    Some((query.span, *key, expression.span))
+}
+
+fn seal_ui_predicate(
+    context: &super::scenario_decisions::FreshSourceContext<'_>,
+    original: &CheckedProgram,
+    page_node: &SyntaxNode,
+    seal_steps: &mut usize,
+    source: &Source,
+    module: &IrModule,
+    page: &IrPage,
+    ui: &IrUi,
+    predicates: &mut HashMap<Span, serde_json::Value>,
+) -> Option<()> {
+    let Some(body) = lambda_body(ui, page_node.span)? else {
+        return Some(());
+    };
+    let (query_span, key, expression_span) =
+        resolve_lambda_query(context, original, page_node, seal_steps, ui.span, body)?;
+    let identity = serde_json::json!({
+        "source":{"path":source.path,"sha256":source.sha256,"module":module.name},
+        "owner":format!("{}.{}", page.owner, page.fn_name),
+        "node":{"start":key.start,"end":key.end},
+        "statement":{"start":query_span.start,"end":query_span.end},
+    });
+    if predicates.len() >= 200 || predicates.insert(expression_span, identity).is_some() {
+        return None;
+    }
+    Some(())
+}
+
+fn seal_page_predicates(
+    context: &super::scenario_decisions::FreshSourceContext<'_>,
+    seal_steps: &mut usize,
+    source: &Source,
+    module: &IrModule,
+    page: &IrPage,
+    predicates: &mut HashMap<Span, serde_json::Value>,
+) -> Option<()> {
+    let trees = context.trees();
+    let original = context.original();
+    // The sealed page subtree carries this owner's CST; a missing
+    // anchor refuses exactly like the previous whole-tree lookup did.
+    let (_, tree) = trees.iter().find(|(file, _)| *file == page.span.file)?;
+    let page_node = super::scenario_decisions::find_page_root(
+        tree,
+        NodeKey {
+            file: page.span.file,
+            start: page.span.start,
+            end: page.span.end,
+            kind: SyntaxKind::Page as u8,
+        },
+        seal_steps,
+    )?;
+    if page.owner != module.name || !contains(module.span, page.span) {
+        return None;
+    }
+    let mut pending = page.render.iter().rev().collect::<Vec<_>>();
+    while let Some(ui) = pending.pop() {
+        pending.extend(ui.children.iter().rev());
+        seal_ui_predicate(
+            context,
+            original,
+            page_node,
+            seal_steps,
+            source,
+            module,
+            page,
+            ui,
+            predicates,
+        )?;
+    }
+    Some(())
+}
+
+fn seal_module_predicates(
+    context: &super::scenario_decisions::FreshSourceContext<'_>,
+    seal_steps: &mut usize,
+    module: &IrModule,
+    predicates: &mut HashMap<Span, serde_json::Value>,
+) -> Option<()> {
+    let db = context.db();
+    let source = db.get(module.file)?;
+    if db
+        .iter()
+        .filter(|(_, file)| file.path == source.path)
+        .count()
+        != 1
+    {
+        return None;
+    }
+    for page in &module.pages {
+        seal_page_predicates(context, seal_steps, source, module, page, predicates)?;
+    }
+    Some(())
+}
+
+fn collect_boolean_predicates(
+    context: &super::scenario_decisions::FreshSourceContext<'_>,
+    predicates: &mut HashMap<Span, serde_json::Value>,
+) -> Option<(
+    HashMap<Span, serde_json::Value>,
+    HashSet<String>,
+)> {
     let mut booleans = HashMap::new();
     let mut boolean_derives = HashSet::new();
     for (span, identity, sites) in super::scenario_decisions::serialize_read_booleans(context)? {
@@ -321,8 +396,14 @@ pub(super) fn prepare_with_context(
             return None;
         }
     }
-    let (source_requires, require_derives) = source_require_inventory(context)?;
-    boolean_derives.extend(require_derives);
+    Some((booleans, boolean_derives))
+}
+
+fn collect_boolean_rules(
+    context: &super::scenario_decisions::FreshSourceContext<'_>,
+    ir: &IrProgram,
+) -> Option<(HashSet<String>, HashSet<String>)> {
+    let mut boolean_derives = HashSet::new();
     let mut boolean_rules = HashSet::new();
     for rule in ir.read_rules.iter().chain(&ir.callback_read_rules) {
         if let Some(sites)=context.serialize_rule(rule)
@@ -334,6 +415,26 @@ pub(super) fn prepare_with_context(
             }}
         }
     }
+    Some((boolean_rules, boolean_derives))
+}
+
+pub(super) fn prepare_with_context(
+    context: &super::scenario_decisions::FreshSourceContext<'_>,
+) -> Option<PreparedReadPredicates> {
+    checked_context(context)?;
+    let ir = context.ir();
+    // Only the sealed pages spend the finite lookup budget. Unrelated
+    // Given/When bulk remains in the checked/fresh cohort unvisited.
+    let mut seal_steps = 0usize;
+    let mut predicates = HashMap::new();
+    for module in &ir.modules {
+        seal_module_predicates(context, &mut seal_steps, module, &mut predicates)?;
+    }
+    let (booleans, mut boolean_derives) = collect_boolean_predicates(context, &mut predicates)?;
+    let (source_requires, require_derives) = source_require_inventory(context)?;
+    boolean_derives.extend(require_derives);
+    let (boolean_rules, rule_derives) = collect_boolean_rules(context, ir)?;
+    boolean_derives.extend(rule_derives);
     Some(PreparedReadPredicates {
         predicates,
         booleans,

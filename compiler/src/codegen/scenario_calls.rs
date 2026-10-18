@@ -1,16 +1,18 @@
 //! Internal source-bound static call facts. No artifact or execution transport.
 use super::ir::{
     IrDefault, IrEffectCallTarget, IrExpr, IrItem, IrItemKind, IrJudgmentGenerated, IrProgram,
-    IrStmt, IrType, TypedExpr,
+    IrQuery, IrStmt, IrType, TypedExpr,
 };
-use super::js::{JsMcpField, JsOperation, JsOperationField, JsOperationKind};
+use super::js::{JsFieldDefault, JsMcpField, JsOperation, JsOperationField, JsOperationKind};
 use crate::analysis::resolve::SymbolId;
 use crate::analysis::scenario_disclosure::{
-    DependencyRole, DisclosureEffectKind, ScenarioDisclosure,
+    CheckedScenarioCallInput, CheckedScenarioParameter, CheckedScenarioSourceCall,
+    DependencyRole, DisclosureEffectKind, DisclosureQuery, DisclosureReturn, ScenarioDisclosure,
 };
-use crate::analysis::{ResolvedType, Scalar};
+use crate::analysis::types::CheckedQueryProjectionField;
+use crate::analysis::{NodeKey, ResolvedType, Scalar};
 use crate::source::{SourceDb, Span, sha256_hex};
-use crate::syntax::{SyntaxKind, decode_json_string};
+use crate::syntax::{SyntaxKind, SyntaxNode, decode_json_string};
 use std::collections::HashSet;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -73,6 +75,114 @@ pub struct ScenarioSourceCall {
 /// Join the real checked source facts to the actual lowered body and owning
 /// checked declaration. Unsupported runtime profiles may have this structural
 /// correspondence while their disclosure remains explicitly declined.
+fn call_proof_mismatch(
+    proof: &CheckedScenarioSourceCall,
+    sites_len: usize,
+    calls: &[CheckedScenarioSourceCall],
+    target_source: &Span,
+    operation: SymbolId,
+    binding: &Option<String>,
+    result: &Option<ResolvedType>,
+) -> bool {
+    calls.get(sites_len).map(|proof| proof.node) != Some(proof.node)
+        || proof.operation != operation
+        || proof.binding != *binding
+        || proof.result != *result
+        || proof.target_node.file != target_source.file
+        || proof.target_node.start != target_source.start
+        || proof.target_node.end != target_source.end
+}
+
+fn collect_call_inputs(
+    entries: &[(String, TypedExpr)],
+    facts: &[CheckedScenarioCallInput],
+) -> Option<Vec<CallInput>> {
+    let mut keys = HashSet::new();
+    let mut authored = Vec::new();
+    for ((name, value), fact) in entries.iter().zip(facts) {
+        if !keys.insert(name)
+            || name != &fact.name
+            || value.ty != fact.ty
+            || value.span.file != fact.node.file
+            || value.span.start != fact.node.start
+            || value.span.end != fact.node.end
+        {
+            return None;
+        }
+        authored.push(CallInput {
+            name: name.clone(),
+            source: value.span,
+            ty: value.ty.clone(),
+        });
+    }
+    Some(authored)
+}
+
+fn collect_call_site(
+    ir: &IrProgram,
+    parent: &IrItem,
+    db: &SourceDb,
+    source: &crate::analysis::scenario_disclosure::CheckedScenarioSource,
+    sites: &mut Vec<ScenarioSourceCall>,
+    matched: &mut HashSet<NodeKey>,
+    span: Span,
+    target_source: &Span,
+    operation: SymbolId,
+    inputs: &TypedExpr,
+    binding: &Option<String>,
+    result: &Option<ResolvedType>,
+) -> Option<()> {
+    let mut proofs = source.calls.iter().filter(|proof| {
+        proof.node.file == span.file
+            && proof.node.start == span.start
+            && proof.node.end == span.end
+    });
+    let proof = proofs.next()?;
+    let node = proof.node;
+    if proofs.next().is_some()
+        || !matched.insert(node)
+        || call_proof_mismatch(
+            proof,
+            sites.len(),
+            &source.calls,
+            target_source,
+            operation,
+            binding,
+            result,
+        )
+    {
+        return None;
+    }
+    let child = ir.items.get(operation.0 as usize)?;
+    let child_source = checked_source(ir, child, db)?;
+    if child.id != operation || child_source.result != *result {
+        return None;
+    }
+    let IrExpr::Object(entries) = &inputs.expr else {
+        return None;
+    };
+    if entries.len() != proof.inputs.len() || sites.len() >= 200 {
+        return None;
+    }
+    let authored = collect_call_inputs(entries, &proof.inputs)?;
+    sites.push(ScenarioSourceCall {
+        source: CallSource {
+            path: source.source.path.clone(),
+            sha256: source.source.sha256.clone(),
+            module: source.source.module.clone(),
+        },
+        span,
+        parent: parent.canonical.clone(),
+        target: child.canonical.clone(),
+        operation,
+        read: child_source.read,
+        binding: binding.clone(),
+        result: result.clone(),
+        inputs: authored,
+    });
+    Some(())
+}
+
 pub fn collect_scenario_source_calls(
     ir: &IrProgram,
     parent: &IrItem,
@@ -107,69 +217,20 @@ pub fn collect_scenario_source_calls(
                 result,
                 span,
             } => {
-                let mut proofs = source.calls.iter().filter(|proof| {
-                    proof.node.file == span.file
-                        && proof.node.start == span.start
-                        && proof.node.end == span.end
-                });
-                let proof = proofs.next()?;
-                let node = proof.node;
-                if proofs.next().is_some()
-                    || !matched.insert(node)
-                    || source.calls.get(sites.len()).map(|proof| proof.node) != Some(node)
-                    || proof.operation != *operation
-                    || proof.binding != *binding
-                    || proof.result != *result
-                    || proof.target_node.file != target_source.file
-                    || proof.target_node.start != target_source.start
-                    || proof.target_node.end != target_source.end
-                {
-                    return None;
-                }
-                let child = ir.items.get(operation.0 as usize)?;
-                let child_source = checked_source(ir, child, db)?;
-                if child.id != *operation || child_source.result != *result {
-                    return None;
-                }
-                let IrExpr::Object(entries) = &inputs.expr else {
-                    return None;
-                };
-                if entries.len() != proof.inputs.len() || sites.len() >= 200 {
-                    return None;
-                }
-                let mut keys = HashSet::new();
-                let mut authored = Vec::new();
-                for ((name, value), fact) in entries.iter().zip(&proof.inputs) {
-                    if !keys.insert(name)
-                        || name != &fact.name
-                        || value.ty != fact.ty
-                        || value.span.file != fact.node.file
-                        || value.span.start != fact.node.start
-                        || value.span.end != fact.node.end
-                    {
-                        return None;
-                    }
-                    authored.push(CallInput {
-                        name: name.clone(),
-                        source: value.span,
-                        ty: value.ty.clone(),
-                    });
-                }
-                sites.push(ScenarioSourceCall {
-                    source: CallSource {
-                        path: source.source.path.clone(),
-                        sha256: source.source.sha256.clone(),
-                        module: source.source.module.clone(),
-                    },
-                    span: *span,
-                    parent: parent.canonical.clone(),
-                    target: child.canonical.clone(),
-                    operation: *operation,
-                    read: child_source.read,
-                    binding: binding.clone(),
-                    result: result.clone(),
-                    inputs: authored,
-                });
+                collect_call_site(
+                    ir,
+                    parent,
+                    db,
+                    source,
+                    &mut sites,
+                    &mut matched,
+                    *span,
+                    target_source,
+                    *operation,
+                    inputs,
+                    binding,
+                    result,
+                )?;
             }
             IrStmt::Call { .. } | IrStmt::Unsupported { .. } => return None,
             IrStmt::If {
@@ -195,25 +256,18 @@ pub fn collect_scenario_source_calls(
     Some(sites)
 }
 
-pub(crate) fn checked_source<'a>(
-    ir: &'a IrProgram,
+fn source_identity_mismatch(
+    source: &crate::analysis::scenario_disclosure::CheckedScenarioSource,
     owner: &IrItem,
     db: &SourceDb,
-) -> Option<&'a crate::analysis::scenario_disclosure::CheckedScenarioSource> {
-    let source = ir.scenario_disclosures.get(&owner.id)?.source_facts()?;
-    let module = ir.modules.get(owner.module.0 as usize)?;
-    let file = db.get(module.file)?;
-    let IrItemKind::Scenario {
-        params,
-        result,
-        read,
-        ..
-    } = &owner.kind
-    else {
-        return None;
-    };
-    if source.scenario != owner.id
-        || source.read != *read
+    read: bool,
+    result: &Option<ResolvedType>,
+    file: &crate::source::Source,
+    module: &super::ir::IrModule,
+    params_len: usize,
+) -> bool {
+    source.scenario != owner.id
+        || source.read != read
         || source.result != *result
         || source.source.path != file.path
         || source.source.sha256 != file.sha256
@@ -227,20 +281,16 @@ pub(crate) fn checked_source<'a>(
             .filter(|(_, candidate)| candidate.path == file.path)
             .count()
             != 1
-        || params.len() != source.parameters.len()
-    {
-        return None;
-    }
-    if super::scenario_receipts::checked_created_model_result(ir, owner).is_some()
-        && (owner.canonical != format!("{}.{}", module.name, owner.name)
-            || file
-                .text
-                .get(owner.span.start as usize..owner.span.end as usize)?
-                != owner.name)
-    {
-        return None;
-    }
-    for (id, fact) in params.iter().zip(&source.parameters) {
+        || params_len != source.parameters.len()
+}
+
+fn check_source_params(
+    ir: &IrProgram,
+    owner: &IrItem,
+    params: &[SymbolId],
+    facts: &[CheckedScenarioParameter],
+) -> Option<()> {
+    for (id, fact) in params.iter().zip(facts) {
         let parameter = ir.items.get(id.0 as usize)?;
         let IrItemKind::Param {
             owner: parent,
@@ -260,6 +310,39 @@ pub(crate) fn checked_source<'a>(
             return None;
         }
     }
+    Some(())
+}
+
+pub(crate) fn checked_source<'a>(
+    ir: &'a IrProgram,
+    owner: &IrItem,
+    db: &SourceDb,
+) -> Option<&'a crate::analysis::scenario_disclosure::CheckedScenarioSource> {
+    let source = ir.scenario_disclosures.get(&owner.id)?.source_facts()?;
+    let module = ir.modules.get(owner.module.0 as usize)?;
+    let file = db.get(module.file)?;
+    let IrItemKind::Scenario {
+        params,
+        result,
+        read,
+        ..
+    } = &owner.kind
+    else {
+        return None;
+    };
+    if source_identity_mismatch(source, owner, db, *read, result, file, module, params.len()) {
+        return None;
+    }
+    if super::scenario_receipts::checked_created_model_result(ir, owner).is_some()
+        && (owner.canonical != format!("{}.{}", module.name, owner.name)
+            || file
+                .text
+                .get(owner.span.start as usize..owner.span.end as usize)?
+                != owner.name)
+    {
+        return None;
+    }
+    check_source_params(ir, owner, params, &source.parameters)?;
     Some(source)
 }
 
@@ -397,6 +480,136 @@ fn scalar_id(ty: &ResolvedType) -> Option<&'static str> {
     }
 }
 
+fn scalar_identity_mismatch(
+    owner: SymbolId,
+    index: usize,
+    position: usize,
+    parameter: &IrItem,
+    child: &IrItem,
+    input: &JsOperationField,
+    default: &Option<IrDefault>,
+    param_text: &str,
+) -> bool {
+    owner != child.id
+        || index != position
+        || parameter.module != child.module
+        || parameter.canonical != format!("{}.{}", child.canonical, parameter.name)
+        || input.name != parameter.name
+        || input.required != default.is_none()
+        || input.nullable
+        || input.array_required.is_some()
+        || input.min.is_some()
+        || input.max.is_some()
+        || param_text != parameter.name
+}
+
+fn check_literal_default(
+    value: &TypedExpr,
+    node: NodeKey,
+    ty: &ResolvedType,
+    actual: &JsFieldDefault,
+    default: &Option<IrDefault>,
+    db: &SourceDb,
+) -> Option<()> {
+    if node.kind != SyntaxKind::Literal as u8
+        || value.ty != *ty
+        || value.span != Span::new(node.file, node.start, node.end)
+        || !source_scalar_literal(value, db)
+        || actual.to_json()
+            != super::js::js_field_default(default.as_ref(), None)?.to_json()
+    {
+        return None;
+    }
+    Some(())
+}
+
+fn check_computed_default(
+    ir: &IrProgram,
+    child: &IrItem,
+    parameter: &IrItem,
+    ty: &ResolvedType,
+    expr: &TypedExpr,
+    node: NodeKey,
+    db: &SourceDb,
+) -> Option<()> {
+    let IrExpr::Name(target) = &expr.expr else {
+        return None;
+    };
+    if expr.ty != *ty
+        || expr.span.file != node.file
+        || expr.span.start < node.start
+        || expr.span.end > node.end
+        || db
+            .get(node.file)?
+            .text
+            .get(node.start as usize..node.end as usize)?
+            != target.as_str()
+    {
+        return None;
+    }
+    let IrItemKind::Scenario { params, .. } = &child.kind else {
+        return None;
+    };
+    let Some(earlier) = params.iter().position(|id| id == &parameter.id) else {
+        return None;
+    };
+    let mut referenced = params[..earlier].iter().filter_map(|id| ir.items.get(id.0 as usize)).filter(|item| item.name == *target);
+    let source = referenced.next()?;
+    if referenced.next().is_some() {
+        return None;
+    }
+    let IrItemKind::Param {
+        owner: source_owner,
+        ty: IrType::Known(source_ty),
+        default: None,
+        default_node: None,
+        array_bounds: None,
+        ..
+    } = &source.kind
+    else {
+        return None;
+    };
+    if source.id == parameter.id
+        || *source_owner != child.id
+        || source.module != child.module
+        || source_ty != ty
+    {
+        return None;
+    }
+    Some(())
+}
+
+fn check_scalar_alias(
+    ir: &IrProgram,
+    alias: SymbolId,
+    ty: &ResolvedType,
+    input: &JsOperationField,
+) -> Option<()> {
+    let declared = ir.items.get(alias.0 as usize)?;
+    let alias_ty = match &declared.kind {
+        IrItemKind::Field {
+            ty: IrType::Known(ty),
+            required_array: false,
+            ..
+        }
+        | IrItemKind::JudgmentGenerated(IrJudgmentGenerated::Field {
+            ty: IrType::Known(ty),
+            required_array: false,
+            ..
+        }) => ty,
+        _ => return None,
+    };
+    if declared.id != alias
+        || alias_ty != ty
+        || ir.value_constraints.get(&alias)?.alias != Some(alias)
+        || input.value_type.as_deref() != Some(declared.canonical.as_str())
+        || !matches!(&input.field, JsMcpField::Nominal { name } if name == &declared.canonical)
+    {
+        return None;
+    }
+    Some(())
+}
+
 /// An explicit argument cuts default execution, but cannot alter the child's
 /// declaration. Keep the literal default and checked scalar alias on the same
 /// owning interface rather than synthesizing required/default-free inputs.
@@ -426,22 +639,20 @@ fn explicit_scalar_input(
         return None;
     };
     let scalar = scalar_id(ty)?;
-    if *owner != child.id
-        || *index != position
-        || parameter.module != child.module
-        || parameter.canonical != format!("{}.{}", child.canonical, parameter.name)
-        || input.name != parameter.name
-        || input.required != default.is_none()
-        || input.nullable
-        || input.array_required.is_some()
-        || input.min.is_some()
-        || input.max.is_some()
-        || db
-            .get(parameter.span.file)?
-            .text
-            .get(parameter.span.start as usize..parameter.span.end as usize)?
-            != parameter.name
-    {
+    let param_text = db
+        .get(parameter.span.file)?
+        .text
+        .get(parameter.span.start as usize..parameter.span.end as usize)?;
+    if scalar_identity_mismatch(
+        *owner,
+        *index,
+        position,
+        parameter,
+        child,
+        input,
+        default,
+        param_text,
+    ) {
         return None;
     }
     match (default, default_node, &input.default) {
@@ -451,16 +662,10 @@ fn explicit_scalar_input(
             }
         }
         (Some(IrDefault::Literal(value)), Some(node), Some(actual)) => {
-            if input.computed_default
-                || node.kind != SyntaxKind::Literal as u8
-                || value.ty != *ty
-                || value.span != Span::new(node.file, node.start, node.end)
-                || !source_scalar_literal(value, db)
-                || actual.to_json()
-                    != super::js::js_field_default(default.as_ref(), None)?.to_json()
-            {
+            if input.computed_default {
                 return None;
             }
+            check_literal_default(value, *node, ty, actual, default, db)?;
         }
         // A genuine `=name` default names an earlier required same-type
         // parameter. Static CALL supplies every slot, so the default never
@@ -470,76 +675,12 @@ fn explicit_scalar_input(
             if !input.computed_default {
                 return None;
             }
-            let IrExpr::Name(target) = &expr.expr else {
-                return None;
-            };
-            if expr.ty != *ty
-                || expr.span.file != node.file
-                || expr.span.start < node.start
-                || expr.span.end > node.end
-                || db
-                    .get(node.file)?
-                    .text
-                    .get(node.start as usize..node.end as usize)?
-                    != target.as_str()
-            {
-                return None;
-            }
-            let IrItemKind::Scenario { params, .. } = &child.kind else {
-                return None;
-            };
-            let Some(earlier) = params.iter().position(|id| id == &parameter.id) else {
-                return None;
-            };
-            let mut referenced = params[..earlier].iter().filter_map(|id| ir.items.get(id.0 as usize)).filter(|item| item.name == *target);
-            let source = referenced.next()?;
-            if referenced.next().is_some() {
-                return None;
-            }
-            let IrItemKind::Param {
-                owner: source_owner,
-                ty: IrType::Known(source_ty),
-                default: None,
-                default_node: None,
-                array_bounds: None,
-                ..
-            } = &source.kind
-            else {
-                return None;
-            };
-            if source.id == parameter.id
-                || *source_owner != child.id
-                || source.module != child.module
-                || source_ty != ty
-            {
-                return None;
-            }
+            check_computed_default(ir, child, parameter, ty, expr, *node, db)?;
         }
         _ => return None,
     }
     if let Some(alias) = fact.constraints.as_ref().and_then(|value| value.alias) {
-        let declared = ir.items.get(alias.0 as usize)?;
-        let alias_ty = match &declared.kind {
-            IrItemKind::Field {
-                ty: IrType::Known(ty),
-                required_array: false,
-                ..
-            }
-            | IrItemKind::JudgmentGenerated(IrJudgmentGenerated::Field {
-                ty: IrType::Known(ty),
-                required_array: false,
-                ..
-            }) => ty,
-            _ => return None,
-        };
-        if declared.id != alias
-            || alias_ty != ty
-            || ir.value_constraints.get(&alias)?.alias != Some(alias)
-            || input.value_type.as_deref() != Some(declared.canonical.as_str())
-            || !matches!(&input.field, JsMcpField::Nominal { name } if name == &declared.canonical)
-        {
-            return None;
-        }
+        check_scalar_alias(ir, alias, ty, input)?;
     } else if input.value_type.as_deref() != Some(scalar)
         || !matches!(
             (&input.field, ty),
@@ -565,6 +706,53 @@ fn explicit_scalar_input(
 /// supply or carry their exact nullable value. The declaration keeps its
 /// implicit absence or explicit literal-null default; nothing else becomes
 /// a supplied-input admission.
+fn nullable_identity_mismatch(
+    owner: SymbolId,
+    index: usize,
+    position: usize,
+    parameter: &IrItem,
+    child: &IrItem,
+    input: &JsOperationField,
+    param_text: &str,
+) -> bool {
+    owner != child.id
+        || index != position
+        || parameter.module != child.module
+        || parameter.canonical != format!("{}.{}", child.canonical, parameter.name)
+        || input.name != parameter.name
+        || input.required
+        || !input.nullable
+        || input.array_required.is_some()
+        || input.min.is_some()
+        || input.max.is_some()
+        || input.computed_default
+        || param_text != parameter.name
+}
+
+fn check_null_default(
+    value: &TypedExpr,
+    node: NodeKey,
+    actual: &JsFieldDefault,
+    default: &Option<IrDefault>,
+    db: &SourceDb,
+) -> Option<()> {
+    if node.kind != SyntaxKind::Literal as u8
+        || value.ty != ResolvedType::Null
+        || !matches!(value.expr, IrExpr::Null)
+        || value.span != Span::new(node.file, node.start, node.end)
+        || db
+            .get(node.file)?
+            .text
+            .get(node.start as usize..node.end as usize)?
+            != "null"
+        || actual.to_json()
+            != super::js::js_field_default(default.as_ref(), None)?.to_json()
+    {
+        return None;
+    }
+    Some(())
+}
+
 fn explicit_nullable_value_input(
     ir: &IrProgram,
     child: &IrItem,
@@ -596,42 +784,25 @@ fn explicit_nullable_value_input(
     let ResolvedType::Scalar(scalar) = inner.as_ref() else {
         return None;
     };
-    if *owner != child.id
-        || *index != position
-        || parameter.module != child.module
-        || parameter.canonical != format!("{}.{}", child.canonical, parameter.name)
-        || input.name != parameter.name
-        || input.required
-        || !input.nullable
-        || input.array_required.is_some()
-        || input.min.is_some()
-        || input.max.is_some()
-        || input.computed_default
-        || db
-            .get(parameter.span.file)?
-            .text
-            .get(parameter.span.start as usize..parameter.span.end as usize)?
-            != parameter.name
-    {
+    let param_text = db
+        .get(parameter.span.file)?
+        .text
+        .get(parameter.span.start as usize..parameter.span.end as usize)?;
+    if nullable_identity_mismatch(
+        *owner,
+        *index,
+        position,
+        parameter,
+        child,
+        input,
+        param_text,
+    ) {
         return None;
     }
     match (default, default_node, &input.default) {
         (None, None, None) => {}
         (Some(IrDefault::Literal(value)), Some(node), Some(actual)) => {
-            if node.kind != SyntaxKind::Literal as u8
-                || value.ty != ResolvedType::Null
-                || !matches!(value.expr, IrExpr::Null)
-                || value.span != Span::new(node.file, node.start, node.end)
-                || db
-                    .get(node.file)?
-                    .text
-                    .get(node.start as usize..node.end as usize)?
-                    != "null"
-                || actual.to_json()
-                    != super::js::js_field_default(default.as_ref(), None)?.to_json()
-            {
-                return None;
-            }
+            check_null_default(value, *node, actual, default, db)?;
         }
         _ => return None,
     }
@@ -649,6 +820,32 @@ fn explicit_nullable_value_input(
 
 /// Enum slots keep their exact checked domain: case order and spelling in
 /// the descriptor match the declaration, and only required slots join here.
+fn enum_identity_mismatch(
+    cases_empty: bool,
+    owner: SymbolId,
+    index: usize,
+    position: usize,
+    parameter: &IrItem,
+    child: &IrItem,
+    input: &JsOperationField,
+    param_text: &str,
+) -> bool {
+    cases_empty
+        || owner != child.id
+        || index != position
+        || parameter.module != child.module
+        || parameter.canonical != format!("{}.{}", child.canonical, parameter.name)
+        || input.name != parameter.name
+        || input.required != true
+        || input.nullable
+        || input.array_required.is_some()
+        || input.min.is_some()
+        || input.max.is_some()
+        || input.computed_default
+        || input.default.is_some()
+        || param_text != parameter.name
+}
+
 fn explicit_enum_input(
     ir: &IrProgram,
     child: &IrItem,
@@ -677,25 +874,20 @@ fn explicit_enum_input(
     let ResolvedType::Enum { cases, .. } = ty else {
         return None;
     };
-    if cases.is_empty()
-        || *owner != child.id
-        || *index != position
-        || parameter.module != child.module
-        || parameter.canonical != format!("{}.{}", child.canonical, parameter.name)
-        || input.name != parameter.name
-        || input.required != true
-        || input.nullable
-        || input.array_required.is_some()
-        || input.min.is_some()
-        || input.max.is_some()
-        || input.computed_default
-        || input.default.is_some()
-        || db
-            .get(parameter.span.file)?
-            .text
-            .get(parameter.span.start as usize..parameter.span.end as usize)?
-            != parameter.name
-    {
+    let param_text = db
+        .get(parameter.span.file)?
+        .text
+        .get(parameter.span.start as usize..parameter.span.end as usize)?;
+    if enum_identity_mismatch(
+        cases.is_empty(),
+        *owner,
+        *index,
+        position,
+        parameter,
+        child,
+        input,
+        param_text,
+    ) {
         return None;
     }
     let expected_value_type = format!("enum({})", cases.join(","));
@@ -712,6 +904,54 @@ fn explicit_enum_input(
 /// Non-file array slots keep their exact element shape. Only required slots
 /// or an empty-array literal default join; the supply is the owner's own
 /// array parameter under its original spelling.
+fn array_identity_mismatch(
+    file_array: bool,
+    owner: SymbolId,
+    index: usize,
+    position: usize,
+    parameter: &IrItem,
+    child: &IrItem,
+    input: &JsOperationField,
+    param_text: &str,
+) -> bool {
+    file_array
+        || owner != child.id
+        || index != position
+        || parameter.module != child.module
+        || parameter.canonical != format!("{}.{}", child.canonical, parameter.name)
+        || input.name != parameter.name
+        || input.required
+        || input.nullable
+        || input.array_required != Some(false)
+        || input.min.is_some()
+        || input.max.is_some()
+        || input.computed_default
+        || param_text != parameter.name
+}
+
+fn check_empty_array_default(
+    value: &TypedExpr,
+    node: NodeKey,
+    ty: &ResolvedType,
+    actual: &JsFieldDefault,
+    default: &Option<IrDefault>,
+    db: &SourceDb,
+) -> Option<()> {
+    let IrExpr::Array(items) = &value.expr else {
+        return None;
+    };
+    if node.kind != SyntaxKind::Array as u8
+        || !items.is_empty()
+        || value.ty != *ty
+        || value.span != Span::new(node.file, node.start, node.end)
+        || actual.to_json()
+            != super::js::js_field_default(default.as_ref(), None)?.to_json()
+    {
+        return None;
+    }
+    Some(())
+}
+
 fn explicit_array_input(
     ir: &IrProgram,
     child: &IrItem,
@@ -740,41 +980,26 @@ fn explicit_array_input(
     let ResolvedType::Array { .. } = ty else {
         return None;
     };
-    if ordinary_file_array(ty)
-        || *owner != child.id
-        || *index != position
-        || parameter.module != child.module
-        || parameter.canonical != format!("{}.{}", child.canonical, parameter.name)
-        || input.name != parameter.name
-        || input.required
-        || input.nullable
-        || input.array_required != Some(false)
-        || input.min.is_some()
-        || input.max.is_some()
-        || input.computed_default
-        || db
-            .get(parameter.span.file)?
-            .text
-            .get(parameter.span.start as usize..parameter.span.end as usize)?
-            != parameter.name
-    {
+    let param_text = db
+        .get(parameter.span.file)?
+        .text
+        .get(parameter.span.start as usize..parameter.span.end as usize)?;
+    if array_identity_mismatch(
+        ordinary_file_array(ty),
+        *owner,
+        *index,
+        position,
+        parameter,
+        child,
+        input,
+        param_text,
+    ) {
         return None;
     }
     match (default, default_node, &input.default) {
         (None, None, None) => {}
         (Some(IrDefault::Literal(value)), Some(node), Some(actual)) => {
-            let IrExpr::Array(items) = &value.expr else {
-                return None;
-            };
-            if node.kind != SyntaxKind::Array as u8
-                || !items.is_empty()
-                || value.ty != *ty
-                || value.span != Span::new(node.file, node.start, node.end)
-                || actual.to_json()
-                    != super::js::js_field_default(default.as_ref(), None)?.to_json()
-            {
-                return None;
-            }
+            check_empty_array_default(value, *node, ty, actual, default, db)?;
         }
         _ => return None,
     }
@@ -885,6 +1110,194 @@ fn checked_rich_call_operands(
     Some(())
 }
 
+fn operand_token<'t>(
+    original: &SyntaxNode,
+    kind: SyntaxKind,
+    text: &'t str,
+) -> Option<&'t str> {
+    original
+        .children
+        .iter()
+        .find(|node| node.kind == kind)
+        .and_then(|node| node.token())
+        .map(|token| token.text(text))
+}
+
+fn operand_word<'t>(original: &SyntaxNode, text: &'t str) -> Option<&'t str> {
+    if original.kind == SyntaxKind::Name {
+        return original.token().map(|token| token.text(text));
+    }
+    let children: Vec<_> = original
+        .children
+        .iter()
+        .filter(|node| !matches!(node.kind, SyntaxKind::Trivia | SyntaxKind::Comment))
+        .collect();
+    let [name] = children.as_slice() else {
+        return None;
+    };
+    (name.kind == SyntaxKind::Name)
+        .then(|| name.token().map(|token| token.text(text)))
+        .flatten()
+}
+
+fn unwrap_operand_group<'a>(
+    actual: &TypedExpr,
+    original: &'a crate::syntax::SyntaxNode,
+    census: &[(NodeKey, ResolvedType)],
+) -> Option<&'a crate::syntax::SyntaxNode> {
+    use crate::analysis::NodeKey;
+    let mut original = original;
+    while original.kind == SyntaxKind::Group {
+        let children = rich_operand_children(original);
+        let [child] = children.as_slice() else {
+            return None;
+        };
+        if census
+            .iter()
+            .find(|(node, _)| *node == NodeKey::of(child))
+            .is_none_or(|(_, ty)| ty != &actual.ty)
+        {
+            return None;
+        }
+        original = child;
+    }
+    Some(original)
+}
+
+fn check_special_member(
+    base: &TypedExpr,
+    field: &str,
+    actual_span: Span,
+    first: &str,
+    second: &str,
+) -> bool {
+    matches!(first, "actor" | "now" | "team" | "operation")
+        && second == field
+        && matches!(&base.expr, IrExpr::Name(name) if name == "c")
+        && base.ty == ResolvedType::Unknown
+        && base.span == actual_span
+}
+
+fn check_member_operand(
+    base: &TypedExpr,
+    field: &str,
+    original: &SyntaxNode,
+    census: &[(NodeKey, ResolvedType)],
+    text: &str,
+    depth: usize,
+) -> Option<()> {
+    let children = rich_operand_children(original);
+    let [receiver] = children.as_slice() else {
+        return None;
+    };
+    let member = original
+        .children
+        .iter()
+        .rev()
+        .find(|node| node.kind == SyntaxKind::Name)?;
+    if member.token()?.text(text) != field {
+        return None;
+    }
+    checked_rich_operand(base, receiver, census, text, depth + 1)?;
+    Some(())
+}
+
+fn check_duration_operand(value: &i128, spelling: &str) -> Option<()> {
+    let mut duration = None;
+    for (unit, factor) in [
+        ("ms", 1i128),
+        ("s", 1000),
+        ("m", 60000),
+        ("h", 3600000),
+        ("d", 86400000),
+    ] {
+        if let Some(digits) = spelling.strip_suffix(unit).filter(|digits| {
+            !digits.is_empty() && digits.bytes().all(|byte| byte.is_ascii_digit())
+        }) {
+            duration = digits.parse::<i128>().ok()?.checked_mul(factor);
+            break;
+        }
+    }
+    if duration != Some(*value) {
+        return None;
+    }
+    Some(())
+}
+
+fn match_scalar_operand(
+    expr: &IrExpr,
+    original: &SyntaxNode,
+    text: &str,
+) -> Option<bool> {
+    let token = |kind| operand_token(original, kind, text);
+    Some(match expr {
+        IrExpr::Int(value) => token(SyntaxKind::Integer)?.parse::<i128>().ok()? == *value,
+        IrExpr::Decimal(value) => token(SyntaxKind::Decimal)? == value,
+        IrExpr::Text(value) => {
+            original
+                .children
+                .iter()
+                .find(|node| node.kind == SyntaxKind::String)?
+                .token()?
+                .string_value
+                .as_ref()?
+                == value
+        }
+        IrExpr::Bool(value) => {
+            token(SyntaxKind::Name)? == if *value { "true" } else { "false" }
+        }
+        IrExpr::Null => token(SyntaxKind::Name)? == "null",
+        IrExpr::DurationMs(value) => {
+            check_duration_operand(value, token(SyntaxKind::Duration)?)?;
+            true
+        }
+        _ => return None,
+    })
+}
+
+fn check_binary_operand(
+    op: &super::ir::IrBinOp,
+    left: &TypedExpr,
+    right: &TypedExpr,
+    original: &SyntaxNode,
+    census: &[(NodeKey, ResolvedType)],
+    text: &str,
+    depth: usize,
+) -> Option<()> {
+    let children = rich_operand_children(original);
+    let [source_left, source_right] = children.as_slice() else {
+        return None;
+    };
+    let operator = original
+        .children
+        .iter()
+        .find(|node| matches!(node.kind, SyntaxKind::Name | SyntaxKind::Punct))?;
+    use super::ir::IrBinOp;
+    let spelling = match op {
+        IrBinOp::Add => "+",
+        IrBinOp::Sub => "-",
+        IrBinOp::Mul => "*",
+        IrBinOp::Div => "/",
+        IrBinOp::Mod => "%",
+        IrBinOp::Eq => "==",
+        IrBinOp::Ne => "!=",
+        IrBinOp::Lt => "<",
+        IrBinOp::Le => "<=",
+        IrBinOp::Gt => ">",
+        IrBinOp::Ge => ">=",
+        IrBinOp::And => "and",
+        IrBinOp::Or => "or",
+        IrBinOp::Coalesce => "??",
+        IrBinOp::In => "in",
+    };
+    if operator.token()?.text(text) != spelling {
+        return None;
+    }
+    checked_rich_operand(left, source_left, census, text, depth + 1)?;
+    checked_rich_operand(right, source_right, census, text, depth + 1)?;
+    Some(())
+}
+
 fn checked_rich_operand(
     actual: &TypedExpr,
     original: &crate::syntax::SyntaxNode,
@@ -902,139 +1315,27 @@ fn checked_rich_operand(
     {
         return None;
     }
-    let mut original = original;
-    while original.kind == SyntaxKind::Group {
-        let children = rich_operand_children(original);
-        let [child] = children.as_slice() else {
-            return None;
-        };
-        if census
-            .iter()
-            .find(|(node, _)| *node == NodeKey::of(child))
-            .is_none_or(|(_, ty)| ty != &actual.ty)
-        {
-            return None;
-        }
-        original = child;
-    }
-    let token = |kind| {
-        original
-            .children
-            .iter()
-            .find(|node| node.kind == kind)
-            .and_then(|node| node.token())
-            .map(|token| token.text(text))
-    };
-    let word = || {
-        if original.kind == SyntaxKind::Name {
-            return original.token().map(|token| token.text(text));
-        }
-        let children: Vec<_> = original
-            .children
-            .iter()
-            .filter(|node| !matches!(node.kind, SyntaxKind::Trivia | SyntaxKind::Comment))
-            .collect();
-        let [name] = children.as_slice() else {
-            return None;
-        };
-        (name.kind == SyntaxKind::Name)
-            .then(|| name.token().map(|token| token.text(text)))
-            .flatten()
-    };
+    let original = unwrap_operand_group(actual, original, census)?;
     let matched = match (&actual.expr, original.kind) {
-        (IrExpr::Name(name), SyntaxKind::NameRef | SyntaxKind::Name) => word()? == name,
+        (IrExpr::Name(name), SyntaxKind::NameRef | SyntaxKind::Name) => {
+            operand_word(original, text)? == name
+        }
         (IrExpr::Member { base, field }, SyntaxKind::NameRef | SyntaxKind::Name) => {
-            matches!(word()?, "actor" | "now" | "team" | "operation")
-                && word()? == field
-                && matches!(&base.expr, IrExpr::Name(name) if name == "c")
-                && base.ty == ResolvedType::Unknown
-                && base.span == actual.span
+            check_special_member(
+                base,
+                field,
+                actual.span,
+                operand_word(original, text)?,
+                operand_word(original, text)?,
+            )
         }
         (IrExpr::Member { base, field }, SyntaxKind::Member) => {
-            let children = rich_operand_children(original);
-            let [receiver] = children.as_slice() else {
-                return None;
-            };
-            let member = original
-                .children
-                .iter()
-                .rev()
-                .find(|node| node.kind == SyntaxKind::Name)?;
-            if member.token()?.text(text) != field {
-                return None;
-            }
-            checked_rich_operand(base, receiver, census, text, depth + 1)?;
+            check_member_operand(base, field, original, census, text, depth)?;
             true
         }
-        (IrExpr::Int(value), SyntaxKind::Literal) => {
-            token(SyntaxKind::Integer)?.parse::<i128>().ok()? == *value
-        }
-        (IrExpr::Decimal(value), SyntaxKind::Literal) => token(SyntaxKind::Decimal)? == value,
-        (IrExpr::Text(value), SyntaxKind::Literal) => {
-            original
-                .children
-                .iter()
-                .find(|node| node.kind == SyntaxKind::String)?
-                .token()?
-                .string_value
-                .as_ref()?
-                == value
-        }
-        (IrExpr::Bool(value), SyntaxKind::Literal) => {
-            token(SyntaxKind::Name)? == if *value { "true" } else { "false" }
-        }
-        (IrExpr::Null, SyntaxKind::Literal) => token(SyntaxKind::Name)? == "null",
-        (IrExpr::DurationMs(value), SyntaxKind::Literal) => {
-            let spelling = token(SyntaxKind::Duration)?;
-            let mut duration = None;
-            for (unit, factor) in [
-                ("ms", 1i128),
-                ("s", 1000),
-                ("m", 60000),
-                ("h", 3600000),
-                ("d", 86400000),
-            ] {
-                if let Some(digits) = spelling.strip_suffix(unit).filter(|digits| {
-                    !digits.is_empty() && digits.bytes().all(|byte| byte.is_ascii_digit())
-                }) {
-                    duration = digits.parse::<i128>().ok()?.checked_mul(factor);
-                    break;
-                }
-            }
-            duration == Some(*value)
-        }
+        (literal, SyntaxKind::Literal) => match_scalar_operand(literal, original, text)?,
         (IrExpr::Binary { op, left, right }, SyntaxKind::Binary) => {
-            let children = rich_operand_children(original);
-            let [source_left, source_right] = children.as_slice() else {
-                return None;
-            };
-            let operator = original
-                .children
-                .iter()
-                .find(|node| matches!(node.kind, SyntaxKind::Name | SyntaxKind::Punct))?;
-            use super::ir::IrBinOp;
-            let spelling = match op {
-                IrBinOp::Add => "+",
-                IrBinOp::Sub => "-",
-                IrBinOp::Mul => "*",
-                IrBinOp::Div => "/",
-                IrBinOp::Mod => "%",
-                IrBinOp::Eq => "==",
-                IrBinOp::Ne => "!=",
-                IrBinOp::Lt => "<",
-                IrBinOp::Le => "<=",
-                IrBinOp::Gt => ">",
-                IrBinOp::Ge => ">=",
-                IrBinOp::And => "and",
-                IrBinOp::Or => "or",
-                IrBinOp::Coalesce => "??",
-                IrBinOp::In => "in",
-            };
-            if operator.token()?.text(text) != spelling {
-                return None;
-            }
-            checked_rich_operand(left, source_left, census, text, depth + 1)?;
-            checked_rich_operand(right, source_right, census, text, depth + 1)?;
+            check_binary_operand(op, left, right, original, census, text, depth)?;
             true
         }
         _ => false,
@@ -1064,20 +1365,22 @@ fn rich_operand_children(node: &crate::syntax::SyntaxNode) -> Vec<&crate::syntax
 /// Fully supplied child inputs retain their original literal-empty default.
 /// Only the parent recipe's original whole stored File array supplies them;
 /// this carrier does not create observations or admit arbitrary File values.
-fn explicit_stored_file_input(
-    ir: &IrProgram,
-    declarations: (&IrItem, &IrItem, &IrItem),
+fn check_file_input_operand<'a, 'b>(
+    ir: &'a IrProgram,
+    owner: &IrItem,
+    child: &IrItem,
+    parameter: &IrItem,
     value: &TypedExpr,
     input: &JsOperationField,
-    operations: &[JsOperation],
-    native: (
-        &str,
-        Option<&super::scenario_feasibility::PreparedRequireReturns<'_>>,
-    ),
+    operations: &'b [JsOperation],
     db: &SourceDb,
-) -> Option<String> {
-    let (owner, child, parameter) = declarations;
-    let (entry, feasibility) = native;
+) -> Option<(
+    &'a IrItem,
+    &'b JsOperationField,
+    SymbolId,
+    bool,
+    &'a crate::analysis::scenario_disclosure::CheckedStoredContractField,
+)> {
     explicit_file_array_declaration(ir, child, parameter, input, db)?;
     let original = super::scenario_receipts::stored_file_array_operand(ir, owner, value, db)?;
     if !ordinary_file_array(&value.ty)
@@ -1125,10 +1428,96 @@ fn explicit_stored_file_input(
     {
         return None;
     }
+    Some((parent, parent_input, model, nullable, original))
+}
+
+fn return_dependency_mismatch(
+    read: &crate::analysis::scenario_disclosure::DisclosureDependency,
+    declaration: &IrItem,
+    source: &crate::analysis::scenario_disclosure::CheckedScenarioSource,
+    original: &crate::analysis::scenario_disclosure::CheckedStoredContractField,
+    value: &TypedExpr,
+    dependency_id: &Option<String>,
+) -> bool {
+    read.id.is_empty()
+        || read.source != source.source
+        || read.node.kind != SyntaxKind::Member as u8
+        || read.role != DependencyRole::Data
+        || read.model != original.owner
+        || read.model_name != declaration.canonical
+        || read.field != original.id
+        || read.field_name != original.name
+        || read.ty != value.ty
+        || read.type_id != "file[]"
+        || dependency_id.as_ref().is_some_and(|id| id != &read.id)
+}
+
+fn match_return_dependency(
+    ir: &IrProgram,
+    returned: &crate::analysis::scenario_disclosure::DisclosureReturn,
+    returns: &[serde_json::Value],
+    value: &TypedExpr,
+    original: &crate::analysis::scenario_disclosure::CheckedStoredContractField,
+    source: &crate::analysis::scenario_disclosure::CheckedScenarioSource,
+    entry: &str,
+    dependency_id: &mut Option<String>,
+) -> Option<()> {
+    let mut dependencies = returned.dependencies.iter().filter(|read| {
+        read.node.file == value.span.file
+            && read.node.start == value.span.start
+            && read.node.end == value.span.end
+            && read.calls.is_empty()
+    });
+    let Some(read) = dependencies.next() else {
+        return Some(());
+    };
+    let declaration = ir.items.get(original.owner.0 as usize)?;
+    if dependencies.next().is_some()
+        || return_dependency_mismatch(read, declaration, source, original, value, dependency_id)
+    {
+        return None;
+    }
+    let mut published_returns = returns.iter().filter(|actual| actual["id"] == returned.id);
+    let actual = published_returns.next()?;
+    if published_returns.next().is_some() {
+        return None;
+    }
+    let mut published_dependencies = actual["dependencies"]
+        .as_array()?
+        .iter()
+        .filter(|dependency| dependency["id"] == read.id);
+    let actual = published_dependencies.next()?;
+    let expected = serde_json::json!({"id":read.id,"source":{
+        "path":read.source.path,"sha256":read.source.sha256,"module":entry},
+        "role":"data","model":read.model_name,"field":read.field_name,"type":"file[]"});
+    if published_dependencies.next().is_some() || actual != &expected {
+        return None;
+    }
+    *dependency_id = Some(read.id.clone());
+    Some(())
+}
+
+fn explicit_stored_file_input(
+    ir: &IrProgram,
+    declarations: (&IrItem, &IrItem, &IrItem),
+    value: &TypedExpr,
+    input: &JsOperationField,
+    operations: &[JsOperation],
+    native: (
+        &str,
+        Option<&super::scenario_feasibility::PreparedRequireReturns<'_>>,
+    ),
+    db: &SourceDb,
+) -> Option<String> {
+    let (owner, child, parameter) = declarations;
+    let (entry, feasibility) = native;
+    let (_parent, _parent_input, _model, _nullable, original) =
+        check_file_input_operand(ir, owner, child, parameter, value, input, operations, db)?;
     let ScenarioDisclosure::Complete(checked) = ir.scenario_disclosures.get(&owner.id)? else {
         return None;
     };
     let source = checked_source(ir, owner, db)?;
+    let parent_descriptor = operations.iter().find(|operation| operation.name == owner.canonical)?;
     let published = parent_descriptor.disclosure.as_ref()?;
     if published["version"] != 1
         || published["source"]["path"] != source.source.path
@@ -1147,66 +1536,23 @@ fn explicit_stored_file_input(
     let returns = published["returns"].as_array()?;
     let mut dependency_id = None;
     for returned in paths {
-        let mut dependencies = returned.dependencies.iter().filter(|read| {
-            read.node.file == value.span.file
-                && read.node.start == value.span.start
-                && read.node.end == value.span.end
-                && read.calls.is_empty()
-        });
-        let Some(read) = dependencies.next() else {
-            continue;
-        };
-        let declaration = ir.items.get(original.owner.0 as usize)?;
-        if dependencies.next().is_some()
-            || read.id.is_empty()
-            || read.source != source.source
-            || read.node.kind != SyntaxKind::Member as u8
-            || read.role != DependencyRole::Data
-            || read.model != original.owner
-            || read.model_name != declaration.canonical
-            || read.field != original.id
-            || read.field_name != original.name
-            || read.ty != value.ty
-            || read.type_id != "file[]"
-            || dependency_id.as_ref().is_some_and(|id| id != &read.id)
-        {
-            return None;
-        }
-        let mut published_returns = returns.iter().filter(|actual| actual["id"] == returned.id);
-        let actual = published_returns.next()?;
-        if published_returns.next().is_some() {
-            return None;
-        }
-        let mut published_dependencies = actual["dependencies"]
-            .as_array()?
-            .iter()
-            .filter(|dependency| dependency["id"] == read.id);
-        let actual = published_dependencies.next()?;
-        let expected = serde_json::json!({"id":read.id,"source":{
-            "path":read.source.path,"sha256":read.source.sha256,"module":entry},
-            "role":"data","model":read.model_name,"field":read.field_name,"type":"file[]"});
-        if published_dependencies.next().is_some() || actual != &expected {
-            return None;
-        }
-        dependency_id = Some(read.id.clone());
+        match_return_dependency(
+            ir,
+            returned,
+            returns,
+            value,
+            original,
+            source,
+            entry,
+            &mut dependency_id,
+        )?;
     }
     dependency_id
 }
 
-fn explicit_file_array_declaration(
-    ir: &IrProgram,
-    owner: &IrItem,
+fn file_array_param_shape(
     parameter: &IrItem,
-    input: &JsOperationField,
-    db: &SourceDb,
-) -> Option<()> {
-    use crate::analysis::NodeKey;
-    let source = checked_source(ir, owner, db)?;
-    let (position, fact) = source
-        .parameters
-        .iter()
-        .enumerate()
-        .find(|(_, fact)| fact.parameter == parameter.id)?;
+) -> Option<(SymbolId, usize, &ResolvedType, &TypedExpr, &NodeKey)> {
     let IrItemKind::Param {
         owner: parent,
         index,
@@ -1220,25 +1566,47 @@ fn explicit_file_array_declaration(
     else {
         return None;
     };
-    if *parent != owner.id
-        || *index != position
-        || parameter.id != fact.parameter
-        || parameter.module != owner.module
-        || parameter.canonical != format!("{}.{}", owner.canonical, parameter.name)
-        || !ordinary_file_array(ty)
-        || value.ty != *ty
-        || !matches!(&value.expr, IrExpr::Array(values) if values.is_empty())
-        || node.kind != SyntaxKind::Array as u8
-        || value.span != Span::new(node.file, node.start, node.end)
-        || fact.constraints.is_some()
-        || ir.value_constraints.contains_key(&parameter.id)
-        || source
-            .expression_types
-            .as_deref()?
-            .iter()
-            .find(|(at, _)| at == node)
-            .is_none_or(|(_, ty)| ty != &value.ty)
-        || input.name != parameter.name
+    Some((*parent, *index, ty, value, node))
+}
+
+fn file_array_param_mismatch(
+    ir: &IrProgram,
+    owner: &IrItem,
+    parameter: &IrItem,
+    fact: &CheckedScenarioParameter,
+    source: &crate::analysis::scenario_disclosure::CheckedScenarioSource,
+    parent: SymbolId,
+    index: usize,
+    position: usize,
+    ty: &ResolvedType,
+    value: &TypedExpr,
+    node: &NodeKey,
+) -> Option<bool> {
+    let expression_ok = source
+        .expression_types
+        .as_deref()?
+        .iter()
+        .find(|(at, _)| at == node)
+        .is_none_or(|(_, ty)| ty != &value.ty);
+    Some(
+        parent != owner.id
+            || index != position
+            || parameter.id != fact.parameter
+            || parameter.module != owner.module
+            || parameter.canonical != format!("{}.{}", owner.canonical, parameter.name)
+            || !ordinary_file_array(ty)
+            || value.ty != *ty
+            || !matches!(&value.expr, IrExpr::Array(values) if values.is_empty())
+            || node.kind != SyntaxKind::Array as u8
+            || value.span != Span::new(node.file, node.start, node.end)
+            || fact.constraints.is_some()
+            || ir.value_constraints.contains_key(&parameter.id)
+            || !expression_ok,
+    )
+}
+
+fn file_array_input_mismatch(input: &JsOperationField, parameter: &IrItem) -> bool {
+    input.name != parameter.name
         || input.required
         || input.nullable
         || input.array_required != Some(false)
@@ -1247,7 +1615,11 @@ fn explicit_file_array_declaration(
         || input.min.is_some()
         || input.max.is_some()
         || input.computed_default
-        || input.default.as_ref()?.to_json()
+}
+
+fn file_array_default_mismatch(parameter: &IrItem, input: &JsOperationField) -> Option<bool> {
+    Some(
+        input.default.as_ref()?.to_json()
             != super::js::js_field_default(
                 match &parameter.kind {
                     IrItemKind::Param { default, .. } => default.as_ref(),
@@ -1255,10 +1627,35 @@ fn explicit_file_array_declaration(
                 },
                 None,
             )?
-            .to_json()
-    {
-        return None;
-    }
+            .to_json(),
+    )
+}
+
+fn file_param_syntax_mismatch(
+    declaration: &crate::syntax::SyntaxNode,
+    name: &crate::syntax::SyntaxNode,
+    array_type: &crate::syntax::SyntaxNode,
+    scalar: &crate::syntax::SyntaxNode,
+    open: &crate::syntax::SyntaxNode,
+    close: &crate::syntax::SyntaxNode,
+    parameter: &IrItem,
+    fact: &CheckedScenarioParameter,
+    text: &str,
+) -> bool {
+    declaration.kind != SyntaxKind::Parameter
+        || name.span != parameter.span
+        || name.token().is_none_or(|token| token.text(text) != parameter.name)
+        || NodeKey::of(array_type) != fact.type_node
+        || scalar.kind != SyntaxKind::Name
+        || scalar.token().is_none_or(|token| token.text(text) != "file")
+        || open.token().is_none_or(|token| token.text(text) != "[")
+        || close.token().is_none_or(|token| token.text(text) != "]")
+}
+
+fn parse_scenario_tree<'d>(
+    db: &'d SourceDb,
+    source: &crate::analysis::scenario_disclosure::CheckedScenarioSource,
+) -> Option<(&'d str, crate::syntax::SyntaxNode)> {
     let text = &db.get(source.node.file)?.text;
     let (tree, diagnostics) = crate::syntax::parse_source(source.node.file, text);
     if diagnostics
@@ -1267,7 +1664,18 @@ fn explicit_file_array_declaration(
     {
         return None;
     }
-    let mut pending = vec![&tree];
+    Some((text, tree))
+}
+
+fn find_param_syntax_nodes<'t>(
+    tree: &'t crate::syntax::SyntaxNode,
+    fact_node: &NodeKey,
+    default_node: &NodeKey,
+) -> Option<(
+    &'t crate::syntax::SyntaxNode,
+    &'t crate::syntax::SyntaxNode,
+)> {
+    let mut pending = vec![tree];
     let mut declaration = None;
     let mut default = None;
     let mut steps = 0;
@@ -1276,15 +1684,27 @@ fn explicit_file_array_declaration(
         if steps > 200000 {
             return None;
         }
-        if NodeKey::of(part) == fact.node {
+        if NodeKey::of(part) == *fact_node {
             declaration = Some(part);
         }
-        if NodeKey::of(part) == *node {
+        if NodeKey::of(part) == *default_node {
             default = Some(part);
         }
         pending.extend(part.children.iter());
     }
-    let declaration = declaration?;
+    Some((declaration?, default?))
+}
+
+fn file_param_syntax_parts<'t>(
+    declaration: &'t crate::syntax::SyntaxNode,
+    default: &'t crate::syntax::SyntaxNode,
+) -> Option<(
+    &'t crate::syntax::SyntaxNode,
+    &'t crate::syntax::SyntaxNode,
+    &'t crate::syntax::SyntaxNode,
+    &'t crate::syntax::SyntaxNode,
+    &'t crate::syntax::SyntaxNode,
+)> {
     let name = declaration
         .children
         .iter()
@@ -1309,7 +1729,6 @@ fn explicit_file_array_declaration(
     let [scalar] = parts.as_slice() else {
         return None;
     };
-    let default = default?;
     let parts: Vec<_> = default
         .children
         .iter()
@@ -1318,15 +1737,46 @@ fn explicit_file_array_declaration(
     let [open, close] = parts.as_slice() else {
         return None;
     };
-    if declaration.kind != SyntaxKind::Parameter
-        || name.span != parameter.span
-        || name.token()?.text(text) != parameter.name
-        || NodeKey::of(array_type) != fact.type_node
-        || scalar.kind != SyntaxKind::Name
-        || scalar.token()?.text(text) != "file"
-        || open.token()?.text(text) != "["
-        || close.token()?.text(text) != "]"
+    Some((name, array_type, scalar, open, close))
+}
+
+fn explicit_file_array_declaration(
+    ir: &IrProgram,
+    owner: &IrItem,
+    parameter: &IrItem,
+    input: &JsOperationField,
+    db: &SourceDb,
+) -> Option<()> {
+    let source = checked_source(ir, owner, db)?;
+    let (position, fact) = source
+        .parameters
+        .iter()
+        .enumerate()
+        .find(|(_, fact)| fact.parameter == parameter.id)?;
+    let (parent, index, ty, value, node) = file_array_param_shape(parameter)?;
+    if file_array_param_mismatch(
+        ir, owner, parameter, fact, source, parent, index, position, ty, value, node,
+    )? || file_array_input_mismatch(input, parameter)
     {
+        return None;
+    }
+    if file_array_default_mismatch(parameter, input)? {
+        return None;
+    }
+    let (text, tree) = parse_scenario_tree(db, source)?;
+    let (declaration, default) = find_param_syntax_nodes(&tree, &fact.node, node)?;
+    let (name, array_type, scalar, open, close) = file_param_syntax_parts(declaration, default)?;
+    if file_param_syntax_mismatch(
+        declaration,
+        name,
+        array_type,
+        scalar,
+        open,
+        close,
+        parameter,
+        fact,
+        text,
+    ) {
         return None;
     }
     Some(())
@@ -1398,19 +1848,16 @@ fn explicit_reference_input(
     preceding_created_reference(ir, owner, model, name, call, db).map(Some)
 }
 
-fn explicit_reference_declaration(
-    ir: &IrProgram,
-    owner: &IrItem,
+fn reference_param_shape(
     parameter: &IrItem,
-    input: &JsOperationField,
-    db: &SourceDb,
-) -> Option<(SymbolId, bool)> {
-    let source = checked_source(ir, owner, db)?;
-    let (position, fact) = source
-        .parameters
-        .iter()
-        .enumerate()
-        .find(|(_, fact)| fact.parameter == parameter.id)?;
+) -> Option<(
+    SymbolId,
+    usize,
+    SymbolId,
+    bool,
+    &Option<IrDefault>,
+    &Option<NodeKey>,
+)> {
     let IrItemKind::Param {
         owner: parent,
         index,
@@ -1434,19 +1881,42 @@ fn explicit_reference_declaration(
     else {
         return None;
     };
-    let model = ir.items.get(symbol.0 as usize)?;
-    let module = ir.modules.get(model.module.0 as usize)?;
-    if *parent != owner.id
-        || *index != position
+    Some((*parent, *index, *symbol, nullable, default, default_node))
+}
+
+fn reference_owner_mismatch(
+    ir: &IrProgram,
+    owner: &IrItem,
+    parameter: &IrItem,
+    model: &IrItem,
+    fact: &CheckedScenarioParameter,
+    parent: SymbolId,
+    index: usize,
+    position: usize,
+    symbol: SymbolId,
+) -> bool {
+    parent != owner.id
+        || index != position
         || parameter.id != fact.parameter
         || parameter.module != owner.module
         || parameter.canonical != format!("{}.{}", owner.canonical, parameter.name)
-        || model.id != *symbol
+        || model.id != symbol
         || !matches!(model.kind, IrItemKind::Model { .. })
-        || model.canonical != format!("{}.{}", module.name, model.name)
         || fact.constraints.is_some()
         || ir.value_constraints.contains_key(&parameter.id)
-        || input.name != parameter.name
+        || ir.modules.get(model.module.0 as usize).is_none_or(|module| {
+            model.canonical != format!("{}.{}", module.name, model.name)
+        })
+}
+
+fn reference_input_mismatch(
+    input: &JsOperationField,
+    parameter: &IrItem,
+    model: &IrItem,
+    nullable: bool,
+    db: &SourceDb,
+) -> bool {
+    input.name != parameter.name
         || input.nullable != nullable
         || input.required == nullable
         || input.array_required.is_some()
@@ -1456,16 +1926,104 @@ fn explicit_reference_declaration(
         || input.computed_default
         || !matches!(&input.field, JsMcpField::Ref {model: name, require_version: true}
             if name == &model.canonical)
+        || db.get(parameter.span.file).is_none_or(|file| {
+            file.text
+                .get(parameter.span.start as usize..parameter.span.end as usize)
+                != Some(parameter.name.as_str())
+        })
+        || db.get(model.span.file).is_none_or(|file| {
+            file.text
+                .get(model.span.start as usize..model.span.end as usize)
+                != Some(model.name.as_str())
+        })
+}
+
+fn reference_import_ok(
+    ir: &IrProgram,
+    owner: &IrItem,
+    model: &IrItem,
+    module_name: &str,
+    spelling: &str,
+    db: &SourceDb,
+) -> Option<()> {
+    if model.module == owner.module {
+        if spelling != model.name {
+            return None;
+        }
+        return Some(());
+    }
+    let owner_module = ir.modules.get(owner.module.0 as usize)?;
+    let mut imports = owner_module
+        .imports
+        .iter()
+        .filter(|import| {
+            import.provider == module_name
+                && import.from.is_none()
+                && db.get(import.provider_span.file).and_then(|file| {
+                    file.text.get(
+                        import.provider_span.start as usize..import.provider_span.end as usize,
+                    )
+                }) == Some(module_name)
+        })
+        .flat_map(|import| import.members.iter())
+        .filter(|(name, alias, _)| name == &model.name && alias == name && alias == spelling);
+    let (_, _, at) = imports.next()?;
+    if imports.next().is_some()
         || db
-            .get(parameter.span.file)?
+            .get(at.file)?
             .text
-            .get(parameter.span.start as usize..parameter.span.end as usize)?
-            != parameter.name
-        || db
-            .get(model.span.file)?
-            .text
-            .get(model.span.start as usize..model.span.end as usize)?
-            != model.name
+            .get(at.start as usize..at.end as usize)?
+            != spelling
+    {
+        return None;
+    }
+    Some(())
+}
+
+fn check_reference_default(
+    nullable: bool,
+    default: &Option<IrDefault>,
+    default_node: &Option<NodeKey>,
+    input_default: Option<&JsFieldDefault>,
+    db: &SourceDb,
+) -> Option<()> {
+    match (nullable, default, default_node, input_default) {
+        (false, None, None, None) => Some(()),
+        (true, Some(IrDefault::Literal(value)), Some(node), Some(actual))
+            if matches!(value.expr, IrExpr::Null)
+                && value.ty == ResolvedType::Null
+                && node.kind == SyntaxKind::Literal as u8
+                && value.span == Span::new(node.file, node.start, node.end)
+                && db
+                    .get(node.file)?
+                    .text
+                    .get(node.start as usize..node.end as usize)?
+                    == "null"
+                && actual.to_json()
+                    == super::js::js_field_default(default.as_ref(), None)?.to_json() => Some(()),
+        _ => None,
+    }
+}
+
+fn explicit_reference_declaration(
+    ir: &IrProgram,
+    owner: &IrItem,
+    parameter: &IrItem,
+    input: &JsOperationField,
+    db: &SourceDb,
+) -> Option<(SymbolId, bool)> {
+    let source = checked_source(ir, owner, db)?;
+    let (position, fact) = source
+        .parameters
+        .iter()
+        .enumerate()
+        .find(|(_, fact)| fact.parameter == parameter.id)?;
+    let (parent, index, symbol, nullable, default, default_node) =
+        reference_param_shape(parameter)?;
+    let model = ir.items.get(symbol.0 as usize)?;
+    if reference_owner_mismatch(
+        ir, owner, parameter, model, fact, parent, index, position, symbol,
+    ) || reference_input_mismatch(input, parameter, model, nullable, db)
     {
         return None;
     }
@@ -1478,70 +2036,19 @@ fn explicit_reference_declaration(
     } else {
         declared
     };
-    if model.module == owner.module {
-        if spelling != model.name {
-            return None;
-        }
-    } else {
-        let owner_module = ir.modules.get(owner.module.0 as usize)?;
-        let mut imports = owner_module
-            .imports
-            .iter()
-            .filter(|import| {
-                import.provider == module.name
-                    && import.from.is_none()
-                    && db.get(import.provider_span.file).and_then(|file| {
-                        file.text.get(
-                            import.provider_span.start as usize..import.provider_span.end as usize,
-                        )
-                    }) == Some(module.name.as_str())
-            })
-            .flat_map(|import| import.members.iter())
-            .filter(|(name, alias, _)| name == &model.name && alias == name && alias == spelling);
-        let (_, _, at) = imports.next()?;
-        if imports.next().is_some()
-            || db
-                .get(at.file)?
-                .text
-                .get(at.start as usize..at.end as usize)?
-                != spelling
-        {
-            return None;
-        }
-    }
-    match (nullable, default, default_node, &input.default) {
-        (false, None, None, None) => {}
-        (true, Some(IrDefault::Literal(value)), Some(node), Some(actual))
-            if matches!(value.expr, IrExpr::Null)
-                && value.ty == ResolvedType::Null
-                && node.kind == SyntaxKind::Literal as u8
-                && value.span == Span::new(node.file, node.start, node.end)
-                && db
-                    .get(node.file)?
-                    .text
-                    .get(node.start as usize..node.end as usize)?
-                    == "null"
-                && actual.to_json()
-                    == super::js::js_field_default(default.as_ref(), None)?.to_json() => {}
-        _ => return None,
-    }
-    Some((*symbol, nullable))
+    let module_name = ir
+        .modules
+        .get(model.module.0 as usize)
+        .map(|module| module.name.as_str())?;
+    reference_import_ok(ir, owner, model, module_name, spelling, db)?;
+    check_reference_default(nullable, default, default_node, input.default.as_ref(), db)?;
+    Some((symbol, nullable))
 }
 
 /// The finite original caller uses the Create immediately before CALL. Seal
 /// that actual statement and every input instead of admitting copied names or
 /// a row-shaped value merely because its checked type names the same model.
-fn preceding_created_reference(
-    ir: &IrProgram,
-    owner: &IrItem,
-    model: SymbolId,
-    name: &str,
-    call: Span,
-    db: &SourceDb,
-) -> Option<Span> {
-    let IrItemKind::Scenario { effects, .. } = &owner.kind else {
-        return None;
-    };
+fn preceding_create_statement(effects: &[IrStmt], call: Span) -> Option<&IrStmt> {
     let mut calls = effects
         .iter()
         .enumerate()
@@ -1550,27 +2057,36 @@ fn preceding_created_reference(
     if calls.next().is_some() {
         return None;
     }
-    let IrStmt::Create {
-        model: target,
-        input,
-        when: None,
-        binding: Some(binding),
-        span,
-    } = effects.get(position.checked_sub(1)?)?
-    else {
+    let statement = effects.get(position.checked_sub(1)?)?;
+    if !matches!(
+        statement,
+        IrStmt::Create {
+            when: None,
+            binding: Some(_),
+            ..
+        }
+    ) {
         return None;
-    };
-    let source = checked_source(ir, owner, db)?;
-    let ScenarioDisclosure::Complete(checked) = ir.scenario_disclosures.get(&owner.id)? else {
-        return None;
-    };
+    }
+    Some(statement)
+}
+
+fn find_create_origin<'a>(
+    source: &'a crate::analysis::scenario_disclosure::CheckedScenarioSource,
+    span: Span,
+    model: SymbolId,
+    name: &str,
+    target: &String,
+    declaration: &IrItem,
+    binding: &String,
+    call: Span,
+) -> Option<&'a crate::analysis::scenario_disclosure::CheckedScenarioCreate> {
     let mut originals = source.creates.as_deref()?.iter().filter(|original| {
         original.node.file == span.file
             && original.node.start == span.start
             && original.node.end == span.end
     });
     let original = originals.next()?;
-    let declaration = ir.items.get(model.0 as usize)?;
     if originals.next().is_some()
         || binding != name
         || original.binding != name
@@ -1584,6 +2100,15 @@ fn preceding_created_reference(
     {
         return None;
     }
+    Some(original)
+}
+
+fn match_create_proof(
+    checked: &crate::analysis::scenario_disclosure::CheckedScenarioDisclosure,
+    original: &crate::analysis::scenario_disclosure::CheckedScenarioCreate,
+    model: SymbolId,
+    name: &str,
+) -> Option<()> {
     let mut proofs = checked
         .effects
         .iter()
@@ -1596,6 +2121,15 @@ fn preceding_created_reference(
     {
         return None;
     }
+    Some(())
+}
+
+fn check_create_inputs(
+    ir: &IrProgram,
+    original: &crate::analysis::scenario_disclosure::CheckedScenarioCreate,
+    input: &TypedExpr,
+    db: &SourceDb,
+) -> Option<()> {
     let IrExpr::Object(entries) = &input.expr else {
         return None;
     };
@@ -1622,7 +2156,832 @@ fn preceding_created_reference(
             db,
         )?;
     }
+    Some(())
+}
+
+fn preceding_created_reference(
+    ir: &IrProgram,
+    owner: &IrItem,
+    model: SymbolId,
+    name: &str,
+    call: Span,
+    db: &SourceDb,
+) -> Option<Span> {
+    let IrItemKind::Scenario { effects, .. } = &owner.kind else {
+        return None;
+    };
+    let statement = preceding_create_statement(effects, call)?;
+    let IrStmt::Create {
+        model: target,
+        input,
+        when: None,
+        binding: Some(binding),
+        span,
+    } = statement
+    else {
+        return None;
+    };
+    let source = checked_source(ir, owner, db)?;
+    let ScenarioDisclosure::Complete(checked) = ir.scenario_disclosures.get(&owner.id)? else {
+        return None;
+    };
+    let declaration = ir.items.get(model.0 as usize)?;
+    let original = find_create_origin(
+        source,
+        *span,
+        model,
+        name,
+        target,
+        declaration,
+        binding,
+        call,
+    )?;
+    match_create_proof(checked, original, model, name)?;
+    check_create_inputs(ir, original, input, db)?;
     Some(*span)
+}
+
+fn lower_call_site(
+    ir: &IrProgram,
+    owner: &IrItem,
+    operations: &[JsOperation],
+    db: &SourceDb,
+    entry: &str,
+    feasibility: Option<&super::scenario_feasibility::PreparedRequireReturns<'_>>,
+    source_calls: &[ScenarioSourceCall],
+    checked: &crate::analysis::scenario_disclosure::CheckedScenarioDisclosure,
+    origin: &CallSource,
+    module: &super::ir::IrModule,
+    text_len: usize,
+    stmt: &IrStmt,
+    sites: &mut Vec<StaticScenarioCall>,
+    matched: &mut HashSet<NodeKey>,
+    supplied: &mut HashSet<Span>,
+) -> Option<()> {
+    let IrStmt::Call {
+        target:
+            IrEffectCallTarget::Operation {
+                source: target_source,
+                operation,
+            },
+        inputs,
+        binding,
+        result,
+        span,
+    } = stmt
+    else {
+        return None;
+    };
+    check_call_span(sites.len(), module, text_len, span, target_source)?;
+    let child = join_call_child(ir, operation, result)?;
+    let IrItemKind::Scenario {
+        params,
+        result: declared,
+        trusted: false,
+        read: child_read,
+        hook: None,
+        event_source: None,
+        cohort: None,
+        expose_excluded: false,
+        ..
+    } = &child.kind
+    else {
+        return None;
+    };
+    let (model_result, query, descriptor) =
+        join_call_descriptor(ir, child, *child_read, binding, operations, db)?;
+    let result_fact = check_call_result(ir, child, declared, model_result, binding, query, descriptor)?;
+    check_call_disclosure(ir, child, operation, descriptor, query, feasibility, entry)?;
+    let entries = match_call_proof(checked, inputs, span, operation, matched)?;
+    let source_call = check_call_arity(
+        ir,
+        source_calls,
+        sites.len(),
+        span,
+        operation,
+        binding,
+        result,
+        entries,
+        params,
+        descriptor,
+    )?;
+    if query.is_none() {
+        check_rich_operands(ir, owner, entries, *span, params, db)?;
+    }
+    let mut keys = HashSet::new();
+    let mut authored = Vec::new();
+    let mut file_inputs = Vec::new();
+    for ((name, value), fact) in entries.iter().zip(&source_call.inputs) {
+        let (param, ty, input) = join_input_param(
+            ir, child, params, descriptor, &mut keys, name, value, fact, span, module,
+        )?;
+        dispatch_call_input(
+            ir,
+            owner,
+            child,
+            param,
+            ty,
+            value,
+            name,
+            input,
+            operations,
+            *span,
+            entry,
+            feasibility,
+            db,
+            query,
+            &mut file_inputs,
+            supplied,
+        )?;
+        authored.push(CallInput {
+            name: name.clone(),
+            source: value.span,
+            ty: value.ty.clone(),
+        });
+    }
+    let encoded = serde_json::to_string(&(
+        "static-scenario-call-v1",
+        &owner.canonical,
+        &origin.path,
+        &origin.sha256,
+        &origin.module,
+        span.start,
+        span.end,
+    ))
+    .ok()?;
+    sites.push(StaticScenarioCall {
+        id: format!("call_{}", sha256_hex(encoded.as_bytes())),
+        source: origin.clone(),
+        span: *span,
+        parent: owner.canonical.clone(),
+        target: child.canonical.clone(),
+        operation: *operation,
+        interface: descriptor.clone(),
+        result: result_fact,
+        binding: binding.clone(),
+        inputs: authored,
+        file_inputs,
+    });
+    Some(())
+}
+
+fn push_branch_statements<'e>(
+    stmt: &'e IrStmt,
+    depth: usize,
+    pending: &mut Vec<(&'e IrStmt, usize)>,
+) -> Option<()> {
+    match stmt {
+        IrStmt::If {
+            then_branch,
+            else_branch,
+            ..
+        } => {
+            for next in then_branch.iter().chain(else_branch).rev() {
+                pending.push((next, depth + 1));
+            }
+        }
+        IrStmt::Match { arms, .. } => {
+            for arm in arms.iter().rev() {
+                for next in arm.body.iter().rev() {
+                    pending.push((next, depth + 1));
+                }
+            }
+        }
+        _ => return None,
+    }
+    Some(())
+}
+
+fn drive_proven_effect<'e>(
+    ir: &IrProgram,
+    owner: &IrItem,
+    stmt: &'e IrStmt,
+    depth: usize,
+    pending: &mut Vec<(&'e IrStmt, usize)>,
+) -> Option<()> {
+    match stmt {
+        IrStmt::Emit { span, .. }
+        | IrStmt::Schedule { span, .. }
+        | IrStmt::Cancel { span, .. } => {
+            check_proven_effect(ir, owner, span)?;
+        }
+        IrStmt::For { body, span, .. } => {
+            push_proven_for(ir, owner, span, body, depth, pending)?;
+        }
+        _ => return None,
+    }
+    Some(())
+}
+
+fn drive_owner_statement<'e>(
+    ir: &IrProgram,
+    owner: &IrItem,
+    operations: &[JsOperation],
+    db: &SourceDb,
+    entry: &str,
+    is_child: bool,
+    feasibility: Option<&super::scenario_feasibility::PreparedRequireReturns<'_>>,
+    native_receipts: Option<
+        &std::collections::HashMap<SymbolId, super::scenario_receipts::NativeScenarioReceipt>,
+    >,
+    source_calls: &[ScenarioSourceCall],
+    checked: &crate::analysis::scenario_disclosure::CheckedScenarioDisclosure,
+    origin: &CallSource,
+    module: &super::ir::IrModule,
+    text_len: usize,
+    stmt: &'e IrStmt,
+    depth: usize,
+    steps: &mut usize,
+    pending: &mut Vec<(&'e IrStmt, usize)>,
+    sites: &mut Vec<StaticScenarioCall>,
+    matched: &mut HashSet<NodeKey>,
+    intermediate: &mut HashSet<Span>,
+    supplied: &mut HashSet<Span>,
+) -> Option<()> {
+    *steps += 1;
+    if *steps > 16384 || depth > 64 {
+        return None;
+    }
+    match stmt {
+        IrStmt::Call { .. } => {
+            lower_call_site(
+                ir, owner, operations, db, entry, feasibility, source_calls, checked, origin,
+                module, text_len, stmt, sites, matched, supplied,
+            )?;
+        }
+        IrStmt::If { .. } | IrStmt::Match { .. } => {
+            push_branch_statements(stmt, depth, pending)?;
+        }
+        IrStmt::Send { .. } if is_child => {
+            admit_child_send(ir, owner, checked, operations, feasibility, native_receipts)?;
+        }
+        IrStmt::Create { .. }
+            if super::scenario_receipts::checked_created_model_result(ir, owner).is_some() => {}
+        // A child-walk create already proven in the child's own complete
+        // disclosure executes in the joined transaction in source order;
+        // only unproven top-level creates need M2/supplied accounting.
+        IrStmt::Create { span, .. }
+            if is_child && is_proven_child_create(checked, span) => {}
+        IrStmt::Create { span, .. } if depth == 0 => {
+            intermediate.insert(*span);
+        }
+        IrStmt::Let { .. }
+        | IrStmt::Require { .. }
+        | IrStmt::Return { .. }
+        | IrStmt::Set { .. }
+        | IrStmt::Send { .. }
+        | IrStmt::Transition { .. } => {}
+        // Proven owner effects traverse in source order without joining
+        // sites of their own. Unproven statements keep the refusal below.
+        IrStmt::Emit { .. } | IrStmt::Schedule { .. } | IrStmt::Cancel { .. } | IrStmt::For { .. } => {
+            drive_proven_effect(ir, owner, stmt, depth, pending)?;
+        }
+        _ => return None,
+    }
+    Some(())
+}
+
+fn check_call_span(
+    sites_len: usize,
+    module: &super::ir::IrModule,
+    text_len: usize,
+    span: &Span,
+    target_source: &Span,
+) -> Option<()> {
+    if sites_len >= 200
+        || span.file != module.file
+        || target_source.file != module.file
+        || span.start >= span.end
+        || span.end as usize > text_len
+        || target_source.start < span.start
+        || target_source.end > span.end
+    {
+        return None;
+    }
+    Some(())
+}
+
+fn join_call_child<'a>(
+    ir: &'a IrProgram,
+    operation: &SymbolId,
+    result: &Option<ResolvedType>,
+) -> Option<&'a IrItem> {
+    let child = ir.items.get(operation.0 as usize)?;
+    if child.id != *operation {
+        return None;
+    }
+    let IrItemKind::Scenario {
+        result: declared,
+        trusted: false,
+        hook: None,
+        event_source: None,
+        cohort: None,
+        expose_excluded: false,
+        ..
+    } = &child.kind
+    else {
+        return None;
+    };
+    if result != declared {
+        return None;
+    }
+    Some(child)
+}
+
+fn join_call_descriptor<'a, 'b>(
+    ir: &'a IrProgram,
+    child: &IrItem,
+    child_read: bool,
+    binding: &Option<String>,
+    operations: &'b [JsOperation],
+    db: &SourceDb,
+) -> Option<(
+    Option<SymbolId>,
+    Option<&'a crate::analysis::scenario_disclosure::DisclosureQuery>,
+    &'b JsOperation,
+)> {
+    let model_result = super::scenario_receipts::checked_created_model_result(ir, child);
+    let query = if child_read {
+        checked_source(ir, child, db)?;
+        Some(complete_read_query_child(ir, child)?)
+    } else {
+        if binding.is_some() && model_result.is_none() {
+            return None;
+        }
+        None
+    };
+    let descriptor = operations.iter().find(|op| op.name == child.canonical)?;
+    if descriptor.kind
+        != if query.is_some() {
+            JsOperationKind::Read
+        } else {
+            JsOperationKind::Scenario
+        }
+    {
+        return None;
+    }
+    Some((model_result, query, descriptor))
+}
+
+fn check_call_result(
+    ir: &IrProgram,
+    child: &IrItem,
+    declared: &Option<ResolvedType>,
+    model_result: Option<SymbolId>,
+    binding: &Option<String>,
+    query: Option<&crate::analysis::scenario_disclosure::DisclosureQuery>,
+    descriptor: &JsOperation,
+) -> Option<CallResultFact> {
+    match declared {
+        Some(ty) if model_result.is_some() && binding.is_some() => {
+            let model = ir.items.get(model_result?.0 as usize)?;
+            if descriptor.result.as_deref() != Some(model.canonical.as_str()) {
+                return None;
+            }
+            Some(CallResultFact::Model(ty.clone()))
+        }
+        Some(ty) if query.is_some() => {
+            let query = query?;
+            let contract = ir
+                .items
+                .get(query.projection.as_ref()?.contract.0 as usize)?;
+            if descriptor.result.as_deref()
+                != Some(format!("{}[]", contract.canonical).as_str())
+            {
+                return None;
+            }
+            Some(CallResultFact::Opaque(ty.clone()))
+        }
+        None if descriptor.result.as_deref() == Some("void") => Some(CallResultFact::Void),
+        Some(ty)
+            if scalar_id(ty) == descriptor.result.as_deref()
+                && scalar_id(ty).is_some() =>
+        {
+            Some(CallResultFact::Scalar(ty.clone()))
+        }
+        _ => None,
+    }
+}
+
+fn check_call_disclosure(
+    ir: &IrProgram,
+    child: &IrItem,
+    operation: &SymbolId,
+    descriptor: &JsOperation,
+    query: Option<&crate::analysis::scenario_disclosure::DisclosureQuery>,
+    feasibility: Option<&super::scenario_feasibility::PreparedRequireReturns<'_>>,
+    entry: &str,
+) -> Option<()> {
+    let ScenarioDisclosure::Complete(child_checked) =
+        ir.scenario_disclosures.get(operation)?
+    else {
+        return None;
+    };
+    let disclosure = descriptor.disclosure.as_ref()?;
+    if disclosure["version"] != 1
+        || disclosure["source"]["path"] != child_checked.source.path
+        || disclosure["source"]["sha256"] != child_checked.source.sha256
+        || disclosure["source"]["module"] != entry
+    {
+        return None;
+    }
+    checked_child_return_subset(ir, child, child_checked, disclosure, feasibility)?;
+    if let Some(query) = query {
+        match_query_disclosure(ir, query, disclosure, entry)?;
+    }
+    Some(())
+}
+
+fn match_call_proof<'e>(
+    checked: &crate::analysis::scenario_disclosure::CheckedScenarioDisclosure,
+    inputs: &'e TypedExpr,
+    span: &Span,
+    operation: &SymbolId,
+    matched: &mut HashSet<NodeKey>,
+) -> Option<&'e Vec<(String, TypedExpr)>> {
+    let IrExpr::Object(entries) = &inputs.expr else {
+        return None;
+    };
+    let mut proofs = checked.effects.iter().filter(|proof| {
+        proof.node.file == span.file
+            && proof.node.start == span.start
+            && proof.node.end == span.end
+    });
+    let proof = proofs.next()?;
+    if proofs.next().is_some()
+        || !matched.insert(proof.node)
+        || proof.source != checked.source
+        || !matches!(&proof.kind, DisclosureEffectKind::Call {operation:checked_operation,input_keys} if checked_operation==operation && input_keys==&entries.iter().map(|(name,_)|name.clone()).collect::<Vec<_>>())
+    {
+        return None;
+    }
+    Some(entries)
+}
+
+fn check_call_arity<'s>(
+    ir: &IrProgram,
+    source_calls: &'s [ScenarioSourceCall],
+    sites_len: usize,
+    span: &Span,
+    operation: &SymbolId,
+    binding: &Option<String>,
+    result: &Option<ResolvedType>,
+    entries: &[(String, TypedExpr)],
+    params: &[SymbolId],
+    descriptor: &JsOperation,
+) -> Option<&'s ScenarioSourceCall> {
+    // Preserve the indexed authored source inputs, including the
+    // exact unused binding, rather than matching by name alone.
+    let source_call = source_calls.get(sites_len)?;
+    if source_call.span != *span
+        || source_call.operation != *operation
+        || source_call.binding != *binding
+        || source_call.result != *result
+        || source_call.inputs.len() != entries.len()
+    {
+        return None;
+    }
+    if entries.len() != params.len()
+        || params.len() != descriptor.inputs.len()
+        || params.len() > 256
+    {
+        return None;
+    }
+    // The declaration owns positional interface order; authored
+    // CALL argument order is checked separately below.
+    if params.iter().zip(&descriptor.inputs).any(|(id, input)| {
+        ir.items
+            .get(id.0 as usize)
+            .is_none_or(|parameter| parameter.name != input.name)
+    }) {
+        return None;
+    }
+    Some(source_call)
+}
+
+fn check_rich_operands(
+    ir: &IrProgram,
+    owner: &IrItem,
+    entries: &Vec<(String, TypedExpr)>,
+    span: Span,
+    params: &[SymbolId],
+    db: &SourceDb,
+) -> Option<()> {
+    if params.iter().any(|id| {
+        let Some(IrItem { kind: IrItemKind::Param { ty: IrType::Known(ty), .. }, .. }) = ir.items.get(id.0 as usize) else {
+            return false;
+        };
+        matches!(ty, ResolvedType::Record { stored: true, .. })
+            || matches!(ty, ResolvedType::Nullable(inner) if matches!(inner.as_ref(), ResolvedType::Record { stored: true, .. }))
+            || ordinary_file_array(ty)
+    }) {
+        checked_rich_call_operands(ir, owner, entries, span, db)?;
+    }
+    Some(())
+}
+
+fn join_input_param<'a, 'd, 'e>(
+    ir: &'a IrProgram,
+    child: &IrItem,
+    params: &[SymbolId],
+    descriptor: &'d JsOperation,
+    keys: &mut HashSet<&'e String>,
+    name: &'e String,
+    value: &TypedExpr,
+    fact: &CallInput,
+    span: &Span,
+    module: &super::ir::IrModule,
+) -> Option<(&'a IrItem, &'a ResolvedType, &'d JsOperationField)> {
+    if !keys.insert(name)
+        || fact.name != *name
+        || fact.source != value.span
+        || fact.ty != value.ty
+        || value.span.file != module.file
+        || value.span.start >= value.span.end
+        || value.span.start < span.start
+        || value.span.end > span.end
+    {
+        return None;
+    }
+    let param = params
+        .iter()
+        .filter_map(|id| ir.items.get(id.0 as usize))
+        .find(|param| param.name == *name)?;
+    let IrItemKind::Param {
+        owner: param_owner,
+        ty: IrType::Known(ty),
+        ..
+    } = &param.kind
+    else {
+        return None;
+    };
+    if *param_owner != child.id {
+        return None;
+    }
+    let input = descriptor.inputs.iter().find(|input| input.name == *name)?;
+    Some((param, ty, input))
+}
+
+fn dispatch_nullable_input(
+    ir: &IrProgram,
+    child: &IrItem,
+    param: &IrItem,
+    ty: &ResolvedType,
+    value: &TypedExpr,
+    input: &JsOperationField,
+    db: &SourceDb,
+) -> Option<bool> {
+    let ResolvedType::Nullable(inner) = ty else {
+        return Some(false);
+    };
+    if !matches!(inner.as_ref(), ResolvedType::Scalar(_))
+        || (value.ty != *inner.as_ref() && value.ty != *ty)
+        || (!simple_value(value)
+            && !matches!(
+                value.expr,
+                IrExpr::Name(_) | IrExpr::Member { .. }
+            ))
+    {
+        return Some(false);
+    }
+    explicit_nullable_value_input(ir, child, param, input, db)?;
+    Some(true)
+}
+
+fn dispatch_value_input(
+    ir: &IrProgram,
+    child: &IrItem,
+    param: &IrItem,
+    ty: &ResolvedType,
+    value: &TypedExpr,
+    input: &JsOperationField,
+    db: &SourceDb,
+) -> Option<bool> {
+    if scalar_id(ty).is_some() {
+        if ty != &value.ty || !simple_value(value) {
+            return None;
+        }
+        explicit_scalar_input(ir, child, param, input, db)?;
+        return Some(true);
+    }
+    if dispatch_nullable_input(ir, child, param, ty, value, input, db)? {
+        return Some(true);
+    }
+    if matches!(ty, ResolvedType::Enum { .. })
+        && value.ty == *ty
+        && matches!(value.expr, IrExpr::Name(_) | IrExpr::Member { .. })
+    {
+        explicit_enum_input(ir, child, param, input, db)?;
+        return Some(true);
+    }
+    if matches!(ty, ResolvedType::Array { .. })
+        && !ordinary_file_array(ty)
+        && value.ty == *ty
+        && matches!(value.expr, IrExpr::Name(_))
+    {
+        explicit_array_input(ir, child, param, input, db)?;
+        return Some(true);
+    }
+    Some(false)
+}
+
+fn dispatch_call_input(
+    ir: &IrProgram,
+    owner: &IrItem,
+    child: &IrItem,
+    param: &IrItem,
+    ty: &ResolvedType,
+    value: &TypedExpr,
+    name: &String,
+    input: &JsOperationField,
+    operations: &[JsOperation],
+    span: Span,
+    entry: &str,
+    feasibility: Option<&super::scenario_feasibility::PreparedRequireReturns<'_>>,
+    db: &SourceDb,
+    query: Option<&crate::analysis::scenario_disclosure::DisclosureQuery>,
+    file_inputs: &mut Vec<StaticScenarioCallFileInput>,
+    supplied: &mut HashSet<Span>,
+) -> Option<()> {
+    if query.is_some() {
+        if ty != &value.ty {
+            return None;
+        }
+        protected_query_input(ir, owner, param, value, input, operations, db)?;
+    } else if dispatch_value_input(ir, child, param, ty, value, input, db)? {
+    } else if ordinary_file_array(ty) {
+        let dependency_id = explicit_stored_file_input(
+            ir,
+            (owner, child, param),
+            value,
+            input,
+            operations,
+            (entry, feasibility),
+            db,
+        )?;
+        file_inputs.push(StaticScenarioCallFileInput {
+            name: name.clone(),
+            dependency_id,
+        });
+    } else if let Some(created) = explicit_reference_input(
+        ir,
+        (owner, child, param),
+        value,
+        input,
+        operations,
+        span,
+        db,
+    )? {
+        supplied.insert(created);
+    }
+    Some(())
+}
+
+fn owner_identity_mismatch(
+    owner: &IrItem,
+    module: &super::ir::IrModule,
+    source: &crate::source::Source,
+    checked: &crate::analysis::scenario_disclosure::CheckedScenarioDisclosure,
+    db: &SourceDb,
+) -> bool {
+    module.id != owner.module
+        || source.path.is_empty()
+        || checked.source.path != source.path
+        || checked.source.sha256 != source.sha256
+        || source.sha256 != sha256_hex(source.text.as_bytes())
+        || checked.source.module != module.name
+        || owner.span.file != module.file
+        || db
+            .iter()
+            .filter(|(_, value)| value.path == source.path)
+            .count()
+            != 1
+}
+
+fn seed_owner_walk<'e>(
+    source: &crate::source::Source,
+    entry: &str,
+    guards: &'e [IrStmt],
+    effects: &'e [IrStmt],
+) -> (CallSource, Vec<(&'e IrStmt, usize)>) {
+    let origin = CallSource {
+        path: source.path.clone(),
+        sha256: source.sha256.clone(),
+        module: entry.into(),
+    };
+    let mut pending: Vec<_> = guards
+        .iter()
+        .chain(effects)
+        .map(|stmt| (stmt, 0usize))
+        .collect();
+    pending.reverse();
+    (origin, pending)
+}
+
+fn check_call_coverage(
+    checked: &crate::analysis::scenario_disclosure::CheckedScenarioDisclosure,
+    intermediate: &HashSet<Span>,
+    supplied: &HashSet<Span>,
+    matched: &HashSet<NodeKey>,
+    sites: usize,
+) -> Option<()> {
+    if !intermediate.is_subset(supplied)
+        || checked.effects.iter().any(|proof| {
+            matches!(proof.kind, DisclosureEffectKind::Call { .. })
+                && !matched.contains(&proof.node)
+        })
+        || checked
+            .effects
+            .iter()
+            .filter(|proof| matches!(proof.kind, DisclosureEffectKind::Call { .. }))
+            .count()
+            != sites
+    {
+        return None;
+    }
+    Some(())
+}
+
+fn admit_child_send(
+    ir: &IrProgram,
+    owner: &IrItem,
+    checked: &crate::analysis::scenario_disclosure::CheckedScenarioDisclosure,
+    operations: &[JsOperation],
+    feasibility: Option<&super::scenario_feasibility::PreparedRequireReturns<'_>>,
+    native_receipts: Option<
+        &std::collections::HashMap<SymbolId, super::scenario_receipts::NativeScenarioReceipt>,
+    >,
+) -> Option<()> {
+    // Only the private emitter's complete native producer can release
+    // child SEND. Raw/source-only call collection remains refused.
+    let receipt = native_receipts?.get(&owner.id)?;
+    let descriptor = operations.iter().find(|op| op.name == owner.canonical)?;
+    let plan = serde_json::to_value(&receipt.plan).ok()?;
+    if descriptor.disclosure.as_ref()? != &plan {
+        return None;
+    }
+    checked_child_return_subset(ir, owner, checked, &plan, feasibility)?;
+    Some(())
+}
+
+fn check_proven_effect(ir: &IrProgram, owner: &IrItem, span: &Span) -> Option<()> {
+    let ScenarioDisclosure::Complete(proven) = ir.scenario_disclosures.get(&owner.id)? else {
+        return None;
+    };
+    if !proven.effects.iter().any(|proof| {
+        proof.node.file == span.file
+            && proof.node.start == span.start
+            && proof.node.end == span.end
+            && matches!(
+                &proof.kind,
+                DisclosureEffectKind::Emit { .. }
+                    | DisclosureEffectKind::Schedule { .. }
+                    | DisclosureEffectKind::Cancel { .. }
+            )
+    }) {
+        return None;
+    }
+    Some(())
+}
+
+fn is_proven_child_create(
+    checked: &crate::analysis::scenario_disclosure::CheckedScenarioDisclosure,
+    span: &Span,
+) -> bool {
+    checked.effects.iter().any(|proof| {
+        matches!(&proof.kind, DisclosureEffectKind::Create { .. })
+            && proof.node.file == span.file
+            && proof.node.start == span.start
+            && proof.node.end == span.end
+    })
+}
+
+fn push_proven_for<'e>(
+    ir: &IrProgram,
+    owner: &IrItem,
+    span: &Span,
+    body: &'e [IrStmt],
+    depth: usize,
+    pending: &mut Vec<(&'e IrStmt, usize)>,
+) -> Option<()> {
+    let ScenarioDisclosure::Complete(proven) = ir.scenario_disclosures.get(&owner.id)? else {
+        return None;
+    };
+    if !proven.effects.iter().any(|proof| {
+        proof.node.file == span.file
+            && proof.node.start == span.start
+            && proof.node.end == span.end
+            && matches!(
+                &proof.kind,
+                DisclosureEffectKind::For { .. } | DisclosureEffectKind::ForMember { .. }
+            )
+    }) {
+        return None;
+    }
+    for next in body.iter().rev() {
+        pending.push((next, depth + 1));
+    }
+    Some(())
 }
 
 fn collect_owner(
@@ -1662,32 +3021,11 @@ fn collect_owner(
     };
     let module = ir.modules.get(owner.module.0 as usize)?;
     let source = db.get(module.file)?;
-    if module.id != owner.module
-        || source.path.is_empty()
-        || checked.source.path != source.path
-        || checked.source.sha256 != source.sha256
-        || source.sha256 != sha256_hex(source.text.as_bytes())
-        || checked.source.module != module.name
-        || owner.span.file != module.file
-        || db
-            .iter()
-            .filter(|(_, value)| value.path == source.path)
-            .count()
-            != 1
-    {
+    if owner_identity_mismatch(owner, module, source, checked, db) {
         return None;
     }
-    let origin = CallSource {
-        path: source.path.clone(),
-        sha256: source.sha256.clone(),
-        module: entry.into(),
-    };
-    let mut pending: Vec<_> = guards
-        .iter()
-        .chain(effects)
-        .map(|stmt| (stmt, 0usize))
-        .collect();
-    pending.reverse();
+    let (origin, mut pending) = seed_owner_walk(source, entry, guards, effects);
+    let text_len = source.text.len();
     let mut sites = Vec::new();
     let mut matched_calls = HashSet::new();
     let mut intermediate_creates = HashSet::new();
@@ -1695,407 +3033,211 @@ fn collect_owner(
     let source_calls = collect_scenario_source_calls(ir, owner, db)?;
     let mut steps = 0;
     while let Some((stmt, depth)) = pending.pop() {
-        steps += 1;
-        if steps > 16384 || depth > 64 {
-            return None;
-        }
-        match stmt {
-            IrStmt::Call {
-                target:
-                    IrEffectCallTarget::Operation {
-                        source: target_source,
-                        operation,
-                    },
-                inputs,
-                binding,
-                result,
-                span,
-            } => {
-                if sites.len() >= 200
-                    || span.file != module.file
-                    || target_source.file != module.file
-                    || span.start >= span.end
-                    || span.end as usize > source.text.len()
-                    || target_source.start < span.start
-                    || target_source.end > span.end
-                {
-                    return None;
-                }
-                let child = ir.items.get(operation.0 as usize)?;
-                if child.id != *operation {
-                    return None;
-                }
-                let IrItemKind::Scenario {
-                    params,
-                    result: declared,
-                    trusted: false,
-                    read: child_read,
-                    hook: None,
-                    event_source: None,
-                    cohort: None,
-                    expose_excluded: false,
-                    ..
-                } = &child.kind
-                else {
-                    return None;
-                };
-                if result != declared {
-                    return None;
-                }
-                let model_result =
-                    super::scenario_receipts::checked_created_model_result(ir, child);
-                let query = if *child_read {
-                    checked_source(ir, child, db)?;
-                    Some(complete_read_query_child(ir, child)?)
-                } else {
-                    if binding.is_some() && model_result.is_none() {
-                        return None;
-                    }
-                    None
-                };
-                let descriptor = operations.iter().find(|op| op.name == child.canonical)?;
-                if descriptor.kind
-                    != if query.is_some() {
-                        JsOperationKind::Read
-                    } else {
-                        JsOperationKind::Scenario
-                    }
-                {
-                    return None;
-                }
-                let result_fact = match declared {
-                    Some(ty) if model_result.is_some() && binding.is_some() => {
-                        let model = ir.items.get(model_result?.0 as usize)?;
-                        if descriptor.result.as_deref() != Some(model.canonical.as_str()) {
-                            return None;
-                        }
-                        CallResultFact::Model(ty.clone())
-                    }
-                    Some(ty) if query.is_some() => {
-                        let query = query?;
-                        let contract = ir
-                            .items
-                            .get(query.projection.as_ref()?.contract.0 as usize)?;
-                        if descriptor.result.as_deref()
-                            != Some(format!("{}[]", contract.canonical).as_str())
-                        {
-                            return None;
-                        }
-                        CallResultFact::Opaque(ty.clone())
-                    }
-                    None if descriptor.result.as_deref() == Some("void") => CallResultFact::Void,
-                    Some(ty)
-                        if scalar_id(ty) == descriptor.result.as_deref()
-                            && scalar_id(ty).is_some() =>
-                    {
-                        CallResultFact::Scalar(ty.clone())
-                    }
-                    _ => return None,
-                };
-                let ScenarioDisclosure::Complete(child_checked) =
-                    ir.scenario_disclosures.get(operation)?
-                else {
-                    return None;
-                };
-                let disclosure = descriptor.disclosure.as_ref()?;
-                if disclosure["version"] != 1
-                    || disclosure["source"]["path"] != child_checked.source.path
-                    || disclosure["source"]["sha256"] != child_checked.source.sha256
-                    || disclosure["source"]["module"] != entry
-                {
-                    return None;
-                }
-                checked_child_return_subset(ir, child, child_checked, disclosure, feasibility)?;
-                if let Some(query) = query {
-                    match_query_disclosure(ir, query, disclosure, entry)?;
-                }
-                let IrExpr::Object(entries) = &inputs.expr else {
-                    return None;
-                };
-                let mut proofs = checked.effects.iter().filter(|proof| {
-                    proof.node.file == span.file
-                        && proof.node.start == span.start
-                        && proof.node.end == span.end
-                });
-                let proof = proofs.next()?;
-                if proofs.next().is_some()
-                    || !matched_calls.insert(proof.node)
-                    || proof.source != checked.source
-                    || !matches!(&proof.kind, DisclosureEffectKind::Call {operation:checked_operation,input_keys} if checked_operation==operation && input_keys==&entries.iter().map(|(name,_)|name.clone()).collect::<Vec<_>>())
-                {
-                    return None;
-                }
-                // Preserve the indexed authored source inputs, including the
-                // exact unused binding, rather than matching by name alone.
-                let source_call = source_calls.get(sites.len())?;
-                if source_call.span != *span
-                    || source_call.operation != *operation
-                    || source_call.binding != *binding
-                    || source_call.result != *result
-                    || source_call.inputs.len() != entries.len()
-                {
-                    return None;
-                }
-                if entries.len() != params.len()
-                    || params.len() != descriptor.inputs.len()
-                    || params.len() > 256
-                {
-                    return None;
-                }
-                // The declaration owns positional interface order; authored
-                // CALL argument order is checked separately below.
-                if params.iter().zip(&descriptor.inputs).any(|(id, input)| {
-                    ir.items
-                        .get(id.0 as usize)
-                        .is_none_or(|parameter| parameter.name != input.name)
-                }) {
-                    return None;
-                }
-                if query.is_none() && params.iter().any(|id| {
-                    let Some(IrItem { kind: IrItemKind::Param { ty: IrType::Known(ty), .. }, .. }) = ir.items.get(id.0 as usize) else {
-                        return false;
-                    };
-                    matches!(ty, ResolvedType::Record { stored: true, .. })
-                        || matches!(ty, ResolvedType::Nullable(inner) if matches!(inner.as_ref(), ResolvedType::Record { stored: true, .. }))
-                        || ordinary_file_array(ty)
-                }) {
-                    checked_rich_call_operands(ir, owner, entries, *span, db)?;
-                }
-                let mut keys = HashSet::new();
-                let mut authored = Vec::new();
-                let mut file_inputs = Vec::new();
-                for ((name, value), fact) in entries.iter().zip(&source_call.inputs) {
-                    if !keys.insert(name)
-                        || fact.name != *name
-                        || fact.source != value.span
-                        || fact.ty != value.ty
-                        || value.span.file != module.file
-                        || value.span.start >= value.span.end
-                        || value.span.start < span.start
-                        || value.span.end > span.end
-                    {
-                        return None;
-                    }
-                    let param = params
-                        .iter()
-                        .filter_map(|id| ir.items.get(id.0 as usize))
-                        .find(|param| param.name == *name)?;
-                    let IrItemKind::Param {
-                        owner: param_owner,
-                        ty: IrType::Known(ty),
-                        ..
-                    } = &param.kind
-                    else {
-                        return None;
-                    };
-                    if *param_owner != child.id {
-                        return None;
-                    }
-                    let input = descriptor.inputs.iter().find(|input| input.name == *name)?;
-                    if query.is_some() {
-                        if ty != &value.ty {
-                            return None;
-                        }
-                        protected_query_input(ir, owner, param, value, input, operations, db)?;
-                    } else if scalar_id(ty).is_some() {
-                        if ty != &value.ty || !simple_value(value) {
-                            return None;
-                        }
-                        explicit_scalar_input(ir, child, param, input, db)?;
-                    } else if let ResolvedType::Nullable(inner) = ty
-                        && matches!(inner.as_ref(), ResolvedType::Scalar(_))
-                        && (value.ty == *inner.as_ref() || value.ty == *ty)
-                        && (simple_value(value)
-                            || matches!(
-                                value.expr,
-                                IrExpr::Name(_) | IrExpr::Member { .. }
-                            ))
-                    {
-                        explicit_nullable_value_input(ir, child, param, input, db)?;
-                    } else if matches!(ty, ResolvedType::Enum { .. })
-                        && value.ty == *ty
-                        && matches!(value.expr, IrExpr::Name(_) | IrExpr::Member { .. })
-                    {
-                        explicit_enum_input(ir, child, param, input, db)?;
-                    } else if matches!(ty, ResolvedType::Array { .. })
-                        && !ordinary_file_array(ty)
-                        && value.ty == *ty
-                        && matches!(value.expr, IrExpr::Name(_))
-                    {
-                        explicit_array_input(ir, child, param, input, db)?;
-                    } else if ordinary_file_array(ty) {
-                        let dependency_id = explicit_stored_file_input(
-                            ir,
-                            (owner, child, param),
-                            value,
-                            input,
-                            operations,
-                            (entry, feasibility),
-                            db,
-                        )?;
-                        file_inputs.push(StaticScenarioCallFileInput {
-                            name: name.clone(),
-                            dependency_id,
-                        });
-                    } else if let Some(created) = explicit_reference_input(
-                        ir,
-                        (owner, child, param),
-                        value,
-                        input,
-                        operations,
-                        *span,
-                        db,
-                    )? {
-                        supplied_creates.insert(created);
-                    }
-                    authored.push(CallInput {
-                        name: name.clone(),
-                        source: value.span,
-                        ty: value.ty.clone(),
-                    });
-                }
-                let encoded = serde_json::to_string(&(
-                    "static-scenario-call-v1",
-                    &owner.canonical,
-                    &origin.path,
-                    &origin.sha256,
-                    &origin.module,
-                    span.start,
-                    span.end,
-                ))
-                .ok()?;
-                sites.push(StaticScenarioCall {
-                    id: format!("call_{}", sha256_hex(encoded.as_bytes())),
-                    source: origin.clone(),
-                    span: *span,
-                    parent: owner.canonical.clone(),
-                    target: child.canonical.clone(),
-                    operation: *operation,
-                    interface: descriptor.clone(),
-                    result: result_fact,
-                    binding: binding.clone(),
-                    inputs: authored,
-                    file_inputs,
-                });
-            }
-            IrStmt::Call { .. } => return None,
-            IrStmt::If {
-                then_branch,
-                else_branch,
-                ..
-            } => {
-                for next in then_branch.iter().chain(else_branch).rev() {
-                    pending.push((next, depth + 1));
-                }
-            }
-            IrStmt::Match { arms, .. } => {
-                for arm in arms.iter().rev() {
-                    for next in arm.body.iter().rev() {
-                        pending.push((next, depth + 1));
-                    }
-                }
-            }
-            IrStmt::Send { .. } if is_child => {
-                // Only the private emitter's complete native producer can release
-                // child SEND. Raw/source-only call collection remains refused.
-                let receipt = native_receipts?.get(&owner.id)?;
-                let descriptor = operations.iter().find(|op| op.name == owner.canonical)?;
-                let plan = serde_json::to_value(&receipt.plan).ok()?;
-                if descriptor.disclosure.as_ref()? != &plan {
-                    return None;
-                }
-                checked_child_return_subset(ir, owner, checked, &plan, feasibility)?;
-            }
-            IrStmt::Create { .. }
-                if super::scenario_receipts::checked_created_model_result(ir, owner).is_some() => {}
-            // A child-walk create already proven in the child's own complete
-            // disclosure executes in the joined transaction in source order;
-            // only unproven top-level creates need M2/supplied accounting.
-            IrStmt::Create { span, .. }
-                if is_child
-                    && checked.effects.iter().any(|proof| {
-                        matches!(&proof.kind, DisclosureEffectKind::Create { .. })
-                            && proof.node.file == span.file
-                            && proof.node.start == span.start
-                            && proof.node.end == span.end
-                    }) => {}
-            IrStmt::Create { span, .. } if depth == 0 => {
-                intermediate_creates.insert(*span);
-            }
-            IrStmt::Let { .. }
-            | IrStmt::Require { .. }
-            | IrStmt::Return { .. }
-            | IrStmt::Set { .. }
-            | IrStmt::Send { .. }
-            | IrStmt::Transition { .. } => {}
-            // Proven owner effects traverse in source order without joining
-            // sites of their own. Unproven statements keep the refusal below.
-            IrStmt::Emit { span, .. }
-            | IrStmt::Schedule { span, .. }
-            | IrStmt::Cancel { span, .. } => {
-                let ScenarioDisclosure::Complete(proven) =
-                    ir.scenario_disclosures.get(&owner.id)?
-                else {
-                    return None;
-                };
-                if !proven.effects.iter().any(|proof| {
-                    proof.node.file == span.file
-                        && proof.node.start == span.start
-                        && proof.node.end == span.end
-                        && matches!(
-                            &proof.kind,
-                            DisclosureEffectKind::Emit { .. }
-                                | DisclosureEffectKind::Schedule { .. }
-                                | DisclosureEffectKind::Cancel { .. }
-                        )
-                }) {
-                    return None;
-                }
-            }
-            IrStmt::For { body, span, .. } => {
-                let ScenarioDisclosure::Complete(proven) =
-                    ir.scenario_disclosures.get(&owner.id)?
-                else {
-                    return None;
-                };
-                if !proven.effects.iter().any(|proof| {
-                    proof.node.file == span.file
-                        && proof.node.start == span.start
-                        && proof.node.end == span.end
-                        && matches!(
-                            &proof.kind,
-                            DisclosureEffectKind::For { .. } | DisclosureEffectKind::ForMember { .. }
-                        )
-                }) {
-                    return None;
-                }
-                for next in body.iter().rev() {
-                    pending.push((next, depth + 1));
-                }
-            }
-            _ => return None,
-        }
+        drive_owner_statement(
+            ir, owner, operations, db, entry, is_child, feasibility, native_receipts,
+            &source_calls, checked, &origin, module, text_len, stmt, depth, &mut steps,
+            &mut pending, &mut sites, &mut matched_calls, &mut intermediate_creates,
+            &mut supplied_creates,
+        )?;
     }
-    if !intermediate_creates.is_subset(&supplied_creates)
-        || checked.effects.iter().any(|proof| {
-            matches!(proof.kind, DisclosureEffectKind::Call { .. })
-                && !matched_calls.contains(&proof.node)
-        })
-        || checked
-            .effects
-            .iter()
-            .filter(|proof| matches!(proof.kind, DisclosureEffectKind::Call { .. }))
-            .count()
-            != sites.len()
-    {
-        return None;
-    }
+    check_call_coverage(
+        checked,
+        &intermediate_creates,
+        &supplied_creates,
+        &matched_calls,
+        sites.len(),
+    )?;
     Some(sites)
 }
 /// Check the structural admitted query shape for parent recipe preparation.
 /// Executable/source correspondence remains owned by the immutable prepared
 /// query recipe; the operation producer must publish that real plan before any
 /// call capture can be enabled.
+fn check_query_source_identity(
+    query: &DisclosureQuery,
+    scan: &IrQuery,
+    source: &crate::analysis::scenario_disclosure::CheckedScenarioSource,
+    checked: &crate::analysis::scenario_disclosure::CheckedScenarioDisclosure,
+    child: &IrItem,
+    result: &Option<ResolvedType>,
+) -> Option<()> {
+    let scan_source = scan.source.as_deref()?;
+    let source_projection = query.projection.as_ref()?;
+    if checked.scenario != child.id
+        || source.scenario != child.id
+        || !source.read
+        || source.result != *result
+        || source.source != checked.source
+        || source.node != checked.node
+        || !source.calls.is_empty()
+        || !checked.effects.is_empty()
+        || query.source != source.source
+        || query.model != source_projection.model
+        || query.node != scan_source.node
+        || query.domain != scan_source.domain
+        || source_projection.source != source.source
+    {
+        return None;
+    }
+    Some(())
+}
+
+fn check_query_projection_identity(
+    query: &DisclosureQuery,
+    select: &IrQuery,
+    contract: &IrItem,
+    result: &Option<ResolvedType>,
+) -> Option<()> {
+    let select_source = select.source.as_deref()?;
+    let projection = select_source.projection.as_deref()?;
+    let source_projection = query.projection.as_ref()?;
+    if source_projection.node != select_source.node
+        || projection.contract != source_projection.contract
+        || projection.model != query.model
+        || projection.alias != source_projection.alias
+        || projection.fields != source_projection.fields
+        || contract.id != source_projection.contract
+        || !matches!(contract.kind, IrItemKind::Contract { .. })
+        || !matches!(result, Some(ResolvedType::Array { element, ordered: true, nonempty: false })
+            if matches!(element.as_ref(), ResolvedType::Record {symbol, ..} if *symbol == contract.id))
+    {
+        return None;
+    }
+    Some(())
+}
+
+fn check_scan_shape(query: &DisclosureQuery, scan: &IrQuery) -> Option<()> {
+    if query.first.is_some()
+        || scan.limit.is_some()
+        || scan.archived.is_some()
+        || scan.value_order.is_some()
+        || !scan.order.is_empty()
+        || scan.parent.is_some()
+        || scan.select.is_some()
+        || scan.where_async
+        || scan.collection_call.is_some()
+        || scan.contract_collection_call.is_some()
+        || !matches!(&scan.domain, super::ir::IrQueryDomain::Model(name) if name == &query.model_name)
+    {
+        return None;
+    }
+    Some(())
+}
+
+fn check_select_shape(select: &IrQuery) -> Option<()> {
+    if select.parent.is_some()
+        || select.where_pred.is_some()
+        || select.where_async
+        || select.value_order.is_some()
+        || !select.order.is_empty()
+        || select.limit.is_some()
+        || select.archived.is_some()
+        || select.collection_call.is_some()
+        || select.contract_collection_call.is_some()
+        || !matches!(&select.domain, super::ir::IrQueryDomain::Value { .. })
+    {
+        return None;
+    }
+    Some(())
+}
+
+fn check_return_shape(
+    query: &DisclosureQuery,
+    returned: &DisclosureReturn,
+    guard: Span,
+    returned_span: Span,
+) -> Option<()> {
+    let cardinality_guard = query.cardinality_guard?;
+    if cardinality_guard.file != guard.file
+        || cardinality_guard.start != guard.start
+        || cardinality_guard.end != guard.end
+        || query.return_node.file != returned_span.file
+        || query.return_node.start != returned_span.start
+        || query.return_node.end != returned_span.end
+        || returned.id != query.return_id()
+        || returned.node != query.return_node
+        || returned.source != query.source
+        || returned.influences != query.influences
+        || !returned.dependencies.is_empty()
+        || !returned.intrinsics.is_empty()
+        || !returned.decisions.is_empty()
+    {
+        return None;
+    }
+    Some(())
+}
+
+fn check_projection_entry(
+    ir: &IrProgram,
+    contract: &IrItem,
+    contract_fields: &[SymbolId],
+    name: &str,
+    value: &TypedExpr,
+    fact: &CheckedQueryProjectionField,
+    alias: &str,
+) -> Option<()> {
+    let field = ir.items.get(fact.field.0 as usize)?;
+    if field.id != fact.field
+        || field.name != *name
+        || value.ty != fact.ty
+        || !contract_fields.contains(&field.id)
+        || !matches!(&field.kind, IrItemKind::Field {owner, ty: IrType::Known(ty), ..} if *owner == contract.id && ty == &fact.ty)
+        || value.span.file != fact.node.file
+        || value.span.start != fact.node.start
+        || value.span.end != fact.node.end
+    {
+        return None;
+    }
+    use crate::analysis::types::CheckedQueryProjectionMapping as Mapping;
+    let matched = match (&fact.mapping, &value.expr) {
+        (Mapping::StoredReference, IrExpr::Name(name)) => name == alias,
+        (Mapping::Version, IrExpr::Member { base, field }) => {
+            field == "version" && matches!(&base.expr, IrExpr::Name(name) if name == alias)
+        }
+        (Mapping::DirectField { field: input }, IrExpr::Member { base, field }) => {
+            ir.items
+                .get(input.0 as usize)
+                .is_some_and(|input| input.name == *field)
+                && matches!(&base.expr, IrExpr::Name(name) if name == alias)
+        }
+        _ => false,
+    };
+    if !matched {
+        return None;
+    }
+    Some(())
+}
+
+fn check_projection_entries(
+    ir: &IrProgram,
+    contract: &IrItem,
+    select: &IrQuery,
+    projection_fields: &[CheckedQueryProjectionField],
+) -> Option<()> {
+    let selected = select.select.as_deref()?;
+    let IrExpr::Object(entries) = &selected.expr else {
+        return None;
+    };
+    let alias = select.select_param.as_ref()?;
+    if entries.len() != projection_fields.len() {
+        return None;
+    }
+    let IrItemKind::Contract {
+        fields: contract_fields,
+        ..
+    } = &contract.kind
+    else {
+        return None;
+    };
+    if contract_fields.len() != entries.len() {
+        return None;
+    }
+    for ((name, value), fact) in entries.iter().zip(projection_fields) {
+        check_projection_entry(ir, contract, contract_fields, name, value, fact, alias)?;
+    }
+    Some(())
+}
+
 pub(super) fn complete_read_query_child<'a>(
     ir: &'a IrProgram,
     child: &IrItem,
@@ -2133,127 +3275,16 @@ pub(super) fn complete_read_query_child<'a>(
     let (IrExpr::Query(scan), IrExpr::Query(select)) = (&scan.expr, &selected.expr) else {
         return None;
     };
-    let scan_source = scan.source.as_deref()?;
-    let select_source = select.source.as_deref()?;
-    let projection = select_source.projection.as_deref()?;
     let source_projection = query.projection.as_ref()?;
-    let cardinality_guard = query.cardinality_guard?;
-    if query.first.is_some() {
-        return None;
-    }
     let contract = ir.items.get(source_projection.contract.0 as usize)?;
-    if checked.scenario != child.id
-        || source.scenario != child.id
-        || !source.read
-        || source.result != *result
-        || source.source != checked.source
-        || source.node != checked.node
-        || !source.calls.is_empty()
-        || !checked.effects.is_empty()
-        || query.source != source.source
-        || source_projection.source != source.source
-        || query.model != source_projection.model
-        || query.node != scan_source.node
-        || query.domain != scan_source.domain
-        || source_projection.node != select_source.node
-        || projection.contract != source_projection.contract
-        || projection.model != query.model
-        || projection.alias != source_projection.alias
-        || projection.fields != source_projection.fields
-        || contract.id != source_projection.contract
-        || !matches!(contract.kind, IrItemKind::Contract { .. })
-        || !matches!(result, Some(ResolvedType::Array { element, ordered: true, nonempty: false })
-            if matches!(element.as_ref(), ResolvedType::Record {symbol, ..} if *symbol == contract.id))
-        || query.limit.is_some()
-        || query.archived
-        || !query.order.is_empty()
-        || scan.limit.is_some()
-        || scan.archived.is_some()
-        || scan.value_order.is_some()
-        || !scan.order.is_empty()
-        || scan.parent.is_some()
-        || scan.select.is_some()
-        || scan.where_async
-        || scan.collection_call.is_some()
-        || scan.contract_collection_call.is_some()
-        || select.parent.is_some()
-        || select.where_pred.is_some()
-        || select.where_async
-        || select.value_order.is_some()
-        || !select.order.is_empty()
-        || select.limit.is_some()
-        || select.archived.is_some()
-        || select.collection_call.is_some()
-        || select.contract_collection_call.is_some()
-        || !matches!(&scan.domain, super::ir::IrQueryDomain::Model(name) if name == &query.model_name)
-        || !matches!(&select.domain, super::ir::IrQueryDomain::Value { .. })
-        || cardinality_guard.file != guard.file
-        || cardinality_guard.start != guard.start
-        || cardinality_guard.end != guard.end
-        || query.return_node.file != returned_span.file
-        || query.return_node.start != returned_span.start
-        || query.return_node.end != returned_span.end
-        || returned.id != query.return_id()
-        || returned.node != query.return_node
-        || returned.source != query.source
-        || returned.influences != query.influences
-        || !returned.dependencies.is_empty()
-        || !returned.intrinsics.is_empty()
-        || !returned.decisions.is_empty()
-    {
-        return None;
-    }
+    check_query_source_identity(query, scan, source, checked, child, result)?;
+    check_query_projection_identity(query, select, contract, result)?;
+    check_scan_shape(query, scan)?;
+    check_select_shape(select)?;
+    check_return_shape(query, returned, *guard, *returned_span)?;
     // Join projection slots by their original index and authored expression,
     // so swapped/copied values cannot retain a nominal source plan.
-    let selected = select.select.as_deref()?;
-    let IrExpr::Object(entries) = &selected.expr else {
-        return None;
-    };
-    let alias = select.select_param.as_ref()?;
-    if entries.len() != projection.fields.len() {
-        return None;
-    }
-    let IrItemKind::Contract {
-        fields: contract_fields,
-        ..
-    } = &contract.kind
-    else {
-        return None;
-    };
-    if contract_fields.len() != entries.len() {
-        return None;
-    }
-    for ((name, value), fact) in entries.iter().zip(&projection.fields) {
-        let field = ir.items.get(fact.field.0 as usize)?;
-        if field.id != fact.field
-            || field.name != *name
-            || value.ty != fact.ty
-            || !contract_fields.contains(&field.id)
-            || !matches!(&field.kind, IrItemKind::Field {owner, ty: IrType::Known(ty), ..} if *owner == contract.id && ty == &fact.ty)
-            || value.span.file != fact.node.file
-            || value.span.start != fact.node.start
-            || value.span.end != fact.node.end
-        {
-            return None;
-        }
-        use crate::analysis::types::CheckedQueryProjectionMapping as Mapping;
-        let matched = match (&fact.mapping, &value.expr) {
-            (Mapping::StoredReference, IrExpr::Name(name)) => name == alias,
-            (Mapping::Version, IrExpr::Member { base, field }) => {
-                field == "version" && matches!(&base.expr, IrExpr::Name(name) if name == alias)
-            }
-            (Mapping::DirectField { field: input }, IrExpr::Member { base, field }) => {
-                ir.items
-                    .get(input.0 as usize)
-                    .is_some_and(|input| input.name == *field)
-                    && matches!(&base.expr, IrExpr::Name(name) if name == alias)
-            }
-            _ => false,
-        };
-        if !matched {
-            return None;
-        }
-    }
+    check_projection_entries(ir, contract, select, &source_projection.fields)?;
     Some(query)
 }
 
@@ -2303,6 +3334,67 @@ fn match_query_disclosure(
         "returns":[{"id":query.return_id(),"source":source,"influences":influences,
             "dependencies":[],"projection":{"kind":"query-contract-array","queryId":query.id,"source":source,"fields":fields}}]});
     (disclosure == &expected).then_some(())
+}
+
+fn check_record_ref(
+    ir: &IrProgram,
+    symbol: SymbolId,
+    descriptor: &JsOperationField,
+    bounds: &Option<super::ir::IrParameterArrayBounds>,
+    require_version: bool,
+) -> Option<()> {
+    let model = ir.items.get(symbol.0 as usize)?;
+    if model.id != symbol
+        || !matches!(model.kind, IrItemKind::Model { .. })
+        || !descriptor.required
+        || descriptor.array_required.is_some()
+        || bounds.is_some()
+        || descriptor.value_type.is_some()
+        || descriptor.min.is_some()
+        || descriptor.max.is_some()
+        || !matches!(&descriptor.field, JsMcpField::Ref {model: name, require_version: actual}
+            if name == &model.canonical && *actual == require_version)
+    {
+        return None;
+    }
+    Some(())
+}
+
+fn check_array_ref(
+    ir: &IrProgram,
+    element: &Box<ResolvedType>,
+    descriptor: &JsOperationField,
+    bounds: &Option<super::ir::IrParameterArrayBounds>,
+    require_version: bool,
+) -> Option<()> {
+    let bounds = bounds.as_ref()?;
+    let (min, max) = (bounds.min?, bounds.max?);
+    let ResolvedType::Record {
+        symbol,
+        stored: true,
+    } = element.as_ref()
+    else {
+        return None;
+    };
+    let model = ir.items.get(symbol.0 as usize)?;
+    // Ordinary reused reference arrays retain owning model/bounds
+    // metadata, rather than a nominal value-constraint alias.
+    if model.id != *symbol
+        || !matches!(model.kind, IrItemKind::Model { .. })
+        || min == 0
+        || max < min
+        || max > 200
+        || descriptor.required
+        || descriptor.array_required != Some(false)
+        || descriptor.min != Some(min)
+        || descriptor.max != Some(max)
+        || !matches!(&descriptor.field, JsMcpField::Ref {model: name, require_version: actual}
+            if name == &model.canonical && *actual == require_version)
+        || descriptor.value_type.is_some()
+    {
+        return None;
+    }
+    Some(())
 }
 
 fn protected_query_input(
@@ -2373,53 +3465,14 @@ fn protected_query_input(
                 symbol,
                 stored: true,
             } => {
-                let model = ir.items.get(symbol.0 as usize)?;
-                if model.id != *symbol
-                    || !matches!(model.kind, IrItemKind::Model { .. })
-                    || !descriptor.required
-                    || descriptor.array_required.is_some()
-                    || bounds.is_some()
-                    || descriptor.value_type.is_some()
-                    || descriptor.min.is_some()
-                    || descriptor.max.is_some()
-                    || !matches!(&descriptor.field, JsMcpField::Ref {model: name, require_version: actual}
-                        if name == &model.canonical && *actual == require_version)
-                {
-                    return None;
-                }
+                check_record_ref(ir, *symbol, descriptor, bounds, require_version)?;
             }
             ResolvedType::Array {
                 element,
                 ordered: true,
                 nonempty: false,
             } if matches!(element.as_ref(), ResolvedType::Record { stored: true, .. }) => {
-                let bounds = bounds.as_ref()?;
-                let (min, max) = (bounds.min?, bounds.max?);
-                let ResolvedType::Record {
-                    symbol,
-                    stored: true,
-                } = element.as_ref()
-                else {
-                    return None;
-                };
-                let model = ir.items.get(symbol.0 as usize)?;
-                // Ordinary reused reference arrays retain owning model/bounds
-                // metadata, rather than a nominal value-constraint alias.
-                if model.id != *symbol
-                    || !matches!(model.kind, IrItemKind::Model { .. })
-                    || min == 0
-                    || max < min
-                    || max > 200
-                    || descriptor.required
-                    || descriptor.array_required != Some(false)
-                    || descriptor.min != Some(min)
-                    || descriptor.max != Some(max)
-                    || !matches!(&descriptor.field, JsMcpField::Ref {model: name, require_version: actual}
-                        if name == &model.canonical && *actual == require_version)
-                    || descriptor.value_type.is_some()
-                {
-                    return None;
-                }
+                check_array_ref(ir, element, descriptor, bounds, require_version)?;
             }
             _ => return None,
         }
@@ -2430,6 +3483,55 @@ fn protected_query_input(
         return None;
     }
     Some(())
+}
+
+fn check_stored_parent_input(
+    original_input: &JsOperationField,
+    model: &IrItem,
+) -> Option<()> {
+    if !original_input.required
+        || original_input.nullable
+        || original_input.array_required.is_some()
+        || original_input.value_type.is_some()
+        || original_input.min.is_some()
+        || original_input.max.is_some()
+        || original_input.default.is_some()
+        || original_input.computed_default
+        || !matches!(&original_input.field, JsMcpField::Ref { model: name, require_version: true } if name == &model.canonical)
+    {
+        return None;
+    }
+    Some(())
+}
+
+fn check_stored_array_target(
+    element: &Box<ResolvedType>,
+    bounds: &Option<super::ir::IrParameterArrayBounds>,
+    original: &crate::analysis::scenario_disclosure::CheckedStoredContractField,
+    input: &JsOperationField,
+) -> Option<SymbolId> {
+    let ResolvedType::Record {
+        symbol,
+        stored: true,
+    } = element.as_ref()
+    else {
+        return None;
+    };
+    let bounds = bounds.as_ref()?;
+    let min = u64::try_from(original.min.as_ref()?.1).ok()?;
+    let max = u64::try_from(original.max.as_ref()?.1).ok()?;
+    if min == 0
+        || max < min
+        || max > 200
+        || (bounds.min, bounds.max) != (Some(min), Some(max))
+        || input.required
+        || input.array_required != Some(false)
+        || input.min != Some(min)
+        || input.max != Some(max)
+    {
+        return None;
+    }
+    Some(*symbol)
 }
 
 fn protected_stored_query_input(
@@ -2484,18 +3586,7 @@ fn protected_stored_query_input(
         .inputs
         .iter()
         .find(|field| field.name == *name)?;
-    if !original_input.required
-        || original_input.nullable
-        || original_input.array_required.is_some()
-        || original_input.value_type.is_some()
-        || original_input.min.is_some()
-        || original_input.max.is_some()
-        || original_input.default.is_some()
-        || original_input.computed_default
-        || !matches!(&original_input.field, JsMcpField::Ref { model: name, require_version: true } if name == &model.canonical)
-    {
-        return None;
-    }
+    check_stored_parent_input(original_input, model)?;
     let IrItemKind::Param {
         ty: IrType::Known(ty),
         default: None,
@@ -2506,6 +3597,20 @@ fn protected_stored_query_input(
     else {
         return None;
     };
+    let target = check_stored_target(ty, value, original, input, bounds)?;
+    let model = ir.items.get(target.0 as usize)?;
+    (model.id == target && matches!(model.kind, IrItemKind::Model { .. })
+        && matches!(&input.field, JsMcpField::Ref { model: name, require_version: false } if name == &model.canonical))
+        .then_some(())
+}
+
+fn check_stored_target(
+    ty: &ResolvedType,
+    value: &TypedExpr,
+    original: &crate::analysis::scenario_disclosure::CheckedStoredContractField,
+    input: &JsOperationField,
+    bounds: &Option<super::ir::IrParameterArrayBounds>,
+) -> Option<SymbolId> {
     if ty != &value.ty
         || ty != &original.ty
         || input.nullable
@@ -2528,42 +3633,18 @@ fn protected_stored_query_input(
             {
                 return None;
             }
-            symbol
+            *symbol
         }
         ResolvedType::Array {
             element,
             ordered: true,
             nonempty: false,
         } => {
-            let ResolvedType::Record {
-                symbol,
-                stored: true,
-            } = element.as_ref()
-            else {
-                return None;
-            };
-            let bounds = bounds.as_ref()?;
-            let min = u64::try_from(original.min.as_ref()?.1).ok()?;
-            let max = u64::try_from(original.max.as_ref()?.1).ok()?;
-            if min == 0
-                || max < min
-                || max > 200
-                || (bounds.min, bounds.max) != (Some(min), Some(max))
-                || input.required
-                || input.array_required != Some(false)
-                || input.min != Some(min)
-                || input.max != Some(max)
-            {
-                return None;
-            }
-            symbol
+            check_stored_array_target(element, bounds, original, input)?
         }
         _ => return None,
     };
-    let model = ir.items.get(target.0 as usize)?;
-    (model.id == *target && matches!(model.kind, IrItemKind::Model { .. })
-        && matches!(&input.field, JsMcpField::Ref { model: name, require_version: false } if name == &model.canonical))
-        .then_some(())
+    Some(target)
 }
 
 fn simple_value(value: &super::ir::TypedExpr) -> bool {

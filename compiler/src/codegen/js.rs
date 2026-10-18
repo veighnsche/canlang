@@ -27,10 +27,11 @@ use crate::analysis::catalog::{StdOperation, nominal_schema, std_capability};
 use crate::analysis::resolve::{CrudOp, ModuleKind, SymbolId};
 use crate::analysis::types::{ResolvedType, Scalar, canonical_datetime_literal, std_schema_type};
 use crate::codegen::ir::{
-    IrBinOp, IrCallTarget, IrChoiceValue, IrDefault, IrEffectCallTarget, IrEventSource, IrExpr,
-    IrFieldLabel, IrGuard, IrHook, IrInputChoiceBinding, IrItem, IrItemKind, IrJudgmentGenerated,
-    IrMessage, IrOwner, IrPage, IrProgram, IrServer, IrStmt, IrType, IrUi, IrUnOp, IrViewUse,
-    ReferencedBuiltin, ScalarFamily, TypedExpr, expr_uses_async, is_structural, scalar_family,
+    CheckedStandardCompletionHandler, IrBinOp, IrCallTarget, IrChoiceValue, IrCohort, IrDefault,
+    IrEffectCallTarget, IrEventSource, IrExpr, IrFieldLabel, IrGuard, IrHook, IrInputChoiceBinding,
+    IrItem, IrItemKind, IrJudgmentGenerated, IrMessage, IrModule, IrOwner, IrPage, IrProgram,
+    IrServer, IrStmt, IrType, IrUi, IrUnOp, IrViewUse, ReferencedBuiltin, ScalarFamily, TypedExpr,
+    expr_uses_async, is_structural, scalar_family,
 };
 use crate::codegen::model_policies::{LocalPolicies, ModelPolicies, collect_local_policies};
 use crate::diagnostic::Diagnostic;
@@ -663,6 +664,17 @@ fn wire_literal(expr: &TypedExpr) -> Option<WireLiteral> {
         IrExpr::Datetime(value) => {
             Some(WireLiteral::String(canonical_datetime_literal(value).ok()?))
         }
+        IrExpr::Array(_) | IrExpr::Object(_) => wire_collection_literal(&expr.expr),
+        IrExpr::Unary { op, operand } if *op == IrUnOp::Neg => {
+            wire_negated_literal(&operand.expr)
+        }
+        IrExpr::Call { target, args } => wire_call_literal(target, args),
+        _ => None,
+    }
+}
+
+fn wire_collection_literal(expr: &IrExpr) -> Option<WireLiteral> {
+    match expr {
         IrExpr::Array(items) => {
             let mut parts = Vec::with_capacity(items.len());
             for item in items {
@@ -677,31 +689,35 @@ fn wire_literal(expr: &TypedExpr) -> Option<WireLiteral> {
             }
             Some(WireLiteral::Object(parts))
         }
-        IrExpr::Unary { op, operand } if *op == IrUnOp::Neg => match &operand.expr {
-            IrExpr::Int(value) => Some(WireLiteral::String(value.checked_neg()?.to_string())),
-            IrExpr::Decimal(spelling) => Some(WireLiteral::String(format!("-{spelling}"))),
-            _ => None,
-        },
-        IrExpr::Call { target, args } => {
-            let id = match target {
-                IrCallTarget::Builtin { id, .. } => id.as_str(),
-                IrCallTarget::CapabilityOp(_) | IrCallTarget::DeriveFn(_) => return None,
+        _ => None,
+    }
+}
+
+fn wire_negated_literal(expr: &IrExpr) -> Option<WireLiteral> {
+    match expr {
+        IrExpr::Int(value) => Some(WireLiteral::String(value.checked_neg()?.to_string())),
+        IrExpr::Decimal(spelling) => Some(WireLiteral::String(format!("-{spelling}"))),
+        _ => None,
+    }
+}
+
+fn wire_call_literal(target: &IrCallTarget, args: &[TypedExpr]) -> Option<WireLiteral> {
+    let id = match target {
+        IrCallTarget::Builtin { id, .. } => id.as_str(),
+        IrCallTarget::CapabilityOp(_) | IrCallTarget::DeriveFn(_) => return None,
+    };
+    match (id, args) {
+        ("date", [single]) if matches!(single.expr, IrExpr::Text(_)) => {
+            let IrExpr::Text(value) = &single.expr else {
+                return None;
             };
-            match (id, args.as_slice()) {
-                ("date", [single]) if matches!(single.expr, IrExpr::Text(_)) => {
-                    let IrExpr::Text(value) = &single.expr else {
-                        return None;
-                    };
-                    Some(WireLiteral::String(value.clone()))
-                }
-                ("datetime", [single]) if matches!(single.expr, IrExpr::Text(_)) => {
-                    let IrExpr::Text(value) = &single.expr else {
-                        return None;
-                    };
-                    Some(WireLiteral::String(canonical_datetime_literal(value).ok()?))
-                }
-                _ => None,
-            }
+            Some(WireLiteral::String(value.clone()))
+        }
+        ("datetime", [single]) if matches!(single.expr, IrExpr::Text(_)) => {
+            let IrExpr::Text(value) = &single.expr else {
+                return None;
+            };
+            Some(WireLiteral::String(canonical_datetime_literal(value).ok()?))
         }
         _ => None,
     }
@@ -1182,6 +1198,27 @@ struct ArrayMarker {
     required: bool,
 }
 
+impl JsOperationField {
+    fn serialize_bound_fields<S: SerializeStruct>(
+        &self,
+        state: &mut S,
+    ) -> Result<(), S::Error> {
+        if let Some(min) = self.min {
+            state.serialize_field("min", &min)?;
+        }
+        if let Some(max) = self.max {
+            state.serialize_field("max", &max)?;
+        }
+        if let Some(default) = &self.default {
+            state.serialize_field("default", default)?;
+        }
+        if self.computed_default {
+            state.serialize_field("computedDefault", &true)?;
+        }
+        Ok(())
+    }
+}
+
 impl Serialize for JsOperationField {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let mut state = serializer.serialize_struct(
@@ -1208,18 +1245,7 @@ impl Serialize for JsOperationField {
         if let Some(required) = self.array_required {
             state.serialize_field("array", &ArrayMarker { required })?;
         }
-        if let Some(min) = self.min {
-            state.serialize_field("min", &min)?;
-        }
-        if let Some(max) = self.max {
-            state.serialize_field("max", &max)?;
-        }
-        if let Some(default) = &self.default {
-            state.serialize_field("default", default)?;
-        }
-        if self.computed_default {
-            state.serialize_field("computedDefault", &true)?;
-        }
+        self.serialize_bound_fields(&mut state)?;
         if let Some(description) = &self.description {
             state.serialize_field("description", description)?;
         }
@@ -1227,6 +1253,36 @@ impl Serialize for JsOperationField {
             state.serialize_field("choices", choices)?;
         }
         state.end()
+    }
+}
+
+impl JsModelField {
+    fn serialize_modifier_fields<S: SerializeStruct>(
+        &self,
+        state: &mut S,
+    ) -> Result<(), S::Error> {
+        if let Some(machine) = &self.machine {
+            state.serialize_field("machine", machine)?;
+        }
+        if self.nullable {
+            state.serialize_field("nullable", &true)?;
+        }
+        if let Some(trim) = self.trim {
+            state.serialize_field("trim", &trim)?;
+        }
+        if let Some(min) = &self.min {
+            state.serialize_field("min", min)?;
+        }
+        if let Some(max) = &self.max {
+            state.serialize_field("max", max)?;
+        }
+        if let Some(required) = self.array_required {
+            state.serialize_field("array", &ArrayMarker { required })?;
+        }
+        if let Some(default) = &self.default {
+            state.serialize_field("default", default)?;
+        }
+        Ok(())
     }
 }
 
@@ -1251,27 +1307,7 @@ impl Serialize for JsModelField {
         }
         state.serialize_field("required", &self.required)?;
         state.serialize_field("serverOnly", &self.server_only)?;
-        if let Some(machine) = &self.machine {
-            state.serialize_field("machine", machine)?;
-        }
-        if self.nullable {
-            state.serialize_field("nullable", &true)?;
-        }
-        if let Some(trim) = self.trim {
-            state.serialize_field("trim", &trim)?;
-        }
-        if let Some(min) = &self.min {
-            state.serialize_field("min", min)?;
-        }
-        if let Some(max) = &self.max {
-            state.serialize_field("max", max)?;
-        }
-        if let Some(required) = self.array_required {
-            state.serialize_field("array", &ArrayMarker { required })?;
-        }
-        if let Some(default) = &self.default {
-            state.serialize_field("default", default)?;
-        }
+        self.serialize_modifier_fields(&mut state)?;
         if let Some(description) = &self.description {
             state.serialize_field("description", description)?;
         }
@@ -1635,57 +1671,19 @@ pub(crate) struct ThenBuildJoin {
     missing: Vec<(Span, String)>,
 }
 
+struct FileThen {
+    owner: String,
+    descriptors: Vec<crate::analysis::generation::GenerationDescriptor>,
+    views: Vec<super::then_views::ThenView>,
+    edges: Vec<super::then_views::UseEdge>,
+    view_spans: Vec<(String, Span)>,
+    show_refs: Vec<(String, Span)>,
+    style_hosts: Vec<(Span, Span)>,
+}
+
 impl ThenBuildJoin {
-    /// Renderer plan for one `show` use span, if it resolves to a
-    /// prompted view with a usable saved unit.
-    pub(crate) fn show_at(&self, span: &Span) -> Option<&ResolvedShow> {
-        self.shows.get(span)
-    }
-
-    pub(crate) fn style_at(&self, span: &Span) -> Option<&String> {
-        self.style_hosts.get(span)
-    }
-
-    /// Checked emitted view uses, for derived artifact consumers.
-    pub(crate) fn resolved_shows(&self) -> impl Iterator<Item = &ResolvedShow> {
-        self.shows.values()
-    }
-
-    /// Consumed view units (saved groups by unit id).
-    pub(crate) fn views(&self) -> &HashMap<String, crate::analysis::generation_intake::SavedGroup> {
-        &self.views
-    }
-
-    /// Consumed style units (saved groups by unit id).
-    pub(crate) fn styles(
-        &self,
-    ) -> &HashMap<String, crate::analysis::generation_intake::SavedGroup> {
-        &self.styles
-    }
-
-    /// Coverage failures: `(span, detail)` pairs the driver reports.
-    pub(crate) fn missing(&self) -> &[(Span, String)] {
-        &self.missing
-    }
-
-    /// Resolve saved Then inputs over every database source: reparse,
-    /// lower prompted views, walk use edges, and bind consumed units
-    /// to their current saved groups. Consumed means emitted: uses
-    /// strictly inside an unconsumed (unshown) view's span resolve
-    /// nothing, and unresolvable sites stay absent so emission keeps
-    /// its ordinary inline shape.
-    pub(crate) fn resolve(db: &crate::source::SourceDb) -> Self {
-        use crate::analysis::generation::{GenerationKind, discover_generation};
-        use crate::analysis::generation_intake as intake;
-        struct FileThen {
-            owner: String,
-            descriptors: Vec<crate::analysis::generation::GenerationDescriptor>,
-            views: Vec<super::then_views::ThenView>,
-            edges: Vec<super::then_views::UseEdge>,
-            view_spans: Vec<(String, Span)>,
-            show_refs: Vec<(String, Span)>,
-            style_hosts: Vec<(Span, Span)>,
-        }
+    fn collect_then_files(db: &crate::source::SourceDb) -> Vec<FileThen> {
+        use crate::analysis::generation::discover_generation;
         let mut files: Vec<FileThen> = Vec::new();
         for (id, source) in db.iter() {
             let (tree, _) = crate::syntax::parse_source(id, &source.text);
@@ -1777,13 +1775,14 @@ impl ThenBuildJoin {
                 });
             }
         }
-        // A view is consumed when some `show` names it (prompted views
-        // through their checked edges, unprompted ones through raw
-        // references); anything strictly inside an unconsumed view's
-        // span emits nothing and consumes nothing.
+        files
+    }
+
+    fn collect_consumed_views(files: &[FileThen]) -> std::collections::HashSet<(String, String)> {
+        use crate::analysis::generation::GenerationKind;
         let mut consumed_views: std::collections::HashSet<(String, String)> =
             std::collections::HashSet::new();
-        for file in &files {
+        for file in files {
             for edge in &file.edges {
                 if edge.definition_kind == GenerationKind::ViewDefinition {
                     consumed_views.insert((edge.owner.clone(), edge.definition_label.clone()));
@@ -1793,23 +1792,38 @@ impl ThenBuildJoin {
                 consumed_views.insert((file.owner.clone(), name.clone()));
             }
         }
-        let inside_unconsumed = |file: &FileThen, span: &Span| -> bool {
-            file.view_spans.iter().any(|(name, view)| {
-                view.file == span.file
-                    && view.start <= span.start
-                    && span.end <= view.end
-                    && (view.start, view.end) != (span.start, span.end)
-                    && !consumed_views.contains(&(file.owner.clone(), name.clone()))
-            })
-        };
+        consumed_views
+    }
+
+    fn inside_unconsumed_view(
+        consumed_views: &std::collections::HashSet<(String, String)>,
+        file: &FileThen,
+        span: &Span,
+    ) -> bool {
+        file.view_spans.iter().any(|(name, view)| {
+            view.file == span.file
+                && view.start <= span.start
+                && span.end <= view.end
+                && (view.start, view.end) != (span.start, span.end)
+                && !consumed_views.contains(&(file.owner.clone(), name.clone()))
+        })
+    }
+
+    fn capture_standalone_snapshot(
+        db: &crate::source::SourceDb,
+        files: &[FileThen],
+    ) -> Option<
+        Result<crate::analysis::generation_store::FrozenGeneration, String>,
+    > {
         // Library callers get the same snapshot boundary as the CLI. Their
         // already checked source text must agree with the captured filesystem.
-        let standalone = if db.generation.is_none()
+        if db.generation.is_none()
             && files.iter().any(|file| {
                 file.descriptors
                     .iter()
                     .any(|descriptor| descriptor.has_generation_identity)
-            }) {
+            })
+        {
             if db
                 .iter()
                 .any(|(_, source)| !std::path::Path::new(&source.path).is_file())
@@ -1839,7 +1853,488 @@ impl ThenBuildJoin {
             }
         } else {
             None
+        }
+    }
+
+    fn claim_staged_unit(
+        join: &mut ThenBuildJoin,
+        staged_keys: &mut HashMap<String, crate::analysis::generation_intake::AssociationKey>,
+        key: &crate::analysis::generation_intake::AssociationKey,
+        unit_id: &str,
+        span: Span,
+        what: &str,
+    ) -> bool {
+        if let Some(first) = staged_keys.get(unit_id) {
+            if first != key {
+                join.missing.push((
+                    span,
+                    format!(
+                        "cannot lower {what}: saved unit `{unit_id}` is already staged for another definition; reconcile the association with an explicit bind (action: bind)",
+                    ),
+                ));
+                return false;
+            }
+            return true;
+        }
+        staged_keys.insert(unit_id.to_string(), key.clone());
+        true
+    }
+
+    fn resolve_saved_unit(
+        join: &mut ThenBuildJoin,
+        snapshot: Option<&crate::analysis::generation_store::FrozenGeneration>,
+        standalone: &Option<
+            Result<crate::analysis::generation_store::FrozenGeneration, String>,
+        >,
+        db: &crate::source::SourceDb,
+        key: &crate::analysis::generation_intake::AssociationKey,
+        span: Span,
+        what: &str,
+    ) -> Option<(String, crate::analysis::generation_intake::SavedGroup)> {
+        match snapshot {
+            Some(snapshot) => match snapshot.resolve(db, key, span) {
+                Ok(Some(group)) => Some(group),
+                Ok(None) => {
+                    join.missing.push((span, format!("cannot lower {what}: no saved unit is bound to {}; prepare the unit (action: generate)", key.describe())));
+                    None
+                }
+                Err(detail) => {
+                    join.missing.push((
+                        span,
+                        format!("cannot lower {what}: {detail} (action: bind)"),
+                    ));
+                    None
+                }
+            },
+            None => {
+                let detail = standalone
+                    .as_ref()
+                    .and_then(|value| value.as_ref().err())
+                    .map(String::as_str)
+                    .unwrap_or("saved input snapshot unavailable");
+                join.missing
+                    .push((span, format!("cannot lower {what}: {detail}")));
+                None
+            }
+        }
+    }
+    /// Renderer plan for one `show` use span, if it resolves to a
+    /// prompted view with a usable saved unit.
+    pub(crate) fn show_at(&self, span: &Span) -> Option<&ResolvedShow> {
+        self.shows.get(span)
+    }
+
+    pub(crate) fn style_at(&self, span: &Span) -> Option<&String> {
+        self.style_hosts.get(span)
+    }
+
+    /// Checked emitted view uses, for derived artifact consumers.
+    pub(crate) fn resolved_shows(&self) -> impl Iterator<Item = &ResolvedShow> {
+        self.shows.values()
+    }
+
+    /// Consumed view units (saved groups by unit id).
+    pub(crate) fn views(&self) -> &HashMap<String, crate::analysis::generation_intake::SavedGroup> {
+        &self.views
+    }
+
+    /// Consumed style units (saved groups by unit id).
+    pub(crate) fn styles(
+        &self,
+    ) -> &HashMap<String, crate::analysis::generation_intake::SavedGroup> {
+        &self.styles
+    }
+
+    /// Coverage failures: `(span, detail)` pairs the driver reports.
+    pub(crate) fn missing(&self) -> &[(Span, String)] {
+        &self.missing
+    }
+
+    /// Resolve saved Then inputs over every database source: reparse,
+    /// lower prompted views, walk use edges, and bind consumed units
+    /// to their current saved groups. Consumed means emitted: uses
+    /// strictly inside an unconsumed (unshown) view's span resolve
+    /// nothing, and unresolvable sites stay absent so emission keeps
+    /// its ordinary inline shape.
+    fn resolve_view_root_style(
+        join: &mut ThenBuildJoin,
+        staged_keys: &mut HashMap<String, crate::analysis::generation_intake::AssociationKey>,
+        snapshot: Option<&crate::analysis::generation_store::FrozenGeneration>,
+        standalone: &Option<Result<crate::analysis::generation_store::FrozenGeneration, String>>,
+        db: &crate::source::SourceDb,
+        file: &FileThen,
+        edge: &super::then_views::UseEdge,
+        view: &super::then_views::ThenView,
+        what: &str,
+    ) -> Option<String> {
+        let mut root_style: Option<String> = None;
+        if let Some(declared) = view.root_style.as_ref() {
+            if let Some(name) = declared.named.as_deref() {
+                let style_key = crate::analysis::generation_intake::AssociationKey {
+                    owner: edge.owner.clone(),
+                    kind: crate::analysis::generation_intake::UnitKind::Style,
+                    label: Some(name.to_string()),
+                    anchor: format!("{}:style:{name}:", edge.owner),
+                };
+                if let Some((style_id, style_group)) =
+                    Self::resolve_saved_unit(join, snapshot, &standalone, db, &style_key, edge.use_span, &what)
+                    && Self::claim_staged_unit(
+                        join,
+                        staged_keys,
+                        &style_key,
+                        &style_id,
+                        edge.use_span,
+                        &what,
+                    )
+                {
+                    join.styles.insert(style_id.clone(), style_group);
+                    root_style = Some(style_id);
+                }
+            } else if declared.inline_prompt.is_some() {
+                let style_key = crate::analysis::generation_intake::AssociationKey {
+                    owner: edge.owner.clone(),
+                    kind: crate::analysis::generation_intake::UnitKind::ViewStyleInline,
+                    label: Some(view.name.clone()),
+                    anchor: format!(
+                        "{}:view-style-inline:{}:{}",
+                        edge.owner, view.name, view.name
+                    ),
+                };
+                if let Some((style_id, style_group)) =
+                    Self::resolve_saved_unit(join, snapshot, &standalone, db, &style_key, edge.use_span, &what)
+                    && Self::claim_staged_unit(
+                        join,
+                        staged_keys,
+                        &style_key,
+                        &style_id,
+                        edge.use_span,
+                        &what,
+                    )
+                {
+                    join.styles.insert(style_id.clone(), style_group);
+                    root_style = Some(style_id);
+                }
+            }
+        }
+        if root_style.is_none() {
+            root_style = file
+                .descriptors
+                .iter()
+                .filter(|d| {
+                    matches!(
+                        d.kind,
+                        crate::analysis::generation::GenerationKind::StyleNamedUse | crate::analysis::generation::GenerationKind::StyleInline
+                    ) && d.span.file == edge.use_span.file
+                        && d.span.start >= edge.use_span.start
+                        && d.span.end <= edge.use_span.end
+                })
+                .find_map(|d| {
+                    let kind = crate::analysis::generation_intake::UnitKind::of_descriptor(d.kind)?;
+                    let style_key = crate::analysis::generation_intake::AssociationKey {
+                        owner: d.owner.clone(),
+                        kind,
+                        label: d.label.clone(),
+                        anchor: d.anchor.clone(),
+                    };
+                    let (style_id, style_group) =
+                        Self::resolve_saved_unit(join, snapshot, &standalone, db, &style_key, edge.use_span, &what)?;
+                    if !Self::claim_staged_unit(
+                        join,
+                        staged_keys,
+                        &style_key,
+                        &style_id,
+                        edge.use_span,
+                        &what,
+                    ) {
+                        return None;
+                    }
+                    join.styles.insert(style_id.clone(), style_group);
+                    Some(style_id)
+                });
+        }
+        root_style
+    }
+
+    fn resolve_view_edge(
+        join: &mut ThenBuildJoin,
+        staged_keys: &mut HashMap<String, crate::analysis::generation_intake::AssociationKey>,
+        snapshot: Option<&crate::analysis::generation_store::FrozenGeneration>,
+        standalone: &Option<Result<crate::analysis::generation_store::FrozenGeneration, String>>,
+        db: &crate::source::SourceDb,
+        consumed_views: &std::collections::HashSet<(String, String)>,
+        file: &FileThen,
+        edge: &super::then_views::UseEdge,
+    ) -> Option<()> {
+        if edge.definition_kind != crate::analysis::generation::GenerationKind::ViewDefinition
+            || Self::inside_unconsumed_view(&consumed_views, file, &edge.use_span)
+        {
+            return None;
+        }
+        let what = format!("view `{}`", edge.definition_label);
+        let Some(view) = file
+            .views
+            .iter()
+            .find(|v| v.anchor == edge.definition_anchor)
+        else {
+            join.missing.push((
+                edge.use_span,
+                format!(
+                    "cannot lower {what}: the prompted view does not lower from the current source; fix the view or reconcile with adopt"
+                ),
+            ));
+            return None;
         };
+        let key = crate::analysis::generation_intake::AssociationKey {
+            owner: edge.owner.clone(),
+            kind: crate::analysis::generation_intake::UnitKind::View,
+            label: Some(edge.definition_label.clone()),
+            anchor: edge.definition_anchor.clone(),
+        };
+        let Some((unit_id, group)) = Self::resolve_saved_unit(join, snapshot, &standalone, db, &key, edge.use_span, &what)
+        else {
+            return None;
+        };
+        // Adopted legacy views carry the handwritten renderer as
+        // `server.js` instead of the v1 `implementation.js` module
+        // name; either module satisfies the renderer requirement.
+        let has_module = group
+            .files
+            .iter()
+            .find(|f| f.rel_path == "implementation.js")
+            .is_some_and(|f| String::from_utf8(f.bytes.clone()).is_ok())
+            || (group.record.provenance.origin == crate::analysis::generation_intake::ProvenanceOrigin::Adopted
+                && group
+                    .files
+                    .iter()
+                    .find(|f| f.rel_path == "server.js")
+                    .is_some_and(|f| String::from_utf8(f.bytes.clone()).is_ok()));
+        if !has_module {
+            join.missing.push((
+                edge.use_span,
+                format!(
+                    "cannot lower {what}: unit `{unit_id}` `implementation.js` is missing or not valid UTF-8; repair the file or reconcile with adopt"
+                ),
+            ));
+            return None;
+        }
+        if !Self::claim_staged_unit(
+            join,
+            staged_keys,
+            &key,
+            &unit_id,
+            edge.use_span,
+            &what,
+        ) {
+            return None;
+        }
+        let mut root_style = Self::resolve_view_root_style(
+            join,
+            staged_keys,
+            snapshot,
+            &standalone,
+            db,
+            file,
+            edge,
+            view,
+            &what,
+        );
+        if root_style.is_none() && group.files.iter().any(|f| f.rel_path == "style.css") {
+            root_style = Some(unit_id.clone());
+        }
+        let renderer_style = group
+            .files
+            .iter()
+            .any(|file| file.rel_path == "style.css")
+            .then(|| unit_id.clone());
+        join.views.insert(unit_id.clone(), group);
+        join.shows.insert(
+            edge.use_span,
+            ResolvedShow {
+                view_name: view.name.clone(),
+                row_model: format!("{}.{}", edge.owner, view.row_model),
+                unit_id,
+                controls: view.controls.clone(),
+                binding_names: view.binding_names.clone(),
+                root_style,
+                renderer_style,
+            },
+        );
+        Some(())
+    }
+
+    fn pack_style_definitions(
+        join: &mut ThenBuildJoin,
+        staged_keys: &mut HashMap<String, crate::analysis::generation_intake::AssociationKey>,
+        snapshot: Option<&crate::analysis::generation_store::FrozenGeneration>,
+        standalone: &Option<Result<crate::analysis::generation_store::FrozenGeneration, String>>,
+        db: &crate::source::SourceDb,
+        consumed_views: &std::collections::HashSet<(String, String)>,
+        files: &[FileThen],
+        file: &FileThen,
+        descriptor: &crate::analysis::generation::GenerationDescriptor,
+    ) -> Option<()> {
+        if descriptor.kind != crate::analysis::generation::GenerationKind::StyleDefinition {
+            return None;
+        }
+        let used = files.iter().any(|other| {
+            other.edges.iter().any(|edge| {
+                matches!(edge.definition_kind, crate::analysis::generation::GenerationKind::StyleDefinition)
+                    && edge.definition_anchor == descriptor.anchor
+                    && !Self::inside_unconsumed_view(&consumed_views, other, &edge.use_span)
+            })
+        });
+        if !used {
+            return None;
+        }
+        let what = format!(
+            "style `{}`",
+            descriptor.label.as_deref().unwrap_or_default()
+        );
+        let key = crate::analysis::generation_intake::AssociationKey {
+            owner: descriptor.owner.clone(),
+            kind: crate::analysis::generation_intake::UnitKind::Style,
+            label: descriptor.label.clone(),
+            anchor: descriptor.anchor.clone(),
+        };
+        let Some((unit_id, group)) = Self::resolve_saved_unit(join, snapshot, &standalone, db, &key, descriptor.span, &what)
+        else {
+            return None;
+        };
+        if !Self::claim_staged_unit(
+            join,
+            staged_keys,
+            &key,
+            &unit_id,
+            descriptor.span,
+            &what,
+        ) {
+            return None;
+        }
+        join.styles.insert(unit_id, group);
+        Some(())
+    }
+
+    fn pack_inline_styles(
+        join: &mut ThenBuildJoin,
+        staged_keys: &mut HashMap<String, crate::analysis::generation_intake::AssociationKey>,
+        snapshot: Option<&crate::analysis::generation_store::FrozenGeneration>,
+        standalone: &Option<Result<crate::analysis::generation_store::FrozenGeneration, String>>,
+        db: &crate::source::SourceDb,
+        consumed_views: &std::collections::HashSet<(String, String)>,
+        files: &[FileThen],
+        file: &FileThen,
+        descriptor: &crate::analysis::generation::GenerationDescriptor,
+    ) -> Option<()> {
+        let consumed = match descriptor.kind {
+            crate::analysis::generation::GenerationKind::StyleInline => !Self::inside_unconsumed_view(&consumed_views, file, &descriptor.span),
+            crate::analysis::generation::GenerationKind::ViewRootStyleInline => {
+                let view = descriptor.label.as_deref().unwrap_or_default();
+                consumed_views.contains(&(descriptor.owner.clone(), view.to_string()))
+            }
+            _ => return None,
+        };
+        if !consumed {
+            return None;
+        }
+        let what = match descriptor.kind {
+            crate::analysis::generation::GenerationKind::ViewRootStyleInline => format!(
+                "inline root style of view `{}`",
+                descriptor.label.as_deref().unwrap_or_default()
+            ),
+            _ => "inline style".to_string(),
+        };
+        let Some(kind) = crate::analysis::generation_intake::UnitKind::of_descriptor(descriptor.kind) else {
+            return None;
+        };
+        let key = crate::analysis::generation_intake::AssociationKey {
+            owner: descriptor.owner.clone(),
+            kind,
+            label: descriptor.label.clone(),
+            anchor: descriptor.anchor.clone(),
+        };
+        let Some((unit_id, group)) = Self::resolve_saved_unit(join, snapshot, &standalone, db, &key, descriptor.span, &what)
+        else {
+            return None;
+        };
+        if !Self::claim_staged_unit(
+            join,
+            staged_keys,
+            &key,
+            &unit_id,
+            descriptor.span,
+            &what,
+        ) {
+            return None;
+        }
+        join.styles.insert(unit_id, group);
+        Some(())
+    }
+
+    fn bind_style_hosts(
+        join: &mut ThenBuildJoin,
+        consumed_views: &std::collections::HashSet<(String, String)>,
+        files: &[FileThen],
+        snapshot: Option<&crate::analysis::generation_store::FrozenGeneration>,
+        db: &crate::source::SourceDb,
+        file: &FileThen,
+        suffix_span: &crate::source::Span,
+        host_span: &crate::source::Span,
+    ) -> Option<()> {
+        if Self::inside_unconsumed_view(&consumed_views, file, suffix_span) {
+            return None;
+        }
+        let Some(descriptor) = file.descriptors.iter().find(|d| d.span == *suffix_span)
+        else {
+            return None;
+        };
+        let (kind, label, anchor) = match descriptor.kind {
+            crate::analysis::generation::GenerationKind::StyleNamedUse => {
+                let name = descriptor.label.clone().unwrap_or_default();
+                (
+                    crate::analysis::generation_intake::UnitKind::Style,
+                    Some(name.clone()),
+                    format!("{}:style:{name}:", descriptor.owner),
+                )
+            }
+            crate::analysis::generation::GenerationKind::StyleInline => (
+                crate::analysis::generation_intake::UnitKind::StyleInline,
+                descriptor.label.clone(),
+                descriptor.anchor.clone(),
+            ),
+            _ => return None,
+        };
+        let key = crate::analysis::generation_intake::AssociationKey {
+            owner: descriptor.owner.clone(),
+            kind,
+            label,
+            anchor,
+        };
+        if let Some(snapshot) = snapshot {
+            if let Ok(Some((id, _))) = snapshot.resolve(db, &key, descriptor.span) {
+                if join.styles.contains_key(&id) {
+                    join.style_hosts.insert(*host_span, id);
+                }
+            }
+        } else if let Some((id, _)) = join
+            .styles
+            .iter()
+            .find(|(_, group)| crate::analysis::generation_intake::AssociationKey::of(&group.record.source) == key)
+        {
+            join.style_hosts.insert(*host_span, id.clone());
+        }
+        Some(())
+    }
+
+    pub(crate) fn resolve(db: &crate::source::SourceDb) -> Self {
+        use crate::analysis::generation::{GenerationKind, discover_generation};
+        use crate::analysis::generation_intake as intake;
+        let files = Self::collect_then_files(db);
+        // A view is consumed when some `show` names it (prompted views
+        // through their checked edges, unprompted ones through raw
+        // references); anything strictly inside an unconsumed view's
+        // span emits nothing and consumes nothing.
+        let consumed_views = Self::collect_consumed_views(&files);
+        let standalone = Self::capture_standalone_snapshot(db, &files);
         let snapshot = db
             .generation
             .as_deref()
@@ -1848,233 +2343,18 @@ impl ThenBuildJoin {
         // Staged identities stay unambiguous: one unit id serves one
         // association key, or the build refuses the skewed staging.
         let mut staged_keys: HashMap<String, intake::AssociationKey> = HashMap::new();
-        let claim_staged = |join: &mut ThenBuildJoin,
-                            staged_keys: &mut HashMap<String, intake::AssociationKey>,
-                            key: &intake::AssociationKey,
-                            unit_id: &str,
-                            span: Span,
-                            what: &str|
-         -> bool {
-            if let Some(first) = staged_keys.get(unit_id) {
-                if first != key {
-                    join.missing.push((
-                        span,
-                        format!(
-                            "cannot lower {what}: saved unit `{unit_id}` is already staged for another definition; reconcile the association with an explicit bind (action: bind)",
-                        ),
-                    ));
-                    return false;
-                }
-                return true;
-            }
-            staged_keys.insert(unit_id.to_string(), key.clone());
-            true
-        };
-        let resolve_unit = |join: &mut ThenBuildJoin,
-                            key: &intake::AssociationKey,
-                            span: Span,
-                            what: &str|
-         -> Option<(String, intake::SavedGroup)> {
-            match snapshot {
-                Some(snapshot) => match snapshot.resolve(db, key, span) {
-                    Ok(Some(group)) => Some(group),
-                    Ok(None) => {
-                        join.missing.push((span, format!("cannot lower {what}: no saved unit is bound to {}; prepare the unit (action: generate)", key.describe())));
-                        None
-                    }
-                    Err(detail) => {
-                        join.missing.push((
-                            span,
-                            format!("cannot lower {what}: {detail} (action: bind)"),
-                        ));
-                        None
-                    }
-                },
-                None => {
-                    let detail = standalone
-                        .as_ref()
-                        .and_then(|value| value.as_ref().err())
-                        .map(String::as_str)
-                        .unwrap_or("saved input snapshot unavailable");
-                    join.missing
-                        .push((span, format!("cannot lower {what}: {detail}")));
-                    None
-                }
-            }
-        };
         // Prompted `show` sites resolve to renderer plans.
         for file in &files {
             for edge in &file.edges {
-                if edge.definition_kind != GenerationKind::ViewDefinition
-                    || inside_unconsumed(file, &edge.use_span)
-                {
-                    continue;
-                }
-                let what = format!("view `{}`", edge.definition_label);
-                let Some(view) = file
-                    .views
-                    .iter()
-                    .find(|v| v.anchor == edge.definition_anchor)
-                else {
-                    join.missing.push((
-                        edge.use_span,
-                        format!(
-                            "cannot lower {what}: the prompted view does not lower from the current source; fix the view or reconcile with adopt"
-                        ),
-                    ));
-                    continue;
-                };
-                let key = intake::AssociationKey {
-                    owner: edge.owner.clone(),
-                    kind: intake::UnitKind::View,
-                    label: Some(edge.definition_label.clone()),
-                    anchor: edge.definition_anchor.clone(),
-                };
-                let Some((unit_id, group)) = resolve_unit(&mut join, &key, edge.use_span, &what)
-                else {
-                    continue;
-                };
-                // Adopted legacy views carry the handwritten renderer as
-                // `server.js` instead of the v1 `implementation.js` module
-                // name; either module satisfies the renderer requirement.
-                let has_module = group
-                    .files
-                    .iter()
-                    .find(|f| f.rel_path == "implementation.js")
-                    .is_some_and(|f| String::from_utf8(f.bytes.clone()).is_ok())
-                    || (group.record.provenance.origin == intake::ProvenanceOrigin::Adopted
-                        && group
-                            .files
-                            .iter()
-                            .find(|f| f.rel_path == "server.js")
-                            .is_some_and(|f| String::from_utf8(f.bytes.clone()).is_ok()));
-                if !has_module {
-                    join.missing.push((
-                        edge.use_span,
-                        format!(
-                            "cannot lower {what}: unit `{unit_id}` `implementation.js` is missing or not valid UTF-8; repair the file or reconcile with adopt"
-                        ),
-                    ));
-                    continue;
-                }
-                if !claim_staged(
+                let _ = Self::resolve_view_edge(
                     &mut join,
                     &mut staged_keys,
-                    &key,
-                    &unit_id,
-                    edge.use_span,
-                    &what,
-                ) {
-                    continue;
-                }
-                // The renderer root style: the declared root suffix
-                // (named or inline) wins, then the use-site `$`
-                // attachment, then the view's colocated `style.css`.
-                let mut root_style: Option<String> = None;
-                if let Some(declared) = view.root_style.as_ref() {
-                    if let Some(name) = declared.named.as_deref() {
-                        let style_key = intake::AssociationKey {
-                            owner: edge.owner.clone(),
-                            kind: intake::UnitKind::Style,
-                            label: Some(name.to_string()),
-                            anchor: format!("{}:style:{name}:", edge.owner),
-                        };
-                        if let Some((style_id, style_group)) =
-                            resolve_unit(&mut join, &style_key, edge.use_span, &what)
-                            && claim_staged(
-                                &mut join,
-                                &mut staged_keys,
-                                &style_key,
-                                &style_id,
-                                edge.use_span,
-                                &what,
-                            )
-                        {
-                            join.styles.insert(style_id.clone(), style_group);
-                            root_style = Some(style_id);
-                        }
-                    } else if declared.inline_prompt.is_some() {
-                        let style_key = intake::AssociationKey {
-                            owner: edge.owner.clone(),
-                            kind: intake::UnitKind::ViewStyleInline,
-                            label: Some(view.name.clone()),
-                            anchor: format!(
-                                "{}:view-style-inline:{}:{}",
-                                edge.owner, view.name, view.name
-                            ),
-                        };
-                        if let Some((style_id, style_group)) =
-                            resolve_unit(&mut join, &style_key, edge.use_span, &what)
-                            && claim_staged(
-                                &mut join,
-                                &mut staged_keys,
-                                &style_key,
-                                &style_id,
-                                edge.use_span,
-                                &what,
-                            )
-                        {
-                            join.styles.insert(style_id.clone(), style_group);
-                            root_style = Some(style_id);
-                        }
-                    }
-                }
-                if root_style.is_none() {
-                    root_style = file
-                        .descriptors
-                        .iter()
-                        .filter(|d| {
-                            matches!(
-                                d.kind,
-                                GenerationKind::StyleNamedUse | GenerationKind::StyleInline
-                            ) && d.span.file == edge.use_span.file
-                                && d.span.start >= edge.use_span.start
-                                && d.span.end <= edge.use_span.end
-                        })
-                        .find_map(|d| {
-                            let kind = intake::UnitKind::of_descriptor(d.kind)?;
-                            let style_key = intake::AssociationKey {
-                                owner: d.owner.clone(),
-                                kind,
-                                label: d.label.clone(),
-                                anchor: d.anchor.clone(),
-                            };
-                            let (style_id, style_group) =
-                                resolve_unit(&mut join, &style_key, edge.use_span, &what)?;
-                            if !claim_staged(
-                                &mut join,
-                                &mut staged_keys,
-                                &style_key,
-                                &style_id,
-                                edge.use_span,
-                                &what,
-                            ) {
-                                return None;
-                            }
-                            join.styles.insert(style_id.clone(), style_group);
-                            Some(style_id)
-                        });
-                }
-                if root_style.is_none() && group.files.iter().any(|f| f.rel_path == "style.css") {
-                    root_style = Some(unit_id.clone());
-                }
-                let renderer_style = group
-                    .files
-                    .iter()
-                    .any(|file| file.rel_path == "style.css")
-                    .then(|| unit_id.clone());
-                join.views.insert(unit_id.clone(), group);
-                join.shows.insert(
-                    edge.use_span,
-                    ResolvedShow {
-                        view_name: view.name.clone(),
-                        row_model: format!("{}.{}", edge.owner, view.row_model),
-                        unit_id,
-                        controls: view.controls.clone(),
-                        binding_names: view.binding_names.clone(),
-                        root_style,
-                        renderer_style,
-                    },
+                    snapshot,
+                    &standalone,
+                    db,
+                    &consumed_views,
+                    file,
+                    edge,
                 );
             }
         }
@@ -2082,140 +2362,21 @@ impl ThenBuildJoin {
         // at least one emitted named use.
         for file in &files {
             for descriptor in &file.descriptors {
-                if descriptor.kind != GenerationKind::StyleDefinition {
-                    continue;
-                }
-                let used = files.iter().any(|other| {
-                    other.edges.iter().any(|edge| {
-                        matches!(edge.definition_kind, GenerationKind::StyleDefinition)
-                            && edge.definition_anchor == descriptor.anchor
-                            && !inside_unconsumed(other, &edge.use_span)
-                    })
-                });
-                if !used {
-                    continue;
-                }
-                let what = format!(
-                    "style `{}`",
-                    descriptor.label.as_deref().unwrap_or_default()
-                );
-                let key = intake::AssociationKey {
-                    owner: descriptor.owner.clone(),
-                    kind: intake::UnitKind::Style,
-                    label: descriptor.label.clone(),
-                    anchor: descriptor.anchor.clone(),
-                };
-                let Some((unit_id, group)) = resolve_unit(&mut join, &key, descriptor.span, &what)
-                else {
-                    continue;
-                };
-                if !claim_staged(
-                    &mut join,
-                    &mut staged_keys,
-                    &key,
-                    &unit_id,
-                    descriptor.span,
-                    &what,
-                ) {
-                    continue;
-                }
-                join.styles.insert(unit_id, group);
+                let _ = Self::pack_style_definitions(&mut join, &mut staged_keys, snapshot, &standalone, db, &consumed_views, &files, file, descriptor);
             }
         }
         // Inline attachments consume their own unit wherever their host
         // emits; definition-owned inline root styles follow their view.
         for file in &files {
             for descriptor in &file.descriptors {
-                let consumed = match descriptor.kind {
-                    GenerationKind::StyleInline => !inside_unconsumed(file, &descriptor.span),
-                    GenerationKind::ViewRootStyleInline => {
-                        let view = descriptor.label.as_deref().unwrap_or_default();
-                        consumed_views.contains(&(descriptor.owner.clone(), view.to_string()))
-                    }
-                    _ => continue,
-                };
-                if !consumed {
-                    continue;
-                }
-                let what = match descriptor.kind {
-                    GenerationKind::ViewRootStyleInline => format!(
-                        "inline root style of view `{}`",
-                        descriptor.label.as_deref().unwrap_or_default()
-                    ),
-                    _ => "inline style".to_string(),
-                };
-                let Some(kind) = intake::UnitKind::of_descriptor(descriptor.kind) else {
-                    continue;
-                };
-                let key = intake::AssociationKey {
-                    owner: descriptor.owner.clone(),
-                    kind,
-                    label: descriptor.label.clone(),
-                    anchor: descriptor.anchor.clone(),
-                };
-                let Some((unit_id, group)) = resolve_unit(&mut join, &key, descriptor.span, &what)
-                else {
-                    continue;
-                };
-                if !claim_staged(
-                    &mut join,
-                    &mut staged_keys,
-                    &key,
-                    &unit_id,
-                    descriptor.span,
-                    &what,
-                ) {
-                    continue;
-                }
-                join.styles.insert(unit_id, group);
+                let _ = Self::pack_inline_styles(&mut join, &mut staged_keys, snapshot, &standalone, db, &consumed_views, &files, file, descriptor);
             }
         }
         // Bind ordinary style attachments to their exact owning CST host.
         // Existing saved intake above is the only source of style unit IDs.
         for file in &files {
             for (suffix_span, host_span) in &file.style_hosts {
-                if inside_unconsumed(file, suffix_span) {
-                    continue;
-                }
-                let Some(descriptor) = file.descriptors.iter().find(|d| d.span == *suffix_span)
-                else {
-                    continue;
-                };
-                let (kind, label, anchor) = match descriptor.kind {
-                    GenerationKind::StyleNamedUse => {
-                        let name = descriptor.label.clone().unwrap_or_default();
-                        (
-                            intake::UnitKind::Style,
-                            Some(name.clone()),
-                            format!("{}:style:{name}:", descriptor.owner),
-                        )
-                    }
-                    GenerationKind::StyleInline => (
-                        intake::UnitKind::StyleInline,
-                        descriptor.label.clone(),
-                        descriptor.anchor.clone(),
-                    ),
-                    _ => continue,
-                };
-                let key = intake::AssociationKey {
-                    owner: descriptor.owner.clone(),
-                    kind,
-                    label,
-                    anchor,
-                };
-                if let Some(snapshot) = snapshot {
-                    if let Ok(Some((id, _))) = snapshot.resolve(db, &key, descriptor.span) {
-                        if join.styles.contains_key(&id) {
-                            join.style_hosts.insert(*host_span, id);
-                        }
-                    }
-                } else if let Some((id, _)) = join
-                    .styles
-                    .iter()
-                    .find(|(_, group)| intake::AssociationKey::of(&group.record.source) == key)
-                {
-                    join.style_hosts.insert(*host_span, id.clone());
-                }
+                let _ = Self::bind_style_hosts(&mut join, &consumed_views, &files, snapshot, db, file, suffix_span, host_span);
             }
         }
         join
@@ -2883,15 +3044,9 @@ fn is_ui_factory(factory: &str) -> bool {
 
 /// Props consumed by the actual public factory (or the form preparer).
 /// Unavailable runtime-carrier profiles are rejected during IR decoding.
-fn ui_prop_is_admitted(factory: &str, key: &str) -> bool {
+fn ui_collection_prop_admitted(factory: &str, key: &str) -> Option<bool> {
     match factory {
-        "card" => matches!(key, "title" | "layout"),
-        "collapse" => matches!(key, "caption" | "open" | "id" | "variant"),
-        "tabs" => matches!(key, "id" | "size" | "variant" | "binding" | "caption"),
-        "title" => matches!(key, "text" | "level"),
-        "text" => key == "values",
-        "content" => key == "value",
-        "list" => matches!(
+        "list" => Some(matches!(
             key,
             "model"
                 | "parent"
@@ -2908,8 +3063,8 @@ fn ui_prop_is_admitted(factory: &str, key: &str) -> bool {
                 | "count"
                 | "filter"
                 | "defaults"
-        ),
-        "board" => matches!(
+        )),
+        "board" => Some(matches!(
             key,
             "model"
                 | "parent"
@@ -2925,20 +3080,12 @@ fn ui_prop_is_admitted(factory: &str, key: &str) -> bool {
                 | "filter"
                 | "defaults"
                 | "by"
-        ),
-        "timeline" => matches!(
+        )),
+        "timeline" => Some(matches!(
             key,
             "model" | "parent" | "where" | "order" | "page" | "occurrence"
-        ),
-        "filter" => matches!(key, "binding" | "caption"),
-        "copy" => matches!(key, "value" | "label" | "id"),
-        "toggle" => key == "field",
-        "swap" => key == "active",
-        "indicator" => matches!(key, "content" | "indicator"),
-        "steps" => key == "items",
-        "countdown" => matches!(key, "value" | "caption"),
-        "radialProgress" => matches!(key, "value" | "max" | "caption"),
-        "gallery" => matches!(
+        )),
+        "gallery" => Some(matches!(
             key,
             "model"
                 | "parent"
@@ -2951,8 +3098,8 @@ fn ui_prop_is_admitted(factory: &str, key: &str) -> bool {
                 | "page"
                 | "filter"
                 | "defaults"
-        ),
-        "table" => matches!(
+        )),
+        "table" => Some(matches!(
             key,
             "model"
                 | "parent"
@@ -2968,29 +3115,8 @@ fn ui_prop_is_admitted(factory: &str, key: &str) -> bool {
                 | "defaults"
                 | "display"
                 | "page"
-        ),
-        "history" => matches!(key, "model" | "record"),
-        "form" => matches!(
-            key,
-            "operation"
-                | "fields"
-                | "arguments"
-                | "submit"
-                | "controlLabel"
-                | "authoredSubmit"
-                | "display"
-        ),
-        "input" | "textarea" | "radio" | "select" => {
-            matches!(key, "field" | "tone" | "size" | "variant")
-        }
-        "label" => matches!(key, "field" | "caption"),
-        "validator" => key == "field",
-        "checkbox" => key == "field",
-        "range" | "fileInput" => key == "field",
-        "progress" => matches!(key, "value" | "max"),
-        "renderState" => matches!(key, "kind" | "message"),
-        "tooltip" => key == "caption",
-        "calendar" => matches!(
+        )),
+        "calendar" => Some(matches!(
             key,
             "field"
                 | "kind"
@@ -3007,27 +3133,104 @@ fn ui_prop_is_admitted(factory: &str, key: &str) -> bool {
                 | "filter"
                 | "defaults"
                 | "columns"
-        ),
-        "fieldset" => matches!(key, "caption" | "id" | "variant"),
-        "hero" | "footer" => key == "caption",
-        "join" => matches!(key, "id" | "orientation" | "variant"),
-        "badge" => matches!(key, "value" | "caption" | "tone" | "size" | "variant"),
-        "status" => matches!(key, "value" | "caption" | "tone" | "size"),
-        "divider" => matches!(key, "caption" | "tone" | "orientation" | "variant"),
-        "stat" => matches!(
+        )),
+        _ => None,
+    }
+}
+
+fn ui_form_prop_admitted(factory: &str, key: &str) -> Option<bool> {
+    match factory {
+        "form" => Some(matches!(
+            key,
+            "operation"
+                | "fields"
+                | "arguments"
+                | "submit"
+                | "controlLabel"
+                | "authoredSubmit"
+                | "display"
+        )),
+        "input" | "textarea" | "radio" | "select" => {
+            Some(matches!(key, "field" | "tone" | "size" | "variant"))
+        }
+        "label" => Some(matches!(key, "field" | "caption")),
+        "validator" => Some(key == "field"),
+        "checkbox" => Some(key == "field"),
+        "range" | "fileInput" => Some(key == "field"),
+        "fieldset" => Some(matches!(key, "caption" | "id" | "variant")),
+        _ => None,
+    }
+}
+
+fn ui_panel_prop_admitted(factory: &str, key: &str) -> Option<bool> {
+    match factory {
+        "card" => Some(matches!(key, "title" | "layout")),
+        "collapse" => Some(matches!(key, "caption" | "open" | "id" | "variant")),
+        "tabs" => Some(matches!(
+            key,
+            "id" | "size" | "variant" | "binding" | "caption"
+        )),
+        "title" => Some(matches!(key, "text" | "level")),
+        "text" => Some(key == "values"),
+        "content" => Some(key == "value"),
+        "filter" => Some(matches!(key, "binding" | "caption")),
+        "copy" => Some(matches!(key, "value" | "label" | "id")),
+        "toggle" => Some(key == "field"),
+        _ => None,
+    }
+}
+
+fn ui_media_prop_admitted(factory: &str, key: &str) -> Option<bool> {
+    match factory {
+        "swap" => Some(key == "active"),
+        "indicator" => Some(matches!(key, "content" | "indicator")),
+        "steps" => Some(key == "items"),
+        "countdown" => Some(matches!(key, "value" | "caption")),
+        "radialProgress" => Some(matches!(key, "value" | "max" | "caption")),
+        "progress" => Some(matches!(key, "value" | "max")),
+        "renderState" => Some(matches!(key, "kind" | "message")),
+        "tooltip" => Some(key == "caption"),
+        "history" => Some(matches!(key, "model" | "record")),
+        _ => None,
+    }
+}
+
+fn ui_chrome_prop_admitted(factory: &str, key: &str) -> Option<bool> {
+    match factory {
+        "hero" | "footer" => Some(key == "caption"),
+        "join" => Some(matches!(key, "id" | "orientation" | "variant")),
+        "badge" => Some(matches!(
+            key,
+            "value" | "caption" | "tone" | "size" | "variant"
+        )),
+        "status" => Some(matches!(key, "value" | "caption" | "tone" | "size")),
+        "divider" => Some(matches!(
+            key,
+            "caption" | "tone" | "orientation" | "variant"
+        )),
+        "button" => Some(matches!(key, "caption" | "target" | "opens" | "submit")),
+        "link" => Some(matches!(key, "caption" | "target" | "tone" | "variant")),
+        "modal" | "drawer" => Some(matches!(
+            key,
+            "caption" | "id" | "variant" | "externalTrigger"
+        )),
+        "chatBubble" => Some(matches!(key, "side" | "tone" | "variant")),
+        "fab" => Some(key == "label"),
+        _ => None,
+    }
+}
+
+fn ui_record_prop_admitted(factory: &str, key: &str) -> Option<bool> {
+    match factory {
+        "stat" => Some(matches!(
             key,
             "value" | "title" | "description" | "icon" | "orientation" | "id" | "variant"
-        ),
-        "alert" => matches!(
+        )),
+        "alert" => Some(matches!(
             key,
             "value" | "tone" | "variant" | "orientation" | "regionId"
-        ),
-        "button" => matches!(key, "caption" | "target" | "opens" | "submit"),
-        "link" => matches!(key, "caption" | "target" | "tone" | "variant"),
-        "modal" | "drawer" => matches!(key, "caption" | "id" | "variant" | "externalTrigger"),
-        "chatBubble" => matches!(key, "side" | "tone" | "variant"),
-        "fab" => key == "label",
-        "deleteRecord" => matches!(
+        )),
+        "deleteRecord" => Some(matches!(
             key,
             "operation"
                 | "record"
@@ -3039,9 +3242,19 @@ fn ui_prop_is_admitted(factory: &str, key: &str) -> bool {
                 | "confirm"
                 | "idPrefix"
                 | "display"
-        ),
-        _ => false,
+        )),
+        _ => None,
     }
+}
+
+fn ui_prop_is_admitted(factory: &str, key: &str) -> bool {
+    ui_collection_prop_admitted(factory, key)
+        .or_else(|| ui_form_prop_admitted(factory, key))
+        .or_else(|| ui_panel_prop_admitted(factory, key))
+        .or_else(|| ui_media_prop_admitted(factory, key))
+        .or_else(|| ui_chrome_prop_admitted(factory, key))
+        .or_else(|| ui_record_prop_admitted(factory, key))
+        .unwrap_or(false)
 }
 
 /// Finite options consumed by the current owning UI appearance contracts.
@@ -3191,6 +3404,53 @@ fn inline_preference_editor_matches(editor: &TypedExpr, nullable: &TypedExpr, ty
     }
 }
 
+fn coalesce_post_target_valid(post_to: &TypedExpr) -> bool {
+    let IrExpr::Binary { op, left, right } = &post_to.expr else {
+        return false;
+    };
+    if !matches!(op, IrBinOp::Coalesce) || post_to.ty != ResolvedType::Scalar(Scalar::Text) {
+        return false;
+    }
+    let IrExpr::Member { base, field } = &left.expr else {
+        return false;
+    };
+    if field != "pollUrl" || !matches!(&base.expr, IrExpr::Name(base) if base == "c") {
+        return false;
+    }
+    let IrExpr::Member { base, field } = &right.expr else {
+        return false;
+    };
+    if field != "path" || !matches!(&base.expr, IrExpr::Name(base) if base == "c") {
+        return false;
+    }
+    true
+}
+
+fn preference_version_module(version: &TypedExpr, name: &str) -> Option<String> {
+    let IrExpr::Member { base, field } = &version.expr else {
+        return None;
+    };
+    if field != name {
+        return None;
+    }
+    let IrExpr::Member { base, field } = &base.expr else {
+        return None;
+    };
+    let module_segment = field.clone();
+    if module_segment.is_empty() {
+        return None;
+    }
+    let IrExpr::Member { base, field } = &base.expr else {
+        return None;
+    };
+    if field != "preferenceVersions"
+        || !matches!(&base.expr, IrExpr::Name(base) if base == "c")
+    {
+        return None;
+    }
+    Some(module_segment)
+}
+
 fn standalone_filter_binding_is_valid(ir: &IrProgram, node: &IrUi) -> bool {
     let Some(parts) = saved_preference_binding_parts(node) else { return false; };
     let part = |key: &str| parts.iter().find(|(name, _)| name == key).map(|(_, value)| value);
@@ -3253,45 +3513,12 @@ fn standalone_filter_binding_is_valid(ir: &IrProgram, node: &IrUi) -> bool {
     // The module segment resolves the owning module BEFORE the field
     // lookup below, so a second app's ordinary same-named preference
     // can never satisfy (or break) this app's binding.
-    let IrExpr::Member { base, field } = &version.expr else {
+    let Some(module_segment) = preference_version_module(version, name) else {
         return false;
     };
-    if field != name {
-        return false;
-    }
-    let IrExpr::Member { base, field } = &base.expr else {
-        return false;
-    };
-    let module_segment = field.clone();
-    if module_segment.is_empty() {
-        return false;
-    }
-    let IrExpr::Member { base, field } = &base.expr else {
-        return false;
-    };
-    if field != "preferenceVersions"
-        || !matches!(&base.expr, IrExpr::Name(base) if base == "c")
-    {
-        return false;
-    }
     // The POST target is the actual caller-text coalesce the bound-tabs
     // owner emits (`c.pollUrl ?? c.path`), not any coalesce by shape.
-    let IrExpr::Binary { op, left, right } = &post_to.expr else {
-        return false;
-    };
-    if !matches!(op, IrBinOp::Coalesce) || post_to.ty != ResolvedType::Scalar(Scalar::Text) {
-        return false;
-    }
-    let IrExpr::Member { base, field } = &left.expr else {
-        return false;
-    };
-    if field != "pollUrl" || !matches!(&base.expr, IrExpr::Name(base) if base == "c") {
-        return false;
-    }
-    let IrExpr::Member { base, field } = &right.expr else {
-        return false;
-    };
-    if field != "path" || !matches!(&base.expr, IrExpr::Name(base) if base == "c") {
+    if !coalesce_post_target_valid(post_to) {
         return false;
     }
     // The binding names a checked preference field of THIS module's
@@ -4466,6 +4693,74 @@ impl<'a> Emitter<'a> {
         Some(inventory)
     }
 
+    fn push_judgment_leaves(
+        &mut self,
+        item: &IrItem,
+        fields: &[SymbolId],
+        leaves: &mut Vec<JsNominalLeaf>,
+        enums: &mut BTreeMap<String, Vec<String>>,
+    ) {
+        for id in fields {
+            let Some(field) = self.ir.items.get(id.0 as usize).cloned() else {
+                self.unsupported(
+                    "Judgment value schema",
+                    "checked field identity is absent",
+                    item.span,
+                );
+                continue;
+            };
+            let (ty, required_array) = match &field.kind {
+                IrItemKind::Field {
+                    ty, required_array, ..
+                }
+                | IrItemKind::JudgmentGenerated(IrJudgmentGenerated::Field {
+                    ty,
+                    required_array,
+                    ..
+                }) => (ty, *required_array),
+                _ => {
+                    self.unsupported(
+                        "Judgment value schema",
+                        "checked field payload is absent",
+                        field.span,
+                    );
+                    continue;
+                }
+            };
+            let IrType::Known(ty) = ty else {
+                self.unsupported(
+                    "Judgment value schema",
+                    "checked field type is absent",
+                    field.span,
+                );
+                continue;
+            };
+            let mut declared = self.symbol_value_type_id(field.id, ty, field.span);
+            if required_array {
+                declared.push('!');
+            }
+            leaves.push(JsNominalLeaf {
+                name: field.name.clone(),
+                declared,
+                constraints: self.nominal_field_constraints(&field, ty),
+            });
+            let mut base = ty;
+            while let ResolvedType::Nullable(inner)
+            | ResolvedType::Array { element: inner, .. } = base
+            {
+                base = inner;
+            }
+            if let ResolvedType::Enum {
+                owner: Some(owner),
+                cases,
+            } = base
+            {
+                let name = self.ir.items[owner.0 as usize].canonical.clone();
+                enums.entry(name).or_insert_with(|| cases.clone());
+            }
+        }
+    }
+
     fn collect_judgment_value_types(&mut self) -> Option<JsValueTypes> {
         let has_judgment = self
             .ir
@@ -4624,65 +4919,7 @@ impl<'a> Emitter<'a> {
                 _ => continue,
             };
             let mut leaves = Vec::new();
-            for id in fields {
-                let Some(field) = self.ir.items.get(id.0 as usize).cloned() else {
-                    self.unsupported(
-                        "Judgment value schema",
-                        "checked field identity is absent",
-                        item.span,
-                    );
-                    continue;
-                };
-                let (ty, required_array) = match &field.kind {
-                    IrItemKind::Field {
-                        ty, required_array, ..
-                    }
-                    | IrItemKind::JudgmentGenerated(IrJudgmentGenerated::Field {
-                        ty,
-                        required_array,
-                        ..
-                    }) => (ty, *required_array),
-                    _ => {
-                        self.unsupported(
-                            "Judgment value schema",
-                            "checked field payload is absent",
-                            field.span,
-                        );
-                        continue;
-                    }
-                };
-                let IrType::Known(ty) = ty else {
-                    self.unsupported(
-                        "Judgment value schema",
-                        "checked field type is absent",
-                        field.span,
-                    );
-                    continue;
-                };
-                let mut declared = self.symbol_value_type_id(field.id, ty, field.span);
-                if required_array {
-                    declared.push('!');
-                }
-                leaves.push(JsNominalLeaf {
-                    name: field.name.clone(),
-                    declared,
-                    constraints: self.nominal_field_constraints(&field, ty),
-                });
-                let mut base = ty;
-                while let ResolvedType::Nullable(inner)
-                | ResolvedType::Array { element: inner, .. } = base
-                {
-                    base = inner;
-                }
-                if let ResolvedType::Enum {
-                    owner: Some(owner),
-                    cases,
-                } = base
-                {
-                    let name = self.ir.items[owner.0 as usize].canonical.clone();
-                    enums.entry(name).or_insert_with(|| cases.clone());
-                }
-            }
+            self.push_judgment_leaves(item, fields, &mut leaves, &mut enums);
             inventory.contracts.push(JsNominalResult {
                 name: item.canonical.clone(),
                 fields: leaves,
@@ -4976,6 +5213,21 @@ impl<'a> Emitter<'a> {
             .unwrap_or_else(|| name.to_string())
     }
 
+    fn formatted_name_exposed(&self, name: &str, hidden: &HashMap<&str, usize>) -> bool {
+        !hidden.contains_key(name)
+            && self
+                .formatted_bindings
+                .iter()
+                .rev()
+                .find_map(|scope| scope.get(name))
+                .copied()
+                .unwrap_or(false)
+    }
+
+    fn formatted_derive_call(&self, target: &IrCallTarget) -> bool {
+        matches!(target, IrCallTarget::DeriveFn(id) if self.formatted_derives.contains(id))
+    }
+
     /// Conservative presentation provenance, separate from the current
     /// scalar result type. No consumer may erase it through a shared derive,
     /// aggregate, or local alias before presentation sink contracts exist.
@@ -4986,20 +5238,64 @@ impl<'a> Emitter<'a> {
             Restore(&'e str),
         }
         use Work::{Bind, Restore, Visit};
+        fn track_presentation_binding<'e>(hidden: &mut HashMap<&'e str, usize>, name: &'e str) {
+            *hidden.entry(name).or_default() += 1;
+        }
+        fn untrack_presentation_binding(hidden: &mut HashMap<&str, usize>, name: &str) {
+            let count = hidden.get_mut(name).expect("presentation binder scope");
+            *count -= 1;
+            if *count == 0 {
+                hidden.remove(name);
+            }
+        }
+        fn visit_query_work<'e>(
+            query: &'e crate::codegen::ir::IrQuery,
+            pending: &mut Vec<Work<'e>>,
+        ) {
+            let alias = match &query.domain {
+                crate::codegen::ir::IrQueryDomain::Value { base, alias } => {
+                    pending.push(Visit(base));
+                    alias.as_str()
+                }
+                crate::codegen::ir::IrQueryDomain::Model(_) => "row",
+            };
+            for value in [&query.parent, &query.limit, &query.archived]
+                .into_iter()
+                .flatten()
+            {
+                pending.push(Visit(value));
+            }
+            if let Some(order) = &query.value_order {
+                pending.push(Restore(alias));
+                pending.push(Visit(&order.key));
+                pending.push(Bind(alias));
+            }
+            if let Some(value) = &query.where_pred {
+                pending.push(Restore(alias));
+                pending.push(Visit(value));
+                pending.push(Bind(alias));
+            }
+            if let Some(value) = &query.select {
+                if let Some(param) = &query.select_param {
+                    pending.push(Restore(param));
+                    pending.push(Visit(value));
+                    pending.push(Bind(param));
+                } else {
+                    pending.push(Visit(value));
+                }
+            }
+        }
+
         let mut pending = vec![Visit(expr)];
         let mut hidden: HashMap<&str, usize> = HashMap::new();
         while let Some(work) = pending.pop() {
             let expr = match work {
                 Bind(name) => {
-                    *hidden.entry(name).or_default() += 1;
+                    track_presentation_binding(&mut hidden, name);
                     continue;
                 }
                 Restore(name) => {
-                    let count = hidden.get_mut(name).expect("presentation binder scope");
-                    *count -= 1;
-                    if *count == 0 {
-                        hidden.remove(name);
-                    }
+                    untrack_presentation_binding(&mut hidden, name);
                     continue;
                 }
                 Visit(expr) => expr,
@@ -5007,22 +5303,13 @@ impl<'a> Emitter<'a> {
             match &expr.expr {
                 IrExpr::Format { .. } => return true,
                 IrExpr::Name(name) => {
-                    if !hidden.contains_key(name.as_str())
-                        && self
-                            .formatted_bindings
-                            .iter()
-                            .rev()
-                            .find_map(|scope| scope.get(name))
-                            .copied()
-                            .unwrap_or(false)
-                    {
+                    if self.formatted_name_exposed(name, &hidden) {
                         return true;
                     }
                 }
                 IrExpr::Member { base, .. } => pending.push(Visit(base)),
                 IrExpr::Call { target, args } | IrExpr::BoundCall { target, args, .. } => {
-                    if matches!(target, IrCallTarget::DeriveFn(id) if self.formatted_derives.contains(id))
-                    {
+                    if self.formatted_derive_call(target) {
                         return true;
                     }
                     pending.extend(args.iter().map(Visit));
@@ -5036,40 +5323,7 @@ impl<'a> Emitter<'a> {
                 IrExpr::Object(entries) => {
                     pending.extend(entries.iter().map(|(_, value)| Visit(value)))
                 }
-                IrExpr::Query(query) => {
-                    let alias = match &query.domain {
-                        crate::codegen::ir::IrQueryDomain::Value { base, alias } => {
-                            pending.push(Visit(base));
-                            alias.as_str()
-                        }
-                        crate::codegen::ir::IrQueryDomain::Model(_) => "row",
-                    };
-                    for value in [&query.parent, &query.limit, &query.archived]
-                        .into_iter()
-                        .flatten()
-                    {
-                        pending.push(Visit(value));
-                    }
-                    if let Some(order) = &query.value_order {
-                        pending.push(Restore(alias));
-                        pending.push(Visit(&order.key));
-                        pending.push(Bind(alias));
-                    }
-                    if let Some(value) = &query.where_pred {
-                        pending.push(Restore(alias));
-                        pending.push(Visit(value));
-                        pending.push(Bind(alias));
-                    }
-                    if let Some(value) = &query.select {
-                        if let Some(param) = &query.select_param {
-                            pending.push(Restore(param));
-                            pending.push(Visit(value));
-                            pending.push(Bind(param));
-                        } else {
-                            pending.push(Visit(value));
-                        }
-                    }
-                }
+                IrExpr::Query(query) => visit_query_work(query, &mut pending),
                 IrExpr::DeliveryRead { record, .. } => pending.push(Visit(record)),
                 IrExpr::Message(message) => {
                     pending.extend(message.params.iter().map(|param| Visit(&param.value)))
@@ -5785,6 +6039,66 @@ impl<'a> Emitter<'a> {
         if self.hook_decision_depth > 0 { "decision" } else { "value" }
     }
 
+    fn hook_parent_gap(
+        &mut self,
+        base: &TypedExpr,
+        field: &str,
+        span: Span,
+        expr_ty: &ResolvedType,
+    ) -> Option<String> {
+        if field == "id" || field == "model" {
+            None
+        } else if self.hook_closure_depth > 0 {
+            Some(self.hook_gap(
+                "hook parent content",
+                "parent field reads inside hook closures have no hook lowering",
+                span,
+            ))
+        } else if let Some((parent, canonical)) = self.hook_parent_model()
+            && self.hook_parent_read_allowed(parent, field, expr_ty)
+        {
+            // Consuming-site mode rides inside the scope object;
+            // `transitive.load(scope,model,id)` arity and all
+            // scope/fence/source checks are unchanged. Decisions
+            // (hook firing/guard/decision expressions, including
+            // `if` conditions; helpers inherit the site) open a
+            // `'decision'` scope; body/value copies open `'value'`.
+            // Denied/withheld/missing-required reads throw their
+            // precise failure before value access; legitimate
+            // nullable normalization (`?? null`, which never catches
+            // thrown errors) keeps its meaning.
+            let site = self.hook_read_site();
+            let base_text = self.lower_expr(base);
+            let base_text = parenthesize_operand(&base_text, &base.expr);
+            let access = if object_key(field) == field {
+                format!(".{field}")
+            } else {
+                format!("[{}]", js_string(field))
+            };
+            let result = if field == "version" {
+                // State's exact provisional parent carrier owns this
+                // metadata; it is not a readable data field or grant.
+                "BigInt($hookRow.version)".to_string()
+            } else { format!("$hookRow.data{access}") };
+            let read = format!(
+                "(await (async($hookParent)=>{{if($hookParent==null)throw new Error(\"hook parent content missing\");const $hookScope=await $hookCtx.transitive.openScope({});const $hookRow=await $hookCtx.transitive.load($hookScope,{},$hookParent.id);if($hookRow===null)throw new Error(\"hook parent content missing\");return {result};}})({base_text}))",
+                js_string(site),
+                js_string(&canonical),
+            );
+            if expr_ty.nullable_inner().is_some() {
+                Some(format!("({read} ?? null)"))
+            } else {
+                Some(read)
+            }
+        } else {
+            Some(self.hook_gap(
+                "hook parent content",
+                "parent linkage carries identity only (`{model, id}`); undeclared parent field reads have no hook lowering",
+                span,
+            ))
+        }
+    }
+
     /// Traversal guard for hook member reads. Returns the throwing
     /// placeholder (after reporting `E6008`) exactly when the read passes
     /// through event reference content, staged identities, nested closures
@@ -5812,59 +6126,7 @@ impl<'a> Emitter<'a> {
                 }
             }
             HookBase::Root | HookBase::Snapshot | HookBase::Plain => None,
-            HookBase::Parent => {
-                if field == "id" || field == "model" {
-                    None
-                } else if self.hook_closure_depth > 0 {
-                    Some(self.hook_gap(
-                        "hook parent content",
-                        "parent field reads inside hook closures have no hook lowering",
-                        span,
-                    ))
-                } else if let Some((parent, canonical)) = self.hook_parent_model()
-                    && self.hook_parent_read_allowed(parent, field, expr_ty)
-                {
-                    // Consuming-site mode rides inside the scope object;
-                    // `transitive.load(scope,model,id)` arity and all
-                    // scope/fence/source checks are unchanged. Decisions
-                    // (hook firing/guard/decision expressions, including
-                    // `if` conditions; helpers inherit the site) open a
-                    // `'decision'` scope; body/value copies open `'value'`.
-                    // Denied/withheld/missing-required reads throw their
-                    // precise failure before value access; legitimate
-                    // nullable normalization (`?? null`, which never catches
-                    // thrown errors) keeps its meaning.
-                    let site = self.hook_read_site();
-                    let base_text = self.lower_expr(base);
-                    let base_text = parenthesize_operand(&base_text, &base.expr);
-                    let access = if object_key(field) == field {
-                        format!(".{field}")
-                    } else {
-                        format!("[{}]", js_string(field))
-                    };
-                    let result = if field == "version" {
-                        // State's exact provisional parent carrier owns this
-                        // metadata; it is not a readable data field or grant.
-                        "BigInt($hookRow.version)".to_string()
-                    } else { format!("$hookRow.data{access}") };
-                    let read = format!(
-                        "(await (async($hookParent)=>{{if($hookParent==null)throw new Error(\"hook parent content missing\");const $hookScope=await $hookCtx.transitive.openScope({});const $hookRow=await $hookCtx.transitive.load($hookScope,{},$hookParent.id);if($hookRow===null)throw new Error(\"hook parent content missing\");return {result};}})({base_text}))",
-                        js_string(site),
-                        js_string(&canonical),
-                    );
-                    if expr_ty.nullable_inner().is_some() {
-                        Some(format!("({read} ?? null)"))
-                    } else {
-                        Some(read)
-                    }
-                } else {
-                    Some(self.hook_gap(
-                        "hook parent content",
-                        "parent linkage carries identity only (`{model, id}`); undeclared parent field reads have no hook lowering",
-                        span,
-                    ))
-                }
-            }
+            HookBase::Parent => self.hook_parent_gap(base, field, span, expr_ty),
             HookBase::Staged => {
                 if field == "id" {
                     None
@@ -6309,6 +6571,29 @@ impl<'a> Emitter<'a> {
     /// Canonical type id for a resolved type (`int`, `user?`, `text[]`,
     /// `expense.Expense.status`, ...). A scalar field resolves to its scalar
     /// type, never a field-specific nominal; nullable/array shape is kept.
+    fn std_delivery_type_id(
+        &mut self,
+        capability: &str,
+        op: &crate::analysis::catalog::StdOperation,
+        span: Span,
+    ) -> String {
+        if delivery_descriptor(capability, op).is_some() {
+            format!("delivery({capability}.{})", op.name)
+        } else {
+            self.unsupported("type", "std delivery has no owning descriptor", span);
+            self.throw_expr("std delivery type id")
+        }
+    }
+
+    fn std_nominal_type_id(&mut self, ty: &ResolvedType, span: Span) -> String {
+        if let Some(name) = crate::analysis::types::checked_standard_nominal_name(ty) {
+            name.to_string()
+        } else {
+            self.unsupported("type", "standard nominal has no exact owning schema", span);
+            self.throw_expr("standard nominal type id")
+        }
+    }
+
     pub fn canonical_type_id(&mut self, ty: &ResolvedType, span: Span) -> String {
         match ty {
             ResolvedType::Error => {
@@ -6351,12 +6636,7 @@ impl<'a> Emitter<'a> {
                 self.throw_expr("delivery type id")
             }
             ResolvedType::StdDelivery { capability, op } => {
-                if delivery_descriptor(capability, op).is_some() {
-                    format!("delivery({capability}.{})", op.name)
-                } else {
-                    self.unsupported("type", "std delivery has no owning descriptor", span);
-                    self.throw_expr("std delivery type id")
-                }
+                self.std_delivery_type_id(capability, op, span)
             }
             ResolvedType::Array { element, .. } => {
                 format!("{}[]", self.canonical_type_id(element, span))
@@ -6369,14 +6649,7 @@ impl<'a> Emitter<'a> {
                 .map(|id| self.ir.items[id.0 as usize].canonical.clone())
                 .collect::<Vec<_>>()
                 .join("|"),
-            ResolvedType::StdNominal { .. } => {
-                if let Some(name) = crate::analysis::types::checked_standard_nominal_name(ty) {
-                    name.to_string()
-                } else {
-                    self.unsupported("type", "standard nominal has no exact owning schema", span);
-                    self.throw_expr("standard nominal type id")
-                }
-            }
+            ResolvedType::StdNominal { .. } => self.std_nominal_type_id(ty, span),
             ResolvedType::Object(_) => {
                 self.unsupported("type", "object values have no §13 type id", span);
                 self.throw_expr("object type id")
@@ -6822,6 +7095,42 @@ impl<'a> Emitter<'a> {
         ))
     }
 
+    fn lower_published_revision_view(
+        &mut self,
+        base: &TypedExpr,
+        field: &str,
+        current: &super::scenario_receipts::NativeCurrentRevision,
+    ) -> Option<String> {
+        let IrExpr::Member {
+            base: source,
+            field: source_field,
+        } = &base.expr
+        else {
+            return None;
+        };
+        if field != "published"
+            || source_field != "current"
+            || base.span != current.published_source
+            || !matches!(&source.expr, IrExpr::Name(name) if name == &current.parameter)
+        {
+            return None;
+        }
+        let source = self.lower_expr(source);
+        self.stdlib
+            .insert("observeScenarioReceiptDependency".into());
+        self.stdlib
+            .insert("readScenarioReceiptNullableStoredReference".into());
+        Some(format!(
+            "(await (async($receiptSource)=>{{const $receiptReference=($receiptSource[\"current\"]??null);await observeScenarioReceiptDependency(c,{},$receiptSource,\"current\",{});const $receiptRow=await readScenarioReceiptNullableStoredReference(c,$receiptSource,$receiptReference,{},{});const $receiptValue=$receiptRow[\"published\"];await observeScenarioReceiptDependency(c,{},$receiptRow,\"published\",{});return $receiptValue;}})({source}))",
+            js_string(&current.template),
+            js_string(&current.published_source_id),
+            js_string(&current.published_source_id),
+            js_string(&current.published_id),
+            js_string(&current.revision),
+            js_string(&current.published_id),
+        ))
+    }
+
     fn lower_current_revision_expr(&mut self, expr: &TypedExpr) -> Option<String> {
         if !self.receipt_calls.is_empty() {
             return None;
@@ -6836,34 +7145,7 @@ impl<'a> Emitter<'a> {
             return None;
         };
         if expr.span == current.published {
-            let IrExpr::Member {
-                base: source,
-                field: source_field,
-            } = &base.expr
-            else {
-                return None;
-            };
-            if field != "published"
-                || source_field != "current"
-                || base.span != current.published_source
-                || !matches!(&source.expr, IrExpr::Name(name) if name == &current.parameter)
-            {
-                return None;
-            }
-            let source = self.lower_expr(source);
-            self.stdlib
-                .insert("observeScenarioReceiptDependency".into());
-            self.stdlib
-                .insert("readScenarioReceiptNullableStoredReference".into());
-            return Some(format!(
-                "(await (async($receiptSource)=>{{const $receiptReference=($receiptSource[\"current\"]??null);await observeScenarioReceiptDependency(c,{},$receiptSource,\"current\",{});const $receiptRow=await readScenarioReceiptNullableStoredReference(c,$receiptSource,$receiptReference,{},{});const $receiptValue=$receiptRow[\"published\"];await observeScenarioReceiptDependency(c,{},$receiptRow,\"published\",{});return $receiptValue;}})({source}))",
-                js_string(&current.template),
-                js_string(&current.published_source_id),
-                js_string(&current.published_source_id),
-                js_string(&current.published_id),
-                js_string(&current.revision),
-                js_string(&current.published_id),
-            ));
+            return self.lower_published_revision_view(base, field, &current);
         }
         let (expected_field, dependency, promote, source_data) =
             if expr.span == current.digest_control {
@@ -7626,6 +7908,98 @@ impl<'a> Emitter<'a> {
     /// Only a fresh-source prepared owning receipt can specialize first. The
     /// original issued query object goes directly to the native frame; generic
     /// first(array) remains the ordinary pure builtin.
+    fn first_query_parent_matches(
+        &self,
+        source: &crate::analysis::scenario_disclosure::DisclosureQuery,
+        query: &super::ir::IrQuery,
+    ) -> bool {
+        match source
+            .first
+            .as_ref()
+            .and_then(|first| first.contained_parent)
+        {
+            None => query.parent.is_none(),
+            Some((receiver, parameter)) => query.parent.as_deref().is_some_and(|parent| {
+                let parameter_name = self
+                    .ir
+                    .items
+                    .get(parameter.0 as usize)
+                    .map(|item| item.name.as_str());
+                parent.span == Span::new(receiver.file, receiver.start, receiver.end)
+                    && match &parent.expr {
+                        IrExpr::Name(name) => Some(name.as_str()) == parameter_name,
+                        IrExpr::Member { base, field } => {
+                            field == "parent"
+                                && matches!(&base.expr, IrExpr::Name(name) if Some(name.as_str()) == parameter_name)
+                        }
+                        _ => false,
+                    }
+            }),
+        }
+    }
+
+    fn first_query_call_matches(
+        &self,
+        first: &crate::analysis::scenario_disclosure::DisclosureFirstQuery,
+        at: Span,
+        target: &IrCallTarget,
+        slots: Option<&[Option<usize>]>,
+        result: &ResolvedType,
+        row: &ResolvedType,
+        domain: &TypedExpr,
+        array: &ResolvedType,
+        fact: &crate::analysis::types::CheckedQuery,
+        source: &crate::analysis::scenario_disclosure::DisclosureQuery,
+    ) -> bool {
+        first.call.file == at.file
+            && first.call.start == at.start
+            && first.call.end == at.end
+            && matches!(target,IrCallTarget::Builtin {id,awaited:false}
+                if id=="first")
+            && slots.is_none_or(|slots| slots == [Some(0)])
+            && *result == ResolvedType::Nullable(Box::new(row.clone()))
+            && domain.ty == *array
+            && fact.node == source.node
+            && fact.domain == source.domain
+            && fact.result == *array
+    }
+
+    fn first_query_collection_matches(
+        &self,
+        collection: &crate::analysis::types::CheckedCollectionCall,
+        first: &crate::analysis::scenario_disclosure::DisclosureFirstQuery,
+        source: &crate::analysis::scenario_disclosure::DisclosureQuery,
+        fact: &crate::analysis::types::CheckedQuery,
+    ) -> bool {
+        collection.node == first.call
+            && collection.query == source.node
+            && Some(collection.alias) == source.alias
+            && collection.model == source.model
+            && collection.builtin == "first"
+            && collection.overload == first.overload
+            && collection.predicate.is_none()
+            && source.projection.is_none()
+            && source.cardinality_guard.is_none()
+            && fact.projection.is_none()
+    }
+
+    fn first_query_plan_matches(
+        &self,
+        query: &super::ir::IrQuery,
+        source: &crate::analysis::scenario_disclosure::DisclosureQuery,
+        parent_matches: bool,
+    ) -> bool {
+        query.contract_collection_call.is_none()
+            && parent_matches
+            && query.select.is_none()
+            && query.select_param.is_none()
+            && query.limit.is_none()
+            && (query.archived.is_none() || source.archived)
+            && !query.where_async
+            && matches!(&query.domain,super::ir::IrQueryDomain::Model(name) if name==&source.model_name)
+            && super::scenario_receipts::checked_first_query_order(source, query).is_some()
+    }
+
     fn native_first_query(
         &self,
         target: &IrCallTarget,
@@ -7672,59 +8046,10 @@ impl<'a> Emitter<'a> {
         // A contained domain pairs the admitted receiver with the IR parent
         // value; unscoped scans keep no parent on either side. Any other
         // combination keeps the unprepared refusal below.
-        let parent_matches = match source
-            .first
-            .as_ref()
-            .and_then(|first| first.contained_parent)
-        {
-            None => query.parent.is_none(),
-            Some((receiver, parameter)) => query.parent.as_deref().is_some_and(|parent| {
-                let parameter_name = self
-                    .ir
-                    .items
-                    .get(parameter.0 as usize)
-                    .map(|item| item.name.as_str());
-                parent.span == Span::new(receiver.file, receiver.start, receiver.end)
-                    && match &parent.expr {
-                        IrExpr::Name(name) => Some(name.as_str()) == parameter_name,
-                        IrExpr::Member { base, field } => {
-                            field == "parent"
-                                && matches!(&base.expr, IrExpr::Name(name) if Some(name.as_str()) == parameter_name)
-                        }
-                        _ => false,
-                    }
-            }),
-        };
-        first.call.file == at.file
-            && first.call.start == at.start
-            && first.call.end == at.end
-            && matches!(target,IrCallTarget::Builtin {id,awaited:false}
-                if id=="first")
-            && slots.is_none_or(|slots| slots == [Some(0)])
-            && *result == ResolvedType::Nullable(Box::new(row))
-            && domain.ty == array
-            && fact.node == source.node
-            && fact.domain == source.domain
-            && fact.result == array
-            && collection.node == first.call
-            && collection.query == source.node
-            && Some(collection.alias) == source.alias
-            && collection.model == source.model
-            && collection.builtin == "first"
-            && collection.overload == first.overload
-            && collection.predicate.is_none()
-            && source.projection.is_none()
-            && source.cardinality_guard.is_none()
-            && fact.projection.is_none()
-            && query.contract_collection_call.is_none()
-            && parent_matches
-            && query.select.is_none()
-            && query.select_param.is_none()
-            && query.limit.is_none()
-            && (query.archived.is_none() || source.archived)
-            && !query.where_async
-            && matches!(&query.domain,super::ir::IrQueryDomain::Model(name) if name==&source.model_name)
-            && super::scenario_receipts::checked_first_query_order(source, query).is_some()
+        let parent_matches = self.first_query_parent_matches(source, query);
+        self.first_query_call_matches(first, at, target, slots, result, &row, domain, &array, fact, source)
+            && self.first_query_collection_matches(collection, first, source, fact)
+            && self.first_query_plan_matches(query, source, parent_matches)
     }
 
     fn first_query_marker(&self, at: Span) -> String {
@@ -7956,6 +8281,30 @@ impl<'a> Emitter<'a> {
     /// order: `param.field == operand` equalities or bare bool reads, with
     /// the operand off any non-alias member base. The emitted callback
     /// tests exactly these leaves.
+fn conjunct_dependency_matches<'d>(
+    dependency: &'d crate::analysis::scenario_disclosure::DisclosureDependency,
+    source: &crate::analysis::scenario_disclosure::DisclosureQuery,
+    field_name: &str,
+    member_span: Span,
+    seen: &mut std::collections::HashSet<&'d String>,
+) -> bool {
+    dependency.role == crate::analysis::scenario_disclosure::DependencyRole::Control
+        && dependency.model == source.model
+        && dependency.model_name == source.model_name
+        && dependency.field_name == field_name
+        && dependency.calls.is_empty()
+        && dependency.query_id.is_none()
+        && !dependency.id.is_empty()
+        && seen.insert(&dependency.id)
+        && dependency.source == source.source
+        && !dependency.type_id.is_empty()
+        && Span::new(
+            dependency.node.file,
+            dependency.node.start,
+            dependency.node.end,
+        ) == member_span
+}
+
     fn conjunct_dependencies_match(
         &self,
         source: &crate::analysis::scenario_disclosure::DisclosureQuery,
@@ -8047,22 +8396,7 @@ impl<'a> Emitter<'a> {
                     }
                 }
             }
-            if dependency.role
-                != crate::analysis::scenario_disclosure::DependencyRole::Control
-                || dependency.model != source.model
-                || dependency.model_name != source.model_name
-                || dependency.field_name != field_name
-                || !dependency.calls.is_empty()
-                || dependency.query_id.is_some()
-                || dependency.id.is_empty()
-                || !seen.insert(&dependency.id)
-                || dependency.source != source.source
-                || dependency.type_id.is_empty()
-                || Span::new(
-                    dependency.node.file,
-                    dependency.node.start,
-                    dependency.node.end,
-                ) != member.span
+            if !Self::conjunct_dependency_matches(dependency, source, field_name, member.span, &mut seen)
             {
                 return false;
             }
@@ -8599,6 +8933,208 @@ impl<'a> Emitter<'a> {
         Ok(Some(marker))
     }
 
+    fn lower_active_member_rendered(
+        &mut self,
+        awaited: bool,
+        parts: &mut Vec<String>,
+        span: Span,
+    ) -> Option<String> {
+        let Some(mut source) = self.membership_calls.get(&span).cloned() else {
+            self.unsupported(
+                "membership observation",
+                "active_member lacks its original checked source and selected call closure",
+                span,
+            );
+            return Some(self.throw_expr("unsupported membership source identity"));
+        };
+        if !awaited || parts.len() != 2 {
+            self.unsupported(
+                "membership observation",
+                "active_member requires its checked user/Team overload",
+                span,
+            );
+            return Some(self.throw_expr("unsupported membership call shape"));
+        }
+        match self.helper_membership_source(span, &source) {
+            Ok(Some(selected)) => source = selected,
+            Ok(None) => {}
+            Err(()) => {
+                self.unsupported(
+                    "membership observation",
+                    "original helper occurrence selector is unavailable",
+                    span,
+                );
+                return Some(self.throw_expr("unsupported helper membership occurrence"));
+            }
+        }
+        // Bound here: the exact checked source and selected call
+        // closure travel with this observation to the State
+        // producer, which resolves the defining owner. Only this
+        // success path marks the span; every refusal above keeps
+        // its exact E6008 and the catalog's external E6007.
+        if !self.membership_bound.contains(&span) {
+            self.membership_bound.push(span);
+        }
+        parts.insert(0, "c".to_string());
+        parts.push(descriptor_json(&source));
+        None
+    }
+
+    fn lower_sum_rendered(
+        &mut self,
+        parts: &mut Vec<String>,
+        domain_type: Option<&ResolvedType>,
+        span: Span,
+    ) -> Option<String> {
+        let element = match domain_type {
+            Some(ResolvedType::Array { element, .. }) => match element.as_ref() {
+                ResolvedType::Scalar(Scalar::Int) => Some("int"),
+                ResolvedType::Scalar(Scalar::Decimal) => Some("decimal"),
+                ResolvedType::Scalar(Scalar::Money) => Some("money"),
+                ResolvedType::Scalar(Scalar::Duration) => Some("duration"),
+                _ => None,
+            },
+            _ => None,
+        };
+        let Some(element) = element.filter(|_| !parts.is_empty()) else {
+            self.unsupported(
+                "sum domain",
+                "sum requires a checked int[], decimal[], money[], or duration[] domain",
+                span,
+            );
+            return Some(self.throw_expr("sum domain has no static element lowering"));
+        };
+        // Values requires a static element tag before the optional currency.
+        parts.insert(1, js_string(element));
+        None
+    }
+
+    fn lower_builtin_rendered(
+        &mut self,
+        id: &String,
+        awaited: bool,
+        parts: &[String],
+        domain_type: Option<&ResolvedType>,
+        span: Span,
+        await_result: bool,
+        async_scoped: bool,
+    ) -> String {
+        if async_scoped && matches!(id.as_str(), "any" | "all") && parts.len() == 2 {
+            self.stdlib.insert("ValueError".to_string());
+            let stop = if id == "any" { "true" } else { "false" };
+            let end = if id == "any" { "false" } else { "true" };
+            return format!(
+                "{}(async($domain,$predicate)=>{{if(!Array.isArray($domain))throw new ValueError(\"invalid-construction\",\"{id} domain must be an array\");if(typeof $predicate!==\"function\")throw new ValueError(\"invalid-construction\",\"{id} predicate must be a function\");for(const $item of $domain){{const $verdict=await $predicate($item);if(typeof $verdict!==\"boolean\")throw new ValueError(\"invalid-construction\",\"{id} predicate must return a boolean\");if($verdict==={stop})return {stop};}}return {end};}})({},{})",
+                if await_result { "await " } else { "" },
+                parts[0],
+                parts[1]
+            );
+        }
+        let mut parts = parts.to_vec();
+        if id == "active_member" {
+            if let Some(done) = self.lower_active_member_rendered(awaited, &mut parts, span) {
+                return done;
+            }
+        }
+        if id == "app_url" {
+            // Only the resolved builtin receives the trusted host context.
+            // Source arguments retain their existing once-only ordering.
+            parts.insert(0, "c".to_string());
+        }
+        if id == "sum" {
+            if let Some(done) = self.lower_sum_rendered(&mut parts, domain_type, span) {
+                return done;
+            }
+        }
+        self.stdlib.insert(id.clone());
+        self.builtins.push(ReferencedBuiltin {
+            id: id.clone(),
+            span,
+        });
+        let call = format!("{}({})", id, parts.join(","));
+        if awaited && await_result {
+            format!("await {call}")
+        } else {
+            call
+        }
+    }
+
+    fn lower_derive_field_rendered(
+        &mut self,
+        canonical: &String,
+        parts: &[String],
+        span: Span,
+        await_result: bool,
+    ) -> Option<String> {
+        let index = self.by_canonical.get(canonical)?;
+        let item = &self.ir.items[*index];
+        if let IrItemKind::DeriveField {
+            expr: Some(expr), ..
+        } = &item.kind
+        {
+            if parts.len() == 1 && self.boolean_sources.contains_key(&expr.span) {
+                self.stdlib.insert("nativeReadBoolean".into());
+                return Some(format!(
+                    "{}nativeReadBoolean(c,$can$boolean${},{})",
+                    if await_result { "await " } else { "" },
+                    item.id.0,
+                    parts[0]
+                ));
+            }
+            self.unsupported(
+                "derived Boolean read",
+                "original checked observer unavailable",
+                span,
+            );
+            return Some(self.throw_expr("unsupported Boolean observer"));
+        }
+        None
+    }
+
+    fn lower_capability_op_rendered(
+        &mut self,
+        canonical: &String,
+        parts: &[String],
+        span: Span,
+        await_result: bool,
+    ) -> String {
+        if self.in_hook() && !self.hook_native() {
+            return self.hook_gap(
+                "hook capability call",
+                "capability calls need the ambient context, which legacy hooks do not receive",
+                span,
+            );
+        }
+        let (local, module) = match self.by_canonical.get(canonical) {
+            Some(index) => {
+                let item = &self.ir.items[*index];
+                (
+                    binding_ident("s", &item.canonical),
+                    self.ir.module(item.module).name.clone(),
+                )
+            }
+            None => {
+                self.unsupported(
+                    "capability operation call",
+                    &format!("{canonical} is not a known symbol"),
+                    span,
+                );
+                return self.throw_expr(&format!("unknown capability op {canonical}"));
+            }
+        };
+        let path = format!("./{}", module_path(&module));
+        self.relative.entry(path).or_default().insert(local.clone());
+        let parts = parts.to_vec();
+        let mut all = vec!["c".to_string()];
+        all.extend(parts);
+        format!(
+            "{}{}({})",
+            if await_result { "await " } else { "" },
+            local,
+            all.join(",")
+        )
+    }
+
     fn lower_call_rendered(
         &mut self,
         target: &IrCallTarget,
@@ -8611,120 +9147,13 @@ impl<'a> Emitter<'a> {
     ) -> String {
         match target {
             IrCallTarget::Builtin { id, awaited } => {
-                if async_scoped && matches!(id.as_str(), "any" | "all") && parts.len() == 2 {
-                    self.stdlib.insert("ValueError".to_string());
-                    let stop = if id == "any" { "true" } else { "false" };
-                    let end = if id == "any" { "false" } else { "true" };
-                    return format!(
-                        "{}(async($domain,$predicate)=>{{if(!Array.isArray($domain))throw new ValueError(\"invalid-construction\",\"{id} domain must be an array\");if(typeof $predicate!==\"function\")throw new ValueError(\"invalid-construction\",\"{id} predicate must be a function\");for(const $item of $domain){{const $verdict=await $predicate($item);if(typeof $verdict!==\"boolean\")throw new ValueError(\"invalid-construction\",\"{id} predicate must return a boolean\");if($verdict==={stop})return {stop};}}return {end};}})({},{})",
-                        if await_result { "await " } else { "" },
-                        parts[0],
-                        parts[1]
-                    );
-                }
-                let mut parts = parts.to_vec();
-                if id == "active_member" {
-                    let Some(mut source) = self.membership_calls.get(&span).cloned() else {
-                        self.unsupported(
-                            "membership observation",
-                            "active_member lacks its original checked source and selected call closure",
-                            span,
-                        );
-                        return self.throw_expr("unsupported membership source identity");
-                    };
-                    if !*awaited || parts.len() != 2 {
-                        self.unsupported(
-                            "membership observation",
-                            "active_member requires its checked user/Team overload",
-                            span,
-                        );
-                        return self.throw_expr("unsupported membership call shape");
-                    }
-                    match self.helper_membership_source(span, &source) {
-                        Ok(Some(selected)) => source = selected,
-                        Ok(None) => {}
-                        Err(()) => {
-                            self.unsupported(
-                                "membership observation",
-                                "original helper occurrence selector is unavailable",
-                                span,
-                            );
-                            return self.throw_expr("unsupported helper membership occurrence");
-                        }
-                    }
-                    // Bound here: the exact checked source and selected call
-                    // closure travel with this observation to the State
-                    // producer, which resolves the defining owner. Only this
-                    // success path marks the span; every refusal above keeps
-                    // its exact E6008 and the catalog's external E6007.
-                    if !self.membership_bound.contains(&span) {
-                        self.membership_bound.push(span);
-                    }
-                    parts.insert(0, "c".to_string());
-                    parts.push(descriptor_json(&source));
-                }
-                if id == "app_url" {
-                    // Only the resolved builtin receives the trusted host context.
-                    // Source arguments retain their existing once-only ordering.
-                    parts.insert(0, "c".to_string());
-                }
-                if id == "sum" {
-                    let element = match domain_type {
-                        Some(ResolvedType::Array { element, .. }) => match element.as_ref() {
-                            ResolvedType::Scalar(Scalar::Int) => Some("int"),
-                            ResolvedType::Scalar(Scalar::Decimal) => Some("decimal"),
-                            ResolvedType::Scalar(Scalar::Money) => Some("money"),
-                            ResolvedType::Scalar(Scalar::Duration) => Some("duration"),
-                            _ => None,
-                        },
-                        _ => None,
-                    };
-                    let Some(element) = element.filter(|_| !parts.is_empty()) else {
-                        self.unsupported(
-                            "sum domain",
-                            "sum requires a checked int[], decimal[], money[], or duration[] domain",
-                            span,
-                        );
-                        return self.throw_expr("sum domain has no static element lowering");
-                    };
-                    // Values requires a static element tag before the optional currency.
-                    parts.insert(1, js_string(element));
-                }
-                self.stdlib.insert(id.clone());
-                self.builtins.push(ReferencedBuiltin {
-                    id: id.clone(),
-                    span,
-                });
-                let call = format!("{}({})", id, parts.join(","));
-                if *awaited && await_result {
-                    format!("await {call}")
-                } else {
-                    call
-                }
+                self.lower_builtin_rendered(id, *awaited, parts, domain_type, span, await_result, async_scoped)
             }
             IrCallTarget::DeriveFn(canonical) => {
-                if let Some(index) = self.by_canonical.get(canonical) {
-                    let item = &self.ir.items[*index];
-                    if let IrItemKind::DeriveField {
-                        expr: Some(expr), ..
-                    } = &item.kind
-                    {
-                        if parts.len() == 1 && self.boolean_sources.contains_key(&expr.span) {
-                            self.stdlib.insert("nativeReadBoolean".into());
-                            return format!(
-                                "{}nativeReadBoolean(c,$can$boolean${},{})",
-                                if await_result { "await " } else { "" },
-                                item.id.0,
-                                parts[0]
-                            );
-                        }
-                        self.unsupported(
-                            "derived Boolean read",
-                            "original checked observer unavailable",
-                            span,
-                        );
-                        return self.throw_expr("unsupported Boolean observer");
-                    }
+                if let Some(specialized) =
+                    self.lower_derive_field_rendered(canonical, parts, span, await_result)
+                {
+                    return specialized;
                 }
                 if let Some(specialized) =
                     self.lower_receipt_derive(canonical, parts, span, await_result)
@@ -8811,41 +9240,7 @@ impl<'a> Emitter<'a> {
                 )
             }
             IrCallTarget::CapabilityOp(canonical) => {
-                if self.in_hook() && !self.hook_native() {
-                    return self.hook_gap(
-                        "hook capability call",
-                        "capability calls need the ambient context, which legacy hooks do not receive",
-                        span,
-                    );
-                }
-                let (local, module) = match self.by_canonical.get(canonical) {
-                    Some(index) => {
-                        let item = &self.ir.items[*index];
-                        (
-                            binding_ident("s", &item.canonical),
-                            self.ir.module(item.module).name.clone(),
-                        )
-                    }
-                    None => {
-                        self.unsupported(
-                            "capability operation call",
-                            &format!("{canonical} is not a known symbol"),
-                            span,
-                        );
-                        return self.throw_expr(&format!("unknown capability op {canonical}"));
-                    }
-                };
-                let path = format!("./{}", module_path(&module));
-                self.relative.entry(path).or_default().insert(local.clone());
-                let parts = parts.to_vec();
-                let mut all = vec!["c".to_string()];
-                all.extend(parts);
-                format!(
-                    "{}{}({})",
-                    if await_result { "await " } else { "" },
-                    local,
-                    all.join(",")
-                )
+                self.lower_capability_op_rendered(canonical, parts, span, await_result)
             }
         }
     }
@@ -9215,6 +9610,103 @@ impl<'a> Emitter<'a> {
         ));
     }
 
+fn null_equality(
+    left: &TypedExpr,
+    right: &TypedExpr,
+    l: &str,
+    r: &str,
+    negate: bool,
+) -> Option<String> {
+    if !(matches!(left.ty, ResolvedType::Null) || matches!(right.ty, ResolvedType::Null)) {
+        return None;
+    }
+    let js_op = if negate { "!==" } else { "===" };
+    Some(format!(
+        "{} {js_op} {}",
+        parenthesize_operand(l, &left.expr),
+        parenthesize_operand(r, &right.expr)
+    ))
+}
+
+    fn record_identity_equality(
+        &mut self,
+        left: &TypedExpr,
+        right: &TypedExpr,
+        l: &str,
+        r: &str,
+        negate: bool,
+    ) -> Option<String> {
+        if !(matches!(left.ty, ResolvedType::Record { .. })
+            || matches!(right.ty, ResolvedType::Record { .. }))
+        {
+            return None;
+        }
+        let structural = [left, right].iter().any(|side| {
+            let mut ty = &side.ty;
+            while let ResolvedType::Nullable(inner) = ty {
+                ty = inner;
+            }
+            match ty {
+                ResolvedType::Record { symbol, .. } => !matches!(
+                    self.ir.items[symbol.0 as usize].kind,
+                    IrItemKind::Model { .. }
+                ),
+                _ => is_structural(ty),
+            }
+        });
+        if structural {
+            return None;
+        }
+        self.stdlib.insert("same".to_string());
+        Some(negate_call(negate, &format!("same({l},{r})")))
+    }
+
+    fn lower_ordered_scalar_equality(
+        &mut self,
+        l_family: Option<ScalarFamily>,
+        r_family: Option<ScalarFamily>,
+        left: &TypedExpr,
+        right: &TypedExpr,
+        span: Span,
+        l: &str,
+        r: &str,
+        negate: bool,
+    ) -> String {
+        // BigInt durations/integers compare by value; dates and
+        // datetimes compare through their §13 comparators.
+        let family = l_family.or(r_family);
+        if !matches!(l_family, Some(f) if Some(f) == r_family) {
+            let l_id = self.canonical_type_id(&left.ty, span);
+            let r_id = self.canonical_type_id(&right.ty, span);
+            self.unsupported(
+                "equality",
+                &format!("mismatched operands {l_id} and {r_id}"),
+                span,
+            );
+            return self.throw_expr("mismatched equality");
+        }
+        match family {
+            Some(ScalarFamily::Date) => {
+                self.stdlib.insert("compareDate".to_string());
+                let js_op = if negate { "!==" } else { "===" };
+                format!("compareDate({l},{r}) {js_op} 0")
+            }
+            Some(ScalarFamily::Datetime) => {
+                self.stdlib.insert("compareInstant".to_string());
+                let js_op = if negate { "!==" } else { "===" };
+                format!("compareInstant({l},{r}) {js_op} 0")
+            }
+            _ => {
+                let js_op = if negate { "!==" } else { "===" };
+                format!(
+                    "{} {js_op} {}",
+                    parenthesize_operand(l, &left.expr),
+                    parenthesize_operand(r, &right.expr)
+                )
+            }
+        }
+    }
+
     /// Lower `==`/`!=`: `null` compares directly, money uses `equalMoney`,
     /// decimals and structural values use `equalValue(typeId, a, b)`,
     /// references use `same`, secrets use `secretEqual`, ordered scalars
@@ -9233,13 +9725,8 @@ impl<'a> Emitter<'a> {
         // operands keep their own parens: `??`/`&&`/`||` bind looser than
         // `===`, so an unparenthesized `a ?? b === null` would read as
         // `a ?? (b === null)`.
-        if matches!(left.ty, ResolvedType::Null) || matches!(right.ty, ResolvedType::Null) {
-            let js_op = if negate { "!==" } else { "===" };
-            return format!(
-                "{} {js_op} {}",
-                parenthesize_operand(l, &left.expr),
-                parenthesize_operand(r, &right.expr)
-            );
+        if let Some(comparison) = Self::null_equality(left, right, l, r, negate) {
+            return comparison;
         }
         // Nullable values must apply the owning null rules before a scalar
         // comparator or reference helper sees either operand. Hooks reuse
@@ -9272,26 +9759,8 @@ impl<'a> Emitter<'a> {
         // Stored rows compare by reference identity; contracts, arrays and
         // objects compare structurally so they are never compared by
         // JavaScript object identity.
-        if matches!(left.ty, ResolvedType::Record { .. })
-            || matches!(right.ty, ResolvedType::Record { .. })
-        {
-            let structural = [left, right].iter().any(|side| {
-                let mut ty = &side.ty;
-                while let ResolvedType::Nullable(inner) = ty {
-                    ty = inner;
-                }
-                match ty {
-                    ResolvedType::Record { symbol, .. } => !matches!(
-                        self.ir.items[symbol.0 as usize].kind,
-                        IrItemKind::Model { .. }
-                    ),
-                    _ => is_structural(ty),
-                }
-            });
-            if !structural {
-                self.stdlib.insert("same".to_string());
-                return negate_call(negate, &format!("same({l},{r})"));
-            }
+        if let Some(comparison) = self.record_identity_equality(left, right, l, r, negate) {
+            return comparison;
         }
         if is_structural(&left.ty) || is_structural(&right.ty) {
             // `equalValue` is pure values logic over in-memory snapshot
@@ -9339,41 +9808,9 @@ impl<'a> Emitter<'a> {
                     | ScalarFamily::Date
                     | ScalarFamily::Datetime,
                 ),
-            ) => {
-                // BigInt durations/integers compare by value; dates and
-                // datetimes compare through their §13 comparators.
-                let family = l_family.or(r_family);
-                if !matches!(l_family, Some(f) if Some(f) == r_family) {
-                    let l_id = self.canonical_type_id(&left.ty, span);
-                    let r_id = self.canonical_type_id(&right.ty, span);
-                    self.unsupported(
-                        "equality",
-                        &format!("mismatched operands {l_id} and {r_id}"),
-                        span,
-                    );
-                    return self.throw_expr("mismatched equality");
-                }
-                match family {
-                    Some(ScalarFamily::Date) => {
-                        self.stdlib.insert("compareDate".to_string());
-                        let js_op = if negate { "!==" } else { "===" };
-                        format!("compareDate({l},{r}) {js_op} 0")
-                    }
-                    Some(ScalarFamily::Datetime) => {
-                        self.stdlib.insert("compareInstant".to_string());
-                        let js_op = if negate { "!==" } else { "===" };
-                        format!("compareInstant({l},{r}) {js_op} 0")
-                    }
-                    _ => {
-                        let js_op = if negate { "!==" } else { "===" };
-                        format!(
-                            "{} {js_op} {}",
-                            parenthesize_operand(l, &left.expr),
-                            parenthesize_operand(r, &right.expr)
-                        )
-                    }
-                }
-            }
+            ) => self.lower_ordered_scalar_equality(
+                l_family, r_family, left, right, span, l, r, negate,
+            ),
             (
                 Some(ScalarFamily::Bool | ScalarFamily::Text | ScalarFamily::Enum),
                 Some(ScalarFamily::Bool | ScalarFamily::Text | ScalarFamily::Enum),
@@ -9477,6 +9914,187 @@ impl<'a> Emitter<'a> {
     /// scalar-first money products normalize to
     /// `multiplyMoney(money, factor)`; a `money`/`money` ratio is
     /// `divideDecimal`. Shapes with no verified helper stay `E6008`.
+    fn unsupported_arithmetic(
+        &mut self,
+        left: &TypedExpr,
+        right: &TypedExpr,
+        span: Span,
+        js_op: &str,
+    ) -> String {
+        let l_id = self.canonical_type_id(&left.ty, span);
+        let r_id = self.canonical_type_id(&right.ty, span);
+        self.unsupported(
+            "arithmetic",
+            &format!("{l_id} {js_op} {r_id} has no §13 lowering"),
+            span,
+        );
+        self.throw_expr("arithmetic has no lowering")
+    }
+
+    fn lower_money_arithmetic(
+        &mut self,
+        l_family: Option<ScalarFamily>,
+        r_family: Option<ScalarFamily>,
+        op: IrBinOp,
+        l: &str,
+        r: &str,
+        js_op: &str,
+        span: Span,
+    ) -> Option<String> {
+        match (l_family, r_family) {
+            (Some(ScalarFamily::Money), Some(ScalarFamily::Money)) => match op {
+                IrBinOp::Add | IrBinOp::Sub => {
+                    let name = if op == IrBinOp::Add {
+                        "addMoney"
+                    } else {
+                        "subtractMoney"
+                    };
+                    self.stdlib.insert(name.to_string());
+                    Some(format!("{name}({l},{r})"))
+                }
+                // A money/money ratio has no currency unit and uses decimal
+                // rounding: `divideDecimal` documents money operands.
+                IrBinOp::Div => {
+                    self.stdlib.insert("divideDecimal".to_string());
+                    Some(format!("divideDecimal({l},{r})"))
+                }
+                _ => {
+                    self.unsupported(
+                        "money arithmetic",
+                        &format!("money {js_op} money has no §13 lowering"),
+                        span,
+                    );
+                    Some(self.throw_expr("money arithmetic has no lowering"))
+                }
+            },
+            (Some(ScalarFamily::Money), Some(ScalarFamily::Decimal))
+            | (Some(ScalarFamily::Money), Some(ScalarFamily::Int)) => match op {
+                IrBinOp::Mul => {
+                    self.stdlib.insert("multiplyMoney".to_string());
+                    Some(format!("multiplyMoney({l},{r})"))
+                }
+                IrBinOp::Div => {
+                    self.stdlib.insert("divideMoney".to_string());
+                    Some(format!("divideMoney({l},{r})"))
+                }
+                _ => {
+                    self.unsupported(
+                        "money arithmetic",
+                        &format!("money {js_op} factor has no §13 lowering"),
+                        span,
+                    );
+                    Some(self.throw_expr("money arithmetic has no lowering"))
+                }
+            },
+            // Scalar-first money products normalize money-first: lane-02
+            // `multiplyMoney(m, factor)` takes the money operand first.
+            (Some(ScalarFamily::Decimal), Some(ScalarFamily::Money))
+            | (Some(ScalarFamily::Int), Some(ScalarFamily::Money)) => match op {
+                IrBinOp::Mul => {
+                    self.stdlib.insert("multiplyMoney".to_string());
+                    Some(format!("multiplyMoney({r},{l})"))
+                }
+                _ => {
+                    self.unsupported(
+                        "money arithmetic",
+                        &format!("factor {js_op} money has no §13 lowering"),
+                        span,
+                    );
+                    Some(self.throw_expr("money arithmetic has no lowering"))
+                }
+            },
+            _ => None,
+        }
+    }
+
+    fn lower_temporal_arithmetic(
+        &mut self,
+        l_family: Option<ScalarFamily>,
+        r_family: Option<ScalarFamily>,
+        op: IrBinOp,
+        l: &str,
+        r: &str,
+        js_op: &str,
+        span: Span,
+    ) -> Option<String> {
+        match (l_family, r_family) {
+            (Some(ScalarFamily::Decimal), Some(ScalarFamily::Decimal))
+            | (Some(ScalarFamily::Decimal), Some(ScalarFamily::Int))
+            | (Some(ScalarFamily::Int), Some(ScalarFamily::Decimal)) => match op {
+                IrBinOp::Add | IrBinOp::Sub | IrBinOp::Mul | IrBinOp::Div => {
+                    let name = match op {
+                        IrBinOp::Add => "addDecimal",
+                        IrBinOp::Sub => "subtractDecimal",
+                        IrBinOp::Mul => "multiplyDecimal",
+                        _ => "divideDecimal",
+                    };
+                    self.stdlib.insert(name.to_string());
+                    Some(format!("{name}({l},{r})"))
+                }
+                _ => {
+                    self.unsupported(
+                        "decimal arithmetic",
+                        &format!("decimal {js_op} decimal has no §13 lowering"),
+                        span,
+                    );
+                    Some(self.throw_expr("decimal arithmetic has no lowering"))
+                }
+            },
+            (Some(ScalarFamily::Datetime), Some(ScalarFamily::Datetime)) => match op {
+                IrBinOp::Sub => {
+                    self.stdlib.insert("durationBetween".to_string());
+                    Some(format!("durationBetween({l},{r})"))
+                }
+                _ => {
+                    self.unsupported(
+                        "datetime arithmetic",
+                        &format!("datetime {js_op} datetime has no §13 lowering"),
+                        span,
+                    );
+                    Some(self.throw_expr("datetime arithmetic has no lowering"))
+                }
+            },
+            (Some(ScalarFamily::Duration), Some(ScalarFamily::Duration))
+                if matches!(op, IrBinOp::Div | IrBinOp::Mod) =>
+            {
+                let name = if op == IrBinOp::Div {
+                    "divideDurationMs"
+                } else {
+                    "remainderDuration"
+                };
+                self.stdlib.insert(name.to_string());
+                Some(format!("{name}({l},{r})"))
+            }
+            (Some(ScalarFamily::Int), Some(ScalarFamily::Duration)) if op == IrBinOp::Mul => {
+                self.stdlib.insert("multiplyDuration".to_string());
+                // Capture authored operands once, left-to-right (including
+                // awaits/throws), before normalizing the helper's argument order.
+                Some(format!("(($factor,$duration)=>multiplyDuration($duration,$factor))({l},{r})"))
+            }
+            (Some(ScalarFamily::Datetime), Some(ScalarFamily::Duration))
+            | (Some(ScalarFamily::Duration), Some(ScalarFamily::Duration)) => match op {
+                IrBinOp::Add | IrBinOp::Sub => {
+                    let name = if op == IrBinOp::Add {
+                        "addDuration"
+                    } else {
+                        "subtractDuration"
+                    };
+                    self.stdlib.insert(name.to_string());
+                    Some(format!("{name}({l},{r})"))
+                }
+                _ => {
+                    self.unsupported(
+                        "duration arithmetic",
+                        &format!("duration {js_op} has no §13 lowering"),
+                        span,
+                    );
+                    Some(self.throw_expr("duration arithmetic has no lowering"))
+                }
+            },
+            _ => None,
+        }
+    }
+
     fn lower_arithmetic(
         &mut self,
         op: IrBinOp,
@@ -9527,140 +10145,18 @@ impl<'a> Emitter<'a> {
                 self.stdlib.insert("int64".to_string());
                 format!("int64({l} {js_op} {r})")
             }
-            (Some(ScalarFamily::Money), Some(ScalarFamily::Money)) => match op {
-                IrBinOp::Add | IrBinOp::Sub => {
-                    let name = if op == IrBinOp::Add {
-                        "addMoney"
-                    } else {
-                        "subtractMoney"
-                    };
-                    self.stdlib.insert(name.to_string());
-                    format!("{name}({l},{r})")
-                }
-                // A money/money ratio has no currency unit and uses decimal
-                // rounding: `divideDecimal` documents money operands.
-                IrBinOp::Div => {
-                    self.stdlib.insert("divideDecimal".to_string());
-                    format!("divideDecimal({l},{r})")
-                }
-                _ => {
-                    self.unsupported(
-                        "money arithmetic",
-                        &format!("money {js_op} money has no §13 lowering"),
-                        span,
-                    );
-                    self.throw_expr("money arithmetic has no lowering")
-                }
-            },
-            (Some(ScalarFamily::Money), Some(ScalarFamily::Decimal))
-            | (Some(ScalarFamily::Money), Some(ScalarFamily::Int)) => match op {
-                IrBinOp::Mul => {
-                    self.stdlib.insert("multiplyMoney".to_string());
-                    format!("multiplyMoney({l},{r})")
-                }
-                IrBinOp::Div => {
-                    self.stdlib.insert("divideMoney".to_string());
-                    format!("divideMoney({l},{r})")
-                }
-                _ => {
-                    self.unsupported(
-                        "money arithmetic",
-                        &format!("money {js_op} factor has no §13 lowering"),
-                        span,
-                    );
-                    self.throw_expr("money arithmetic has no lowering")
-                }
-            },
-            // Scalar-first money products normalize money-first: lane-02
-            // `multiplyMoney(m, factor)` takes the money operand first.
-            (Some(ScalarFamily::Decimal), Some(ScalarFamily::Money))
-            | (Some(ScalarFamily::Int), Some(ScalarFamily::Money)) => match op {
-                IrBinOp::Mul => {
-                    self.stdlib.insert("multiplyMoney".to_string());
-                    format!("multiplyMoney({r},{l})")
-                }
-                _ => {
-                    self.unsupported(
-                        "money arithmetic",
-                        &format!("factor {js_op} money has no §13 lowering"),
-                        span,
-                    );
-                    self.throw_expr("money arithmetic has no lowering")
-                }
-            },
-            (Some(ScalarFamily::Decimal), Some(ScalarFamily::Decimal))
-            | (Some(ScalarFamily::Decimal), Some(ScalarFamily::Int))
-            | (Some(ScalarFamily::Int), Some(ScalarFamily::Decimal)) => match op {
-                IrBinOp::Add | IrBinOp::Sub | IrBinOp::Mul | IrBinOp::Div => {
-                    let name = match op {
-                        IrBinOp::Add => "addDecimal",
-                        IrBinOp::Sub => "subtractDecimal",
-                        IrBinOp::Mul => "multiplyDecimal",
-                        _ => "divideDecimal",
-                    };
-                    self.stdlib.insert(name.to_string());
-                    format!("{name}({l},{r})")
-                }
-                _ => {
-                    self.unsupported(
-                        "decimal arithmetic",
-                        &format!("decimal {js_op} decimal has no §13 lowering"),
-                        span,
-                    );
-                    self.throw_expr("decimal arithmetic has no lowering")
-                }
-            },
-            (Some(ScalarFamily::Datetime), Some(ScalarFamily::Datetime)) => match op {
-                IrBinOp::Sub => {
-                    self.stdlib.insert("durationBetween".to_string());
-                    format!("durationBetween({l},{r})")
-                }
-                _ => {
-                    self.unsupported(
-                        "datetime arithmetic",
-                        &format!("datetime {js_op} datetime has no §13 lowering"),
-                        span,
-                    );
-                    self.throw_expr("datetime arithmetic has no lowering")
-                }
-            },
-            (Some(ScalarFamily::Duration), Some(ScalarFamily::Duration))
-                if matches!(op, IrBinOp::Div | IrBinOp::Mod) =>
-            {
-                let name = if op == IrBinOp::Div {
-                    "divideDurationMs"
-                } else {
-                    "remainderDuration"
-                };
-                self.stdlib.insert(name.to_string());
-                format!("{name}({l},{r})")
-            }
-            (Some(ScalarFamily::Int), Some(ScalarFamily::Duration)) if op == IrBinOp::Mul => {
-                self.stdlib.insert("multiplyDuration".to_string());
-                // Capture authored operands once, left-to-right (including
-                // awaits/throws), before normalizing the helper's argument order.
-                format!("(($factor,$duration)=>multiplyDuration($duration,$factor))({l},{r})")
-            }
-            (Some(ScalarFamily::Datetime), Some(ScalarFamily::Duration))
-            | (Some(ScalarFamily::Duration), Some(ScalarFamily::Duration)) => match op {
-                IrBinOp::Add | IrBinOp::Sub => {
-                    let name = if op == IrBinOp::Add {
-                        "addDuration"
-                    } else {
-                        "subtractDuration"
-                    };
-                    self.stdlib.insert(name.to_string());
-                    format!("{name}({l},{r})")
-                }
-                _ => {
-                    self.unsupported(
-                        "duration arithmetic",
-                        &format!("duration {js_op} has no §13 lowering"),
-                        span,
-                    );
-                    self.throw_expr("duration arithmetic has no lowering")
-                }
-            },
+            (Some(ScalarFamily::Money), _)
+            | (_, Some(ScalarFamily::Money)) => self
+                .lower_money_arithmetic(
+                    scalar_family(&left.ty),
+                    scalar_family(&right.ty),
+                    op,
+                    l,
+                    r,
+                    js_op,
+                    span,
+                )
+                .unwrap_or_else(|| self.unsupported_arithmetic(left, right, span, js_op)),
             (Some(ScalarFamily::Text), Some(ScalarFamily::Text)) => match op {
                 IrBinOp::Add => {
                     format!("{l} + {r}")
@@ -9674,16 +10170,17 @@ impl<'a> Emitter<'a> {
                     self.throw_expr("text arithmetic has no lowering")
                 }
             },
-            _ => {
-                let l_id = self.canonical_type_id(&left.ty, span);
-                let r_id = self.canonical_type_id(&right.ty, span);
-                self.unsupported(
-                    "arithmetic",
-                    &format!("{l_id} {js_op} {r_id} has no §13 lowering"),
+            _ => self
+                .lower_temporal_arithmetic(
+                    scalar_family(&left.ty),
+                    scalar_family(&right.ty),
+                    op,
+                    l,
+                    r,
+                    js_op,
                     span,
-                );
-                self.throw_expr("arithmetic has no lowering")
-            }
+                )
+                .unwrap_or_else(|| self.unsupported_arithmetic(left, right, span, js_op)),
         }
     }
 
@@ -9908,6 +10405,200 @@ impl<'a> Emitter<'a> {
     /// Lower a query to `await records(c, model, {parent?, where?, order?,
     /// limit?, archived?})`: `records()` returns a promise and viewer read
     /// grants apply before filters and projection.
+    fn lower_transcript_selection(
+        &mut self,
+        query: &crate::codegen::ir::IrQuery,
+        capture: &NativeQuerySource,
+        span: Span,
+    ) -> Option<String> {
+        let transcript = capture.transcripts.iter().find(|fact| {
+            query
+                .source
+                .as_ref()
+                .is_some_and(|source| source.node == fact.query.node)
+                && self.receipt_calls.as_slice()
+                    == [Span::new(fact.call.file, fact.call.start, fact.call.end)]
+        })?;
+        let (Some(projection), Some(param)) =
+            (query.select.as_ref(), query.select_param.as_ref())
+        else {
+            self.unsupported(
+                "transcript selection",
+                "original checked projection and alias are required",
+                span,
+            );
+            return Some(self.throw_expr("unsupported transcript selection"));
+        };
+        self.enter_scope();
+        let param = self.bind(param);
+        let body = self.lower_expr(projection);
+        self.exit_scope();
+        self.stdlib.insert("executeScenarioReceiptQuery".into());
+        self.stdlib
+            .insert("bindScenarioReceiptQuerySelection".into());
+        // The engine owns position ordering. Read the actual selected
+        // views in that order, retaining the whole eager array before
+        // the owning receiver binds it; a failure stops the next row.
+        Some(format!(
+            "(await (async()=>{{const $querySelected=await executeScenarioReceiptQuery(c,{},async()=>true);const $queryMessages=[];for(const {param} of $querySelected){{$queryMessages.push(await ({body}));}}return await bindScenarioReceiptQuerySelection(c,$querySelected,$queryMessages);}})())",
+            js_string(&transcript.id)
+        ))
+    }
+
+    fn lower_inline_selection(
+        &mut self,
+        query: &crate::codegen::ir::IrQuery,
+        capture: &NativeQuerySource,
+        span: Span,
+    ) -> Option<String> {
+        let selection = capture.inline_selections.iter().find(|fact| {
+            query
+                .source
+                .as_ref()
+                .is_some_and(|source| source.node == fact.query.node)
+                && self.receipt_calls.is_empty()
+        })?;
+        let (Some(parent), Some(predicate), Some(projection), Some(param)) = (
+            query.parent.as_ref(),
+            query.where_pred.as_ref(),
+            query.select.as_ref(),
+            query.select_param.as_ref(),
+        ) else {
+            self.unsupported(
+                "inline selection",
+                "original checked domain, predicate and projection are required",
+                span,
+            );
+            return Some(self.throw_expr("unsupported inline selection"));
+        };
+        // Observe the original stored parent before query admission. The
+        // supplied bound remains in the per-candidate predicate.
+        let parent = self.lower_expr(parent);
+        self.enter_scope();
+        let row = self.bind(&query.where_param);
+        let predicate = self.lower_expr(predicate);
+        self.exit_scope();
+        self.enter_scope();
+        let param = self.bind(param);
+        let projection = self.lower_expr(projection);
+        self.exit_scope();
+        self.stdlib.insert("executeScenarioReceiptQuery".into());
+        self.stdlib
+            .insert("bindScenarioReceiptQuerySelection".into());
+        Some(format!(
+            "(await (async()=>{{await ({parent});const $querySelected=await executeScenarioReceiptQuery(c,{},async({row})=>{predicate});const $queryMessages=[];for(const {param} of $querySelected){{$queryMessages.push(await ({projection}));}}return await bindScenarioReceiptQuerySelection(c,$querySelected,$queryMessages);}})())",
+            js_string(&selection.query.id)
+        ))
+    }
+
+    fn lower_model_where_opt(
+        &mut self,
+        query: &crate::codegen::ir::IrQuery,
+        pred: &TypedExpr,
+        opts: &mut Vec<String>,
+    ) {
+        // REVIEW-9 gap 3: authority decision bodies lower
+        // data-only filters to the predicate AST; anything
+        // else keeps the ordinary callback below (still
+        // refused fail-closed by decision mode).
+        let authority_ast = if self.authority_body && !query.where_async {
+            Self::lower_authority_where(query)
+        } else {
+            None
+        };
+        if let Some(ast) = authority_ast {
+            opts.push(format!("where:{ast}"));
+            return;
+        }
+        self.enter_scope();
+        let row = self.bind(&query.where_param);
+        let in_hook = self.hook_closure_tracked();
+        if in_hook {
+            self.hook_closure_depth += 1;
+        }
+        let body = self.lower_expr(pred);
+        if in_hook {
+            self.hook_closure_depth -= 1;
+        }
+        self.exit_scope();
+        if self.native_source_predicates {
+            let prefix = if query.where_async || self.boolean_body {
+                "async"
+            } else {
+                ""
+            };
+            let predicate = format!(
+                "{prefix}({row},$can$read$c)=>{{const c=$can$read$c;return {body};}}"
+            );
+            if let Some(source) = self.membership_predicates.get(&pred.span) {
+                opts.push(format!(
+                    "where:$can$read$issue({},{predicate})",
+                    js_string(&descriptor_json(source))
+                ));
+                opts.push(format!("whereSource:{}", descriptor_json(source)));
+            } else {
+                opts.push(format!("where:{predicate}"));
+            }
+        } else if query.where_async || self.boolean_body {
+            opts.push(format!("where:async({row})=>{body}"));
+        } else {
+            opts.push(format!("where:({row})=>{body}"));
+        }
+    }
+
+    fn lower_value_domain(
+        &mut self,
+        query: &crate::codegen::ir::IrQuery,
+        base: &TypedExpr,
+        alias: &str,
+    ) -> String {
+        let base_text = self.lower_expr(base);
+        // The receiver needs parens exactly when its lowering is
+        // not already receiver-shaped (an awaited fetch, a call,
+        // or a compound expression).
+        let mut out = match &base.expr {
+            IrExpr::Query(_) | IrExpr::Lambda { .. } => format!("({base_text})"),
+            _ => parenthesize_operand(&base_text, &base.expr),
+        };
+        if let Some(pred) = &query.where_pred {
+            self.enter_scope();
+            let alias = self.bind(alias);
+            let body = self.lower_expr(pred);
+            self.exit_scope();
+            out = if query.where_async || self.boolean_body {
+                format!(
+                    "(await (async($items)=>{{const $result=[];for(const {alias} of $items){{if(await ({body}))$result.push({alias});}}return $result;}})({out}))"
+                )
+            } else {
+                format!("{out}.filter(({alias})=>{body})")
+            };
+        }
+        if let Some(order) = &query.value_order {
+            self.enter_scope();
+            let alias = self.bind(alias);
+            let key = self.lower_expr(&order.key);
+            self.exit_scope();
+            let asynchronous = expr_uses_async(&order.key) || self.boolean_body;
+            let (awaited, asynchronous_fn) = if asynchronous {
+                ("await ", "async")
+            } else {
+                ("", "")
+            };
+            let compared = self.lower_value_order_comparison(&order.key);
+            let direction = if order.descending {
+                "-$compared"
+            } else {
+                "$compared"
+            };
+            // Decorate once before sorting: authored expressions never run
+            // inside a comparator, even for singleton or tied domains.
+            out = format!(
+                "({awaited} ({asynchronous_fn}($items)=>{{const $keyed=[];for(const {alias} of $items){{$keyed.push({{item:{alias},key:{awaited}({key}),index:$keyed.length}});}}$keyed.sort(($left,$right)=>{{const $a=$left.key,$b=$right.key;const $compared=$a==null?($b==null?0:-1):$b==null?1:({compared});return $compared===0?$left.index-$right.index:{direction};}});return $keyed.map($entry=>$entry.item);}})({out}))"
+            );
+        }
+        self.append_select(&out, false, query)
+    }
+
     fn lower_query(&mut self, query: &crate::codegen::ir::IrQuery, span: Span) -> String {
         if !self.query_order_matches_domain(query) {
             self.unsupported(
@@ -9918,77 +10609,11 @@ impl<'a> Emitter<'a> {
             return self.throw_expr("mismatched query order");
         }
         if let Some(capture) = self.query_capture.clone() {
-            if let Some(transcript) = capture.transcripts.iter().find(|fact| {
-                query
-                    .source
-                    .as_ref()
-                    .is_some_and(|source| source.node == fact.query.node)
-                    && self.receipt_calls.as_slice()
-                        == [Span::new(fact.call.file, fact.call.start, fact.call.end)]
-            }) {
-                let (Some(projection), Some(param)) =
-                    (query.select.as_ref(), query.select_param.as_ref())
-                else {
-                    self.unsupported(
-                        "transcript selection",
-                        "original checked projection and alias are required",
-                        span,
-                    );
-                    return self.throw_expr("unsupported transcript selection");
-                };
-                self.enter_scope();
-                let param = self.bind(param);
-                let body = self.lower_expr(projection);
-                self.exit_scope();
-                self.stdlib.insert("executeScenarioReceiptQuery".into());
-                self.stdlib
-                    .insert("bindScenarioReceiptQuerySelection".into());
-                // The engine owns position ordering. Read the actual selected
-                // views in that order, retaining the whole eager array before
-                // the owning receiver binds it; a failure stops the next row.
-                return format!(
-                    "(await (async()=>{{const $querySelected=await executeScenarioReceiptQuery(c,{},async()=>true);const $queryMessages=[];for(const {param} of $querySelected){{$queryMessages.push(await ({body}));}}return await bindScenarioReceiptQuerySelection(c,$querySelected,$queryMessages);}})())",
-                    js_string(&transcript.id)
-                );
+            if let Some(selected) = self.lower_transcript_selection(query, &capture, span) {
+                return selected;
             }
-            if let Some(selection) = capture.inline_selections.iter().find(|fact| {
-                query
-                    .source
-                    .as_ref()
-                    .is_some_and(|source| source.node == fact.query.node)
-                    && self.receipt_calls.is_empty()
-            }) {
-                let (Some(parent), Some(predicate), Some(projection), Some(param)) = (
-                    query.parent.as_ref(),
-                    query.where_pred.as_ref(),
-                    query.select.as_ref(),
-                    query.select_param.as_ref(),
-                ) else {
-                    self.unsupported(
-                        "inline selection",
-                        "original checked domain, predicate and projection are required",
-                        span,
-                    );
-                    return self.throw_expr("unsupported inline selection");
-                };
-                // Observe the original stored parent before query admission. The
-                // supplied bound remains in the per-candidate predicate.
-                let parent = self.lower_expr(parent);
-                self.enter_scope();
-                let row = self.bind(&query.where_param);
-                let predicate = self.lower_expr(predicate);
-                self.exit_scope();
-                self.enter_scope();
-                let param = self.bind(param);
-                let projection = self.lower_expr(projection);
-                self.exit_scope();
-                self.stdlib.insert("executeScenarioReceiptQuery".into());
-                self.stdlib
-                    .insert("bindScenarioReceiptQuerySelection".into());
-                return format!(
-                    "(await (async()=>{{await ({parent});const $querySelected=await executeScenarioReceiptQuery(c,{},async({row})=>{predicate});const $queryMessages=[];for(const {param} of $querySelected){{$queryMessages.push(await ({projection}));}}return await bindScenarioReceiptQuerySelection(c,$querySelected,$queryMessages);}})())",
-                    js_string(&selection.query.id)
-                );
+            if let Some(selected) = self.lower_inline_selection(query, &capture, span) {
+                return selected;
             }
             for source in &capture.queries {
                 let original_scan = query
@@ -10057,53 +10682,7 @@ impl<'a> Emitter<'a> {
                     opts.push(format!("parent:{}", self.lower_expr(parent)));
                 }
                 if let Some(pred) = &query.where_pred {
-                    // REVIEW-9 gap 3: authority decision bodies lower
-                    // data-only filters to the predicate AST; anything
-                    // else keeps the ordinary callback below (still
-                    // refused fail-closed by decision mode).
-                    let authority_ast = if self.authority_body && !query.where_async {
-                        Self::lower_authority_where(query)
-                    } else {
-                        None
-                    };
-                    if let Some(ast) = authority_ast {
-                        opts.push(format!("where:{ast}"));
-                    } else {
-                        self.enter_scope();
-                        let row = self.bind(&query.where_param);
-                        let in_hook = self.hook_closure_tracked();
-                        if in_hook {
-                            self.hook_closure_depth += 1;
-                        }
-                        let body = self.lower_expr(pred);
-                        if in_hook {
-                            self.hook_closure_depth -= 1;
-                        }
-                        self.exit_scope();
-                        if self.native_source_predicates {
-                            let prefix = if query.where_async || self.boolean_body {
-                                "async"
-                            } else {
-                                ""
-                            };
-                            let predicate = format!(
-                                "{prefix}({row},$can$read$c)=>{{const c=$can$read$c;return {body};}}"
-                            );
-                            if let Some(source) = self.membership_predicates.get(&pred.span) {
-                                opts.push(format!(
-                                    "where:$can$read$issue({},{predicate})",
-                                    js_string(&descriptor_json(source))
-                                ));
-                                opts.push(format!("whereSource:{}", descriptor_json(source)));
-                            } else {
-                                opts.push(format!("where:{predicate}"));
-                            }
-                        } else if query.where_async || self.boolean_body {
-                            opts.push(format!("where:async({row})=>{body}"));
-                        } else {
-                            opts.push(format!("where:({row})=>{body}"));
-                        }
-                    }
+                    self.lower_model_where_opt(query, pred, &mut opts);
                 }
                 if let Some(order) = &query.value_order {
                     self.enter_scope();
@@ -10143,51 +10722,7 @@ impl<'a> Emitter<'a> {
                 self.append_select(&fetched, true, query)
             }
             crate::codegen::ir::IrQueryDomain::Value { base, alias } => {
-                let base_text = self.lower_expr(base);
-                // The receiver needs parens exactly when its lowering is
-                // not already receiver-shaped (an awaited fetch, a call,
-                // or a compound expression).
-                let mut out = match &base.expr {
-                    IrExpr::Query(_) | IrExpr::Lambda { .. } => format!("({base_text})"),
-                    _ => parenthesize_operand(&base_text, &base.expr),
-                };
-                if let Some(pred) = &query.where_pred {
-                    self.enter_scope();
-                    let alias = self.bind(alias);
-                    let body = self.lower_expr(pred);
-                    self.exit_scope();
-                    out = if query.where_async || self.boolean_body {
-                        format!(
-                            "(await (async($items)=>{{const $result=[];for(const {alias} of $items){{if(await ({body}))$result.push({alias});}}return $result;}})({out}))"
-                        )
-                    } else {
-                        format!("{out}.filter(({alias})=>{body})")
-                    };
-                }
-                if let Some(order) = &query.value_order {
-                    self.enter_scope();
-                    let alias = self.bind(alias);
-                    let key = self.lower_expr(&order.key);
-                    self.exit_scope();
-                    let asynchronous = expr_uses_async(&order.key) || self.boolean_body;
-                    let (awaited, asynchronous_fn) = if asynchronous {
-                        ("await ", "async")
-                    } else {
-                        ("", "")
-                    };
-                    let compared = self.lower_value_order_comparison(&order.key);
-                    let direction = if order.descending {
-                        "-$compared"
-                    } else {
-                        "$compared"
-                    };
-                    // Decorate once before sorting: authored expressions never run
-                    // inside a comparator, even for singleton or tied domains.
-                    out = format!(
-                        "({awaited} ({asynchronous_fn}($items)=>{{const $keyed=[];for(const {alias} of $items){{$keyed.push({{item:{alias},key:{awaited}({key}),index:$keyed.length}});}}$keyed.sort(($left,$right)=>{{const $a=$left.key,$b=$right.key;const $compared=$a==null?($b==null?0:-1):$b==null?1:({compared});return $compared===0?$left.index-$right.index:{direction};}});return $keyed.map($entry=>$entry.item);}})({out}))"
-                    );
-                }
-                self.append_select(&out, false, query)
+                self.lower_value_domain(query, base, alias)
             }
         }
     }
@@ -13639,6 +14174,23 @@ fn ui_uses_original_row(node: &IrUi) -> bool {
 
 /// Whether a page body references the `preferences` record.
 fn page_uses_preferences(page: &IrPage) -> bool {
+    fn query_uses_preferences(query: &crate::codegen::ir::IrQuery) -> bool {
+        let domain_uses = match &query.domain {
+            crate::codegen::ir::IrQueryDomain::Model(_) => false,
+            crate::codegen::ir::IrQueryDomain::Value { base, .. } => expr_uses(base),
+        };
+        domain_uses
+            || query
+                .value_order
+                .as_ref()
+                .is_some_and(|order| expr_uses(&order.key))
+            || query.parent.as_ref().is_some_and(|p| expr_uses(p))
+            || query.where_pred.as_ref().is_some_and(|p| expr_uses(p))
+            || query.limit.as_ref().is_some_and(|p| expr_uses(p))
+            || query.archived.as_ref().is_some_and(|p| expr_uses(p))
+            || query.select.as_ref().is_some_and(|p| expr_uses(p))
+    }
+
     fn expr_uses(expr: &TypedExpr) -> bool {
         match &expr.expr {
             IrExpr::Name(name) => name == "preferences",
@@ -13650,22 +14202,7 @@ fn page_uses_preferences(page: &IrPage) -> bool {
             IrExpr::Unary { operand, .. } => expr_uses(operand),
             IrExpr::Array(items) => items.iter().any(expr_uses),
             IrExpr::Object(entries) => entries.iter().any(|(_, v)| expr_uses(v)),
-            IrExpr::Query(query) => {
-                let domain_uses = match &query.domain {
-                    crate::codegen::ir::IrQueryDomain::Model(_) => false,
-                    crate::codegen::ir::IrQueryDomain::Value { base, .. } => expr_uses(base),
-                };
-                domain_uses
-                    || query
-                        .value_order
-                        .as_ref()
-                        .is_some_and(|order| expr_uses(&order.key))
-                    || query.parent.as_ref().is_some_and(|p| expr_uses(p))
-                    || query.where_pred.as_ref().is_some_and(|p| expr_uses(p))
-                    || query.limit.as_ref().is_some_and(|p| expr_uses(p))
-                    || query.archived.as_ref().is_some_and(|p| expr_uses(p))
-                    || query.select.as_ref().is_some_and(|p| expr_uses(p))
-            }
+            IrExpr::Query(query) => query_uses_preferences(query),
             IrExpr::DeliveryRead { record, .. } => expr_uses(record),
             IrExpr::Message(message) => message.params.iter().any(|p| expr_uses(&p.value)),
             IrExpr::MessageCall { args, params, .. } => args
@@ -14174,121 +14711,140 @@ impl<'a> Emitter<'a> {
 
     /// Emit the `contracts`/`events` member: labels plus full field
     /// schemas.
+    fn push_record_schema(
+        &mut self,
+        item: &IrItem,
+        kinds: &[&str],
+        records: &mut Vec<String>,
+        published: &mut BTreeSet<String>,
+    ) {
+        let (fields, label) = match &item.kind {
+            IrItemKind::Contract { fields, label } if kinds.contains(&"Contract") => {
+                (fields.clone(), label.clone())
+            }
+            IrItemKind::Event { fields } if kinds.contains(&"Event") => (fields.clone(), None),
+            _ => return,
+        };
+        let declared_inputs = if matches!(item.kind, IrItemKind::Event { .. }) {
+            let Some(inputs) = self.declared_event_input_fields(item) else {
+                self.unsupported(
+                    "declared event input fields",
+                    "original fields have no complete owning operation-input carrier",
+                    item.span,
+                );
+                return;
+            };
+            Some(inputs)
+        } else {
+            None
+        };
+        let mut members = Vec::new();
+        if item.exported {
+            members.push("exported:true".to_string());
+        }
+        if let Some(label) = label {
+            members.push(format!("label:{}", self.lower_message(&label)));
+        }
+        members.push(self.emit_fields_schema(&fields));
+        if matches!(item.kind, IrItemKind::Event { .. }) {
+            members.push(format!("inputs:{{{}}}", self.emit_event_inputs(&fields)));
+            if let Some(inputs) = declared_inputs {
+                members.push(format!("inputFields:{}", descriptor_json(&inputs)));
+            }
+        }
+        records.push(format!(
+            "{}:{{{}}}",
+            js_string(&item.canonical),
+            members.join(",")
+        ));
+        published.insert(item.canonical.clone());
+    }
+
+    fn push_event_records(
+        &mut self,
+        records: &mut Vec<String>,
+        published: &mut BTreeSet<String>,
+    ) {
+        let ir = self.ir;
+        // A Queue declaration owns its complete typed event profile even
+        // when this program has no local handler for the published value.
+        for module in &ir.modules {
+            for binding in &module.runtime_bindings {
+                let super::runtime_bindings::RuntimeBindingDeclaration::Queue {
+                    resolved_type, ..
+                } = &binding.declaration else { continue };
+                let Some(field) = self.queue_event_input(resolved_type) else {
+                    self.unsupported("queue event payload", "declared queue type has no supported original event input carrier", module.span);
+                    continue;
+                };
+                let Some(type_id) = field.value_type.as_deref() else { continue };
+                records.push(format!("{}:{{inputs:{{value:{{type:{}}}}},inputFields:{}}}",
+                    js_string(&binding.binding), js_string(type_id), descriptor_json(&vec![field])));
+                published.insert(binding.binding.clone());
+            }
+        }
+        // Owning lifecycle events are checked IR sources, not authored
+        // event declarations. Publish their private payload schema once
+        // per identity so the existing owning input gate can admit it.
+        for item in &self.ir.items {
+            let IrItemKind::Scenario {
+                event_source: Some(source),
+                ..
+            } = &item.kind
+            else {
+                continue;
+            };
+            let (identity, input_count) = match source {
+                IrEventSource::Queue { source, .. } => (source.as_str(), 1),
+                IrEventSource::DeliveryProgressed(identity) => (identity.as_str(), 1),
+                IrEventSource::StandardCompleted { source, .. } => (source.as_str(), 4),
+                IrEventSource::DeliveryCompleted { source, .. } => (source.as_str(), 4),
+                IrEventSource::InstrumentationError => ("instrumentation.error", 0),
+                IrEventSource::MailboxReceived { source, .. } => (source.as_str(), 1),
+                IrEventSource::TeamsMemberRemoved => ("teams.member_removed", 3),
+                _ => continue,
+            };
+            if published.contains(identity) {
+                continue;
+            }
+            let Some(invocation) = self.private_event_invocation(item, source) else {
+                continue;
+            };
+            let Some(inputs) = invocation
+                .inputs
+                .iter()
+                .take(input_count)
+                .map(|field| {
+                    field.value_type.as_deref().map(|type_id| {
+                        format!(
+                            "{}:{{type:{}}}",
+                            object_key(&field.name),
+                            js_string(type_id)
+                        )
+                    })
+                })
+                .collect::<Option<Vec<_>>>()
+            else {
+                continue;
+            };
+            records.push(format!(
+                "{}:{{inputs:{{{}}}}}",
+                js_string(identity),
+                inputs.join(",")
+            ));
+            published.insert(identity.to_string());
+        }
+    }
+
     fn emit_records_member(&mut self, member: &str, kinds: &[&str]) -> String {
         let mut records = Vec::new();
         let mut published = BTreeSet::new();
         let ir = self.ir;
         for item in &ir.items {
-            let (fields, label) = match &item.kind {
-                IrItemKind::Contract { fields, label } if kinds.contains(&"Contract") => {
-                    (fields.clone(), label.clone())
-                }
-                IrItemKind::Event { fields } if kinds.contains(&"Event") => (fields.clone(), None),
-                _ => continue,
-            };
-            let declared_inputs = if matches!(item.kind, IrItemKind::Event { .. }) {
-                let Some(inputs) = self.declared_event_input_fields(item) else {
-                    self.unsupported(
-                        "declared event input fields",
-                        "original fields have no complete owning operation-input carrier",
-                        item.span,
-                    );
-                    continue;
-                };
-                Some(inputs)
-            } else {
-                None
-            };
-            let mut members = Vec::new();
-            if item.exported {
-                members.push("exported:true".to_string());
-            }
-            if let Some(label) = label {
-                members.push(format!("label:{}", self.lower_message(&label)));
-            }
-            members.push(self.emit_fields_schema(&fields));
-            if matches!(item.kind, IrItemKind::Event { .. }) {
-                members.push(format!("inputs:{{{}}}", self.emit_event_inputs(&fields)));
-                if let Some(inputs) = declared_inputs {
-                    members.push(format!("inputFields:{}", descriptor_json(&inputs)));
-                }
-            }
-            records.push(format!(
-                "{}:{{{}}}",
-                js_string(&item.canonical),
-                members.join(",")
-            ));
-            published.insert(item.canonical.clone());
+            self.push_record_schema(item, kinds, &mut records, &mut published);
         }
         if kinds.contains(&"Event") {
-            // A Queue declaration owns its complete typed event profile even
-            // when this program has no local handler for the published value.
-            for module in &ir.modules {
-                for binding in &module.runtime_bindings {
-                    let super::runtime_bindings::RuntimeBindingDeclaration::Queue {
-                        resolved_type, ..
-                    } = &binding.declaration else { continue };
-                    let Some(field) = self.queue_event_input(resolved_type) else {
-                        self.unsupported("queue event payload", "declared queue type has no supported original event input carrier", module.span);
-                        continue;
-                    };
-                    let Some(type_id) = field.value_type.as_deref() else { continue };
-                    records.push(format!("{}:{{inputs:{{value:{{type:{}}}}},inputFields:{}}}",
-                        js_string(&binding.binding), js_string(type_id), descriptor_json(&vec![field])));
-                    published.insert(binding.binding.clone());
-                }
-            }
-            // Owning lifecycle events are checked IR sources, not authored
-            // event declarations. Publish their private payload schema once
-            // per identity so the existing owning input gate can admit it.
-            for item in &self.ir.items {
-                let IrItemKind::Scenario {
-                    event_source: Some(source),
-                    ..
-                } = &item.kind
-                else {
-                    continue;
-                };
-                let (identity, input_count) = match source {
-                    IrEventSource::Queue { source, .. } => (source.as_str(), 1),
-                    IrEventSource::DeliveryProgressed(identity) => (identity.as_str(), 1),
-                    IrEventSource::StandardCompleted { source, .. } => (source.as_str(), 4),
-                    IrEventSource::DeliveryCompleted { source, .. } => (source.as_str(), 4),
-                    IrEventSource::InstrumentationError => ("instrumentation.error", 0),
-                    IrEventSource::MailboxReceived { source, .. } => (source.as_str(), 1),
-                    IrEventSource::TeamsMemberRemoved => ("teams.member_removed", 3),
-                    _ => continue,
-                };
-                if published.contains(identity) {
-                    continue;
-                }
-                let Some(invocation) = self.private_event_invocation(item, source) else {
-                    continue;
-                };
-                let Some(inputs) = invocation
-                    .inputs
-                    .iter()
-                    .take(input_count)
-                    .map(|field| {
-                        field.value_type.as_deref().map(|type_id| {
-                            format!(
-                                "{}:{{type:{}}}",
-                                object_key(&field.name),
-                                js_string(type_id)
-                            )
-                        })
-                    })
-                    .collect::<Option<Vec<_>>>()
-                else {
-                    continue;
-                };
-                records.push(format!(
-                    "{}:{{inputs:{{{}}}}}",
-                    js_string(identity),
-                    inputs.join(",")
-                ));
-                published.insert(identity.to_string());
-            }
+            self.push_event_records(&mut records, &mut published);
         }
         if kinds.contains(&"Contract") {
             if let Some(inventory) = &self.value_types {
@@ -15136,6 +15692,252 @@ impl<'a> Emitter<'a> {
     /// Emit the `operations` member: scenario metadata (handler, `by`,
     /// `read`, inputs, result, captions) and generated CRUD entries
     /// (handler, kind, model, field allowlists, `when`, captions).
+    fn emit_operation_authority(
+        &mut self,
+        item: &IrItem,
+        members: &mut Vec<String>,
+        scope_authority: bool,
+    ) {
+        // Family E: the §13 authority-scope marker publishes
+        // the checked grant boundary. The `E6008` stays until
+        // the host-seam decision-mode runtime boundary lands;
+        // the handler below lowers the decision-mode body and
+        // MCP advertises the grant.
+        if scope_authority {
+            members.push("scope:\"authority\"".to_string());
+            // REVIEW-9 gap 2: the defining-source origin is a
+            // checked fact, never re-derived — the scenario's
+            // owning module must agree with its declaring
+            // file, and that file must resolve through the
+            // checked committed-source inventory. The host
+            // verifies this origin against `artifact.sources`
+            // before serving; omission keeps the seam refusal
+            // fail-closed.
+            if let Some(origin) = Self::defining_source_origin(self.ir, item) {
+                members.push(format!("source:{}", descriptor_json(&origin)));
+            }
+        }
+        if let Some(authority) = self.operation_root_authority(item) {
+            members.push(format!("rootAuthority:{}", descriptor_json(&authority)));
+        }
+        if let Some(dependencies) = self.execution_dependencies.get(&item.canonical) {
+            members.push(format!(
+                "executionDependencies:{}",
+                descriptor_json(dependencies)
+            ));
+        }
+    }
+
+    fn emit_operation_query_first(&mut self, item: &IrItem, members: &mut Vec<String>) {
+        if let Some(capture) = self.native_query_sources.get(&item.id) {
+            let first: Vec<_> = capture.queries.iter().filter_map(|query| {
+                let first = query.first.as_ref()?;
+                let source = capture.plan["queries"].as_array()?.iter().find(|value| value["id"].as_str() == Some(query.id.as_str()))?.get("source")?;
+                // DESIGN442: carry the checked guard-consumed mark
+                // for confined decision slices (hook event plus
+                // ordinary require-conjunction skeletons);
+                // omission keeps ordinary viewer behavior on
+                // every other shape.
+                let mut entry = serde_json::json!({"queryId":query.id,"source":source,"query":{"start":query.node.start,"end":query.node.end},"node":{"start":first.call.start,"end":first.call.end},"statement":{"start":first.binding.start,"end":first.binding.end}});
+                if first.guard_consumed {
+                    entry["guardConsumed"] = serde_json::json!(true);
+                }
+                if first.presence_consumed {
+                    entry["presenceConsumed"] = serde_json::json!(true);
+                }
+                Some(entry)
+            }).collect();
+            if !first.is_empty() {
+                members.push(format!("queryFirst:{}", descriptor_json(&first)));
+            }
+        }
+        if let Some(metadata) = self
+            .query_any
+            .and_then(|metadata| metadata.get(&item.canonical))
+        {
+            members.push(format!("queryAny:{}", descriptor_json(metadata)));
+        }
+        if let Some(selections) = self
+            .query_selections
+            .and_then(|selections| selections.get(&item.canonical))
+        {
+            members.push(format!("querySelections:{}", descriptor_json(selections)));
+        }
+    }
+
+    fn emit_operation_query_guards(&mut self, item: &IrItem, members: &mut Vec<String>) {
+        if let Some(guards) = self
+            .send_guard_owners
+            .and_then(|owners| owners.get(&item.canonical))
+        {
+            let mut descriptors = guards.clone();
+            let mut complete = true;
+            for descriptor in descriptors.as_array_mut().into_iter().flatten() {
+                let guard = self.send_guards.and_then(|guards| {
+                    guards.values().find(|guard| {
+                        Some(guard.rule.as_str()) == descriptor["rule"].as_str()
+                    })
+                });
+                let declaration =
+                    guard.and_then(|guard| self.send_input_declaration(guard));
+                if let Some(declaration) = declaration {
+                    descriptor["inputDeclaration"] = declaration;
+                } else {
+                    complete = false;
+                    break;
+                }
+            }
+            if complete {
+                members.push(format!("sendGuards:{}", descriptor_json(&descriptors)));
+            } else {
+                self.unsupported("send dispatch inputs", "original lexical inputs have no complete owning declaration profile", item.span);
+            }
+        }
+    }
+
+    fn emit_operation_call_sites(&mut self, item: &IrItem, members: &mut Vec<String>) {
+        if let Some(sites) = self.native_call_sites.get(&item.id) {
+            // Dev resolves names to its actual loaded canonical
+            // descriptors; this source carrier duplicates no schema.
+            let sites: Vec<_> = sites
+                .iter()
+                .map(|site| {
+                    let mut descriptor = serde_json::json!({
+                        "id": site.id,
+                        "source": {
+                            "path": site.source.path,
+                            "sha256": site.source.sha256,
+                            "module": site.source.module,
+                        },
+                        "kind": "operation",
+                        "targets": [site.target],
+                        "resultType": site.interface.result,
+                    });
+                    if !site.file_inputs.is_empty() {
+                        descriptor["fileInputs"] = serde_json::json!(site.file_inputs);
+                    }
+                    descriptor
+                })
+                .collect();
+            members.push(format!("callSites:{}", descriptor_json(&sites)));
+        }
+    }
+
+    fn operation_event_identity(&self, item: &IrItem, event: &IrEventSource) -> Option<String> {
+        match event {
+            IrEventSource::Declared(identity)
+            | IrEventSource::DeliveryProgressed(identity) => Some(identity.clone()),
+            IrEventSource::Queue { source, .. } => Some(source.clone()),
+            IrEventSource::StandardCompleted { source, .. }
+            | IrEventSource::DeliveryCompleted { source, .. }
+            | IrEventSource::MailboxReceived { source, .. } => Some(source.clone()),
+            IrEventSource::InstrumentationError => {
+                Some("instrumentation.error".into())
+            }
+            IrEventSource::TeamsMemberRemoved => {
+                Some("teams.member_removed".into())
+            }
+            IrEventSource::Committed { model, change } => self
+                .ir
+                .items
+                .get(model.0 as usize)
+                .filter(|item| matches!(item.kind, IrItemKind::Model { .. }))
+                .map(|model| format!("{}.{}", model.canonical, change.suffix())),
+            // Ticks route on their period, not an event
+            // identity (DESIGN §6).
+            IrEventSource::Every { .. } => None,
+        }
+    }
+
+    fn emit_operation_event(
+        &mut self,
+        item: &IrItem,
+        members: &mut Vec<String>,
+        event_source: &Option<IrEventSource>,
+    ) {
+        if let Some(event) = event_source {
+            let identity = self.operation_event_identity(item, event);
+            if let IrEventSource::Every { interval_ms } = event {
+                members.push(format!("on:{{every:{interval_ms}n}}"));
+            } else if let Some(identity) = identity {
+                members.push(format!("event:{}", js_string(&identity)));
+            }
+            if let Some(invocation) = self.private_event_invocation(item, event) {
+                members.push(format!("invocation:{}", invocation.to_json()));
+            } else if matches!(event, IrEventSource::Queue { .. }) {
+                self.unsupported("queue handler payload", "declared queue type has no supported private invocation input carrier", item.span);
+            }
+        }
+    }
+
+    fn emit_crud_operation(&mut self, item: &IrItem, operations: &mut Vec<String>) {
+        let IrItemKind::CrudOp {
+            model,
+            op,
+            by,
+            has_when,
+            fields,
+            label,
+            expose_excluded,
+            ..
+        } = &item.kind
+        else {
+            return;
+        };
+        let model_item = self.ir.items[model.0 as usize].clone();
+        let handler = item.canonical.clone();
+        let kind = match op {
+            CrudOp::Create => "create",
+            CrudOp::Update => "update",
+            CrudOp::Delete => "delete",
+        };
+        let allowlist = fields
+            .iter()
+            .map(|f| js_string(f))
+            .collect::<Vec<_>>()
+            .join(",");
+        let inputs = match op {
+            CrudOp::Create => format!("fields:[{allowlist}]"),
+            CrudOp::Update => format!(
+                "record:{{type:{}}},changes:{{fields:[{allowlist}]}}",
+                js_string(&model_item.canonical)
+            ),
+            CrudOp::Delete => {
+                format!("record:{{type:{}}}", js_string(&model_item.canonical))
+            }
+        };
+        let mut members = vec![
+            format!("handler:{}", js_string(&handler)),
+            format!("kind:{kind}", kind = js_string(kind)),
+            format!("model:{}", js_string(&model_item.canonical)),
+            "read:false".to_string(),
+            format!("inputs:{{{inputs}}}"),
+        ];
+        if let Some(authority) = self.operation_root_authority(item) {
+            members.push(format!("rootAuthority:{}", descriptor_json(&authority)));
+        }
+        if let Some(by) = self.by_member(by, item.span) {
+            members.push(format!("by:{by}"));
+        }
+        if *has_when {
+            members.push(format!("when:{}", js_string(&model_item.name)));
+        }
+        if let Some(label) = label {
+            members.push(format!("label:{}", self.lower_message(label)));
+        }
+        if *expose_excluded {
+            members.push("expose:false".to_string());
+        }
+        if item.exported {
+            members.push("exported:true".to_string());
+        }
+        operations.push(format!(
+            "{}:{{{}}}",
+            js_string(&item.canonical),
+            members.join(",")
+        ));
+    }
+
     fn emit_operations_member(&mut self) -> String {
         let mut operations = Vec::new();
         let ir = self.ir;
@@ -15161,155 +15963,11 @@ impl<'a> Emitter<'a> {
                         format!("handler:{}", js_string(&item.canonical)),
                         format!("inputs:{{{inputs}}}"),
                     ];
-                    // Family E: the §13 authority-scope marker publishes
-                    // the checked grant boundary. The `E6008` stays until
-                    // the host-seam decision-mode runtime boundary lands;
-                    // the handler below lowers the decision-mode body and
-                    // MCP advertises the grant.
-                    if *scope_authority {
-                        members.push("scope:\"authority\"".to_string());
-                        // REVIEW-9 gap 2: the defining-source origin is a
-                        // checked fact, never re-derived — the scenario's
-                        // owning module must agree with its declaring
-                        // file, and that file must resolve through the
-                        // checked committed-source inventory. The host
-                        // verifies this origin against `artifact.sources`
-                        // before serving; omission keeps the seam refusal
-                        // fail-closed.
-                        if let Some(origin) = Self::defining_source_origin(self.ir, item) {
-                            members.push(format!("source:{}", descriptor_json(&origin)));
-                        }
-                    }
-                    if let Some(authority) = self.operation_root_authority(item) {
-                        members.push(format!("rootAuthority:{}", descriptor_json(&authority)));
-                    }
-                    if let Some(dependencies) = self.execution_dependencies.get(&item.canonical) {
-                        members.push(format!(
-                            "executionDependencies:{}",
-                            descriptor_json(dependencies)
-                        ));
-                    }
-                    if let Some(capture) = self.native_query_sources.get(&item.id) {
-                        let first: Vec<_> = capture.queries.iter().filter_map(|query| {
-                            let first = query.first.as_ref()?;
-                            let source = capture.plan["queries"].as_array()?.iter().find(|value| value["id"].as_str() == Some(query.id.as_str()))?.get("source")?;
-                            // DESIGN442: carry the checked guard-consumed mark
-                            // for confined decision slices (hook event plus
-                            // ordinary require-conjunction skeletons);
-                            // omission keeps ordinary viewer behavior on
-                            // every other shape.
-                            let mut entry = serde_json::json!({"queryId":query.id,"source":source,"query":{"start":query.node.start,"end":query.node.end},"node":{"start":first.call.start,"end":first.call.end},"statement":{"start":first.binding.start,"end":first.binding.end}});
-                            if first.guard_consumed {
-                                entry["guardConsumed"] = serde_json::json!(true);
-                            }
-                            if first.presence_consumed {
-                                entry["presenceConsumed"] = serde_json::json!(true);
-                            }
-                            Some(entry)
-                        }).collect();
-                        if !first.is_empty() {
-                            members.push(format!("queryFirst:{}", descriptor_json(&first)));
-                        }
-                    }
-                    if let Some(metadata) = self
-                        .query_any
-                        .and_then(|metadata| metadata.get(&item.canonical))
-                    {
-                        members.push(format!("queryAny:{}", descriptor_json(metadata)));
-                    }
-                    if let Some(selections) = self
-                        .query_selections
-                        .and_then(|selections| selections.get(&item.canonical))
-                    {
-                        members.push(format!("querySelections:{}", descriptor_json(selections)));
-                    }
-                    if let Some(guards) = self
-                        .send_guard_owners
-                        .and_then(|owners| owners.get(&item.canonical))
-                    {
-                        let mut descriptors = guards.clone();
-                        let mut complete = true;
-                        for descriptor in descriptors.as_array_mut().into_iter().flatten() {
-                            let guard = self.send_guards.and_then(|guards| {
-                                guards.values().find(|guard| {
-                                    Some(guard.rule.as_str()) == descriptor["rule"].as_str()
-                                })
-                            });
-                            let declaration =
-                                guard.and_then(|guard| self.send_input_declaration(guard));
-                            if let Some(declaration) = declaration {
-                                descriptor["inputDeclaration"] = declaration;
-                            } else {
-                                complete = false;
-                                break;
-                            }
-                        }
-                        if complete {
-                            members.push(format!("sendGuards:{}", descriptor_json(&descriptors)));
-                        } else {
-                            self.unsupported("send dispatch inputs", "original lexical inputs have no complete owning declaration profile", item.span);
-                        }
-                    }
-                    if let Some(sites) = self.native_call_sites.get(&item.id) {
-                        // Dev resolves names to its actual loaded canonical
-                        // descriptors; this source carrier duplicates no schema.
-                        let sites: Vec<_> = sites
-                            .iter()
-                            .map(|site| {
-                                let mut descriptor = serde_json::json!({
-                                    "id": site.id,
-                                    "source": {
-                                        "path": site.source.path,
-                                        "sha256": site.source.sha256,
-                                        "module": site.source.module,
-                                    },
-                                    "kind": "operation",
-                                    "targets": [site.target],
-                                    "resultType": site.interface.result,
-                                });
-                                if !site.file_inputs.is_empty() {
-                                    descriptor["fileInputs"] = serde_json::json!(site.file_inputs);
-                                }
-                                descriptor
-                            })
-                            .collect();
-                        members.push(format!("callSites:{}", descriptor_json(&sites)));
-                    }
-                    if let Some(event) = event_source {
-                        let identity = match event {
-                            IrEventSource::Declared(identity)
-                            | IrEventSource::DeliveryProgressed(identity) => Some(identity.clone()),
-                            IrEventSource::Queue { source, .. } => Some(source.clone()),
-                            IrEventSource::StandardCompleted { source, .. }
-                            | IrEventSource::DeliveryCompleted { source, .. }
-                            | IrEventSource::MailboxReceived { source, .. } => Some(source.clone()),
-                            IrEventSource::InstrumentationError => {
-                                Some("instrumentation.error".into())
-                            }
-                            IrEventSource::TeamsMemberRemoved => {
-                                Some("teams.member_removed".into())
-                            }
-                            IrEventSource::Committed { model, change } => self
-                                .ir
-                                .items
-                                .get(model.0 as usize)
-                                .filter(|item| matches!(item.kind, IrItemKind::Model { .. }))
-                                .map(|model| format!("{}.{}", model.canonical, change.suffix())),
-                            // Ticks route on their period, not an event
-                            // identity (DESIGN §6).
-                            IrEventSource::Every { .. } => None,
-                        };
-                        if let IrEventSource::Every { interval_ms } = event {
-                            members.push(format!("on:{{every:{interval_ms}n}}"));
-                        } else if let Some(identity) = identity {
-                            members.push(format!("event:{}", js_string(&identity)));
-                        }
-                        if let Some(invocation) = self.private_event_invocation(item, event) {
-                            members.push(format!("invocation:{}", invocation.to_json()));
-                        } else if matches!(event, IrEventSource::Queue { .. }) {
-                            self.unsupported("queue handler payload", "declared queue type has no supported private invocation input carrier", item.span);
-                        }
-                    }
+                    self.emit_operation_authority(item, &mut members, *scope_authority);
+                    self.emit_operation_query_first(item, &mut members);
+                    self.emit_operation_query_guards(item, &mut members);
+                    self.emit_operation_call_sites(item, &mut members);
+                    self.emit_operation_event(item, &mut members, event_source);
                     if let Some(by) = self.by_member(by, item.span) {
                         members.push(format!("by:{by}"));
                     }
@@ -15332,68 +15990,8 @@ impl<'a> Emitter<'a> {
                         members.join(",")
                     ));
                 }
-                IrItemKind::CrudOp {
-                    model,
-                    op,
-                    by,
-                    has_when,
-                    fields,
-                    label,
-                    expose_excluded,
-                    ..
-                } => {
-                    let model_item = self.ir.items[model.0 as usize].clone();
-                    let handler = item.canonical.clone();
-                    let kind = match op {
-                        CrudOp::Create => "create",
-                        CrudOp::Update => "update",
-                        CrudOp::Delete => "delete",
-                    };
-                    let allowlist = fields
-                        .iter()
-                        .map(|f| js_string(f))
-                        .collect::<Vec<_>>()
-                        .join(",");
-                    let inputs = match op {
-                        CrudOp::Create => format!("fields:[{allowlist}]"),
-                        CrudOp::Update => format!(
-                            "record:{{type:{}}},changes:{{fields:[{allowlist}]}}",
-                            js_string(&model_item.canonical)
-                        ),
-                        CrudOp::Delete => {
-                            format!("record:{{type:{}}}", js_string(&model_item.canonical))
-                        }
-                    };
-                    let mut members = vec![
-                        format!("handler:{}", js_string(&handler)),
-                        format!("kind:{kind}", kind = js_string(kind)),
-                        format!("model:{}", js_string(&model_item.canonical)),
-                        "read:false".to_string(),
-                        format!("inputs:{{{inputs}}}"),
-                    ];
-                    if let Some(authority) = self.operation_root_authority(item) {
-                        members.push(format!("rootAuthority:{}", descriptor_json(&authority)));
-                    }
-                    if let Some(by) = self.by_member(by, item.span) {
-                        members.push(format!("by:{by}"));
-                    }
-                    if *has_when {
-                        members.push(format!("when:{}", js_string(&model_item.name)));
-                    }
-                    if let Some(label) = label {
-                        members.push(format!("label:{}", self.lower_message(label)));
-                    }
-                    if *expose_excluded {
-                        members.push("expose:false".to_string());
-                    }
-                    if item.exported {
-                        members.push("exported:true".to_string());
-                    }
-                    operations.push(format!(
-                        "{}:{{{}}}",
-                        js_string(&item.canonical),
-                        members.join(",")
-                    ));
+                IrItemKind::CrudOp { .. } => {
+                    self.emit_crud_operation(item, &mut operations);
                 }
                 _ => {}
             }
@@ -15734,35 +16332,7 @@ impl<'a> Emitter<'a> {
                     }
                 }
                 if let Some(default) = default {
-                    match default {
-                        IrDefault::Literal(value) if wire => {
-                            if let Some(value) = wire_literal(value) {
-                                members.push_str(&format!(",default:{}", descriptor_json(&value)));
-                            } else {
-                                self.unsupported(
-                                    "capability parameter default",
-                                    "literal has no owning wire representation",
-                                    param.span,
-                                );
-                            }
-                        }
-                        IrDefault::Literal(_) => {
-                            members.push_str(&format!(",default:{}", self.lower_default(default)));
-                        }
-                        IrDefault::Computed { .. }
-                            if computed_defaults
-                                && self.scenario_computed_default_supported(*param_id) =>
-                        {
-                            members.push_str(",computedDefault:true");
-                        }
-                        IrDefault::Computed { .. } => {
-                            self.unsupported(
-                                "parameter default",
-                                "computed parameter defaults have no §13 lowering",
-                                param.span,
-                            );
-                        }
-                    }
+                    self.push_param_default_member(*param_id, param.span, default, wire, computed_defaults, &mut members);
                 }
                 if !wire && let Some(label) = label {
                     members.push_str(&format!(",label:{}", self.lower_message(label)));
@@ -15777,6 +16347,45 @@ impl<'a> Emitter<'a> {
             }
         }
         parts.join(",")
+    }
+
+    fn push_param_default_member(
+        &mut self,
+        param_id: SymbolId,
+        span: Span,
+        default: &IrDefault,
+        wire: bool,
+        computed_defaults: bool,
+        members: &mut String,
+    ) {
+        match default {
+            IrDefault::Literal(value) if wire => {
+                if let Some(value) = wire_literal(value) {
+                    members.push_str(&format!(",default:{}", descriptor_json(&value)));
+                } else {
+                    self.unsupported(
+                        "capability parameter default",
+                        "literal has no owning wire representation",
+                        span,
+                    );
+                }
+            }
+            IrDefault::Literal(_) => {
+                members.push_str(&format!(",default:{}", self.lower_default(default)));
+            }
+            IrDefault::Computed { .. }
+                if computed_defaults && self.scenario_computed_default_supported(param_id) =>
+            {
+                members.push_str(",computedDefault:true");
+            }
+            IrDefault::Computed { .. } => {
+                self.unsupported(
+                    "parameter default",
+                    "computed parameter defaults have no §13 lowering",
+                    span,
+                );
+            }
+        }
     }
 
     /// Emit the `pages` member: descriptor references in source order.
@@ -15908,6 +16517,153 @@ impl<'a> Emitter<'a> {
         Some(changes)
     }
 
+    fn standard_completion_item_matches(
+        current: &[&IrItem],
+        fact: &CheckedStandardCompletionHandler,
+        item: &IrItem,
+        params_empty: bool,
+    ) -> bool {
+        item.id == fact.id
+            && current
+                .iter()
+                .filter(|current| current.id == fact.id)
+                .count()
+                == 1
+            && fact.node.file == item.span.file
+            && fact.node.start <= item.span.start
+            && fact.node.end >= item.span.end
+            && fact.on.file == fact.node.file
+            && fact.on.start >= fact.node.start
+            && fact.on.end <= fact.node.end
+            && fact.on.start < fact.on.end
+            && item.module == fact.module
+            && item.canonical == fact.canonical
+            && item.span == fact.span
+            && params_empty
+    }
+
+    fn standard_completion_payload_matches(
+        module: &IrModule,
+        fact: &CheckedStandardCompletionHandler,
+        completion: &crate::analysis::types::CheckedStdDeliveryCompletion,
+        event: &String,
+        canonical_operation: &String,
+        result_type: &String,
+        binding: &String,
+        from: &String,
+    ) -> bool {
+        module.id == fact.module
+            && completion.module == fact.module
+            && event == &completion.source
+            && canonical_operation == &completion.canonical_operation
+            && result_type == &completion.result_type
+            && completion.binding.as_ref() == Some(binding)
+            && completion.from.as_ref() == Some(from)
+            && binding == &format!("{}.{}", module.name, completion.alias)
+    }
+
+    fn standard_completion_route_matches(
+        module: &IrModule,
+        completion: &crate::analysis::types::CheckedStdDeliveryCompletion,
+        from: &String,
+        canonical_operation: &String,
+        result_type: &String,
+    ) -> bool {
+        let imports: Vec<_> = module
+            .imports
+            .iter()
+            .flat_map(|import| {
+                import
+                    .members
+                    .iter()
+                    .filter(|(_, alias, _)| *alias == completion.alias)
+                    .map(move |member| (import, member))
+            })
+            .collect();
+        imports.len() == 1
+            && imports[0].0.provider == "std"
+            && imports[0].0.span == completion.import_span
+            && imports[0].0.from.as_ref() == Some(from)
+            && format!("std.{}", imports[0].1.0) == completion.capability
+            && std_capability(&completion.capability).is_some_and(|capability| {
+                capability.operations.iter().any(|op| {
+                    op.name == completion.op
+                        && op.result == *result_type
+                        && format!("{}.{}", capability.name, op.name) == *canonical_operation
+                })
+            })
+    }
+
+    fn standard_completion_cohort_matches(
+        &self,
+        cohort: &Option<IrCohort>,
+        fact: &CheckedStandardCompletionHandler,
+    ) -> bool {
+        cohort == &fact.cohort
+            && cohort.as_ref().map(|cohort| {
+                self.ir
+                    .items
+                    .get(cohort.model.0 as usize)
+                    .filter(|item| {
+                        item.id == cohort.model
+                            && matches!(item.kind, IrItemKind::Model { .. })
+                    })
+                    .map(|item| item.canonical.as_str())
+            }) == fact.cohort_model.as_deref().map(Some)
+    }
+
+    fn standard_completion_fact_matches(
+        &self,
+        current: &[&IrItem],
+        fact: &CheckedStandardCompletionHandler,
+    ) -> bool {
+        let completion = &fact.completion;
+        let Some(item) = self.ir.items.get(fact.id.0 as usize) else {
+            return false;
+        };
+        let IrItemKind::Scenario {
+            params,
+            event_source:
+                Some(
+                    source @ IrEventSource::StandardCompleted {
+                        source: event,
+                        canonical_operation,
+                        result_type,
+                        binding,
+                        from,
+                    },
+                ),
+            cohort,
+            ..
+        } = &item.kind
+        else {
+            return false;
+        };
+        let Some(module) = self.ir.modules.get(fact.module.0 as usize) else {
+            return false;
+        };
+        Self::standard_completion_item_matches(current, fact, item, params.is_empty())
+            && Self::standard_completion_payload_matches(
+                module,
+                fact,
+                completion,
+                event,
+                canonical_operation,
+                result_type,
+                binding,
+                from,
+            )
+            && Self::standard_completion_route_matches(
+                module,
+                completion,
+                from,
+                canonical_operation,
+                result_type,
+            )
+            && self.standard_completion_cohort_matches(cohort, fact)
+            && self.private_event_invocation(item, source).is_some()
+    }
+
     fn collect_standard_completions(
         &mut self,
         db: Option<&crate::source::SourceDb>,
@@ -15945,94 +16701,10 @@ impl<'a> Emitter<'a> {
             && current.len() == facts.handlers.len()
             && claimed_ids.len() == facts.handlers.len()
             && current.iter().all(|item| claimed_ids.contains(&item.id))
-            && facts.handlers.iter().all(|fact| {
-                let completion = &fact.completion;
-                let Some(item) = self.ir.items.get(fact.id.0 as usize) else {
-                    return false;
-                };
-                let IrItemKind::Scenario {
-                    params,
-                    event_source:
-                        Some(
-                            source @ IrEventSource::StandardCompleted {
-                                source: event,
-                                canonical_operation,
-                                result_type,
-                                binding,
-                                from,
-                            },
-                        ),
-                    cohort,
-                    ..
-                } = &item.kind
-                else {
-                    return false;
-                };
-                let Some(module) = self.ir.modules.get(fact.module.0 as usize) else {
-                    return false;
-                };
-                let imports: Vec<_> = module
-                    .imports
-                    .iter()
-                    .flat_map(|import| {
-                        import
-                            .members
-                            .iter()
-                            .filter(|(_, alias, _)| *alias == completion.alias)
-                            .map(move |member| (import, member))
-                    })
-                    .collect();
-                item.id == fact.id
-                    && current
-                        .iter()
-                        .filter(|current| current.id == fact.id)
-                        .count()
-                        == 1
-                    && fact.node.file == item.span.file
-                    && fact.node.start <= item.span.start
-                    && fact.node.end >= item.span.end
-                    && fact.on.file == fact.node.file
-                    && fact.on.start >= fact.node.start
-                    && fact.on.end <= fact.node.end
-                    && fact.on.start < fact.on.end
-                    && item.module == fact.module
-                    && item.canonical == fact.canonical
-                    && item.span == fact.span
-                    && params.is_empty()
-                    && module.id == fact.module
-                    && completion.module == fact.module
-                    && event == &completion.source
-                    && canonical_operation == &completion.canonical_operation
-                    && result_type == &completion.result_type
-                    && completion.binding.as_ref() == Some(binding)
-                    && completion.from.as_ref() == Some(from)
-                    && binding == &format!("{}.{}", module.name, completion.alias)
-                    && imports.len() == 1
-                    && imports[0].0.provider == "std"
-                    && imports[0].0.span == completion.import_span
-                    && imports[0].0.from.as_ref() == Some(from)
-                    && format!("std.{}", imports[0].1.0) == completion.capability
-                    && std_capability(&completion.capability).is_some_and(|capability| {
-                        capability.operations.iter().any(|op| {
-                            op.name == completion.op
-                                && op.result == *result_type
-                                && format!("{}.{}", capability.name, op.name)
-                                    == *canonical_operation
-                        })
-                    })
-                    && cohort == &fact.cohort
-                    && cohort.as_ref().map(|cohort| {
-                        self.ir
-                            .items
-                            .get(cohort.model.0 as usize)
-                            .filter(|item| {
-                                item.id == cohort.model
-                                    && matches!(item.kind, IrItemKind::Model { .. })
-                            })
-                            .map(|item| item.canonical.as_str())
-                    }) == fact.cohort_model.as_deref().map(Some)
-                    && self.private_event_invocation(item, source).is_some()
-            });
+            && facts
+                .handlers
+                .iter()
+                .all(|fact| self.standard_completion_fact_matches(&current, fact));
         if !valid {
             let span = facts
                 .handlers
@@ -16535,6 +17207,339 @@ impl<'a> Emitter<'a> {
         checked_scenario_result(result)
     }
 
+    fn collect_model_read(item: &IrItem, has_grants: bool) -> Option<JsOperation> {
+        // One no-input read descriptor per policy-bearing
+        // model (P4 follow-up): `policy Model read=`
+        // publishes `package.Model.read` so denied reads
+        // answer denied-not-unknown. Policies carry no
+        // caption source, so the description stays empty.
+        if !has_grants {
+            return None;
+        }
+        Some(JsOperation {
+            name: format!("{}.read", item.canonical),
+            kind: JsOperationKind::Read,
+            description: String::new(),
+            inputs: Vec::new(),
+            result: None,
+            disclosure: None,
+            root_authority: None,
+        })
+    }
+
+    fn collect_scenario_inputs(
+        &mut self,
+        item: &IrItem,
+        params: &Vec<SymbolId>,
+        read: bool,
+        hook_none: bool,
+    ) -> Option<Vec<JsOperationField>> {
+        // Family E: the explicit information grant
+        // advertises with its required DESIGN-522
+        // description identifying the information exposed
+        // (checker-enforced `E3001`, so the grant never
+        // publishes undescribed).
+        let mut inputs = Vec::new();
+        for param_id in params {
+            // Never direct-index: a dangling row omits the
+            // operation instead of panicking.
+            let Some(param) = self.ir.items.get(param_id.0 as usize) else {
+                return None;
+            };
+            let IrItemKind::Param {
+                array_bounds,
+                ty,
+                default,
+                description,
+                choices,
+                ..
+            } = &param.kind
+            else {
+                return None;
+            };
+            let alias = self
+                .ir
+                .value_constraints
+                .get(param_id)
+                .and_then(|constraints| constraints.alias);
+            let alias_name = alias.and_then(|alias| {
+                self.ir
+                    .items
+                    .get(alias.0 as usize)
+                    .filter(|item| {
+                        item.id == alias
+                            && self.ir.value_constraints.get(&alias).is_some_and(
+                                |constraints| constraints.alias == Some(alias),
+                            )
+                    })
+                    .map(|item| item.canonical.clone())
+            });
+            if alias.is_some() && alias_name.is_none() {
+                return None;
+            }
+            let nullable = matches!(ty, IrType::Known(ResolvedType::Nullable(_)));
+            match self.mcp_field_for_type(ty, !read) {
+                // Parameters never carry the field-only `!`
+                // (GRAMMAR L183), so parameter arrays are
+                // always ordinary: omission fills empty and
+                // the marker renders `required: false`.
+                Some((field, is_array)) => inputs.push(JsOperationField {
+                    min: array_bounds.as_ref().and_then(|bounds| bounds.min),
+                    max: array_bounds.as_ref().and_then(|bounds| bounds.max),
+                    name: param.name.clone(),
+                    field: alias_name
+                        .map_or(field, |name| JsMcpField::Nominal { name }),
+                    value_type: match ty {
+                        IrType::Known(resolved) if alias.is_some() => Some(
+                            self.symbol_value_type_id(*param_id, resolved, param.span),
+                        ),
+                        _ => self.operation_input_value_type(ty).or_else(|| {
+                            // New intrinsic claims require the exact
+                            // checked primitive type, even when its
+                            // legacy MCP tag was unambiguous.
+                            self.native_receipts.get(&item.id)?;
+                            let IrType::Known(ResolvedType::Scalar(scalar)) = ty else {
+                                return None;
+                            };
+                            matches!(
+                                scalar,
+                                Scalar::Text
+                                    | Scalar::Bool
+                                    | Scalar::Int
+                                    | Scalar::Date
+                                    | Scalar::Datetime
+                                    | Scalar::Decimal
+                                    | Scalar::Money
+                                    | Scalar::Duration
+                                    | Scalar::Currency
+                                    | Scalar::User
+                            )
+                            .then(|| scalar.as_str().to_string())
+                        }),
+                    },
+                    required: default.is_none() && !nullable && !is_array,
+                    nullable,
+                    array_required: is_array.then_some(false),
+                    computed_default: hook_none
+                        && matches!(default, Some(IrDefault::Computed { .. }))
+                        && self.scenario_computed_default_supported(*param_id),
+                    default: match default {
+                        Some(IrDefault::Computed { .. }) => None,
+                        _ => js_field_default(default.as_ref(), None),
+                    },
+                    description: description.clone(),
+                    choices: choices.as_ref().map(JsInputChoiceBinding::from),
+                }),
+                None => {
+                    return None;
+                }
+            }
+        }
+        Some(inputs)
+    }
+
+    fn collect_scenario_disclosure(
+        &mut self,
+        item: &IrItem,
+        read: bool,
+        published_result: &Option<Cow<'_, str>>,
+    ) -> Option<serde_json::Value> {
+        let prepared_query = read
+            && self.prepared_query_receipts.contains(&item.id)
+            && self
+                .native_query_sources
+                .get(&item.id)
+                .is_some_and(|source| {
+                    self.native_receipts.get(&item.id).is_some_and(|recipe| {
+                        serde_json::to_value(&recipe.plan).ok().as_ref()
+                            == Some(&source.plan)
+                    })
+                });
+        if prepared_query
+            || super::scenario_receipts::checked_created_model_result(self.ir, item)
+                .and_then(|model| self.ir.items.get(model.0 as usize))
+                .is_some_and(|model| {
+                    published_result.as_deref() == Some(model.canonical.as_str())
+                })
+            || published_result.as_deref().is_some_and(|type_id| {
+                type_id == "void"
+                    || super::scenario_receipts::supported_type_id(type_id)
+            })
+        {
+            self.native_receipts.get(&item.id).map(|recipe| {
+                serde_json::to_value(&recipe.plan)
+                    .expect("native disclosure JSON invariant")
+            })
+        } else {
+            self.native_receipts.remove(&item.id);
+            None
+        }
+    }
+
+    fn collect_crud_fields(
+        &mut self,
+        model_fields: &[SymbolId],
+        allowlist: &Option<BTreeSet<&str>>,
+    ) -> Option<Vec<JsOperationField>> {
+        let mut flat = Vec::new();
+        for field_id in model_fields {
+            let Some(field_item) = self.ir.items.get(field_id.0 as usize) else {
+                return None;
+            };
+            // Derived fields ride the model's field list
+            // (resolve) but are never caller-provided: always
+            // skip, even under an empty allowlist. (T15a
+            // repair: the old match-first order omitted EVERY
+            // CRUD operation — including delete, whose gate is
+            // shared — for any model carrying a derive.)
+            if matches!(field_item.kind, IrItemKind::DeriveField { .. }) {
+                continue;
+            }
+            if let Some(allow) = allowlist
+                && !allow.contains(field_item.name.as_str())
+            {
+                continue;
+            }
+            let IrItemKind::Field {
+                ty,
+                required_array,
+                default,
+                server,
+                description,
+                ..
+            } = &field_item.kind
+            else {
+                return None;
+            };
+            // `server=`-owned fields are never caller-provided
+            // (analysis E3009 also bars them from allowlists).
+            if server.is_some() {
+                continue;
+            }
+            let nullable = matches!(ty, IrType::Known(ResolvedType::Nullable(_)));
+            match self.mcp_field_for_type(ty, true) {
+                Some((field, is_array)) => {
+                    // The T09 marker is the spelling alone:
+                    // ordinary arrays omit to empty (never
+                    // caller-required), required `!` arrays
+                    // reject omission when no default fills
+                    // it. (Derived fields never reach here:
+                    // they are separate IR items, not model
+                    // fields.)
+                    let array_required = is_array.then_some(*required_array);
+                    let required = default.is_none()
+                        && !nullable
+                        && !(is_array && !required_array);
+                    flat.push(JsOperationField {
+                        min: None,
+                        max: None,
+                        name: field_item.name.clone(),
+                        field,
+                        value_type: required_file_array_value_type(
+                            self.operation_input_value_type(ty),
+                            *required_array,
+                        ),
+                        required,
+                        nullable,
+                        array_required,
+                        computed_default: false,
+                        default: js_field_default(default.as_ref(), None),
+                        description: description.clone(),
+                        choices: None,
+                    });
+                }
+                None => {
+                    return None;
+                }
+            }
+        }
+        Some(flat)
+    }
+
+    fn collect_crud_inputs(
+        &self,
+        op: &CrudOp,
+        owner: &IrOwner,
+        model_item: &IrItem,
+        flat: Vec<JsOperationField>,
+    ) -> Option<Vec<JsOperationField>> {
+        let record = || JsOperationField {
+            min: None,
+            max: None,
+            name: "record".to_string(),
+            value_type: None,
+            field: JsMcpField::Ref {
+                model: model_item.canonical.clone(),
+                require_version: true,
+            },
+            required: true,
+            nullable: false,
+            array_required: None,
+            computed_default: false,
+            default: None,
+            description: None,
+            choices: None,
+        };
+        let inputs = match op {
+            CrudOp::Create => {
+                // T18: child-model creates synthesize the
+                // caller-required unversioned `parent` linkage
+                // input (source mandates `parent=` on child
+                // creates; the L3 executor consumes it as
+                // linkage, never field data). A dangling owner
+                // row omits the input (never a panic); a model
+                // field literally named `parent` trips the
+                // duplicate-name guard below and omits the op.
+                let mut inputs = flat;
+                if let IrOwner::ChildOf(parent_id) = owner
+                    && let Some(parent_item) = self.ir.items.get(parent_id.0 as usize)
+                {
+                    inputs.push(JsOperationField {
+                        min: None,
+                        max: None,
+                        name: "parent".to_string(),
+                        value_type: None,
+                        field: JsMcpField::Ref {
+                            model: parent_item.canonical.clone(),
+                            require_version: false,
+                        },
+                        required: true,
+                        nullable: false,
+                        array_required: None,
+                        computed_default: false,
+                        default: None,
+                        description: None,
+                        choices: None,
+                    });
+                }
+                inputs
+            }
+            CrudOp::Update => {
+                // Changes are partial: every flattened field is
+                // optional beside the versioned record, and
+                // defaults never apply (omission means
+                // unchanged, never default-filled). Array
+                // markers and nullability stay: they describe
+                // the accepted value shape.
+                let mut inputs = vec![record()];
+                for mut field in flat {
+                    field.required = false;
+                    field.default = None;
+                    inputs.push(field);
+                }
+                inputs
+            }
+            CrudOp::Delete => vec![record()],
+        };
+        // A model field literally named `record` collides with
+        // the synthesized ref on update/delete: omit rather
+        // than advertise an ambiguous schema.
+        if has_duplicate_names(&inputs) {
+            return None;
+        }
+        Some(inputs)
+    }
+
     fn collect_operations(&mut self) -> Vec<JsOperation> {
         let mut operations = Vec::new();
         if self.has_receipt_delivery_fields() {
@@ -16551,23 +17556,11 @@ impl<'a> Emitter<'a> {
         for item in &self.ir.items {
             match &item.kind {
                 IrItemKind::Model { grants, .. } => {
-                    // One no-input read descriptor per policy-bearing
-                    // model (P4 follow-up): `policy Model read=`
-                    // publishes `package.Model.read` so denied reads
-                    // answer denied-not-unknown. Policies carry no
-                    // caption source, so the description stays empty.
-                    if grants.is_empty() {
-                        continue;
+                    if let Some(operation) =
+                        Self::collect_model_read(item, !grants.is_empty())
+                    {
+                        operations.push(operation);
                     }
-                    operations.push(JsOperation {
-                        name: format!("{}.read", item.canonical),
-                        kind: JsOperationKind::Read,
-                        description: String::new(),
-                        inputs: Vec::new(),
-                        result: None,
-                        disclosure: None,
-                        root_authority: None,
-                    });
                 }
                 IrItemKind::Scenario {
                     params,
@@ -16587,146 +17580,19 @@ impl<'a> Emitter<'a> {
                     if *expose_excluded {
                         continue;
                     }
-                    // Family E: the explicit information grant
-                    // advertises with its required DESIGN-522
-                    // description identifying the information exposed
-                    // (checker-enforced `E3001`, so the grant never
-                    // publishes undescribed).
-                    let mut inputs = Vec::new();
-                    let mut mappable = true;
-                    for param_id in params {
-                        // Never direct-index: a dangling row omits the
-                        // operation instead of panicking.
-                        let Some(param) = self.ir.items.get(param_id.0 as usize) else {
-                            mappable = false;
-                            break;
-                        };
-                        let IrItemKind::Param {
-                            array_bounds,
-                            ty,
-                            default,
-                            description,
-                            choices,
-                            ..
-                        } = &param.kind
-                        else {
-                            mappable = false;
-                            break;
-                        };
-                        let alias = self
-                            .ir
-                            .value_constraints
-                            .get(param_id)
-                            .and_then(|constraints| constraints.alias);
-                        let alias_name = alias.and_then(|alias| {
-                            self.ir
-                                .items
-                                .get(alias.0 as usize)
-                                .filter(|item| {
-                                    item.id == alias
-                                        && self.ir.value_constraints.get(&alias).is_some_and(
-                                            |constraints| constraints.alias == Some(alias),
-                                        )
-                                })
-                                .map(|item| item.canonical.clone())
-                        });
-                        if alias.is_some() && alias_name.is_none() {
-                            mappable = false;
-                            break;
-                        }
-                        let nullable = matches!(ty, IrType::Known(ResolvedType::Nullable(_)));
-                        match self.mcp_field_for_type(ty, !*read) {
-                            // Parameters never carry the field-only `!`
-                            // (GRAMMAR L183), so parameter arrays are
-                            // always ordinary: omission fills empty and
-                            // the marker renders `required: false`.
-                            Some((field, is_array)) => inputs.push(JsOperationField {
-                                min: array_bounds.as_ref().and_then(|bounds| bounds.min),
-                                max: array_bounds.as_ref().and_then(|bounds| bounds.max),
-                                name: param.name.clone(),
-                                field: alias_name
-                                    .map_or(field, |name| JsMcpField::Nominal { name }),
-                                value_type: match ty {
-                                    IrType::Known(resolved) if alias.is_some() => Some(
-                                        self.symbol_value_type_id(*param_id, resolved, param.span),
-                                    ),
-                                    _ => self.operation_input_value_type(ty).or_else(|| {
-                                        // New intrinsic claims require the exact
-                                        // checked primitive type, even when its
-                                        // legacy MCP tag was unambiguous.
-                                        self.native_receipts.get(&item.id)?;
-                                        let IrType::Known(ResolvedType::Scalar(scalar)) = ty else {
-                                            return None;
-                                        };
-                                        matches!(
-                                            scalar,
-                                            Scalar::Text
-                                                | Scalar::Bool
-                                                | Scalar::Int
-                                                | Scalar::Date
-                                                | Scalar::Datetime
-                                                | Scalar::Decimal
-                                                | Scalar::Money
-                                                | Scalar::Duration
-                                                | Scalar::Currency
-                                                | Scalar::User
-                                        )
-                                        .then(|| scalar.as_str().to_string())
-                                    }),
-                                },
-                                required: default.is_none() && !nullable && !is_array,
-                                nullable,
-                                array_required: is_array.then_some(false),
-                                computed_default: hook.is_none()
-                                    && matches!(default, Some(IrDefault::Computed { .. }))
-                                    && self.scenario_computed_default_supported(*param_id),
-                                default: match default {
-                                    Some(IrDefault::Computed { .. }) => None,
-                                    _ => js_field_default(default.as_ref(), None),
-                                },
-                                description: description.clone(),
-                                choices: choices.as_ref().map(JsInputChoiceBinding::from),
-                            }),
-                            None => {
-                                mappable = false;
-                                break;
-                            }
-                        }
-                    }
-                    if !mappable || has_duplicate_names(&inputs) {
+                    let Some(inputs) =
+                        self.collect_scenario_inputs(item, params, *read, hook.is_none())
+                    else {
+                        self.native_receipts.remove(&item.id);
+                        continue;
+                    };
+                    if has_duplicate_names(&inputs) {
                         self.native_receipts.remove(&item.id);
                         continue;
                     }
                     let published_result = self.checked_operation_result(result.as_ref(), *read);
-                    let prepared_query = *read
-                        && self.prepared_query_receipts.contains(&item.id)
-                        && self
-                            .native_query_sources
-                            .get(&item.id)
-                            .is_some_and(|source| {
-                                self.native_receipts.get(&item.id).is_some_and(|recipe| {
-                                    serde_json::to_value(&recipe.plan).ok().as_ref()
-                                        == Some(&source.plan)
-                                })
-                            });
-                    let disclosure = if prepared_query
-                        || super::scenario_receipts::checked_created_model_result(self.ir, item)
-                            .and_then(|model| self.ir.items.get(model.0 as usize))
-                            .is_some_and(|model| {
-                                published_result.as_deref() == Some(model.canonical.as_str())
-                            })
-                        || published_result.as_deref().is_some_and(|type_id| {
-                            type_id == "void"
-                                || super::scenario_receipts::supported_type_id(type_id)
-                        }) {
-                        self.native_receipts.get(&item.id).map(|recipe| {
-                            serde_json::to_value(&recipe.plan)
-                                .expect("native disclosure JSON invariant")
-                        })
-                    } else {
-                        self.native_receipts.remove(&item.id);
-                        None
-                    };
+                    let disclosure =
+                        self.collect_scenario_disclosure(item, *read, &published_result);
                     operations.push(JsOperation {
                         name: item.canonical.clone(),
                         kind: if *read {
@@ -16788,159 +17654,15 @@ impl<'a> Emitter<'a> {
                                 .collect(),
                         )
                     };
-                    let mut flat = Vec::new();
-                    let mut mappable = true;
-                    for field_id in model_fields {
-                        let Some(field_item) = self.ir.items.get(field_id.0 as usize) else {
-                            mappable = false;
-                            break;
-                        };
-                        // Derived fields ride the model's field list
-                        // (resolve) but are never caller-provided: always
-                        // skip, even under an empty allowlist. (T15a
-                        // repair: the old match-first order omitted EVERY
-                        // CRUD operation — including delete, whose gate is
-                        // shared — for any model carrying a derive.)
-                        if matches!(field_item.kind, IrItemKind::DeriveField { .. }) {
-                            continue;
-                        }
-                        if let Some(allow) = &allowlist
-                            && !allow.contains(field_item.name.as_str())
-                        {
-                            continue;
-                        }
-                        let IrItemKind::Field {
-                            ty,
-                            required_array,
-                            default,
-                            server,
-                            description,
-                            ..
-                        } = &field_item.kind
-                        else {
-                            mappable = false;
-                            break;
-                        };
-                        // `server=`-owned fields are never caller-provided
-                        // (analysis E3009 also bars them from allowlists).
-                        if server.is_some() {
-                            continue;
-                        }
-                        let nullable = matches!(ty, IrType::Known(ResolvedType::Nullable(_)));
-                        match self.mcp_field_for_type(ty, true) {
-                            Some((field, is_array)) => {
-                                // The T09 marker is the spelling alone:
-                                // ordinary arrays omit to empty (never
-                                // caller-required), required `!` arrays
-                                // reject omission when no default fills
-                                // it. (Derived fields never reach here:
-                                // they are separate IR items, not model
-                                // fields.)
-                                let array_required = is_array.then_some(*required_array);
-                                let required = default.is_none()
-                                    && !nullable
-                                    && !(is_array && !required_array);
-                                flat.push(JsOperationField {
-                                    min: None,
-                                    max: None,
-                                    name: field_item.name.clone(),
-                                    field,
-                                    value_type: required_file_array_value_type(
-                                        self.operation_input_value_type(ty),
-                                        *required_array,
-                                    ),
-                                    required,
-                                    nullable,
-                                    array_required,
-                                    computed_default: false,
-                                    default: js_field_default(default.as_ref(), None),
-                                    description: description.clone(),
-                                    choices: None,
-                                });
-                            }
-                            None => {
-                                mappable = false;
-                                break;
-                            }
-                        }
-                    }
-                    if !mappable {
+                    let Some(flat) = self.collect_crud_fields(model_fields, &allowlist)
+                    else {
                         continue;
-                    }
-                    let record = || JsOperationField {
-                        min: None,
-                        max: None,
-                        name: "record".to_string(),
-                        value_type: None,
-                        field: JsMcpField::Ref {
-                            model: model_item.canonical.clone(),
-                            require_version: true,
-                        },
-                        required: true,
-                        nullable: false,
-                        array_required: None,
-                        computed_default: false,
-                        default: None,
-                        description: None,
-                        choices: None,
                     };
-                    let inputs = match op {
-                        CrudOp::Create => {
-                            // T18: child-model creates synthesize the
-                            // caller-required unversioned `parent` linkage
-                            // input (source mandates `parent=` on child
-                            // creates; the L3 executor consumes it as
-                            // linkage, never field data). A dangling owner
-                            // row omits the input (never a panic); a model
-                            // field literally named `parent` trips the
-                            // duplicate-name guard below and omits the op.
-                            let mut inputs = flat;
-                            if let IrOwner::ChildOf(parent_id) = owner
-                                && let Some(parent_item) = self.ir.items.get(parent_id.0 as usize)
-                            {
-                                inputs.push(JsOperationField {
-                                    min: None,
-                                    max: None,
-                                    name: "parent".to_string(),
-                                    value_type: None,
-                                    field: JsMcpField::Ref {
-                                        model: parent_item.canonical.clone(),
-                                        require_version: false,
-                                    },
-                                    required: true,
-                                    nullable: false,
-                                    array_required: None,
-                                    computed_default: false,
-                                    default: None,
-                                    description: None,
-                                    choices: None,
-                                });
-                            }
-                            inputs
-                        }
-                        CrudOp::Update => {
-                            // Changes are partial: every flattened field is
-                            // optional beside the versioned record, and
-                            // defaults never apply (omission means
-                            // unchanged, never default-filled). Array
-                            // markers and nullability stay: they describe
-                            // the accepted value shape.
-                            let mut inputs = vec![record()];
-                            for mut field in flat {
-                                field.required = false;
-                                field.default = None;
-                                inputs.push(field);
-                            }
-                            inputs
-                        }
-                        CrudOp::Delete => vec![record()],
-                    };
-                    // A model field literally named `record` collides with
-                    // the synthesized ref on update/delete: omit rather
-                    // than advertise an ambiguous schema.
-                    if has_duplicate_names(&inputs) {
+                    let Some(inputs) =
+                        self.collect_crud_inputs(op, owner, &model_item, flat)
+                    else {
                         continue;
-                    }
+                    };
                     operations.push(JsOperation {
                         name: item.canonical.clone(),
                         kind,
@@ -16984,6 +17706,170 @@ impl<'a> Emitter<'a> {
 
     /// Frozen lexical inputs keep the original source schema, without rerunning
     /// defaults. This is declaration data; the native loader owns qualification.
+    fn send_input_alias_field(&self, symbol: SymbolId) -> Option<Option<JsMcpField>> {
+        let Some(alias) = self
+            .ir
+            .value_constraints
+            .get(&symbol)
+            .and_then(|constraints| constraints.alias)
+        else {
+            return Some(None);
+        };
+        let alias_item = self.ir.items.get(alias.0 as usize)?;
+        if alias_item.id != alias
+            || self.ir.value_constraints.get(&alias)?.alias != Some(alias)
+            || !self
+                .value_types
+                .as_ref()?
+                .aliases
+                .iter()
+                .any(|value| value.name == alias_item.canonical)
+        {
+            return None;
+        }
+        Some(Some(JsMcpField::Nominal {
+            name: alias_item.canonical.clone(),
+        }))
+    }
+
+    fn send_input_shape<'x>(
+        &self,
+        guard: &super::send_guards::PreparedSendGuard,
+        ordinal: usize,
+        input: &'x super::send_guards::PreparedSendInput,
+    ) -> Option<(
+        JsMcpField,
+        Option<u64>,
+        Option<u64>,
+        bool,
+        Option<bool>,
+        &'x ResolvedType,
+    )> {
+        let owner = self.ir.items.get(input.owner.0 as usize)?;
+        if input.ordinal != ordinal
+            || owner.id != input.owner
+            || guard.descriptor["owner"].as_str() != Some(owner.canonical.as_str())
+            || input.declaration.file != input.value.span.file
+        {
+            return None;
+        }
+        let (mut field, is_array) = self.mcp_field_for_resolved(&input.value.ty, true)?;
+        let mut min = None;
+        let mut max = None;
+        if let Some(symbol) = input.symbol {
+            let param = self.ir.items.get(symbol.0 as usize)?;
+            let IrItemKind::Param {
+                owner: declared_owner,
+                ty: IrType::Known(ty),
+                array_bounds,
+                ..
+            } = &param.kind
+            else {
+                return None;
+            };
+            if param.id != symbol || *declared_owner != input.owner || *ty != input.value.ty {
+                return None;
+            }
+            min = array_bounds.as_ref().and_then(|bounds| bounds.min);
+            max = array_bounds.as_ref().and_then(|bounds| bounds.max);
+            if let Some(alias_field) = self.send_input_alias_field(symbol)? {
+                field = alias_field;
+            }
+        }
+        let nullable = matches!(input.value.ty, ResolvedType::Nullable(_));
+        let base = if let ResolvedType::Nullable(inner) = &input.value.ty {
+            inner.as_ref()
+        } else {
+            &input.value.ty
+        };
+        let array_required = match base {
+            ResolvedType::Array { element, .. } if is_array => {
+                // The closed input ABI cannot represent nullable elements or nested containers.
+                if matches!(
+                    element.as_ref(),
+                    ResolvedType::Array { .. } | ResolvedType::Nullable(_)
+                ) {
+                    return None;
+                }
+                Some(false)
+            }
+            _ if !is_array => None,
+            _ => return None,
+        };
+        Some((field, min, max, nullable, array_required, base))
+    }
+
+    fn send_input_declaration_json(
+        field: &JsMcpField,
+        type_id: &str,
+        nullable: bool,
+        array_required: Option<bool>,
+        min: Option<u64>,
+        max: Option<u64>,
+        base: &ResolvedType,
+    ) -> Option<serde_json::Value> {
+        let field_json = serde_json::to_value(field).ok()?;
+        let mut declaration = serde_json::json!({"kind":field_json["kind"]});
+        match field {
+            JsMcpField::Ref {
+                model,
+                require_version,
+            } => {
+                declaration["model"] = serde_json::json!(model);
+                declaration["versioned"] = serde_json::json!(require_version);
+                if nullable {
+                    declaration["nullable"] = serde_json::json!(true);
+                }
+                if let Some(required) = array_required {
+                    declaration["array"] = serde_json::json!({"required":required});
+                }
+            }
+            JsMcpField::Nominal { .. } => {
+                declaration["valueType"] = serde_json::json!(type_id)
+            }
+            JsMcpField::Enum { values } => {
+                declaration["valueType"] = serde_json::json!(type_id);
+                declaration["enumValues"] = serde_json::json!(values);
+            }
+            JsMcpField::Delivery(_) | JsMcpField::JudgmentDelivery(_) => return None,
+            _ => {
+                // Match the released State opaque scalar profile exactly.
+                let mut scalar = base;
+                if let ResolvedType::Array { element, .. } = scalar {
+                    scalar = element;
+                }
+                if !matches!(
+                    scalar,
+                    ResolvedType::Scalar(
+                        Scalar::Text
+                            | Scalar::Int
+                            | Scalar::Decimal
+                            | Scalar::Money
+                            | Scalar::Datetime
+                            | Scalar::Duration
+                            | Scalar::Currency
+                            | Scalar::User
+                            | Scalar::Bool
+                            | Scalar::File
+                            | Scalar::Date
+                            | Scalar::Email
+                            | Scalar::Timezone
+                    )
+                ) {
+                    return None;
+                }
+                declaration["valueType"] = serde_json::json!(type_id);
+            }
+        }
+        if let Some(min) = min {
+            declaration["min"] = serde_json::json!(min);
+        }
+        if let Some(max) = max {
+            declaration["max"] = serde_json::json!(max);
+        }
+        Some(declaration)
+    }
+
     fn send_input_declaration(
         &self,
         guard: &super::send_guards::PreparedSendGuard,
@@ -16991,138 +17877,22 @@ impl<'a> Emitter<'a> {
         let mut canonical = Vec::new();
         let mut artifact = Vec::new();
         for (ordinal, input) in guard.inputs.iter().enumerate() {
-            let owner = self.ir.items.get(input.owner.0 as usize)?;
-            if input.ordinal != ordinal
-                || owner.id != input.owner
-                || guard.descriptor["owner"].as_str() != Some(owner.canonical.as_str())
-                || input.declaration.file != input.value.span.file
-            {
-                return None;
-            }
-            let (mut field, is_array) = self.mcp_field_for_resolved(&input.value.ty, true)?;
-            let mut min = None;
-            let mut max = None;
-            if let Some(symbol) = input.symbol {
-                let param = self.ir.items.get(symbol.0 as usize)?;
-                let IrItemKind::Param {
-                    owner: declared_owner,
-                    ty: IrType::Known(ty),
-                    array_bounds,
-                    ..
-                } = &param.kind
-                else {
-                    return None;
-                };
-                if param.id != symbol || *declared_owner != input.owner || *ty != input.value.ty {
-                    return None;
-                }
-                min = array_bounds.as_ref().and_then(|bounds| bounds.min);
-                max = array_bounds.as_ref().and_then(|bounds| bounds.max);
-                if let Some(alias) = self
-                    .ir
-                    .value_constraints
-                    .get(&symbol)
-                    .and_then(|constraints| constraints.alias)
-                {
-                    let alias_item = self.ir.items.get(alias.0 as usize)?;
-                    if alias_item.id != alias
-                        || self.ir.value_constraints.get(&alias)?.alias != Some(alias)
-                        || !self
-                            .value_types
-                            .as_ref()?
-                            .aliases
-                            .iter()
-                            .any(|value| value.name == alias_item.canonical)
-                    {
-                        return None;
-                    }
-                    field = JsMcpField::Nominal {
-                        name: alias_item.canonical.clone(),
-                    };
-                }
-            }
-            let nullable = matches!(input.value.ty, ResolvedType::Nullable(_));
-            let base = if let ResolvedType::Nullable(inner) = &input.value.ty {
-                inner.as_ref()
-            } else {
-                &input.value.ty
-            };
-            let array_required = match base {
-                ResolvedType::Array { element, .. } if is_array => {
-                    // The closed input ABI cannot represent nullable elements or nested containers.
-                    if matches!(
-                        element.as_ref(),
-                        ResolvedType::Array { .. } | ResolvedType::Nullable(_)
-                    ) {
-                        return None;
-                    }
-                    Some(false)
-                }
-                _ if !is_array => None,
-                _ => return None,
-            };
+            let (field, min, max, nullable, array_required, base) =
+                self.send_input_shape(guard, ordinal, input)?;
             // Frozen captures always have a slot. Nullability and array bounds
             // describe its value; they never permit omitting the lexical binding.
             let required = true;
-            let field_json = serde_json::to_value(&field).ok()?;
-            let mut declaration = serde_json::json!({"name":input.name,"kind":field_json["kind"],"required":required});
-            match &field {
-                JsMcpField::Ref {
-                    model,
-                    require_version,
-                } => {
-                    declaration["model"] = serde_json::json!(model);
-                    declaration["versioned"] = serde_json::json!(require_version);
-                    if nullable {
-                        declaration["nullable"] = serde_json::json!(true);
-                    }
-                    if let Some(required) = array_required {
-                        declaration["array"] = serde_json::json!({"required":required});
-                    }
-                }
-                JsMcpField::Nominal { .. } => {
-                    declaration["valueType"] = serde_json::json!(input.type_id)
-                }
-                JsMcpField::Enum { values } => {
-                    declaration["valueType"] = serde_json::json!(input.type_id);
-                    declaration["enumValues"] = serde_json::json!(values);
-                }
-                JsMcpField::Delivery(_) | JsMcpField::JudgmentDelivery(_) => return None,
-                _ => {
-                    // Match the released State opaque scalar profile exactly.
-                    let mut scalar = base;
-                    if let ResolvedType::Array { element, .. } = scalar {
-                        scalar = element;
-                    }
-                    if !matches!(
-                        scalar,
-                        ResolvedType::Scalar(
-                            Scalar::Text
-                                | Scalar::Int
-                                | Scalar::Decimal
-                                | Scalar::Money
-                                | Scalar::Datetime
-                                | Scalar::Duration
-                                | Scalar::Currency
-                                | Scalar::User
-                                | Scalar::Bool
-                                | Scalar::File
-                                | Scalar::Date
-                                | Scalar::Email
-                                | Scalar::Timezone
-                        )
-                    ) {
-                        return None;
-                    }
-                    declaration["valueType"] = serde_json::json!(input.type_id);
-                }
-            }
-            if let Some(min) = min {
-                declaration["min"] = serde_json::json!(min);
-            }
-            if let Some(max) = max {
-                declaration["max"] = serde_json::json!(max);
-            }
+            let mut declaration = Self::send_input_declaration_json(
+                &field,
+                &input.type_id,
+                nullable,
+                array_required,
+                min,
+                max,
+                base,
+            )?;
+            declaration["name"] = serde_json::json!(input.name);
+            declaration["required"] = serde_json::json!(required);
             let source_field = JsOperationField {
                 min,
                 max,
@@ -17143,6 +17913,31 @@ impl<'a> Emitter<'a> {
         Some(serde_json::json!({"kind":"inputs","canonical":canonical,"artifact":artifact}))
     }
 
+    /// Map one scalar input type to its MCP field; `Json`/`Bytes` stay
+    /// unmappable (fail-closed, exactly as before).
+    fn mcp_scalar_field(scalar: &Scalar) -> Option<JsMcpField> {
+        match scalar {
+            Scalar::Text
+            | Scalar::Email
+            | Scalar::Url
+            | Scalar::Locale
+            | Scalar::Timezone
+            | Scalar::Currency
+            | Scalar::Secret
+            | Scalar::Date
+            | Scalar::Member => Some(JsMcpField::String),
+            Scalar::Int => Some(JsMcpField::Integer),
+            Scalar::Decimal => Some(JsMcpField::Decimal),
+            Scalar::Money => Some(JsMcpField::Money),
+            Scalar::Datetime => Some(JsMcpField::Datetime),
+            Scalar::Duration => Some(JsMcpField::Duration),
+            Scalar::User => Some(JsMcpField::User),
+            Scalar::Bool => Some(JsMcpField::Boolean),
+            Scalar::File => Some(JsMcpField::File),
+            Scalar::Json | Scalar::Bytes => None,
+        }
+    }
+
     /// Map one resolved input type to its MCP field plus array flag.
     fn mcp_field_for_resolved(
         &self,
@@ -17150,29 +17945,7 @@ impl<'a> Emitter<'a> {
         require_version: bool,
     ) -> Option<(JsMcpField, bool)> {
         match resolved {
-            ResolvedType::Scalar(scalar) => Some((
-                match scalar {
-                    Scalar::Text
-                    | Scalar::Email
-                    | Scalar::Url
-                    | Scalar::Locale
-                    | Scalar::Timezone
-                    | Scalar::Currency
-                    | Scalar::Secret
-                    | Scalar::Date
-                    | Scalar::Member => JsMcpField::String,
-                    Scalar::Int => JsMcpField::Integer,
-                    Scalar::Decimal => JsMcpField::Decimal,
-                    Scalar::Money => JsMcpField::Money,
-                    Scalar::Datetime => JsMcpField::Datetime,
-                    Scalar::Duration => JsMcpField::Duration,
-                    Scalar::User => JsMcpField::User,
-                    Scalar::Bool => JsMcpField::Boolean,
-                    Scalar::File => JsMcpField::File,
-                    Scalar::Json | Scalar::Bytes => return None,
-                },
-                false,
-            )),
+            ResolvedType::Scalar(scalar) => Some((Self::mcp_scalar_field(scalar)?, false)),
             ResolvedType::Record { .. }
             | ResolvedType::Enum { .. }
             | ResolvedType::StdNominal { .. }
@@ -17583,45 +18356,76 @@ impl<'a> Emitter<'a> {
     /// Standard receipts retain their provider descriptor. Static Judgment
     /// deliveries use the checked declaration version and shared result
     /// inventory; unjoined local deliveries retain their source-exact tag.
+    fn scalar_model_tag(scalar: &Scalar) -> JsModelFieldType {
+        match scalar {
+            Scalar::Text
+            | Scalar::Email
+            | Scalar::Url
+            | Scalar::Locale
+            | Scalar::Timezone
+            | Scalar::Currency => JsModelFieldType::String,
+            Scalar::Int => JsModelFieldType::Integer,
+            Scalar::Decimal => JsModelFieldType::Decimal,
+            Scalar::Money => JsModelFieldType::Money,
+            Scalar::Datetime => JsModelFieldType::Datetime,
+            Scalar::Bool => JsModelFieldType::Boolean,
+            Scalar::File => JsModelFieldType::File,
+            Scalar::Date => JsModelFieldType::Date,
+            Scalar::Duration => JsModelFieldType::Duration,
+            Scalar::Secret => JsModelFieldType::Secret,
+            Scalar::User => JsModelFieldType::User,
+            Scalar::Member => JsModelFieldType::Member,
+            Scalar::Json => JsModelFieldType::Json,
+            Scalar::Bytes => JsModelFieldType::Bytes,
+        }
+    }
+
+    fn record_model_tag(&self, symbol: &SymbolId) -> JsModelFieldType {
+        match self.ir.items.get(symbol.0 as usize) {
+            Some(row) if matches!(row.kind, IrItemKind::Model { .. }) => {
+                JsModelFieldType::Ref {
+                    model: row.canonical.clone(),
+                }
+            }
+            Some(row) => JsModelFieldType::Other {
+                type_id: row.canonical.clone(),
+            },
+            None => JsModelFieldType::Other {
+                type_id: "unknown".to_string(),
+            },
+        }
+    }
+
+    fn simple_model_tag(ty: &ResolvedType) -> JsModelFieldType {
+        match ty {
+            ResolvedType::Action { .. } => JsModelFieldType::Other {
+                type_id: "action".to_string(),
+            },
+            ResolvedType::Invocation { .. } => JsModelFieldType::Other {
+                type_id: "invocation".to_string(),
+            },
+            ResolvedType::Union(_) => JsModelFieldType::Other {
+                type_id: "union".to_string(),
+            },
+            ResolvedType::Object(_) => JsModelFieldType::Other {
+                type_id: "object".to_string(),
+            },
+            ResolvedType::StdNominal { name, .. } => JsModelFieldType::Other {
+                type_id: (*name).to_string(),
+            },
+            _ => JsModelFieldType::Other {
+                type_id: "unknown".to_string(),
+            },
+        }
+    }
+
     fn model_field_tag(&self, ty: &ResolvedType) -> JsModelFieldType {
         if let Some(name) = self.nominal_value_type(ty) {
             return JsModelFieldType::Nominal { name };
         }
         match ty {
-            ResolvedType::Scalar(scalar) => match scalar {
-                Scalar::Text
-                | Scalar::Email
-                | Scalar::Url
-                | Scalar::Locale
-                | Scalar::Timezone
-                | Scalar::Currency => JsModelFieldType::String,
-                Scalar::Int => JsModelFieldType::Integer,
-                Scalar::Decimal => JsModelFieldType::Decimal,
-                Scalar::Money => JsModelFieldType::Money,
-                Scalar::Datetime => JsModelFieldType::Datetime,
-                Scalar::Bool => JsModelFieldType::Boolean,
-                Scalar::File => JsModelFieldType::File,
-                Scalar::Date => JsModelFieldType::Date,
-                Scalar::Duration => JsModelFieldType::Duration,
-                Scalar::Secret => JsModelFieldType::Secret,
-                Scalar::User => JsModelFieldType::User,
-                Scalar::Member => JsModelFieldType::Member,
-                Scalar::Json => JsModelFieldType::Json,
-                Scalar::Bytes => JsModelFieldType::Bytes,
-            },
-            ResolvedType::Record { symbol, .. } => match self.ir.items.get(symbol.0 as usize) {
-                Some(row) if matches!(row.kind, IrItemKind::Model { .. }) => {
-                    JsModelFieldType::Ref {
-                        model: row.canonical.clone(),
-                    }
-                }
-                Some(row) => JsModelFieldType::Other {
-                    type_id: row.canonical.clone(),
-                },
-                None => JsModelFieldType::Other {
-                    type_id: "unknown".to_string(),
-                },
-            },
+            ResolvedType::Scalar(scalar) => Self::scalar_model_tag(scalar),
+            ResolvedType::Record { symbol, .. } => self.record_model_tag(symbol),
             ResolvedType::Enum { cases, .. } => JsModelFieldType::Enum {
                 values: cases.clone(),
             },
@@ -17653,21 +18457,11 @@ impl<'a> Emitter<'a> {
                 .unwrap_or_else(|| JsModelFieldType::Other {
                     type_id: format!("delivery:{capability}.{}", op.name),
                 }),
-            ResolvedType::Action { .. } => JsModelFieldType::Other {
-                type_id: "action".to_string(),
-            },
-            ResolvedType::Invocation { .. } => JsModelFieldType::Other {
-                type_id: "invocation".to_string(),
-            },
-            ResolvedType::Union(_) => JsModelFieldType::Other {
-                type_id: "union".to_string(),
-            },
-            ResolvedType::Object(_) => JsModelFieldType::Other {
-                type_id: "object".to_string(),
-            },
-            ResolvedType::StdNominal { name, .. } => JsModelFieldType::Other {
-                type_id: (*name).to_string(),
-            },
+            ResolvedType::Action { .. }
+            | ResolvedType::Invocation { .. }
+            | ResolvedType::Union(_)
+            | ResolvedType::Object(_)
+            | ResolvedType::StdNominal { .. } => Self::simple_model_tag(ty),
             ResolvedType::Operation(symbol) => JsModelFieldType::Other {
                 type_id: self
                     .ir
@@ -18449,6 +19243,171 @@ impl<'a> Emitter<'a> {
         self.exit_scope();
     }
 
+    fn emit_crud_op_handler(
+        &mut self,
+        out: &mut JsWriter,
+        item: &IrItem,
+        model: &SymbolId,
+        op: &CrudOp,
+        by: &[crate::codegen::ir::IrGuard],
+        has_when: bool,
+        delete_mode: &crate::codegen::ir::IrDeleteMode,
+    ) {
+        let model_item = self.ir.items[model.0 as usize].clone();
+        let handler = object_key(&item.canonical);
+        let when = if has_when {
+            Some(model_item.name.clone())
+        } else {
+            None
+        };
+        let (signature, core) = match op {
+            CrudOp::Create => (
+                "c,input".to_string(),
+                IrStmt::Create {
+                    model: model_item.canonical.clone(),
+                    input: TypedExpr::new(
+                        IrExpr::Name("input".to_string()),
+                        ResolvedType::Unknown,
+                        item.span,
+                    ),
+                    when: when.clone(),
+                    binding: None,
+                    span: item.span,
+                },
+            ),
+            CrudOp::Update => (
+                "c,{record,changes}".to_string(),
+                IrStmt::Set {
+                    record: TypedExpr::new(
+                        IrExpr::Name("record".to_string()),
+                        ResolvedType::Unknown,
+                        item.span,
+                    ),
+                    changes: TypedExpr::new(
+                        IrExpr::Name("changes".to_string()),
+                        ResolvedType::Unknown,
+                        item.span,
+                    ),
+                    when: when.clone(),
+                    span: item.span,
+                },
+            ),
+            CrudOp::Delete => (
+                "c,{record}".to_string(),
+                IrStmt::Delete {
+                    record: TypedExpr::new(
+                        IrExpr::Name("record".to_string()),
+                        ResolvedType::Unknown,
+                        item.span,
+                    ),
+                    mode: *delete_mode,
+                    span: item.span,
+                },
+            ),
+        };
+        out.push(
+            item.span,
+            Some(item.canonical.clone()),
+            &format!("async {handler}({signature}){{"),
+        );
+        self.emit_admission_check(out, by, item.span);
+        // Deletes check row admission explicitly; creates and
+        // updates thread it through the helper call.
+        if *op == CrudOp::Delete
+            && let Some(key) = crud_when_key(when.as_ref())
+        {
+            self.stdlib.insert("check".to_string());
+            out.push(
+                item.span,
+                Some(item.canonical.clone()),
+                &format!("check(await crudWhen[{}](c,record));", js_string(&key)),
+            );
+        }
+        for (line, span) in self.lower_stmt(&core, 0) {
+            out.push(span, Some(item.canonical.clone()), &line);
+        }
+        out.push(item.span, Some(item.canonical.clone()), "},");
+    }
+
+    fn emit_scenario_param_defaults(
+        &mut self,
+        out: &mut JsWriter,
+        item: &IrItem,
+        trusted: &bool,
+        params: &[SymbolId],
+        default_observer: &Option<String>,
+    ) {
+        if *trusted {
+            return;
+        }
+        for id in params {
+            let param = self.ir.items[id.0 as usize].clone();
+            if let IrItemKind::Param {
+                default: Some(default),
+                default_node,
+                ..
+            } = &param.kind
+            {
+                let name = self.reference(&param.name);
+                let (IrDefault::Literal(expr) | IrDefault::Computed { expr, .. }) = default;
+                let value = self.lower_business_expr(
+                    expr,
+                    "formatted scenario parameter default",
+                );
+                let mut default_site = self.receipt_site(
+                    default_node
+                        .map(|node| Span::new(node.file, node.start, node.end))
+                        .unwrap_or(expr.span),
+                );
+                default_site.default_selection = true;
+                let evaluated = self
+                    .receipt_choice_at(default_site.clone(), "default-evaluated");
+                let provided = self.receipt_choice_at(default_site, "default-provided");
+                let supplied_branch = if provided.is_empty() {
+                    String::new()
+                } else {
+                    format!("else{{{provided}}}")
+                };
+                let report = match (default_observer, default) {
+                    (Some(observer), IrDefault::Computed { .. })
+                        if self.scenario_computed_default_supported(*id) =>
+                    {
+                        format!(
+                            "{observer}?.({},{});",
+                            js_string(&param.name),
+                            name
+                        )
+                    }
+                    _ => String::new(),
+                };
+                out.push(
+                    param.span,
+                    Some(item.canonical.clone()),
+                    &format!("if({name}===undefined){{{evaluated}{name}={value};{report}}}{supplied_branch}"),
+                );
+            }
+        }
+    }
+
+    fn emit_scenario_body_stmts(
+        &mut self,
+        out: &mut JsWriter,
+        item: &IrItem,
+        guards: &[IrStmt],
+        effects: &[IrStmt],
+    ) {
+        for guard in guards {
+            for (line, span) in self.lower_stmt(guard, 0) {
+                out.push(span, Some(item.canonical.clone()), &line);
+            }
+        }
+        for effect in effects {
+            for (line, span) in self.lower_stmt(effect, 0) {
+                out.push(span, Some(item.canonical.clone()), &line);
+            }
+        }
+    }
+
     fn emit_handler_fns(&mut self, out: &mut JsWriter) {
         let ir = self.ir;
         for item in &ir.items {
@@ -18556,67 +19515,8 @@ impl<'a> Emitter<'a> {
                         );
                     }
                     self.emit_admission_check(out, by, item.span);
-                    if !*trusted {
-                        for id in params {
-                            let param = self.ir.items[id.0 as usize].clone();
-                            if let IrItemKind::Param {
-                                default: Some(default),
-                                default_node,
-                                ..
-                            } = &param.kind
-                            {
-                                let name = self.reference(&param.name);
-                                let (IrDefault::Literal(expr) | IrDefault::Computed { expr, .. }) =
-                                    default;
-                                let value = self.lower_business_expr(
-                                    expr,
-                                    "formatted scenario parameter default",
-                                );
-                                let mut default_site = self.receipt_site(
-                                    default_node
-                                        .map(|node| Span::new(node.file, node.start, node.end))
-                                        .unwrap_or(expr.span),
-                                );
-                                default_site.default_selection = true;
-                                let evaluated = self
-                                    .receipt_choice_at(default_site.clone(), "default-evaluated");
-                                let provided =
-                                    self.receipt_choice_at(default_site, "default-provided");
-                                let supplied_branch = if provided.is_empty() {
-                                    String::new()
-                                } else {
-                                    format!("else{{{provided}}}")
-                                };
-                                let report = match (&default_observer, default) {
-                                    (Some(observer), IrDefault::Computed { .. })
-                                        if self.scenario_computed_default_supported(*id) =>
-                                    {
-                                        format!(
-                                            "{observer}?.({},{});",
-                                            js_string(&param.name),
-                                            name
-                                        )
-                                    }
-                                    _ => String::new(),
-                                };
-                                out.push(
-                                    param.span,
-                                    Some(item.canonical.clone()),
-                                    &format!("if({name}===undefined){{{evaluated}{name}={value};{report}}}{supplied_branch}"),
-                                );
-                            }
-                        }
-                    }
-                    for guard in guards {
-                        for (line, span) in self.lower_stmt(guard, 0) {
-                            out.push(span, Some(item.canonical.clone()), &line);
-                        }
-                    }
-                    for effect in effects {
-                        for (line, span) in self.lower_stmt(effect, 0) {
-                            out.push(span, Some(item.canonical.clone()), &line);
-                        }
-                    }
+                    self.emit_scenario_param_defaults(out, item, trusted, params, &default_observer);
+                    self.emit_scenario_body_stmts(out, item, guards, effects);
                     if let Some(selection) = self.receipt_return_selection(item.span, true, false) {
                         out.push(
                             item.span,
@@ -18641,82 +19541,9 @@ impl<'a> Emitter<'a> {
                     has_when,
                     delete_mode,
                     ..
-                } => {
-                    let model_item = self.ir.items[model.0 as usize].clone();
-                    let handler = object_key(&item.canonical);
-                    let when = if *has_when {
-                        Some(model_item.name.clone())
-                    } else {
-                        None
-                    };
-                    let (signature, core) = match op {
-                        CrudOp::Create => (
-                            "c,input".to_string(),
-                            IrStmt::Create {
-                                model: model_item.canonical.clone(),
-                                input: TypedExpr::new(
-                                    IrExpr::Name("input".to_string()),
-                                    ResolvedType::Unknown,
-                                    item.span,
-                                ),
-                                when: when.clone(),
-                                binding: None,
-                                span: item.span,
-                            },
-                        ),
-                        CrudOp::Update => (
-                            "c,{record,changes}".to_string(),
-                            IrStmt::Set {
-                                record: TypedExpr::new(
-                                    IrExpr::Name("record".to_string()),
-                                    ResolvedType::Unknown,
-                                    item.span,
-                                ),
-                                changes: TypedExpr::new(
-                                    IrExpr::Name("changes".to_string()),
-                                    ResolvedType::Unknown,
-                                    item.span,
-                                ),
-                                when: when.clone(),
-                                span: item.span,
-                            },
-                        ),
-                        CrudOp::Delete => (
-                            "c,{record}".to_string(),
-                            IrStmt::Delete {
-                                record: TypedExpr::new(
-                                    IrExpr::Name("record".to_string()),
-                                    ResolvedType::Unknown,
-                                    item.span,
-                                ),
-                                mode: *delete_mode,
-                                span: item.span,
-                            },
-                        ),
-                    };
-                    out.push(
-                        item.span,
-                        Some(item.canonical.clone()),
-                        &format!("async {handler}({signature}){{"),
-                    );
-                    self.emit_admission_check(out, by, item.span);
-                    // Deletes check row admission explicitly; creates and
-                    // updates thread it through the helper call.
-                    if *op == CrudOp::Delete
-                        && let Some(key) = crud_when_key(when.as_ref())
-                    {
-                        self.stdlib.insert("check".to_string());
-                        out.push(
-                            item.span,
-                            Some(item.canonical.clone()),
-                            &format!("check(await crudWhen[{}](c,record));", js_string(&key)),
-                        );
-                    }
-                    for (line, span) in self.lower_stmt(&core, 0) {
-                        out.push(span, Some(item.canonical.clone()), &line);
-                    }
-                    out.push(item.span, Some(item.canonical.clone()), "},");
-                }
+                } => self.emit_crud_op_handler(
+                    out, item, model, op, by, *has_when, delete_mode,
+                ),
                 IrItemKind::DeriveFn { .. } => {
                     let name = binding_ident("s", &item.canonical);
                     self.callables.push(JsCallable {
@@ -18960,6 +19787,88 @@ fn checked_string_value_type(ty: &IrType) -> Option<&'static str> {
     })
 }
 
+fn numeric_scalar_profile(scalar: &Scalar, array: bool, nullable: bool) -> Option<&'static str> {
+    match (scalar, array, nullable) {
+        (Scalar::Int, false, false) => Some("int"),
+        (Scalar::Int, false, true) => Some("int?"),
+        (Scalar::Int, true, false) => Some("int[]"),
+        (Scalar::Int, true, true) => Some("int[]?"),
+        (Scalar::Decimal, false, false) => Some("decimal"),
+        (Scalar::Decimal, false, true) => Some("decimal?"),
+        (Scalar::Decimal, true, false) => Some("decimal[]"),
+        (Scalar::Decimal, true, true) => Some("decimal[]?"),
+        (Scalar::Money, false, false) => Some("money"),
+        (Scalar::Money, false, true) => Some("money?"),
+        (Scalar::Money, true, false) => Some("money[]"),
+        (Scalar::Money, true, true) => Some("money[]?"),
+        _ => None,
+    }
+}
+
+fn text_scalar_profile(scalar: &Scalar, array: bool, nullable: bool) -> Option<&'static str> {
+    match (scalar, array, nullable) {
+        (Scalar::Url, false, false) => Some("url"),
+        (Scalar::Url, false, true) => Some("url?"),
+        (Scalar::Url, true, false) => Some("url[]"),
+        (Scalar::Url, true, true) => Some("url[]?"),
+        (Scalar::Text, false, false) => Some("text"),
+        (Scalar::Text, false, true) => Some("text?"),
+        (Scalar::Text, true, false) => Some("text[]"),
+        (Scalar::Text, true, true) => Some("text[]?"),
+        _ => None,
+    }
+}
+
+fn flag_scalar_profile(scalar: &Scalar, array: bool, nullable: bool) -> Option<&'static str> {
+    match (scalar, array, nullable) {
+        (Scalar::Bool, false, false) => Some("bool"),
+        (Scalar::Bool, false, true) => Some("bool?"),
+        (Scalar::Bool, true, false) => Some("bool[]"),
+        (Scalar::Bool, true, true) => Some("bool[]?"),
+        (Scalar::Email, false, false) => Some("email"),
+        (Scalar::Email, false, true) => Some("email?"),
+        (Scalar::Email, true, false) => Some("email[]"),
+        (Scalar::Email, true, true) => Some("email[]?"),
+        _ => None,
+    }
+}
+
+fn temporal_scalar_profile(scalar: &Scalar, array: bool, nullable: bool) -> Option<&'static str> {
+    match (scalar, array, nullable) {
+        (Scalar::Datetime, false, false) => Some("datetime"),
+        (Scalar::Datetime, false, true) => Some("datetime?"),
+        (Scalar::Datetime, true, false) => Some("datetime[]"),
+        (Scalar::Datetime, true, true) => Some("datetime[]?"),
+        (Scalar::Date, false, false) => Some("date"),
+        (Scalar::Date, false, true) => Some("date?"),
+        (Scalar::Date, true, false) => Some("date[]"),
+        (Scalar::Date, true, true) => Some("date[]?"),
+        (Scalar::Duration, false, false) => Some("duration"),
+        (Scalar::Duration, false, true) => Some("duration?"),
+        (Scalar::Duration, true, false) => Some("duration[]"),
+        (Scalar::Duration, true, true) => Some("duration[]?"),
+        _ => None,
+    }
+}
+
+fn entity_scalar_profile(scalar: &Scalar, array: bool, nullable: bool) -> Option<&'static str> {
+    match (scalar, array, nullable) {
+        (Scalar::Currency, false, false) => Some("currency"),
+        (Scalar::Currency, false, true) => Some("currency?"),
+        (Scalar::Currency, true, false) => Some("currency[]"),
+        (Scalar::Currency, true, true) => Some("currency[]?"),
+        (Scalar::User, false, false) => Some("user"),
+        (Scalar::User, false, true) => Some("user?"),
+        (Scalar::User, true, false) => Some("user[]"),
+        (Scalar::User, true, true) => Some("user[]?"),
+        (Scalar::File, false, false) => Some("file"),
+        (Scalar::File, false, true) => Some("file?"),
+        (Scalar::File, true, false) => Some("file[]"),
+        (Scalar::File, true, true) => Some("file[]?"),
+        _ => None,
+    }
+}
+
 pub(super) fn checked_value_profile(result: &ResolvedType) -> Option<&'static str> {
     let (value, nullable) = match result {
         ResolvedType::Nullable(value) => (value.as_ref(), true),
@@ -18969,61 +19878,14 @@ pub(super) fn checked_value_profile(result: &ResolvedType) -> Option<&'static st
         ResolvedType::Array { element, .. } => (element.as_ref(), true),
         value => (value, false),
     };
-    match (scalar, array, nullable) {
-        (ResolvedType::Scalar(Scalar::Int), false, false) => Some("int"),
-        (ResolvedType::Scalar(Scalar::Datetime), false, false) => Some("datetime"),
-        (ResolvedType::Scalar(Scalar::Int), false, true) => Some("int?"),
-        (ResolvedType::Scalar(Scalar::Datetime), false, true) => Some("datetime?"),
-        (ResolvedType::Scalar(Scalar::Int), true, false) => Some("int[]"),
-        (ResolvedType::Scalar(Scalar::Datetime), true, false) => Some("datetime[]"),
-        (ResolvedType::Scalar(Scalar::Int), true, true) => Some("int[]?"),
-        (ResolvedType::Scalar(Scalar::Datetime), true, true) => Some("datetime[]?"),
-        (ResolvedType::Scalar(Scalar::Url), false, false) => Some("url"),
-        (ResolvedType::Scalar(Scalar::Url), false, true) => Some("url?"),
-        (ResolvedType::Scalar(Scalar::Url), true, false) => Some("url[]"),
-        (ResolvedType::Scalar(Scalar::Url), true, true) => Some("url[]?"),
-        (ResolvedType::Scalar(Scalar::Text), false, false) => Some("text"),
-        (ResolvedType::Scalar(Scalar::Text), false, true) => Some("text?"),
-        (ResolvedType::Scalar(Scalar::Text), true, false) => Some("text[]"),
-        (ResolvedType::Scalar(Scalar::Text), true, true) => Some("text[]?"),
-        (ResolvedType::Scalar(Scalar::Bool), false, false) => Some("bool"),
-        (ResolvedType::Scalar(Scalar::Bool), false, true) => Some("bool?"),
-        (ResolvedType::Scalar(Scalar::Bool), true, false) => Some("bool[]"),
-        (ResolvedType::Scalar(Scalar::Bool), true, true) => Some("bool[]?"),
-        (ResolvedType::Scalar(Scalar::Decimal), false, false) => Some("decimal"),
-        (ResolvedType::Scalar(Scalar::Decimal), false, true) => Some("decimal?"),
-        (ResolvedType::Scalar(Scalar::Decimal), true, false) => Some("decimal[]"),
-        (ResolvedType::Scalar(Scalar::Decimal), true, true) => Some("decimal[]?"),
-        (ResolvedType::Scalar(Scalar::Money), false, false) => Some("money"),
-        (ResolvedType::Scalar(Scalar::Money), false, true) => Some("money?"),
-        (ResolvedType::Scalar(Scalar::Money), true, false) => Some("money[]"),
-        (ResolvedType::Scalar(Scalar::Money), true, true) => Some("money[]?"),
-        (ResolvedType::Scalar(Scalar::Date), false, false) => Some("date"),
-        (ResolvedType::Scalar(Scalar::Date), false, true) => Some("date?"),
-        (ResolvedType::Scalar(Scalar::Date), true, false) => Some("date[]"),
-        (ResolvedType::Scalar(Scalar::Date), true, true) => Some("date[]?"),
-        (ResolvedType::Scalar(Scalar::Duration), false, false) => Some("duration"),
-        (ResolvedType::Scalar(Scalar::Duration), false, true) => Some("duration?"),
-        (ResolvedType::Scalar(Scalar::Duration), true, false) => Some("duration[]"),
-        (ResolvedType::Scalar(Scalar::Duration), true, true) => Some("duration[]?"),
-        (ResolvedType::Scalar(Scalar::Email), false, false) => Some("email"),
-        (ResolvedType::Scalar(Scalar::Email), false, true) => Some("email?"),
-        (ResolvedType::Scalar(Scalar::Email), true, false) => Some("email[]"),
-        (ResolvedType::Scalar(Scalar::Email), true, true) => Some("email[]?"),
-        (ResolvedType::Scalar(Scalar::Currency), false, false) => Some("currency"),
-        (ResolvedType::Scalar(Scalar::Currency), false, true) => Some("currency?"),
-        (ResolvedType::Scalar(Scalar::Currency), true, false) => Some("currency[]"),
-        (ResolvedType::Scalar(Scalar::Currency), true, true) => Some("currency[]?"),
-        (ResolvedType::Scalar(Scalar::User), false, false) => Some("user"),
-        (ResolvedType::Scalar(Scalar::User), false, true) => Some("user?"),
-        (ResolvedType::Scalar(Scalar::User), true, false) => Some("user[]"),
-        (ResolvedType::Scalar(Scalar::User), true, true) => Some("user[]?"),
-        (ResolvedType::Scalar(Scalar::File), false, false) => Some("file"),
-        (ResolvedType::Scalar(Scalar::File), false, true) => Some("file?"),
-        (ResolvedType::Scalar(Scalar::File), true, false) => Some("file[]"),
-        (ResolvedType::Scalar(Scalar::File), true, true) => Some("file[]?"),
-        _ => None,
-    }
+    let ResolvedType::Scalar(scalar) = scalar else {
+        return None;
+    };
+    numeric_scalar_profile(scalar, array, nullable)
+        .or_else(|| text_scalar_profile(scalar, array, nullable))
+        .or_else(|| flag_scalar_profile(scalar, array, nullable))
+        .or_else(|| temporal_scalar_profile(scalar, array, nullable))
+        .or_else(|| entity_scalar_profile(scalar, array, nullable))
 }
 
 /// Object key: bare identifier when safe, quoted otherwise.

@@ -553,277 +553,369 @@ fn parse_params(
     rest: serde_json::Value,
 ) -> Result<GenParams, ProtocolError> {
     let name = operation.as_str();
-    let reject = |err: serde_json::Error| {
-        let message = err.to_string();
-        // Serde reports unknown fields as `unknown field ...`; keep
-        // that typed, and shape every other failure as invalid-param.
-        if message.starts_with("unknown field") {
-            ProtocolError::invalid("unknown-field", format!("operation `{name}`: {message}"))
-        } else {
-            ProtocolError::invalid("invalid-param", format!("operation `{name}`: {message}"))
-        }
-    };
     match operation {
-        GenOperation::Doctor => {
-            let params: DoctorParams = serde_json::from_value(rest).map_err(reject)?;
-            if let Some(root) = &params.root {
-                require_text(name, "root", root)?;
-            }
-            check_run_limits(name, params.max_attempts, params.timeout_seconds)?;
-            Ok(GenParams::Doctor(params))
-        }
-        GenOperation::Status => {
-            let params: StatusParams = serde_json::from_value(rest).map_err(reject)?;
-            require_text(name, "root", &params.root)?;
-            require_non_empty(name, "files", &params.files)?;
-            Ok(GenParams::Status(params))
-        }
-        GenOperation::Inspect => {
-            let params: InspectParams = serde_json::from_value(rest).map_err(reject)?;
-            require_text(name, "root", &params.root)?;
-            if let Some(unit_id) = &params.unit_id {
-                require_text(name, "unit_id", unit_id)?;
-            }
-            if let Some(file) = &params.file {
-                require_text(name, "file", file)?;
-            }
-            let by_id = params.unit_id.is_some();
-            let by_span = params.file.is_some() || params.start.is_some() || params.end.is_some();
-            if by_id == by_span {
-                return Err(ProtocolError::invalid(
-                    "invalid-param",
-                    format!(
-                        "operation `{name}` needs exactly one selector: `unit_id`, or `file` with `start`/`end`"
-                    ),
-                ));
-            }
-            if by_span && (params.file.is_none() || params.start.is_none() || params.end.is_none())
-            {
-                return Err(ProtocolError::invalid(
-                    "invalid-param",
-                    format!("operation `{name}` needs `file`, `start`, and `end` together"),
-                ));
-            }
-            if let (Some(start), Some(end)) = (params.start, params.end)
-                && start > end
-            {
-                return Err(ProtocolError::invalid(
-                    "invalid-param",
-                    format!("operation `{name}` needs span START<=END, got {start}..{end}"),
-                ));
-            }
-            check_run_limits(name, params.max_attempts, params.timeout_seconds)?;
-            Ok(GenParams::Inspect(params))
-        }
-        GenOperation::Bind => {
-            let params: BindParams = serde_json::from_value(rest).map_err(reject)?;
-            require_text(name, "root", &params.root)?;
-            require_text(name, "file", &params.file)?;
-            require_text(name, "revision", &params.revision)?;
-            require_text(name, "unit", &params.unit)?;
-            if let Some(copy_from) = &params.copy_from {
-                require_text(name, "copy_from", copy_from)?;
-                if params.unit != "new" {
-                    return Err(ProtocolError::invalid(
-                        "invalid-param",
-                        "bind `copy_from` requires `unit: new`",
-                    ));
-                }
-            }
-            if params.start > params.end {
-                return Err(ProtocolError::invalid(
-                    "invalid-param",
-                    format!(
-                        "operation `{name}` needs span START<=END, got {}..{}",
-                        params.start, params.end,
-                    ),
-                ));
-            }
-            Ok(GenParams::Bind(params))
-        }
-        GenOperation::Generate => {
-            let params: GenerateParams = serde_json::from_value(rest).map_err(reject)?;
-            require_text(name, "root", &params.root)?;
-            match (&params.files, &params.unit_ids) {
-                (Some(files), None) => require_non_empty(name, "files", files)?,
-                (None, Some(ids)) => require_non_empty(name, "unit_ids", ids)?,
-                _ => {
-                    return Err(ProtocolError::invalid(
-                        "invalid-param",
-                        format!(
-                            "operation `{name}` needs exactly one scope: `files` or `unit_ids`"
-                        ),
-                    ));
-                }
-            }
-            if params.mode != "prepare" && params.mode != "fresh" {
-                return Err(ProtocolError::invalid(
-                    "invalid-param",
-                    format!(
-                        "operation `{name}` needs `mode` \"prepare\" or \"fresh\", got {:?}",
-                        params.mode,
-                    ),
-                ));
-            }
-            check_run_limits(name, params.max_attempts, params.timeout_seconds)?;
-            Ok(GenParams::Generate(params))
-        }
-        GenOperation::Refine => {
-            let params: RefineParams = serde_json::from_value(rest).map_err(reject)?;
-            require_text(name, "root", &params.root)?;
-            require_text(name, "unit_id", &params.unit_id)?;
-            check_instruction_carrier(name, &params)?;
-            check_run_limits(name, params.max_attempts, params.timeout_seconds)?;
-            Ok(GenParams::Refine(params))
-        }
-        GenOperation::Retry => {
-            let params: RetryParams = serde_json::from_value(rest).map_err(reject)?;
-            require_text(name, "root", &params.root)?;
-            require_non_empty(name, "files", &params.files)?;
-            check_run_limits(name, params.max_attempts, params.timeout_seconds)?;
-            Ok(GenParams::Retry(params))
-        }
-        GenOperation::Resume => {
-            let params: ResumeParams = serde_json::from_value(rest).map_err(reject)?;
-            require_text(name, "root", &params.root)?;
-            require_text(name, "session_id", &params.session_id)?;
-            Ok(GenParams::Resume(params))
-        }
-        GenOperation::Diff => {
-            let params: DiffParams = serde_json::from_value(rest).map_err(reject)?;
-            require_text(name, "root", &params.root)?;
-            require_text(name, "unit_id", &params.unit_id)?;
-            Ok(GenParams::Diff(params))
-        }
-        GenOperation::Preview => {
-            let params: PreviewParams = serde_json::from_value(rest).map_err(reject)?;
-            require_text(name, "root", &params.root)?;
-            require_text(name, "unit_id", &params.unit_id)?;
-            Ok(GenParams::Preview(params))
-        }
-        GenOperation::Validate => {
-            let params: ValidateParams = serde_json::from_value(rest).map_err(reject)?;
-            require_text(name, "root", &params.root)?;
-            if let Some(unit_id) = &params.unit_id {
-                require_text(name, "unit_id", unit_id)?;
-            }
-            match (&params.unit_id, &params.files) {
-                (Some(_), None) => {}
-                (None, Some(files)) => require_non_empty(name, "files", files)?,
-                _ => {
-                    return Err(ProtocolError::invalid(
-                        "invalid-param",
-                        format!("operation `{name}` needs exactly one scope: `unit_id` or `files`"),
-                    ));
-                }
-            }
-            Ok(GenParams::Validate(params))
-        }
-        GenOperation::Adopt => {
-            let params: AdoptParams = serde_json::from_value(rest).map_err(reject)?;
-            require_text(name, "root", &params.root)?;
-            require_text(name, "unit_id", &params.unit_id)?;
-            require_non_empty(name, "files", &params.files)?;
-            Ok(GenParams::Adopt(params))
-        }
-        GenOperation::Accept => {
-            let params: AcceptParams = serde_json::from_value(rest).map_err(reject)?;
-            require_text(name, "root", &params.root)?;
-            if let Some(unit_id) = &params.unit_id {
-                require_text(name, "unit_id", unit_id)?;
-            }
-            if let Some(attempt) = &params.attempt {
-                require_text(name, "attempt", attempt)?;
-            }
-            if params.unit_id.is_some() == params.attempt.is_some() {
-                return Err(ProtocolError::invalid(
-                    "invalid-param",
-                    format!("operation `{name}` needs exactly one scope: `unit_id` or `attempt`"),
-                ));
-            }
-            Ok(GenParams::Accept(params))
-        }
-        GenOperation::Cancel => {
-            let params: CancelParams = serde_json::from_value(rest).map_err(reject)?;
-            require_text(name, "root", &params.root)?;
-            if let Some(session_id) = &params.session_id {
-                require_text(name, "session_id", session_id)?;
-            }
-            if let Some(request) = &params.request {
-                require_text(name, "request", request)?;
-            }
-            if params.session_id.is_some() == params.request.is_some() {
-                return Err(ProtocolError::invalid(
-                    "invalid-param",
-                    format!(
-                        "operation `{name}` needs exactly one scope: `session_id` or `request`"
-                    ),
-                ));
-            }
-            Ok(GenParams::Cancel(params))
-        }
-        GenOperation::Reset => {
-            let params: ResetParams = serde_json::from_value(rest).map_err(reject)?;
-            require_text(name, "root", &params.root)?;
-            if let Some(unit_id) = &params.unit_id {
-                require_text(name, "unit_id", unit_id)?;
-            }
-            if let Some(attempt) = &params.attempt {
-                require_text(name, "attempt", attempt)?;
-            }
-            if let Some(session_id) = &params.session_id {
-                require_text(name, "session_id", session_id)?;
-            }
-            let selectors = params.unit_id.is_some() as u8
-                + params.attempt.is_some() as u8
-                + params.session_id.is_some() as u8;
-            if selectors != 1 {
-                return Err(ProtocolError::invalid(
-                    "invalid-param",
-                    format!(
-                        "operation `{name}` needs exactly one scope: `unit_id`, `attempt`, or `session_id`"
-                    ),
-                ));
-            }
-            Ok(GenParams::Reset(params))
-        }
-        GenOperation::Rollback => {
-            let params: RollbackParams = serde_json::from_value(rest).map_err(reject)?;
-            require_text(name, "root", &params.root)?;
-            require_text(name, "unit_id", &params.unit_id)?;
-            require_text(name, "revision", &params.revision)?;
-            Ok(GenParams::Rollback(params))
-        }
-        GenOperation::EditBegin => {
-            let params: EditBeginParams = serde_json::from_value(rest).map_err(reject)?;
-            require_text(name, "root", &params.root)?;
-            if let Some(unit_id) = &params.unit_id {
-                require_text(name, "unit_id", unit_id)?;
-            }
-            if params.unit_id.is_none() && params.paths.is_none() {
-                return Err(ProtocolError::invalid(
-                    "invalid-param",
-                    format!("operation `{name}` needs `unit_id` and/or `paths`"),
-                ));
-            }
-            if let Some(paths) = &params.paths {
-                require_non_empty(name, "paths", paths)?;
-            }
-            Ok(GenParams::EditBegin(params))
-        }
-        GenOperation::EditEnd => {
-            let params: EditEndParams = serde_json::from_value(rest).map_err(reject)?;
-            require_text(name, "root", &params.root)?;
-            require_text(name, "token", &params.token)?;
-            Ok(GenParams::EditEnd(params))
-        }
-        GenOperation::LeaseRecover => {
-            let params: LeaseRecoverParams = serde_json::from_value(rest).map_err(reject)?;
-            require_text(name, "root", &params.root)?;
-            require_text(name, "lease", &params.lease)?;
-            Ok(GenParams::LeaseRecover(params))
+        GenOperation::Doctor => parse_doctor_params(name, rest),
+        GenOperation::Status => parse_status_params(name, rest),
+        GenOperation::Inspect => parse_inspect_params(name, rest),
+        GenOperation::Bind => parse_bind_params(name, rest),
+        GenOperation::Generate => parse_generate_params(name, rest),
+        GenOperation::Refine => parse_refine_params(name, rest),
+        GenOperation::Retry => parse_retry_params(name, rest),
+        GenOperation::Resume => parse_resume_params(name, rest),
+        GenOperation::Diff => parse_diff_params(name, rest),
+        GenOperation::Preview => parse_preview_params(name, rest),
+        GenOperation::Validate => parse_validate_params(name, rest),
+        GenOperation::Adopt => parse_adopt_params(name, rest),
+        GenOperation::Accept => parse_accept_params(name, rest),
+        GenOperation::Cancel => parse_cancel_params(name, rest),
+        GenOperation::Reset => parse_reset_params(name, rest),
+        GenOperation::Rollback => parse_rollback_params(name, rest),
+        GenOperation::EditBegin => parse_edit_begin_params(name, rest),
+        GenOperation::EditEnd => parse_edit_end_params(name, rest),
+        GenOperation::LeaseRecover => parse_lease_recover_params(name, rest),
+    }
+}
+
+fn reject_param(name: &str, err: serde_json::Error) -> ProtocolError {
+    let message = err.to_string();
+    // Serde reports unknown fields as `unknown field ...`; keep
+    // that typed, and shape every other failure as invalid-param.
+    if message.starts_with("unknown field") {
+        ProtocolError::invalid("unknown-field", format!("operation `{name}`: {message}"))
+    } else {
+        ProtocolError::invalid("invalid-param", format!("operation `{name}`: {message}"))
+    }
+}
+
+fn decode_params<T>(name: &str, rest: serde_json::Value) -> Result<T, ProtocolError>
+where
+    T: serde::de::DeserializeOwned,
+{
+    serde_json::from_value(rest).map_err(|err| reject_param(name, err))
+}
+
+fn parse_doctor_params(
+    name: &str,
+    rest: serde_json::Value,
+) -> Result<GenParams, ProtocolError> {
+    let params: DoctorParams = decode_params(name, rest)?;
+    if let Some(root) = &params.root {
+        require_text(name, "root", root)?;
+    }
+    check_run_limits(name, params.max_attempts, params.timeout_seconds)?;
+    Ok(GenParams::Doctor(params))
+}
+
+fn parse_status_params(
+    name: &str,
+    rest: serde_json::Value,
+) -> Result<GenParams, ProtocolError> {
+    let params: StatusParams = decode_params(name, rest)?;
+    require_text(name, "root", &params.root)?;
+    require_non_empty(name, "files", &params.files)?;
+    Ok(GenParams::Status(params))
+}
+
+fn parse_inspect_params(
+    name: &str,
+    rest: serde_json::Value,
+) -> Result<GenParams, ProtocolError> {
+    let params: InspectParams = decode_params(name, rest)?;
+    require_text(name, "root", &params.root)?;
+    if let Some(unit_id) = &params.unit_id {
+        require_text(name, "unit_id", unit_id)?;
+    }
+    if let Some(file) = &params.file {
+        require_text(name, "file", file)?;
+    }
+    check_inspect_selector(name, &params)?;
+    check_run_limits(name, params.max_attempts, params.timeout_seconds)?;
+    Ok(GenParams::Inspect(params))
+}
+
+fn check_inspect_selector(name: &str, params: &InspectParams) -> Result<(), ProtocolError> {
+    let by_id = params.unit_id.is_some();
+    let by_span = params.file.is_some() || params.start.is_some() || params.end.is_some();
+    if by_id == by_span {
+        return Err(ProtocolError::invalid(
+            "invalid-param",
+            format!(
+                "operation `{name}` needs exactly one selector: `unit_id`, or `file` with `start`/`end`"
+            ),
+        ));
+    }
+    if by_span && (params.file.is_none() || params.start.is_none() || params.end.is_none()) {
+        return Err(ProtocolError::invalid(
+            "invalid-param",
+            format!("operation `{name}` needs `file`, `start`, and `end` together"),
+        ));
+    }
+    if let (Some(start), Some(end)) = (params.start, params.end)
+        && start > end
+    {
+        return Err(ProtocolError::invalid(
+            "invalid-param",
+            format!("operation `{name}` needs span START<=END, got {start}..{end}"),
+        ));
+    }
+    Ok(())
+}
+
+fn parse_bind_params(name: &str, rest: serde_json::Value) -> Result<GenParams, ProtocolError> {
+    let params: BindParams = decode_params(name, rest)?;
+    require_text(name, "root", &params.root)?;
+    require_text(name, "file", &params.file)?;
+    require_text(name, "revision", &params.revision)?;
+    require_text(name, "unit", &params.unit)?;
+    if let Some(copy_from) = &params.copy_from {
+        require_text(name, "copy_from", copy_from)?;
+        if params.unit != "new" {
+            return Err(ProtocolError::invalid(
+                "invalid-param",
+                "bind `copy_from` requires `unit: new`",
+            ));
         }
     }
+    if params.start > params.end {
+        return Err(ProtocolError::invalid(
+            "invalid-param",
+            format!(
+                "operation `{name}` needs span START<=END, got {}..{}",
+                params.start, params.end,
+            ),
+        ));
+    }
+    Ok(GenParams::Bind(params))
+}
+
+fn parse_generate_params(
+    name: &str,
+    rest: serde_json::Value,
+) -> Result<GenParams, ProtocolError> {
+    let params: GenerateParams = decode_params(name, rest)?;
+    require_text(name, "root", &params.root)?;
+    match (&params.files, &params.unit_ids) {
+        (Some(files), None) => require_non_empty(name, "files", files)?,
+        (None, Some(ids)) => require_non_empty(name, "unit_ids", ids)?,
+        _ => {
+            return Err(ProtocolError::invalid(
+                "invalid-param",
+                format!(
+                    "operation `{name}` needs exactly one scope: `files` or `unit_ids`"
+                ),
+            ));
+        }
+    }
+    if params.mode != "prepare" && params.mode != "fresh" {
+        return Err(ProtocolError::invalid(
+            "invalid-param",
+            format!(
+                "operation `{name}` needs `mode` \"prepare\" or \"fresh\", got {:?}",
+                params.mode,
+            ),
+        ));
+    }
+    check_run_limits(name, params.max_attempts, params.timeout_seconds)?;
+    Ok(GenParams::Generate(params))
+}
+
+fn parse_refine_params(
+    name: &str,
+    rest: serde_json::Value,
+) -> Result<GenParams, ProtocolError> {
+    let params: RefineParams = decode_params(name, rest)?;
+    require_text(name, "root", &params.root)?;
+    require_text(name, "unit_id", &params.unit_id)?;
+    check_instruction_carrier(name, &params)?;
+    check_run_limits(name, params.max_attempts, params.timeout_seconds)?;
+    Ok(GenParams::Refine(params))
+}
+
+fn parse_retry_params(name: &str, rest: serde_json::Value) -> Result<GenParams, ProtocolError> {
+    let params: RetryParams = decode_params(name, rest)?;
+    require_text(name, "root", &params.root)?;
+    require_non_empty(name, "files", &params.files)?;
+    check_run_limits(name, params.max_attempts, params.timeout_seconds)?;
+    Ok(GenParams::Retry(params))
+}
+
+fn parse_resume_params(
+    name: &str,
+    rest: serde_json::Value,
+) -> Result<GenParams, ProtocolError> {
+    let params: ResumeParams = decode_params(name, rest)?;
+    require_text(name, "root", &params.root)?;
+    require_text(name, "session_id", &params.session_id)?;
+    Ok(GenParams::Resume(params))
+}
+
+fn parse_diff_params(name: &str, rest: serde_json::Value) -> Result<GenParams, ProtocolError> {
+    let params: DiffParams = decode_params(name, rest)?;
+    require_text(name, "root", &params.root)?;
+    require_text(name, "unit_id", &params.unit_id)?;
+    Ok(GenParams::Diff(params))
+}
+
+fn parse_preview_params(
+    name: &str,
+    rest: serde_json::Value,
+) -> Result<GenParams, ProtocolError> {
+    let params: PreviewParams = decode_params(name, rest)?;
+    require_text(name, "root", &params.root)?;
+    require_text(name, "unit_id", &params.unit_id)?;
+    Ok(GenParams::Preview(params))
+}
+
+fn parse_validate_params(
+    name: &str,
+    rest: serde_json::Value,
+) -> Result<GenParams, ProtocolError> {
+    let params: ValidateParams = decode_params(name, rest)?;
+    require_text(name, "root", &params.root)?;
+    if let Some(unit_id) = &params.unit_id {
+        require_text(name, "unit_id", unit_id)?;
+    }
+    match (&params.unit_id, &params.files) {
+        (Some(_), None) => {}
+        (None, Some(files)) => require_non_empty(name, "files", files)?,
+        _ => {
+            return Err(ProtocolError::invalid(
+                "invalid-param",
+                format!("operation `{name}` needs exactly one scope: `unit_id` or `files`"),
+            ));
+        }
+    }
+    Ok(GenParams::Validate(params))
+}
+
+fn parse_adopt_params(name: &str, rest: serde_json::Value) -> Result<GenParams, ProtocolError> {
+    let params: AdoptParams = decode_params(name, rest)?;
+    require_text(name, "root", &params.root)?;
+    require_text(name, "unit_id", &params.unit_id)?;
+    require_non_empty(name, "files", &params.files)?;
+    Ok(GenParams::Adopt(params))
+}
+
+fn parse_accept_params(
+    name: &str,
+    rest: serde_json::Value,
+) -> Result<GenParams, ProtocolError> {
+    let params: AcceptParams = decode_params(name, rest)?;
+    require_text(name, "root", &params.root)?;
+    if let Some(unit_id) = &params.unit_id {
+        require_text(name, "unit_id", unit_id)?;
+    }
+    if let Some(attempt) = &params.attempt {
+        require_text(name, "attempt", attempt)?;
+    }
+    if params.unit_id.is_some() == params.attempt.is_some() {
+        return Err(ProtocolError::invalid(
+            "invalid-param",
+            format!("operation `{name}` needs exactly one scope: `unit_id` or `attempt`"),
+        ));
+    }
+    Ok(GenParams::Accept(params))
+}
+
+fn parse_cancel_params(
+    name: &str,
+    rest: serde_json::Value,
+) -> Result<GenParams, ProtocolError> {
+    let params: CancelParams = decode_params(name, rest)?;
+    require_text(name, "root", &params.root)?;
+    if let Some(session_id) = &params.session_id {
+        require_text(name, "session_id", session_id)?;
+    }
+    if let Some(request) = &params.request {
+        require_text(name, "request", request)?;
+    }
+    if params.session_id.is_some() == params.request.is_some() {
+        return Err(ProtocolError::invalid(
+            "invalid-param",
+            format!(
+                "operation `{name}` needs exactly one scope: `session_id` or `request`"
+            ),
+        ));
+    }
+    Ok(GenParams::Cancel(params))
+}
+
+fn parse_reset_params(name: &str, rest: serde_json::Value) -> Result<GenParams, ProtocolError> {
+    let params: ResetParams = decode_params(name, rest)?;
+    require_text(name, "root", &params.root)?;
+    if let Some(unit_id) = &params.unit_id {
+        require_text(name, "unit_id", unit_id)?;
+    }
+    if let Some(attempt) = &params.attempt {
+        require_text(name, "attempt", attempt)?;
+    }
+    if let Some(session_id) = &params.session_id {
+        require_text(name, "session_id", session_id)?;
+    }
+    let selectors = params.unit_id.is_some() as u8
+        + params.attempt.is_some() as u8
+        + params.session_id.is_some() as u8;
+    if selectors != 1 {
+        return Err(ProtocolError::invalid(
+            "invalid-param",
+            format!(
+                "operation `{name}` needs exactly one scope: `unit_id`, `attempt`, or `session_id`"
+            ),
+        ));
+    }
+    Ok(GenParams::Reset(params))
+}
+
+fn parse_rollback_params(
+    name: &str,
+    rest: serde_json::Value,
+) -> Result<GenParams, ProtocolError> {
+    let params: RollbackParams = decode_params(name, rest)?;
+    require_text(name, "root", &params.root)?;
+    require_text(name, "unit_id", &params.unit_id)?;
+    require_text(name, "revision", &params.revision)?;
+    Ok(GenParams::Rollback(params))
+}
+
+fn parse_edit_begin_params(
+    name: &str,
+    rest: serde_json::Value,
+) -> Result<GenParams, ProtocolError> {
+    let params: EditBeginParams = decode_params(name, rest)?;
+    require_text(name, "root", &params.root)?;
+    if let Some(unit_id) = &params.unit_id {
+        require_text(name, "unit_id", unit_id)?;
+    }
+    if params.unit_id.is_none() && params.paths.is_none() {
+        return Err(ProtocolError::invalid(
+            "invalid-param",
+            format!("operation `{name}` needs `unit_id` and/or `paths`"),
+        ));
+    }
+    if let Some(paths) = &params.paths {
+        require_non_empty(name, "paths", paths)?;
+    }
+    Ok(GenParams::EditBegin(params))
+}
+
+fn parse_edit_end_params(
+    name: &str,
+    rest: serde_json::Value,
+) -> Result<GenParams, ProtocolError> {
+    let params: EditEndParams = decode_params(name, rest)?;
+    require_text(name, "root", &params.root)?;
+    require_text(name, "token", &params.token)?;
+    Ok(GenParams::EditEnd(params))
+}
+
+fn parse_lease_recover_params(
+    name: &str,
+    rest: serde_json::Value,
+) -> Result<GenParams, ProtocolError> {
+    let params: LeaseRecoverParams = decode_params(name, rest)?;
+    require_text(name, "root", &params.root)?;
+    require_text(name, "lease", &params.lease)?;
+    Ok(GenParams::LeaseRecover(params))
 }
 
 fn require_text(name: &str, key: &str, value: &str) -> Result<(), ProtocolError> {

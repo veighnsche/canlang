@@ -295,284 +295,307 @@ impl<'a> Collector<'a> {
     }
 
     fn visit(&mut self, node: &SyntaxNode) {
-        let text = self.text;
         match node.kind {
-            SyntaxKind::TraitDef => {
-                let ns = names(node, text);
-                let prompt = prompt_of(node).map(|p| p.0);
-                let profile = profile_of(node, text);
-                if ns.len() >= 2 {
-                    // Named definition: [trait, Name, ...]
-                    let label = ns[1].clone();
-                    self.descriptors.push(GenerationDescriptor {
-                        selector: None,
-                        region: None,
-                        owner: self.owner.clone(),
-                        kind: GenerationKind::NamedTrait,
-                        label: Some(label.clone()),
-                        prompt,
-                        profile,
-                        span: node.span,
-                        anchor: self.anchor("trait", &label, ""),
-                        target: None,
-                        has_generation_identity: true,
-                        params: Vec::new(),
-                        args: Vec::new(),
-                        use_sites: Vec::new(),
-                    });
-                } else {
-                    // Inline attachment on a model or field.
-                    let target = match (&self.model, &self.field) {
-                        (Some(m), Some(f)) => format!("{}.{}", m, f),
-                        (Some(m), None) => m.clone(),
-                        _ => String::new(),
-                    };
-                    self.descriptors.push(GenerationDescriptor {
-                        selector: None,
-                        region: None,
-                        owner: self.owner.clone(),
-                        kind: GenerationKind::InlineTrait,
-                        label: Some(target.clone()),
-                        prompt,
-                        profile,
-                        span: node.span,
-                        anchor: self.anchor("inline-trait", &target, &target),
-                        target: Some(target),
-                        has_generation_identity: true,
-                        params: Vec::new(),
-                        args: Vec::new(),
-                        use_sites: Vec::new(),
-                    });
-                }
-            }
-            SyntaxKind::TraitApp => {
-                let label = first_name(node, text).unwrap_or_default();
-                // Checked field attachments carry their Model.field target;
-                // model-level applications keep the bare model target.
-                let target = match (&self.model, &self.field) {
-                    (Some(m), Some(f)) => format!("{m}.{f}"),
-                    (Some(m), None) => m.clone(),
-                    _ => String::new(),
-                };
-                self.descriptors.push(GenerationDescriptor {
-                    selector: None,
-                    region: None,
-                    owner: self.owner.clone(),
-                    kind: GenerationKind::TraitApplication,
-                    label: Some(label.clone()),
-                    prompt: None,
-                    profile: None,
-                    span: node.span,
-                    anchor: self.anchor("trait-app", &label, &target),
-                    target: Some(target),
-                    has_generation_identity: false,
-                    params: Vec::new(),
-                    args: Vec::new(),
-                    use_sites: Vec::new(),
-                });
-            }
-            SyntaxKind::KeywordDef => {
-                let ns = names(node, text);
-                let label = ns.get(1).cloned().unwrap_or_default();
-                let mut params = Vec::new();
-                for child in sig(node) {
-                    if child.kind == SyntaxKind::KeywordParam {
-                        params.push(parse_param(child, text));
-                    }
-                }
-                self.descriptors.push(GenerationDescriptor {
-                    selector: None,
-                    region: None,
-                    owner: self.owner.clone(),
-                    kind: GenerationKind::KeywordDefinition,
-                    label: Some(label.clone()),
-                    prompt: prompt_of(node).map(|p| p.0),
-                    profile: profile_of(node, text),
-                    span: node.span,
-                    anchor: self.anchor("keyword", &label, ""),
-                    target: None,
-                    has_generation_identity: true,
-                    params,
-                    args: Vec::new(),
-                    use_sites: Vec::new(),
-                });
-            }
-            SyntaxKind::KeywordApp => {
-                let label = first_name(node, text).unwrap_or_default();
-                let mut args = Vec::new();
-                for child in sig(node) {
-                    if child.kind == SyntaxKind::Attribute {
-                        let parts = sig(child);
-                        if parts.len() >= 3 {
-                            args.push(KeywordArgDescriptor {
-                                name: parts[0]
-                                    .token()
-                                    .map(|t| t.text(text).to_string())
-                                    .unwrap_or_default(),
-                                value: arg_value_text(parts[2], text),
-                                span: child.span,
-                            });
-                        }
-                    }
-                }
-                self.descriptors.push(GenerationDescriptor {
-                    selector: None,
-                    region: None,
-                    owner: self.owner.clone(),
-                    kind: GenerationKind::KeywordApplication,
-                    label: Some(label.clone()),
-                    prompt: None,
-                    profile: None,
-                    span: node.span,
-                    anchor: self.anchor("keyword-app", &label, ""),
-                    target: Some(label.clone()),
-                    has_generation_identity: false,
-                    params: Vec::new(),
-                    args,
-                    use_sites: Vec::new(),
-                });
-            }
-            SyntaxKind::StyleDef => {
-                let ns = names(node, text);
-                let label = ns.get(1).cloned().unwrap_or_default();
-                self.descriptors.push(GenerationDescriptor {
-                    selector: None,
-                    region: None,
-                    owner: self.owner.clone(),
-                    kind: GenerationKind::StyleDefinition,
-                    label: Some(label.clone()),
-                    prompt: prompt_of(node).map(|p| p.0),
-                    profile: profile_of(node, text),
-                    span: node.span,
-                    anchor: self.anchor("style", &label, ""),
-                    target: None,
-                    has_generation_identity: true,
-                    params: Vec::new(),
-                    args: Vec::new(),
-                    use_sites: Vec::new(),
-                });
-            }
-            SyntaxKind::StyleSuffix => {
-                let prompt = prompt_of(node).map(|p| p.0);
-                // Named reference is the Name leaf inside the suffix.
-                let inner_names = names(node, text);
-                if let Some(p) = prompt {
-                    let host = if self.host.is_empty() {
-                        self.view.clone().unwrap_or_default()
-                    } else {
-                        self.host.clone()
-                    };
-                    self.descriptors.push(GenerationDescriptor {
-                        selector: None,
-                        region: None,
-                        owner: self.owner.clone(),
-                        kind: GenerationKind::StyleInline,
-                        label: Some(host.clone()),
-                        prompt: Some(p),
-                        profile: self.host_profile.clone(),
-                        span: node.span,
-                        anchor: self.anchor("style-inline", &host, &host),
-                        target: Some(host),
-                        has_generation_identity: true,
-                        params: Vec::new(),
-                        args: Vec::new(),
-                        use_sites: Vec::new(),
-                    });
-                } else if let Some(name) = inner_names.into_iter().next() {
-                    self.descriptors.push(GenerationDescriptor {
-                        selector: None,
-                        region: None,
-                        owner: self.owner.clone(),
-                        kind: GenerationKind::StyleNamedUse,
-                        label: Some(name.clone()),
-                        prompt: None,
-                        profile: None,
-                        span: node.span,
-                        anchor: self.anchor("style-use", &name, &self.host.clone()),
-                        target: Some(name),
-                        has_generation_identity: false,
-                        params: Vec::new(),
-                        args: Vec::new(),
-                        use_sites: Vec::new(),
-                    });
-                }
-            }
-            SyntaxKind::View => {
-                if let Some((prompt, _)) = prompt_of(node) {
-                    let ns = names(node, text);
-                    let label = ns.get(1).cloned().unwrap_or_default();
-                    // Row model: NamedType inside the Parameter child.
-                    let mut target = String::new();
-                    for child in sig(node) {
-                        if child.kind == SyntaxKind::Parameter {
-                            let ns: Vec<String> = child
-                                .descendants()
-                                .filter(|n| n.kind == SyntaxKind::Name)
-                                .filter_map(|n| n.token().map(|t| t.text(text).to_string()))
-                                .collect();
-                            if let Some(n) = ns.into_iter().nth(1) {
-                                target = n;
-                            }
-                        }
-                    }
-                    self.descriptors.push(GenerationDescriptor {
-                        selector: None,
-                        region: None,
-                        owner: self.owner.clone(),
-                        kind: GenerationKind::ViewDefinition,
-                        label: Some(label.clone()),
-                        prompt: Some(prompt),
-                        profile: profile_of(node, text),
-                        span: node.span,
-                        anchor: self.anchor("view", &label, &target),
-                        target: Some(target),
-                        has_generation_identity: true,
-                        params: Vec::new(),
-                        args: Vec::new(),
-                        use_sites: Vec::new(),
-                    });
-                }
-            }
-            SyntaxKind::ViewStyle => {
-                let prompt = prompt_of(node).map(|p| p.0);
-                let view = self.view.clone().unwrap_or_default();
-                if let Some(p) = prompt {
-                    self.descriptors.push(GenerationDescriptor {
-                        selector: None,
-                        region: None,
-                        owner: self.owner.clone(),
-                        kind: GenerationKind::ViewRootStyleInline,
-                        label: Some(view.clone()),
-                        prompt: Some(p),
-                        profile: self.host_profile.clone(),
-                        span: node.span,
-                        anchor: self.anchor("view-style-inline", &view, &view),
-                        target: Some(view),
-                        has_generation_identity: true,
-                        params: Vec::new(),
-                        args: Vec::new(),
-                        use_sites: Vec::new(),
-                    });
-                } else if let Some(name) = names(node, text).into_iter().next() {
-                    self.descriptors.push(GenerationDescriptor {
-                        selector: None,
-                        region: None,
-                        owner: self.owner.clone(),
-                        kind: GenerationKind::ViewRootStyleNamed,
-                        label: Some(name.clone()),
-                        prompt: None,
-                        profile: None,
-                        span: node.span,
-                        anchor: self.anchor("view-style-use", &name, &view),
-                        target: Some(name),
-                        has_generation_identity: false,
-                        params: Vec::new(),
-                        args: Vec::new(),
-                        use_sites: Vec::new(),
-                    });
-                }
-            }
+            SyntaxKind::TraitDef => self.visit_trait_def(node),
+            SyntaxKind::TraitApp => self.visit_trait_app(node),
+            SyntaxKind::KeywordDef => self.visit_keyword_def(node),
+            SyntaxKind::KeywordApp => self.visit_keyword_app(node),
+            SyntaxKind::StyleDef => self.visit_style_def(node),
+            SyntaxKind::StyleSuffix => self.visit_style_suffix(node),
+            SyntaxKind::View => self.visit_view(node),
+            SyntaxKind::ViewStyle => self.visit_view_style(node),
             _ => {}
+        }
+    }
+
+    fn visit_trait_def(&mut self, node: &SyntaxNode) {
+        let text = self.text;
+        let ns = names(node, text);
+        let prompt = prompt_of(node).map(|p| p.0);
+        let profile = profile_of(node, text);
+        if ns.len() >= 2 {
+            // Named definition: [trait, Name, ...]
+            let label = ns[1].clone();
+            self.descriptors.push(GenerationDescriptor {
+                selector: None,
+                region: None,
+                owner: self.owner.clone(),
+                kind: GenerationKind::NamedTrait,
+                label: Some(label.clone()),
+                prompt,
+                profile,
+                span: node.span,
+                anchor: self.anchor("trait", &label, ""),
+                target: None,
+                has_generation_identity: true,
+                params: Vec::new(),
+                args: Vec::new(),
+                use_sites: Vec::new(),
+            });
+        } else {
+            // Inline attachment on a model or field.
+            let target = match (&self.model, &self.field) {
+                (Some(m), Some(f)) => format!("{}.{}", m, f),
+                (Some(m), None) => m.clone(),
+                _ => String::new(),
+            };
+            self.descriptors.push(GenerationDescriptor {
+                selector: None,
+                region: None,
+                owner: self.owner.clone(),
+                kind: GenerationKind::InlineTrait,
+                label: Some(target.clone()),
+                prompt,
+                profile,
+                span: node.span,
+                anchor: self.anchor("inline-trait", &target, &target),
+                target: Some(target),
+                has_generation_identity: true,
+                params: Vec::new(),
+                args: Vec::new(),
+                use_sites: Vec::new(),
+            });
+        }
+    }
+
+    fn visit_trait_app(&mut self, node: &SyntaxNode) {
+        let text = self.text;
+        let label = first_name(node, text).unwrap_or_default();
+        // Checked field attachments carry their Model.field target;
+        // model-level applications keep the bare model target.
+        let target = match (&self.model, &self.field) {
+            (Some(m), Some(f)) => format!("{m}.{f}"),
+            (Some(m), None) => m.clone(),
+            _ => String::new(),
+        };
+        self.descriptors.push(GenerationDescriptor {
+            selector: None,
+            region: None,
+            owner: self.owner.clone(),
+            kind: GenerationKind::TraitApplication,
+            label: Some(label.clone()),
+            prompt: None,
+            profile: None,
+            span: node.span,
+            anchor: self.anchor("trait-app", &label, &target),
+            target: Some(target),
+            has_generation_identity: false,
+            params: Vec::new(),
+            args: Vec::new(),
+            use_sites: Vec::new(),
+        });
+    }
+
+    fn visit_keyword_def(&mut self, node: &SyntaxNode) {
+        let text = self.text;
+        let ns = names(node, text);
+        let label = ns.get(1).cloned().unwrap_or_default();
+        let mut params = Vec::new();
+        for child in sig(node) {
+            if child.kind == SyntaxKind::KeywordParam {
+                params.push(parse_param(child, text));
+            }
+        }
+        self.descriptors.push(GenerationDescriptor {
+            selector: None,
+            region: None,
+            owner: self.owner.clone(),
+            kind: GenerationKind::KeywordDefinition,
+            label: Some(label.clone()),
+            prompt: prompt_of(node).map(|p| p.0),
+            profile: profile_of(node, text),
+            span: node.span,
+            anchor: self.anchor("keyword", &label, ""),
+            target: None,
+            has_generation_identity: true,
+            params,
+            args: Vec::new(),
+            use_sites: Vec::new(),
+        });
+    }
+
+    fn visit_keyword_app(&mut self, node: &SyntaxNode) {
+        let text = self.text;
+        let label = first_name(node, text).unwrap_or_default();
+        let mut args = Vec::new();
+        for child in sig(node) {
+            if child.kind == SyntaxKind::Attribute {
+                let parts = sig(child);
+                if parts.len() >= 3 {
+                    args.push(KeywordArgDescriptor {
+                        name: parts[0]
+                            .token()
+                            .map(|t| t.text(text).to_string())
+                            .unwrap_or_default(),
+                        value: arg_value_text(parts[2], text),
+                        span: child.span,
+                    });
+                }
+            }
+        }
+        self.descriptors.push(GenerationDescriptor {
+            selector: None,
+            region: None,
+            owner: self.owner.clone(),
+            kind: GenerationKind::KeywordApplication,
+            label: Some(label.clone()),
+            prompt: None,
+            profile: None,
+            span: node.span,
+            anchor: self.anchor("keyword-app", &label, ""),
+            target: Some(label.clone()),
+            has_generation_identity: false,
+            params: Vec::new(),
+            args,
+            use_sites: Vec::new(),
+        });
+    }
+
+    fn visit_style_def(&mut self, node: &SyntaxNode) {
+        let text = self.text;
+        let ns = names(node, text);
+        let label = ns.get(1).cloned().unwrap_or_default();
+        self.descriptors.push(GenerationDescriptor {
+            selector: None,
+            region: None,
+            owner: self.owner.clone(),
+            kind: GenerationKind::StyleDefinition,
+            label: Some(label.clone()),
+            prompt: prompt_of(node).map(|p| p.0),
+            profile: profile_of(node, text),
+            span: node.span,
+            anchor: self.anchor("style", &label, ""),
+            target: None,
+            has_generation_identity: true,
+            params: Vec::new(),
+            args: Vec::new(),
+            use_sites: Vec::new(),
+        });
+    }
+
+    fn visit_style_suffix(&mut self, node: &SyntaxNode) {
+        let text = self.text;
+        let prompt = prompt_of(node).map(|p| p.0);
+        // Named reference is the Name leaf inside the suffix.
+        let inner_names = names(node, text);
+        if let Some(p) = prompt {
+            let host = if self.host.is_empty() {
+                self.view.clone().unwrap_or_default()
+            } else {
+                self.host.clone()
+            };
+            self.descriptors.push(GenerationDescriptor {
+                selector: None,
+                region: None,
+                owner: self.owner.clone(),
+                kind: GenerationKind::StyleInline,
+                label: Some(host.clone()),
+                prompt: Some(p),
+                profile: self.host_profile.clone(),
+                span: node.span,
+                anchor: self.anchor("style-inline", &host, &host),
+                target: Some(host),
+                has_generation_identity: true,
+                params: Vec::new(),
+                args: Vec::new(),
+                use_sites: Vec::new(),
+            });
+        } else if let Some(name) = inner_names.into_iter().next() {
+            self.descriptors.push(GenerationDescriptor {
+                selector: None,
+                region: None,
+                owner: self.owner.clone(),
+                kind: GenerationKind::StyleNamedUse,
+                label: Some(name.clone()),
+                prompt: None,
+                profile: None,
+                span: node.span,
+                anchor: self.anchor("style-use", &name, &self.host.clone()),
+                target: Some(name),
+                has_generation_identity: false,
+                params: Vec::new(),
+                args: Vec::new(),
+                use_sites: Vec::new(),
+            });
+        }
+    }
+
+    fn visit_view(&mut self, node: &SyntaxNode) {
+        let text = self.text;
+        if let Some((prompt, _)) = prompt_of(node) {
+            let ns = names(node, text);
+            let label = ns.get(1).cloned().unwrap_or_default();
+            // Row model: NamedType inside the Parameter child.
+            let mut target = String::new();
+            for child in sig(node) {
+                if child.kind == SyntaxKind::Parameter {
+                    let ns: Vec<String> = child
+                        .descendants()
+                        .filter(|n| n.kind == SyntaxKind::Name)
+                        .filter_map(|n| n.token().map(|t| t.text(text).to_string()))
+                        .collect();
+                    if let Some(n) = ns.into_iter().nth(1) {
+                        target = n;
+                    }
+                }
+            }
+            self.descriptors.push(GenerationDescriptor {
+                selector: None,
+                region: None,
+                owner: self.owner.clone(),
+                kind: GenerationKind::ViewDefinition,
+                label: Some(label.clone()),
+                prompt: Some(prompt),
+                profile: profile_of(node, text),
+                span: node.span,
+                anchor: self.anchor("view", &label, &target),
+                target: Some(target),
+                has_generation_identity: true,
+                params: Vec::new(),
+                args: Vec::new(),
+                use_sites: Vec::new(),
+            });
+        }
+    }
+
+    fn visit_view_style(&mut self, node: &SyntaxNode) {
+        let text = self.text;
+        let prompt = prompt_of(node).map(|p| p.0);
+        let view = self.view.clone().unwrap_or_default();
+        if let Some(p) = prompt {
+            self.descriptors.push(GenerationDescriptor {
+                selector: None,
+                region: None,
+                owner: self.owner.clone(),
+                kind: GenerationKind::ViewRootStyleInline,
+                label: Some(view.clone()),
+                prompt: Some(p),
+                profile: self.host_profile.clone(),
+                span: node.span,
+                anchor: self.anchor("view-style-inline", &view, &view),
+                target: Some(view),
+                has_generation_identity: true,
+                params: Vec::new(),
+                args: Vec::new(),
+                use_sites: Vec::new(),
+            });
+        } else if let Some(name) = names(node, text).into_iter().next() {
+            self.descriptors.push(GenerationDescriptor {
+                selector: None,
+                region: None,
+                owner: self.owner.clone(),
+                kind: GenerationKind::ViewRootStyleNamed,
+                label: Some(name.clone()),
+                prompt: None,
+                profile: None,
+                span: node.span,
+                anchor: self.anchor("view-style-use", &name, &view),
+                target: Some(name),
+                has_generation_identity: false,
+                params: Vec::new(),
+                args: Vec::new(),
+                use_sites: Vec::new(),
+            });
         }
     }
 }
@@ -913,24 +936,8 @@ pub fn discover_generation(tree: &SyntaxNode, text: &str) -> GenerationDiscovery
     // A file may compose an app and several packages. Definitions, target
     // lookup and anonymous association evidence belong to each declaration,
     // never to the first module written in the file.
-    if !matches!(tree.kind, SyntaxKind::App | SyntaxKind::Package) {
-        let modules: Vec<_> = tree
-            .children
-            .iter()
-            .filter(|node| matches!(node.kind, SyntaxKind::App | SyntaxKind::Package))
-            .collect();
-        if !modules.is_empty() {
-            let mut found = GenerationDiscovery {
-                descriptors: Vec::new(),
-                diagnostics: Vec::new(),
-            };
-            for module in modules {
-                let scoped = discover_generation(module, text);
-                found.descriptors.extend(scoped.descriptors);
-                found.diagnostics.extend(scoped.diagnostics);
-            }
-            return found;
-        }
+    if let Some(found) = discover_multi_module(tree, text) {
+        return found;
     }
     let owner = module_owner(tree, text);
     let mut collector = Collector {
@@ -949,126 +956,10 @@ pub fn discover_generation(tree: &SyntaxNode, text: &str) -> GenerationDiscovery
     let mut diagnostics: Vec<Diagnostic> = Vec::new();
     let (models, operations) = collect_models(tree, text);
 
-    let err = |code: &'static str, msg: String, span: Span, diags: &mut Vec<Diagnostic>| {
-        diags.push(Diagnostic::error(code, msg, span));
-    };
-
     // Definition tables collected before resolving applications.
-    let mut trait_defs: HashMap<String, Span> = HashMap::new();
-    let mut keyword_defs: HashMap<String, Span> = HashMap::new();
-    let mut style_defs: HashMap<String, usize> = HashMap::new(); // label -> index
-    for (idx, d) in descriptors.iter().enumerate() {
-        match d.kind {
-            GenerationKind::NamedTrait => {
-                let label = d.label.clone().unwrap_or_default();
-                if BUILTINS.contains(&label.as_str()) {
-                    err(
-                        "E2002",
-                        format!("trait `{label}` redefines a built-in declaration"),
-                        d.span,
-                        &mut diagnostics,
-                    );
-                } else if trait_defs.insert(label.clone(), d.span).is_some() {
-                    err(
-                        "E2002",
-                        format!("duplicate trait definition `{label}`"),
-                        d.span,
-                        &mut diagnostics,
-                    );
-                }
-            }
-            GenerationKind::KeywordDefinition => {
-                let label = d.label.clone().unwrap_or_default();
-                if BUILTINS.contains(&label.as_str()) {
-                    err(
-                        "E2002",
-                        format!("keyword `{label}` redefines a built-in declaration"),
-                        d.span,
-                        &mut diagnostics,
-                    );
-                } else if keyword_defs.insert(label.clone(), d.span).is_some() {
-                    err(
-                        "E2002",
-                        format!("duplicate keyword definition `{label}`"),
-                        d.span,
-                        &mut diagnostics,
-                    );
-                }
-                for p in &d.params {
-                    if p.kind != "field" {
-                        continue;
-                    }
-                    let target = p.target_param.clone().unwrap_or_default();
-                    match d.params.iter().find(|q| q.name == target) {
-                        Some(q) if q.kind == "model" => {}
-                        Some(_) => err(
-                            "E2001",
-                            format!(
-                                "keyword `{label}` field parameter `{}` must target a `model` parameter, `{target}` is not one",
-                                p.name
-                            ),
-                            d.span,
-                            &mut diagnostics,
-                        ),
-                        None => err(
-                            "E2001",
-                            format!(
-                                "keyword `{label}` field parameter `{}` targets unknown parameter `{target}`",
-                                p.name
-                            ),
-                            d.span,
-                            &mut diagnostics,
-                        ),
-                    }
-                }
-            }
-            GenerationKind::StyleDefinition => {
-                let label = d.label.clone().unwrap_or_default();
-                if BUILTINS.contains(&label.as_str()) {
-                    err(
-                        "E2002",
-                        format!("style `{label}` redefines a built-in declaration"),
-                        d.span,
-                        &mut diagnostics,
-                    );
-                } else if style_defs.insert(label.clone(), idx).is_some() {
-                    err(
-                        "E2002",
-                        format!("duplicate style definition `{label}`"),
-                        d.span,
-                        &mut diagnostics,
-                    );
-                }
-            }
-            _ => {}
-        }
-    }
-    // A keyword name cannot ambiguously refer to a model or trait form.
-    for d in descriptors.iter() {
-        if d.kind != GenerationKind::KeywordDefinition {
-            continue;
-        }
-        let label = d.label.clone().unwrap_or_default();
-        if models.contains_key(&label) {
-            err(
-                "E2002",
-                format!(
-                    "ambiguous declaration name `{label}`: a keyword and a model cannot share one name"
-                ),
-                d.span,
-                &mut diagnostics,
-            );
-        } else if trait_defs.contains_key(&label) {
-            err(
-                "E2002",
-                format!(
-                    "ambiguous declaration name `{label}`: a keyword and a trait cannot share one name"
-                ),
-                d.span,
-                &mut diagnostics,
-            );
-        }
-    }
+    let (trait_defs, _keyword_defs, style_defs) =
+        collect_definition_tables(&descriptors, &mut diagnostics);
+    check_keyword_name_ambiguity(&descriptors, &models, &trait_defs, &mut diagnostics);
     // The borrowed map above complicates later mutation; rebuild indices.
     let keyword_params: HashMap<String, Vec<KeywordParamDescriptor>> = descriptors
         .iter()
@@ -1079,153 +970,19 @@ pub fn discover_generation(tree: &SyntaxNode, text: &str) -> GenerationDiscovery
     // Record style use sites on their definitions; validate references.
     let mut use_sites: HashMap<String, Vec<Span>> = HashMap::new();
     let mut style_edges: Vec<(String, String, Span)> = Vec::new();
-    for d in &descriptors {
-        match d.kind {
-            GenerationKind::TraitApplication => {
-                let label = d.label.clone().unwrap_or_default();
-                if !trait_defs.contains_key(&label) {
-                    err(
-                        "E2001",
-                        format!("unknown trait `{label}`"),
-                        d.span,
-                        &mut diagnostics,
-                    );
-                }
-            }
-            GenerationKind::StyleNamedUse | GenerationKind::ViewRootStyleNamed => {
-                let label = d.label.clone().unwrap_or_default();
-                if !style_defs.contains_key(&label) {
-                    err(
-                        "E2001",
-                        format!("unknown style `{label}`"),
-                        d.span,
-                        &mut diagnostics,
-                    );
-                } else {
-                    use_sites.entry(label.clone()).or_default().push(d.span);
-                    if let Some(t) = &d.target {
-                        // target carries the referenced name for named uses.
-                        let _ = t;
-                    }
-                    // Self-reference is the only cycle the v1 grammar can form.
-                    if d.anchor.contains(&format!(":{}", label))
-                        && d.kind == GenerationKind::ViewRootStyleNamed
-                    {
-                        // view name is in the anchor target slot; a view that
-                        // styles its root with a style of its own name and
-                        // that style is itself is diagnosed via duplicate/
-                        // unknown rules above.
-                    }
-                    // An edge only participates in a cycle when its host is
-                    // itself a style definition; ordinary component hosts
-                    // (the only hosts the v1 grammar admits) cannot cycle.
-                    let host = d.anchor.rsplit(':').next().unwrap_or_default().to_string();
-                    if style_defs.contains_key(&host) {
-                        style_edges.push((host, label, d.span));
-                    }
-                }
-            }
-            GenerationKind::KeywordApplication => {
-                let label = d.label.clone().unwrap_or_default();
-                let Some(params) = keyword_params.get(&label) else {
-                    err(
-                        "E2001",
-                        format!(
-                            "unknown custom keyword `{label}`; collect its keyword definition before resolving applications"
-                        ),
-                        d.span,
-                        &mut diagnostics,
-                    );
-                    continue;
-                };
-                // Missing / unknown arguments.
-                let provided: HashSet<String> = d.args.iter().map(|a| a.name.clone()).collect();
-                for p in params {
-                    if !provided.contains(&p.name) {
-                        err(
-                            "E2001",
-                            format!("keyword `{label}` requires argument `{}`", p.name),
-                            d.span,
-                            &mut diagnostics,
-                        );
-                    }
-                }
-                for a in &d.args {
-                    if !params.iter().any(|p| p.name == a.name) {
-                        err(
-                            "E2001",
-                            format!("unknown argument `{}` for keyword `{label}`", a.name),
-                            a.span,
-                            &mut diagnostics,
-                        );
-                    }
-                }
-                // Typed compile-time argument checks.
-                let by_name: HashMap<String, String> = d
-                    .args
-                    .iter()
-                    .map(|a| (a.name.clone(), a.value.clone()))
-                    .collect();
-                for a in &d.args {
-                    let Some(p) = params.iter().find(|p| p.name == a.name) else {
-                        continue;
-                    };
-                    check_keyword_arg(
-                        params,
-                        p,
-                        a,
-                        &by_name,
-                        &models,
-                        &operations,
-                        &mut diagnostics,
-                    );
-                }
-            }
-            _ => {}
-        }
-    }
+    check_applications(
+        &descriptors,
+        &trait_defs,
+        &style_defs,
+        &keyword_params,
+        &models,
+        &operations,
+        &mut use_sites,
+        &mut style_edges,
+        &mut diagnostics,
+    );
     // Cycle check over style edges (defensive DFS; v1 edges are use->def).
-    {
-        let mut graph: HashMap<String, Vec<String>> = HashMap::new();
-        for (from, to, _) in &style_edges {
-            graph.entry(from.clone()).or_default().push(to.clone());
-        }
-        let mut state: HashMap<String, u8> = HashMap::new();
-        fn dfs(
-            n: &str,
-            graph: &HashMap<String, Vec<String>>,
-            state: &mut HashMap<String, u8>,
-        ) -> bool {
-            state.insert(n.to_string(), 1);
-            if let Some(nexts) = graph.get(n) {
-                for m in nexts.clone() {
-                    match state.get(&m).copied().unwrap_or(0) {
-                        1 => return true,
-                        0 if dfs(&m, graph, state) => {
-                            return true;
-                        }
-                        _ => {}
-                    }
-                }
-            }
-            state.insert(n.to_string(), 2);
-            false
-        }
-        let keys: Vec<String> = graph.keys().cloned().collect();
-        for k in keys {
-            if state.get(&k).copied().unwrap_or(0) == 0 && dfs(&k, &graph, &mut state) {
-                if let Some((_, _, span)) = style_edges.iter().find(|(f, _, _)| f == &k) {
-                    err(
-                        "E2002",
-                        "cyclic style reference".to_string(),
-                        *span,
-                        &mut diagnostics,
-                    );
-                }
-                break;
-            }
-        }
-    }
+    check_style_cycles(&style_edges, &mut diagnostics);
     for d in &mut descriptors {
         if d.kind == GenerationKind::StyleDefinition
             && let Some(label) = &d.label
@@ -1240,6 +997,346 @@ pub fn discover_generation(tree: &SyntaxNode, text: &str) -> GenerationDiscovery
         descriptors,
         diagnostics,
     }
+}
+
+fn discovery_error(
+    diagnostics: &mut Vec<Diagnostic>,
+    code: &'static str,
+    msg: String,
+    span: Span,
+) {
+    diagnostics.push(Diagnostic::error(code, msg, span));
+}
+
+fn discover_multi_module(tree: &SyntaxNode, text: &str) -> Option<GenerationDiscovery> {
+    if !matches!(tree.kind, SyntaxKind::App | SyntaxKind::Package) {
+        let modules: Vec<_> = tree
+            .children
+            .iter()
+            .filter(|node| matches!(node.kind, SyntaxKind::App | SyntaxKind::Package))
+            .collect();
+        if !modules.is_empty() {
+            let mut found = GenerationDiscovery {
+                descriptors: Vec::new(),
+                diagnostics: Vec::new(),
+            };
+            for module in modules {
+                let scoped = discover_generation(module, text);
+                found.descriptors.extend(scoped.descriptors);
+                found.diagnostics.extend(scoped.diagnostics);
+            }
+            return Some(found);
+        }
+    }
+    None
+}
+
+fn collect_definition_tables(
+    descriptors: &[GenerationDescriptor],
+    diagnostics: &mut Vec<Diagnostic>,
+) -> (
+    HashMap<String, Span>,
+    HashMap<String, Span>,
+    HashMap<String, usize>,
+) {
+    let mut trait_defs: HashMap<String, Span> = HashMap::new();
+    let mut keyword_defs: HashMap<String, Span> = HashMap::new();
+    let mut style_defs: HashMap<String, usize> = HashMap::new(); // label -> index
+    for (idx, d) in descriptors.iter().enumerate() {
+        match d.kind {
+            GenerationKind::NamedTrait => {
+                let label = d.label.clone().unwrap_or_default();
+                if BUILTINS.contains(&label.as_str()) {
+                    discovery_error(
+                        diagnostics,
+                        "E2002",
+                        format!("trait `{label}` redefines a built-in declaration"),
+                        d.span,
+                    );
+                } else if trait_defs.insert(label.clone(), d.span).is_some() {
+                    discovery_error(
+                        diagnostics,
+                        "E2002",
+                        format!("duplicate trait definition `{label}`"),
+                        d.span,
+                    );
+                }
+            }
+            GenerationKind::KeywordDefinition => {
+                let label = d.label.clone().unwrap_or_default();
+                if BUILTINS.contains(&label.as_str()) {
+                    discovery_error(
+                        diagnostics,
+                        "E2002",
+                        format!("keyword `{label}` redefines a built-in declaration"),
+                        d.span,
+                    );
+                } else if keyword_defs.insert(label.clone(), d.span).is_some() {
+                    discovery_error(
+                        diagnostics,
+                        "E2002",
+                        format!("duplicate keyword definition `{label}`"),
+                        d.span,
+                    );
+                }
+                check_keyword_field_params(d, &label, diagnostics);
+            }
+            GenerationKind::StyleDefinition => {
+                let label = d.label.clone().unwrap_or_default();
+                if BUILTINS.contains(&label.as_str()) {
+                    discovery_error(
+                        diagnostics,
+                        "E2002",
+                        format!("style `{label}` redefines a built-in declaration"),
+                        d.span,
+                    );
+                } else if style_defs.insert(label.clone(), idx).is_some() {
+                    discovery_error(
+                        diagnostics,
+                        "E2002",
+                        format!("duplicate style definition `{label}`"),
+                        d.span,
+                    );
+                }
+            }
+            _ => {}
+        }
+    }
+    (trait_defs, keyword_defs, style_defs)
+}
+
+fn check_keyword_field_params(
+    d: &GenerationDescriptor,
+    label: &str,
+    diagnostics: &mut Vec<Diagnostic>,
+) {
+    for p in &d.params {
+        if p.kind != "field" {
+            continue;
+        }
+        let target = p.target_param.clone().unwrap_or_default();
+        match d.params.iter().find(|q| q.name == target) {
+            Some(q) if q.kind == "model" => {}
+            Some(_) => discovery_error(
+                diagnostics,
+                "E2001",
+                format!(
+                    "keyword `{label}` field parameter `{}` must target a `model` parameter, `{target}` is not one",
+                    p.name
+                ),
+                d.span,
+            ),
+            None => discovery_error(
+                diagnostics,
+                "E2001",
+                format!(
+                    "keyword `{label}` field parameter `{}` targets unknown parameter `{target}`",
+                    p.name
+                ),
+                d.span,
+            ),
+        }
+    }
+}
+
+fn check_keyword_name_ambiguity(
+    descriptors: &[GenerationDescriptor],
+    models: &HashMap<String, HashMap<String, String>>,
+    trait_defs: &HashMap<String, Span>,
+    diagnostics: &mut Vec<Diagnostic>,
+) {
+    // A keyword name cannot ambiguously refer to a model or trait form.
+    for d in descriptors.iter() {
+        if d.kind != GenerationKind::KeywordDefinition {
+            continue;
+        }
+        let label = d.label.clone().unwrap_or_default();
+        if models.contains_key(&label) {
+            discovery_error(
+                diagnostics,
+                "E2002",
+                format!(
+                    "ambiguous declaration name `{label}`: a keyword and a model cannot share one name"
+                ),
+                d.span,
+            );
+        } else if trait_defs.contains_key(&label) {
+            discovery_error(
+                diagnostics,
+                "E2002",
+                format!(
+                    "ambiguous declaration name `{label}`: a keyword and a trait cannot share one name"
+                ),
+                d.span,
+            );
+        }
+    }
+}
+
+fn check_applications(
+    descriptors: &[GenerationDescriptor],
+    trait_defs: &HashMap<String, Span>,
+    style_defs: &HashMap<String, usize>,
+    keyword_params: &HashMap<String, Vec<KeywordParamDescriptor>>,
+    models: &HashMap<String, HashMap<String, String>>,
+    operations: &HashSet<String>,
+    use_sites: &mut HashMap<String, Vec<Span>>,
+    style_edges: &mut Vec<(String, String, Span)>,
+    diagnostics: &mut Vec<Diagnostic>,
+) {
+    for d in descriptors {
+        match d.kind {
+            GenerationKind::TraitApplication => {
+                let label = d.label.clone().unwrap_or_default();
+                if !trait_defs.contains_key(&label) {
+                    discovery_error(
+                        diagnostics,
+                        "E2001",
+                        format!("unknown trait `{label}`"),
+                        d.span,
+                    );
+                }
+            }
+            GenerationKind::StyleNamedUse | GenerationKind::ViewRootStyleNamed => {
+                record_style_use(d, style_defs, use_sites, style_edges, diagnostics);
+            }
+            GenerationKind::KeywordApplication => {
+                check_keyword_application(d, keyword_params, models, operations, diagnostics);
+            }
+            _ => {}
+        }
+    }
+}
+
+fn record_style_use(
+    d: &GenerationDescriptor,
+    style_defs: &HashMap<String, usize>,
+    use_sites: &mut HashMap<String, Vec<Span>>,
+    style_edges: &mut Vec<(String, String, Span)>,
+    diagnostics: &mut Vec<Diagnostic>,
+) {
+    let label = d.label.clone().unwrap_or_default();
+    if !style_defs.contains_key(&label) {
+        discovery_error(
+            diagnostics,
+            "E2001",
+            format!("unknown style `{label}`"),
+            d.span,
+        );
+        return;
+    }
+    use_sites.entry(label.clone()).or_default().push(d.span);
+    if let Some(t) = &d.target {
+        // target carries the referenced name for named uses.
+        let _ = t;
+    }
+    // Self-reference is the only cycle the v1 grammar can form.
+    if d.anchor.contains(&format!(":{}", label)) && d.kind == GenerationKind::ViewRootStyleNamed
+    {
+        // view name is in the anchor target slot; a view that
+        // styles its root with a style of its own name and
+        // that style is itself is diagnosed via duplicate/
+        // unknown rules above.
+    }
+    // An edge only participates in a cycle when its host is
+    // itself a style definition; ordinary component hosts
+    // (the only hosts the v1 grammar admits) cannot cycle.
+    let host = d.anchor.rsplit(':').next().unwrap_or_default().to_string();
+    if style_defs.contains_key(&host) {
+        style_edges.push((host, label, d.span));
+    }
+}
+
+fn check_keyword_application(
+    d: &GenerationDescriptor,
+    keyword_params: &HashMap<String, Vec<KeywordParamDescriptor>>,
+    models: &HashMap<String, HashMap<String, String>>,
+    operations: &HashSet<String>,
+    diagnostics: &mut Vec<Diagnostic>,
+) {
+    let label = d.label.clone().unwrap_or_default();
+    let Some(params) = keyword_params.get(&label) else {
+        discovery_error(
+            diagnostics,
+            "E2001",
+            format!(
+                "unknown custom keyword `{label}`; collect its keyword definition before resolving applications"
+            ),
+            d.span,
+        );
+        return;
+    };
+    // Missing / unknown arguments.
+    let provided: HashSet<String> = d.args.iter().map(|a| a.name.clone()).collect();
+    for p in params {
+        if !provided.contains(&p.name) {
+            discovery_error(
+                diagnostics,
+                "E2001",
+                format!("keyword `{label}` requires argument `{}`", p.name),
+                d.span,
+            );
+        }
+    }
+    for a in &d.args {
+        if !params.iter().any(|p| p.name == a.name) {
+            discovery_error(
+                diagnostics,
+                "E2001",
+                format!("unknown argument `{}` for keyword `{label}`", a.name),
+                a.span,
+            );
+        }
+    }
+    // Typed compile-time argument checks.
+    let by_name: HashMap<String, String> = d
+        .args
+        .iter()
+        .map(|a| (a.name.clone(), a.value.clone()))
+        .collect();
+    for a in &d.args {
+        let Some(p) = params.iter().find(|p| p.name == a.name) else {
+            continue;
+        };
+        check_keyword_arg(params, p, a, &by_name, models, operations, diagnostics);
+    }
+}
+
+fn check_style_cycles(
+    style_edges: &[(String, String, Span)],
+    diagnostics: &mut Vec<Diagnostic>,
+) {
+    let mut graph: HashMap<String, Vec<String>> = HashMap::new();
+    for (from, to, _) in style_edges {
+        graph.entry(from.clone()).or_default().push(to.clone());
+    }
+    let mut state: HashMap<String, u8> = HashMap::new();
+    let keys: Vec<String> = graph.keys().cloned().collect();
+    for k in keys {
+        if state.get(&k).copied().unwrap_or(0) == 0 && style_dfs(&k, &graph, &mut state) {
+            if let Some((_, _, span)) = style_edges.iter().find(|(f, _, _)| f == &k) {
+                discovery_error(diagnostics, "E2002", "cyclic style reference".to_string(), *span);
+            }
+            break;
+        }
+    }
+}
+
+fn style_dfs(n: &str, graph: &HashMap<String, Vec<String>>, state: &mut HashMap<String, u8>) -> bool {
+    state.insert(n.to_string(), 1);
+    if let Some(nexts) = graph.get(n) {
+        for m in nexts.clone() {
+            match state.get(&m).copied().unwrap_or(0) {
+                1 => return true,
+                0 if style_dfs(&m, graph, state) => {
+                    return true;
+                }
+                _ => {}
+            }
+        }
+    }
+    state.insert(n.to_string(), 2);
+    false
 }
 
 fn check_keyword_arg(
@@ -1269,57 +1366,7 @@ fn check_keyword_arg(
             }
         }
         "field" => {
-            let (target_param, expected) = (
-                param.target_param.clone().unwrap_or_default(),
-                param.type_name.clone().unwrap_or_default(),
-            );
-            if !params.iter().any(|q| q.name == target_param) {
-                fail(
-                    format!(
-                        "keyword argument `{}` targets unknown parameter `{target_param}`",
-                        param.name
-                    ),
-                    diagnostics,
-                );
-                return;
-            }
-            let target_model = by_name.get(&target_param).cloned().unwrap_or_default();
-            if target_model.is_empty() {
-                // A missing-argument diagnostic was already emitted.
-                return;
-            }
-            let parts: Vec<&str> = value.split('.').collect();
-            if parts.len() != 2 {
-                fail(
-                    format!(
-                        "keyword argument `{}` must name a field as Model.field",
-                        param.name
-                    ),
-                    diagnostics,
-                );
-                return;
-            }
-            if !target_model.is_empty() && parts[0] != target_model {
-                fail(
-                    format!("field `{value}` does not belong to target model `{target_model}`"),
-                    diagnostics,
-                );
-                return;
-            }
-            match models.get(parts[0]).and_then(|f| f.get(parts[1])) {
-                None => fail(
-                    format!(
-                        "unknown field `{value}` for keyword argument `{}`",
-                        param.name
-                    ),
-                    diagnostics,
-                ),
-                Some(actual) if !expected.is_empty() && actual != &expected => fail(
-                    format!("field `{value}` has type `{actual}`, expected `{expected}`"),
-                    diagnostics,
-                ),
-                _ => {}
-            }
+            check_field_arg(params, param, arg, value, by_name, models, diagnostics);
         }
         "operation" => {
             if !operations.contains(value) {
@@ -1381,30 +1428,113 @@ fn check_keyword_arg(
         }
         k if k.ends_with("[]") => {
             let elem = k.strip_suffix("[]").unwrap_or(k);
-            if !(value.starts_with('[') && value.ends_with(']')) {
-                fail(
-                    format!(
-                        "keyword argument `{}` requires an array constant",
-                        param.name
-                    ),
-                    diagnostics,
-                );
-            } else {
-                let inner = &value[1..value.len().saturating_sub(1)];
-                for el in split_top_level(inner) {
-                    if let Some(detail) = const_element_error(elem, el, models, operations) {
-                        fail(
-                            format!(
-                                "keyword argument `{}` requires {elem} array elements: {detail}",
-                                param.name
-                            ),
-                            diagnostics,
-                        );
-                    }
-                }
-            }
+            check_array_arg(param, arg, elem, value, models, operations, diagnostics);
         }
         _ => {}
+    }
+}
+
+fn keyword_arg_error(arg: &KeywordArgDescriptor, msg: String, diagnostics: &mut Vec<Diagnostic>) {
+    diagnostics.push(Diagnostic::error("E2001", msg, arg.span));
+}
+
+fn check_field_arg(
+    params: &[KeywordParamDescriptor],
+    param: &KeywordParamDescriptor,
+    arg: &KeywordArgDescriptor,
+    value: &str,
+    by_name: &HashMap<String, String>,
+    models: &HashMap<String, HashMap<String, String>>,
+    diagnostics: &mut Vec<Diagnostic>,
+) {
+    let fail = |msg: String, diagnostics: &mut Vec<Diagnostic>| {
+        keyword_arg_error(arg, msg, diagnostics);
+    };
+    let (target_param, expected) = (
+        param.target_param.clone().unwrap_or_default(),
+        param.type_name.clone().unwrap_or_default(),
+    );
+    if !params.iter().any(|q| q.name == target_param) {
+        fail(
+            format!(
+                "keyword argument `{}` targets unknown parameter `{target_param}`",
+                param.name
+            ),
+            diagnostics,
+        );
+        return;
+    }
+    let target_model = by_name.get(&target_param).cloned().unwrap_or_default();
+    if target_model.is_empty() {
+        // A missing-argument diagnostic was already emitted.
+        return;
+    }
+    let parts: Vec<&str> = value.split('.').collect();
+    if parts.len() != 2 {
+        fail(
+            format!(
+                "keyword argument `{}` must name a field as Model.field",
+                param.name
+            ),
+            diagnostics,
+        );
+        return;
+    }
+    if !target_model.is_empty() && parts[0] != target_model {
+        fail(
+            format!("field `{value}` does not belong to target model `{target_model}`"),
+            diagnostics,
+        );
+        return;
+    }
+    match models.get(parts[0]).and_then(|f| f.get(parts[1])) {
+        None => fail(
+            format!(
+                "unknown field `{value}` for keyword argument `{}`",
+                param.name
+            ),
+            diagnostics,
+        ),
+        Some(actual) if !expected.is_empty() && actual != &expected => fail(
+            format!("field `{value}` has type `{actual}`, expected `{expected}`"),
+            diagnostics,
+        ),
+        _ => {}
+    }
+}
+
+fn check_array_arg(
+    param: &KeywordParamDescriptor,
+    arg: &KeywordArgDescriptor,
+    elem: &str,
+    value: &str,
+    models: &HashMap<String, HashMap<String, String>>,
+    operations: &HashSet<String>,
+    diagnostics: &mut Vec<Diagnostic>,
+) {
+    if !(value.starts_with('[') && value.ends_with(']')) {
+        keyword_arg_error(
+            arg,
+            format!(
+                "keyword argument `{}` requires an array constant",
+                param.name
+            ),
+            diagnostics,
+        );
+        return;
+    }
+    let inner = &value[1..value.len().saturating_sub(1)];
+    for el in split_top_level(inner) {
+        if let Some(detail) = const_element_error(elem, el, models, operations) {
+            keyword_arg_error(
+                arg,
+                format!(
+                    "keyword argument `{}` requires {elem} array elements: {detail}",
+                    param.name
+                ),
+                diagnostics,
+            );
+        }
     }
 }
 
