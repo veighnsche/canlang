@@ -19671,3 +19671,15 @@ implementation stays paused. Reconcile these documentation changes together with
 the living filetree plan, preserving newer committed compiler/runtime/Work history
 and concurrent uncommitted source/notes. No canonical task status, owner/target
 allocation, complete checkpoint or public/default/retirement release advances.
+
+
+## 2026-10-18 — extract bounded Given JavaScript trivia scanners
+
+Accepted implementation: split `blankGivenJsTrivia` into private comment, quoted-string,
+template and range helpers instead of changing the complexity rule or its allowances.
+The owning declaration and scanner behavior stay intact, including newline/length
+preservation and the existing template interpolation treatment. Independent diff
+review accepted the released extraction; the recorded 5,020-case old/new differential
+found no mismatches. Existing source-AST complexity validation applies to every new
+helper. This closes one original above-20 function; the remaining finite cleanup
+is separate, and broader JavaScript grammar support is not proposed here.
