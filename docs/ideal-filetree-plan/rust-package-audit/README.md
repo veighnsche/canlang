@@ -1,11 +1,12 @@
 # Additional Rust opportunities across packages
 
-**18 October 2026 — audit baseline `08dc8c3928f53c7a06984136ac52ff944360075c`; candidate 1 TS syntax completion recorded below.**
+**18 October 2026 — audit baseline `08dc8c3928f53c7a06984136ac52ff944360075c`; candidate 1 TS syntax and compiler parse/usage completions recorded below.**
 All **13 packages / 1,511 tracked paths** were accounted for at the historical
 baseline. The checkout was clean at intake. That planning audit started no
 implementation, build, product test, benchmark, dependency install, default switch
 or native preparation. A subsequent user release approved the message grammar
-profile and completed only the Shared TS syntax packet. Findings concern the
+profile and completed the Shared TS syntax packet; a further release on base
+`7700621fa` completed compiler parse/usage consolidation. Findings concern the
 complete package portfolio and candidate workflows; this is not exhaustive
 line-by-line correctness/security certification of all source, tests or generated binaries.
 
@@ -74,7 +75,7 @@ Detailed owners, callers and source evidence:
 This ordering is an engineering judgment about potential consistency/portability
 and total cost, not a measured throughput ranking. For unreleased candidates,
 “first output” is the finite remaining decision/evaluation; it is not approval
-to implement a pilot now. Candidate 1 records its separately released TS completion.
+to implement a pilot now. Candidate 1 records its separately released TS and compiler completions.
 A retain-TS decision completes an evaluation successfully. No generic new ABI,
 package, carrier, library or native executable is selected in advance.
 
@@ -82,13 +83,13 @@ package, carrier, library or native executable is selected in advance.
 
 **Defining owners:** Values public parser, Compiler source diagnostics, UI
 message consumer. Existing files: `values/src/icu.ts`, `ui/src/messages.ts`,
-`compiler/src/analysis/examples.rs` and related placeholder checks.
+`compiler/src/analysis/icu.rs`, `examples.rs` and related placeholder checks.
 
 **Historical gap:** three related parsers had materially different acceptance,
 errors and evaluation order. The [ICU matrix](icu-shared-parser-plan.md) retains
 that source-derived baseline at `0bb480bef`, including literal `#`, exact
 selectors, names, whitespace, rich tags, nesting and UTF16 offsets. Compiler
-integration remains pending. UI still admits locale/operands before parsing;
+consolidation is now complete at the selected scope. UI still admits locale/operands before parsing;
 Values still parses first.
 
 **Approved grammar; Shared TS syntax released and complete:** Values now owns
@@ -98,10 +99,19 @@ exported for UI. UI uses those nodes in its own renderer; its duplicate parser
 and AST are removed. The shared corpus has 24 accepted and 40 refused cases.
 Contracts/Values/UI emitted and typechecked; the focused run passed 241 tests,
 then the affected ICU/messages scope passed 165 after diagnostic fixes with the
-unchanged 76 results reused. This closes only the TS syntax packet. Compiler
-consolidation, UI full-signature/all-branch/all-variant usage and joined compiler
-completion remain unreleased proposals. A single Rust/Wasm implementation stays
-a separate dormant evaluation; native preparation remains **HUMAN HOLD**.
+unchanged 76 results reused. This closes the TS syntax packet.
+
+**Compiler parse/usage released and complete:** private `analysis/icu.rs` now
+supplies syntax and ordered valid-pattern usages to named/anonymous messages,
+inline descriptors and static contributed captions. Existing declaration/type
+hooks preserve diagnostic order; malformed patterns suppress speculative slot
+noise while retaining admitted explicit anonymous schemas. The
+[C09I completion note](../../research/compiler-library-audit-20261006/pass9/icu/correctness-packets.md)
+records 68 distinct Rust tests and the two frozen-compiler named/anonymous Node
+fixture checks, their consumer closure and limits. Accepted I-TYPE remains closed.
+UI full-signature/all-branch/all-variant usage and joined full completion remain
+unreleased proposals. A single Rust/Wasm implementation stays a separate dormant
+evaluation; native preparation remains **HUMAN HOLD**.
 
 **If a single Rust implementation is later selected:** consume that agreed grammar/error profile; remove
 one actual duplicate parsing responsibility, keep host Intl/date/plural formatting,
@@ -217,8 +227,9 @@ the implementation language does not supply permissions, atomicity or security.
 
 ## Dependencies, ownership and future lanes
 
-The ICU grammar decision and separately released TS syntax packet are complete
-at their recorded scope. Its remaining compiler/usage packets, Judgment host-need
+The ICU grammar decision and separately released TS syntax and compiler
+parse/usage packets are complete at their recorded scope. Its remaining UI usage
+and joined completion packets, Judgment host-need
 check, State order profile comparison and generation diff workload comparison
 remain independent **unreleased planning/evaluation scopes**. They consume named
 source/consumer outputs, not another owner's entire plan. Files and other lower
@@ -289,6 +300,6 @@ completed. No private instructions, local paths or secrets were sent as context.
 The original audit's documentation validation checked the exact inventory union,
 unique paths, source checkpoint, local references, JSON parsing, proposal/hold
 consistency and whitespace, with product source and original runtime/ledger
-manifests unchanged at that stage. The later TS implementation and focused checks
+manifests unchanged at that stage. The later TS and compiler implementations and focused checks
 are credited once under candidate 1 above. Other existing behavior checks retain
-their recorded scope; no performance or joined compiler claim is added here.
+their recorded scope; no performance or full joined-completion claim is added here.

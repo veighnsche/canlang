@@ -3290,323 +3290,54 @@ impl IcuType {
     }
 }
 
-/// Validate a static generated caption with no runtime parameters, reusing
-/// the ordinary ICU parser instead of admitting an unchecked display pattern.
-pub(crate) fn static_caption_icu_error(template: &str) -> Option<String> {
-    icu_error(template, Some(&HashMap::new()), true)
-}
-
-/// First ICU profile violation in `template`, if any.
-///
-/// Accepts the bounded DESIGN §9.1 profile: named `{name}` arguments,
-/// `{n,number}`/`{n,number,integer}`, `{d,date}`/`{d,time}` with short
-/// to full styles, and nested plural/selectordinal/select with a
-/// mandatory `other` branch. Rejects offsets, choice/skeleton styles,
-/// duplicate branches, `#` outside a plural and unbalanced patterns.
-/// Named-message coverage stays the types pass (`E3016`). Selected anonymous
-/// format descriptors additionally require their empty parameter schema.
+/// Typed validation stays at parser checkpoints; named coverage remains E3016.
 fn icu_error(
     template: &str,
     params: Option<&HashMap<String, IcuType>>,
     require_declared: bool,
 ) -> Option<String> {
-    let chars: Vec<char> = template.chars().collect();
-    IcuParser {
-        chars: &chars,
-        pos: 0,
-        params,
-        plural_depth: 0,
-        require_declared,
-    }
-    .parse_message(0)
-    .err()
-}
-
-struct IcuParser<'t> {
-    chars: &'t [char],
-    pos: usize,
-    params: Option<&'t HashMap<String, IcuType>>,
-    plural_depth: usize,
-    require_declared: bool,
-}
-
-impl<'t> IcuParser<'t> {
-    fn parse_message(&mut self, depth: usize) -> Result<(), String> {
-        if depth > 32 {
-            return Err("message nesting is too deep".to_string());
-        }
-        while let Some(&c) = self.chars.get(self.pos) {
-            match c {
-                '\'' => self.parse_quote()?,
-                '{' => self.parse_argument(depth)?,
-                '}' => return Err("unmatched '}'".to_string()),
-                '#' if self.plural_depth == 0 => {
-                    return Err("'#' needs an enclosing plural".to_string());
-                }
-                _ => self.pos += 1,
+    use super::icu::UsageKind;
+    super::icu::parse_with_validation(
+        template,
+        |name| {
+            if require_declared && params.is_some_and(|params| !params.contains_key(name)) {
+                Err(format!(
+                    "message pattern uses undeclared variable {{{name}}}"
+                ))
+            } else {
+                Ok(())
             }
-        }
-        Ok(())
-    }
-
-    /// Parse a message nested in a plural/select branch (stops before
-    /// the branch's closing `}`, which the caller consumes).
-    fn parse_nested(&mut self, depth: usize) -> Result<(), String> {
-        if depth > 32 {
-            return Err("message nesting is too deep".to_string());
-        }
-        while let Some(&c) = self.chars.get(self.pos) {
-            match c {
-                '\'' => self.parse_quote()?,
-                '{' => self.parse_argument(depth)?,
-                '}' => return Ok(()),
-                '#' if self.plural_depth == 0 => {
-                    return Err("'#' needs an enclosing plural".to_string());
-                }
-                _ => self.pos += 1,
-            }
-        }
-        Err("unclosed '{'".to_string())
-    }
-
-    /// ICU apostrophe quoting: `''` is literal; `'` before syntax
-    /// quotes until the next `'`; a lone `'` is literal text.
-    fn parse_quote(&mut self) -> Result<(), String> {
-        let next = self.chars.get(self.pos + 1).copied();
-        if next == Some('\'') {
-            self.pos += 2;
-            return Ok(());
-        }
-        if matches!(next, Some('{' | '}' | '#' | '|')) {
-            self.pos += 1;
-            while let Some(&c) = self.chars.get(self.pos) {
-                self.pos += 1;
-                if c == '\'' {
-                    if self.chars.get(self.pos) == Some(&'\'') {
-                        self.pos += 1;
+        },
+        |name, usage| {
+            let (allowed, what): (&[IcuType], &str) = match usage {
+                UsageKind::Plain => return Ok(()),
+                UsageKind::Number | UsageKind::Plural => (
+                    &[IcuType::Int, IcuType::Decimal],
+                    if usage == UsageKind::Number {
+                        "number"
                     } else {
-                        return Ok(());
-                    }
-                }
-            }
-            return Err("unterminated quoted text".to_string());
-        }
-        self.pos += 1;
-        Ok(())
-    }
-
-    fn parse_argument(&mut self, depth: usize) -> Result<(), String> {
-        self.pos += 1; // `{`
-        self.skip_ws();
-        let name = self.parse_name()?;
-        if self.require_declared
-            && self
-                .params
-                .is_some_and(|params| !params.contains_key(&name))
-        {
-            return Err(format!(
-                "message pattern uses undeclared variable {{{name}}}"
-            ));
-        }
-        self.skip_ws();
-        let end = self.chars.get(self.pos).copied();
-        if end == Some('}') {
-            self.pos += 1;
-            return Ok(());
-        }
-        if end != Some(',') {
-            return Err(format!("expected ',' or '}}' after '{{{name}'"));
-        }
-        self.pos += 1;
-        self.skip_ws();
-        let format = self.parse_name()?;
-        self.skip_ws();
-        match format.as_str() {
-            "number" => {
-                let mut integer_style = false;
-                if self.chars.get(self.pos) == Some(&',') {
-                    self.pos += 1;
-                    self.skip_ws();
-                    let style = self.parse_name()?;
-                    if style != "integer" {
-                        return Err(format!("unsupported number style '{style}'"));
-                    }
-                    integer_style = true;
-                    self.skip_ws();
-                }
-                let allowed: &[IcuType] = if integer_style {
-                    &[IcuType::Int]
-                } else {
-                    &[IcuType::Int, IcuType::Decimal]
-                };
-                self.check_arg(&name, allowed, "number")?;
-                self.expect_close(&name)?;
-            }
-            "date" | "time" => {
-                let allowed: &[IcuType] = if format == "date" {
-                    &[IcuType::Date, IcuType::DateTime]
-                } else {
-                    &[IcuType::DateTime]
-                };
-                self.check_arg(&name, allowed, format.as_str())?;
-                if self.chars.get(self.pos) == Some(&',') {
-                    self.pos += 1;
-                    self.skip_ws();
-                    let style = self.parse_name()?;
-                    if !matches!(style.as_str(), "short" | "medium" | "long" | "full") {
-                        return Err(format!("unsupported {format} style '{style}'"));
-                    }
-                    self.skip_ws();
-                }
-                self.expect_close(&name)?;
-            }
-            "plural" | "selectordinal" => {
-                let allowed: &[IcuType] = if format == "selectordinal" {
-                    &[IcuType::Int]
-                } else {
-                    &[IcuType::Int, IcuType::Decimal]
-                };
-                self.check_arg(&name, allowed, format.as_str())?;
-                self.expect_comma(&name, format.as_str())?;
-                self.plural_depth += 1;
-                let result = self.parse_options(&name, true, depth);
-                self.plural_depth -= 1;
-                result?;
-                self.expect_close(&name)?;
-            }
-            "select" => {
-                self.check_arg(
-                    &name,
-                    &[IcuType::TextLike, IcuType::Bool, IcuType::Enum],
-                    "select",
-                )?;
-                self.expect_comma(&name, "select")?;
-                self.parse_options(&name, false, depth)?;
-                self.expect_close(&name)?;
-            }
-            other => return Err(format!("unsupported format '{other}'")),
-        }
-        Ok(())
-    }
-
-    fn parse_options(&mut self, name: &str, plural: bool, depth: usize) -> Result<(), String> {
-        let mut seen: Vec<String> = Vec::new();
-        loop {
-            self.skip_ws();
-            let Some(&c) = self.chars.get(self.pos) else {
-                return Err(format!("unclosed '{{{name}'"));
+                        "plural"
+                    },
+                ),
+                UsageKind::Integer | UsageKind::Ordinal => (
+                    &[IcuType::Int],
+                    if usage == UsageKind::Integer {
+                        "number"
+                    } else {
+                        "selectordinal"
+                    },
+                ),
+                UsageKind::Date => (&[IcuType::Date, IcuType::DateTime], "date"),
+                UsageKind::Time => (&[IcuType::DateTime], "time"),
+                UsageKind::Select => (&[IcuType::TextLike, IcuType::Bool, IcuType::Enum], "select"),
             };
-            if c == '}' {
-                break;
-            }
-            let key = if plural && c == '=' {
-                self.pos += 1;
-                self.parse_number_key()?
-            } else {
-                let word = self.parse_name()?;
-                if plural && word == "offset" && self.chars.get(self.pos) == Some(&':') {
-                    return Err("plural offsets are not supported".to_string());
+            match params.and_then(|params| params.get(name)) {
+                Some(ty) if !allowed.contains(ty) => {
+                    Err(format!("{what} argument '{name}' has an incompatible type"))
                 }
-                word
-            };
-            if seen.contains(&key) {
-                return Err(format!("duplicate '{key}' branch"));
+                _ => Ok(()),
             }
-            seen.push(key);
-            self.skip_ws();
-            if self.chars.get(self.pos) != Some(&'{') {
-                return Err("expected '{' to open the branch".to_string());
-            }
-            self.pos += 1;
-            self.parse_nested(depth + 1)?;
-            self.pos += 1; // branch `}`
-        }
-        if !seen.contains(&"other".to_string()) {
-            return Err("plural and select need an 'other' branch".to_string());
-        }
-        Ok(())
-    }
-
-    fn parse_number_key(&mut self) -> Result<String, String> {
-        let start = self.pos;
-        if self.chars.get(self.pos) == Some(&'-') {
-            self.pos += 1;
-        }
-        let mut digits = 0;
-        let mut dot = false;
-        while let Some(&c) = self.chars.get(self.pos) {
-            if c.is_ascii_digit() {
-                digits += 1;
-                self.pos += 1;
-            } else if c == '.' && !dot {
-                dot = true;
-                self.pos += 1;
-            } else {
-                break;
-            }
-        }
-        if digits == 0 {
-            return Err("expected a number after '='".to_string());
-        }
-        Ok(format!(
-            "={}",
-            self.chars[start..self.pos].iter().collect::<String>()
-        ))
-    }
-
-    fn parse_name(&mut self) -> Result<String, String> {
-        let start = self.pos;
-        let first = self.chars.get(self.pos).copied().unwrap_or('\0');
-        if !(first.is_ascii_alphabetic() || first == '_') {
-            return Err("expected an argument name".to_string());
-        }
-        while let Some(&c) = self.chars.get(self.pos) {
-            if c.is_ascii_alphanumeric() || c == '_' {
-                self.pos += 1;
-            } else {
-                break;
-            }
-        }
-        Ok(self.chars[start..self.pos].iter().collect())
-    }
-
-    fn skip_ws(&mut self) {
-        while self.chars.get(self.pos).is_some_and(|c| c.is_whitespace()) {
-            self.pos += 1;
-        }
-    }
-
-    fn expect_close(&mut self, name: &str) -> Result<(), String> {
-        if self.chars.get(self.pos) == Some(&'}') {
-            self.pos += 1;
-            Ok(())
-        } else {
-            Err(format!("unclosed '{{{name}'"))
-        }
-    }
-
-    fn expect_comma(&mut self, name: &str, format: &str) -> Result<(), String> {
-        if self.chars.get(self.pos) == Some(&',') {
-            self.pos += 1;
-            Ok(())
-        } else {
-            Err(format!("{format} '{{{name}' needs branches"))
-        }
-    }
-
-    /// Selector/argument type compatibility for declared parameters.
-    /// Undeclared variables stay the types pass (`E3016`).
-    fn check_arg(&self, name: &str, allowed: &[IcuType], what: &str) -> Result<(), String> {
-        let Some(params) = self.params else {
-            return Ok(());
-        };
-        let Some(ty) = params.get(name) else {
-            return Ok(());
-        };
-        if allowed.contains(ty) {
-            Ok(())
-        } else {
-            Err(format!("{what} argument '{name}' has an incompatible type"))
-        }
-    }
+        },
+    )
+    .err()
 }

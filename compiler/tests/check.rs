@@ -729,13 +729,13 @@ fn icu_profile_violations() {
     assert_e5(&src, &[("E5007", "\"{n,number,short}\"", 1)]);
     let src = message_source("(d:date) = \"{d,date,xx}\"@{}");
     assert_e5(&src, &[("E5007", "\"{d,date,xx}\"", 1)]);
-    // Unbalanced patterns and stray `#`.
+    // Unbalanced patterns; outside-plural `#` is literal.
     let src = message_source(" = \"Hi {name\"@{}");
     assert_e5(&src, &[("E5007", "\"Hi {name\"", 1)]);
     let src = message_source(" = \"Hi }\"@{}");
     assert_e5(&src, &[("E5007", "\"Hi }\"", 1)]);
     let src = message_source(" = \"#\"@{}");
-    assert_e5(&src, &[("E5007", "\"#\"", 1)]);
+    assert_e5_clean(&src);
     // Unknown formats.
     let src = message_source("(n:int) = \"{n,choice,0 {x} other {y}}\"@{}");
     assert_e5(&src, &[("E5007", "\"{n,choice,0 {x} other {y}}\"", 1)]);

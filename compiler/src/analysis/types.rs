@@ -11872,174 +11872,17 @@ fn expr_uses_name(node: &SyntaxNode, text: &str, name: &str) -> bool {
     }
 }
 
-/// Placeholder names in one message template: `{name}` plus the
-/// leading variable of typed ICU forms (`{n, number, ...}`, `{k,
-/// select, ...}`), recursing into plural/select branch bodies for
-/// nested placeholders. Branch selectors and literal body words are
-/// not slots: under the accepted profile (DESIGN §9.1; the runtime
-/// parser in `packages/values/src/icu.ts`) a branch body is message
-/// text and only `{...}` arguments bind. Quoted spans (`'{'`, `''`)
-/// contribute nothing. Anything outside a well-formed complex-argument
-/// shape falls back to the flat scan from the deviation point, so
-/// malformed patterns keep their current diagnostics and genuinely
-/// unknown names still fail (`E3016`); full ICU option validation
-/// itself stays out of scope (DESIGN §9.1).
+/// Names in source order from the one ICU grammar, across every branch.
+/// Malformed patterns supply no speculative slots: E5007 owns their failure.
 fn message_slots(template: &str) -> Vec<String> {
-    let chars: Vec<char> = template.chars().collect();
+    let Ok(usages) = super::icu::parse(template) else {
+        return Vec::new();
+    };
     let mut slots = Vec::new();
-    let mut i = 0;
-    scan_message(&chars, &mut i, &mut slots, false, 0);
+    for usage in usages {
+        push_slot(&mut slots, usage.name);
+    }
     slots
-}
-
-/// Scan message text, collecting slots, until the end of the template
-/// (top level) or the closing brace of the enclosing branch body
-/// (`nested`, consumed). A stray top-level close is malformed-pattern
-/// noise the profile stage rejects; it is skipped here.
-fn scan_message(chars: &[char], i: &mut usize, slots: &mut Vec<String>, nested: bool, depth: u32) {
-    while *i < chars.len() {
-        match chars[*i] {
-            '\'' => skip_quoted(chars, i),
-            '{' => scan_argument(chars, i, slots, depth),
-            '}' => {
-                *i += 1;
-                if nested {
-                    return;
-                }
-            }
-            _ => *i += 1,
-        }
-    }
-}
-
-/// Scan one `{...}` argument at `chars[*i] == '{'`, pushing its slot
-/// name and dispatching typed forms on the profile keyword.
-fn scan_argument(chars: &[char], i: &mut usize, slots: &mut Vec<String>, depth: u32) {
-    if depth > 32 {
-        // Beyond the profile's nesting bound: the later stage rejects
-        // the pattern; keep the scan total without recursing.
-        *i += 1;
-        return;
-    }
-    let mut j = *i + 1;
-    let mut name = String::new();
-    while j < chars.len() && (chars[j].is_alphanumeric() || chars[j] == '_') {
-        name.push(chars[j]);
-        j += 1;
-    }
-    // A slot name is followed by `}`, `,` or whitespace; anything
-    // else (a nested or malformed brace) is skipped here.
-    if name.is_empty() {
-        *i += 1;
-        return;
-    }
-    let end = chars.get(j).copied().unwrap_or('}');
-    if end == '}' {
-        push_slot(slots, name);
-        *i = j + 1;
-        return;
-    }
-    if end != ',' && !end.is_whitespace() {
-        *i = j;
-        return;
-    }
-    push_slot(slots, name);
-    if end.is_whitespace() {
-        // Legacy `{name ...}` shape: the name binds and the rest of
-        // the span scans flat.
-        *i = j;
-        return;
-    }
-    let mut k = j + 1;
-    skip_spaces(chars, &mut k);
-    let keyword_start = k;
-    while k < chars.len() && chars[k].is_ascii_alphabetic() {
-        k += 1;
-    }
-    let keyword: String = chars[keyword_start..k].iter().collect();
-    if matches!(keyword.as_str(), "plural" | "selectordinal" | "select") {
-        let mut head = k;
-        skip_spaces(chars, &mut head);
-        if chars.get(head).copied() == Some(',') {
-            *i = head + 1;
-            scan_branches(chars, i, slots, depth + 1);
-            return;
-        }
-        // Malformed complex head: resume the flat scan.
-        *i = k;
-        return;
-    }
-    // Simple (`number`/`date`/`time`) or out-of-profile type: the name
-    // already binds. Consume its own closing brace before the enclosing
-    // branch resumes; nested malformed slots still receive the same scan.
-    *i = k;
-    scan_message(chars, i, slots, true, depth + 1);
-}
-
-/// Scan the branch list of a well-formed `{name,
-/// plural|selectordinal|select, ...}` head: selectors contribute
-/// nothing and bodies recurse for nested placeholders. Any structural
-/// deviation abandons the branch walk and resumes the flat scan at
-/// the deviation point (no brace is consumed on those paths, so the
-/// fallback sees the same braces the flat scan would).
-fn scan_branches(chars: &[char], i: &mut usize, slots: &mut Vec<String>, depth: u32) {
-    loop {
-        skip_spaces(chars, i);
-        match chars.get(*i).copied() {
-            None => return,
-            Some('}') => {
-                *i += 1;
-                return;
-            }
-            Some('=') => {
-                // Exact `=N` plural selector.
-                *i += 1;
-                let start = *i;
-                while *i < chars.len() && (chars[*i].is_ascii_digit() || chars[*i] == '.') {
-                    *i += 1;
-                }
-                if *i == start {
-                    return;
-                }
-            }
-            Some(c) if c.is_ascii_alphanumeric() || c == '_' || c == '-' => {
-                while *i < chars.len()
-                    && (chars[*i].is_ascii_alphanumeric() || chars[*i] == '_' || chars[*i] == '-')
-                {
-                    *i += 1;
-                }
-            }
-            // Quote, brace or anything else where a selector belongs:
-            // malformed; resume the flat scan here.
-            _ => return,
-        }
-        skip_spaces(chars, i);
-        if chars.get(*i).copied() != Some('{') {
-            return;
-        }
-        *i += 1;
-        scan_message(chars, i, slots, true, depth);
-    }
-}
-
-/// Skip an ICU apostrophe span at `chars[*i] == '\''`: `''` is one
-/// literal apostrophe, otherwise everything to the next `'` is quoted.
-fn skip_quoted(chars: &[char], i: &mut usize) {
-    if chars.get(*i + 1).copied() == Some('\'') {
-        *i += 2;
-        return;
-    }
-    *i += 1;
-    while *i < chars.len() && chars[*i] != '\'' {
-        *i += 1;
-    }
-    *i += 1;
-}
-
-fn skip_spaces(chars: &[char], i: &mut usize) {
-    while *i < chars.len() && chars[*i].is_whitespace() {
-        *i += 1;
-    }
 }
 
 fn push_slot(slots: &mut Vec<String>, name: String) {
@@ -19426,13 +19269,19 @@ impl<'a> Typer<'a> {
     ) -> ResolvedType {
         let before = self.diags.len();
         let mut slots = Vec::new();
+        let mut patterns_valid = true;
         for literal in descriptor
             .descendants()
             .filter(|n| n.kind == SyntaxKind::Literal)
         {
             if let Some(template) = string_literal_value(literal) {
-                for slot in message_slots(&template) {
-                    push_slot(&mut slots, slot);
+                match super::icu::parse(&template) {
+                    Ok(usages) => {
+                        for usage in usages {
+                            push_slot(&mut slots, usage.name);
+                        }
+                    }
+                    Err(_) => patterns_valid = false,
                 }
             }
         }
@@ -19450,7 +19299,10 @@ impl<'a> Typer<'a> {
                 valid = false;
                 continue;
             };
-            if names.contains(name) || !slots.contains(name) {
+            // A malformed pattern cannot establish that a supplied binding is
+            // unused. Keep its admitted schema for E5007's typed checkpoints;
+            // duplicate names and value admission remain unconditional.
+            if names.contains(name) || (patterns_valid && !slots.contains(name)) {
                 self.diags.push(Diagnostic::error(
                     "E3005",
                     format!(
@@ -22431,7 +22283,7 @@ fn given_check_trait_definition(
                 ));
                 continue;
             };
-            if let Some(problem) = super::examples::static_caption_icu_error(&text) {
+            if let Some(problem) = super::icu::static_caption_error(&text) {
                 fail(Diagnostic::error(
                     "E5007",
                     format!("invalid contributed field label: {problem}"),

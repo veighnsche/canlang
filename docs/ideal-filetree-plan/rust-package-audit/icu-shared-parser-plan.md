@@ -1,17 +1,19 @@
 # Bounded ICU grammar and shared-parser plan
 
-**18 October 2026 · approved grammar profile; Shared TS syntax packet complete.**
+**18 October 2026 · approved grammar profile; TS sharing and compiler consolidation complete.**
 The source investigation below retains its historical baseline at
 `0bb480bef36b8a4aa9dafd932a06443f5543d33c` (inspected product files unchanged from
-`08dc8c392`). The user approved the grammar profile and released only the Shared
-TS syntax packet for [package-audit candidate 1](README.md#1-shared-bounded-message-syntax--strongest-semantic-consistency-opportunity).
-Compiler consolidation and UI full-signature usage remain unreleased proposals;
-joined compiler completion remains pending. Native preparation remains **HUMAN HOLD**.
+`08dc8c392`). The user approved the grammar profile, then separately released
+Shared TS syntax and compiler parse/usage consolidation for
+[package-audit candidate 1](README.md#1-shared-bounded-message-syntax--strongest-semantic-consistency-opportunity).
+Both packets are complete at their recorded scopes. UI full-signature usage
+remains unreleased; joined completion remains pending. Native preparation remains
+**HUMAN HOLD**.
 
 **Accepted profile and staged direction:** use the Values grammar as the explicitly
-documented baseline. Values and UI now share its TS parser. Consolidating compiler
-syntax and placeholder discovery into one Rust parser remains separately
-proposed. Retain two implementations initially. Consider one Rust implementation
+documented baseline. Values and UI share its TS parser; compiler syntax and
+placeholder discovery now share one private Rust parser. Retain these two
+implementations. Consider one Rust implementation
 serving all three only in the bounded follow-up below; do not require Wasm to call
 today's synchronous public TS parser as an incidental refactor.
 
@@ -36,7 +38,7 @@ grammar column below.
 | --- | --- | --- |
 | Values | [`src/icu-syntax.ts`](../../../packages/values/src/icu-syntax.ts): shared syntax/normalization/diagnostics; [`src/icu.ts`](../../../packages/values/src/icu.ts): public `parseMessageFormat`, `validateMessagePattern`, descriptors and rendering; root exports in `src/index.ts` | Public AST/node shapes and exact bigint selectors; `ValueError`; own-key binding checks; numeric admission; locale/Intl and formatting |
 | UI | [`src/messages.ts`](../../../packages/ui/src/messages.ts): shared Values syntax consumer; `message`, `formatMessageResult`, captions/components; former private parser removed | Contracts descriptors, optional owning `sourceLocale`, resolved type IDs/native operands, public error family, locale selection, exact rendering, HTML escaping and `lang`/direction |
-| Compiler | [`analysis/examples.rs`](../../../compiler/src/analysis/examples.rs): `IcuParser`/`icu_error`/static caption checking; [`analysis/types.rs`](../../../compiler/src/analysis/types.rs): `message_slots` and its scanners | Source signatures, explicit binding, disclosure/provenance, source/variant ownership, diagnostic codes/order and whole authored-literal spans |
+| Compiler | [`analysis/icu.rs`](../../../compiler/src/analysis/icu.rs): syntax, ordered valid-pattern usages and declaration/type checkpoints; [`analysis/examples.rs`](../../../compiler/src/analysis/examples.rs): `IcuType` mapping and `icu_error` adapter; [`analysis/types.rs`](../../../compiler/src/analysis/types.rs): coverage, anonymous binding and static-caption consumers | Source signatures, explicit binding, disclosure/provenance, source/variant ownership, diagnostic codes/order and whole authored-literal spans |
 
 UI already imports and depends on Values; Values depends on Contracts, so parser
 reuse adds no package cycle. Compiler already depends on `values-semantics` for
@@ -94,8 +96,9 @@ and unrelated numeric/locale behavior remain outside the change.
 
 ## Usage discovery is part of the finite consolidation
 
-The compiler's earlier coverage pass is another grammar implementation, not just
-a list operation. `types.rs:11922–12040` differs from its ICU checker:
+At the investigation baseline, the compiler's earlier coverage pass was another
+grammar implementation, not just a list operation. `types.rs:11922–12040`
+differed from its ICU checker:
 
 - `Don't {ghost}` is hidden by the scanner's quote-to-next-apostrophe rule;
   `{ ghost }` misses the placeholder because it does not skip leading space.
@@ -103,25 +106,29 @@ a list operation. `types.rs:11922–12040` differs from its ICU checker:
   abandon branch scanning and mistake a branch body such as `{one}` for an
   argument. Unicode/digit-start names can produce coverage noise before the
   stricter ICU checker rejects the grammar.
-- For valid patterns, derive names and usage kinds from the same parser that
-  validates syntax. Retain source order and all branches; selectors, quoted
-  text and branch prose are not arguments. For malformed patterns, propose
-  suppressing speculative slot extraction and leave the failure to the existing
-  E5007 checker. The removal of malformed-input E3016/E3013 noise is an explicit
-  diagnostic change, not an unnoticed consequence of extraction.
+- The implemented consolidation derives names and usage kinds from the same
+  parser that validates syntax, retaining source order and all branches.
+  Selectors, quoted text and branch prose are not arguments. Malformed patterns
+  supply no speculative slots; E5007 retains syntax/type failure ownership.
+  Removal of malformed-input E3016/E3013 noise is an explicit approved change.
+  Anonymous binding retains admitted supplied schemas for typed checkpoints;
+  a malformed pattern cannot establish that a supplied argument is unused.
+  Duplicate binding and value-admission errors remain unconditional.
 
-The compiler consumer list is finite: named source/present variants; explicitly
+The completed compiler consumer list is finite: named source/present variants; explicitly
 bound anonymous descriptors; selected raw format leaves through checked
 aliases/choices; remaining inline structural checks; static contributed-field
-captions; and the four `message_slots` call sites (`types.rs:6363,6434,9269,19434`)
-for general coverage, page context-free checks and anonymous binding unions.
+captions; and the four former `message_slots` call sites for source/variant
+coverage, page context-free checks and anonymous binding unions. The first three
+use the shared valid-only name helper; anonymous binding consumes the same parse
+result directly so it can preserve its schema on malformed input.
 Anonymous typed schemas already reach `IcuParser` (`examples.rs:293–316`);
 historical Pass9 wording that all anonymous descriptors are structural-only is
 no longer current. Keep plain `scan_format_template` for the separate machine
 template overload outside this migration.
 
 UI still converts every supplied operand, then validates usage only while
-rendering the selected branch (`messages.ts:873–1019`). Thus
+rendering the selected branch in `formatMessageResult`/`renderArgument`. Thus
 `{s,select,a{ok} other{{missing}}}` with `s="a"` succeeds. Values checks all
 branches before rendering. UI `message()` also leaves source/variant syntax
 unchecked. These are separate full-signature gaps under DESIGN, not evidence
@@ -168,22 +175,22 @@ numeric behavior satisfies the intended language contract.
 
 ## Finite packets and dependencies
 
-The grammar profile is approved and the released Shared TS syntax packet is
-complete at the scope recorded below. Compiler consolidation, UI full-signature
-usage and joined compiler completion remain **proposed, unreleased**. Any later
+The grammar profile is approved. Shared TS syntax and compiler consolidation are
+released and complete at the scopes recorded below. UI full-signature usage and
+joined completion remain **proposed, unreleased**. Any later
 packet requires its own release and named producer output; it does not wait for
 whole A/V/W programmes.
 
 | Packet / existing scope | Defining owner and concrete prerequisite | Remaining change and observable acceptance |
 | --- | --- | --- |
-| Profile and witness decision — candidate 1; existing `I-POUND-POLICY` | Language/Values + Compiler/UI; this matrix, owner tests and existing C09I cases | **Grammar profile approved**, including literal outside-plural `#` and the listed lexical changes. UI full-signature behavior changes and compiler integration remain separately proposed, not released by grammar approval. |
+| Profile and witness decision — candidate 1; existing `I-POUND-POLICY` | Language/Values + Compiler/UI; this matrix, owner tests and existing C09I cases | **Grammar profile approved**, including literal outside-plural `#` and the listed lexical changes. TS and compiler implementation were separately released; UI full-signature behavior remains proposed. |
 | Shared TS syntax — candidate 1 | Values writer then UI writer; approved profile/change list | **Released and complete.** Values owns shared syntax/selector normalization and narrow diagnostics; its existing wrapper preserves ValueError/AST behavior. UI consumes the AST in its own renderer; `PatternParser` and `PatternNode` are removed. Approved grammar, UI offset projection, nearest `#` and existing message/caption consumers pass as recorded below. |
-| One compiler parse/usage owner — existing C09I `I-COVERAGE`, `I-TAGS`, `I-PLURAL`, `I-SELECT`, `I-DEPTH`, `I-EXACT-LEXICAL`, `I-POUND-POLICY` | Compiler; approved profile/cases, existing IcuType mapping and current anonymous-schema outputs | Consolidate the scanner under a private analysis ICU module; all listed consumers use its grammar and valid-pattern usage result. Preserve typed diagnostic checkpoints via a small compiler-owned validation hook at the existing parse points; avoid a generic event/transport framework. Remove old permissive slot walkers and apply only the selected corrections. Done when all listed consumers and original finite packet boundaries pass, including escaped-literal spans, source/variant order and malformed recovery. Already accepted `I-TYPE` is a regression check, not reopened work. |
+| One compiler parse/usage owner — existing C09I `I-COVERAGE`, `I-TAGS`, `I-PLURAL`, `I-SELECT`, `I-DEPTH`, `I-EXACT-LEXICAL`, `I-POUND-POLICY` | Compiler; approved profile/cases, existing IcuType mapping and current anonymous-schema outputs | **Released and complete.** Private `analysis/icu.rs` owns syntax and ordered valid-pattern usages. All listed consumers share it; the permissive slot walkers and old examples parser are removed. Narrow declaration/type callbacks preserve the original checkpoints, whole authored-literal spans and malformed recovery. Original finite criteria and named/anonymous formatter consumers pass below. Accepted `I-TYPE` stays a regression check. |
 | UI full-signature usage — existing candidate 1 / DESIGN §9.1 consumer obligation | UI with Values usage producer; shared TS syntax result and type-only usage traversal available | Add the source/present-variant and all-branch checks described above using UI's existing type-ID mapping and operand adapter. Missing/invalid usage in an unselected branch/variant refuses; valid differing branch schemas, native operands and resolved text retain their contracts. No duplicate parsing in one formatting call; no new descriptor carrier. |
 | Joined completion — consumes the three outputs above | Values/UI/Compiler owners; exact changed producer closure | Run shared cases through actual public TS entries and compiler checks; one existing compiled-to-installed UI/formatter consumer covers anonymous/named messages and fallback. Verify unchanged literal captions, own-key handling, exact large/fractional branch selection, offsets and dual-fault ordering. Credit each outcome once; do not replay unrelated locale, numeric or full compiler qualification. Stop when selected grammar/usage scopes pass and duplicate parsers/scanners are removed. |
 
-The completed TS packet supplies the approved profile and shared cases for a
-separately released compiler packet. UI usage can consume the TS syntax result
+The completed TS and compiler packets share the approved profile and cases.
+UI usage can consume the TS syntax result
 but remains unreleased; joined completion waits only for its named outputs. One
 Values writer owns syntax/usage/export edits; one Compiler writer owns
 `examples.rs`/`types.rs` integration. No heavy cache, native
@@ -203,20 +210,21 @@ Keep the existing Values ICU and UI message suites for their adapter behavior;
 UI's message suite now includes own-versus-inherited binding regressions at the
 existing selected-usage boundary; reuse them for any later usage packet.
 
-Implemented TS allocation and proposed compiler allocation remain small:
+Implemented TS and compiler allocation remains small:
 
 - Values keeps `src/icu.ts` for public wrappers, descriptor/usage/formatting;
   private `src/icu-syntax.ts` now owns syntax/normalization and diagnostic data.
   Root `parseMessageSyntax` is the narrow shared entry; existing exports remain compatible.
 - UI keeps its descriptor/resolver/renderer in `src/messages.ts`; it now consumes
   Values nodes and diagnostics without importing Values rendering.
-- The proposed compiler allocation is a private `src/analysis/icu.rs` for one
-  native grammar/usage implementation and validation checkpoints, consumed by
-  `examples.rs`/`types.rs`. No new crate or product dependency is proposed.
+- Compiler's private `src/analysis/icu.rs` owns one grammar/usage implementation
+  and validation checkpoints, consumed by `examples.rs`/`types.rs`. It adds no
+  crate, dependency, public transport or rendering owner.
 - The shared plain corpus at `packages/values/test/fixtures/icu-profile.json`
   contains 24 accepted and 40 refused syntax cases consumed by Values and UI.
-  A later compiler packet can reuse it. Existing owner suites cover host errors,
-  rendering and depth; existing C09I cases remain the compiler baseline.
+  Compiler tests reuse its 63 Unicode-scalar cases; the lone-surrogate TS witness
+  remains explicitly outside Rust authored-string input. Existing owner suites
+  cover host errors, rendering and depth; C09I remains the historical baseline.
 
 ## Shared TS syntax completion — 18 October 2026
 
@@ -238,8 +246,42 @@ nearest-plural `#`, own bindings and existing rendering/caption behavior. A
 temporary isolated copy of Contracts/Values/UI manifests and emitted output also
 passed public package exports, quoted text, high-precision exact branch selection,
 locale fallback, literal/descriptor captions and diagnostic checks. The temporary
-copy was removed. These checks do not claim compiler consolidation, the later
+copy was removed. Those TS checks did not claim compiler consolidation, the later
 compiled-to-installed join, tarball/browser-asset qualification or native release.
+
+## Compiler parse/usage completion — 18 October 2026
+
+The user released this packet against `7700621fa`. The new private parser returns
+ordered names and usage kinds only for valid syntax. Its declaration hook runs
+before delimiter parsing; number style precedes numeric type checks, while
+date/time and plural/select types precede their later syntax checks. `examples.rs`
+retains the existing type mapping and E5007 adapter. `types.rs` retains E3016
+coverage, E3013 static-sink restrictions, E3005 explicit binding and E5009 value
+admission; syntax failures no longer create speculative slot diagnostics.
+For a malformed bound anonymous pattern, supplied types still reach E5007's
+checkpoints rather than being discarded as unused bindings. Valid patterns
+retain the ordinary extra-binding refusal.
+
+Validation passed: two parser unit tests cover the 63 shared scalar-string cases
+and ordered usage kinds; 38 existing check tests, 10 ICU-profile tests, six named
+coverage tests, three temporal-message tests and nine anonymous-binding checks
+pass (68 distinct Rust tests). The alias/choice test passed again after adding
+unselected/nested choice and unchanged machine-template controls. Unchanged
+parser/check results were reused after the isolated anonymous-schema correction.
+That correction has a confirmed failing-before/passing-after regression.
+
+The two existing named/anonymous formatter consumer scripts also pass using a
+frozen current compiler binary, local Values/UI emitted output, cached dependency
+outputs and Node24's `--experimental-transform-types` for source-loaded Cloudflare
+modules. They cover source/app fallback, native date/time and plural bindings,
+exact formatting, caption escaping and operand order; the existing ownerless-enum
+UI refusal remains explicit. These are the plan's existing consumers, not full
+Cloudflare tarball, browser, hosted or native-preparation qualification.
+
+No newer compiler/runtime source in the main checkout was edited; implementation
+and validation stayed in this isolated worktree. UI full-signature usage and its
+joined completion remain unreleased. No merge or complete checkpoint advance
+occurs here; native preparation remains **HUMAN HOLD**.
 
 ## Optional single-Rust-parser follow-up
 
@@ -295,5 +337,6 @@ The original investigation changed and executed no product code or tests;
 its source matrix and historical C09I results retain their recorded pins. The
 subsequent released TS implementation and focused checks are recorded above.
 No performance or joined compiler/installed-host claim follows from those TS
-checks. Compiler consolidation, UI full-signature usage and any later Rust
-adoption remain proposals; native preparation remains held.
+checks. Compiler consolidation is now separately completed above. UI
+full-signature usage and any later shared Rust adoption remain proposals;
+native preparation remains held.

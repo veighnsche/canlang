@@ -1,5 +1,36 @@
 # Living ideal file-tree plan for Canlang
 
+**Compiler ICU parse/usage consolidation, 2026-10-18 (base `7700621fa`):**
+the human released the compiler packet in the
+[current finite ICU plan](ideal-filetree-plan/rust-package-audit/icu-shared-parser-plan.md).
+`compiler/src/analysis/icu.rs` now owns bounded syntax, normalized exact selectors,
+ordered valid-pattern usages and narrow declaration/type checkpoints.
+`examples.rs` retains the type mapping and E5007 adapter; `types.rs` consumes the
+shared parse for source/variant coverage, page restrictions, anonymous binding
+and contributed static captions. The old examples parser and permissive slot
+walkers are removed; `analysis/mod.rs` registers the private owner. The existing
+`check.rs` outside-plural pound expectation follows the approved profile, and
+`tests/icu_profile.rs` covers the finite consumer and diagnostic contracts.
+
+All six compiler paths and seven documentation paths are accounted for here,
+in DESIGN/DECISIONS, the current ICU plan, package audit, Rust navigation and
+original C09I backlink. Existing compiler, Values and UI ownership remains;
+the selected compiler allocation is implemented without a new crate, dependency,
+runtime renderer or cross-language transport. Anonymous malformed patterns keep
+their admitted supplied schemas for typed E5007 ordering; valid patterns retain
+extra-binding E3005, and duplicate/value admission remains unconditional.
+
+Validation passes 68 distinct Rust tests across shared-profile units, compiler
+checks, ICU consumers, named coverage, temporal messages and anonymous bindings.
+The affected alias/choice test passed after its last test-only additions; unchanged
+results were reused. The two existing formatter consumer scripts passed with a
+frozen current compiler binary, local Values/UI output, cached dependencies and
+source-loaded Cloudflare modules. Exact limits and the TS-only lone-surrogate
+witness are retained in the current plan. No main-checkout source was edited;
+newer compiler/runtime work remains with its owner. No merge occurred, accumulated
+coverage and the complete review checkpoint remain unchanged, and UI's broader
+usage/joined completion remains unreleased. Native preparation stays **HUMAN HOLD**.
+
 **Approved ICU profile and shared TS syntax, 2026-10-18 (base `5b27e7bdd`):**
 the human released the Values/UI parser packet in the
 [current finite ICU plan](ideal-filetree-plan/rust-package-audit/icu-shared-parser-plan.md).
