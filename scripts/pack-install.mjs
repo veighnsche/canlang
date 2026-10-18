@@ -49,21 +49,19 @@ function write(path, contents, group, mode = 0o644) {
   files.set(relative(stage, path), { group, bytes: Buffer.byteLength(contents) });
 }
 const excluded = new Set(['node_modules', '.git', '.bin', '__tests__', '__snapshots__', 'coverage', 'CHANGELOG.md']);
-const retiredDevEntries = new Set(['control-cli.js', 'control-client.js', 'session-core.js', 'session-service.js',
-  'session-socket.js', 'session-daemon.js', 'session-daemon-entry.js', 'terminal.js', 'terminal-presenter.js']);
 function productionFile(name, path) {
   if (excluded.has(name)) return false;
-  if (path.includes('/cloudflare/dist/dev/') && retiredDevEntries.has(name)) return false;
   if (/^README(?:\.md)?$/i.test(name) && !/license|copyright|notice/i.test(readFileSync(path, 'utf8'))) return false;
   // Postinstall duplicates the host optional-package executable; runtime resolves that owner directly.
   if (/[/]csv-parse[/]dist[/](?:umd|iife)$/.test(path)) return false;
   if (path.endsWith('/workerd/bin/workerd') || path.endsWith('/wrangler/wrangler-dist/metafile-cjs.json')) return false;
-  if (/\.(?:test|spec)\.[cm]?js$/.test(name) || name.endsWith('.tsbuildinfo')) return false;
+  if (/\.(?:test|spec|test-support)\.[cm]?js$/.test(name) || name.endsWith('.tsbuildinfo')) return false;
   // Values BUILD.json verifies the generated declaration bytes as well as WASM/glue.
   if (/\.(?:map|ts|tsx)$/.test(name) && !path.includes('/bindings/generated/') && !path.includes('/wrangler/templates/')) return false;
   return true;
 }
 copy(join(root, 'scripts/distribution/module-resolution.mjs'), join(stage, 'libexec/module-resolution.mjs'), 'launchers');
+copy(join(root, 'dev-server/host'), join(stage, 'libexec/dev-server-host'), 'dev-server');
 const compiler = options.get('--compiler') ?? join(root, 'compiler/target/release/can');
 const devServer = options.get('--dev-server') ?? join(root, 'compiler/target/release/can-dev');
 copy(compiler, join(stage, 'libexec/can'), 'compiler');
@@ -177,7 +175,8 @@ for (const pkg of packages.values()) for (const destination of pkg.destinations)
   }
 }
 execFileSync(join(stage, 'libexec/node'), ['--input-type=module', '-e', "await import('@canlang/cloudflare'); await import('@canlang/testkit')"], { cwd: stage, stdio: 'inherit' });
-assert.ok(existsSync(join(stage, 'node_modules/@canlang/cloudflare/dist/dev/runtime-host.js')), 'Native runtime bridge is missing');
+assert.ok(existsSync(join(stage, 'libexec/dev-server-host/entry.mjs')), 'Native development SDK host is missing');
+assert.ok(existsSync(join(stage, 'node_modules/@canlang/cloudflare/dist/native-dev-catalog.json')), 'Native construct catalog is missing');
 
 
 // Existing release stamp ownership facts, without shipping development declarations.

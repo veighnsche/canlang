@@ -1,5 +1,5 @@
 /** Original Partner record route, source-owned capture action and public field policy. */
-import { createCheckoutScratch } from '../src/dev/checkout-scratch.js';
+import { createCheckoutScratch } from '../src/runtime/checkout-scratch.test-support.js';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { execFile } from 'node:child_process';
@@ -20,7 +20,7 @@ import { assembleModules } from '@canlang/cloudflare/runtime/modules';
 import { loadCanonicalDescriptors, materializeCanonicalExampleSnapshots } from '@canlang/cloudflare/runtime/invoke';
 import { assembleWorker } from '@canlang/cloudflare/worker/assembly';
 import { buildDerivedInputsModule } from '../dist/deploy/bundle.js';
-import { discoverGeneratedClosure } from '../dist/dev/generated-capture.js';
+import { discoverGeneratedClosure } from '../dist/runtime/native-dev.test-support.js';
 import { preparePartnerShareSource } from './partner-share-source.ts';
 
 const root = resolve(fileURLToPath(new URL('../../../', import.meta.url)));

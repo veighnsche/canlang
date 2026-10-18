@@ -22,7 +22,7 @@ import { validateStaged } from '@canlang/state/migration/validate';
 import { activate } from '@canlang/state/migration/activate';
 import { FIXED_NOW, asModel, asOperationId, asRevision, createMemoryIdentityStore,
   makeIdentity, seedMember, uuidv7 } from '@canlang/state/testing/invocation/fixtures';
-import { discoverGeneratedClosure, snapshotGeneratedClosure } from '../dev/generated-capture.js';
+import { discoverGeneratedClosure, snapshotGeneratedClosure } from './native-dev.test-support.js';
 import { parseArtifactText } from './artifact.js';
 import { assembleModules } from './modules.js';
 import { loadCanonicalDescriptors } from './invoke.js';

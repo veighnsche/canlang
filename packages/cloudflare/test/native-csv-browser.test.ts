@@ -52,8 +52,8 @@ test('public CSV APIs carry Chromium selections and review proof through localho
   { timeout: 120000 }, async () => {
   const { assembleModules } = await nodeImport(installed('runtime/modules.js')) as typeof import('../src/runtime/modules.js');
   const { buildInvoker } = await nodeImport(installed('worker/assembly.js')) as typeof import('../src/worker/assembly.js');
-  const { loadInstalledChromium, prepareLocalPreviewCapture } = await nodeImport(installed('dev/preview-inputs.js')) as typeof import('../src/dev/preview-inputs.js');
-  const { captureSingleFileSource, captureIsCurrent } = await nodeImport(installed('dev/source-capture.js')) as typeof import('../src/dev/source-capture.js');
+  const { loadInstalledChromium, prepareLocalPreviewCapture } = await nodeImport(installed('runtime/native-dev.test-support.js')) as typeof import('../src/runtime/native-dev.test-support.js');
+  const { captureSingleFileSource, captureIsCurrent } = await nodeImport(installed('runtime/native-dev.test-support.js')) as typeof import('../src/runtime/native-dev.test-support.js');
   const { createD1Storage, ensureSchema } = await nodeImport(producer('@canlang/state/storage/d1')) as typeof import('@canlang/state/storage/d1');
   const { hashInputs } = await nodeImport(producer('@canlang/state/invocation/replay')) as typeof import('@canlang/state/invocation/replay');
   const { createD1IdentityStore, ensureIdentitySchema, resolveIdentity, sha256HexText, deriveCsrfToken } =

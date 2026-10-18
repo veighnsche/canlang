@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { startLocalDev, type LocalDev, type LocalDevOptions } from "../src/dev/local-run.js";
+import { startLocalDev, type LocalDev, type LocalDevOptions } from "../src/runtime/native-preview.test-support.js";
 
 const worker = `export default { async fetch(request, env) {
   const url = new URL(request.url), key = url.searchParams.get("key") ?? "object";

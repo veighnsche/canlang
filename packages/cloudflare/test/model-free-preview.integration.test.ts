@@ -4,10 +4,10 @@ import { fileURLToPath } from 'node:url';
 import { expect, it } from 'vitest';
 import { deriveCsrfToken } from '@canlang/identity';
 import { distribution as valuesDistribution } from '@canlang/values/distribution';
-import { prepareLocalPreviewCapture } from '../src/dev/preview-inputs.js';
-import { captureIsCurrent, captureSingleFileSource } from '../src/dev/source-capture.js';
-import { compileCapturedSingleFile } from '../src/dev/compiler-check.js';
-import { createInstalledLocalPreviewBuilder } from '../src/dev/preview-host.js';
+import { prepareLocalPreviewCapture } from '../src/runtime/native-dev.test-support.js';
+import { captureIsCurrent, captureSingleFileSource } from '../src/runtime/native-dev.test-support.js';
+import { compileCapturedSingleFile } from '../src/runtime/native-dev.test-support.js';
+import { openNativePreview } from '../src/runtime/native-preview.test-support.js';
 
 const repo = resolve(fileURLToPath(new URL('../../../', import.meta.url)));
 
@@ -30,12 +30,12 @@ it('starts a source-current native model-free preview through actual global D1 a
 
   // This public installed producer runs real preflight and serving DB gates;
   // readiness cannot be manufactured with a supplied activation verdict.
-  const preview = await createInstalledLocalPreviewBuilder()(compiled.artifact, capture, compiled.artifactBytes);
+  const preview = await openNativePreview(compiled.artifact, capture, compiled.artifactBytes);
   try {
     expect(await captureIsCurrent(capture)).toBe(true);
     const issueOpenUrl = preview.issueOpenUrl;
     if (typeof issueOpenUrl !== 'function') throw new Error('installed preview has no protected-open producer');
-    const opened = issueOpenUrl();
+    const opened = await issueOpenUrl();
     const origin = new URL(opened).origin;
     expect(new URL(origin).hostname).toBe('127.0.0.1');
     const cookies = new Map<string, string>();

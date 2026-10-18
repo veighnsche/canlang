@@ -15,7 +15,7 @@ import { createContext, type HandlerContext } from "../src/runtime/context.js";
 import { findAssembledFrame, findRemappedFrame, invokeCallable } from "../src/runtime/invoke.js";
 import { assembleModules } from "../src/runtime/modules.js";
 import { decodeMappings, lookup } from "../src/runtime/sourcemap.js";
-import { startLocalDev } from "../src/dev/local-run.js";
+import { startLocalDev } from "../src/runtime/native-preview.test-support.js";
 
 // B3 I2: a NON-EMPTY real map (never EMPTY_MAP). Three generated lines map
 // to plain.can lines 1..3 at column 1: "AAAA" (origin), then two "AACA"

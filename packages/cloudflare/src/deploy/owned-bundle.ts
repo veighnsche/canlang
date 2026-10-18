@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { deserialize, serialize } from "node:v8";
 import type { CompileArtifact } from "@canlang/contracts";
 import type { LocalCommandLifetime } from "../cli/command-lifetime.js";
-import { cleanupAfterFailure, retryableDispose } from "../dev/cleanup.js";
+import { cleanupAfterFailure, retryableDispose } from "../runtime/resource-lifetime.js";
 import type { BuildPackageDeployBundleOptions, PackageDeployBundle } from "./bundle.js";
 
 export interface OwnedBundleOptions extends BuildPackageDeployBundleOptions {

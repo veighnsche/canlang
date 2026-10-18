@@ -75,7 +75,7 @@ test.each([
       const {WORK_SYSTEM_COMMANDS, WORK_DISPATCH_STAGE_COMMANDS, createWorkDispatchClaimCommand} =
         await nodeImport(pathToFileURL(require.resolve('@canlang/work/kernel/commands')).href) as typeof import('@canlang/work/kernel/commands');
       const {classifyFailure} = await nodeImport(pathToFileURL(require.resolve('@canlang/work/receipt')).href) as typeof import('@canlang/work/receipt');
-      const {createNativeFileRetirementBinding} = await nodeImport(pathToFileURL(join(root, 'packages/cloudflare/dist/dev/file-retirement.js')).href) as typeof import('../src/dev/file-retirement.js');
+      const {createNativeFileRetirementBinding} = await nodeImport(pathToFileURL(join(root, 'packages/cloudflare/dist/runtime/file-retirement.js')).href) as typeof import('../src/runtime/file-retirement.js');
       const {bindNativeEmailDispatchGuards} = await nodeImport(pathToFileURL(join(root, 'packages/cloudflare/dist/runtime/invoke.js')).href) as typeof import('../src/runtime/invoke.js');
       const env = {...process.env}; delete env.CAN_CATALOG;
       const {stdout} = await promisify(execFile)(compiler, ['compile', '--format=json', '--native-scenario-receipts', '--catalog', catalog, source],

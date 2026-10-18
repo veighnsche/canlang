@@ -22,6 +22,8 @@ export interface DraftSession {
 
 type JsonObject = Record<string, unknown>;
 const exec = promisify(execFile);
+const controlBin = process.env.CAN_DEV_BIN ?? "can";
+const controlPrefix = process.env.CAN_DEV_BIN === undefined ? ["dev"] : [];
 function object(value: unknown): JsonObject {
   if (value === null || typeof value !== "object" || Array.isArray(value)) {
     throw new Error("Development control returned an invalid object");
@@ -78,7 +80,7 @@ export async function openDraftSession(options: {
   async function control(command: string, args: string[], cleanup = false): Promise<JsonObject> {
     let stdout: string;
     try {
-      ({ stdout } = await exec(process.execPath, [resolve(root, "packages/cloudflare/dist/dev/control-cli.js"), command, ...args], {
+      ({ stdout } = await exec(controlBin, [...controlPrefix, command, ...args], {
         cwd: root, env: controlEnv, timeout: cleanup ? 15_000 : remaining(), maxBuffer: 256 * 1024,
       }));
     } catch (error) {
@@ -89,7 +91,7 @@ export async function openDraftSession(options: {
     catch { throw new Error(`Development control ${command} failed or returned invalid JSON`); }
     if (envelope.ok !== true) {
       throw new ControlFailure(typeof envelope.code === "string" ? envelope.code : "INVALID_RESPONSE",
-        envelope.code === "CONTROL_UNAVAILABLE" && typeof envelope.detail === "string" && envelope.detail.startsWith("ENOENT:"), command);
+        envelope.code === "CONTROL_IO" && envelope.detail === "No such file or directory (os error 2)", command);
     }
     if (envelope.command !== command || (command !== "start" && envelope.session !== session)) {
       throw new Error(`Development control ${command} returned a different session`);

@@ -3,11 +3,18 @@
 import { rmSync, writeFileSync } from 'node:fs';
 
 const output = new URL('../dist/native-catalog.json', import.meta.url);
+const devOutput = new URL('../dist/native-dev-catalog.json', import.meta.url);
 // A failed re-emission must not leave an earlier supported profile behind.
 rmSync(output, { force: true });
+rmSync(devOutput, { force: true });
 
 try {
   const { CATALOG } = await import('@canlang/values');
+  const { UI_CATALOG } = await import('@canlang/ui');
+  const { PUBLIC_ERROR_MESSAGES, buildBusinessError, FORM_REFUSAL_HEADER } = await import('@canlang/interfaces');
+  if (!Array.isArray(CATALOG.entries) || !Array.isArray(UI_CATALOG.entries)) {
+    throw new Error('Values and UI must supply their canonical catalog entries.');
+  }
   const matches = CATALOG.entries.filter(entry => entry.kind === 'builtin' && entry.id === 'active_member');
   if (matches.length !== 1 || matches[0].js !== 'active_member' ||
       matches[0].effects !== 'state-read' || matches[0].availability !== 'external') {
@@ -28,7 +35,12 @@ try {
     entries: CATALOG.entries.map(entry => entry === matches[0] ? { ...entry, availability: 'implemented' } : entry),
   };
   writeFileSync(output, `${JSON.stringify(catalog, null, 2)}\n`);
+  const retryableByCode = Object.fromEntries(Object.keys(PUBLIC_ERROR_MESSAGES)
+    .map(code => [code, buildBusinessError(code).retryable]));
+  writeFileSync(devOutput, `${JSON.stringify({ values: CATALOG.entries, ui: UI_CATALOG.entries,
+    publicErrorMessages: PUBLIC_ERROR_MESSAGES, retryableByCode, formRefusalHeader: FORM_REFUSAL_HEADER }, null, 2)}\n`);
   console.log(`native catalog ${catalog.catalog_version}: scoped active_member -> dist/native-catalog.json`);
+  console.log('native construct catalog: canonical Values/UI entries -> dist/native-dev-catalog.json');
 } catch (error) {
   console.error(`native catalog emit failed: ${error instanceof Error ? error.message : String(error)}`);
   process.exitCode = 1;

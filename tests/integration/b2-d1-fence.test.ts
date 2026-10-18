@@ -20,7 +20,7 @@
  * DO-local behavior is specified separately in `b2-do-local.test.ts`.
  */
 import { describe, expect, it } from "vitest";
-import { startLocalDev } from "@canlang/cloudflare";
+import { startLocalDev } from "../fixtures/raw-worker.js";
 import { createReport, diffReportValues } from "@canlang/testkit";
 import type {
   ModelName,

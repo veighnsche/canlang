@@ -1,4 +1,4 @@
-import { browserToolsRoot } from '../dev/browser-tools.js';
+import { browserToolsRoot } from '../runtime/browser-tools.js';
 /** Mandatory app checks over candidate bytes. This module never promotes files. */
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";

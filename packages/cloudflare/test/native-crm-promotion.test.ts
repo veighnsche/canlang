@@ -1,5 +1,5 @@
 /** Execute the original selected CRM promotion examples with their owning policies and saved Given. */
-import { createCheckoutScratch } from '../src/dev/checkout-scratch.js';
+import { createCheckoutScratch } from '../src/runtime/checkout-scratch.test-support.js';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
@@ -20,10 +20,10 @@ test('original CRM promotion examples execute with complete owning policies and 
   const directory = await createCheckoutScratch(root, 'native-crm-promotion-');
   try {
     const fixture = await prepareCrmPromotionSource(directory);
-    const { installedLocalPreviewInputInventory } = await nodeImport(installed('dev/preview-inputs.js')) as typeof import('../src/dev/preview-inputs.js');
-    const { captureSingleFileSource, captureIsCurrent, verifyCompilerSources } = await nodeImport(installed('dev/source-capture.js')) as typeof import('../src/dev/source-capture.js');
-    const { discoverGeneratedClosure } = await nodeImport(installed('dev/generated-capture.js')) as typeof import('../src/dev/generated-capture.js');
-    const { runCompiledExamples, loadInstalledExampleTestkit } = await nodeImport(installed('dev/example-runner.js')) as typeof import('../src/dev/example-runner.js');
+    const { installedLocalPreviewInputInventory } = await nodeImport(installed('runtime/native-dev.test-support.js')) as typeof import('../src/runtime/native-dev.test-support.js');
+    const { captureSingleFileSource, captureIsCurrent, verifyCompilerSources } = await nodeImport(installed('runtime/native-dev.test-support.js')) as typeof import('../src/runtime/native-dev.test-support.js');
+    const { discoverGeneratedClosure } = await nodeImport(installed('runtime/native-dev.test-support.js')) as typeof import('../src/runtime/native-dev.test-support.js');
+    const { runCompiledExamples, loadInstalledExampleTestkit } = await nodeImport(installed('runtime/example-bindings.test-support.js')) as typeof import('../src/runtime/example-bindings.test-support.js');
     const compilerPath = join(root, 'compiler/target/debug/can');
     const catalogPath = join(root, 'packages/cloudflare/dist/native-catalog.json');
     const inventory = installedLocalPreviewInputInventory(root, compilerPath);

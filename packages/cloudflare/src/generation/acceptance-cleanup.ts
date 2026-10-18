@@ -2,14 +2,14 @@
 import { execFile } from "node:child_process";
 import { readFile, readdir, stat } from "node:fs/promises";
 import { isAbsolute, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 
 interface ControlResult { code: number; stdout: string }
 export type AcceptanceCleanupControl = (args: string[], workspace: string) => Promise<ControlResult>;
 
-const controlCli = fileURLToPath(new URL("../dev/control-cli.js", import.meta.url));
 const installedControl: AcceptanceCleanupControl = (args, workspace) => new Promise((done, reject) => {
-  execFile(process.execPath, [controlCli, ...args], {
+  const binary = process.env.CAN_DEV_BIN ?? "can";
+  const prefix = process.env.CAN_DEV_BIN === undefined ? ["dev"] : [];
+  execFile(binary, [...prefix, ...args], {
     cwd: workspace, timeout: 10_000, killSignal: "SIGKILL", maxBuffer: 128 * 1024,
   }, (error, stdout) => {
     if (error !== null && !(typeof error.code === "number" && !error.killed)) {
@@ -32,8 +32,8 @@ function response(result: ControlResult, command: string): Record<string, unknow
 }
 
 function absent(result: ControlResult, body: Record<string, unknown>): boolean {
-  return result.code === 1 && body.ok === false && body.code === "CONTROL_UNAVAILABLE" &&
-    typeof body.detail === "string" && /\bENOENT\b/.test(body.detail);
+  return result.code === 1 && body.ok === false && body.code === "CONTROL_IO" &&
+    body.detail === "No such file or directory (os error 2)";
 }
 
 /** The optional controller is host-test injection; generation requests cannot set it. */

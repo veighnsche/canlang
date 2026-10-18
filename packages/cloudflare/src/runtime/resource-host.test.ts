@@ -14,9 +14,9 @@ import { createD1Storage, ensureSchema } from '@canlang/state/storage/d1';
 import { STATE_FILE_REFERENCE_PRODUCER } from '@canlang/state/storage';
 import { WORK_FILE_REFERENCE_PRODUCER } from '@canlang/work/kernel/file-reference-inventory';
 import { asModel, asOperationId, FIXED_NOW, uuidv7 } from '@canlang/state/testing/invocation/fixtures';
-import { assembleModules } from '@canlang/cloudflare/runtime/modules';
+import { assembleModules } from './modules.js';
 import { buildInvoker, type MutationOutcome } from '../worker/assembly.js';
-import { startLocalDev, type LocalDev, type LocalDevOptions } from '../dev/local-run.js';
+import { startLocalDev, type LocalDev, type LocalDevOptions } from './native-preview.test-support.js';
 import { createResourceHost, type ResourceBatch } from './resource-host.js';
 import { installNativeFileInventory } from './file-inventory.js';
 
@@ -82,7 +82,7 @@ test('compiled queue/analytics sends use the actual resource host, roll back, re
         { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 })) as CompileArtifact;
       const require = createRequire(import.meta.url);
       const asm = await assembleModules({ artifact, sourcePath: source }, { workDir: join(root, 'modules'),
-        stdlibUrl: pathToFileURL(require.resolve('@canlang/cloudflare/runtime/stdlib')).href,
+        stdlibUrl: new URL('./stdlib.js', import.meta.url).href,
         uiUrl: pathToFileURL(require.resolve('@canlang/ui')).href });
       const options = (): LocalDevOptions => ({ workerName: 'host-owner', compatibilityDate: '2026-07-15',
         mainModule: 'main.mjs', modules: { 'main.mjs': BRIDGE },

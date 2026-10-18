@@ -10,6 +10,40 @@ Maintain retry or refused retirement-hook consumer. Preserve those regression
 consumers and their named failures; the complete historical checkpoint does not
 advance. Muse is stopped, with no further issue intake.
 
+
+**Native ownership-completion coverage, 2026-10-18:** account incrementally
+for the port after68919a8b7, retaining the058a11b46 checkpoint and all22 incoming
+main paths through69d45c33c. The following released receipt-observer intake
+adds the two compiler paths and existing records through465bb1ba5; contributor
+policy00b46b744 applies. Development owns native inventory, configuration,
+persistence, help/example/browser qualification, safe refusal projections and
+private semantic-test policy under `dev-server/`. Its existing owner/state/watch
+and gateway retain authoritative admission, currentness, allocation and disposal.
+The fixed JS host retains direct SDK objects/calls only. Cloudflare's entire
+`src/dev` tree is retired. Genuine semantics live with runtime example bindings,
+fixture imports, resource lifetime, browser discovery and file retirement;
+deployment retains its SDK adapter and CLI retains artifact defaults plus a thin
+native handoff. Maintained generation/scripts/integration consumers migrate to
+these owners. Private runtime test facades are not installed. Testkit owns its
+real snapshot operation and direct Miniflare test fixtures; Values owns its exact
+numeric/bootstrap consumer, and Compiler's construct test reads native IDs. Root
+e2e/integration tests own a small direct Miniflare fixture, preserving real runtime
+assertions and avoiding new private-package imports.
+
+Distribution retains the existing installer/build/pack scripts, native component,
+fixed host and emitted native catalog. Public module exports are not expanded for
+private tests. Root/Cloudflare documentation and the existing development execution
+record retain their owners. Current scoped native133, physical lifecycle,
+real semantic/browser-cancellation and Linux installed23 outcomes are recorded in
+the canonical development plan; Private qualification passes41 construct proofs and the actual browser workflow;
+macOS checksum installation/manual and the combined complexity gate pass. Public qualification now passes41/41; final Linux installed criteria pass23/23
+(seven affected reruns plus sixteen unchanged results). Main integration preserves
+the stopped runtime scope and migrates its two new helper imports; integrated
+Cloudflare typecheck and actual compiled SEND consumer pass. Final timing remains
+with the existing dev-server owner. Reuse unchanged owner results and preserve foreign main edits, stopped U and
+the complete historical checkpoint. This coverage does not advance that checkpoint
+or reopen the separate later automation/application plans.
+
 **Receipt observer intake, 2026-10-18:** reconcile the two released compiler
 paths: `codegen/scenario_decisions.rs` owns checked delivery-read traversal;
 `codegen/source_require_retained_tests.rs` owns the source-Require regression

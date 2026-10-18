@@ -1,5 +1,41 @@
 # Canlang language design decisions
 
+## 2026-10-18 — complete native development ownership
+
+**Accepted user direction; implementation qualified except the listed final
+integration gates.** Rust owns inventory/configuration/persistence/preparation,
+construct policy and example/browser qualification sequencing. Remove the entire
+obsolete TypeScript dev tree and migrate maintained callers. Retain defining
+application/runtime/Testkit semantics and a fixed SDK bridge; relocating old
+orchestration is not completion. Private test facades use native policy and are
+excluded from installed archives. Existing allocation/late-result ownership,
+permissions, evaluation order, atomicity, cancellation joins and retryable cleanup
+remain authoritative.
+
+Keep exact requested/canonical watch interests and producer membership while
+ignoring unrelated parent siblings. The30-second fallback performs a real native
+input audit: time passing alone cannot invalidate an unchanged captured build or
+cancel its longer qualification. A failed audit or actual notification still
+invalidates it. Request identity encoding on private gateway responses so safe
+closed refusal parsing works when public clients request gzip. Reuse an unchanged
+serving generation only after a fresh capture confirms its exact inputs and hint.
+
+Current native133, actual lifecycle/semantic/Values/browser-cancellation and Linux
+installed23 criteria pass at their recorded scope in the existing development
+plan. Private proof41 and the real browser workflow, macOS checksum installation/manual,
+CLI32 and the combined complexity gate pass. Final public proof, component refresh,
+safe main integration and integrated timing remain open. The boundary audit retains62 inherited findings, including32 Interfaces test-only
+undeclared dependencies; the seven new private root-test imports are removed
+without a public testing API or exemptions. No whole-repository pass is inferred. Main sync68919a8b7 retains all released inputs through69d45c33c;
+its temporary canonical-root test issue is repaired. Foreign dirty main inputs
+and stopped U remain untouched; no push/publication.
+
+Three independently worded JEV NOUL consultations on the fixed SDK boundary return
+.73/.78/.81: consistent but uncertain advice, not verification. Existing requests
+and responses remain in
+`docs/design/jev/dev-native-runtime-boundary-20261018.json`. The acknowledged
+Miniflare inner-restart notification limitation remains separate.
+
 ## 2026-10-18 — retain user-requested repository cleanup
 
 **Accepted.** Commit the user's deletion of the two tracked root evidence
@@ -19698,3 +19734,20 @@ the current compiler-completion execution view; complete Maintain retry/replay,
 retirement-hook compilation and a fresh original24 capture remain unaccepted.
 The human requested wind-down and preservation of all work; this snapshot is not
 an assertion that every included original workflow passes. Muse remains stopped.
+
+
+### Native dev merge with stopped runtime work (2026-10-18)
+
+Integrate released 9074929be after the runtime preservation commit. Keep both
+owners' business logic and reconciliation notes; migrate the two newly authored
+runtime consumers to the moved file-retirement and checkout-scratch owners.
+Reuse the branch's native133, CLI32, public qualification41 and macOS installed
+manual6/6 results. Linux final packaging/affected checks and integrated timing
+are still tracked by the existing dev-server owner. The retained62 boundary
+findings and compiler/runtime workflow failures are not accepted as passing.
+
+Final merge validation: integrated Cloudflare TypeScript build passes and the
+actual compiled-Can SEND bound consumer passes1/1 after the helper relocation.
+The dev owner released final Linux23/23 (seven affected, sixteen unchanged),
+native133 and public41 results. This closes the listed packaging/qualification
+merge prerequisites; integrated timing remains with that existing owner.

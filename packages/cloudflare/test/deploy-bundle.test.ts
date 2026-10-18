@@ -24,8 +24,8 @@ import {
   writeDeployBundle,
   type ModuleSyntaxFacts,
 } from "../src/deploy/bundle.js";
-import { PINNED_COMPATIBILITY_DATE } from "../src/dev/zero-config.js";
-import { startLocalDev } from "../src/dev/local-run.js";
+import { PINNED_COMPATIBILITY_DATE } from "../src/cli/artifact-defaults.js";
+import { startLocalDev } from "../src/runtime/native-preview.test-support.js";
 import { rewriteModuleImports, scanModuleImports } from "../src/deploy/module-imports.js";
 import { resolveProducerFile } from "../src/deploy/producer-files.js";
 // Cross-package journey import: interfaces DIST (never src), per the

@@ -22,11 +22,16 @@ cd canlang
 bun install --frozen-lockfile
 bun run build
 bun run catalog
+export CARGO_TARGET_DIR="$PWD/compiler/target"
+export CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 CARGO_BUILD_JOBS=2
 bun run build:compiler
+cargo build --locked --manifest-path dev-server/Cargo.toml
 export PATH="$PWD/compiler/target/debug:$PWD/node_modules/.bin:$PATH"
 export CAN_CATALOG="$PWD/packages/values/dist/catalog.json"
 export CAN_PLATFORM_BIN="$PWD/packages/cloudflare/dist/cli/platform.js"
-export CAN_DEV_BIN="$PWD/packages/cloudflare/dist/dev/control-cli.js"
+export CAN_DEV_BIN="$PWD/compiler/target/debug/can-dev"
+export CAN_DEV_RUNTIME_HOST="$PWD/dev-server/host/entry.mjs"
+export CAN_HELP_INDEX="$PWD/docs/specification/CONSTRUCT-HELP.md"
 can --version
 ```
 

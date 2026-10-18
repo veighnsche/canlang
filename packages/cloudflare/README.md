@@ -2,9 +2,9 @@
 
 Lane-07 Cloudflare delivery. Two sides with a hard boundary:
 
-- **Node side** (`@canlang/cloudflare`): local dev runner, deploy-plan
-  generation, compatibility checks, install/upgrade orchestration. May use
-  Node APIs, Miniflare, and spawned `wrangler`.
+- **Node side** (`@canlang/cloudflare`): deploy-plan generation, compatibility
+  checks, install/upgrade orchestration and shared application runtime APIs.
+  May use Node APIs, Miniflare, and spawned `wrangler`.
 - **Worker side** (`@canlang/cloudflare/worker`): Worker entry assembly.
   Must import no Node builtins or Node-only packages; enforced by
   `test/worker-boundary.test.ts`.
@@ -13,7 +13,14 @@ Lane-07 Cloudflare delivery. Two sides with a hard boundary:
 land when compiler artifacts and producer inventory contracts exist; the
 directories are created with their first real module, not before.
 
-Local development checks are serialized and share the requesting connection's
+`can dev` is implemented in the Rust `dev-server` owner. It owns capture,
+compilation, configuration, retained preview state, examples and qualification.
+`dev-server/host` makes fixed JavaScript SDK calls for Miniflare, module/AST facts
+and browser access. The former TypeScript development controller and helpers are
+removed. Private native-backed SDK fixtures support semantic tests and are
+excluded from installed packages.
+
+Native development checks are serialized and share the requesting connection's
 cancellation lifetime with service shutdown. Canceled queued checks do not start
 capture or compilation; a canceled prepared preview is disposed before the check
 settles and leaves the prior serving build in place. Directory watchers pin their
@@ -115,8 +122,8 @@ The successful staging directory remains after CLI exit; the caller owns its
 removal when finished. This command does not start a Worker listener or promise
 a retention period against caller/system temporary-file cleanup. Failed assembly
 or reporting attempts scratch removal while preserving the original failure.
-`startLocalDev` instead owns one Miniflare instance until its caller awaits
-`dispose`; protected preview URLs expire when their preview owner disposes them.
+`can dev` owns its runtime resources until confirmed `can dev stop`; protected
+preview URLs expire when their preview owner disposes them.
 
 Normal commands share one cooperative budget from argument parsing: 60 seconds
 for `run`/`build`, 300 for `test`, 120 for deploy preview and 360 for confirmed
@@ -162,7 +169,7 @@ and the portable Worker prerequisites still apply.
 
 ## Trusted local File maintenance
 
-The internal Node host `src/dev/file-retirement.ts` composes
+The internal Node host `src/runtime/file-retirement.ts` composes
 `createNativeFileRetirementBinding` from an original verified assembly,
 current Identity team, trusted owner D1 database and State store ID, and the
 actual SQLite File store. Supply explicit retention and complete census bounds.

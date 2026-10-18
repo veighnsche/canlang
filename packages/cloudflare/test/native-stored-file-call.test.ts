@@ -84,8 +84,8 @@ test('labelled CHAT setup feeds original stored File[] CALL with genuine ancesto
       const { buildInvoker, createTeamOwnerStorageBoundary } = await nodeImport(installed('worker/assembly.js')) as typeof import('../src/worker/assembly.js');
       const { loadCanonicalDescriptors } = await nodeImport(installed('runtime/invoke.js')) as typeof import('../src/runtime/invoke.js');
       const { createBoundFileHandler, createCanonicalFileBinding } = await nodeImport(installed('runtime/bound-files.js')) as typeof import('../src/runtime/bound-files.js');
-      const { prepareLocalPreviewCapture } = await nodeImport(installed('dev/preview-inputs.js')) as typeof import('../src/dev/preview-inputs.js');
-      const { captureSingleFileSource, captureIsCurrent, verifyCompilerSources } = await nodeImport(installed('dev/source-capture.js')) as typeof import('../src/dev/source-capture.js');
+      const { prepareLocalPreviewCapture } = await nodeImport(installed('runtime/native-dev.test-support.js')) as typeof import('../src/runtime/native-dev.test-support.js');
+      const { captureSingleFileSource, captureIsCurrent, verifyCompilerSources } = await nodeImport(installed('runtime/native-dev.test-support.js')) as typeof import('../src/runtime/native-dev.test-support.js');
       const { parseArtifactText } = await nodeImport(installed('runtime/artifact.js')) as typeof import('../src/runtime/artifact.js');
       const { distribution } = await nodeImport(producer('@canlang/values/distribution')) as typeof import('@canlang/values/distribution');
       const { createD1IdentityStore, ensureIdentitySchema, issueMcpGrant, resolveIdentity } = await nodeImport(producer('@canlang/identity')) as typeof import('@canlang/identity');

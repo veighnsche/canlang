@@ -17,10 +17,10 @@ import { assembleWorker, type HttpDeps as AssemblyHttpDeps } from '@canlang/clou
 import { buildProductionDeps } from '../dist/runtime/env-assembly.js';
 import { createMemberMcpPermissions } from '../dist/runtime/mcp-permissions.js';
 import { buildDerivedInputsModule } from '../dist/deploy/bundle.js';
-import { prepareLocalPreviewCapture } from '../dist/dev/preview-inputs.js';
-import { captureSingleFileSource, captureIsCurrent } from '../dist/dev/source-capture.js';
-import { compileCapturedSingleFile } from '../dist/dev/compiler-check.js';
-import { localPreviewActivationVerdict } from '../dist/dev/preview-host.js';
+import { prepareLocalPreviewCapture } from '../dist/runtime/native-dev.test-support.js';
+import { captureSingleFileSource, captureIsCurrent } from '../dist/runtime/native-dev.test-support.js';
+import { compileCapturedSingleFile } from '../dist/runtime/native-dev.test-support.js';
+import { localPreviewActivationVerdict } from '../dist/runtime/native-preview.test-support.js';
 
 function gate() {
   let resolve!:()=>void;

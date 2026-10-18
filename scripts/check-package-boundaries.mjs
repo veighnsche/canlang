@@ -27,10 +27,7 @@ const ROOT_AREAS = ['tests', 'tools', 'scripts', '.github'];
 // Browser tools are separately provisioned development tools, never an implicit
 // requirement of the production installation.
 export const contextualModuleLocators = [
-  { consumer: 'packages/cloudflare/src/dev/example-runner.ts', specifier: '@canlang/testkit', reason: 'Optional caller/host inline-example producer; a direct dependency would cycle.' },
-  { consumer: 'packages/cloudflare/src/dev/preview-inputs.ts', specifier: '@canlang/testkit', reason: 'Capture the optional caller/host example producer.' },
-  { consumer: 'packages/cloudflare/src/dev/preview-inputs.ts', specifier: '@canlang/testkit/browser/chromium', reason: 'Discover the separately provisioned browser qualification producer.' },
-  { consumer: 'packages/cloudflare/src/dev/preview-inputs.ts', specifier: '@playwright/test', reason: 'Capture the separately provisioned browser driver closure.' },
+  { consumer: 'packages/cloudflare/src/runtime/example-bindings.ts', specifier: '@canlang/testkit', reason: 'Optional caller/host inline-example semantic producer; a direct dependency would cycle.' },
   { consumer: 'packages/cloudflare/src/generation/acceptance.ts', specifier: '@playwright/test/cli', reason: 'Mandatory browser acceptance requires explicit development-tool setup and fails when absent.' },
   { consumer: 'packages/testkit/src/browser/chromium.ts', specifier: '@playwright/test', reason: 'Optional browser producer reports unavailable when the development driver is absent.' },
   { consumer: 'packages/cloudflare/test/first-profile-browser.integration.test.ts', specifier: '@canlang/testkit/browser/chromium', reason: 'The integration test selects the browser producer from its explicit fixture project.' },
@@ -55,9 +52,10 @@ function typeOnlyModule(node) {
 // These registrations document context-dependent release/e2e reads; they do
 // not allow JavaScript imports into sibling source trees.
 export const checkoutInputs = [
+  { consumer: 'packages/cloudflare/src/cli/native-handoff.ts', target: 'dev-server/host/entry.mjs', reason: 'Source-checkout native handoff selects the fixed SDK host; installed use supplies its bundled host.' },
+  { consumer: 'packages/cloudflare/test/local-run-lifecycle.test.ts', target: 'tests/integration/can-dev-server/ModelFreePreview.can', reason: 'The native lifecycle test copies this exact source into its isolated application before checking real owned Workerd processes.' },
   { consumer: 'packages/cloudflare/src/release/stamp.ts', target: 'compiler/Cargo.toml', reason: 'Release lockstep reads the owning compiler version.' },
   { consumer: 'tests/e2e/fixtures/artifact-loader.ts', target: 'caller-supplied .can fixtures', reason: 'The compiled mode hands explicit fixture paths to the compiler; shell/native execution is outside this AST guard.' },
-  { consumer: 'packages/cloudflare/src/dev/session-service.test.ts', target: 'tests/integration/can-dev-server/OfficeSupplies.can', reason: 'The dev-session integration test reads this declared compiled example fixture.' },
   { consumer: 'packages/cloudflare/test/compiler-check.integration.test.ts', target: 'tests/integration/can-dev-server/OfficeSupplies.can', reason: 'The compiler integration test reads this declared example fixture.' },
   { consumer: 'packages/cloudflare/test/committed-model-consumer.test.ts', target: 'compiler/tests/fixtures/committed_change.can', reason: 'The native committed-model test reads the owning Compiler fixture for its explicitly derived CRUD composition.' },
   { consumer: 'packages/cloudflare/test/native-table-time-page.test.ts', target: 'compiler/tests/fixtures/table-time.can', reason: 'The genuine TableTime full/partial HTTP test reads the owning Compiler source fixture for original query-time pagination and continuation assertions.' },

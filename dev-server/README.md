@@ -3,8 +3,8 @@
 This independent crate implements the Rust owner and Ratatui presenter described
 in [T14–T17](../docs/implementation/can-dev-server/PLAN.md). The existing installer
 now packages this native entry beside the compiler and bundled runtime host.
-Local macOS manual qualification passes; release-profile CI on both configured
-hosts remains a separate gate.
+Release builds and installed manual workflows are qualified on macOS arm64 and
+Linux x86_64; the hosted release workflow has not been dispatched or published.
 
 From this checkout, build the Cloudflare producer closure and Values catalog,
 then build this crate with the repository's resource settings:
@@ -33,9 +33,10 @@ by default. Automatic scheduling belongs to T19.
 
 The owner loop selects generations, captures and checks inputs, and retains
 cleanup handles. Blocking work returns identified facts to that loop. The
-subordinate runtime host configures Workerd and local bindings; it cannot publish
-a generation or schedule another check. Private process groups cover the supported
-non-detached runtime descendants, with bounded shutdown and conservative release
+owner derives Workerd configuration and local bindings; the subordinate host
+invokes fixed SDK methods. It cannot publish a generation or schedule another
+check. Private process groups cover the supported non-detached runtime
+descendants, with bounded shutdown and conservative release
 confirmation. A log line is never a readiness fact.
 
 Run focused native checks with `cargo test --locked --manifest-path

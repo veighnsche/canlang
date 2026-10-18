@@ -17,11 +17,11 @@ assert.ok(state.startsWith('/home/'), '--state must be an absolute task-owned pa
 await mkdir(state, { recursive: true, mode: 0o700 });
 await mkdir(join(state, 'tmp'), { recursive: true, mode: 0o700 });
 process.env.TMPDIR = join(state, 'tmp');
-const { startLocalDev } = await import('../packages/cloudflare/dist/dev/local-run.js');
-const { startProtectedPreview } = await import('../packages/cloudflare/dist/dev/preview-bridge.js');
-const { seedLocalPreviewActors, localPreviewActivationVerdict } =
-  await import('../packages/cloudflare/dist/dev/preview-host.js');
-const { PINNED_COMPATIBILITY_DATE } = await import('../packages/cloudflare/dist/dev/zero-config.js');
+const { startLocalDev, startNativeGateway, seedLocalPreviewActors, localPreviewActivationVerdict } =
+  await import('../packages/cloudflare/dist/runtime/native-preview.test-support.js');
+const { prepareLocalPreviewCapture, captureSingleFileSource, compileCapturedSingleFile } =
+  await import('../packages/cloudflare/dist/runtime/native-dev.test-support.js');
+const { PINNED_COMPATIBILITY_DATE } = await import('../packages/cloudflare/dist/cli/artifact-defaults.js');
 const { deriveCsrfToken } = await import('@canlang/identity');
 const storage = join(state, 'd1');
 const runtimeBase = { workerName: 'can-native-proof', compatibilityDate: PINNED_COMPATIBILITY_DATE,
@@ -33,7 +33,7 @@ if (process.argv.includes('--child')) {
 } else if (process.argv.includes('--worker')) {
   const input = JSON.parse(await readFile(join(state, 'input.json'), 'utf8'));
   let worker;
-  const bridge = await startProtectedPreview({ dispatchUrl: (url, init) => worker.dispatchUrl(url, init) });
+  const bridge = await startNativeGateway();
   let shuttingDown = false;
   const shutdown = async () => {
     if (shuttingDown) return; shuttingDown = true;
@@ -51,21 +51,22 @@ if (process.argv.includes('--child')) {
     const verdict = await localPreviewActivationVerdict(input.artifact, input.capture,
       await worker.getD1Database('DB'), 'can-native-proof-db');
     assert.equal(verdict.active, true, JSON.stringify(verdict));
-    await writeFile(join(state, 'ready.json'), JSON.stringify({ url: bridge.issueOpenUrl() }), { mode: 0o600 });
+    await bridge.setBackend(worker.backend);
+    await writeFile(join(state, 'ready.json'), JSON.stringify({ url: await bridge.issueOpenUrl() }), { mode: 0o600 });
   } catch (error) { await bridge.close(); await worker?.dispose(); throw error; }
 } else {
   const { distribution } = await import('@canlang/values/distribution');
-  const { parseArtifactText } = await import('../packages/cloudflare/dist/runtime/artifact.js');
   const { buildDeployBundleWithAssets } = await import('../packages/cloudflare/dist/deploy/bundle.js');
   const fixture = join(repo, 'scripts/fixtures/native-runtime.can');
   const source = await readFile(fixture);
-  const capture = { sourceText: source.toString('utf8'), sourceRevision: createHash('sha256').update(source).digest('hex') };
-  const artifactBytes = execFileSync(flag('--compiler') ?? join(repo, 'compiler/target/debug/can'),
-    ['compile', '--format=json', '--native-scenario-receipts', `--catalog=${fileURLToPath(distribution.catalog)}`, fixture],
-    { cwd: repo, encoding: 'utf8' });
-  const { artifact } = parseArtifactText(artifactBytes, fixture);
+  const capture = await captureSingleFileSource(prepareLocalPreviewCapture({ checkoutRoot: repo, appPath: fixture,
+    compilerPath: flag('--compiler') ?? join(repo, 'compiler/target/debug/can'),
+    catalogPath: fileURLToPath(distribution.catalog), helpIndexPath: join(repo, 'docs/specification/CONSTRUCT-HELP.md') }));
+  const compiled = await compileCapturedSingleFile(capture);
+  assert.equal(compiled.kind, 'artifact', JSON.stringify(compiled));
+  const artifact = compiled.artifact;
   assert.deepEqual(await readFile(fixture), source, 'fixture changed during compilation');
-  assert.deepEqual(artifact.sources, [{ path: fixture, sha256: capture.sourceRevision }]);
+  assert.deepEqual(artifact.sources, [{ path: capture.compilerOperand, sha256: capture.sourceSha256 }]);
   assert.ok(artifact.operations.some(operation => operation.name === 'NativeRuntime.Setting.create'));
   const preflight = await startLocalDev({ workerName: 'can-native-preflight', compatibilityDate: PINNED_COMPATIBILITY_DATE,
     mainModule: 'main.js', modules: { 'main.js': 'export default {fetch(){return new Response(null,{status:404});}};' },
@@ -168,7 +169,7 @@ if (process.argv.includes('--child')) {
     containerReplacement: false, node: process.version, platform: process.platform, arch: process.arch, compatibilityDate: PINNED_COMPATIBILITY_DATE, compatibilityFlags: [],
     sourceSha256: capture.sourceRevision, bundleSha256: bundle.sha256,
     compilerSha256: createHash('sha256').update(await readFile(flag('--compiler') ?? join(repo, 'compiler/target/debug/can'))).digest('hex') };
-  const runtimeRequire = createRequire(new URL('../packages/cloudflare/dist/dev/local-run.js', import.meta.url));
+  const runtimeRequire = createRequire(new URL('../packages/cloudflare/dist/runtime/native-preview.test-support.js', import.meta.url));
   const runtimePackage = runtimeRequire('miniflare/package.json');
   results.miniflare = runtimePackage.version;
   results.workerd = runtimePackage.dependencies.workerd;

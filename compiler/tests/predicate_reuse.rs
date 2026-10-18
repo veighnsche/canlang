@@ -158,7 +158,7 @@ for(const [name,stop,continueValue] of [['helper_any',true,false],['helper_all',
 const {randomUUID}=await import('node:crypto');
 const {pathToFileURL}=await import('node:url');
 const {resolve}=await import('node:path');
-const {runCompiledExamples,loadInstalledExampleTestkit}=await import(pathToFileURL(resolve('packages/cloudflare/dist/dev/example-runner.js')));
+const {runCompiledExamples,loadInstalledExampleTestkit}=await import(pathToFileURL(resolve('packages/cloudflare/dist/runtime/example-bindings.test-support.js')));
 const testkit=await loadInstalledExampleTestkit(process.cwd());
 const checked=await runCompiledExamples({
  artifactBytes:Buffer.from(__ARTIFACT_BYTES__),artifactLabel:'predicate-reuse.can',

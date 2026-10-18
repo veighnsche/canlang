@@ -24,14 +24,14 @@ function operationId(): string {
 }
 
 it('serves one app-owned CRUD model with shared app reads and saved-outcome replay', async () => {
-  const { prepareLocalPreviewCapture } = await nativeImport(new URL('../dist/dev/preview-inputs.js', import.meta.url).href) as
-    typeof import('../src/dev/preview-inputs.js');
-  const { captureIsCurrent, captureSingleFileSource } = await nativeImport(new URL('../dist/dev/source-capture.js', import.meta.url).href) as
-    typeof import('../src/dev/source-capture.js');
-  const { compileCapturedSingleFile } = await nativeImport(new URL('../dist/dev/compiler-check.js', import.meta.url).href) as
-    typeof import('../src/dev/compiler-check.js');
-  const { createInstalledLocalPreviewBuilder } = await nativeImport(new URL('../dist/dev/preview-host.js', import.meta.url).href) as
-    typeof import('../src/dev/preview-host.js');
+  const { prepareLocalPreviewCapture } = await nativeImport(new URL('../dist/runtime/native-dev.test-support.js', import.meta.url).href) as
+    typeof import('../src/runtime/native-dev.test-support.js');
+  const { captureIsCurrent, captureSingleFileSource } = await nativeImport(new URL('../dist/runtime/native-dev.test-support.js', import.meta.url).href) as
+    typeof import('../src/runtime/native-dev.test-support.js');
+  const { compileCapturedSingleFile } = await nativeImport(new URL('../dist/runtime/native-dev.test-support.js', import.meta.url).href) as
+    typeof import('../src/runtime/native-dev.test-support.js');
+  const { openNativePreview } = await nativeImport(new URL('../dist/runtime/native-preview.test-support.js', import.meta.url).href) as
+    typeof import('../src/runtime/native-preview.test-support.js');
   const capture = await captureSingleFileSource(prepareLocalPreviewCapture({ checkoutRoot: repo,
     appPath: join(repo, 'tests/integration/can-dev-server/AppOwnedPreview.can'),
     compilerPath: join(repo, 'compiler/target/debug/can'), catalogPath: fileURLToPath(valuesDistribution.catalog),
@@ -44,12 +44,12 @@ it('serves one app-owned CRUD model with shared app reads and saved-outcome repl
   expect(compiled.artifact.models![0]).toMatchObject({ name: 'AppOwnedPreview.Setting', scope: 'app' });
   expect(compiled.artifact.models![0]).not.toHaveProperty('parent');
   expect(compiled.artifact.sources).toEqual([{ path: capture.compilerOperand, sha256: capture.sourceSha256 }]);
-  const preview = await createInstalledLocalPreviewBuilder()(compiled.artifact, capture, compiled.artifactBytes);
+  const preview = await openNativePreview(compiled.artifact, capture, compiled.artifactBytes);
   try {
     const login = async (label: string) => {
       const issueOpenUrl = preview.issueOpenUrl;
       if (typeof issueOpenUrl !== 'function') throw new Error('installed preview has no protected-open producer');
-      const opened = issueOpenUrl();
+      const opened = await issueOpenUrl();
       const origin = new URL(opened).origin;
       const cookies = new Map<string, string>();
       const request = async (path: string, init: RequestInit = {}) => {

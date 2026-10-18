@@ -68,7 +68,7 @@ import { manualApplyCommand, runWranglerDeploy, type WranglerSpawner } from "../
 import {
   PINNED_COMPATIBILITY_DATE,
   resolveLocalDefaults,
-} from "../dev/zero-config.js";
+} from "../cli/artifact-defaults.js";
 import { RELEASE_VERSION, assertLockstep, readLockstepInputs } from "../release/stamp.js";
 
 export const PLATFORM_CLI_NAME = "can-platform";

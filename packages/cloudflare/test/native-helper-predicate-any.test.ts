@@ -1,6 +1,6 @@
 /** Captured original Employee predicate -> imported leading Require -> real D1/Identity.
  * This fixture qualifies the helper workflow, without Employee.changed or provider ingress. */
-import { createCheckoutScratch } from '../src/dev/checkout-scratch.js';
+import { createCheckoutScratch } from '../src/runtime/checkout-scratch.test-support.js';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -105,8 +105,8 @@ async function nativeHelperCase(splitFiles: boolean) {
       for (const file of files) await writeFile(file.path, file.text);
       const { assembleModules } = await nodeImport(installed('runtime/modules.js')) as typeof import('../src/runtime/modules.js');
       const { buildInvoker } = await nodeImport(installed('worker/assembly.js')) as typeof import('../src/worker/assembly.js');
-      const { installedLocalPreviewInputInventory } = await nodeImport(installed('dev/preview-inputs.js')) as typeof import('../src/dev/preview-inputs.js');
-      const { captureIsCurrent, captureSingleFileSource, verifyCompilerSources } = await nodeImport(installed('dev/source-capture.js')) as typeof import('../src/dev/source-capture.js');
+      const { installedLocalPreviewInputInventory } = await nodeImport(installed('runtime/native-dev.test-support.js')) as typeof import('../src/runtime/native-dev.test-support.js');
+      const { captureIsCurrent, captureSingleFileSource, verifyCompilerSources } = await nodeImport(installed('runtime/native-dev.test-support.js')) as typeof import('../src/runtime/native-dev.test-support.js');
       const compilerPath = join(root, 'compiler/target/debug/can');
       const inventory = installedLocalPreviewInputInventory(root, compilerPath);
       const capture = await captureSingleFileSource({ checkoutRoot: root, appPath: sourcePath,

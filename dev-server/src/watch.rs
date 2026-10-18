@@ -8,7 +8,7 @@ use std::{
     os::unix::fs::MetadataExt,
     path::{Path, PathBuf},
     sync::{
-        Arc,
+        Arc, RwLock,
         atomic::{AtomicBool, Ordering},
         mpsc::{self, SyncSender},
     },
@@ -28,6 +28,42 @@ struct Hints {
     dirty: AtomicBool,
     error: AtomicBool,
     closed: AtomicBool,
+    interests: RwLock<Interests>,
+}
+#[derive(Default)]
+struct Interests {
+    files: BTreeSet<PathBuf>,
+    membership: BTreeSet<PathBuf>,
+}
+impl Interests {
+    fn insert(&mut self, path: PathBuf, membership: bool) {
+        self.insert_known(path.clone(), membership);
+        if let Ok(actual) = fs::canonicalize(path) {
+            self.insert_known(actual, membership);
+        }
+    }
+    fn insert_known(&mut self, path: PathBuf, membership: bool) {
+        if membership {
+            add_parent(&mut self.membership, &path);
+        }
+        // Captures already supply requested and canonical names; do not stat
+        // every producer again merely to install notification interests.
+        self.files.insert(path);
+    }
+    fn observes(&self, event: &Event) -> bool {
+        event.paths.is_empty()
+            || event.paths.iter().any(|path| {
+                !path.is_absolute()
+                    || self
+                        .files
+                        .iter()
+                        .any(|file| path == file || file.starts_with(path))
+                    || self
+                        .membership
+                        .iter()
+                        .any(|directory| path.starts_with(directory) || directory.starts_with(path))
+            })
+    }
 }
 struct DirectoryPlan {
     identities: BTreeMap<PathBuf, Option<DirectoryIdentity>>,
@@ -98,6 +134,7 @@ impl WatchSet {
         if desired.len() > MAX_DIRECTORIES {
             return Err(failed("watch input directory limit exceeded"));
         }
+        *self.hints.interests.write().map_err(failed)? = input_interests(request, capture)?;
         if self.desired == desired && !self.hints.error.load(Ordering::Acquire) {
             return Ok(self.registrations.len());
         }
@@ -127,12 +164,13 @@ impl WatchSet {
         }
         uncertain
     }
+    /// Schedule a byte/membership audit. Elapsed time is not a change hint;
+    /// the owner invalidates capture only if that audit cannot confirm it.
     pub fn audit_due(&mut self) -> bool {
         if self.hints.closed.load(Ordering::Acquire) || Instant::now() < self.next_audit {
             return false;
         }
         self.next_audit = Instant::now() + AUDIT_INTERVAL;
-        self.signal();
         true
     }
     fn signal(&self) {
@@ -197,6 +235,14 @@ fn make_watcher(hints: Arc<Hints>, sender: SyncSender<()>) -> io::Result<Recomme
         }
         match event {
             Ok(event) if matches!(event.kind, EventKind::Access(_)) => return,
+            Ok(event)
+                if hints
+                    .interests
+                    .read()
+                    .is_ok_and(|inputs| !inputs.observes(&event)) =>
+            {
+                return;
+            }
             Err(_) => {
                 hints.error.store(true, Ordering::Release);
             }
@@ -231,6 +277,67 @@ fn attach_paths(
         Some(error) => Err(error),
         None => Ok(attached),
     }
+}
+// Parent watches also see unrelated siblings (including our own SDK spool trees).
+// Match exact tools/source operands, retaining directory membership hints only
+// for enumerated producer trees. Capture still verifies every admitted byte.
+fn input_interests(request: &CaptureRequest, capture: Option<&Capture>) -> io::Result<Interests> {
+    let root = absolute(std::env::current_dir()?, &request.checkout_root);
+    let mut interests = Interests::default();
+    interests.insert(root.clone(), false);
+    for value in [
+        &request.app_path,
+        &request.compiler_path,
+        &request.help_index_path,
+    ]
+    .into_iter()
+    .chain(request.catalog_path.iter())
+    {
+        interests.insert(absolute(&root, value), false);
+    }
+    let dynamic = |name: &str| {
+        [
+            "source:",
+            "compiler-source:",
+            "runtime-host:",
+            "browser:driver:",
+            "browser:installation:",
+        ]
+        .iter()
+        .any(|prefix| name.starts_with(prefix))
+    };
+    for input in &request.package_input_paths {
+        interests.insert(absolute(&root, &input.path), true);
+    }
+    for input in &request.extra_input_paths {
+        interests.insert(absolute(&root, &input.path), dynamic(&input.name));
+    }
+    if let Some(capture) = capture {
+        for path in [
+            &capture.requested_root,
+            &capture.root,
+            &capture.requested_app_path,
+            &capture.app_path,
+        ] {
+            interests.insert_known(PathBuf::from(path), false);
+        }
+        for input in &capture.inputs {
+            let membership = input.name.starts_with("package:")
+                || input.name.strip_prefix("extra:").is_some_and(dynamic);
+            for path in [&input.requested_path, &input.canonical_path]
+                .into_iter()
+                .flatten()
+            {
+                interests.insert_known(PathBuf::from(path), membership);
+            }
+        }
+        if let Some(closure) = &capture.generated_closure {
+            for file in &closure.files {
+                interests.insert_known(Path::new(&capture.root).join(&file.path), false);
+            }
+        }
+    }
+    Ok(interests)
 }
 fn input_parents(
     request: &CaptureRequest,
@@ -333,6 +440,61 @@ mod tests {
     fn force_reconcile(watcher: &mut WatchSet) -> bool {
         watcher.next_reconcile = Instant::now();
         watcher.reconcile()
+    }
+    #[test]
+    fn elapsed_audit_schedules_verification_without_a_change_hint() {
+        let (tx, rx) = mpsc::channel();
+        let mut watcher = WatchSet::new(move || {
+            let _ = tx.send(());
+        })
+        .unwrap();
+        watcher.next_audit = Instant::now();
+        assert!(watcher.audit_due());
+        assert!(!watcher.audit_due());
+        assert!(!watcher.reconcile());
+        watcher.close().unwrap();
+        assert!(rx.try_recv().is_err());
+    }
+    #[test]
+    fn ignores_parent_and_tool_siblings_but_observes_new_producer_members() {
+        let outer = tempfile::tempdir().unwrap();
+        let root = outer.path().join("project");
+        for directory in ["app", "tools", "producer"] {
+            fs::create_dir_all(root.join(directory)).unwrap();
+        }
+        fs::write(root.join("app/app.can"), "first").unwrap();
+        fs::write(root.join("tools/can"), "compiler").unwrap();
+        fs::write(root.join("producer/index.js"), "producer").unwrap();
+        let mut input = request(&root);
+        input
+            .package_input_paths
+            .push(crate::capture::NamedInputPath {
+                name: "runtime".into(),
+                path: "producer/index.js".into(),
+            });
+        let (tx, rx) = mpsc::channel();
+        let mut watcher = WatchSet::new(move || {
+            let _ = tx.send(());
+        })
+        .unwrap();
+        watcher.set_inputs(&input, None).unwrap();
+        std::thread::sleep(Duration::from_millis(100));
+        watcher.reconcile();
+        while rx.try_recv().is_ok() {}
+        fs::write(outer.path().join("unrelated"), "peer").unwrap();
+        fs::create_dir(outer.path().join("sdk-spool")).unwrap();
+        fs::write(root.join("tools/can-dev"), "another executable").unwrap();
+        std::thread::sleep(Duration::from_millis(150));
+        assert!(rx.try_recv().is_err());
+        assert!(!force_reconcile(&mut watcher));
+        fs::write(root.join("producer/new.js"), "new member").unwrap();
+        rx.recv_timeout(Duration::from_secs(3)).unwrap();
+        assert!(watcher.reconcile());
+        while rx.try_recv().is_ok() {}
+        fs::write(root.join("app/app.can"), "changed").unwrap();
+        rx.recv_timeout(Duration::from_secs(3)).unwrap();
+        assert!(watcher.reconcile());
+        watcher.close().unwrap();
     }
     #[test]
     fn edits_replacement_missing_parent_recovery_and_close_are_only_hints() {

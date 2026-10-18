@@ -3,11 +3,11 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { loadInstalledExampleTestkit, runCompiledExamples, type ExampleRowScope } from "../src/dev/example-runner.js";
+import { loadInstalledExampleTestkit, runCompiledExamples, type ExampleRowScope } from "../src/runtime/example-bindings.test-support.js";
 
 // Use the same application-owned optional producer as the real runner. A
 // static package edge would make Cloudflare and Testkit depend on each other.
-const { createReport, fixtureValuesOf, loadExampleSuite, runTable } =
+const { createReport, fixtureValuesOf, loadExampleSuite, runTable, snapshotLocalDatabases } =
   await loadInstalledExampleTestkit(process.cwd());
 
 it("uses bundled Testkit only when the application's package is absent", async () => {
@@ -24,7 +24,7 @@ it("uses bundled Testkit only when the application's package is absent", async (
   }
   try {
     expect((await loadInstalledExampleTestkit(await app())).runTable).toBe(runTable);
-    const local = await app({ main: "index.js" }, "export function loadExampleSuite(){}; export function runTable(){}; export function createReport(){}; export function fixtureValuesOf(){};");
+    const local = await app({ main: "index.js" }, "export function loadExampleSuite(){}; export function runTable(){}; export function createReport(){}; export function fixtureValuesOf(){}; export function snapshotLocalDatabases(){};");
     expect((await loadInstalledExampleTestkit(local)).runTable).not.toBe(runTable);
     await expect(loadInstalledExampleTestkit(await app({ exports: { "./other": "./index.js" } })))
       .rejects.toThrow(/No "exports" main defined/);
@@ -64,7 +64,7 @@ describe("compiled example row expectations", () => {
       sourceRevision: "source-1", workerName: `example-expectation-${randomUUID()}`,
       worker: { mainModule: "main.mjs", modules: { "main.mjs": "export default {fetch(){return new Response(null,{status:404})}};" } },
       compatibilityDate: "2026-07-15", d1Binding: "DB",
-      testkit: { loadExampleSuite, runTable, createReport, fixtureValuesOf },
+      testkit: { loadExampleSuite, runTable, createReport, fixtureValuesOf, snapshotLocalDatabases },
       hooks: {
         materializeFixtures: async ({ scope, fixtures }) => {
           const owner = scope.currentTeamId;
@@ -102,47 +102,6 @@ describe("compiled example row expectations", () => {
         rejection: { error: "forbidden", sideEffectsAbsent: true } },
     ] });
 
-    const controller = new AbortController();
-    let entered: (scope: ExampleRowScope) => void = () => undefined;
-    const active = new Promise<ExampleRowScope>(resolve => { entered = resolve; });
-    const blocked = new Promise<never>(() => undefined);
-    const cancelled = runCompiledExamples({
-      artifactBytes: Buffer.from(JSON.stringify(artifact)), artifactLabel: "Office.artifact.json",
-      sourceRevision: "source-1", workerName: `example-cancel-${randomUUID()}`,
-      worker: { mainModule: "main.mjs", modules: { "main.mjs": "export default {fetch(){return new Response(null,{status:404})}};" } },
-      compatibilityDate: "2026-07-15", d1Binding: "DB", signal: controller.signal,
-      testkit: { loadExampleSuite, runTable, createReport, fixtureValuesOf },
-      hooks: {
-        materializeFixtures: async ({ scope }) => { entered(scope); return blocked; },
-        invoke: async () => ({ ok: true }),
-        observeLive: async () => new Map(),
-      },
-    });
-    const refusal = expect(cancelled).rejects.toMatchObject({ name: "AbortError" });
-    const scope = await active;
-    controller.abort();
-    await refusal;
-    await expect(scope.dev.getD1Database("DB")).rejects.toThrow();
 
-    const invokeController = new AbortController();
-    let invoked: (scope: ExampleRowScope) => void = () => undefined;
-    const invoking = new Promise<ExampleRowScope>(resolve => { invoked = resolve; });
-    const interrupted = runCompiledExamples({
-      artifactBytes: Buffer.from(JSON.stringify(artifact)), artifactLabel: "Office.artifact.json",
-      sourceRevision: "source-1", workerName: `example-cancel-invoke-${randomUUID()}`,
-      worker: { mainModule: "main.mjs", modules: { "main.mjs": "export default {fetch(){return new Response(null,{status:404})}};" } },
-      compatibilityDate: "2026-07-15", d1Binding: "DB", signal: invokeController.signal,
-      testkit: { loadExampleSuite, runTable, createReport, fixtureValuesOf },
-      hooks: {
-        materializeFixtures: async ({ fixtures }) => ({ materialized: [], values: new Map(fixtures) }),
-        invoke: async ({ call }) => { invoked(call.scope); return blocked; },
-        observeLive: async () => new Map(),
-      },
-    });
-    const invokeRefusal = expect(interrupted).rejects.toMatchObject({ name: "AbortError" });
-    const invokeScope = await invoking;
-    invokeController.abort();
-    await invokeRefusal;
-    await expect(invokeScope.dev.getD1Database("DB")).rejects.toThrow();
   }, 120000);
 });

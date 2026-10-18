@@ -263,3 +263,108 @@ fn duplicate_checks_and_candidates_cannot_allocate_more_resources() {
         Err(Refusal::CaptureUnconfirmed)
     );
 }
+
+#[test]
+fn identical_fresh_checks_reuse_the_serving_generation_without_publication_churn() {
+    let mut s = state();
+    serving(&mut s);
+    let selected = s.snapshot().preview;
+    for at in 40..43 {
+        let ticket = begin(&mut s, 1);
+        assert!(s.reuse_serving(&ticket, false, at));
+        let snapshot = s.snapshot();
+        assert_eq!(snapshot.preview, selected);
+        assert!(snapshot.operation.is_none());
+        let outcome = snapshot.last_outcome.unwrap();
+        assert_eq!(outcome.id, ticket.operation);
+        assert_eq!(outcome.revision.as_deref(), Some("r1"));
+        assert_eq!(outcome.source, SourceResult::Valid);
+        assert_eq!(outcome.preview, PreviewResult::Ready);
+        assert_eq!(outcome.finished_at, at);
+        assert!(s.cleanup_ids().is_empty());
+    }
+}
+
+#[test]
+fn serving_reuse_refuses_changed_stale_unavailable_canceled_and_stopping_checks() {
+    let fresh = || {
+        let mut s = state();
+        serving(&mut s);
+        let ticket = begin(&mut s, 1);
+        (s, ticket)
+    };
+    let (mut s, ticket) = fresh();
+    let before = s.snapshot();
+    assert!(!s.reuse_serving(&ticket, true, 40));
+    assert_eq!(s.snapshot(), before);
+    s.dirty();
+    s.observe_inputs(inputs(1), s.hint()).unwrap();
+    assert!(
+        !s.reuse_serving(&ticket, false, 40),
+        "a newer hint requires a fresh ticket even at identical bytes"
+    );
+    let (mut s, mut ticket) = fresh();
+    ticket.inputs.digest = "foreign producer".into();
+    assert!(!s.reuse_serving(&ticket, false, 40));
+    let (mut s, ticket) = fresh();
+    s.observe_inputs(inputs(2), s.hint()).unwrap();
+    s.observe_inputs(inputs(1), s.hint()).unwrap();
+    assert!(
+        !s.reuse_serving(&ticket, false, 40),
+        "restored bytes cannot revive an earlier epoch"
+    );
+    let mut s = state();
+    serving(&mut s);
+    let ticket = begin(&mut s, 2);
+    assert!(
+        !s.reuse_serving(&ticket, false, 40),
+        "a new source revision must prepare a candidate"
+    );
+    let (mut s, ticket) = fresh();
+    s.finish(
+        &ticket.operation,
+        SourceResult::Valid,
+        PreviewResult::Unavailable,
+        None,
+        40,
+    );
+    assert!(
+        !s.reuse_serving(&ticket, false, 50),
+        "a completed operation cannot be revived"
+    );
+    let (mut s, ticket) = fresh();
+    s.retire("generation1", None).unwrap();
+    assert!(!s.reuse_serving(&ticket, false, 40));
+    let (mut s, ticket) = fresh();
+    ready(&mut s, &ticket, "candidate");
+    assert!(!s.reuse_serving(&ticket, false, 40));
+    assert!(
+        s.cleanup_ids().is_empty(),
+        "declining reuse cannot retire an allocated candidate"
+    );
+    let (mut s, ticket) = fresh();
+    s.runtime_lost("generation1", "real runtime ended".into())
+        .unwrap();
+    assert!(!s.reuse_serving(&ticket, false, 40));
+    assert_eq!(s.cleanup_ids(), ["generation1"]);
+    let (mut s, ticket) = fresh();
+    s.restart_required("captured runtime changed".into());
+    assert!(!s.reuse_serving(&ticket, false, 40));
+    let (mut s, ticket) = fresh();
+    s.stop(40);
+    let before = s.snapshot();
+    assert!(!s.reuse_serving(&ticket, false, 50));
+    assert_eq!(s.snapshot(), before);
+    let mut s = state();
+    let ticket = begin(&mut s, 1);
+    s.allocate(
+        &ticket,
+        "unpublished".into(),
+        "http://127.0.0.1:2345".into(),
+    )
+    .unwrap();
+    assert!(
+        !s.reuse_serving(&ticket, false, 40),
+        "an unpublished generation is not a serving result"
+    );
+}

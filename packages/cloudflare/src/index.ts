@@ -5,4 +5,3 @@
  */
 export * from "./deploy/compat.js";
 export * from "./deploy/plan.js";
-export * from "./dev/local-run.js";

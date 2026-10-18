@@ -63,6 +63,8 @@
  * `--yes`.
  */
 import { access, mkdtemp, readFile, rm } from "node:fs/promises";
+import { spawn } from "node:child_process";
+import { resolveLocalDefaults } from "./artifact-defaults.js";
 import { constants } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -79,11 +81,6 @@ import { loadArtifactFile, type LoadedArtifact } from "../runtime/artifact.js";
 import { assembleModules } from "../runtime/modules.js";
 import { activate } from "../deploy/activate.js";
 import { probeInstalledRuntime } from "../deploy/installed.js";
-import { resolveLocalDefaults } from "../dev/zero-config.js";
-import { prepareLocalPreviewCapture } from "../dev/preview-inputs.js";
-import { captureSingleFileSource, verifyCompilerSources } from "../dev/source-capture.js";
-import { preflightLocalPreviewActivation, produceInstalledPortableBundle } from "../dev/preview-host.js";
-import { loadInstalledExampleTestkit, MissingExampleTestkitError, runCompiledExamples } from "../dev/example-runner.js";
 import { runDocs } from "./docs.js";
 import { runGen } from "./gen.js";
 import { runSourceWorkflow } from "./source-workflow.js";
@@ -438,83 +435,73 @@ async function runActivate(artifactPath: string, env: string | null): Promise<vo
  * `test`: capture the exact source and installed runtime, then execute every
  * compiled row through the real D1-backed canonical invoker.
  */
+type NativeExamplesExit = { code: number | null; signal: NodeJS.Signals | null; stdout: string };
+function nativeExamplesDependency(error: unknown): never {
+  if (error instanceof Error && (error as NodeJS.ErrnoException).code === "ENOENT") {
+    fail("test", "missing-producer", "native development helper is unavailable; build or install can-dev or set CAN_DEV_BIN", {
+      producer: "dev-server", contract: "native saved-artifact examples",
+    });
+  }
+  throw error;
+}
+async function nativeExamplesExit(artifactPath: string, lifetime: LocalCommandLifetime): Promise<NativeExamplesExit> {
+  const binary = process.env.CAN_DEV_BIN ?? "can-dev";
+  return new Promise<{ code: number | null; signal: NodeJS.Signals | null; stdout: string }>((done, reject) => {
+    const child = spawn(binary, ["examples-artifact", "--artifact", resolve(artifactPath), "--root", process.cwd()],
+      { shell: false, stdio: ["ignore", "pipe", "pipe"] });
+    let stdout = "", bytes = 0, failure: Error | undefined;
+    const abort = (): void => { child.kill("SIGTERM"); };
+    lifetime.signal.addEventListener("abort", abort, { once: true });
+    if (lifetime.signal.aborted) abort();
+    const record = (chunk: Buffer, output: boolean): void => {
+      bytes += chunk.length;
+      if (bytes > 32 * 1024 * 1024) {
+        failure ??= new Error("native example output exceeded its limit");
+        child.kill("SIGTERM");
+      } else if (output) stdout += chunk.toString("utf8");
+    };
+    child.stdout.on("data", (chunk: Buffer) => record(chunk, true));
+    // Runtime diagnostics can contain business values. Only its bounded JSON report is emitted.
+    child.stderr.on("data", (chunk: Buffer) => record(chunk, false));
+    child.once("error", error => { failure ??= error; });
+    child.once("close", (code, signal) => {
+      lifetime.signal.removeEventListener("abort", abort);
+      if (failure !== undefined) reject(failure);
+      else done({ code, signal, stdout });
+    });
+  }).catch(nativeExamplesDependency);
+}
+function nativeExamplesFailure(result: Record<string, unknown>, lifetime: LocalCommandLifetime): void {
+  if (result.ok === false && typeof result.code === "string" && typeof result.detail === "string") {
+    // Preserve an operative failure even if cancellation arrived during its cleanup.
+    if (result.code === "command-cancelled" || result.code === "command-timeout") lifetime.checkpoint("native examples cancelled");
+    fail("test", result.code, result.detail, {
+      ...(typeof result.producer === "string" ? { producer: result.producer } : {}),
+      ...(typeof result.contract === "string" ? { contract: result.contract } : {}),
+    });
+  }
+}
 async function runTest(artifactPath: string, lifetime: LocalCommandLifetime): Promise<void> {
-  let loaded: LoadedArtifact;
-  try {
-    loaded = loadArtifactFile(artifactPath);
-  } catch {
-    missingEmission("test", "execute");
+  lifetime.checkpoint("native examples start");
+  // The native helper verifies and executes these exact saved artifact bytes.
+  // It owns capture, admission, bundle creation, row resources and their cleanup.
+  const outcome = await nativeExamplesExit(artifactPath, lifetime);
+  let result: Record<string, unknown>;
+  try { result = JSON.parse(outcome.stdout) as Record<string, unknown>; }
+  catch {
+    lifetime.checkpoint("native examples cleanup joined");
+    fail("test", "native-examples-failed", "native examples did not return a bounded JSON result");
   }
-  lifetime.checkpoint("artifact load");
-  if (loaded.artifact.tests.length === 0) {
-    fail("test", "missing-producer", "compiled artifact has zero example rows; zero-row results cannot pass",
-      { producer: "@canlang/testkit", contract: "compiled ArtifactTestModule rows" });
+  if (result === null || typeof result !== "object" || Array.isArray(result)) {
+    fail("test", "native-examples-failed", "native examples returned an invalid result");
   }
-  // Saved contributions are compiler sources too. Select the owning app and
-  // let capture/verification check its exact generated source closure below.
-  const appSources = loaded.artifact.sources.filter(source => !source.path.split("/").includes("can.generated"));
-  if (appSources.length !== 1) {
-    fail("test", "profile-unsupported", "local examples require exactly one owning .can source plus its saved generated contributions");
+  nativeExamplesFailure(result, lifetime);
+  lifetime.checkpoint("native examples cleanup joined");
+  if (typeof result.ok !== "boolean" || !Number.isSafeInteger(result.executed) || Number(result.executed) < 1 ||
+      result.report === null || typeof result.report !== "object" || Array.isArray(result.report) ||
+      outcome.signal !== null || outcome.code !== (result.ok ? 0 : 1)) {
+    fail("test", "native-examples-failed", "native examples returned an inconsistent result or exit status");
   }
-  const checkoutRoot = process.cwd();
-  const source = appSources[0]!;
-  const compilerPath = process.env["CAN_COMPILER_BIN"] ?? join(checkoutRoot, "compiler/target/debug/can");
-  const request = prepareLocalPreviewCapture({
-    checkoutRoot, appPath: source.path, compilerPath,
-    catalogPath: process.env.CAN_CATALOG ?? join(checkoutRoot, "packages/values/dist/catalog.json"),
-    helpIndexPath: process.env.CAN_HELP_INDEX ?? join(checkoutRoot, "docs/specification/CONSTRUCT-HELP.md"),
-  });
-  lifetime.checkpoint("capture preparation");
-  const capture = await captureSingleFileSource(request);
-  lifetime.checkpoint("source capture");
-  const sourceVerdict = verifyCompilerSources(capture, { complete: true, sources: loaded.artifact.sources });
-  lifetime.checkpoint("source verification");
-  if (!sourceVerdict.ok) fail("test", "source-stale", `compiled artifact source ${sourceVerdict.reason}`);
-  const activation = await preflightLocalPreviewActivation(loaded.artifact, capture);
-  lifetime.checkpoint("activation");
-  if (!activation.active) fail("test", "activation-refused", activation.reasons.map(reason => reason.detail).join("; "));
-  const evidence = await produceInstalledPortableBundle({
-    artifact: loaded.artifact, capture, verdict: activation,
-    assets: { browser: true, valuesWasm: true },
-    commandLifetime: lifetime,
-  });
-  lifetime.checkpoint("portable bundle");
-  let testkit;
-  try {
-    testkit = await loadInstalledExampleTestkit(checkoutRoot);
-  } catch (error) {
-    if (error instanceof MissingExampleTestkitError) {
-      fail("test", "missing-producer", error.message,
-        { producer: "@canlang/testkit", contract: "compiled example row executor" });
-    }
-    throw error;
-  }
-  lifetime.checkpoint("testkit load");
-  const defaults = resolveLocalDefaults({ artifactPath });
-  lifetime.checkpoint("local defaults");
-  const artifactBytes = await readFile(artifactPath);
-  lifetime.checkpoint("artifact bytes");
-  const result = await runCompiledExamples({
-    artifactBytes, artifactLabel: artifactPath,
-    sourceRevision: capture.sourceRevision,
-    worker: {
-      mainModule: evidence.bundle.mainModule,
-      modules: evidence.bundle.modules,
-      binaryModules: evidence.bundle.binaries,
-    },
-    workerName: defaults.workerName,
-    compatibilityDate: defaults.compatibilityDate,
-    d1Binding: "DB", testkit, signal: lifetime.signal,
-  }).catch((error: unknown) => {
-    // This is the example runner's own cancellation result after its cleanup.
-    // An unrelated operative failure must survive cancellation during cleanup.
-    if (lifetime.signal.aborted && error instanceof DOMException &&
-        error.name === "AbortError" && error.message === "example runner: cancelled") {
-      throw lifetime.signal.reason;
-    }
-    throw error;
-  });
-  lifetime.checkpoint("example execution");
   emit({ ok: result.ok, command: "test", executed: result.executed, report: result.report });
   if (!result.ok) process.exitCode = 1;
 }

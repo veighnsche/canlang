@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 /** Real candidate checks with deterministic MCP submissions; no model invocation. */
 import assert from 'node:assert/strict';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { createHash, randomUUID } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { chmod, cp, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
@@ -16,17 +18,33 @@ if (selected.some(name => !cases.some(([candidate]) => candidate === name))) {
   throw new Error(`Expected case names: ${cases.map(([name]) => name).join(', ')}`);
 }
 const { dispatchControl, runFor, savedPathFor } = await import(pathToFileURL(join(workspace, 'packages/cloudflare/dist/generation/controls.js')).href);
-const { discoverDevDaemon } = await import(pathToFileURL(join(workspace, 'packages/cloudflare/dist/dev/session-daemon.js')).href);
+const exec = promisify(execFile);
+const controlBin = process.env.CAN_DEV_BIN ?? 'can';
+const controlPrefix = process.env.CAN_DEV_BIN === undefined ? ['dev'] : [];
 if (Number(process.versions.node.split('.')[0]) < 22) throw new Error('Acceptance verification requires Node 22 or newer');
 
 async function assertNoDevSession() {
+  let code = 0, stdout;
   try {
-    await discoverDevDaemon({ checkoutRoot: workspace, app: 'PromptStudio', profile: 'local-d1-identity' });
+    ({ stdout } = await exec(controlBin, [...controlPrefix, 'discover', '--root', workspace,
+      '--app', 'PromptStudio', '--profile', 'local-d1-identity'],
+    { cwd: workspace, timeout: 10_000, killSignal: 'SIGKILL', maxBuffer: 128 * 1024 }));
   } catch (error) {
-    if (error?.code === 'ENOENT') return;
-    throw new Error('Could not verify absence of the PromptStudio dev session; clone cleanup is held');
+    if (typeof error.code !== 'number' || error.killed) {
+      throw new Error('Could not verify absence of the PromptStudio dev session; clone cleanup is held');
+    }
+    code = error.code;
+    stdout = error.stdout;
   }
-  throw new Error('A PromptStudio dev session is active; release its owner before this integration run');
+  let body;
+  try { body = JSON.parse(stdout); }
+  catch { throw new Error('Could not verify absence of the PromptStudio dev session; clone cleanup is held'); }
+  if (body?.command === 'discover' && code === 1 && body.ok === false && body.code === 'CONTROL_IO' &&
+      body.detail === 'No such file or directory (os error 2)') return;
+  if (body?.command === 'discover' && code === 0 && body.ok === true) {
+    throw new Error('A PromptStudio dev session is active; release its owner before this integration run');
+  }
+  throw new Error('Could not verify absence of the PromptStudio dev session; clone cleanup is held');
 }
 
 async function currentBytes(root) {

@@ -17,6 +17,18 @@ Core §5.1 rules enforced structurally:
 - Unexpected throws and observation mismatches are `failed`, never passes.
 - `unsupported` paths report `unsupported`, never pass or fail.
 
+## Native row resources and D1 snapshots
+
+The native development owner allocates each example row's Worker and distinct
+Identity/owner databases, then releases them after the canonical row runner joins.
+The former `createLocalRowScope` Worker allocator is retired.
+
+`snapshotLocalDatabases(host, bindings)` reads already allocated D1 bindings through
+`host.getD1Database(binding)`. It includes every effect-capable table, preserves
+single-database snapshot shape, and groups multiple stores by binding. Engine fences
+and canonical rejected receipts are admission bookkeeping; committed receipts and
+domain writes remain visible. This helper allocates no runtime or database.
+
 ## Seed vocabulary (S8d decision)
 
 Row `seed` entries are scenario refs, `<provider>:<scenario>` (lowercase

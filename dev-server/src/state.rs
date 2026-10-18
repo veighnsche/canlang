@@ -321,6 +321,42 @@ impl SessionState {
         Ok(())
     }
 
+    /// A fresh capture can finish against its existing live generation. This
+    /// never selects, reallocates or revives a generation from an earlier epoch.
+    pub fn reuse_serving(&mut self, ticket: &CheckTicket, cancelled: bool, now: u64) -> bool {
+        if cancelled
+            || self.current_ticket(ticket).is_err()
+            || ticket.hint != self.hint
+            || self.cleanup_required()
+            || self.restart_reason.is_some()
+            || self.generations.len() != 1
+        {
+            return false;
+        }
+        let Some(generation) = self
+            .serving
+            .as_ref()
+            .and_then(|id| self.generations.get(id))
+        else {
+            return false;
+        };
+        if generation.revision != ticket.revision
+            || !generation.ready
+            || !generation.available
+            || generation.cleanup
+        {
+            return false;
+        }
+        self.finish(
+            &ticket.operation,
+            SourceResult::Valid,
+            PreviewResult::Ready,
+            None,
+            now,
+        );
+        true
+    }
+
     /// Correlation is mandatory; late readiness still leaves ownership retained.
     pub fn runtime_ready(&mut self, id: &str, operation: &str) -> Result<(), Refusal> {
         let g = self

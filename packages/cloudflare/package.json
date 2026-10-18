@@ -11,7 +11,8 @@
     "can-soda": "./dist/cli/soda.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "!dist/**/*.test-support.*"
   ],
   "exports": {
     ".": {
@@ -46,17 +47,9 @@
       "types": "./dist/deploy/bundle.d.ts",
       "default": "./dist/deploy/bundle.js"
     },
-    "./dev/local-run": {
-      "types": "./dist/dev/local-run.d.ts",
-      "default": "./dist/dev/local-run.js"
-    },
     "./runtime/stdlib": {
       "types": "./dist/runtime/stdlib.d.ts",
       "default": "./dist/runtime/stdlib.js"
-    },
-    "./dev/row-scope": {
-      "types": "./dist/dev/row-scope.d.ts",
-      "default": "./dist/dev/row-scope.js"
     },
     "./worker/main": {
       "types": "./dist/worker/main.d.ts",
@@ -98,9 +91,9 @@
       "types": "./dist/distribution.d.ts",
       "default": "./dist/distribution.js"
     },
-    "./dev/browser-tools": {
-      "types": "./dist/dev/browser-tools.d.ts",
-      "default": "./dist/dev/browser-tools.js"
+    "./runtime/browser-tools": {
+      "types": "./dist/runtime/browser-tools.d.ts",
+      "default": "./dist/runtime/browser-tools.js"
     },
     "./deploy/soda": {
       "types": "./dist/deploy/soda.d.ts",

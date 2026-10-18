@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { assertSavedUnitSeparation, packSavedUnitModules } from "../src/deploy/bundle.js";
-import { startLocalDev } from "../src/dev/local-run.js";
+import { startLocalDev } from "../src/runtime/native-preview.test-support.js";
 
 // BGI-11 actual-target harness: the demonstrated missing case —
 // packing, separation, maps, and assets qualify in pure unit tests,

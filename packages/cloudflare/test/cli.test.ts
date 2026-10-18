@@ -13,12 +13,12 @@ interface RunResult {
   stderr: string;
 }
 
-function runCli(args: string[]): Promise<RunResult> {
+function runCli(args: string[], env?: NodeJS.ProcessEnv): Promise<RunResult> {
   return new Promise((resolve) => {
     execFile(
       process.execPath,
       [CLI.pathname, ...args],
-      { timeout: 15000 },
+      { timeout: 15000, ...(env === undefined ? {} : { env }) },
       (error, stdout, stderr) => {
         const code =
           error !== null && "code" in error && typeof error.code === "number" ? error.code : 0;
@@ -183,7 +183,21 @@ describe("can-platform CLI (L1 IR-03 delegation target)", () => {
     expect(typeof body["detail"]).toBe("string");
   });
 
-  it.each(["test", "build", "deploy"])(
+  it("test reports its exact missing native producer after the child joins", async () => {
+    const artifact = fixtureArtifact();
+    try {
+      const result = await runCli(["test", "--artifact", artifact], {
+        ...process.env, CAN_DEV_BIN: join(dirname(artifact), "missing-native-dev"),
+      });
+      expect(result.code).toBe(2);
+      expect(envelope(result.stdout)).toMatchObject({
+        ok: false, command: "test", code: "missing-producer", producer: "dev-server",
+        contract: "native saved-artifact examples",
+      });
+    } finally { rmSync(dirname(artifact), { recursive: true, force: true }); }
+  });
+
+  it.each(["build", "deploy"])(
     "%s with a present artifact reports the exact missing producer",
     async (command) => {
       const result = await runCli([command, "--artifact", fixtureArtifact()]);
@@ -259,47 +273,39 @@ vi.mock("../src/runtime/modules.js", () => ({
     return { entryUrl: pathToFileURL(entryPath).href };
   },
 }));
-vi.mock("../src/dev/zero-config.js", () => ({
+vi.mock("../src/cli/artifact-defaults.js", () => ({
   resolveLocalDefaults: () => ({ workerName: "example-worker", compatibilityDate: "2026-10-09" }),
 }));
-vi.mock("../src/dev/preview-inputs.js", () => ({
-  prepareLocalPreviewCapture: (input: { appPath: string }) => {
-    exampleStage("request");
-    expect(input.appPath).toBe("app.can");
-    return { appPath: input.appPath };
-  },
-}));
-vi.mock("../src/dev/source-capture.js", () => ({
-  captureSingleFileSource: async () => { exampleStage("capture"); return { sourceRevision: "revision" }; },
-  verifyCompilerSources: () => { exampleStage("verify"); return { ok: true }; },
-}));
-vi.mock("../src/dev/preview-host.js", () => ({
-  preflightLocalPreviewActivation: async () => { exampleStage("activate"); return { active: true }; },
-  produceInstalledPortableBundle: async (input: { commandLifetime?: { signal: AbortSignal } }) => {
-    exampleStage("bundle");
-    expect(input.commandLifetime?.signal).toBeInstanceOf(AbortSignal);
-    return { bundle: { mainModule: "worker.mjs", modules: { "worker.mjs": "export default {};" }, binaries: {} } };
-  },
-}));
-vi.mock("../src/dev/example-runner.js", () => ({
-  MissingExampleTestkitError: class extends Error {},
-  loadInstalledExampleTestkit: async (applicationRoot: string) => {
-    expect(applicationRoot).toBe(process.cwd());
-    exampleStage("testkit");
-    return "testkit-port";
-  },
-  runCompiledExamples: async (input: { signal: AbortSignal }) => {
-    exampleStage("execute");
-    expect(input).toEqual({
-      artifactBytes: new Uint8Array([1, 2, 3]), artifactLabel: "/artifact.json", sourceRevision: "revision",
-      worker: { mainModule: "worker.mjs", modules: { "worker.mjs": "export default {};" }, binaryModules: {} },
-      workerName: "example-worker", compatibilityDate: "2026-10-09", d1Binding: "DB", testkit: "testkit-port",
-      signal: expect.any(AbortSignal),
+vi.mock("node:child_process", async original => {
+  const actual = await original<typeof import("node:child_process")>();
+  const { EventEmitter } = await import("node:events");
+  return { ...actual, spawn: (binary: string, args: string[]) => {
+    expect(binary).toBe(process.env.CAN_DEV_BIN ?? "can-dev");
+    expect(args).toEqual(["examples-artifact", "--artifact", "/artifact.json", "--root", process.cwd()]);
+    const controller = new AbortController();
+    const child = Object.assign(new EventEmitter(), {
+      stdout: new EventEmitter(), stderr: new EventEmitter(),
+      kill(signal: string) {
+        expect(signal).toBe("SIGTERM");
+        examples.events.push("SIGTERM");
+        controller.abort(new DOMException("native example cancelled", "AbortError"));
+        return true;
+      },
     });
-    await examples.executeWait?.(input.signal);
-    return examples.result;
-  },
-}));
+    queueMicrotask(() => { void (async () => {
+      let result: unknown = examples.result;
+      try { exampleStage("execute"); await examples.executeWait?.(controller.signal); }
+      catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          result = { ok: false, code: "command-cancelled", detail: "native examples cancelled" };
+        } else { child.emit("error", new Error(String(error instanceof Error ? error.message : error))); child.emit("close", 1, null); return; }
+      }
+      child.stdout.emit("data", Buffer.from(JSON.stringify(result)));
+      child.emit("close", (result as { ok: boolean }).ok ? 0 : 1, null);
+    })(); });
+    return child;
+  } };
+});
 vi.mock("../src/preparation/host.js", async (original) => ({
   ...await original<typeof import("../src/preparation/host.js")>(),
   emit: (value: unknown) => examples.emitted?.(value),
@@ -418,7 +424,7 @@ describe("run CLI acquired staging lifetime", () => {
 });
 
 describe("test CLI compiled example execution", () => {
-  const stages = ["request", "capture", "verify", "activate", "bundle", "testkit", "read", "execute"];
+  const stages = ["execute"];
   afterEach(() => {
     vi.restoreAllMocks();
     examples.events = [];
@@ -433,7 +439,7 @@ describe("test CLI compiled example execution", () => {
     return invokePlatform("test");
   }
 
-  it("executes compiled rows with the verified source and portable worker, then reports exact results", async () => {
+  it("delegates exact saved artifact and root to native examples, then reports exact results", async () => {
     expect(await invokeTest()).toEqual({ ok: true, command: "test", executed: 3, report: examples.result.report });
     expect(examples.events).toEqual(stages);
   });
@@ -461,7 +467,7 @@ describe("test CLI compiled example execution", () => {
     }
   });
 
-  it.each(["late success", "owned AbortError"])("passes the command deadline to the example runner and waits for cleanup before refusing its %s", async mode => {
+  it.each(["late success", "owned AbortError"])("sends SIGTERM at the command deadline and joins native cleanup before refusing its %s", async mode => {
     vi.useFakeTimers();
     const beforeInt = process.listenerCount("SIGINT");
     const beforeTerm = process.listenerCount("SIGTERM");
@@ -488,11 +494,11 @@ describe("test CLI compiled example execution", () => {
       await vi.advanceTimersByTimeAsync(300_000);
       await interrupted;
       expect(signal?.aborted).toBe(true);
-      expect(signal?.reason).toMatchObject({ command: "test", code: "command-timeout" });
+      expect(signal?.reason).toMatchObject({ name: "AbortError" });
       expect(reported).toBe(false);
       releaseCleanup();
       expect(await result).toEqual({ ok: false, command: "test", code: "command-timeout", detail: "test command timed out" });
-      expect(examples.events).toEqual(stages);
+      expect(examples.events).toEqual([...stages, "SIGTERM"]);
       expect(process.listenerCount("SIGINT")).toBe(beforeInt);
       expect(process.listenerCount("SIGTERM")).toBe(beforeTerm);
       expect(vi.getTimerCount()).toBe(beforeTimers);

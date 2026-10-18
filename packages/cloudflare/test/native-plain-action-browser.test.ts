@@ -48,10 +48,10 @@ test('public prepared action submits original native CRUD through Chromium, HTTP
     const { buildProductionDeps } = await nodeImport(installed('runtime/env-assembly.js')) as typeof import('../src/runtime/env-assembly.js');
     const { buildDerivedInputsModule } = await nodeImport(installed('deploy/bundle.js')) as typeof import('../src/deploy/bundle.js');
     const { gatherBrowserAssets } = await nodeImport(installed('deploy/package-assets.js')) as typeof import('../src/deploy/package-assets.js');
-    const { prepareLocalPreviewCapture, loadInstalledChromium } = await nodeImport(installed('dev/preview-inputs.js')) as typeof import('../src/dev/preview-inputs.js');
-    const { captureSingleFileSource, captureIsCurrent, verifyCompilerSources } = await nodeImport(installed('dev/source-capture.js')) as typeof import('../src/dev/source-capture.js');
-    const { compileCapturedSingleFile } = await nodeImport(installed('dev/compiler-check.js')) as typeof import('../src/dev/compiler-check.js');
-    const { localPreviewActivationVerdict } = await nodeImport(installed('dev/preview-host.js')) as typeof import('../src/dev/preview-host.js');
+    const { prepareLocalPreviewCapture, loadInstalledChromium } = await nodeImport(installed('runtime/native-dev.test-support.js')) as typeof import('../src/runtime/native-dev.test-support.js');
+    const { captureSingleFileSource, captureIsCurrent, verifyCompilerSources } = await nodeImport(installed('runtime/native-dev.test-support.js')) as typeof import('../src/runtime/native-dev.test-support.js');
+    const { compileCapturedSingleFile } = await nodeImport(installed('runtime/native-dev.test-support.js')) as typeof import('../src/runtime/native-dev.test-support.js');
+    const { localPreviewActivationVerdict } = await nodeImport(installed('runtime/native-preview.test-support.js')) as typeof import('../src/runtime/native-preview.test-support.js');
     const { handlePageRequest, handleOperationRequest, INPUT_CHOICES_VERSION, buildPresentationContext,
       createSourceFormBindings } = await nodeImport(producer('@canlang/interfaces')) as typeof import('@canlang/interfaces');
     const { createAssetTable, handleAssetsRequest } = await nodeImport(producer('@canlang/interfaces/http/assets')) as typeof import('@canlang/interfaces/http/assets');

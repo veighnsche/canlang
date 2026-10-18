@@ -18,10 +18,9 @@ The app-local Playwright test consumes the normal `CAN_ACCEPTANCE_SOURCE`, `CAN_
 
 Screenshots are written beneath the acceptance output's `screenshots/` directory; local test execution uses `playwright/results/screenshots/`. Captures are inspection artifacts, not automatically approved visual baselines.
 
-For interactive inspection, use the current development-control CLI:
+For interactive inspection, use the installed native development control:
 
 ```sh
-export CAN_DEV_BIN="$PWD/packages/cloudflare/dist/dev/control-cli.js"
 can dev start --root "$PWD" --source tests/fixtures/action-forms/ActionForms.can --app ActionForms
 ```
 

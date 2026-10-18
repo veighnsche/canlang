@@ -6,8 +6,7 @@ import { constants } from 'node:fs';
 import type { Server, IncomingMessage, ServerResponse } from 'node:http';
 import { lstat, mkdir, open, readFile, realpath, writeFile } from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
-import { startLocalDev } from '../dev/local-run.js';
-import type { LocalDev } from '../dev/local-run.js';
+import { startSodaWorker, type SodaWorker } from './soda-workerd.js';
 import { preflightSodaDeployment } from './soda.js';
 import type { SodaBundle } from './soda.js';
 import { DEFAULT_FILE_POLICY } from '@canlang/files/upload';
@@ -71,15 +70,15 @@ function d1Databases(input: SodaBundle) {
 }
 
 /** Trusted bootstrap/test handoff. Caller disposes before serving; no public fixture route. */
-export async function provisionSodaStorage(input: SodaBundle, dataDir: string): Promise<LocalDev> {
+export async function provisionSodaStorage(input: SodaBundle, dataDir: string): Promise<SodaWorker> {
   const release = await acquireWriter(dataDir);
   try {
     await prepareStorage(input, dataDir);
-    const dev = await startLocalDev({ workerName: input.descriptor.identity.appName, compatibilityDate: input.compatibilityDate,
+    const dev = await startSodaWorker({ workerName: input.descriptor.identity.appName, compatibilityDate: input.compatibilityDate,
     compatibilityFlags: input.compatibilityFlags, d1Databases: d1Databases(input),
-    d1Persist: join(dataDir, 'd1'), d1PersistenceRequired: true,
+    d1Persist: join(dataDir, 'd1'),
     mainModule: 'provision.js', modules: { 'provision.js': 'export default {fetch(){return new Response(null,{status:404});}};' },
-      denyOutbound: true });
+ });
     let closing: Promise<void> | undefined;
     return { ...dev, dispose: () => closing ??= (async () => { try { await dev.dispose(); } finally { await release(); } })() };
   } catch (error) { await release(); throw error; }
@@ -102,7 +101,7 @@ async function closeServer(server: Server): Promise<void> {
   await new Promise<void>((resolve, reject) => { server.close(error => error ? reject(error) : resolve()); server.closeIdleConnections(); });
 }
 
-async function forward(request: IncomingMessage, response: ServerResponse, runtime: LocalDev, origin: string): Promise<void> {
+async function forward(request: IncomingMessage, response: ServerResponse, runtime: SodaWorker, origin: string): Promise<void> {
   const path = request.url ?? '/';
   if (new URL(path, origin).origin !== origin) { response.writeHead(400); response.end(); return; }
   if (new URL(path, origin).pathname.startsWith('/__soda_')) { response.writeHead(404); response.end(); return; }
@@ -157,7 +156,7 @@ async function startUnderLock(input: SodaBundle, options: SodaRuntimeOptions): P
   const identity = databases.find(item => item.binding === 'DB');
   const state = databases.find(item => item.binding === 'STATE_DB');
   if (identity === undefined || state === undefined || identity.id === state.id) throw new Error('Soda requires separate declared DB and STATE_DB resources');
-  let runtime: LocalDev | undefined;
+  let runtime: SodaWorker | undefined;
   let admitted = false;
   const server = createServer((request, response) => {
     if (!admitted || runtime === undefined) { response.writeHead(503); response.end(); return; }
@@ -195,12 +194,12 @@ async function startUnderLock(input: SodaBundle, options: SodaRuntimeOptions): P
     try { await closeServer(server); } finally { await runtime?.dispose(); }
   })();
   try {
-    runtime = await startLocalDev({ workerName: input.descriptor.identity.appName,
+    runtime = await startSodaWorker({ workerName: input.descriptor.identity.appName,
       compatibilityDate: input.compatibilityDate, compatibilityFlags: input.compatibilityFlags,
       mainModule: input.bundle.mainModule, modules: input.bundle.modules, binaryModules: input.bundle.binaries,
-      d1Databases: databases, d1Persist: join(options.dataDir, 'd1'), d1PersistenceRequired: true,
+      d1Databases: databases, d1Persist: join(options.dataDir, 'd1'),
       durableObjects: [{ binding: 'SODA_APPLICATION', className: 'SodaApplication', useSQLite: true }],
-      durableObjectsPersist: join(options.dataDir, 'objects'), denyOutbound: true,
+      durableObjectsPersist: join(options.dataDir, 'objects'),
       vars: { ...input.environment.vars, CAN_AUTH_ORIGIN: origin, CAN_DEPLOYMENT_BASE: origin,
         CAN_STATE_OWNER: options.ownerTeam, CAN_STATE_INITIALIZE_FRESH: true,
         CAN_FORM_BINDING_KEY: key, SODA_CONTROL_TOKEN: control },

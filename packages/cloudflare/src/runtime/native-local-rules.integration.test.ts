@@ -1,5 +1,5 @@
 /** Actual native compile and canonical memory consumer; no whole-app or D1 claim. */
-import { createCheckoutScratch } from '../dev/checkout-scratch.js';
+import { createCheckoutScratch } from './checkout-scratch.test-support.js';
 import assert from 'node:assert/strict';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
@@ -14,9 +14,9 @@ import { createFrozenClock, createMemoryIdentityStore } from '@canlang/identity/
 import { hashInputs } from '@canlang/state/invocation/replay';
 import { createTestMemoryStorage } from '@canlang/state/storage/memory';
 import { distribution } from '@canlang/values/distribution';
-import { prepareLocalPreviewCapture } from '../dev/preview-inputs.js';
-import { captureIsCurrent, captureSingleFileSource } from '../dev/source-capture.js';
-import { compileCapturedSingleFile } from '../dev/compiler-check.js';
+import { prepareLocalPreviewCapture } from './native-dev.test-support.js';
+import { captureIsCurrent, captureSingleFileSource } from './native-dev.test-support.js';
+import { compileCapturedSingleFile } from './native-dev.test-support.js';
 import { assembleModules, type AssembledModules } from './modules.js';
 import { buildInvoker } from '../worker/assembly.js';
 import { loadCanonicalDescriptors } from './invoke.js';

@@ -1,15 +1,17 @@
 //! Native build-scoped browser access. Workerd receives only private transport
 //! authority; ordinary application Identity, Origin and CSRF still apply.
+use crate::refusals::{self, Catalog};
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use http_body_util::{BodyExt, Full, Limited};
 use hyper::{
     Request, Response, StatusCode,
     body::{Bytes, Incoming},
-    header::{COOKIE, HeaderMap, HeaderName, HeaderValue, SET_COOKIE},
+    header::{ACCEPT_ENCODING, COOKIE, HeaderMap, HeaderName, HeaderValue, SET_COOKIE},
     service::service_fn,
 };
 use hyper_util::rt::{TokioIo, TokioTimer};
 use serde::{Deserialize, Serialize};
+use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::{
     collections::VecDeque,
@@ -102,11 +104,42 @@ struct Access {
     pending: Option<Credential>,
     cookies: VecDeque<Credential>,
 }
+#[derive(Clone)]
+struct Observation {
+    catalog: Arc<Catalog>,
+    context: Value,
+}
+#[derive(Clone)]
+struct SelectedBackend {
+    backend: Backend,
+    observation: Option<Observation>,
+}
+#[derive(Default)]
+struct RefusalQueue {
+    projections: VecDeque<Value>,
+    dropped: u64,
+    unavailable: u64,
+}
+impl RefusalQueue {
+    fn push(&mut self, projection: Result<Value, String>) {
+        match projection {
+            Ok(projection) => {
+                if self.projections.len() >= 128 {
+                    self.projections.pop_front();
+                    self.dropped = self.dropped.saturating_add(1);
+                }
+                self.projections.push_back(projection);
+            }
+            Err(_) => self.unavailable = self.unavailable.saturating_add(1),
+        }
+    }
+}
 struct Shared {
     origin: String,
     authority: String,
     access: Mutex<Access>,
-    backend: Mutex<Option<Backend>>,
+    backend: Mutex<Option<SelectedBackend>>,
+    refusals: Mutex<RefusalQueue>,
     accepting: AtomicBool,
     options: GatewayOptions,
 }
@@ -144,6 +177,7 @@ impl Gateway {
             authority,
             access: Mutex::new(Access::default()),
             backend: Mutex::new(None),
+            refusals: Mutex::new(RefusalQueue::default()),
             accepting: AtomicBool::new(true),
             options,
         });
@@ -173,8 +207,42 @@ impl Gateway {
         if !self.shared.accepting.load(Ordering::Acquire) {
             return Err(failed("preview admission is closed"));
         }
-        *self.shared.backend.lock().map_err(failed)? = Some(backend);
+        *self.shared.backend.lock().map_err(failed)? = Some(SelectedBackend {
+            backend,
+            observation: None,
+        });
         Ok(())
+    }
+    /// Install the backend and its immutable evidence identity in one admission update.
+    pub fn set_observed_backend(
+        &self,
+        backend: Backend,
+        context: Value,
+        catalog: Catalog,
+    ) -> io::Result<()> {
+        backend.validate()?;
+        refusals::validate_context(&context).map_err(invalid)?;
+        if !self.shared.accepting.load(Ordering::Acquire) {
+            return Err(failed("preview admission is closed"));
+        }
+        *self.shared.backend.lock().map_err(failed)? = Some(SelectedBackend {
+            backend,
+            observation: Some(Observation {
+                catalog: Arc::new(catalog),
+                context,
+            }),
+        });
+        Ok(())
+    }
+    /// Native owner drains this bounded safe queue before releasing the build.
+    pub fn drain_refusals(&self) -> Value {
+        let Ok(mut queue) = self.shared.refusals.lock() else {
+            return json!({"projections":[],"dropped":0,"unavailable":1});
+        };
+        let projections: Vec<_> = queue.projections.drain(..).collect();
+        let dropped = std::mem::take(&mut queue.dropped);
+        let unavailable = std::mem::take(&mut queue.unavailable);
+        json!({"projections":projections,"dropped":dropped,"unavailable":unavailable})
     }
     pub fn mint_access(&self) -> io::Result<String> {
         if !self.shared.accepting.load(Ordering::Acquire) {
@@ -522,6 +590,9 @@ fn strip_hops(headers: &mut HeaderMap) {
 fn private_headers(headers: &mut HeaderMap, backend: &Backend, url: &Url) -> Result<(), Refusal> {
     let cookies = app_cookies(headers)?;
     strip_hops(headers);
+    // Bound and observe application bytes on the private loopback hop. Client
+    // compression preferences must not hide JSON refusal evidence inside gzip.
+    headers.insert(ACCEPT_ENCODING, HeaderValue::from_static("identity"));
     headers.remove(COOKIE);
     if let Some(cookies) = cookies {
         headers.insert(COOKIE, cookies);
@@ -543,9 +614,10 @@ fn private_headers(headers: &mut HeaderMap, backend: &Backend, url: &Url) -> Res
 async fn proxy(
     request: Request<Incoming>,
     url: Url,
-    backend: Backend,
+    selected: SelectedBackend,
     shared: &Shared,
 ) -> Result<HttpResponse, Refusal> {
+    let backend = selected.backend;
     let (mut parts, body) = request.into_parts();
     private_headers(&mut parts.headers, &backend, &url)?;
     let bytes = Limited::new(body, shared.options.max_body_bytes)
@@ -553,6 +625,13 @@ async fn proxy(
         .await
         .map_err(|_| (StatusCode::PAYLOAD_TOO_LARGE, "preview_body_too_large"))?
         .to_bytes();
+    let method = parts.method.as_str().to_owned();
+    let path = url.path().to_owned();
+    let request_body = if method == "POST" && path == "/mcp" {
+        bytes.clone()
+    } else {
+        Bytes::new()
+    };
     let target = Url::parse(&backend.origin)
         .map_err(|_| (StatusCode::BAD_GATEWAY, "preview_backend_invalid"))?;
     parts.uri = url[url::Position::BeforePath..]
@@ -580,12 +659,29 @@ async fn proxy(
             .send_request(request)
             .await
             .map_err(|_| (StatusCode::BAD_GATEWAY, "preview_dispatch_failed"))?;
-        relay(response, shared.options.max_response_bytes).await
+        relay(
+            response,
+            shared.options.max_response_bytes,
+            selected.observation.as_ref(),
+            &method,
+            &path,
+            &request_body,
+            shared,
+        )
+        .await
     };
     tokio::pin!(work);
     tokio::select! { biased; result = &mut work => result, _ = connection => work.await }
 }
-async fn relay(response: Response<Incoming>, max_bytes: usize) -> Result<HttpResponse, Refusal> {
+async fn relay(
+    response: Response<Incoming>,
+    max_bytes: usize,
+    observation: Option<&Observation>,
+    method: &str,
+    path: &str,
+    request_body: &[u8],
+    shared: &Shared,
+) -> Result<HttpResponse, Refusal> {
     let (mut parts, body) = response.into_parts();
     let conflict = parts.headers.get_all(SET_COOKIE).iter().any(|value| {
         value
@@ -602,6 +698,29 @@ async fn relay(response: Response<Incoming>, max_bytes: usize) -> Result<HttpRes
         .await
         .map_err(|_| (StatusCode::BAD_GATEWAY, "preview_response_too_large"))?
         .to_bytes();
+    if let Some(observation) = observation {
+        if let Some(error) = refusals::observed(
+            &observation.catalog,
+            parts.status.as_u16(),
+            &parts.headers,
+            &bytes,
+            method,
+            path,
+            request_body,
+        ) {
+            let projection = crate::preview::random_id().and_then(|request_id| {
+                refusals::projection(
+                    &observation.context,
+                    &request_id,
+                    parts.status.as_u16(),
+                    &error,
+                )
+            });
+            if let Ok(mut queue) = shared.refusals.lock() {
+                queue.push(projection);
+            }
+        }
+    }
     strip_hops(&mut parts.headers);
     Ok(Response::from_parts(parts, Full::new(bytes)))
 }
@@ -625,4 +744,129 @@ fn refusal(status: StatusCode, code: &'static str) -> HttpResponse {
         HeaderValue::from_static("nosniff"),
     );
     response
+}
+
+#[cfg(test)]
+mod refusal_tests {
+    use super::*;
+    use std::io::{Read, Write};
+    fn context(revision: &str, build: &str) -> Value {
+        json!({"session":"session","revision":revision,"sourceRevision":format!("sha256:{}","a".repeat(64)),"servingBuild":build})
+    }
+    fn catalog() -> Catalog {
+        Catalog::from_value(&json!({"publicErrorMessages":{"busy":"Safe busy message."},"retryableByCode":{"busy":true},"formRefusalHeader":"can-form-refusal"})).unwrap()
+    }
+    fn get(url: &str, cookie: Option<&str>) -> String {
+        let url = Url::parse(url).unwrap();
+        let mut stream = std::net::TcpStream::connect(("127.0.0.1", url.port().unwrap())).unwrap();
+        stream
+            .set_read_timeout(Some(Duration::from_secs(3)))
+            .unwrap();
+        let cookie = cookie.map_or(String::new(), |value| format!("Cookie: {value}\r\n"));
+        write!(
+            stream,
+            "GET {} HTTP/1.1\r\nHost: 127.0.0.1:{}\r\nAccept-Encoding: gzip, deflate\r\nConnection: close\r\n{}\r\n",
+            &url[url::Position::BeforePath..],
+            url.port().unwrap(),
+            cookie
+        )
+        .unwrap();
+        let mut response = String::new();
+        stream.read_to_string(&mut response).unwrap();
+        response
+    }
+    #[test]
+    fn safe_pending_queue_is_bounded_and_counts_overflow_and_unavailable() {
+        let mut queue = RefusalQueue::default();
+        for index in 0..130 {
+            queue.push(Ok(json!({"index":index})));
+        }
+        queue.push(Err("PRIVATE runtime error".into()));
+        assert_eq!(queue.projections.len(), 128);
+        assert_eq!(queue.dropped, 2);
+        assert_eq!(queue.unavailable, 1);
+        assert_eq!(queue.projections.front().unwrap()["index"], 2);
+        assert!(!json!(queue.projections).to_string().contains("PRIVATE"));
+    }
+    #[test]
+    fn refusal_retains_the_selected_build_and_http_bytes_when_backend_changes_during_dispatch() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let backend = Backend {
+            origin: format!("http://{}", listener.local_addr().unwrap()),
+            header: "x-can-local-dispatch".into(),
+            secret: "a".repeat(43),
+            url_header: "x-can-local-url".into(),
+        };
+        let (entered, ready) = mpsc::sync_channel(1);
+        let (release, wait) = mpsc::sync_channel(1);
+        let body = r#"{"error":{"code":"busy","message":"PRIVATE_RESPONSE","fields":[{"message":"PRIVATE_FIELD"}]}}"#;
+        let worker = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            stream
+                .set_read_timeout(Some(Duration::from_secs(3)))
+                .unwrap();
+            let mut headers = Vec::new();
+            let mut byte = [0u8; 1];
+            while !headers.ends_with(b"\r\n\r\n") {
+                stream.read_exact(&mut byte).unwrap();
+                headers.push(byte[0]);
+            }
+            assert!(
+                String::from_utf8(headers)
+                    .unwrap()
+                    .to_ascii_lowercase()
+                    .lines()
+                    .any(|line| line == "accept-encoding: identity")
+            );
+            entered.send(()).unwrap();
+            wait.recv_timeout(Duration::from_secs(3)).unwrap();
+            write!(stream,"HTTP/1.1 503 Service Unavailable\r\nContent-Type: application/json\r\nX-Private: PRIVATE_HEADER\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",body.len(),body).unwrap();
+        });
+        let mut gateway = Gateway::bind().unwrap();
+        gateway
+            .set_observed_backend(backend.clone(), context("r1", "b1"), catalog())
+            .unwrap();
+        let bootstrap = get(&gateway.mint_access().unwrap(), None);
+        let cookie = bootstrap
+            .lines()
+            .find_map(|line| {
+                line.strip_prefix("set-cookie: ")
+                    .or_else(|| line.strip_prefix("Set-Cookie: "))
+            })
+            .unwrap()
+            .split(';')
+            .next()
+            .unwrap()
+            .to_owned();
+        assert_eq!(gateway.drain_refusals()["projections"], json!([]));
+        let url = format!("{}/refusal", gateway.origin());
+        let client = thread::spawn(move || get(&url, Some(&cookie)));
+        ready.recv_timeout(Duration::from_secs(3)).unwrap();
+        gateway
+            .set_observed_backend(backend, context("r2", "b2"), catalog())
+            .unwrap();
+        release.send(()).unwrap();
+        let response = client.join().unwrap();
+        assert!(response.starts_with("HTTP/1.1 503"));
+        assert!(response.ends_with(body));
+        assert!(response.contains("PRIVATE_HEADER"));
+        worker.join().unwrap();
+        let observed = gateway.drain_refusals();
+        assert_eq!(observed["projections"].as_array().unwrap().len(), 1);
+        assert_eq!(observed["projections"][0]["occurrence"]["revision"], "r1");
+        assert_eq!(
+            observed["projections"][0]["occurrence"]["serving_build"],
+            "b1"
+        );
+        assert_eq!(
+            observed["projections"][0]["occurrence"]["summary"],
+            "Safe busy message."
+        );
+        assert!(!observed.to_string().contains("PRIVATE"));
+        assert_eq!(
+            gateway.drain_refusals(),
+            json!({"projections":[],"dropped":0,"unavailable":0})
+        );
+        gateway.shutdown().unwrap();
+    }
 }

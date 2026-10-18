@@ -14,9 +14,9 @@ import { createFrozenClock, createMemoryIdentityStore } from '@canlang/identity/
 import { createMemoryStorage } from '@canlang/state/storage/memory';
 import { makeBatch, makeRow, asModel, asId } from '@canlang/state/testing/invocation/fixtures';
 import { distribution } from '@canlang/values/distribution';
-import { prepareLocalPreviewCapture } from '../dev/preview-inputs.js';
-import { captureIsCurrent, captureSingleFileSource } from '../dev/source-capture.js';
-import { compileCapturedSingleFile } from '../dev/compiler-check.js';
+import { prepareLocalPreviewCapture } from './native-dev.test-support.js';
+import { captureIsCurrent, captureSingleFileSource } from './native-dev.test-support.js';
+import { compileCapturedSingleFile } from './native-dev.test-support.js';
 import { buildInvoker } from '../worker/assembly.js';
 import { assembleModules, importVerifiedAssemblyModule } from './modules.js';
 import { loadCanonicalDescriptors } from './invoke.js';

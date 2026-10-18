@@ -41,17 +41,14 @@ assert.equal(versions.bun, '1.4.2', 'Selected tool release pins Bun 1.4.2');
 const sourceRevision = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
 const sourceChanges = execFileSync('git', ['status', '--porcelain', '--untracked-files=all'], { cwd: root, encoding: 'utf8' }).trim();
 assert.equal(sourceChanges, '', 'Commit source changes before packaging a Soda tool archive');
-// Timestamp normalization must never conceal genuinely stale producer bytes.
-// Reuse the preview owner's existing source/compiler currency checks first.
-const currency = await import(new URL('../packages/cloudflare/dist/dev/preview-inputs.js', import.meta.url));
-const priorToolRoot = process.env.CAN_TOOL_ROOT;
-try {
-  delete process.env.CAN_TOOL_ROOT;
-  currency.installedOwnedSourceInputs(root);
-  currency.compilerSourceInputs(root, compiler);
-} finally {
-  if (priorToolRoot !== undefined) process.env.CAN_TOOL_ROOT = priorToolRoot;
-}
+// The release producer verifies frozen package artifacts before assembly.
+// Native capture verifies source/compiler currency when an owner starts.
+const producerEnv = { ...process.env, CAN_DEV_NODE: node, CAN_DEV_RUNTIME_HOST: join(root, 'dev-server/host/entry.mjs') };
+delete producerEnv.CAN_TOOL_ROOT;
+delete producerEnv.CAN_INSTALL_ROOT;
+const producer = JSON.parse(execFileSync(devServer, ['producer-current', '--root', root, '--compiler', compiler,
+  '--catalog', join(root, 'packages/cloudflare/dist/native-catalog.json')], { cwd: root, env: producerEnv, encoding: 'utf8' }));
+assert.equal(producer.ok, true, 'Native producer/source currency check must pass before timestamp normalization');
 const release = packRelease();
 const output = args.get('--output') ?? join(root, 'output', 'tools');
 mkdirSync(output, { recursive: true });
@@ -146,17 +143,8 @@ try {
     mkdirSync(join(destination, 'packages', entry), { recursive: true });
     copyFileSync(manifest, join(destination, 'packages', entry, 'package.json'));
   }
-  // Exercise the owning help loader against delivered references, including
-  // linked source headings. A document copied alone is not an offline closure.
-  const { loadConstructHelpIndex } = await import(new URL('../packages/cloudflare/dist/dev/construct-help.js', import.meta.url));
-  const { CATALOG } = await import(new URL('../packages/values/dist/src/catalog.js', import.meta.url));
-  const { UI_CATALOG } = await import(new URL('../packages/ui/dist/src/catalog.js', import.meta.url));
-  await loadConstructHelpIndex(destination, {
-    languageVersion: '1.0', compiler: { sha256: sha256(readFileSync(compiler)) },
-    grammar: { sha256: sha256(readFileSync(join(destination, 'docs/specification/GRAMMAR.md'))) },
-    values: { sha256: sha256(readFileSync(join(nodeModules, '@canlang/values/src/catalog.ts'))), entries: CATALOG.entries },
-    ui: { sha256: sha256(readFileSync(join(nodeModules, '@canlang/ui/src/catalog.ts'))), entries: UI_CATALOG.entries },
-  }, sha256(readFileSync(join(destination, 'docs/specification/CONSTRUCT-HELP.md'))));
+  cpSync(join(root, 'dev-server/host'), join(destination, 'libexec/dev-server-host'), { recursive: true, dereference: true });
+  assert.ok(existsSync(join(nodeModules, '@canlang/cloudflare/dist/native-dev-catalog.json')), 'Native construct catalog is missing');
   for (const [source, target] of [[compiler, 'compiler/target/release/can'], [devServer, 'libexec/can-dev'], [node, 'libexec/node'], [bun, 'libexec/bun']]) {
     mkdirSync(dirname(join(destination, target)), { recursive: true });
     copyFileSync(realpathSync(source), join(destination, target));
@@ -170,7 +158,7 @@ try {
   execFileSync('python3', [join(root, 'scripts/check-dev-server-release-notices.py'), '--target', 'x86_64-unknown-linux-gnu', '--output-dir', join(destination, 'licenses/dev-server')], { stdio: 'inherit' });
   const shared = '#!/bin/sh\nset -eu\nCAN_TOOL_ENTRY=$(readlink -f -- "$0")\nCAN_TOOL_ROOT=$(CDPATH= cd -- "$(dirname -- "$CAN_TOOL_ENTRY")/.." && pwd -P)\nexport CAN_TOOL_ROOT\nexport PATH="$CAN_TOOL_ROOT/bin:$PATH"\nexport NODE_PATH="$CAN_TOOL_ROOT/lib/node_modules${NODE_PATH:+:$NODE_PATH}"\nexport CAN_CATALOG="${CAN_CATALOG:-$CAN_TOOL_ROOT/lib/node_modules/@canlang/cloudflare/dist/native-catalog.json}"\nexport CAN_DEV_COMPILER="${CAN_DEV_COMPILER:-$CAN_TOOL_ROOT/compiler/target/release/can}"\nexport CAN_COMPILER_BIN="${CAN_COMPILER_BIN:-$CAN_TOOL_ROOT/compiler/target/release/can}"\nexport CAN_DEV_HELP_INDEX="${CAN_DEV_HELP_INDEX:-$CAN_TOOL_ROOT/docs/specification/CONSTRUCT-HELP.md}"\nexport CAN_HELP_INDEX="${CAN_HELP_INDEX:-$CAN_TOOL_ROOT/docs/specification/CONSTRUCT-HELP.md}"\nexport CAN_PLATFORM_BIN="$CAN_TOOL_ROOT/bin/can-platform"\nexport CAN_DEV_BIN="$CAN_TOOL_ROOT/bin/can-dev"\n';
   const commands = [['can', 'exec "$CAN_TOOL_ROOT/compiler/target/release/can" "$@"'], ['can-dev', 'exec "$CAN_TOOL_ROOT/libexec/can-dev" "$@"']];
-  const nativeDev = 'export CAN_DEV_NODE="${CAN_DEV_NODE:-$CAN_TOOL_ROOT/libexec/node}"\nexport CAN_DEV_RUNTIME_HOST="${CAN_DEV_RUNTIME_HOST:-$CAN_TOOL_ROOT/lib/node_modules/@canlang/cloudflare/dist/dev/runtime-host.js}"\n';
+  const nativeDev = 'export CAN_DEV_NODE="${CAN_DEV_NODE:-$CAN_TOOL_ROOT/libexec/node}"\nexport CAN_DEV_RUNTIME_HOST="${CAN_DEV_RUNTIME_HOST:-$CAN_TOOL_ROOT/libexec/dev-server-host/entry.mjs}"\n';
   const temporaryFiles = 'if [ -z "${TMPDIR:-}" ]; then\n  export TMPDIR="$HOME/.cache/canlang/tmp"\n  mkdir -p -m 700 -- "$TMPDIR"\nfi\n';
   mkdirSync(join(destination, 'bin'));
   for (const name of ['node', 'bun']) {

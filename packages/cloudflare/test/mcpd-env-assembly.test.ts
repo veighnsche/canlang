@@ -53,7 +53,7 @@ import type {
 } from "@canlang/identity";
 import { createMcpHandler } from "@canlang/interfaces/mcp/server";
 import type { McpDeps as RealMcpDeps } from "@canlang/interfaces";
-import { startLocalDev, type LocalDev } from "../src/dev/local-run.js";
+import { startLocalDev, type LocalDev } from "../src/runtime/native-preview.test-support.js";
 import {
   type AssembledModules,
   type AssemblyDeps,
