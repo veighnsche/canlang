@@ -19707,3 +19707,17 @@ boundary regressions before acceptance. Existing route tests 7/7 and four new
 getter/error-order probes passed; repaired probe typing passes targeted strict
 NodeNext checking. The original above-20 handler is reduced without changing
 permissions, responses, body limits or complexity configuration.
+
+
+## 2026-10-18 — extract retained dispatch, cohort and input-choice phases
+
+Accepted implementation: split the existing runtime phases into private helpers,
+keeping authorization/revalidation, stage order and error mapping in their owners.
+Independent review accepted cohort/input-choice motion and repaired dispatch
+`retained.intent` single capture plus reuse of the originally decoded control row;
+no additional behavior changes are intended. The three files close 13 original
+above-20 functions. Scoped type/complexity checks and direct before/after getter
+probes support this release. The joined emitted consumer check passed 3/4 cases;
+the remaining generation admission failure also appeared in the reported HEAD
+comparison, so full consumer qualification is not claimed for that case. Image/text
+adapter declaration-order repairs and their tests remain a separate unfinished scope.
