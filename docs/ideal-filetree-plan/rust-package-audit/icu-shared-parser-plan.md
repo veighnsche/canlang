@@ -278,10 +278,13 @@ exact formatting, caption escaping and operand order; the existing ownerless-enu
 UI refusal remains explicit. These are the plan's existing consumers, not full
 Cloudflare tarball, browser, hosted or native-preparation qualification.
 
-No newer compiler/runtime source in the main checkout was edited; implementation
-and validation stayed in this isolated worktree. UI full-signature usage and its
-joined completion remain unreleased. No merge or complete checkpoint advance
-occurs here; native preparation remains **HUMAN HOLD**.
+Implementation and validation stayed in the isolated worktree. Main then
+fast-forwarded `7700621fa` to `22b66ab20`, preserving bytes/modes of its 47
+pre-existing modified/untracked files and leaving foreign staging unchanged.
+The living plan and DECISIONS reconcile all 13 incoming paths against retained
+coverage; unchanged validation is reused. UI full-signature usage and its joined
+completion remain unreleased, the complete review checkpoint is unchanged, and
+native preparation remains **HUMAN HOLD**.
 
 ## Optional single-Rust-parser follow-up
 
