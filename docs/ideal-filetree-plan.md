@@ -1,5 +1,16 @@
 # Living ideal file-tree plan for Canlang
 
+**Native release and newer planning intake, 2026-10-18:** account for all7
+committed planning paths from a28335e6b through ab516f39b. Preparation's remaining
+P05 packet stays proposed, with public deployment/default/TS-retirement holds;
+Rust-port start/queue/current/remaining records and decisions retain their owners.
+Development/distribution retain the same100-path native integration closure.
+Native94 release and actual installed23 checks pass on both recorded hosts. The
+existing installed manual verifier now observes normal retirement and retains the
+repair result; no lifecycle guard or production owner changes. Reuse prior source
+and semantic coverage and preserve stopped U plus foreign main edits. This is
+incremental coverage; the complete historical checkpoint remains unchanged.
+
 **Committed-main development intake, 2026-10-18:**
 
 Account for all54 incoming paths from the retained `69eede1e8` intake through `a28335e6b`: Compiler owns native query/filter/IR correspondence and tests; State/Contracts/UI own authorized query and presentation changes; Cloudflare owns hook/runtime delivery, preparation module/job/host/protocol/CLI and existing bundle adapters. Native preparation build/verify scripts, crate manifests, tests and conformance workloads retain their existing owners. Reuse main's recorded accepted source/module/CLI/integrity and installed macOS/Linux coverage, plus its decisions and Rust-port/compiler planning records. Dev changes retain their bounded native/runtime/distribution ownership above. No new package or backend default is introduced. Active foreign main inputs are excluded; the complete historical checkpoint stays unchanged.
@@ -13,7 +24,8 @@ canonical-key contract. Distribution owns native artifact identity, dev notices,
 existing build/pack/install/CI and Linux tool-entry updates; no second installer or
 new runtime profile is added. Dev contributor/plan/decision documentation retains
 its owners. Reuse native94, bridge6/cleanup4/spool1, example13 and local installed23
-checks at their recorded scopes; actual Linux/release-profile CI remains external.
+checks at their recorded scopes; the later release/platform result above supplies
+the previously missing actual host qualification.
 Stopped dirty TS/cache/UI inputs and foreign main work remain separate. This
 updates bounded coverage without advancing the complete historical checkpoint.
 
@@ -72,6 +84,31 @@ the held complete checkpoint; this bounded merge is not a whole-tree audit.
 > explicit user decisions take precedence. Historical checkpoints, accepted
 > decisions and bounded coverage evidence are retained below; that evidence
 > applies only at its recorded scope and does not establish whole-plan currency.
+
+**Rust-port planning integration, 2026-10-18:** this seven-document intake
+reconciles the proposed native identity packet against main `a28335e6b`.
+No product/source owner or target changes; retain the bounded coverage below and
+the complete stale checkpoint. The integration preserves committed compiler/runtime/
+Work history and concurrent working notes, including the separate DECISIONS delta.
+Committing/merging/pushing this proposal does not authorize its implementation or
+release public deployment, backend defaults or TS retirement.
+
+**Native preparation planning refresh, 2026-10-18 (main `a28335e6b`):** fetched
+origin/main equals canonical main and this checkout's tracked content. No source
+has changed since the accepted CLI/integrity closure. Reuse accumulated Cloudflare
+owner/target review and accepted Work/facts/CLI/Linux consumer results. Read-only
+producer→facts→job→digest→plan→publication tracing and an independent challenger
+identify one proposed P05.1/P05.4 component: native-derived final text-bundle v1
+identity consumed by the real deploy plan/review and corresponding retained host
+publication bundle. Existing owners/files suffice; no new package, parser, carrier,
+stage, output tree or compiler owner is allocated. Full module construction,
+source-map/browser duties, P05.5 native-output qualification and P10/P11 resource/
+adoption stay explicit successors. See the single current checklist for exact
+writes/prerequisites/finite acceptance. This request is planning-only; no workers,
+implementation or product checks start. Preserve newer compiler/runtime/Work dirty
+source and notes, accepted criteria and the complete stale checkpoint. Public
+deployment, defaults and TS retirement remain held. This bounded native refresh
+makes no claim of full-tree currency.
 
 **Native CLI and executable-integrity integration, 2026-10-18:** the existing
 Cloudflare CLI/preparation/protocol, owning tests/conformance and package-local

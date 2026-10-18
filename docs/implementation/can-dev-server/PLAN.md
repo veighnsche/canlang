@@ -1,5 +1,34 @@
 # `can dev` implementation plan
 
+**Release-profile platform qualification, 2026-10-18:** the locked Rust1.99
+release compiler and native server build on macOS arm64 and Linux x86_64. Native94
+release checks pass on both; macOS reuses64 sandbox-valid checks and retries only
+13 socket/watch-blocked checks with the required environment, then passes gateway4
+and state13. Actual archive qualification passes23 criteria per platform, including
+clean toolchain-free PATH, bundled runtime/dependency identity, real installed
+manual login/grants/D1, isolated examples/rerun, invalid edit/last good, repair,
+safe HTTP refusal and stop/restart preserving data. The earlier development-profile
+results remain evidence at their recorded scope.
+
+The first release manual attempts exposed a verifier race at replacement: new
+Ready does not imply the old generation has finished retiring. Preserve owner
+CLEANUP_REQUIRED and observe normal retirement via status, bounded to10s, before
+requesting access. No cleanup retry or relaxed assertion is used. Linux's affected
+retry observed107ms retirement and passes all manual groups; macOS's affected
+manual retry passes, reusing19 unchanged archive checks and the remaining3. The
+first macOS repair assertion did not retain its check result; the verifier now
+records it, and the successful retry confirms valid/ready r3. No production change
+was inferred from that missing historical outcome.
+
+The release tuples use committed source e45f9655b and its frozen producer outputs.
+macOS manual ready9.181s/control.085s/stop.120s; Linux ready14.507s/control.041s/
+stop.170s. These are separate host observations, not a cross-platform comparison.
+Linux qualification is Rocky10.2/glibc2.39; its actual ELF closure requires glibc2.39.
+The existing configured GitHub release workflow was not dispatched or published;
+actual equivalent locked release builds and installed checks close this platform
+qualification scope. Main integration and its final measurement follow the safe
+foreign-writer release. T18–T30 and public publication remain separate.
+
 ## Current execution view — development experience, 2026-10-18
 
 **Implementation resumed by the user, 2026-10-18.** This is the single current
@@ -75,9 +104,8 @@ helper expected an invented SESSION_NOT_FOUND code after teardown; actual missin
 endpoint reports CONTROL_IO, consistent with its existing native boundary. No
 extra owner/terminal retry was needed.
 
-**Remaining T17 gate:** actual Linux qualification and release-profile CI execution
-on both configured release hosts remain external; this run qualifies the current
-local macOS build. No public publication, T18–T30 extension or external gate release
+**Historical local T17 checkpoint:** Linux/release-profile qualification was
+unrun at this checkpoint and is now closed at the recorded host scope above. No public publication, T18–T30 extension or external gate release
 is inferred. The native manual and terminal outcomes above are closed at their
 local scope; these external platform gates do not reopen their accepted checks.
 
