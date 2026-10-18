@@ -18924,3 +18924,17 @@ Muse remains stopped.
 
 - **Explicit state-machine refinement (planning approved):** T14 now owns related server lifecycle, check-operation and preview availability/freshness dimensions, reusing core revision queues, cancellation, private root claiming and the existing E1 cleanup owner. A failed r15 check may coexist with serving r14; a cleanup warning may coexist with a current new preview. Terminal output projects an authoritative snapshot and ordered updates, never inferred log phases. Stop closes admission before acknowledgement, and stopped requires observed owned release; client disconnect stays unknown.
 - **Ownership and finite gaps:** the user-designated implementation chat, Prevent Miniflare instance accumulation, owns the overlapping E1/T14 lifecycle work; no new implementation is dispatched here. Targeted source reads identify the stalled incomplete-start takeover cleanup race, early endpoint release after failed cleanup, sticky failed stop wrappers and unobserved failed-launch child release. Reuse existing duplicate-owner controls and unmerged retryable cleanup; reproduce/fix only uncovered mechanisms. State transitions, action rules and their focused acceptance live in the same [current plan](../implementation/can-dev-server/PLAN.md#explicit-server-state-machine--t14-defining-contract), with no new task IDs or replacement framework.
+
+
+## 2026-10-18 — computed stored-query order
+
+Reuse the typed, once-per-candidate ordering mechanism for stored queries through
+canonical `records`: preserve complete granted/owner domains and inherited native
+row observers, evaluate keys before sorting/projection, compare checked Values,
+break ties by record identity, and fail on excess limits without truncation.
+Simple stored-field and supplied-array profiles retain their previous paths; full
+original/fresh-IR query joins remain required for private handlers. The existing
+D1 prefix consumer now uses a computed descending helper key; source mutants,
+retained typed/stable/failure ordering and the updated former-refusal pin pass.
+This release does not claim a new original24 count. Full212-error goal continues;
+Muse remains stopped and work stays on main.

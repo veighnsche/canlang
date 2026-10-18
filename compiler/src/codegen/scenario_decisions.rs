@@ -3167,9 +3167,7 @@ fn checked_contained_query(
 fn checked_query(program: &CheckedProgram, query: &IrQuery) -> Option<()> {
     let source = query.source.as_deref()?;
     if query.value_order.is_some()
-        && (matches!(query.domain, IrQueryDomain::Model(_))
-            || !query.order.is_empty()
-            || query.collection_call.is_some()
+        && (!query.order.is_empty()
             || query.contract_collection_call.is_some())
     {
         return None;

@@ -258,11 +258,15 @@ test('whole handler queries retain their own staged prefix and a late require ro
     const original = await readFile(join(root, FIXTURE), 'utf8');
     const source = original.replace(' Budget {source:text,approved:bool}', ' Budget {source:text,approved:bool,intervals:Interval[]}')
       .replace('crud Budget by=owner fields=source,approved', 'crud Budget by=owner fields=source,approved,intervals')
-      .replace('When\n', ' contract Interval {from:datetime,until:datetime}\n invariant Budget: all(row.intervals as interval,interval.from<interval.until)\n contract Snapshot {record:Budget,approved:bool}\n event Captured {value:Snapshot}\n event Observed {source:text}\n invariant Budget: trim(row.source)!="" and count(Budget as candidate where candidate.approved in [true,false] and now==now)>=0\nWhen\n')
+      .replace('When\n', ' derive order_key(budget:Budget):text = budget.source\n contract Interval {from:datetime,until:datetime}\n invariant Budget: all(row.intervals as interval,interval.from<interval.until)\n contract Snapshot {record:Budget,approved:bool}\n event Captured {value:Snapshot}\n event Observed {source:text}\n invariant Budget: trim(row.source)!="" and count(Budget as candidate where candidate.approved in [true,false] and now==now)>=0\nWhen\n')
       .replace(/ scenario probe on=Tick[\s\S]*?Then\n/, ` scenario probe on=Tick
   do
    let before=first(Budget as row where row.source==event.source order=row.id)
    require before!=null
+   let ranked=first(Budget as candidate order=-order_key(candidate))
+   require ranked!=null
+   if event.source=="reject"
+    require ranked.source=="reject"
    set before {approved=true}
    let after=first(Budget as row where row.source==event.source and row.approved order=row.id)
    require after!=null and after.id==before.id

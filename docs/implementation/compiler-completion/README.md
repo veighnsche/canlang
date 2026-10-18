@@ -2,7 +2,7 @@
 
 ## Current remainder and finite completion
 
-**State: original Customer `recover`, Purchase `record_payable` / `return_goods`, private whole-handler queries and the declared-event/helper batch below are accepted at their recorded scopes. Latest unchanged original24: 212 E6008, down from 264; FIRST refusals 78→25. Whole CanCRM compilation/runtime remains open. Muse stays stopped and supervision disabled; work remains on main without a new branch or worktree. Other proposed batches await agreement.**
+**State: original Customer `recover`, Purchase `record_payable` / `return_goods`, private whole-handler queries and the declared-event/helper batch below are accepted at their recorded scopes. Latest unchanged original24: 212 E6008, down from 264; FIRST refusals 78→25. Whole CanCRM compilation/runtime remains open. Muse stays stopped and supervision disabled; work remains on main without a new branch or worktree. All remaining composition consistency errors are now authorized; Monday, 19 October is the target.**
 
 This is the **one execution plan** for general Can correctness and adoption: existing outcomes 1–18 / C01–C24 and their required executable/reference consumers. The original CanCRM composition and other draft apps are reference programs that reveal reusable language/runtime gaps, not end-user products to finish or polish. Shared work is counted once; consumers link to its output. Other roadmaps supply contracts and dependencies, not extra assignments. Product requirements remain in REQUIREMENTS, behavior in DESIGN and syntax in GRAMMAR.
 
@@ -175,6 +175,21 @@ with no newly failing source site. Those counts do not establish53 runnable work
 Public saved-result emission, private guarded SEND, opaque File event lineage,
 periodic intake and remaining helper/query profiles remain local work. No unchanged
 full Purchase workflow or original24 capture was repeated. Muse remains stopped.
+
+### Computed stored-query ordering — 2026-10-18
+
+Stored-model expression keys now reuse canonical reads and typed eager-once
+ordering, including async helpers, null keys, stable ID ties, and fail-on-excess
+limits. Existing array ordering/source mutants pass; actual compiled D1 prefix
+consumer passes with a descending helper key. Updated the old intentional-refusal
+pin: passes. One combined compiler run had53 passes and that stale pin failure;
+only its corrected case repeated. No original24 capture solely to recount.
+
+The active goal covers all212 diagnostic occurrences (200 distinct source/message
+sites in the retained complete capture), rather than a selected batch. Current
+hook/filter repairs remain unaccepted until their consumers pass; local failures
+are engineering work, not external holds. Keep incremental implementation commits
+and reuse unchanged checks; Muse remains stopped.
 
 ### Observed repeated work — command-log snapshot
 

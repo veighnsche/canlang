@@ -1632,7 +1632,7 @@ pub struct IrOrder {
     pub descending: bool,
 }
 
-/// One checked, alias-scoped supplied-array ordering expression.
+/// One checked, alias-scoped expression ordering key.
 #[derive(Debug, Clone)]
 pub struct IrValueOrder {
     pub key: Box<TypedExpr>,
@@ -1674,7 +1674,7 @@ pub struct IrQuery {
     pub where_async: bool,
     /// Order entries in source order (model domains only).
     pub order: Vec<IrOrder>,
-    /// Supplied-array key; model domains retain their existing field recipes.
+    /// Computed key; simple model fields retain their existing field recipes.
     pub value_order: Option<IrValueOrder>,
     /// Limit value, if any (excess fails, never truncates silently).
     pub limit: Option<Box<TypedExpr>>,
@@ -8730,7 +8730,11 @@ impl<'a> Cx<'a> {
                     }
                 }
                 "order" => {
-                    if value_domain {
+                    let direct_order = if value_domain { None } else {
+                        clause_parts.iter().find(|n| is_expression(n.kind)).and_then(|value|
+                            model_id.zip(alias.as_deref()).and_then(|(model, alias)| self.decode_query_field_order(value, model, alias)))
+                    };
+                    if value_domain || direct_order.is_none() {
                         let Some(value) = clause_parts.iter().find(|n| is_expression(n.kind))
                         else {
                             return IrExpr::Unsupported {
@@ -8764,20 +8768,7 @@ impl<'a> Cx<'a> {
                         });
                         continue;
                     }
-                    if let Some(value) = clause_parts.iter().find(|n| is_expression(n.kind)) {
-                        let term = model_id.zip(alias.as_deref()).and_then(|(model, alias)| {
-                            self.decode_query_field_order(value, model, alias)
-                        });
-                        match term {
-                            Some(term) => order.push(term),
-                            None => {
-                                return IrExpr::Unsupported {
-                                    what: "expression query order".to_string(),
-                                    why: "no §13 lowering exists".to_string(),
-                                };
-                            }
-                        }
-                    }
+                    if let Some(term) = direct_order { order.push(term); }
                     for selector in clause_parts.iter().filter(|n| {
                         matches!(
                             n.kind,

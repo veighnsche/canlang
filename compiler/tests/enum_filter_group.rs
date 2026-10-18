@@ -836,13 +836,13 @@ fn archived_include_refuses() {
     );
 }
 
-/// Recorded CanInvoice/CanLeave shape (4 frozen occurrences): an
-/// expression `order=` inside a stored query has no §13 lowering. The
+/// Recorded CanInvoice/CanLeave shape: expression ordering in a stored
+/// query retains its typed key and owning read. The
 /// stored-query `first` builtin resolves through the real values
 /// catalog, so this pin compiles through the CLI exactly like the
 /// frozen capture (and like `query_order.rs`).
 #[test]
-fn expression_query_order_refuses() {
+fn expression_query_order_keeps_typed_key_and_owning_read() {
     use std::{path::Path, process::Command};
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
     let scratch = tempfile::tempdir().unwrap();
@@ -861,23 +861,17 @@ fn expression_query_order_refuses() {
         .unwrap();
     assert_eq!(
         output.status.code(),
-        Some(10),
+        Some(0),
         "{}\n{}",
         String::from_utf8_lossy(&output.stdout),
         String::from_utf8_lossy(&output.stderr)
     );
     let response: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-    let diagnostics = response["diagnostics"].as_array().unwrap();
-    assert!(
-        diagnostics
-            .iter()
-            .any(|diagnostic| diagnostic["code"] == "E6008"
-                && diagnostic["message"]
-                    .as_str()
-                    .unwrap()
-                    .contains("expression query order: no §13 lowering exists")),
-        "expected the exact order refusal, got: {diagnostics:?}"
-    );
+    let generated = response["modules"].as_array().unwrap().iter()
+        .map(|module| module["js"].as_str().unwrap()).collect::<Vec<_>>().join("\n");
+    assert!(generated.contains("order:{by:async("), "{generated}");
+    assert!(generated.contains("compare:($a,$b)=>$a===$b?0:$a<$b?-1:1"), "{generated}");
+    assert!(generated.contains("direction:\"asc\""), "{generated}");
 }
 
 /// Recorded CanShift shape: a nested (parent-bound) calendar agenda

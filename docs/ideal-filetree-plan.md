@@ -1307,3 +1307,13 @@ coverage; do not advance the complete historical checkpoint or claim whole-tree
 currency. Concurrent documentation integrations through d240246c2 retain their own
 scope; foreign working edits remain preserved. Main is unchanged as the working
 branch; Muse remains stopped.
+
+
+### 2026-10-18 — computed stored-query order intake
+
+Since71885872b, this intake covers only Compiler query IR/join/emission, Cloudflare
+records and its existing prefix/ordering regression consumers. Typed computed keys
+reuse canonical reads and existing Values comparison; source/test hunks reviewed,
+focused actual compiled D1 and compiler checks pass. Concurrent hook/filter work
+is excluded until accepted. Reuse retained coverage; the complete historical
+checkpoint stays held. The full212-error goal continues on main; Muse is stopped.

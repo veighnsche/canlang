@@ -61,7 +61,8 @@ import type {
   StoredRow,
 } from '@canlang/contracts';
 import type { CanonicalEffectsScope, HandlerContext, NativeSendWhen } from './context.js';
-import { app_url as appUrlProducer, equalValue as equalValueProducer, ValueError } from '@canlang/values';
+import { app_url as appUrlProducer, equalValue as equalValueProducer, compareScalar, ValueError } from '@canlang/values';
+import { StateError } from '@canlang/state/errors';
 import type { NormalizedSchema } from '@canlang/values';
 import { nativeRecordReference, sameNativeReference } from './native-records.js';
 import { hasRole as stateCallerRole, type HandlerRoleContext } from '@canlang/state/effects/guards';
@@ -134,7 +135,11 @@ export interface CreateInput {
 export interface RecordsQuery {
   readonly parent?: unknown;
   readonly where?: QueryPredicate;
-  readonly order?: ReadonlyArray<OrderTerm>;
+  readonly order?: ReadonlyArray<OrderTerm> | {
+    readonly by: (row: ProjectedRecord | Record<string, unknown>) => unknown | Promise<unknown>;
+    readonly compare: (left: unknown, right: unknown) => number;
+    readonly direction: 'asc' | 'desc';
+  };
   readonly limit?: number;
   readonly archived?: 'exclude' | 'include';
   /**
@@ -298,17 +303,45 @@ export async function records(
   if (typeof model !== 'string' || model === '') {
     throw new Error('t17: stdlib records() needs a non-empty string model.');
   }
+  const order = query.order !== undefined && !Array.isArray(query.order)
+    ? query.order as Exclude<RecordsQuery['order'], ReadonlyArray<OrderTerm> | undefined> : undefined;
+  if (order !== undefined && (order === null || typeof order !== 'object' || typeof order.by !== 'function' || typeof order.compare !== 'function' ||
+      !['asc', 'desc'].includes(order.direction) || Object.keys(order).some(key => !['by', 'compare', 'direction'].includes(key)))) {
+    throw new StateError('validation', 'Expression query order requires its typed key and comparator.');
+  }
+  const rawLimit: unknown = query.limit;
+  const limit = typeof rawLimit === 'bigint' && rawLimit >= 0n && rawLimit <= BigInt(Number.MAX_SAFE_INTEGER)
+    ? Number(rawLimit) : rawLimit;
+  if (order !== undefined && limit !== undefined && (typeof limit !== 'number' || !Number.isSafeInteger(limit) || limit < 0)) {
+    throw new StateError('validation', 'Expression query limit requires a non-negative safe integer.');
+  }
   const selection = {
     ...(query.parent === undefined ? {} : { parent: query.parent }),
     ...(query.where === undefined ? {} : { where: query.where }),
-    ...(query.order === undefined ? {} : { order: query.order }),
-    ...(query.limit === undefined ? {} : { limit: query.limit }),
+    ...(query.order === undefined || order !== undefined ? {} : { order: query.order as ReadonlyArray<OrderTerm> }),
+    ...(query.limit === undefined || order !== undefined ? {} : { limit: query.limit }),
     ...(query.archived === undefined ? {} : { archived: query.archived }),
     ...(query.authority === undefined ? {} : { authority: query.authority }),
   };
-  return scope.readRecords === undefined
+  const rows = await (scope.readRecords === undefined
     ? scope.readModel(model, selection)
-    : scope.readRecords(model, selection);
+    : scope.readRecords(model, selection));
+  if (order === undefined) return rows;
+  // Permissions, complete-domain bounds and row observers belong to the same
+  // canonical read. Evaluate each key once, in that issued order, before sort
+  // and projection. A key failure stops later keys and all projection.
+  const keyed = [];
+  for (const row of rows) keyed.push({ row, key: await order.by(row) });
+  keyed.sort((left, right) => {
+    const a = left.key, b = right.key;
+    const compared = a == null ? b == null ? 0 : -1 : b == null ? 1 : order.compare(a, b);
+    if (!Number.isFinite(compared)) throw new StateError('validation', 'Expression query comparator returned an invalid result.');
+    return compared === 0 ? compareScalar(left.row.id as string, right.row.id as string)
+      : order.direction === 'desc' ? -compared : compared;
+  });
+  if (limit !== undefined && rows.length > (limit as number)) throw new StateError('validation',
+    `Query matched ${rows.length} rows, over the limit of ${limit}. Narrow the query instead of truncating.`);
+  return keyed.map(entry => entry.row);
 }
 
 /** Stub helper: every unimplemented data-plane name throws loudly. */

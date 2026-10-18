@@ -9875,7 +9875,10 @@ impl<'a> Emitter<'a> {
     /// grants apply before filters and projection.
     fn lower_query(&mut self, query: &crate::codegen::ir::IrQuery, span: Span) -> String {
         if match &query.domain {
-            super::ir::IrQueryDomain::Model(_) => query.value_order.is_some(),
+            super::ir::IrQueryDomain::Model(model) => query.value_order.is_some() && (!query.order.is_empty() || !query.source.as_ref().is_some_and(|source| {
+                let ty = match &source.domain_type { ResolvedType::Array { element, .. } => element.as_ref(), ty => ty };
+                matches!(ty, ResolvedType::Record { symbol, .. } if self.ir.items.get(symbol.0 as usize).is_some_and(|item| item.canonical == *model && matches!(item.kind, IrItemKind::Model { .. })))
+            })),
             super::ir::IrQueryDomain::Value { .. } => !query.order.is_empty(),
         } {
             self.unsupported(
@@ -10065,6 +10068,15 @@ impl<'a> Emitter<'a> {
                             opts.push(format!("where:({row})=>{body}"));
                         }
                     }
+                }
+                if let Some(order) = &query.value_order {
+                    self.enter_scope();
+                    let row = self.bind(&query.where_param);
+                    let key = self.lower_expr(&order.key);
+                    self.exit_scope();
+                    let compared = self.lower_value_order_comparison(&order.key);
+                    opts.push(format!("order:{{by:async({row})=>{key},compare:($a,$b)=>{compared},direction:{}}}",
+                        js_string(if order.descending { "desc" } else { "asc" })));
                 }
                 if !query.order.is_empty() {
                     let order = query
