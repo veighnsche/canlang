@@ -43,8 +43,8 @@ interface BoundRead {
 export interface InstalledSourceOwnerRows {
   readonly read: (model: ModelName, id: RecordId) => Promise<StoredRow | null>;
   readonly assertHealthy: () => void;
-  /** Exact bounded root domain supplied by the same owning stage, never a store scan. */
-  readonly query?: (model: ModelName) => Promise<readonly StoredRow[]>;
+  /** Exact bounded declared domain supplied by the same owning stage, never a store scan. */
+  readonly query?: (model: ModelName, parent?: Readonly<{model: ModelName; id: RecordId}>) => Promise<readonly StoredRow[]>;
   /** Reached original installed-policy decision inputs, confined to its bool lifetime. */
   readonly policyQuery?: (model: ModelName, parent?: Readonly<{model: ModelName; id: RecordId}>) => Promise<readonly StoredRow[]>;
 }

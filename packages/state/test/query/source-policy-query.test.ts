@@ -6,7 +6,7 @@ import { createFrozenClock, createMemoryIdentityStore } from '@canlang/identity/
 import { queryRecords, queryRecordsPage } from '../../src/query/engine.js';
 import { projectInstalledSourceRow, readRecordsAtSourceObservation, type ViewerGenerationCallbackReadObservation,
   type ViewerGenerationCallbackSourceReadPolicy, type ViewerSourceReadPolicy } from '../../src/query/source-policy.js';
-import { bindInstalledSourceQueryPredicate, type InstalledSourceOwnerRows, type InstalledSourceQueryPredicate } from '../../src/receipt/read-policy-membership.js';
+import { bindInstalledSourceQueryPredicate, evaluateInstalledReadPredicate, type InstalledSourceOwnerRows, type InstalledSourceQueryPredicate } from '../../src/receipt/read-policy-membership.js';
 import { StateError } from '../../src/errors.js';
 import { FenceConflictError } from '../../src/storage/port.js';
 import { createMemoryStorage } from '../../src/storage/memory.js';
@@ -279,5 +279,39 @@ test('owner policy domains borrow only the installed control lifetime and exact 
     } else await assert.rejects(pending, error => mode === 'failure' ? error === authored : error instanceof StateError);
     assert.equal(scans, 0); assert.equal(getters, 0);
     if (mode === 'wrong-parent' || mode === 'copied' || mode === 'accessor') assert.equal(calls, 0);
+  }
+});
+
+
+test('owner viewer collections preserve declared containment and project every candidate', async () => {
+  for (const mode of ['valid', 'wrong-parent', 'root-only'] as const) {
+    const s = await setup(true), domain = await s.store.query({model: MODEL, authority: 'owner'});
+    let scans = 0, queries = 0;
+    const store = {...s.store, async query() { scans++; throw new Error('no physical scan'); }};
+    s.reads.set(MODEL, policy(['title'], async ({row}) => row.id === 'a', PARENT));
+    const predicate: InstalledSourceQueryPredicate = async (_record, observation) => {
+      assert.ok(observation);
+      const records = await readRecordsAtSourceObservation({observation, store, model: MODEL,
+        parent: {model: mode === 'wrong-parent' ? ROOT : PARENT, id: asId('project')},
+        readPolicies: s.reads, policy: s.input.policy});
+      assert.deepEqual(records.map(value => ({id: value.record.id, data: value.record.data})),
+        [{id: 'a', data: {title: 'Alpha'}}]);
+      return true;
+    };
+    bindInstalledSourceQueryPredicate(predicate, {source: {path: 'contained.can', sha256: 'b'.repeat(64), module: 'Source'}, rule: 'Source.Contained'});
+    const scope: InstalledSourceOwnerRows = {read: (model, id) => s.store.load(model, id), assertHealthy() {},
+      query: async (model, parent) => {
+        queries++;
+        if (mode === 'root-only' && parent !== undefined) throw new StateError('validation', 'root domain only');
+        assert.equal(model, MODEL); assert.deepEqual(parent, {model: PARENT, id: asId('project')});
+        return domain;
+      }};
+    const pending = evaluateInstalledReadPredicate(predicate, {...domain[0]!, parent: domain[0]!.parent ?? null}, {
+      context: {...s.input.context, membership: s.caller, memberships: s.memberships}, row: domain[0]!,
+      revision: await s.store.readRevision(), fence: undefined,
+    }, store, scope);
+    if (mode === 'valid') assert.equal(await pending, true);
+    else await assert.rejects(pending, StateError);
+    assert.equal(scans, 0); assert.equal(queries, mode === 'wrong-parent' ? 0 : 1);
   }
 });

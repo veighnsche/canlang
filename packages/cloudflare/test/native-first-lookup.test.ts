@@ -1,4 +1,5 @@
 /** Original scalar-input first lookup -> captured CLI -> verified module -> real D1/Identity. */
+import { createCheckoutScratch } from '../src/dev/checkout-scratch.js';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
@@ -54,7 +55,7 @@ const byCreatedId = (left: StoredRow, right: StoredRow) => left.created - right.
 for (const spelling of ['inline', 'helper', 'chain'] as const) test(`native ${spelling} first retains the authorized full domain, default ordering, atomic failure and current-authority replay`,
   { timeout: 120000 }, async () => {
     const directory = await mkdtemp(join(tmpdir(), 'can-native-first-lookup-'));
-    const sourceDirectory = spelling === 'inline' ? undefined : await mkdtemp(join(root, '.can-native-first-helper-'));
+    const sourceDirectory = spelling === 'inline' ? undefined : await createCheckoutScratch(root, 'native-first-helper-');
     const sourcePath = sourceDirectory === undefined ? fixtureSourcePath : join(sourceDirectory, 'helper.can');
     if (spelling !== 'inline') {
       const original = await readFile(fixtureSourcePath, 'utf8');

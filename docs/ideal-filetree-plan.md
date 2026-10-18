@@ -1,5 +1,56 @@
 # Living ideal file-tree plan for Canlang
 
+> **Stale plan — not verified against the current repository.** This document
+> is historical planning guidance, not a reliable current description of the
+> repository or an independent mandate to implement changes. Current source and
+> explicit user decisions take precedence. Historical checkpoints, accepted
+> decisions and bounded coverage evidence are retained below; that evidence
+> applies only at its recorded scope and does not establish whole-plan currency.
+
+**Selected fanout and recovery delivery integration, 2026-10-18:** source
+`f4e067414` adds fourteen owning code/test/build/manifest paths. Work-kernel
+owns the unchanged shared TS row mechanisms and selected Wasm distribution;
+Work/State retain their owning facades and error classes. Cloudflare owns
+vendor/import rewriting and integrity gather; the installer derives the new
+production edges. Seven planning/navigation records are reconciled together.
+No new package, Rust algorithm or generalized profile is introduced.
+
+The final combined source includes newer main `69212ec1f`, preserving the
+compiler/runtime/State history and prior R acceptance. Reuse retained coverage
+and owner review for those changes; review the fourteen delivery paths plus
+seven planning records incrementally, with the source scopes stated in the
+current checklist. Keep the stale-plan notice and complete checkpoint unchanged.
+Package-assets16/16 and genuine Work-map checks pass; the final actual installed
+CF gather/bundle supplies 288 modules and the verified recovery binary to two
+fresh Worker isolates/four requests, with corrupt/missing refusal. Broader
+deploy-bundle fixture/environment failures are retained explicitly; no whole-suite
+clearance is claimed. Native preparation, defaults, retirement and public release
+remain held. Run-owned private/debug resources are released; unique artifacts,
+viewer and compatible/foreign caches are preserved.
+
+**Accepted selected Rust integer/CSV integration, 2026-10-18:** merge
+`05f326154` onto newer main `eb4997001` preserves the compiler, Cloudflare
+runtime and State changes in `92a3281be`, `5d81e2a84` and `eb4997001`.
+Incremental coverage adds the ten Values/Interfaces source, test, artifact and
+source-correspondence paths plus this plan and DECISIONS. Values owns the bounded
+integer codec and explicit backend/error facade; Interfaces owns the existing CSV
+duplicate-identity consumer. Existing ownership, target allocations and accumulated
+checkpoint coverage are retained. This bounded reconciliation does not establish
+whole-plan currency or advance the complete review checkpoint.
+
+The explicitly selected ASCII/int profile is accepted: original 1MiB admission,
+derived tagged envelope/escape bound, syntax-before-range, signed64 lexical scan
+before successful bigint parsing, ordered owning SchemaError projection, and CSV
+normalization confined to duplicate identity. The default remains TypeScript.
+Independent source review and nine changed-artifact probes pass on genuine Wasm
+`2558ff71`; reuse the recorded Rust selected15/15, Node producer/CSV15/15,
+string-escape2/2, actual installed Node24.19 package and isolated-workerd results.
+The string fixture changes only source correspondence; semantic rows are unchanged.
+Broader codecs/Unicode, parent A04.5, native preparation P04-P11/C04.native-release,
+backend defaults, TS retirement and production/public release remain open or held.
+The separate Work fanout/delivery continuation remains under review; it is not
+required to merge this accepted producer/consumer slice.
+
 **Selected `ports:V02.6` Worker serving qualification, 2026-10-18 (base
 `3059a36af` plus local finite changes):** the released ordinary TS source-serving
 packet is complete at its selected scope. The new
@@ -1169,3 +1220,40 @@ advanced and unrelated CAN18 outcomes remain at their recorded scope.
 ### 2026-10-18 — original Customer recover repair
 
 The human-authorized first CanCRM component is implemented at the existing Compiler analysis/receipt/source-preparation owners, State invocation/source-policy owners and Cloudflare runtime owner. New files stay with those responsibilities: `compiler/src/codegen/source_require_retained_tests.rs`, `packages/cloudflare/src/runtime/native-scenario-require.ts`, and the original-source helper/installed consumer under `packages/cloudflare/test/`. No target allocation or package split changes. Reuse prior accepted coverage; all 18 code paths in this batch were inspected, and decisions/one current Can18 plan are updated with the implementation. Keep the complete `44e6332c0` checkpoint unchanged; concurrent documentation relocation/Rust planning is accounted as documentation maintenance, not new implementation acceptance. Actual compiled recover passes its full guard/body consumer; original24 drops 276→275 with only its recover refusal removed. Remaining roots are unchanged and Muse stays stopped.
+
+
+### 2026-10-18 — native query and source-guard composition batch
+
+The next human-authorized batch remains in the existing owners: Compiler's
+`analysis/scenario_disclosure.rs` and `codegen/{js,model_policies,model_policy_profile,model_policy_sources,runtime_bindings,scenario_create_sources,scenario_decisions,scenario_receipts}.rs`;
+State's `invocation/scenario-receipt.ts`, `query/source-policy.ts` and
+`receipt/read-policy-membership.ts`; Cloudflare's `runtime/invoke.ts` and
+`runtime/stdlib.ts`. Required reference/id promotion, contained FIRST replay,
+pre-write aggregate guards and transitive model rules compose through existing
+source/owner mechanisms. No package split, public carrier or second query engine
+is introduced. The new `packages/cloudflare/test/purchase-source.ts` mechanically
+extracts original declarations/operations; its adjacent
+`native-purchase-return-payable.test.ts` owns the installed D1 consumer. The small
+internal `src/dev/checkout-scratch.ts` helper creates unique inputs directly under
+the existing ignored `.can/tmp/`; callers retain cleanup in `finally`. Existing
+Compiler source/tamper and native replay tests, Cloudflare owner-reference tests
+and State source-policy tests cover the affected seams. All changed source/test
+paths received ordinary code review, including the three `resolved_cases` fixture
+initializers required by the concurrently integrated ICU change. Decisions and
+the one current completion plan carry this batch's validation outcome; retained
+unchanged acceptance and the complete `44e6332c0` review checkpoint remain.
+All 25 checkout-root scratch creation sites across 22 Cloudflare test files now
+use that helper directly; system temporary staging and existing lock/cleanup
+semantics remain. The installed owner-session loss test targets the actual
+store-scoped descriptor registry. Mechanical path/import changes were reviewed
+for every affected file; actual compiled-source memory consumers and the
+affected producer-loss refusal passed. Concurrent ICU and ordinary Worker
+qualification integrations through `1527ed1e8` retain their separate recorded
+coverage and allocations. Muse remains stopped.
+
+> **Stale plan — not verified against the current repository.** This document
+> is historical planning guidance, not a reliable current description of the
+> repository or an independent mandate to implement changes. Current source and
+> explicit user decisions take precedence. Historical checkpoints, accepted
+> decisions and bounded coverage evidence are retained below; that evidence
+> applies only at its recorded scope and does not establish whole-plan currency.

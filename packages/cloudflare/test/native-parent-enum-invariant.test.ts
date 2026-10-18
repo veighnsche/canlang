@@ -1,6 +1,7 @@
 /** Source-sealed parent enum rule -> fixture owner frame and native CRUD final view. */
+import { createCheckoutScratch } from '../src/dev/checkout-scratch.js';
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { readFile, rm, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { compileFunction, constants as vmConstants } from 'node:vm';
@@ -33,7 +34,7 @@ const ref = (row: StoredRow) => ({id: row.id, version: String(row.version)});
 
 test('parent enum invariant activates in default fixture materialization and rechecks changed parents atomically',
   {timeout: 120000}, async () => {
-    const directory = await mkdtemp(join(root, '.can-native-parent-enum-'));
+    const directory = await createCheckoutScratch(root, 'native-parent-enum-');
     let worker: Miniflare | undefined;
     try {
       const original = await readFile(join(root, 'draft/apps/CanCustomer/CanCustomer.can'), 'utf8');

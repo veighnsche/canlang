@@ -2872,7 +2872,7 @@ export interface ScenarioReceiptRequireObserver {
     parent?: Readonly<{ model: string; id: string }>) => void;
 }
 
-/** One original leading Require, evaluated once on the genuine admitted row.
+/** One original pre-write Require, evaluated once on the genuine admitted row.
  * Its ordinary source queries borrow this owner stage; only reached fields,
  * complete visible query domains and current Identity survive to the fence. */
 export async function executeScenarioReceiptRequire(call: AdmittedCall, store: StoragePort, input: {
@@ -2895,7 +2895,8 @@ export async function executeScenarioReceiptRequire(call: AdmittedCall, store: S
     const source = membershipSource(call.def as GeneratedOperationDef, state.bound);
     const [site] = sites;
     const owning = membershipProducers.get(call.def as GeneratedOperationDef)?.sites.filter(candidate =>
-      candidate.stage === 'leading-require' && stableStringify(candidate.node) === stableStringify(original.node) &&
+      (candidate.stage === 'leading-require' || candidate.stage === 'body-require') &&
+      stableStringify(candidate.node) === stableStringify(original.node) &&
       stableStringify(candidate.statement) === stableStringify(original.statement));
     if (original.owner !== call.def.name || stableStringify(original.source) !== stableStringify(source) ||
         sites.length !== 1 || site === undefined || site.stage !== 'read-predicate' || site.owner !== call.def.name ||
@@ -2924,13 +2925,18 @@ export async function executeScenarioReceiptRequire(call: AdmittedCall, store: S
     const rows = new Map<string, StoredRow>();
     const rowKey = (model: string, id: string) => `${model}\0${id}`;
     const read = async (model: ModelName, id: RecordId): Promise<StoredRow | null> => {
-      healthy(); const row = await owner.session!.views.final.get(model, id); healthy();
-      if (row !== null) rows.set(rowKey(model, id), row);
+      healthy();
+      // This observer cannot cross stage zero or write. Reuse raw snapshot
+      // rows, never projected grants; Identity and the revision fence stay live.
+      const key = rowKey(model, id), cached = rows.get(key);
+      if (cached !== undefined) return cached;
+      const row = await owner.session!.views.final.get(model, id); healthy();
+      if (row !== null) rows.set(key, row);
       return row;
     };
     const policyDomains = ownerPolicyDomains(owner, healthy);
-    const query = async (model: ModelName): Promise<readonly StoredRow[]> => {
-      const domain = await policyDomains.capture(model);
+    const query = async (model: ModelName, parent?: Readonly<{model: ModelName; id: RecordId}>): Promise<readonly StoredRow[]> => {
+      const domain = await policyDomains.capture(model, parent);
       for (const row of domain) rows.set(rowKey(model, row.id), row);
       return domain;
     };
@@ -3007,14 +3013,29 @@ export async function executeScenarioReceiptRequire(call: AdmittedCall, store: S
       const finalHealthy = () => {
         if (owner.finalized !== final || owner.capture.poisoned) return invalid('source Require final capture changed.');
       };
+      // Final effects and the cohort revision are fixed for this guard. Share
+      // only raw row loads across projections; evaluate every policy again.
+      const finalRows = new Map<string, StoredRow | null>();
       const finalRead = async (model: ModelName, id: RecordId): Promise<StoredRow | null> => {
         finalHealthy();
+        const key = rowKey(model, id);
+        if (finalRows.has(key)) return finalRows.get(key)!;
         const write = final.writes.find(write => write.model === model && (write.kind === 'insert' ? write.row.id : write.id) === id);
         const row = write === undefined ? await store.cohortLoad({ model, id, expectedRevision: call.revision }) :
           write.kind === 'remove' ? null : write.row;
-        finalHealthy(); return row;
+        finalHealthy(); finalRows.set(key, row); return row;
       };
       const finalDomains = policyDomains.retained(finalHealthy, final.writes);
+      // Source guards execute at their original pre-write stage. Own later
+      // effects do not replace that domain; current Identity still rechecks it.
+      // Consumed fields separately retain their final-overlay authority below.
+      const originalDomains = policyDomains.retained(finalHealthy);
+      const originalRead = async (model: ModelName, id: RecordId): Promise<StoredRow | null> => {
+        finalHealthy();
+        const key = rowKey(model, id);
+        if (!rows.has(key)) throw new StateError('forbidden', 'Source Require requested an unobserved original row.');
+        return rows.get(key)!;
+      };
       const current = await observeRowGrantAuthority(context, async observed => {
         for (const reached of fields.values()) {
           const row = await finalRead(reached.model, reached.row.id);
@@ -3026,11 +3047,11 @@ export async function executeScenarioReceiptRequire(call: AdmittedCall, store: S
           }
         }
         for (const domain of domains) {
-          const candidates = domain.id === undefined ? await finalDomains(domain.model, domain.parent) :
-            [await finalRead(domain.model, domain.id)].filter((row): row is StoredRow => row !== null);
+          const candidates = domain.id === undefined ? await originalDomains(domain.model, domain.parent) :
+            [await originalRead(domain.model, domain.id)].filter((row): row is StoredRow => row !== null);
           const ids: string[] = [];
           for (const row of candidates) {
-            const projected = await project(domain.model, row, observed, finalRead, finalHealthy, finalDomains);
+            const projected = await project(domain.model, row, observed, originalRead, finalHealthy, originalDomains);
             if (projected.record !== null) ids.push(projected.record.id);
           }
           if (stableStringify(ids) !== stableStringify(domain.ids)) throw new StateError('forbidden', 'Source Require visible query domain changed.');
@@ -3051,9 +3072,9 @@ export async function executeScenarioReceiptRequire(call: AdmittedCall, store: S
  * owning overlay while the original query guard retains its intermediate rows. */
 function predicateControlDomain(model: ModelName, domain: readonly StoredRow[], maxRows: number,
   assertHealthy: () => void, writes: readonly DomainWrite[] = []) {
-  return async (requested: ModelName): Promise<readonly StoredRow[]> => {
+  return async (requested: ModelName, parent?: Readonly<{model: ModelName; id: RecordId}>): Promise<readonly StoredRow[]> => {
     assertHealthy();
-    if (requested !== model) throw new StateError('validation', 'Source collection needs its original committed query domain.');
+    if (parent !== undefined || requested !== model) throw new StateError('validation', 'Source collection needs its original committed query domain.');
     const rows = new Map(domain.map(row => [row.id, row]));
     for (const write of writes) if (write.model === model) {
       if (write.kind === 'remove') rows.delete(write.id);
@@ -3094,7 +3115,7 @@ async function observeModelQuerySourceAuthority(call: AdmittedCall, store: Stora
   const context: ByContext = { actorUserId, teamId, membership, memberships: reader };
   const project = async (current: StoredRow, observed: ByContext,
     load: (model: ModelName, id: RecordId) => Promise<StoredRow | null>, assertHealthy: () => void,
-    query?: (model: ModelName) => Promise<readonly StoredRow[]>,
+    query?: (model: ModelName, parent?: Readonly<{model: ModelName; id: RecordId}>) => Promise<readonly StoredRow[]>,
     policyQuery = policyDomains.capture) => {
     try {
       return await projectInstalledSourceRowAndAncestors({ model, row: current,

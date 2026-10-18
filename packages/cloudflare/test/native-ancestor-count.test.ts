@@ -2,12 +2,13 @@
  * equality and unfinished short-circuit before one Run creation and return.
  * Only the visibly labelled three-line authenticated CRUD setup is added.
  */
+import { createCheckoutScratch } from '../src/dev/checkout-scratch.js';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
-import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
+import { readFile, writeFile, rm } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { compileFunction, constants as vmConstants } from 'node:vm';
@@ -57,7 +58,7 @@ function historySequence(before: Awaited<ReturnType<typeof snapshot>>, after: Aw
 
 test('original unscoped ancestor count keeps lazy query observations, threshold refusal and genuine Run return',
  {timeout: 480000}, async () => {
-  const directory = await mkdtemp(join(root, '.can-native-ancestor-count-'));
+  const directory = await createCheckoutScratch(root, 'native-ancestor-count-');
   let worker: Miniflare | undefined, capture: SingleFileCapture | undefined;
   const began = performance.now(), phase = (name: string) => console.info(`ancestor native ${name}: ${Math.round(performance.now() - began)}ms`);
   try {

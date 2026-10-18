@@ -74,7 +74,7 @@ export { observeScenarioReceiptDependency, observeScenarioReceiptIntrinsic, sele
 // Generated pure helpers retain their Values producer identity.
 export {
   ValueError, int64, datetime, compareInstant, addDuration, subtractDuration, overlaps, abs, all, any, at, sum, join, trim, starts_with, compareScalar, choose, concat, flatten, format,
-  parseDecimal, addDecimal, compareDecimal, money, addMoney, compareMoney,
+  parseDecimal, addDecimal, compareDecimal, money, addMoney, subtractMoney, multiplyMoney, compareMoney, equalMoney,
   divideDurationMs, remainderDuration, multiplyDuration, durationBetween, first,
   date, add_days, compareDate, encodeValue, normalizeSchema,
 } from '@canlang/values';

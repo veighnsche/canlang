@@ -2159,7 +2159,8 @@ pub(crate) fn checked_required_record_lock_target(
 
 /// Canonical scalar lock values use the existing stored-wire comparator;
 /// source-sealed nullable Model references use its existing typed identity path.
-/// File/receipt/container equality does not enter this scalar-only extension.
+/// Singular File locks compare the original persisted wire value through the
+/// existing State lock comparator; no decoded File equality is evaluated.
 pub(crate) fn checked_stored_lock_target(
     program: &IrProgram,
     model: SymbolId,
@@ -2168,6 +2169,9 @@ pub(crate) fn checked_stored_lock_target(
     ty: &ResolvedType,
 ) -> bool {
     let base = ty.nullable_inner().unwrap_or(ty);
+    if matches!(base, ResolvedType::Scalar(Scalar::File)) {
+        return policy_field_with_flags(program, model, name, ty, false, true) == Some(field);
+    }
     if matches!(base, ResolvedType::Scalar(scalar) if *scalar != Scalar::File)
         && super::js::checked_value_profile(ty).is_some()
     {
@@ -2475,278 +2479,188 @@ pub(crate) fn checked_query_rule_fields(
     db: &crate::source::SourceDb,
     catalog: Option<&crate::analysis::catalog::Catalog>,
 ) -> Option<CheckedQueryRuleProfile> {
-    struct QueryRule<'a> {
+    if checked_local_rule_fields(checked, program, model, predicate, db, catalog).is_some()
+        || required_model_rule_fields(program, model, predicate).is_some() {
+        return None;
+    }
+    // The caller seals this entire policy closure against freshly lowered source,
+    // including every derived body. This walker admits a finite pure expression
+    // grammar and records all stored reads, including transitive derived reads.
+    struct Rule<'a> {
         checked: &'a crate::analysis::CheckedProgram,
         program: &'a IrProgram,
-        owner: SymbolId,
         db: &'a crate::source::SourceDb,
         catalog: Option<&'a crate::analysis::catalog::Catalog>,
         profile: CheckedQueryRuleProfile,
+        owner: SymbolId,
         bindings: Vec<(String, SymbolId)>,
+        derives: HashSet<SymbolId>,
         remaining: usize,
     }
-    impl QueryRule<'_> {
-        fn step(&mut self, depth: usize) -> Option<()> {
-            if depth > 64 || self.remaining == 0 {
-                return None;
-            }
-            self.remaining -= 1;
-            Some(())
-        }
+    impl Rule<'_> {
         fn dependency(&mut self, model: SymbolId) {
             if !self.profile.dependencies.contains(&model) {
                 self.profile.dependencies.push(model);
             }
         }
-        fn fields(&mut self, fields: Vec<SymbolId>) {
-            for field in fields {
-                if !self.profile.fields.contains(&field) {
-                    self.profile.fields.push(field);
-                }
+        fn leaf(ty: &ResolvedType) -> bool {
+            match ty {
+                ResolvedType::Scalar(_) | ResolvedType::Enum { .. }
+                | ResolvedType::Record { stored: true, .. } | ResolvedType::Null => true,
+                ResolvedType::Nullable(inner) => Self::leaf(inner),
+                ResolvedType::Array { element, .. } => Self::leaf(element),
+                _ => false,
             }
         }
-        fn path(&mut self, value: &TypedExpr, depth: usize) -> Option<()> {
-            self.step(depth)?;
-            if let IrExpr::Name(name) = &value.expr {
-                let symbol = self
-                    .bindings
-                    .iter()
-                    .rev()
-                    .find(|(bound, _)| bound == name)?
-                    .1;
-                return (value.ty
-                    == ResolvedType::Record {
-                        symbol,
-                        stored: true,
-                    })
-                .then_some(());
-            }
-            let IrExpr::Member { base, field } = &value.expr else {
-                return None;
-            };
-            if !contains_span(value.span, base.span) {
+        fn expr(&mut self, value: &TypedExpr, depth: usize) -> Option<()> {
+            if depth > 64 || self.remaining == 0 || !Self::leaf(&value.ty) {
                 return None;
             }
-            self.path(base, depth + 1)?;
-            match &base.ty {
-                ResolvedType::Record {
-                    symbol,
-                    stored: true,
-                } => {
-                    let source = policy_model(self.program, *symbol)?;
-                    // Every candidate or dereferenced receiver participates in
-                    // the actual source filter's failure/order dependencies.
-                    if *symbol != self.owner || self.profile.query_models.contains(symbol) {
-                        self.dependency(*symbol);
+            self.remaining -= 1;
+            match &value.expr {
+                IrExpr::Int(_) | IrExpr::Decimal(_) | IrExpr::Text(_) | IrExpr::Bool(_) | IrExpr::Null
+                | IrExpr::Money { .. } | IrExpr::DurationMs(_) | IrExpr::Date(_) | IrExpr::Datetime(_) => Some(()),
+                IrExpr::Name(name) => {
+                    if matches!(&value.ty, ResolvedType::Enum { cases, .. } if cases.contains(name)) {
+                        return Some(());
                     }
-                    if field == "id" {
-                        return (value.ty == ResolvedType::Scalar(Scalar::Text)).then_some(());
+                    let symbol = self.bindings.iter().rev().find(|(bound, _)| bound == name)?.1;
+                    (value.ty == ResolvedType::Record { symbol, stored: true }).then_some(())
+                }
+                IrExpr::Member { base, field } => {
+                    if !contains_span(value.span, base.span) { return None; }
+                    self.expr(base, depth + 1)?;
+                    let ty = base.ty.nullable_inner().unwrap_or(&base.ty);
+                    match ty {
+                        ResolvedType::Record { symbol, stored: true } => {
+                            let source = policy_model(self.program, *symbol)?;
+                            if *symbol != self.owner || self.profile.query_models.contains(symbol) { self.dependency(*symbol); }
+                            if field == "id" {
+                                return (value.ty == ResolvedType::Scalar(Scalar::Text)).then_some(());
+                            }
+                            if field == "parent" {
+                                let IrItemKind::Model { owner: IrOwner::ChildOf(parent), .. } = source.kind else { return None; };
+                                policy_model(self.program, parent)?;
+                                return (value.ty == ResolvedType::Record { symbol: parent, stored: true }).then_some(());
+                            }
+                            let mut matching = self.program.items.iter().filter(|item| item.name == *field &&
+                                matches!(&item.kind, IrItemKind::Field { owner, .. } if owner == symbol)
+                                || item.name == *field && matches!(&item.kind, IrItemKind::DeriveField { model, .. } if model == symbol));
+                            let item = matching.next()?;
+                            if matching.next().is_some() { return None; }
+                            match &item.kind {
+                                IrItemKind::Field { ty: IrType::Known(ty), .. } => {
+                                    if ty != &value.ty && ty.nullable_inner() != Some(&value.ty) { return None; }
+                                    policy_field_with_flags(self.program, *symbol, field, ty, true, true)?;
+                                    if !self.profile.fields.contains(&item.id) { self.profile.fields.push(item.id); }
+                                    Some(())
+                                }
+                                IrItemKind::DeriveField { ty: IrType::Known(ty), expr: Some(body), .. }
+                                    if ty == &value.ty && body.ty == *ty && self.derives.insert(item.id) => {
+                                    let previous = std::mem::replace(&mut self.bindings, vec![("row".into(), *symbol)]);
+                                    let result = self.expr(body, depth + 1);
+                                    self.bindings = previous;
+                                    self.derives.remove(&item.id);
+                                    result
+                                }
+                                _ => None,
+                            }
+                        }
+                        ResolvedType::Scalar(Scalar::Money) => match (field.as_str(), &value.ty) {
+                            ("currency", ResolvedType::Scalar(Scalar::Currency)) | ("minor", ResolvedType::Scalar(Scalar::Int)) => Some(()),
+                            _ => None,
+                        },
+                        _ => None,
                     }
-                    if field == "parent" {
-                        let IrItemKind::Model {
-                            owner: IrOwner::ChildOf(parent),
-                            ..
-                        } = source.kind
-                        else {
-                            return None;
-                        };
-                        policy_model(self.program, parent)?;
-                        return (value.ty
-                            == ResolvedType::Record {
-                                symbol: parent,
-                                stored: true,
-                            })
-                        .then_some(());
+                }
+                IrExpr::Unary { op: IrUnOp::Not | IrUnOp::Neg, operand } => self.expr(operand, depth + 1),
+                IrExpr::Binary { left, right, .. } => {
+                    // Operators have their original checked types in the fresh
+                    // source join; neither an opaque value nor a call can enter.
+                    self.expr(left, depth + 1)?;
+                    self.expr(right, depth + 1)
+                }
+                IrExpr::Query(query) => {
+                    let super::ir::IrQueryDomain::Model(canonical) = &query.domain else { return None; };
+                    if !query.order.is_empty() || query.value_order.is_some() || query.limit.is_some()
+                        || query.archived.is_some() || query.contract_collection_call.is_some() { return None; }
+                    let mut matches = self.program.items.iter().filter(|item| item.canonical == *canonical && matches!(item.kind, IrItemKind::Model { .. }));
+                    let candidate = matches.next()?;
+                    if matches.next().is_some() { return None; }
+                    policy_model(self.program, candidate.id)?;
+                    if let Some(parent) = &query.parent {
+                        self.expr(parent, depth + 1)?;
+                        let ResolvedType::Record { symbol, stored: true } = parent.ty else { return None; };
+                        if !matches!(candidate.kind, IrItemKind::Model { owner: IrOwner::ChildOf(actual), .. } if actual == symbol) { return None; }
                     }
-                    let id = policy_field(self.program, *symbol, field, &value.ty)?;
-                    if !matches!(
-                        value.ty,
-                        ResolvedType::Record { stored: true, .. }
-                            | ResolvedType::Scalar(
-                                Scalar::Text
-                                    | Scalar::Bool
-                                    | Scalar::Int
-                                    | Scalar::Currency
-                                    | Scalar::Money
-                            )
-                            | ResolvedType::Enum { .. }
-                    ) {
+                    if let Some(source) = &query.source {
+                        if self.checked.types.checked_queries.get(&source.node) != Some(source.as_ref()) || source.result != value.ty { return None; }
+                    } else if query.parent.is_none() || query.where_pred.is_some() || query.select.is_some() || query.collection_call.is_some() {
                         return None;
                     }
-                    if matches!(value.ty, ResolvedType::Enum { .. })
-                        && !local_type(self.program, *symbol, &value.ty)
-                    {
-                        return None;
+                    if let Some(call) = &query.collection_call {
+                        if !self.checked.types.checked_collection_calls.values().any(|fact| fact == call.as_ref()) { return None; }
                     }
-                    self.fields(vec![id]);
+                    if !self.profile.query_models.contains(&candidate.id) { self.profile.query_models.push(candidate.id); }
+                    self.dependency(candidate.id);
+                    if let Some(filter) = &query.where_pred {
+                        self.bindings.push((query.where_param.clone(), candidate.id));
+                        self.expr(filter, depth + 1)?;
+                        self.bindings.pop()?;
+                    }
+                    match (&query.select, &query.select_param) {
+                        (Some(body), Some(param)) => {
+                            self.bindings.push((param.clone(), candidate.id));
+                            self.expr(body, depth + 1)?;
+                            self.bindings.pop()?;
+                        }
+                        (None, None) => {},
+                        _ => return None,
+                    }
                     Some(())
                 }
-                ResolvedType::Scalar(Scalar::Money) => match (field.as_str(), &value.ty) {
-                    ("currency", ResolvedType::Scalar(Scalar::Currency))
-                    | ("minor", ResolvedType::Scalar(Scalar::Int)) => Some(()),
-                    _ => None,
-                },
-                _ => None,
-            }
-        }
-        fn operand(&mut self, value: &TypedExpr, depth: usize) -> Option<()> {
-            if self.path(value, depth).is_some() {
-                return Some(());
-            }
-            match (&value.expr, &value.ty) {
-                (IrExpr::Int(_), ResolvedType::Scalar(Scalar::Int))
-                | (IrExpr::Text(_), ResolvedType::Scalar(Scalar::Text))
-                | (IrExpr::Bool(_), ResolvedType::Scalar(Scalar::Bool)) => Some(()),
-                (
-                    IrExpr::Name(case) | IrExpr::Text(case),
-                    ResolvedType::Enum {
-                        cases,
-                        owner: Some(_),
-                    },
-                ) if cases.contains(case) => Some(()),
-                _ => None,
-            }
-        }
-        fn boolean(&mut self, value: &TypedExpr, depth: usize) -> Option<()> {
-            self.step(depth)?;
-            if value.ty != ResolvedType::Scalar(Scalar::Bool) {
-                return None;
-            }
-            // Existing no-query leaves keep their own exact type/field/source
-            // checks, including required arrays and selected pure call slots.
-            if self.bindings.len() == 1 {
-                if let Some(fields) = checked_local_rule_fields(
-                    self.checked,
-                    self.program,
-                    self.owner,
-                    value,
-                    self.db,
-                    self.catalog,
-                ) {
-                    self.fields(fields);
-                    return Some(());
-                }
-                if let Some(fields) = required_model_rule_fields(self.program, self.owner, value) {
-                    let reads = required_model_rule_dependencies(self.program, self.owner, value)?;
-                    self.fields(fields);
-                    for (target, _) in reads {
-                        self.dependency(target);
+                IrExpr::Call { target, args } | IrExpr::BoundCall { target, args, .. } => {
+                    let IrCallTarget::Builtin { id, awaited: false } = target else { return None; };
+                    if !matches!(id.as_str(), "any" | "all" | "sum" | "count" | "money" | "trim") { return None; }
+                    let key = NodeKey { file: value.span.file, start: value.span.start, end: value.span.end, kind: crate::syntax::SyntaxKind::Call as u8 };
+                    let selected = self.checked.types.selected_calls.get(&key)?;
+                    let SelectedCallTarget::Builtin { id: actual, overload } = &selected.target else { return None; };
+                    let slots = match &value.expr { IrExpr::BoundCall { slots, .. } => slots.clone(), _ => (0..args.len()).map(Some).collect() };
+                    let catalog = self.catalog?;
+                    if actual != id || selected.arguments.len() != args.len() || selected.slots != slots
+                        || catalog.lookup(id)?.effects != Some(crate::analysis::catalog::Effects::Pure)
+                        || catalog.overloads(id)?.get(*overload as usize)?.params.len() != args.len()
+                        || self.checked.types.node_types.get(&key) != Some(&value.ty) { return None; }
+                    for (key, arg) in selected.arguments.iter().zip(args) { argument(self.db, *key, arg)?; }
+                    let mut used = HashSet::new();
+                    let formal = slots.iter().map(|slot| { let index = (*slot)?; used.insert(index).then(|| args.get(index)).flatten() }).collect::<Option<Vec<_>>>()?;
+                    if id == "any" || id == "all" {
+                        if formal.len() != 2 { return None; }
+                        self.expr(formal[0], depth + 1)?;
+                        let IrExpr::Query(query) = &formal[0].expr else { return None; };
+                        let super::ir::IrQueryDomain::Model(canonical) = &query.domain else { return None; };
+                        let candidate = self.program.items.iter().find(|item| item.canonical == *canonical)?.id;
+                        let IrExpr::Lambda { param, body } = &formal[1].expr else { return None; };
+                        super::scenario_decisions::checked_collection_lambda(self.checked, args, formal[1], value.span, self.db)?;
+                        self.bindings.push((param.clone(), candidate));
+                        self.expr(body, depth + 1)?;
+                        self.bindings.pop()?;
+                    } else {
+                        for arg in formal { self.expr(arg, depth + 1)?; }
                     }
-                    return Some(());
-                }
-            }
-            for id in ["any", "all"] {
-                let Some(formal) =
-                    checked_rule_call(self.checked, value, id, 2, self.db, self.catalog)
-                else {
-                    continue;
-                };
-                let IrExpr::Query(query) = &formal[0].expr else {
-                    return None;
-                };
-                let IrExpr::Lambda { param, body } = &formal[1].expr else {
-                    return None;
-                };
-                let args = match &value.expr {
-                    IrExpr::Call { args, .. } | IrExpr::BoundCall { args, .. } => args,
-                    _ => return None,
-                };
-                super::scenario_decisions::checked_collection_lambda(
-                    self.checked,
-                    args,
-                    formal[1],
-                    value.span,
-                    self.db,
-                )?;
-                let super::ir::IrQueryDomain::Model(canonical) = &query.domain else {
-                    return None;
-                };
-                if query.parent.is_some()
-                    || !query.order.is_empty()
-                    || query.value_order.is_some()
-                    || query.limit.is_some()
-                    || query.archived.is_some()
-                    || query.select.is_some()
-                    || query.select_param.is_some()
-                    || query.contract_collection_call.is_some()
-                {
-                    return None;
-                }
-                let mut matching = self.program.items.iter().filter(|item| {
-                    item.canonical == *canonical && matches!(item.kind, IrItemKind::Model { .. })
-                });
-                let candidate = matching.next()?.id;
-                if matching.next().is_some() {
-                    return None;
-                }
-                policy_model(self.program, candidate)?;
-                if !self.profile.query_models.contains(&candidate) {
-                    self.profile.query_models.push(candidate);
-                }
-                self.dependency(candidate);
-                if let Some(filter) = &query.where_pred {
-                    self.bindings.push((query.where_param.clone(), candidate));
-                    self.boolean(filter, depth + 1)?;
-                    self.bindings.pop()?;
-                }
-                self.bindings.push((param.clone(), candidate));
-                self.boolean(body, depth + 1)?;
-                self.bindings.pop()?;
-                return Some(());
-            }
-            match &value.expr {
-                IrExpr::Unary {
-                    op: IrUnOp::Not,
-                    operand,
-                } => self.boolean(operand, depth + 1),
-                IrExpr::Binary { op, left, right } => {
-                    policy_binary(value, *op)?;
-                    if matches!(op, IrBinOp::And | IrBinOp::Or) {
-                        self.boolean(left, depth + 1)?;
-                        return self.boolean(right, depth + 1);
-                    }
-                    if left.ty != right.ty
-                        || !(matches!(op, IrBinOp::Eq | IrBinOp::Ne)
-                            && matches!(
-                                left.ty,
-                                ResolvedType::Record { stored: true, .. }
-                                    | ResolvedType::Scalar(
-                                        Scalar::Text
-                                            | Scalar::Bool
-                                            | Scalar::Int
-                                            | Scalar::Currency
-                                    )
-                                    | ResolvedType::Enum { .. }
-                            )
-                            || matches!(op, IrBinOp::Lt | IrBinOp::Le | IrBinOp::Gt | IrBinOp::Ge)
-                                && left.ty == ResolvedType::Scalar(Scalar::Int))
-                    {
-                        return None;
-                    }
-                    self.operand(left, depth + 1)?;
-                    self.operand(right, depth + 1)
+                    Some(())
                 }
                 _ => None,
             }
         }
     }
     policy_model(program, model)?;
-    let mut rule = QueryRule {
-        checked,
-        program,
-        owner: model,
-        db,
-        catalog,
-        profile: CheckedQueryRuleProfile {
-            fields: Vec::new(),
-            query_models: Vec::new(),
-            dependencies: Vec::new(),
-        },
-        bindings: vec![("row".into(), model)],
-        remaining: 4096,
-    };
-    rule.boolean(predicate, 0)?;
-    (!rule.profile.query_models.is_empty()).then_some(rule.profile)
+    if predicate.ty != ResolvedType::Scalar(Scalar::Bool) { return None; }
+    let mut rule = Rule { checked, program, db, catalog, owner: model,
+        profile: CheckedQueryRuleProfile { fields: Vec::new(), query_models: Vec::new(), dependencies: Vec::new() },
+        bindings: vec![("row".into(), model)], derives: HashSet::new(), remaining: 4096 };
+    rule.expr(predicate, 0)?;
+    Some(rule.profile)
 }
 
 /// Additional no-query leaves after the caller seals the complete original

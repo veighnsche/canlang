@@ -1,8 +1,9 @@
 /** Actual CLI -> verified loader -> D1: lazy Contract guard authority stays separate from output. */
+import { createCheckoutScratch } from '../src/dev/checkout-scratch.js';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { rm, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { compileFunction, constants as vmConstants } from 'node:vm';
@@ -40,7 +41,7 @@ Then
 `;
 
 test('native selected Contract Require checks its executed field without tainting the independent result', async () => {
-  const directory = await mkdtemp(join(root, '.can-native-contract-guard-'));
+  const directory = await createCheckoutScratch(root, 'native-contract-guard-');
   let worker: Miniflare | undefined;
   try {
     const sourcePath = join(directory, 'intake.can'); await writeFile(sourcePath, SOURCE);

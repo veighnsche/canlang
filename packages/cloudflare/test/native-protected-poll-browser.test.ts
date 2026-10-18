@@ -1,10 +1,11 @@
 /** Emitted protected row actions and poll markers in the installed browser. */
+import { createCheckoutScratch } from '../src/dev/checkout-scratch.js';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { randomBytes, createHash } from 'node:crypto';
 import { createServer, type ServerResponse } from 'node:http';
 import { createRequire } from 'node:module';
-import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
+import { readFile, writeFile, rm } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { compileFunction, constants as vmConstants } from 'node:vm';
@@ -37,7 +38,7 @@ test('emitted protected row action and poll drop held bodies after context/logou
   assert.equal(text.split(' page /views title="Views"').length, 2);
   const authored = text.replace(' page /views title="Views"', ' page /views title="Views" poll=1s');
   assert.equal(authored.replace(' poll=1s', ''), text);
-  const directory = await mkdtemp(join(root, '.can-protected-poll-browser-'));
+  const directory = await createCheckoutScratch(root, 'protected-poll-browser-');
   const sourcePath = join(directory, 'view-reuse-poll.can');
   const sourceBytes = Buffer.from(authored);
   let server: ReturnType<typeof createServer> | undefined;

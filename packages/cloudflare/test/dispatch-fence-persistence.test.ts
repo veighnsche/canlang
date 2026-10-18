@@ -8,13 +8,14 @@
  * denial. Compiler admission alone (dispatch_fence_persistence 4/4)
  * is component evidence; this is the executable consumer.
  */
+import { createCheckoutScratch } from '../src/dev/checkout-scratch.js';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { existsSync } from 'node:fs';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { rm } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -59,7 +60,7 @@ function object(value: unknown): Record<string, unknown> {
 }
 
 test('guarded send persists staged delivery.id and pending enum', { timeout: 240000 }, async () => {
-  const directory = await mkdtemp(join(root, '.can-dispatch-fence-'));
+  const directory = await createCheckoutScratch(root, 'dispatch-fence-');
   const startedAt = Date.now(), phase = (name: string) => console.info(`[dispatch-fence] ${name} elapsed_ms=${Date.now() - startedAt}`);
   let worker: Miniflare | undefined;
   let sequence = 0; const now = Date.now(); const clock = { nowMs: () => now };

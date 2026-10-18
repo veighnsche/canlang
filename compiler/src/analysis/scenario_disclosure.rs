@@ -989,20 +989,24 @@ pub(super) fn analyze_scenario_disclosure_with_catalog<'a>(
                 // whole-row replay (`return <first-let>`, proven narrow at
                 // its return arm) alongside a same-model create. All other
                 // provenance gaps (including bare direct returns) stay refused.
+                let replay_sites = returns
+                    .iter()
+                    .filter(|returned| returned.model_result.is_none())
+                    .map(|returned| returned.node)
+                    .collect::<HashSet<_>>();
+                let model_sites = returns
+                    .iter()
+                    .filter(|returned| returned.model_result.is_some())
+                    .map(|returned| returned.node)
+                    .collect::<HashSet<_>>();
+                let paired_replay_sites = replay_sites.len() == 1
+                    && model_sites.len() == 1
+                    && replay_sites.is_disjoint(&model_sites);
                 if let Some(model) = cx.result_model
                     && returns.iter().any(|returned| match returned.model_result
                     {
                         Some(origin) => origin.model() != model,
-                        None => {
-                            !(returns.len() == 2
-                                && returns
-                                    .iter()
-                                    .filter(|returned| {
-                                        returned.model_result.is_none()
-                                    })
-                                    .count()
-                                    == 1)
-                        }
+                        None => !paired_replay_sites,
                     })
                 {
                     return Err(cx.fail(
@@ -1078,9 +1082,9 @@ pub(super) fn analyze_scenario_disclosure_with_catalog<'a>(
                         .any(|dependency| {
                             cx.first_query_stored_require_read(dependency, scenario.module)
                         });
-                    let presence = guard.cond.is_some_and(|cond| {
-                        cx.first_binding_presence_consumed(binding, cond)
-                    });
+                    let presence = guard
+                        .cond
+                        .is_some_and(|cond| cx.first_binding_presence_consumed(binding, cond));
                     if stored || presence {
                         for query in facts
                             .queries
@@ -1117,9 +1121,9 @@ pub(super) fn analyze_scenario_disclosure_with_catalog<'a>(
                     .any(|dependency| {
                         cx.first_query_stored_require_read(dependency, scenario.module)
                     });
-                let presence = guard.cond.is_some_and(|cond| {
-                    cx.first_binding_presence_consumed(binding, cond)
-                });
+                let presence = guard
+                    .cond
+                    .is_some_and(|cond| cx.first_binding_presence_consumed(binding, cond));
                 if stored && presence {
                     for query in facts
                         .queries
@@ -1784,6 +1788,7 @@ struct ImmutableSourceFacts {
     models: HashMap<(SymbolId, ModuleId), Option<Rc<CheckedScenarioCreatedModel>>>,
     revisions: HashMap<(SymbolId, ModuleId, NodeKey), Option<CurrentRevisionSource>>,
     revision_owners: HashMap<(NodeKey, ModuleId), Option<CurrentRevisionSource>>,
+    reference_identity_operands: Option<HashSet<NodeKey>>,
 }
 
 struct Closure<'a> {
@@ -1938,6 +1943,146 @@ impl<'a> Closure<'a> {
             declaration.canonical,
             if array { "[]" } else { "" }
         ))
+    }
+
+    /// An original required reference-field argument is consumed by its actual
+    /// derive formal. Its receiver may retain the existing two parent edges;
+    /// this grants no permission to copy or otherwise traverse that reference.
+    fn checked_required_reference_path(
+        &self,
+        argument: NodeKey,
+        module: ModuleId,
+    ) -> Option<(SymbolId, NodeKey, SymbolId, SymbolId, SymbolId, u8)> {
+        let argument = self.query_group(argument)?;
+        let (receiver, name) = self.count_member(argument)?;
+        let ResolvedType::Record {
+            symbol: source,
+            stored: true,
+        } = self.types.node_types.get(&receiver)?
+        else {
+            return None;
+        };
+        let ResolvedType::Record {
+            symbol: target,
+            stored: true,
+        } = self.types.node_types.get(&argument)?
+        else {
+            return None;
+        };
+        let owner = self.resolve.symbols.get(source.0 as usize)?;
+        let SymbolKind::Model { fields, .. } = &owner.kind else {
+            return None;
+        };
+        let field = fields.iter().copied().find(|field| {
+            self.resolve
+                .symbols
+                .get(field.0 as usize)
+                .is_some_and(|field| field.name == name)
+        })?;
+        if !matches!(self.resolve.symbols.get(field.0 as usize)?.kind,
+            SymbolKind::Field { owner, .. } if owner == *source)
+            || self.types.symbol_types.get(&field) != self.types.node_types.get(&argument)
+            || self
+                .reference_operand_type_id(self.types.node_types.get(&argument)?)
+                .is_none()
+        {
+            return None;
+        }
+        let declaration = self
+            .effects
+            .models
+            .get(source)?
+            .fields
+            .iter()
+            .find(|declaration| declaration.field == field)?;
+        if declaration.default.is_some()
+            || declaration.server.is_some()
+            || declaration.required_array
+        {
+            return None;
+        }
+        let (parameter, depth) = self
+            .effects
+            .scenarios
+            .values()
+            .filter(|scenario| scenario.module == module && !scenario.read && scenario.on.is_none())
+            .flat_map(|scenario| &scenario.params)
+            .find_map(|parameter| {
+                let (model, depth) = self.checked_call_parent_path(receiver, parameter.param, 0)?;
+                (model == *source).then_some((parameter.param, depth))
+            })?;
+        Some((parameter, receiver, *source, field, *target, depth))
+    }
+
+    fn checked_helper_reference_argument(
+        &self,
+        argument: NodeKey,
+        module: ModuleId,
+    ) -> Option<(SymbolId, NodeKey, SymbolId, SymbolId, SymbolId, u8)> {
+        let path = self.checked_required_reference_path(argument, module)?;
+        let argument = self.query_group(argument)?;
+        let supplied = self.types.selected_calls.values().any(|selected| {
+            let SelectedCallTarget::DeriveFn(derive) = &selected.target else {
+                return false;
+            };
+            let Some(derive) = self.effects.derives.get(derive) else {
+                return false;
+            };
+            selected
+                .arguments
+                .iter()
+                .enumerate()
+                .any(|(index, actual)| {
+                    self.query_group(*actual) == Some(argument)
+                        && derive
+                            .params
+                            .iter()
+                            .zip(&selected.slots)
+                            .any(|(formal, slot)| {
+                                *slot == Some(index)
+                                    && self.types.symbol_types.get(&formal.param)
+                                        == self.types.node_types.get(&argument)
+                            })
+                })
+        });
+        supplied.then_some(path)
+    }
+
+    /// Only the authored identity selector consumes this required reference.
+    /// Copies, nullable/defaulted fields and further navigation remain refused.
+    fn checked_reference_identity_operand(
+        &self,
+        reference: NodeKey,
+        module: ModuleId,
+    ) -> Option<(SymbolId, NodeKey, SymbolId, SymbolId, SymbolId, u8)> {
+        let path = self.checked_required_reference_path(reference, module)?;
+        let reference = self.query_group(reference)?;
+        let SymbolKind::Model { fields, .. } = &self.resolve.symbols.get(path.4.0 as usize)?.kind
+        else {
+            return None;
+        };
+        if fields.iter().any(|field| {
+            self.resolve
+                .symbols
+                .get(field.0 as usize)
+                .is_none_or(|field| field.name == "id")
+        }) {
+            return None;
+        }
+        // This census depends only on the immutable source/type tables, not
+        // the active scenario, lexical environment or recursive admission.
+        // Build it once instead of scanning every CST node for each receiver.
+        if self.source_facts.borrow().reference_identity_operands.is_none() {
+            let operands = self.nodes.keys().filter_map(|key| {
+                if self.types.node_types.get(key) != Some(&ResolvedType::Scalar(Scalar::Text))
+                { return None; }
+                let (base, name) = self.count_member(*key)?;
+                (name == "id").then(|| self.query_group(base)).flatten()
+            }).collect();
+            self.source_facts.borrow_mut().reference_identity_operands = Some(operands);
+        }
+        self.source_facts.borrow().reference_identity_operands.as_ref()?
+            .contains(&reference).then_some(path)
     }
 
     /// The original successful presence/published guard narrows exactly one
@@ -5810,6 +5955,15 @@ impl<'a> Closure<'a> {
             {
                 pending.push((profile, true));
             }
+            if node.kind == SyntaxKind::Member
+                && let Some((_, _, _, _, target, _)) = self
+                    .checked_reference_identity_operand(NodeKey::of(node), scenario.module)
+                    .or_else(|| {
+                        self.checked_helper_reference_argument(NodeKey::of(node), scenario.module)
+                    })
+            {
+                pending.push((target, true));
+            }
             expressions.extend(node.children.iter());
         }
         // Retain the owning Model census of actual helper query calls. These
@@ -5966,6 +6120,26 @@ impl<'a> Closure<'a> {
                 }
                 work.extend(effect.then_effects.iter().map(|child| (child, depth + 1)));
                 work.extend(effect.else_effects.iter().map(|child| (child, depth + 1)));
+                if effect.verb == EffectVerb::Send {
+                    // A typed payload owns its declared Contract schema just
+                    // as a Contract-valued create field does. Census alone
+                    // supplies no send, stored-row or read authority.
+                    let mut payload = vec![effect.node];
+                    let mut visits = 0usize;
+                    while let Some(key) = payload.pop() {
+                        visits += 1;
+                        if visits > 16384 {
+                            return None;
+                        }
+                        if let Some(ResolvedType::Record { symbol, .. }) =
+                            self.types.node_types.get(&key)
+                            && is_contract(*symbol)
+                        {
+                            pending.push((*symbol, false));
+                        }
+                        payload.extend(self.nodes.get(&key)?.children.iter().map(NodeKey::of));
+                    }
+                }
                 if effect.verb != EffectVerb::Create {
                     continue;
                 }
@@ -8585,26 +8759,23 @@ impl<'a> Closure<'a> {
             // carry exactly the compared enum type (same domain, per the
             // type checker). The sealed path pins the exact authored
             // base and field for the predicate join.
-            let member_operand: Option<((NodeKey, SymbolId), String, NodeKey)> =
-                if event_operand || case_operand {
-                    None
-                } else {
-                    self.query_member_operand(scenario, operand)
-                        .filter(|(_, field, _)| {
-                            self.types.symbol_types.get(field) == Some(&field_ty)
-                        })
-                        .and_then(|(base, field, receiver)| {
-                            let base_name =
-                                &self.resolve.symbols.get(base.0 as usize)?.name;
-                            let field_name =
-                                &self.resolve.symbols.get(field.0 as usize)?.name;
-                            Some((
-                                (operand, base),
-                                format!("{base_name}.{field_name}"),
-                                receiver,
-                            ))
-                        })
-                };
+            let member_operand: Option<((NodeKey, SymbolId), String, NodeKey)> = if event_operand
+                || case_operand
+            {
+                None
+            } else {
+                self.query_member_operand(scenario, operand)
+                    .filter(|(_, field, _)| self.types.symbol_types.get(field) == Some(&field_ty))
+                    .and_then(|(base, field, receiver)| {
+                        let base_name = &self.resolve.symbols.get(base.0 as usize)?.name;
+                        let field_name = &self.resolve.symbols.get(field.0 as usize)?.name;
+                        Some((
+                            (operand, base),
+                            format!("{base_name}.{field_name}"),
+                            receiver,
+                        ))
+                    })
+            };
             if !fields.contains(&field)
                 || !(primitive_type(&field_ty)
                     || matches!(&field_ty, ResolvedType::Enum { cases, .. } if !cases.is_empty()))
@@ -9398,8 +9569,8 @@ impl<'a> Closure<'a> {
         })
     }
 
-    /// Original leading guards whose nested reference-array ANY is evaluated by
-    /// the scenario observer. This is a finite source inventory, not permission.
+    /// Original leading guards whose imported helper query is evaluated by
+    /// the scenario observer. This is a source inventory, not permission.
     /// Direct stored ANY retains its established query profile.
     fn checked_source_requires(
         &self,
@@ -9437,15 +9608,112 @@ impl<'a> Closure<'a> {
         }).count() != 1 {
             return Some(Vec::new());
         }
-        let mut out = Vec::new();
-        for site in self.checked_decision_sites(scenario)? {
-            if site.stage != CheckedDecisionStage::LeadingRequire {
-                continue;
+        let before_write =
+            |effect: &Effect| {
+                effect.match_arms.is_empty()
+                    && match effect.verb {
+                        EffectVerb::Let | EffectVerb::Require => {
+                            effect.then_effects.is_empty() && effect.else_effects.is_empty()
+                        }
+                        EffectVerb::If => effect
+                            .then_effects
+                            .iter()
+                            .chain(&effect.else_effects)
+                            .all(|nested| {
+                                matches!(nested.verb, EffectVerb::Require | EffectVerb::Return)
+                                    && nested.then_effects.is_empty()
+                                    && nested.else_effects.is_empty()
+                                    && nested.match_arms.is_empty()
+                            }),
+                        _ => false,
+                    }
+            };
+        let aggregate_field = |id: SymbolId, model: SymbolId| -> Option<()> {
+            let derive = self.effects.derives.get(&id)?;
+            let declaration = self.resolve.symbols.get(id.0 as usize)?;
+            let owner = self.resolve.symbols.get(model.0 as usize)?;
+            if derive.derive != id
+                || derive.model != Some(model)
+                || !derive.params.is_empty()
+                || declaration.module != derive.module
+                || owner.module != derive.module
+                || !matches!(&owner.kind, SymbolKind::Model { fields, .. } if fields.contains(&id))
+                || !matches!(declaration.kind, SymbolKind::DeriveField { model: owner, .. } if owner == model)
+            {
+                return None;
             }
-            let [CheckedDecisionPosition::Guard(index)] = site.position.as_slice() else {
+            let body = self.query_group(derive.expr?)?;
+            let selected = self.types.selected_calls.get(&body)?;
+            if !matches!(&selected.target, SelectedCallTarget::Builtin { id, .. } if id == "sum")
+                || selected.arguments.len() != 1
+                || selected.slots.as_slice() != [Some(0)]
+                || self.types.node_types.get(&body) != self.types.symbol_types.get(&id)
+                || !self.types.symbol_types.get(&id).is_some_and(primitive_type)
+            {
+                return None;
+            }
+            let query = self
+                .types
+                .checked_queries
+                .get(&self.query_group(selected.arguments[0])?)?;
+            let [alias, select] = query.clauses.as_slice() else {
                 return None;
             };
-            let guard = scenario.guards.get(*index)?;
+            let (row, child_name) = self.count_member(query.domain)?;
+            let ResolvedType::Array {
+                element,
+                ordered: true,
+                nonempty: false,
+            } = &query.domain_type
+            else {
+                return None;
+            };
+            let ResolvedType::Record {
+                symbol: child,
+                stored: true,
+            } = element.as_ref()
+            else {
+                return None;
+            };
+            let child_decl = self.resolve.symbols.get(child.0 as usize)?;
+            if !matches!(self.query_binding(row), Some(Binding::Context(ContextVar::RowModel(actual))) if *actual == model)
+                || child_decl.name != child_name
+                || !matches!(child_decl.kind, SymbolKind::Model { owner: ModelOwner::ChildOf(parent), .. } if parent == model)
+                || !matches!(alias.kind, CheckedQueryClauseKind::As { .. })
+                || !alias.expressions.is_empty()
+                || select.kind != CheckedQueryClauseKind::Select
+                || select.expressions.len() != 1
+                || query.projection.is_some()
+            {
+                return None;
+            }
+            let field = self.query_member(select.expressions[0], alias.node, *child)?;
+            if !matches!(self.resolve.symbols.get(field.0 as usize)?.kind, SymbolKind::Field { owner, .. } if owner == *child)
+                || !self
+                    .types
+                    .symbol_types
+                    .get(&field)
+                    .is_some_and(primitive_type)
+                || self.types.node_types.get(&select.expressions[0])
+                    != self.types.symbol_types.get(&field)
+            {
+                return None;
+            }
+            Some(())
+        };
+        let mut out = Vec::new();
+        for site in self.checked_decision_sites(scenario)? {
+            let (guard, body) = match (site.position.as_slice(), site.stage) {
+                ([CheckedDecisionPosition::Guard(index)], CheckedDecisionStage::LeadingRequire) => {
+                    (scenario.guards.get(*index)?, false)
+                }
+                ([CheckedDecisionPosition::Body(index)], CheckedDecisionStage::BodyRequire)
+                    if scenario.effects[..*index].iter().all(before_write) =>
+                {
+                    (scenario.effects.get(*index)?, true)
+                }
+                _ => continue,
+            };
             if guard.verb != EffectVerb::Require
                 || guard.node != site.statement
                 || guard.cond != Some(site.node)
@@ -9459,7 +9727,7 @@ impl<'a> Closure<'a> {
                 return None;
             }
             let mut supported = true;
-            let mut reference_any = false;
+            let mut helper_query = false;
             for call in &site.calls {
                 if !call.defaults.is_empty() || call.slots.iter().any(Option::is_none) {
                     supported = false;
@@ -9562,13 +9830,13 @@ impl<'a> Closure<'a> {
                                 supported = false;
                                 break;
                             }
-                            reference_any = true;
                         } else if domain_node.kind != SyntaxKind::NameRef
                             || !matches!(self.query_binding(query.domain), Some(Binding::Symbol(model)) if *model == fact.model)
                         {
                             supported = false;
                             break;
                         }
+                        helper_query = true;
                     }
                     CheckedDecisionCallTarget::Builtin { id, overload: 0 } if id == "trim" => {
                         if call.arguments.len() != 1
@@ -9583,6 +9851,25 @@ impl<'a> Closure<'a> {
                     }
                     CheckedDecisionCallTarget::Builtin { id, .. } if id == "active_member" => {
                         self.checked_membership_signature(call.node, call.module)?;
+                    }
+                    CheckedDecisionCallTarget::Builtin { id, .. }
+                        if body
+                            && matches!(
+                                id.as_str(),
+                                "sum"
+                                    | "count"
+                                    | "money"
+                                    | "abs"
+                                    | "round"
+                                    | "min"
+                                    | "max"
+                                    | "date"
+                                    | "datetime"
+                            ) =>
+                    {
+                        if matches!(id.as_str(), "sum" | "count") {
+                            helper_query = true;
+                        }
                     }
                     _ => {
                         supported = false;
@@ -9605,6 +9892,29 @@ impl<'a> Closure<'a> {
                     return None;
                 }
                 let node = self.nodes.get(&key)?;
+                if body {
+                    match self.query_binding(key) {
+                        Some(Binding::Let { .. } | Binding::CreateAs { .. } | Binding::SendAs { .. }
+                            | Binding::ForItem { .. } | Binding::CallAs { .. } | Binding::CohortChild { .. }
+                            | Binding::External { .. } | Binding::Error) => { supported = false; break; }
+                        Some(Binding::Symbol(id)) if matches!(self.resolve.symbols.get(id.0 as usize)?.kind, SymbolKind::Param { .. })
+                            && !scenario.params.iter().any(|parameter| parameter.param == *id)
+                            && !site.calls.iter().any(|call| matches!(call.target, CheckedDecisionCallTarget::DeriveFn(derive)
+                                if self.effects.derives.get(&derive).is_some_and(|derive| derive.params.iter().any(|parameter| parameter.param == *id)))) => {
+                            supported = false; break;
+                        }
+                        _ => {}
+                    }
+                    if node.kind == SyntaxKind::Member
+                        && let Some((base, name)) = self.count_member(key)
+                        && let Some(ResolvedType::Record { symbol: model, stored: true }) = self.types.node_types.get(&base)
+                        && let Some(field) = self.resolve.symbols.iter().find(|field| field.name == name
+                            && matches!(field.kind, SymbolKind::DeriveField { model: owner, .. } if owner == *model))
+                    {
+                        if aggregate_field(field.id, *model).is_none() { supported = false; break; }
+                        helper_query = true;
+                    }
+                }
                 if expression(node.kind)
                     && !matches!(
                         node.kind,
@@ -9624,16 +9934,36 @@ impl<'a> Closure<'a> {
                 if node.kind == SyntaxKind::Query
                     && !site.calls.iter().any(|call| {
                         matches!(&call.target, CheckedDecisionCallTarget::Builtin {id, ..} if id == "any")
-                            && self.types.checked_collection_calls.get(&call.node)
-                                .is_some_and(|fact| fact.query == key)
+                            && self.types.checked_collection_calls.get(&call.node).is_some_and(|fact| fact.query == key)
+                            || body && matches!(&call.target, CheckedDecisionCallTarget::Builtin {id, ..} if matches!(id.as_str(), "sum" | "count"))
+                                && call.arguments.iter().any(|(argument, _)| self.query_group(*argument) == Some(key))
                     })
                 {
                     supported = false;
                     break;
                 }
+                if body && node.kind == SyntaxKind::Query
+                    && site.calls.iter().any(|call| {
+                        matches!(&call.target, CheckedDecisionCallTarget::Builtin { id, .. } if matches!(id.as_str(), "sum" | "count"))
+                            && call.arguments.iter().any(|(argument, _)| self.query_group(*argument) == Some(key))
+                    })
+                {
+                    let query = self.types.checked_queries.get(&key)?;
+                    let Some((receiver, child_name)) = self.count_member(query.domain) else { supported = false; break; };
+                    let Some(ResolvedType::Record { symbol: parent, stored: true }) = self.types.node_types.get(&receiver) else { supported = false; break; };
+                    let ResolvedType::Array { element, ordered: true, nonempty: false } = &query.domain_type else { supported = false; break; };
+                    let ResolvedType::Record { symbol: child, stored: true } = element.as_ref() else { supported = false; break; };
+                    let declaration = self.resolve.symbols.get(child.0 as usize)?;
+                    if declaration.name != child_name
+                        || !matches!(declaration.kind, SymbolKind::Model { owner: ModelOwner::ChildOf(owner), .. } if owner == *parent)
+                        || query.projection.is_some()
+                        || query.clauses.iter().any(|clause| !matches!(clause.kind,
+                            CheckedQueryClauseKind::As { .. } | CheckedQueryClauseKind::Where | CheckedQueryClauseKind::Select))
+                    { supported = false; break; }
+                }
                 pending.extend(node.children.iter().map(NodeKey::of));
             }
-            if supported && reference_any {
+            if supported && helper_query {
                 out.push(site);
             }
         }
@@ -10657,6 +10987,23 @@ impl<'a> Closure<'a> {
                 .record
                 .ok_or_else(|| self.fail(key, "non-direct stored field traversal"))?;
             if field_name == "id" {
+                let reference_identity = self
+                    .checked_reference_identity_operand(base_key, module)
+                    .filter(|(_, _, source, field, target, _)| {
+                        *target == model
+                            && value.reads.iter().any(|read| {
+                                read.node == base_key
+                                    && read.model == *source
+                                    && read.field == *field
+                                    && read.ty
+                                        == ResolvedType::Record {
+                                            symbol: model,
+                                            stored: true,
+                                        }
+                                    && read.calls.is_empty()
+                                    && read.query_id.is_none()
+                            })
+                    });
                 let (parameter, member) = match value.reference_origin {
                     Some(ReferenceOrigin::Parameter(parameter)) => (parameter, false),
                     Some(ReferenceOrigin::ParameterMember { parameter, node })
@@ -10666,6 +11013,18 @@ impl<'a> Closure<'a> {
                                 .is_some_and(|(root, target, _)| {
                                     root == parameter && target == model
                                 }) =>
+                    {
+                        (parameter, true)
+                    }
+                    Some(ReferenceOrigin::Field {
+                        parameter,
+                        model: source,
+                        field,
+                    }) if reference_identity.is_some_and(
+                        |(root, _, actual, declared, _, _)| {
+                            root == parameter && actual == source && declared == field
+                        },
+                    ) =>
                     {
                         (parameter, true)
                     }
@@ -10740,6 +11099,103 @@ impl<'a> Closure<'a> {
                 continue;
             }
             if field_name == "parent" {
+                // Replay may compare the genuine first-selected child's parent
+                // identity with an original required input. This consumes the
+                // identity here; it does not establish a navigable parent row.
+                if calls.is_empty()
+                    && self.loop_node.is_none()
+                    && let Some((call, binding)) = value.first_query
+                    && matches!(self.query_binding(base_key), Some(Binding::Let { node }) if *node == binding)
+                    && let Some(query) = self.effects.scenarios.values().find_map(|scenario| {
+                        if scenario.module != module {
+                            return None;
+                        }
+                        let effect = scenario
+                            .effects
+                            .iter()
+                            .find(|effect| effect.node == binding)?;
+                        let query = self.checked_first_query_source(scenario, effect)?;
+                        (query.model == model && query.first.as_ref()?.call == call)
+                            .then_some(query)
+                    })
+                {
+                    let owner = self
+                        .resolve
+                        .symbols
+                        .get(model.0 as usize)
+                        .ok_or_else(|| self.fail(key, "missing selected child declaration"))?;
+                    let SymbolKind::Model {
+                        owner: ModelOwner::ChildOf(parent),
+                        fields,
+                        ..
+                    } = &owner.kind
+                    else {
+                        return Err(
+                            self.fail(key, "selected parent needs checked child containment")
+                        );
+                    };
+                    let expected = ResolvedType::Record {
+                        symbol: *parent,
+                        stored: true,
+                    };
+                    let comparison = self.nodes.keys().any(|comparison| {
+                        let Some((left, right)) = self.query_binary(*comparison, "==") else { return false; };
+                        [(left, right), (right, left)].iter().any(|(selected, input)| {
+                            self.query_group(*selected) == Some(key)
+                                && self.types.node_types.get(input) == Some(&expected)
+                                && matches!(self.query_binding(*input), Some(Binding::Symbol(parameter))
+                                    if self.original_reference_parameter(*input, *parameter)
+                                        && env.get(&Local::Symbol(*parameter)).is_some_and(|value| {
+                                            value.record == Some(*parent)
+                                                && value.reference_origin == Some(ReferenceOrigin::Parameter(*parameter))
+                                        }))
+                        })
+                    });
+                    if !comparison
+                        || *ty != expected
+                        || fields.iter().any(|field| {
+                            self.resolve
+                                .symbols
+                                .get(field.0 as usize)
+                                .is_none_or(|field| field.name == "parent")
+                        })
+                        || self
+                            .effects
+                            .models
+                            .get(&model)
+                            .is_none_or(|model| model.owner != ModelOwner::ChildOf(*parent))
+                        || query
+                            .influences
+                            .iter()
+                            .any(|influence| !value.influences.contains(influence))
+                    {
+                        return Err(
+                            self.fail(key, "selected parent identity source correspondence")
+                        );
+                    }
+                    value.reads.push(DisclosureDependency {
+                        query_id: None,
+                        id: self.opaque("read-data", key, &self.call_stamp(calls)?)?,
+                        source: self.source(module, key)?,
+                        node: key,
+                        calls: Vec::new(),
+                        role: DependencyRole::Data,
+                        model,
+                        field: model,
+                        model_name: owner.canonical.clone(),
+                        field_name: "parent".into(),
+                        ty: expected.clone(),
+                        type_id: self
+                            .reference_operand_type_id(&expected)
+                            .ok_or_else(|| self.fail(key, "missing selected parent declaration"))?,
+                    });
+                    value.observed.push((key, Vec::new()));
+                    value.record = None;
+                    value.reference = None;
+                    value.reference_origin = None;
+                    value.first_query = None;
+                    continue;
+                }
                 let (parameter, depth) = match value.reference_origin {
                     Some(ReferenceOrigin::Parameter(parameter)) => (parameter, 0),
                     Some(ReferenceOrigin::ParameterMember { parameter, node })
@@ -10826,7 +11282,17 @@ impl<'a> Closure<'a> {
             if matches!(
                 value.reference_origin,
                 Some(ReferenceOrigin::Parent { depth: 2, .. })
-            ) {
+            ) && !(calls.is_empty()
+                && self.loop_node.is_none()
+                && (primitive_type(ty)
+                    || matches!(ty, ResolvedType::Enum { cases, .. } if !cases.is_empty())))
+                && self
+                    .checked_helper_reference_argument(key, module)
+                    .is_none()
+                && self
+                    .checked_reference_identity_operand(key, module)
+                    .is_none()
+            {
                 return Err(self.fail(
                     key,
                     "two-parent reference needs direct child input consumer",
@@ -10959,12 +11425,29 @@ impl<'a> Closure<'a> {
                 Some(ReferenceOrigin::Parent {
                     parameter,
                     model: parent,
-                    depth: 1,
-                }) if parent == model => Some(parameter),
+                    depth,
+                }) if parent == model
+                    && (depth == 1
+                        || depth == 2
+                            && ((calls.is_empty()
+                                && self.loop_node.is_none()
+                                && (primitive_type(field_ty)
+                                    || matches!(field_ty, ResolvedType::Enum { cases, .. } if !cases.is_empty())))
+                                || self
+                                    .checked_helper_reference_argument(key, module)
+                                    .is_some()
+                                || self
+                                    .checked_reference_identity_operand(key, module)
+                                    .is_some())) =>
+                {
+                    Some(parameter)
+                }
                 _ => None,
             };
             if parent_origin.is_some()
-                && (self.reference_operand_type_id(field_ty).is_none()
+                && (!(primitive_type(field_ty)
+                    || matches!(field_ty, ResolvedType::Enum { cases, .. } if !cases.is_empty())
+                    || self.reference_operand_type_id(field_ty).is_some())
                     || !self
                         .nodes
                         .get(&base_key)
@@ -11000,6 +11483,16 @@ impl<'a> Closure<'a> {
                 .ok_or_else(|| {
                     self.fail(key, "Profile reference lacks its owning model declaration")
                 })?
+            } else if parent_origin.is_some()
+                && calls.is_empty()
+                && self.loop_node.is_none()
+                && (primitive_type(field_ty)
+                    || matches!(field_ty, ResolvedType::Enum { cases, .. } if !cases.is_empty()))
+            {
+                // A scalar leaf consumes the authenticated parent path. Keep
+                // every preceding edge read and the leaf's own dependency.
+                value.reference_origin = None;
+                self.field_type_id(key, field.id, field_ty)?
             } else if let Some(parameter) = parent_origin {
                 let declaration = self
                     .effects
@@ -11114,8 +11607,12 @@ impl<'a> Closure<'a> {
                 type_id,
             });
             value.observed.push((key, calls.to_vec()));
-            value.record =
-                required_reference.or_else(|| profile_reference.map(|(_, _, _, profile)| profile));
+            value.record = required_reference
+                .or_else(|| profile_reference.map(|(_, _, _, profile)| profile))
+                .or_else(|| {
+                    self.checked_reference_identity_operand(key, module)
+                        .map(|(_, _, _, _, target, _)| target)
+                });
             value.model_result =
                 required_reference.map(|target| DisclosureModelResult::Reference {
                     model: target,
@@ -11123,6 +11620,16 @@ impl<'a> Closure<'a> {
                     source_model: model,
                     field: field.id,
                 });
+            if let Some((parameter, _, source, reference, _, _)) =
+                self.checked_reference_identity_operand(key, module)
+            {
+                value.reference_origin = Some(ReferenceOrigin::Field {
+                    parameter,
+                    model: source,
+                    field: reference,
+                });
+                value.model_result = None;
+            }
             value.reference = None;
         }
         Ok(values)
@@ -12586,8 +13093,9 @@ impl<'a> Closure<'a> {
         let authorization = (self.authorization && calls.is_empty() && self.loop_node.is_none())
             .then(|| self.checked_authorization_derive(key, module))
             .flatten();
+        let mut helper_reference_reads = HashSet::new();
         let mut argument_paths = vec![(ValuePath::default(), Vec::<ValuePath>::new())];
-        for argument in &selected.arguments {
+        for (argument_index, argument) in selected.arguments.iter().enumerate() {
             let mut alternatives = if (authorization.is_some()
                 && selected.arguments.first() == Some(argument))
                 || matches!(
@@ -12693,6 +13201,108 @@ impl<'a> Closure<'a> {
                     // parent read. It neither admits a new parameter nor leaves
                     // a general parent/field operand permission in the callee.
                     value.reference_origin = None;
+                }
+            }
+            if calls.is_empty()
+                && self.loop_node.is_none()
+                && let SelectedCallTarget::DeriveFn(derive) = &selected.target
+                && let Some((parameter, receiver, source, field, target, depth)) =
+                    self.checked_helper_reference_argument(*argument, module)
+            {
+                let derive = self
+                    .effects
+                    .derives
+                    .get(derive)
+                    .ok_or_else(|| self.fail(key, "missing checked helper declaration"))?;
+                if !derive
+                    .params
+                    .iter()
+                    .zip(&selected.slots)
+                    .any(|(formal, slot)| {
+                        *slot == Some(argument_index)
+                            && self.types.symbol_types.get(&formal.param)
+                                == Some(&ResolvedType::Record {
+                                    symbol: target,
+                                    stored: true,
+                                })
+                    })
+                {
+                    return Err(self.fail(key, "helper reference formal mismatch"));
+                }
+                let mut edges = vec![(
+                    self.query_group(*argument)
+                        .ok_or_else(|| self.fail(key, "helper argument grouping"))?,
+                    receiver,
+                    source,
+                    field,
+                )];
+                let mut edge = receiver;
+                for _ in 0..depth {
+                    let (base, name) = self
+                        .count_member(edge)
+                        .ok_or_else(|| self.fail(key, "helper parent edge missing"))?;
+                    let Some(ResolvedType::Record {
+                        symbol: child,
+                        stored: true,
+                    }) = self.types.node_types.get(&base)
+                    else {
+                        return Err(self.fail(key, "helper parent receiver mismatch"));
+                    };
+                    if name != "parent" {
+                        return Err(self.fail(key, "helper parent edge mismatch"));
+                    }
+                    edges.push((edge, base, *child, *child));
+                    edge = base;
+                }
+                edges.reverse();
+                for value in &mut alternatives {
+                    if !env.get(&Local::Symbol(parameter)).is_some_and(|input| {
+                        input.reference_origin == Some(ReferenceOrigin::Parameter(parameter))
+                    }) || value.reads.len() != edges.len()
+                        || !value.intrinsics.is_empty()
+                        || !value.decisions.is_empty()
+                    {
+                        return Err(self.fail(key, "helper reference observation mismatch"));
+                    }
+                    for (read, (node, _, model, field)) in value.reads.iter().zip(&edges) {
+                        let symbol = self
+                            .resolve
+                            .symbols
+                            .get(model.0 as usize)
+                            .ok_or_else(|| self.fail(key, "helper reference model missing"))?;
+                        let name = if model == field {
+                            "parent"
+                        } else {
+                            &self
+                                .resolve
+                                .symbols
+                                .get(field.0 as usize)
+                                .ok_or_else(|| self.fail(key, "helper reference field missing"))?
+                                .name
+                        };
+                        if read.node != *node
+                            || read.model != *model
+                            || read.field != *field
+                            || read.model_name != symbol.canonical
+                            || read.field_name != name
+                            || self.types.node_types.get(node) != Some(&read.ty)
+                            || read.type_id
+                                != self.reference_operand_type_id(&read.ty).ok_or_else(|| {
+                                    self.fail(key, "helper reference type missing")
+                                })?
+                            || read.role != DependencyRole::Data
+                            || !read.calls.is_empty()
+                            || read.query_id.is_some()
+                            || read.source != self.source(module, *node)?
+                        {
+                            return Err(self.fail(key, "helper reference source mismatch"));
+                        }
+                        helper_reference_reads.insert(read.node);
+                    }
+                    // The existing read census stays attached to the supplied
+                    // value; only this actual Model formal consumes its operand.
+                    value.reference_origin = None;
+                    value.record = Some(target);
                 }
             }
             if alternatives.iter().any(|value| {
@@ -12820,6 +13430,15 @@ impl<'a> Closure<'a> {
                                         ..ValuePath::default()
                                     });
                                 }
+                                value.join(&ValuePath {
+                                    reads: evaluated
+                                        .reads
+                                        .iter()
+                                        .filter(|read| helper_reference_reads.contains(&read.node))
+                                        .cloned()
+                                        .collect(),
+                                    ..ValuePath::default()
+                                });
                                 // Other argument reads matter only when the derive's
                                 // returned value consumes them. Decisions are
                                 // retained solely to identify actual evaluation.
@@ -13171,19 +13790,13 @@ impl<'a> Closure<'a> {
     fn nullable_value_default_ok(&self, parameter: &super::effects::ParamData) -> bool {
         match parameter.default {
             None => true,
-            Some(default) => {
-                self.nodes.get(&default).is_some_and(|node| {
-                    node.kind == SyntaxKind::Literal
-                        && self.types.node_types.get(&default) == Some(&ResolvedType::Null)
-                        && self
-                            .db
-                            .get(default.file)
-                            .and_then(|file| {
-                                file.text.get(default.start as usize..default.end as usize)
-                            })
-                            == Some("null")
-                })
-            }
+            Some(default) => self.nodes.get(&default).is_some_and(|node| {
+                node.kind == SyntaxKind::Literal
+                    && self.types.node_types.get(&default) == Some(&ResolvedType::Null)
+                    && self.db.get(default.file).and_then(|file| {
+                        file.text.get(default.start as usize..default.end as usize)
+                    }) == Some("null")
+            }),
         }
     }
 
@@ -13242,13 +13855,13 @@ impl<'a> Closure<'a> {
             return false;
         };
         let direct = match inner.as_ref() {
-            ResolvedType::Scalar(scalar) => self.direct_builtin_parameter_type(
-                NodeKey::of(named),
-                *scalar,
-            ) && matches!(
-                self.resolve.node_typeref.get(&NodeKey::of(path)),
-                Some(TypeRef::Scalar(name)) if name == scalar.as_str()
-            ),
+            ResolvedType::Scalar(scalar) => {
+                self.direct_builtin_parameter_type(NodeKey::of(named), *scalar)
+                    && matches!(
+                        self.resolve.node_typeref.get(&NodeKey::of(path)),
+                        Some(TypeRef::Scalar(name)) if name == scalar.as_str()
+                    )
+            }
             ResolvedType::Enum { .. } => {
                 self.resolve.node_typeref.get(&NodeKey::of(path)).is_some()
             }
@@ -13858,8 +14471,37 @@ impl<'a> Closure<'a> {
         calls: &[NodeKey],
         schema: Option<String>,
     ) -> Result<Vec<ValuePath>, DisclosureDecline> {
-        let fields = checked_text_schema_fields(ty, schema.as_deref())
-            .ok_or_else(|| self.fail(key, "unsupported object type"))?;
+        let declared_fields;
+        let fields = if let Some(fields) = checked_text_schema_fields(ty, schema.as_deref()) {
+            fields
+        } else if let ResolvedType::Record { symbol, .. } = ty {
+            let declaration = self
+                .resolve
+                .symbols
+                .get(symbol.0 as usize)
+                .ok_or_else(|| self.fail(key, "missing object Contract declaration"))?;
+            let SymbolKind::Contract { fields } = &declaration.kind else {
+                return Err(self.fail(key, "object needs its owning Contract"));
+            };
+            declared_fields = fields
+                .iter()
+                .map(|field| {
+                    let field = self.resolve.symbols.get(field.0 as usize)?;
+                    (matches!(field.kind, SymbolKind::Field {owner, ..} if owner == *symbol)).then(
+                        || {
+                            Some((
+                                field.name.clone(),
+                                self.types.symbol_types.get(&field.id)?.clone(),
+                            ))
+                        },
+                    )?
+                })
+                .collect::<Option<Vec<_>>>()
+                .ok_or_else(|| self.fail(key, "object Contract fields disagree with owner"))?;
+            declared_fields.as_slice()
+        } else {
+            return Err(self.fail(key, "unsupported object type"));
+        };
         if fields.len() > 200 {
             return Err(self.fail(key, "object field bound"));
         }
@@ -15987,18 +16629,48 @@ impl<'a> Closure<'a> {
                                 },
                             )
                 };
+            // Shape admission only: the existing Flow walk below still proves
+            // each operand, target, send, mutation and branch in authored order.
+            // A created result may pass through a finite effect tail without
+            // requiring a particular send/set arrangement. Nested creates,
+            // child calls, loops and additional returns retain their own gates.
+            let ordered_created_tail = |tail: &[Effect]| {
+                let mut pending = tail.iter().collect::<Vec<_>>();
+                let mut visits = 0usize;
+                while let Some(effect) = pending.pop() {
+                    visits += 1;
+                    if visits > 16384 || !effect.match_arms.is_empty() {
+                        return false;
+                    }
+                    if effect.verb == EffectVerb::If {
+                        if effect.cond.is_none() {
+                            return false;
+                        }
+                        pending.extend(&effect.then_effects);
+                        pending.extend(&effect.else_effects);
+                    } else if !matches!(
+                        effect.verb,
+                        EffectVerb::Let | EffectVerb::Require | EffectVerb::Send | EffectVerb::Set
+                    ) || !effect.then_effects.is_empty()
+                        || !effect.else_effects.is_empty()
+                    {
+                        return false;
+                    }
+                }
+                true
+            };
             let direct_model_return = self.result_model.is_some_and(|model| {
                 effects.len() >= 2
                     && ((!created_pair && effects.iter().position(|effect| effect.node == created.node).is_some_and(|position| {
                             position + 1 < effects.len()
                                 && effects[..position].iter().all(before_direct_create)
-                                && effects[position + 1..effects.len() - 1].iter().all(|effect| effect.verb == EffectVerb::Require)
+                                && ordered_created_tail(&effects[position + 1..effects.len() - 1])
                         }))
                         || (created_pair && effects.len() >= 3
                             && (effects.get(effects.len() - 3).map(|effect| effect.node) == Some(created.node)
                                 || effects.iter().position(|effect| effect.node == created.node).is_some_and(|position|
                                     position + 2 < effects.len()
-                                        && effects[position + 2..effects.len() - 1].iter().all(|effect| effect.verb == EffectVerb::Require)))))
+                                        && ordered_created_tail(&effects[position + 2..effects.len() - 1])))))
                     && matches!(created.target, Some(EffectTarget::Model(actual)) if actual == model)
                     && effects.last().is_some_and(|returned| {
                         returned.verb == EffectVerb::Return
@@ -16928,66 +17600,48 @@ impl<'a> Closure<'a> {
                                                         <= scenario.node.end
                                             })
                                             .is_some_and(|scenario| {
-                                            let Some(let_effect) = scenario
-                                                .effects
-                                                .iter()
-                                                .find(|binding| {
-                                                    binding.verb
-                                                        == EffectVerb::Let
-                                                        && binding.node
-                                                            == *let_node
-                                                })
-                                            else {
-                                                return false;
-                                            };
-                                            let Some(query) = self
-                                                .checked_first_query_source(
-                                                    scenario,
-                                                    let_effect,
-                                                )
-                                            else {
-                                                return false;
-                                            };
-                                            let Some(first) = query.first.as_ref()
-                                            else {
-                                                return false;
-                                            };
-                                            query.model == model
-                                                && first.contained_parent.is_none()
-                                                && first.binding == *let_node
-                                                && value.first_query.is_some_and(
-                                                    |(call, binding)| {
-                                                        call == first.call
-                                                            && binding
-                                                                == first.binding
-                                                    },
-                                                )
-                                                && query.dependencies.len()
-                                                    == 1
-                                                && query.dependencies[0].role
-                                                    == DependencyRole::Control
-                                                && query.dependencies[0].model
-                                                    == model
-                                                && query.dependencies[0].type_id
-                                                    == "text"
-                                                && query.dependencies[0].ty
-                                                    == ResolvedType::Scalar(
-                                                        Scalar::Text,
+                                                let Some(let_effect) =
+                                                    scenario.effects.iter().find(|binding| {
+                                                        binding.verb == EffectVerb::Let
+                                                            && binding.node == *let_node
+                                                    })
+                                                else {
+                                                    return false;
+                                                };
+                                                let Some(query) = self.checked_first_query_source(
+                                                    scenario, let_effect,
+                                                ) else {
+                                                    return false;
+                                                };
+                                                let Some(first) = query.first.as_ref() else {
+                                                    return false;
+                                                };
+                                                query.model == model
+                                                    && first.binding == *let_node
+                                                    && value.first_query.is_some_and(
+                                                        |(call, binding)| {
+                                                            call == first.call
+                                                                && binding == first.binding
+                                                        },
                                                     )
-                                                && query.inputs.len() == 1
-                                                && !query.archived
-                                                && query.limit.is_none()
-                                                && query.projection.is_none()
-                                                && query
-                                                    .cardinality_guard
-                                                    .is_none()
-                                                && query.count.is_none()
-                                                && query.order.len() == 1
-                                                && query.order[0].field.is_none()
-                                                && query.order[0].field_name
-                                                    == "id"
-                                                && !query.order[0].descending
-                                        })
+                                                    && query.dependencies.len() == 1
+                                                    && query.dependencies[0].role
+                                                        == DependencyRole::Control
+                                                    && query.dependencies[0].model == model
+                                                    && query.dependencies[0].type_id == "text"
+                                                    && query.dependencies[0].ty
+                                                        == ResolvedType::Scalar(Scalar::Text)
+                                                    && query.inputs.len() == 1
+                                                    && !query.archived
+                                                    && query.limit.is_none()
+                                                    && query.projection.is_none()
+                                                    && query.cardinality_guard.is_none()
+                                                    && query.count.is_none()
+                                                    && query.order.len() == 1
+                                                    && query.order[0].field.is_none()
+                                                    && query.order[0].field_name == "id"
+                                                    && !query.order[0].descending
+                                            })
                                     }
                                     _ => false,
                                 };

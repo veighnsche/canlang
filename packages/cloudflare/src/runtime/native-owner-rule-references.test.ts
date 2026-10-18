@@ -36,7 +36,15 @@ export const escape=()=>escaped();
 async function predicate(c,row){
  trace=[];
  if(row.mode.startsWith('query-')){
-   if(row.mode==='query-domain'){try{await records(c,'${CONTACT}');}catch{}return true;}
+   if(row.mode==='query-domain'){try{await records(c,'${CHECKED}');}catch{}return true;}
+   if(row.mode.startsWith('query-parent')){
+     const contact=await nativeReadReference(c,row.contact);
+     const parent=row.mode==='query-parent-copy'?{...contact.parent}:row.mode==='query-parent-wrong'?row.contact:contact.parent;
+     if(row.mode!=='query-parent'){try{await records(c,'${CONTACT}',{parent});}catch{}return true;}
+     const children=await records(c,'${CONTACT}',{parent});
+     if(children.length!==1||children[0].id!==contact.id)throw new Error('contained owner query escaped its parent');
+     return true;
+   }
    if(row.mode==='query-shape'){try{await records(c,'${CUSTOMER}',{limit:1});}catch{}return true;}
    if(row.mode==='query-bool'){try{await records(c,'${CUSTOMER}',{where:()=>1});}catch{}return true;}
    if(row.mode==='query-throw'){await records(c,'${CUSTOMER}',{where:()=>{throw new Error('original query predicate failed');}});return true;}
@@ -60,7 +68,7 @@ async function predicate(c,row){
 export const appDefinition={id:'${APP}',policy:${JSON.stringify(policy)},models:${JSON.stringify(declarations)}};
 export function canApp(){return {policy:${JSON.stringify(policy)},operations:${JSON.stringify(operations)},
  Checked:{create:async()=>{throw new Error('canonical CRUD must own creation');}},read:{read:()=>true},
- invariants:{'Checked.require.1':predicate},modelPolicyBindings:[{id:'${APP}.Checked.require.1',module:'${MODULE}',ownerPackage:'${APP}',model:'${CHECKED}',kind:'invariant',evaluate:predicate${queries ? `,queryModels:['${CUSTOMER}']` : ''}}${queries ? `,{id:'${APP}.Checked.require.1.root',module:'${MODULE}',ownerPackage:'${APP}',model:'${CHECKED}',kind:'dependency',select:()=>[]}` : ''}]};}`;
+ invariants:{'Checked.require.1':predicate},modelPolicyBindings:[{id:'${APP}.Checked.require.1',module:'${MODULE}',ownerPackage:'${APP}',model:'${CHECKED}',kind:'invariant',evaluate:predicate${queries ? `,queryModels:['${CUSTOMER}','${CONTACT}']` : ''}}${queries ? `,{id:'${APP}.Checked.require.1.root',module:'${MODULE}',ownerPackage:'${APP}',model:'${CHECKED}',kind:'dependency',select:()=>[]},{id:'${APP}.Checked.require.1.child',module:'${MODULE}',ownerPackage:'${APP}',model:'${CHECKED}',kind:'dependency',select:()=>[]}` : ''}]};}`;
   return { artifact_version: 1, language_version: 'declaration-labelled', tool_version: 'consumer-component',
     sources: [{ path: SOURCE, sha256: createHash('sha256').update(source).digest('hex') }],
     modules: [{ path: MODULE, js, map: { version: 3, file: MODULE, sources: [SOURCE], sourcesContent: [source], names: [], mappings: '' } }],
@@ -77,7 +85,7 @@ export function canApp(){return {policy:${JSON.stringify(policy)},operations:${J
         { name: 'active', field: { kind: 'boolean' }, valueType: 'bool', required: true, serverOnly: false },
       ] },
     ], modelPolicies: [{ abi: 'state.owner-model-policies@1', model: CHECKED, ownerPackage: APP, module: MODULE,
-      rules: [{ kind: 'invariant', id: `${APP}.Checked.require.1`, dependencies: queries ? [{ id: `${APP}.Checked.require.1.root`, model: CUSTOMER, maxTargets: 1000 }] : [] }], hooks: [] }],
+      rules: [{ kind: 'invariant', id: `${APP}.Checked.require.1`, dependencies: queries ? [{ id: `${APP}.Checked.require.1.root`, model: CUSTOMER, maxTargets: 1000 }, { id: `${APP}.Checked.require.1.child`, model: CONTACT, maxTargets: 1000 }] : [] }], hooks: [] }],
     requires: [{ capability: 'canlang.builtins', min_version: 2 }, { capability: 'state', min_version: 1 }] };
 }
 
@@ -150,8 +158,9 @@ test('native owner invariant queries use only checked final domains and preserve
     const normal = await create('query-normal'); assert.ok('result' in normal, JSON.stringify(normal));
     assert.deepEqual(module.inspect(), [`where:${first.id}`, `where:${second.id}`, `predicate:${first.id}`]);
     await assert.rejects(module.escape(), /closed/);
+    const contained = await create('query-parent'); assert.ok('result' in contained, JSON.stringify(contained));
     const before = await store.query({ model: CHECKED, authority: 'owner' });
-    for (const mode of ['query-domain', 'query-shape', 'query-bool']) {
+    for (const mode of ['query-domain', 'query-shape', 'query-bool', 'query-parent-copy', 'query-parent-wrong']) {
       const refused = await create(mode); assert.ok('error' in refused, JSON.stringify(refused));
       assert.equal(refused.error.code, 'validation', mode);
       assert.deepEqual(await store.query({ model: CHECKED, authority: 'owner' }), before);

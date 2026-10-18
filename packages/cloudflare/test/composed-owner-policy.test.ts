@@ -1,11 +1,12 @@
 /** Installed composition of the original model_rule_origins declarations.
  * Only the labelled authenticated CRUD setup is test-authored. Negative
  * variants corrupt actual emitted metadata; none supplies replacement rules. */
+import { createCheckoutScratch } from '../src/dev/checkout-scratch.js';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { createRequire } from 'node:module';
-import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
+import { readFile, writeFile, rm } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { compileFunction, constants } from 'node:vm';
@@ -53,7 +54,7 @@ async function compileOriginalComposition(directory: string) {
 }
 
 test('installed original conditional unique refuses before checked native adoption', {timeout: 90000}, async () => {
-  const directory = await mkdtemp(join(root, '.can-composed-owner-policy-refusal-'));
+  const directory = await createCheckoutScratch(root, 'composed-owner-policy-refusal-');
   try {
     const {artifact, sourcePath} = await compileOriginalComposition(directory);
     const {assembleModules} = await nodeImport(installed('runtime/modules.js')) as typeof import('../src/runtime/modules.js');
@@ -64,7 +65,7 @@ test('installed original conditional unique refuses before checked native adopti
 });
 
 test('installed colliding Item rules and unique Bin retain original legacy keys, enforcement and closed coverage', {timeout: 180000}, async () => {
-  const directory = await mkdtemp(join(root, '.can-composed-owner-policy-'));
+  const directory = await createCheckoutScratch(root, 'composed-owner-policy-');
   let worker: Miniflare | undefined;
   try {
     const {assembleModules, importVerifiedAssemblyModule} = await nodeImport(installed('runtime/modules.js')) as typeof import('../src/runtime/modules.js');

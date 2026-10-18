@@ -2,12 +2,13 @@
  * labelled test-authored member CRUD block in owned temporary source. No tracked
  * fixture edit, raw State seed, undeclared operation or two matching accounts.
  */
+import { createCheckoutScratch } from '../src/dev/checkout-scratch.js';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
-import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
+import { readFile, writeFile, rm } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -44,7 +45,7 @@ async function snapshot(db: D1Database) {
 
 test.each(['row', 'candidate'])('first Budget alias=%s, Sets, guarded Email and model receipt preserve lawful source authority and late rollback',
  {timeout: 240000}, async (queryAlias) => {
-  const directory = await mkdtemp(join(root, '.can-native-first-budget-'));
+  const directory = await createCheckoutScratch(root, 'native-first-budget-');
   const startedAt = Date.now(), phase = (name: string) => console.info(`[native-first-budget] ${name} elapsed_ms=${Date.now() - startedAt}`);
   let worker: Miniflare | undefined, physical: SqliteFileStore | undefined;
   let sequence = 0, now = Date.now(); const clock = {nowMs: () => now};
@@ -448,7 +449,7 @@ test.each(['row', 'candidate'])('first Budget alias=%s, Sets, guarded Email and 
 
 
 test('fresh source-rule Budget CRUD uses actual caller and saved receipt projection', {timeout: 120000}, async () => {
-  const directory = await mkdtemp(join(root, '.can-source-crud-budget-'));
+  const directory = await createCheckoutScratch(root, 'source-crud-budget-');
   try {
     const require = createRequire(import.meta.url);
     const {distribution} = await nodeImport(pathToFileURL(require.resolve('@canlang/values/distribution')).href) as typeof import('@canlang/values/distribution');

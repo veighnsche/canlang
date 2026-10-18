@@ -1,4 +1,5 @@
 /** Actual native compile and canonical memory consumer; no whole-app or D1 claim. */
+import { createCheckoutScratch } from '../dev/checkout-scratch.js';
 import assert from 'node:assert/strict';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
@@ -145,7 +146,7 @@ it('consumes native int64 policies through create, saved replay, and current mem
 });
 
 it('keeps genuine unsupported delete hooks refused without executing their body', async () => {
-  const scratch = await mkdtemp(join(root, '.can-native-unclaimed-hook-'));
+  const scratch = await createCheckoutScratch(root, 'native-unclaimed-hook-');
   const sourcePath = join(scratch, 'NativeUnclaimedHook.can');
   const text = 'app NativeUnclaimedHook\nGiven\n Item {label:text}\nWhen\n crud Item by=members fields=label\n scenario changed on=Item.delete\n  do require event.before.label!="never"\nThen\n';
   await writeFile(sourcePath, text);
@@ -328,7 +329,7 @@ it('enforces entry locks while allowing unrelated and same-value writes, then un
 
 it('refuses loss of the dedicated installed owner-session producer without legacy execution or receipt writes', async () => {
   const f = await fixture();
-  const loaded = await loadCanonicalDescriptors(asm, artifact);
+  const loaded = await loadCanonicalDescriptors(asm, artifact, f.store);
   const original = loaded.producers.crud.generatedCrudExecuteOwnerSession;
   assert.equal(typeof original, 'function', 'actual positive installed producer');
   const producer = loaded.producers.crud as { generatedCrudExecuteOwnerSession?: typeof original };

@@ -86,6 +86,20 @@ pub fn owners(ir: &IrProgram, app: &str) -> Vec<String> {
         .collect()
 }
 
+/// A bound import may also carry ordinary schemas. Only the owning capability
+/// or judgment declaration defines an executable service binding.
+pub(super) fn bound_import_kind(ir: &IrProgram, provider: &str, name: &str) -> Option<&'static str> {
+    if provider == "std" && crate::analysis::catalog::std_capability(name).is_some() {
+        return Some("capability");
+    }
+    let canonical = format!("{provider}.{name}");
+    match &ir.items.iter().find(|item| item.canonical == canonical)?.kind {
+        IrItemKind::Capability { .. } => Some("capability"),
+        IrItemKind::Judgment { .. } => Some("judgment"),
+        _ => None,
+    }
+}
+
 pub fn inventory(ir: &IrProgram) -> Vec<RuntimeBinding> {
     let mut bindings = Vec::new();
     for module in &ir.modules {
@@ -93,6 +107,7 @@ pub fn inventory(ir: &IrProgram) -> Vec<RuntimeBinding> {
         for import in &module.imports {
             let Some(from) = &import.from else { continue };
             for (name, alias, _) in &import.members {
+                if bound_import_kind(ir, &import.provider, name).is_none() { continue; }
                 bindings.push(RuntimeBinding {
                     owner: module.name.clone(),
                     name: alias.clone(),

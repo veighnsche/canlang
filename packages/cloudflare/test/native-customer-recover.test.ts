@@ -2,11 +2,12 @@
  * Canonical snapshots are setup only. Every exercised mutation is the compiler's
  * unchanged recover method, through the installed State/Identity/D1 graph.
  */
+import { createCheckoutScratch } from '../src/dev/checkout-scratch.js';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { readFile, rm } from 'node:fs/promises';
 import { join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { compileFunction, constants as vmConstants } from 'node:vm';
@@ -43,7 +44,7 @@ async function snapshot(db: D1Database) {
 
 test('original Customer recover creates or reactivates administrator with current staff/custom-role authority and no-effect refusals/replay',
   { timeout: 600000 }, async () => {
-    const directory = await mkdtemp(join(root, '.can-native-customer-recover-'));
+    const directory = await createCheckoutScratch(root, 'native-customer-recover-');
     let worker: Miniflare | undefined;
     try {
       const fixture = await prepareCustomerRecoverSource(directory);

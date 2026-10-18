@@ -13,7 +13,7 @@ use crate::syntax::{SyntaxKind, SyntaxNode};
 
 use super::ir::{
     IrBinOp, IrCallTarget, IrDefault, IrExpr, IrItem, IrItemKind, IrModelRuleKind, IrOwner,
-    IrProgram, IrServer, IrStmt, IrType, IrUnOp, TypedExpr, ir_model_rule_prefix,
+    IrProgram, IrQueryDomain, IrServer, IrStmt, IrType, IrUnOp, TypedExpr, ir_model_rule_prefix,
 };
 use super::js::{Emitter, JsModel, js_field_default, literal_json};
 
@@ -389,7 +389,16 @@ pub(super) fn checked_created_schema(
         {
             return None;
         }
-        matcher.expression(&actual.pred, original_rule.predicate?, 0)?;
+        matcher
+            .expression(&actual.pred, original_rule.predicate?, 0)
+            .or_else(|| {
+                matcher.schema_rule_expression(
+                    &actual.pred,
+                    original_rule.predicate?,
+                    &[("row".into(), model.id)],
+                    0,
+                )
+            })?;
     }
     let actual_locks: Vec<_> = ir
         .locks
@@ -3977,6 +3986,373 @@ impl<'a> SourceExpressions<'a> {
             })
     }
 
+    /// Source-only seal for scalar uniqueness invariants with an authored ANY
+    /// model scan. This does not admit query execution or create stored fields.
+    fn schema_rule_expression(
+        &self,
+        actual: &TypedExpr,
+        key: NodeKey,
+        bindings: &[(String, crate::analysis::SymbolId)],
+        depth: usize,
+    ) -> Option<()> {
+        if depth > 64 {
+            return None;
+        }
+        let mut node = *self.nodes.get(&key)?;
+        while node.kind == SyntaxKind::Group {
+            node = expressions(node).first().copied()?;
+        }
+        if actual.span != node.span {
+            return None;
+        }
+        let children = expressions(node);
+        match (&actual.expr, node.kind) {
+            (IrExpr::Name(name), SyntaxKind::NameRef) => {
+                let authored = single_name(node, self.text)?;
+                let model = bindings
+                    .iter()
+                    .rev()
+                    .find(|(binding, _)| binding == authored)?
+                    .1;
+                (name == authored
+                    && actual.ty
+                        == ResolvedType::Record {
+                            symbol: model,
+                            stored: true,
+                        })
+                .then_some(())
+            }
+            (IrExpr::Member { base, field }, SyntaxKind::Member) => {
+                let [source_base] = children.as_slice() else {
+                    return None;
+                };
+                let name = node
+                    .children
+                    .iter()
+                    .rev()
+                    .find(|child| child.kind == SyntaxKind::Name)?;
+                if name.token()?.text(self.text) != field {
+                    return None;
+                }
+                self.schema_rule_expression(base, NodeKey::of(source_base), bindings, depth + 1)?;
+                if base.ty == ResolvedType::Scalar(Scalar::Money) {
+                    let expected = match field.as_str() {
+                        "currency" => Scalar::Currency,
+                        "minor" => Scalar::Int,
+                        _ => return None,
+                    };
+                    return (actual.ty == ResolvedType::Scalar(expected)).then_some(());
+                }
+                let ResolvedType::Record {
+                    symbol: model,
+                    stored: true,
+                } = base.ty
+                else {
+                    return None;
+                };
+                if field == "parent" {
+                    let child = self.ir.items.get(model.0 as usize)?;
+                    let IrItemKind::Model {
+                        owner: IrOwner::ChildOf(parent),
+                        fields,
+                        ..
+                    } = &child.kind
+                    else {
+                        return None;
+                    };
+                    if fields.iter().any(|id| {
+                        self.ir
+                            .items
+                            .get(id.0 as usize)
+                            .is_none_or(|field| field.name == "parent")
+                    }) {
+                        return None;
+                    }
+                    let owner = self.create_owner()?;
+                    let facts = super::scenario_calls::checked_source(self.ir, owner, self.db)?;
+                    let inventory = facts.stored_contracts.as_deref()?;
+                    let child_schema = inventory
+                        .iter()
+                        .find(|schema| schema.model && schema.id == model)?;
+                    let parent_schema = inventory
+                        .iter()
+                        .find(|schema| schema.model && schema.id == *parent)?;
+                    super::scenario_receipts::match_stored_contract_schema(
+                        self.ir,
+                        child_schema,
+                        self.db,
+                    )?;
+                    super::scenario_receipts::match_stored_contract_schema(
+                        self.ir,
+                        parent_schema,
+                        self.db,
+                    )?;
+                    return (actual.ty
+                        == ResolvedType::Record {
+                            symbol: *parent,
+                            stored: true,
+                        })
+                    .then_some(());
+                }
+                let expected = if model == self.original.model {
+                    self.original
+                        .definition
+                        .fields
+                        .iter()
+                        .find(|declared| declared.name == *field)?
+                        .ty
+                        .clone()
+                } else {
+                    let owner = self.create_owner()?;
+                    let facts = super::scenario_calls::checked_source(self.ir, owner, self.db)?;
+                    let schema = facts
+                        .stored_contracts
+                        .as_deref()?
+                        .iter()
+                        .find(|schema| schema.model && schema.id == model)?;
+                    super::scenario_receipts::match_stored_contract_schema(
+                        self.ir, schema, self.db,
+                    )?;
+                    let declared = schema
+                        .fields
+                        .iter()
+                        .find(|declared| declared.name == *field)?;
+                    super::scenario_receipts::match_stored_contract_field(
+                        self.ir, declared, self.db,
+                    )?;
+                    declared.ty.clone()
+                };
+                (actual.ty == expected
+                    && matches!(
+                        expected,
+                        ResolvedType::Scalar(_) | ResolvedType::Enum { .. }
+                    ))
+                .then_some(())
+            }
+            (IrExpr::Binary { op, left, right }, SyntaxKind::Binary) => {
+                let [source_left, source_right] = children.as_slice() else {
+                    return None;
+                };
+                let spelling = match op {
+                    IrBinOp::And => "and",
+                    IrBinOp::Or => "or",
+                    IrBinOp::Eq => "==",
+                    IrBinOp::Ne => "!=",
+                    IrBinOp::Lt => "<",
+                    IrBinOp::Le => "<=",
+                    IrBinOp::Gt => ">",
+                    IrBinOp::Ge => ">=",
+                    _ => return None,
+                };
+                let operator = node
+                    .children
+                    .iter()
+                    .find(|child| matches!(child.kind, SyntaxKind::Name | SyntaxKind::Punct))?;
+                if operator.token()?.text(self.text) != spelling
+                    || actual.ty != ResolvedType::Scalar(Scalar::Bool)
+                    || left.ty != right.ty
+                {
+                    return None;
+                }
+                self.schema_rule_expression(left, NodeKey::of(source_left), bindings, depth + 1)?;
+                self.schema_rule_expression(right, NodeKey::of(source_right), bindings, depth + 1)
+            }
+            (
+                IrExpr::Unary {
+                    op: IrUnOp::Not,
+                    operand,
+                },
+                SyntaxKind::Unary,
+            ) => {
+                let [source_operand] = children.as_slice() else {
+                    return None;
+                };
+                let keyword = node
+                    .children
+                    .iter()
+                    .find(|child| child.kind == SyntaxKind::Name)?;
+                if keyword.token()?.text(self.text) != "not"
+                    || actual.ty != ResolvedType::Scalar(Scalar::Bool)
+                    || operand.ty != actual.ty
+                {
+                    return None;
+                }
+                self.schema_rule_expression(
+                    operand,
+                    NodeKey::of(source_operand),
+                    bindings,
+                    depth + 1,
+                )
+            }
+            (
+                IrExpr::Call {
+                    target: IrCallTarget::Builtin { id, awaited: false },
+                    args,
+                },
+                SyntaxKind::Call,
+            )
+            | (
+                IrExpr::BoundCall {
+                    target: IrCallTarget::Builtin { id, awaited: false },
+                    args,
+                    ..
+                },
+                SyntaxKind::Call,
+            ) => {
+                if source_path(children.first()?, self.text)? != *id {
+                    return None;
+                }
+                if let IrExpr::BoundCall { slots, .. } = &actual.expr {
+                    if slots
+                        .iter()
+                        .enumerate()
+                        .any(|(index, slot)| *slot != Some(index))
+                        || slots.len() != args.len()
+                    {
+                        return None;
+                    }
+                }
+                let arguments = node
+                    .children
+                    .iter()
+                    .filter(|child| child.kind == SyntaxKind::Argument)
+                    .collect::<Vec<_>>();
+                if args.len() != arguments.len() {
+                    return None;
+                }
+                if id == "trim" {
+                    let ([argument], [value]) = (arguments.as_slice(), args.as_slice()) else {
+                        return None;
+                    };
+                    if actual.ty != ResolvedType::Scalar(Scalar::Text) || value.ty != actual.ty {
+                        return None;
+                    }
+                    let source = expressions(argument);
+                    let [source] = source.as_slice() else {
+                        return None;
+                    };
+                    return self.schema_rule_expression(
+                        value,
+                        NodeKey::of(source),
+                        bindings,
+                        depth + 1,
+                    );
+                }
+                if id != "any" || actual.ty != ResolvedType::Scalar(Scalar::Bool) {
+                    return None;
+                }
+                let ([source_domain, source_predicate], [domain, predicate]) =
+                    (arguments.as_slice(), args.as_slice())
+                else {
+                    return None;
+                };
+                let IrExpr::Query(query) = &domain.expr else {
+                    return None;
+                };
+                let IrExpr::Lambda { param, body } = &predicate.expr else {
+                    return None;
+                };
+                let source_domain = expressions(source_domain);
+                let [source_domain] = source_domain.as_slice() else {
+                    return None;
+                };
+                let source_predicate = expressions(source_predicate);
+                let [source_predicate] = source_predicate.as_slice() else {
+                    return None;
+                };
+                let checked = query.source.as_deref()?;
+                let [alias] = checked.clauses.as_slice() else {
+                    return None;
+                };
+                let crate::analysis::types::CheckedQueryClauseKind::As { name } = &alias.kind
+                else {
+                    return None;
+                };
+                let source_query = self.nodes.get(&checked.node)?;
+                let source_alias = self.nodes.get(&alias.node)?;
+                let alias_name = source_alias
+                    .children
+                    .iter()
+                    .rev()
+                    .find(|child| child.kind == SyntaxKind::Name)?;
+                let IrQueryDomain::Model(canonical) = &query.domain else {
+                    return None;
+                };
+                let candidate = self
+                    .ir
+                    .items
+                    .iter()
+                    .find(|item| item.canonical == *canonical)?;
+                let array = ResolvedType::Array {
+                    element: Box::new(ResolvedType::Record {
+                        symbol: candidate.id,
+                        stored: true,
+                    }),
+                    ordered: true,
+                    nonempty: false,
+                };
+                let collection = query.collection_call.as_deref()?;
+                if source_query.span != source_domain.span
+                    || source_query.kind != SyntaxKind::Query
+                    || domain.span != source_domain.span
+                    || domain.ty != array
+                    || checked.domain_type != array
+                    || checked.result != array
+                    || !source_query
+                        .children
+                        .iter()
+                        .any(|node| NodeKey::of(node) == checked.domain)
+                    || !source_query
+                        .children
+                        .iter()
+                        .any(|node| NodeKey::of(node) == alias.node)
+                    || !alias.expressions.is_empty()
+                    || alias_name.token()?.text(self.text) != name
+                    || param != name
+                    || predicate.span != source_predicate.span
+                    || body.span != source_predicate.span
+                    || body.ty != ResolvedType::Scalar(Scalar::Bool)
+                    || collection.node != NodeKey::of(node)
+                    || collection.builtin != "any"
+                    || collection.overload != 0
+                    || collection.query != checked.node
+                    || collection.alias != alias.node
+                    || collection.model != candidate.id
+                    || collection.predicate.as_ref().is_none_or(|predicate| {
+                        predicate.node != NodeKey::of(source_predicate)
+                            || predicate.ty != ResolvedType::Scalar(Scalar::Bool)
+                    })
+                    || query.parent.is_some()
+                    || query.where_pred.is_some()
+                    || query.where_async
+                    || !query.order.is_empty()
+                    || query.value_order.is_some()
+                    || query.limit.is_some()
+                    || query.archived.is_some()
+                    || query.select.is_some()
+                    || query.select_param.is_some()
+                    || query.contract_collection_call.is_some()
+                    || checked.projection.is_some()
+                {
+                    return None;
+                }
+                reference_name(
+                    self.ir,
+                    self.ir.items.get(self.original.model.0 as usize)?,
+                    candidate.id,
+                    single_name(self.nodes.get(&checked.domain)?, self.text)?,
+                    self.db,
+                )?;
+                model_identity(self.ir, self.create_owner()?, candidate.id, self.db)?;
+                let mut nested = bindings.to_vec();
+                nested.push((name.clone(), candidate.id));
+                self.schema_rule_expression(body, NodeKey::of(source_predicate), &nested, depth + 1)
+            }
+            (_, SyntaxKind::Literal) => self.expression(actual, NodeKey::of(node), depth + 1),
+            _ => None,
+        }
+    }
+
     fn expression(&self, actual: &TypedExpr, key: NodeKey, depth: usize) -> Option<()> {
         if depth > 64 {
             return None;
@@ -4418,6 +4794,46 @@ impl<'a> SourceExpressions<'a> {
                 }
                 true
             }
+            (IrExpr::Object(entries), SyntaxKind::Object) if self.operands => {
+                match &actual.ty {
+                    ResolvedType::Object(_) => {}
+                    ResolvedType::Record { symbol, .. }
+                        if matches!(
+                            self.ir.items.get(symbol.0 as usize)?.kind,
+                            IrItemKind::Contract { .. }
+                        ) =>
+                    {
+                        nominal_identity(self.ir, self.create_owner()?, *symbol, self.db)?;
+                    }
+                    _ => return None,
+                }
+                let authored = node
+                    .children
+                    .iter()
+                    .filter(|child| child.kind == SyntaxKind::ObjectEntry)
+                    .collect::<Vec<_>>();
+                if entries.len() != authored.len() || entries.len() > 200 {
+                    return None;
+                }
+                let mut seen = HashSet::new();
+                for ((name, value), entry) in entries.iter().zip(authored) {
+                    let key = entry
+                        .children
+                        .iter()
+                        .find(|child| child.kind == SyntaxKind::Name)?;
+                    if key.token()?.text(self.text) != name || !seen.insert(name) {
+                        return None;
+                    }
+                    let values = expressions(entry);
+                    let value_node = match values.as_slice() {
+                        [] => key,
+                        [value] => value,
+                        _ => return None,
+                    };
+                    self.expression(value, NodeKey::of(value_node), depth + 1)?;
+                }
+                true
+            }
             (IrExpr::Object(entries), SyntaxKind::Construct) if self.operands => {
                 self.text_constructor(actual, node, entries, depth)?;
                 true
@@ -4539,9 +4955,7 @@ impl<'a> SourceExpressions<'a> {
                     .first
                     .as_ref()
                     .and_then(|first| first.contained_parent)
-                    .and_then(|(receiver, _)| {
-                        source_path(self.nodes.get(&receiver)?, self.text)
-                    })
+                    .and_then(|(receiver, _)| source_path(self.nodes.get(&receiver)?, self.text))
                     .map(|receiver| format!("{receiver}.{model_name}"));
                 if NodeKey::of(source_argument) != query.node
                     || (domain_path != *model_name
@@ -4931,6 +5345,73 @@ mod tests {
     use crate::source::Span;
 
     const SOURCE: &str = include_str!("../../tests/fixtures/native-authorization-can-use.can");
+
+    #[test]
+    fn created_schema_uniqueness_invariant_rejects_retained_query_and_predicate_changes() {
+        let source = "app SchemaInvariant\nGiven\n C {source:text}\n Other {source:text}\n invariant C: not any(C as candidate,candidate!=row and candidate.source==row.source)\n policy C read=members\n policy Other read=members\nWhen\n scenario make(source:text) -> C by=members\n  do\n   create C {source} as created\n   return created\nThen\n";
+        let (db, original) = fixture_for(source, "schema-invariant.can");
+        let owner = original
+            .items
+            .iter()
+            .find(|item| item.canonical == "SchemaInvariant.make")
+            .unwrap();
+        let fact = original.scenario_disclosures[&owner.id]
+            .source_facts()
+            .unwrap()
+            .creates
+            .as_deref()
+            .unwrap()[0]
+            .clone();
+        let models = Emitter::source_models(&original, &db).unwrap();
+        assert!(checked_created_schema(&original, owner, &models, &fact, &db).is_some());
+        for mutation in 0..2 {
+            let mut retained = original.clone();
+            let rule = retained
+                .invariants
+                .iter_mut()
+                .find(|rule| {
+                    rule.origin
+                        .as_ref()
+                        .is_some_and(|origin| origin.model == fact.model)
+                })
+                .unwrap();
+            let IrExpr::Unary { operand, .. } = &mut rule.pred.expr else {
+                panic!("negated uniqueness query");
+            };
+            let (IrExpr::Call { args, .. } | IrExpr::BoundCall { args, .. }) = &mut operand.expr
+            else {
+                panic!("ANY call");
+            };
+            if mutation == 0 {
+                let IrExpr::Query(query) = &mut args[0].expr else {
+                    panic!("candidate query");
+                };
+                query.domain = IrQueryDomain::Model("SchemaInvariant.Other".into());
+            } else {
+                let IrExpr::Lambda { body, .. } = &mut args[1].expr else {
+                    panic!("candidate predicate");
+                };
+                let IrExpr::Binary { right, .. } = &mut body.expr else {
+                    panic!("predicate conjunction");
+                };
+                let IrExpr::Binary { op, .. } = &mut right.expr else {
+                    panic!("source equality");
+                };
+                *op = IrBinOp::Ne;
+            }
+            assert!(
+                checked_created_schema(
+                    &retained,
+                    &retained.items[owner.id.0 as usize],
+                    &models,
+                    &fact,
+                    &db
+                )
+                .is_none(),
+                "retained invariant mutation {mutation}"
+            );
+        }
+    }
 
     fn fixture() -> (SourceDb, IrProgram) {
         let mut db = SourceDb::new();

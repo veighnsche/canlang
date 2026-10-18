@@ -2,12 +2,13 @@
  * Worker qualification is recorded separately from each actual main capture.
  * Preserves original policies, WorkflowDefinition CRUD and physical File authority.
  */
+import { createCheckoutScratch } from '../src/dev/checkout-scratch.js';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
-import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
+import { readFile, writeFile, rm } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { compileFunction, constants as vmConstants } from 'node:vm';
@@ -72,7 +73,7 @@ function historySequence(before: Awaited<ReturnType<typeof snapshot>>, after: Aw
 test('original current337 nullable/current/published/digest returns the same Run with complete source and current authority',
  {timeout: 3600000}, async () => {
   const started = Date.now(), phase = (name: string) => process.stdout.write(`[native-current-revision ${Date.now() - started}ms] ${name}\n`);
-  const directory = await mkdtemp(join(root, '.can-native-current-revision-'));
+  const directory = await createCheckoutScratch(root, 'native-current-revision-');
   let worker: Miniflare | undefined, capture: SingleFileCapture | undefined;
   let physical: SqliteFileStore | undefined, foreignPhysical: SqliteFileStore | undefined;
   try {

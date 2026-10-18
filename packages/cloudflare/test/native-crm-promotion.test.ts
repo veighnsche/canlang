@@ -1,8 +1,9 @@
 /** Execute the original selected CRM promotion examples with their owning policies and saved Given. */
+import { createCheckoutScratch } from '../src/dev/checkout-scratch.js';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { rm } from 'node:fs/promises';
 import { join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
@@ -16,7 +17,7 @@ const nodeImport = compileFunction('return import(url)', ['url'], { importModule
 const installed = (path: string) => pathToFileURL(join(root, 'packages/cloudflare/dist', path)).href;
 
 test('original CRM promotion examples execute with complete owning policies and saved seat defaults', async () => {
-  const directory = await mkdtemp(join(root, '.can-native-crm-promotion-'));
+  const directory = await createCheckoutScratch(root, 'native-crm-promotion-');
   try {
     const fixture = await prepareCrmPromotionSource(directory);
     const { installedLocalPreviewInputInventory } = await nodeImport(installed('dev/preview-inputs.js')) as typeof import('../src/dev/preview-inputs.js');
