@@ -4,11 +4,41 @@ Prepare a complete local artifact, compatibility, bundle and review job in Rust 
 
 The proposed native process owns the semantic artifact tree, indexes, module inventory, compatibility results, plan and rendered output throughout one job. It asks the JavaScript host for external stages only when the current operation requires them. This preserves failure order while avoiding a subprocess for every helper. All APIs and files proposed below are new implementation work. Read the [shared preparation and execution order](README.md) first.
 
+## Current next packet — planning-only refresh at main a28335e6b
+
+The latest request is planning only and supersedes prior continuous dispatch for
+this refresh. Public deployment, defaults and TS retirement remain held. The
+[one current checklist](../../../implementation/rust-port-orchestration/current-plan.md#next-proposed-packet--native-bundle-identity-into-the-retained-deploy-plan)
+selects a proposed dependency-ready component of existing P05.1/P05.4: derive the
+final admitted text-map v1 digest/count inside the deploy job and make that native
+identity supply its real PLAN/review handoff and correspond to the retained host
+publication bundle. Current Rust only returns a checked count; PLAN still receives
+the host reference separately. Existing `bundle_sha256`, final owner-facts payload
+and plan/publication joins provide the concrete inputs now.
+
+Preserve final source-map suffixes and browser appends, legacy absent bundle,
+build's distinct domain, current builder/facts/error order, PLAN-before-prior-plan
+IO and separate v1/mixed/resource identities. No parser, new stage, public plan
+schema tightening or module-builder extraction is needed. This source join is
+useful only when the native identity is actually consumed, not an added unused
+output or another proof guard. Affected job/host cases and one frozen real native
+preview/contained mocked publication are the future finite check; reuse accepted
+CLI/integrity/rollback qualification. No implementation/check commands start now.
+
+Original P05.4's fuller inventory→MCP→artifact/verdict→catalog construction and
+full-module-output contract remains partial. Current TS owns source-map composition,
+reserved-path/alias checks, generated facade/assembly/browser behavior and external
+phases. The older Rust stager/render helpers cannot replace it unchanged. P05.5
+real native-output MCP/workerd evidence follows its actual claimed producer; P10
+complete resources and P11 adoption/coverage stay downstream at their original scope.
+The historical task definitions below remain contracts, not current dispatch.
+
 ## Current bounded source and retained-owner ledger — 18 October 2026
 
 The [single current execution checklist](../../../implementation/rust-port-orchestration/current-plan.md)
-overrides historical planning/hold wording. Native source/local validation is
-released; public deployment, automatic defaults and TS retirement remain held.
+overrides historical planning/hold wording. Native source/local validation was
+released; the latest refresh pauses dispatch for planning. Public deployment,
+automatic defaults and TS retirement remain held.
 Accepted source `6fb752375`, `c105bf2c4` and `1e018e714` covers private retained-job
 module/plan/review wiring, current release alignment and exact-source frontend
 facts. Linux x64 pinned1.99 producer/raw installed build-job qualification passes;

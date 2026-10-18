@@ -1,79 +1,62 @@
 # Rust migration: current implementation and prioritized remainder
 
-**Accepted native source slices:** `6fb752375` joins retained module/plan/review
-stages; `c105bf2c4` aligns the owning0.1.1 release; `1e018e714` joins shared host
-syntax/scope facts to the real native LOAD_MODULES encoder and job checks.
-The latter is merged/pushed as main `f411ad9d8`, preserving newer compiler source
-and working notes. Retain original diagnostic order, null/presence and UTF16
-contracts. Existing TS builders and parser/scope libraries remain explicit owners;
-full P05 module-construction/policy migration remains partial. The selected native
-CLI/integrity/local-publication packet now has Darwin installed9/TS9, genuine native
-mocked apply, same-data TS rollback and Linux installed build/integrity controls.
-Source `4ed0d38fe` is merged/pushed as main `5d38b4efb`; assigned packet writers
-and commands are released. See the [single finite checklist](rust-port-orchestration/current-plan.md) for source,
-remaining programme/resource limits and retained TS owners.
-Public deployment, defaults and TS retirement remain held.
-
 ## Current execution view — 2026-10-18
 
-**Current release overrides the historical holds below:** Vince released native
-preparation source implementation, integration and validation in direct voice turn
-`01a14d5b-34bb-7880-b29b-63081f49cedd`. Continue the ten-helper Work packet and
-native preparation's dependency-ready host/module/plan/executable joins through the
-existing Muse coordinator. See the [active finite checklist](rust-port-orchestration/current-plan.md#active-implementation-release--native-preparation-and-work-helpers).
-Public publication/deployment, default switches and TS retirement remain held.
-Older planning-only/HUMAN HOLD statements below retain their historical scope and
-are superseded for source implementation; no accepted component is reopened.
+Refreshed against fetched origin/main and canonical main
+`a28335e6b6d65ac338189f0481cc0af32bfb88f3`; this checkout has identical source.
+**This refresh is planning-only. No implementation or dispatch is started.**
+Public deployment, automatic backend defaults and TS retirement remain held.
+The historical native source release does not override Vince's latest planning-only
+request. Accepted packet writers/commands are released; the retained Muse viewer
+is in intentional standby.
 
-**Selected Work completion:** `cd2651c5e` implements the ten matching helpers
-with explicit owning error factories, including corrected nested fanout forwards.
-Independent actual installed Work Node/Worker qualification passes. See the
-[accepted slice](rust-port-orchestration/current-plan.md#accepted-work-helper-slice--18-october-2026).
-Native host/CLI work continues after the accepted private module/plan source slice; no native
-parent/default/public-release completion is inferred. Older proposed-W wording
-below is historical and superseded by this acceptance.
+The next **proposed, dependency-ready native preparation packet** is the
+`ports:P05.1` / `ports:P05.4` **native bundle identity into the retained deploy
+plan** slice. Rust currently checks final module buffers but discards them after
+returning a count; PLAN separately consumes a host-computed bundle reference.
+Join the existing Rust v1 digest/count to the real plan/review and the same retained
+host publication bundle. Hash exact final JS, preserve legacy absence and all
+stage/error/source correspondence, and keep build's admission domain unchanged.
+Do not merely add an unused digest field or claim native module construction.
 
-This is the single current execution view, refreshed against local main
-`46cb113ad` (origin/main `82b888c8b` after fetch; local main is one commit ahead).
-This refresh authorizes planning only. The finite continuous run released by
-Vince on 18 October is complete at its selected scopes; its original canonical
-IDs, parent dependencies and wider unmet criteria remain in
-[tasks.json](remaining-work/tasks.json) and the subsystem plans. Historical
-numbered queues below are evidence, not additional assignments.
+The [single current checklist](rust-port-orchestration/current-plan.md#next-proposed-packet--native-bundle-identity-into-the-retained-deploy-plan)
+names defining owners, available prerequisites, exclusive possible writes,
+finite acceptance, focused checks and stop conditions. The
+[machine queue](rust-port-orchestration/next-packets.json) carries the same proposal,
+with execution disabled and no active lease. Original task identities,
+dependencies and wider acceptance remain in [tasks.json](remaining-work/tasks.json)
+and the subsystem plans; historical numbered queues are not new assignments.
 
-The [finite checklist](rust-port-orchestration/current-plan.md#continuous-authorized-execution--18-october-2026)
-and [machine queue](rust-port-orchestration/next-packets.json) record the result:
+| Credited outcome | Current scope and remaining boundary |
+| --- | --- |
+| Values/UI/compiler ICU and ordinary TS `ports:V02.6` | Accepted syntax/usage, serving correspondence and cleanup remain closed at their recorded scope; no rerun. |
+| Selected integer/ASCII + CSV; Values/recovery distribution; Work fanout | Reuse accepted bounds, original CSV data/error order, no-fallback and actual installed Node/Worker results; no broader codec/validator/Work-family closure. |
+| Ten matching Work `ports:W02.5` helpers (`cd2651c5e`) | Owning error factories and nested forwards, original row/query/clone/evaluation order and actual installed Work facade accepted. Not a next assignment. |
+| Native preparation facts/job/plan (`6fb752375`, `c105bf2c4`, `1e018e714`) | Registered native algorithms, release0.1.1 and exact-source frontend facts feed the real job. Existing parser/scope libraries and TS builder policy checkpoints retain their owners. |
+| Explicit native CLI/integrity/local publication (`4ed0d38fe`, closure main `a28335e6b`) | Darwin installed native9/TS9, genuine native mocked apply, same-data TS rollback and Linux installed build/integrity controls accepted. All assigned writers/commands released and owned rebuildable caches cleaned. |
+| Wider native P05/P10/P11 | Full native module construction, real native-output MCP/workerd qualification, complete resources/adoption and retirement ledger remain partial. Current CLI is JS-only; optional Wasm/mixed support is not inferred. |
 
-- Ordinary TS `ports:V02.6` Worker correspondence and request cleanup remain
-  accepted unchanged; they were not rerun.
-- `ports:C04.values-assets` has genuine installed Node and isolated Worker
-  delivery evidence at the selected bytes/bootstrap scope.
-- Selected `TECH-V04 / A04.5 / A07.3` int/ASCII source and its explicit CSV
-  consumer are accepted: bounded admission, signed64 lexical preflight,
-  ordered owning SchemaError violations, original raw rows and no native retry.
-  Source `05f326154` was merged/pushed as `69212ec1f`.
-- The selected `W02.5` fanout TS join preserves Work/State error ownership,
-  sync order, defaults, metadata and their distinct clone policies.
-  Source `f4e067414` also supplies its production graph and selected recovery
-  distribution, integrity and actual installed vendor/module-map closure.
-  The final combined installed gather/bundle produced 288 modules and the
-  recovery binary for two fresh Worker isolates/four requests; corrupt and
-  missing bytes refused before dispatch.
+The original [artifact preparation plan](../research/package-subsystem-ports-20261006/implementation-plans/artifact-preparation.md)
+retains the detailed P contracts. Public TS helper permissiveness, producer-owned
+activation/Bun/catalog, source-map/browser generation and reviewed writers remain
+explicit. Do not substitute the old Rust stager for evolved source without an
+exact finite construction handoff. Full-job CPU/process-tree RSS/IPC/temp costs
+and adoption policy remain unmeasured/unratified; the recorded timings imply no
+default change. Reuse unchanged installed integrity controls rather than rebuilding
+the accepted packet. Two existing adapter fixture failures, the old Rust digest
+pin and four foreign runtime type errors remain documented in the checklist.
 
-The default public backend remains TypeScript. Full Unicode/other codecs,
-Rust validation, other Work families and whole parent acceptance remain separate.
-The existing message syntax/compiler/UI ICU completions remain accepted.
-The next **proposed, dependency-ready** packet is the matching ordinary-row
-remainder of `ports:W02.5`: ten existing Work row/update/query helpers delegate
-to the already shipped `/rows` leaf. Work retains its error owner and stage
-ordering. Newer dispatch/occurrence/schedule provenance and snapshot codecs stay
-Work-owned; wholesale aliases would lose behavior. The
-[finite proposal](rust-port-orchestration/current-plan.md#planning-refresh-against-current-main--18-october-2026)
-names exact exports, inputs, writers and stop conditions. No implementation,
-implementation worker, build or supervision is started. Native preparation P04–P11 /
-C04.native-release remains **HUMAN HOLD**; default switches, TS retirement and
-production/public release remain held. See the checklist for focused validation,
-retained broader-suite failures, resource closure and source/integration bounds.
+Planning checks inspect committed main only; concurrent dirty compiler/runtime/Work
+source and notes are preserved with their owners. No product tests, builds, implementation
+worker, merge, push or whole-filetree checkpoint advance occurs in this refresh.
+The native packet has source/contract inspection, workflow trace, independent
+read-only challenge and exact owner allocation; no full repository audit is claimed.
+
+### Historical scope and evidence
+
+The sections below preserve earlier evidence and proposals. Current accepted scope,
+priority and holds are the view above and the single checklist; older HUMAN HOLD,
+missing-native-CLI and proposed-ten-helper wording is superseded accordingly.
 
 ### Additional package opportunities — message syntax and usage completed
 

@@ -7,6 +7,31 @@
 > decisions and bounded coverage evidence are retained below; that evidence
 > applies only at its recorded scope and does not establish whole-plan currency.
 
+**Rust-port planning integration, 2026-10-18:** this seven-document intake
+reconciles the proposed native identity packet against main `a28335e6b`.
+No product/source owner or target changes; retain the bounded coverage below and
+the complete stale checkpoint. The integration preserves committed compiler/runtime/
+Work history and concurrent working notes, including the separate DECISIONS delta.
+Committing/merging/pushing this proposal does not authorize its implementation or
+release public deployment, backend defaults or TS retirement.
+
+**Native preparation planning refresh, 2026-10-18 (main `a28335e6b`):** fetched
+origin/main equals canonical main and this checkout's tracked content. No source
+has changed since the accepted CLI/integrity closure. Reuse accumulated Cloudflare
+owner/target review and accepted Work/facts/CLI/Linux consumer results. Read-only
+producer→facts→job→digest→plan→publication tracing and an independent challenger
+identify one proposed P05.1/P05.4 component: native-derived final text-bundle v1
+identity consumed by the real deploy plan/review and corresponding retained host
+publication bundle. Existing owners/files suffice; no new package, parser, carrier,
+stage, output tree or compiler owner is allocated. Full module construction,
+source-map/browser duties, P05.5 native-output qualification and P10/P11 resource/
+adoption stay explicit successors. See the single current checklist for exact
+writes/prerequisites/finite acceptance. This request is planning-only; no workers,
+implementation or product checks start. Preserve newer compiler/runtime/Work dirty
+source and notes, accepted criteria and the complete stale checkpoint. Public
+deployment, defaults and TS retirement remain held. This bounded native refresh
+makes no claim of full-tree currency.
+
 **Native CLI and executable-integrity integration, 2026-10-18:** the existing
 Cloudflare CLI/preparation/protocol, owning tests/conformance and package-local
 scripts retain their owners. Explicit selection, exact-file prelaunch integrity,
