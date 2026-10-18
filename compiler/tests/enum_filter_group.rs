@@ -391,14 +391,11 @@ fn computed_text_default_refuses() {
     );
 }
 
-/// Recorded CanLeave shape: an int field is not a finite-choice
-/// selector even with a matching int preference default.
+/// Recorded CanLeave year equality preserves its exact matching int preference.
 #[test]
-fn int_selector_refuses() {
-    assert_refuses(
+fn int_selector_lowers() {
+    assert_lowers(
         "app Probe\nGiven\n Allowance { year:int }\n policy Allowance read=public\nWhen\nThen\n preferences { year:int? }\n page /allowances title=\"Allowances\"\n  list Allowance columns=year filter=year defaults={year=preferences.year}\n",
-        "E6008",
-        "need distinct checked owned enum fields",
     );
 }
 
@@ -472,16 +469,12 @@ fn computed_date_default_refuses() {
     );
 }
 
-/// Recorded CanAffiliate shape: a datetime field is not a
-/// finite-choice selector even beside an admitted bool toggle, and is
-/// not admitted from the admitted plain `date` selector (civil dates
-/// are not instants). No symmetry generalization.
+/// Recorded CanAffiliate instant equality uses the checked datetime codec,
+/// alongside the original bool toggle and its owned default.
 #[test]
-fn datetime_selector_refuses() {
-    assert_refuses(
+fn datetime_selector_lowers() {
+    assert_lowers(
         "app Probe\nGiven\n Sale { reversed:bool=false, qualified_at:datetime }\n policy Sale read=public\nWhen\nThen\n preferences { reversed:bool? }\n page /sales title=\"Sales\"\n  list Sale columns=reversed,qualified_at filter=reversed,qualified_at defaults={reversed=preferences.reversed}\n",
-        "E6008",
-        "need distinct checked owned enum fields",
     );
 }
 
@@ -507,14 +500,12 @@ fn undeclared_enum_default_refuses() {
     );
 }
 
-/// Recorded CanAffiliate shape: a dotted money leaf is not a filter
-/// selector even beside an admitted bool toggle.
+/// Recorded CanAffiliate Money.currency is the exact checked Money component;
+/// arbitrary dotted navigation remains outside this filter grammar.
 #[test]
-fn dotted_path_selector_refuses() {
-    assert_refuses(
+fn dotted_path_selector_lowers() {
+    assert_lowers(
         "app Probe\nGiven\n Sale { amount:money, reversed:bool=false }\n policy Sale read=public\nWhen\nThen\n preferences { reversed:bool? }\n page /sales title=\"Sales\"\n  list Sale columns=amount,reversed filter=reversed,amount.currency defaults={reversed=preferences.reversed}\n",
-        "E6008",
-        "need distinct checked owned enum fields",
     );
 }
 

@@ -25,7 +25,7 @@ import type {
   PageSourceContext,
 } from '@canlang/contracts';
 import { deriveCsrfToken, IdentityError } from '@canlang/identity';
-import { decodeValue, encodeValue, makeFileValue } from '@canlang/values';
+import { CURRENCY_MINOR_UNITS, decodeValue, encodeValue, makeFileValue } from '@canlang/values';
 import { createTestDeps, testRequest } from '../src/testing.js';
 import { handlePageRequest } from '../src/http/pages.js';
 import { buildPageSourceContext, buildPresentationContext } from '../src/http/presentation.js';
@@ -569,7 +569,7 @@ test('buildPresentationContext sets all fields from the inputs', () => {
   assert.equal(context.team, null);
   assert.deepEqual(context.memberships, []);
   assert.deepEqual(context.canonical?.builtinRoles, ['public']);
-  assert.ok(!('currencyScales' in context));
+  assert.equal(context.currencyScales, CURRENCY_MINOR_UNITS);
 });
 
 test('page source roles require an active membership matching the selected actor and team', () => {
@@ -797,8 +797,8 @@ test('dispatch builds equal partial and full contexts across all 10 fields', asy
   assert.deepEqual(partialInvocation, fullInvocation);
   assert.equal(typeof partialCtx.query, 'function');
   assert.equal(typeof fullCtx.query, 'function');
-  assert.ok(!('currencyScales' in partialCtx));
-  assert.ok(!('currencyScales' in fullCtx));
+  assert.equal(partialCtx.currencyScales, CURRENCY_MINOR_UNITS);
+  assert.equal(fullCtx.currencyScales, CURRENCY_MINOR_UNITS);
 });
 
 test('anonymous dispatch leaves csrfToken empty', async () => {

@@ -150,6 +150,15 @@ function checkedPreferenceFields(descriptor: PageDescriptor): NonNullable<PageDe
     // Reference preference leaves carry no case options and no literal
     // default (DESIGN 977: reference equality is not an enum spelling);
     // the saved identity validates as an opaque string at read time.
+    if (field.scalarType !== undefined) {
+      if (!['int', 'datetime', 'currency'].includes(field.scalarType) || field.reference !== undefined || field.date !== undefined ||
+          typeof field.name !== 'string' || !/^[A-Za-z][A-Za-z0-9_]*$/u.test(field.name) || names.has(field.name) ||
+          !Array.isArray(field.options) || field.options.length !== 0 || (field.defaultValue === null
+            ? field.nullable !== true : !isScalarFilterValue(field.scalarType, field.defaultValue))) {
+        throw new Error('Invalid source preference descriptor.');
+      }
+      names.add(field.name); continue;
+    }
     if (field.reference === true) {
       if (typeof field.name !== 'string' || !/^[A-Za-z][A-Za-z0-9_]*$/u.test(field.name) ||
           names.has(field.name) || !Array.isArray(field.options) || field.options.length !== 0 ||
@@ -227,6 +236,10 @@ function isCivilDate(value: string): boolean {
   }
 }
 
+function isScalarFilterValue(type: 'int' | 'datetime' | 'currency', value: string): boolean {
+  try { decodeValue(type, value); return true; } catch { return false; }
+}
+
 function checkedPreferenceVersion(value: string): boolean {
   return /^(0|[1-9][0-9]*)$/u.test(value) && BigInt(value) <= BigInt(Number.MAX_SAFE_INTEGER);
 }
@@ -270,7 +283,9 @@ async function preferenceSource(
     const dateLeaf = field.date === true;
     const savedOk = saved === null || !checkedPreferenceVersion(saved.version) || saved.version === '0'
       ? saved === null
-      : field.reference === true
+      : field.scalarType !== undefined
+        ? typeof saved.value === 'string' && isScalarFilterValue(field.scalarType, saved.value)
+        : field.reference === true
         ? typeof saved.value === 'string' && saved.value !== '' && saved.value.length <= 200 &&
           !/[\u0000-\u001f\u007f]/.test(saved.value)
         : dateLeaf

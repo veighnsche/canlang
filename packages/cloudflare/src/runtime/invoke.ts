@@ -4832,10 +4832,15 @@ async function loadCanonicalDescriptorsInternal(
     const name = canonicalModelName(model, index);
     const fields = model.fields;
     const secrets = loaded.secretFields.get(name)!;
-    collectionColumns.set(name, Object.keys(fields).filter(field => !secrets.has(field)).flatMap(field => {
+    const columns = Object.keys(fields).filter(field => !secrets.has(field)).flatMap(field => {
       const type = manifests.get(name)?.fieldTypes.get(field);
-      return type === undefined ? [] : [{ field, label: field, type }];
-    }));
+      if (type === undefined) return [];
+      return [{ field, label: field, type }, ...(type === 'money' && !secrets.has(`${field}.currency`)
+        ? [{field: `${field}.currency`, label: `${field}.currency`, type: 'currency'}] : [])];
+    });
+    const parent = loaded.containment.get(name)?.parent;
+    if (parent !== undefined && !Object.hasOwn(fields, 'parent')) columns.push({field: 'parent', label: 'parent', type: `ref:${parent}`});
+    collectionColumns.set(name, columns);
   }
   const sourceReadInventory = await loadCheckedCallbackReadGrants(asm, artifact, loaded);
   const canonical: LoadedCanonicalDescriptors = {
@@ -14299,6 +14304,23 @@ async function queryPageRowsInScope(
 ): Promise<ListQueryResult> {
   const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact, opts.store);
   const StateError = loaded.producers.errors;
+  const projectedRows = (records: readonly ProjectedRecord[]) => {
+    const declared = loaded.collectionColumns.get(opts.model) ?? [];
+    return records.map(record => {
+      const fields: Record<string, unknown> = {...record.data};
+      for (const column of declared) {
+        if (column.field === 'parent' && !Object.hasOwn(record.data, 'parent') && record.parent != null) fields.parent = {id: record.parent.id};
+        const base = column.type === 'currency' ? column.field.match(/^([A-Za-z_][A-Za-z0-9_]*)\.currency$/u)?.[1] : undefined;
+        if (base === undefined) continue;
+        const money = record.data[base];
+        if (typeof money === 'object' && money !== null && Object.hasOwn(money, 'currency')) {
+          fields[column.field] = (money as Readonly<{currency: unknown}>).currency;
+        }
+      }
+      return {id: record.id, version: String(record.version), fields};
+    });
+  };
+
   if (opts.args.page !== undefined && opts.args.page !== true) {
     throw new StateError('validation', 'Collection page mode must be explicitly enabled.');
   }
@@ -14475,10 +14497,11 @@ async function queryPageRowsInScope(
       const nextCursor = page.continuation === null ? undefined :
         await cursors!.encode(bindingDigest, { ...page.continuation, queryTimeMs }, issuanceTimeMs);
       // The owning State invoker rechecks current authority and revision after this transform.
-      const visible = new Set(page.records.flatMap(record => Object.keys(record.data)));
+      const rows = projectedRows(page.records);
+      const visible = new Set(rows.flatMap(row => Object.keys(row.fields)));
       const declared = loaded.collectionColumns.get(opts.model) ?? [];
       return {
-        rows: page.records.map(record => ({ id: record.id, version: String(record.version), fields: record.data })),
+        rows,
         columns: declared.filter(column => visible.has(column.field)),
         ...(page.records.length === 0 ? { emptyDeclarations: declared.map(({ field, type }) => ({ field, type })) } : {}),
         ...(nextCursor === undefined ? {} : { nextCursor }),
@@ -14515,11 +14538,12 @@ async function queryPageRowsInScope(
     }
     // Only actual viewer projection supplies rendering metadata. Empty source
     // declarations validate names/types only and never establish a field grant.
-    const visible = new Set(page.records.flatMap(record => Object.keys(record.data)));
+    const rows = projectedRows(page.records);
+    const visible = new Set(rows.flatMap(row => Object.keys(row.fields)));
     const declared = loaded.collectionColumns.get(opts.model) ?? [];
     await navigation?.revalidate();
     return {
-      rows: page.records.map(record => ({ id: record.id, version: String(record.version), fields: record.data })),
+      rows,
       columns: declared.filter(column => visible.has(column.field)),
       ...(page.records.length === 0 ? { emptyDeclarations: declared.map(({ field, type }) => ({ field, type })) } : {}),
       ...(page.totalCount === undefined ? {} : { totalCount: page.totalCount }),

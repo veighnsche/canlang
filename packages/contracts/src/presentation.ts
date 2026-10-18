@@ -212,7 +212,7 @@ export interface ReferenceFilterIdentity {
  * control type). Enum case spellings, bool toggles, reference identities, or
  * null for no initial restriction. Explicit request selection or clear wins.
  */
-export type CollectionFilterDefault = string | boolean | ReferenceFilterIdentity | null;
+export type CollectionFilterDefault = string | boolean | bigint | ReferenceFilterIdentity | null;
 
 /** Dispatcher-owned presentation view; raw principal stays opaque to UI. */
 export interface PresentationContext extends Partial<PageSourceContext> {
@@ -325,6 +325,8 @@ export interface PageDescriptor {
      * Only the compiler emits this shape.
      */
     readonly date?: true;
+    /** Exact scalar wire type for saved equality-filter values; no enum/save control. */
+    readonly scalarType?: 'int' | 'datetime' | 'currency';
   }[];
   readonly admit: AdmitFn;
   readonly render: RenderFn;

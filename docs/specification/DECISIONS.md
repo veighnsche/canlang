@@ -18970,3 +18970,20 @@ and all foreign notes/staging. Native source is unfinished and excluded from thi
 accepted commit; its next boundary is the coherent real job/plan/host/CLI join.
 The compiler chat's next filter commit boundary remains pending for later safe
 worktree intake. No public deployment, default switch or TS retirement is released.
+
+
+## 2026-10-18 — typed collection equality filters
+
+Extend the existing source-owned filter pipeline for checked int, datetime and
+currency, exact stored Money.currency and implicit contained-parent identity.
+Keep declared parent fields distinct, project current grants before filtering,
+retain source-WHERE ordering, and decode saved int preferences with Values rather
+than treating wire strings as native ints. Reuse the pinned Values currency scale
+table in the host presentation context; source extras cannot override it.
+The new compiled-source D1 page consumer validates all six original selector/default
+combinations, denied rows, occurrence isolation, saved defaults and arithmetic.
+Host/State21 and interfaces44 checks pass; compiler27 bool/53 enum/8 remainder
+cases and the changed ordering pin pass. The old table-filter driver stops on an
+unchanged E5007 rich-text caption, reproduced with the pre-batch compiler; it is
+not a passing test. Full original pages/composition remain open; no new full24
+count is claimed. Continue the all212-error goal on main with Muse stopped.

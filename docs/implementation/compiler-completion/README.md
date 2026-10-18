@@ -191,6 +191,25 @@ hook/filter repairs remain unaccepted until their consumers pass; local failures
 are engineering work, not external holds. Keep incremental implementation commits
 and reuse unchanged checks; Muse remains stopped.
 
+### Typed scalar and contained-parent filters — 2026-10-18
+
+All six original filter/default combinations pass the existing compiled-source
+D1 page harness: int year, datetime, currency, exact Money.currency and implicit
+parent, including current grants, source WHERE, occurrence-local override/clear,
+saved year and real integer arithmetic. Native integer preferences use Values;
+Money formatting receives the existing pinned host currency table. An authored
+stored field named parent keeps its ordinary field/grant semantics.
+
+Checks: new D1 consumer1/1; interfaces44/44 and host/State21/21; compiler bool27,
+enum53 and remainder8 pass, plus the corrected ordering pin. The old table-filter
+driver fails before its assertions on unchanged caption E5007; the pre-batch
+compiler reproduces it. Reuse other unchanged checks. This closes the filter
+mechanism, not six complete original workflows. No original24 recount yet;
+all212 consistency diagnostics remain the goal, with hook work continuing.
+Retries stayed on the affected consumer after binder/setup corrections and the
+confirmed Money scale gap; interfaces44 ran after that host change, State21 after
+the parent-shadow repair. No additional full24 run.
+
 ### Observed repeated work — command-log snapshot
 
 Counts below distinguish command invocations from actual rebuilds/cases. Prior

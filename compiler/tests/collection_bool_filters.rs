@@ -397,13 +397,11 @@ fn non_bool_helper_call_refuses() {
     );
 }
 
-/// The committed int refusal stays: rank is not a finite-choice field.
+/// An owned int field is an exact typed equality control without case options.
 #[test]
-fn int_filter_refuses() {
-    assert_refuses(
+fn int_filter_lowers() {
+    assert_lowers(
         "app Probe\nGiven\n Customer { name:text, rank:int=0 }\n policy Customer read=public\nWhen\nThen\n page /customers title=\"Customers\"\n  list Customer columns=name,rank filter=rank\n",
-        "E6008",
-        "need distinct checked owned enum fields",
     );
 }
 
@@ -485,12 +483,12 @@ fn undeclared_bool_default_refuses() {
 /// test is unchanged.
 /// C3 note: the `due:date` follower is now admitted by the civil-date
 /// equality rule, so this pin carries the outer refusal on the
-/// still-refused `rank:int` follower instead; the nesting contract
+/// still-refused nullable `rank:int?` follower instead; the nesting contract
 /// under test is unchanged.
 #[test]
 fn refused_outer_list_keeps_admitted_nested_bool_table_quiet() {
     let diags = emit_all(
-        "app Probe\nGiven\n Account { title:text, category:text, rank:int=0 }\n Milestone in Account { title:text, done:bool=false }\n policy Account read=public\nWhen\nThen\n page /a title=\"A\"\n  list Account columns=title,category filter=rank\n   table row.Milestone columns=title,done order=title filter=done\n",
+        "app Probe\nGiven\n Account { title:text, category:text, rank:int? }\n Milestone in Account { title:text, done:bool=false }\n policy Account read=public\nWhen\nThen\n page /a title=\"A\"\n  list Account columns=title,category filter=rank\n   table row.Milestone columns=title,done order=title filter=done\n",
     );
     assert!(
         diags

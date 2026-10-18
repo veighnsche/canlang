@@ -88,7 +88,7 @@ test('collection date filters refuse malformed descriptors, defaults and selecto
   // A date column must not smuggle an option inventory; the type tag
   // is exactly `date` and the labels map stays empty.
   for (const columns of [[fields[0]!, fields[0]!], [{ ...fields[0]!, type: 'Date' }],
-    [{ ...fields[0]!, type: 'datetime' }],
+    [{ ...fields[0]!, type: 'datetime-unknown' }],
     [{ ...fields[0]!, type: 'enum:App.Item.state' }],
     [{ ...fields[0]!, valueLabels: { '2026-10-01': 'Oct' } }], [{ ...fields[0]!, field: '' }]]) {
     refuses(() => plain(occurrence, columns));
@@ -101,4 +101,27 @@ test('collection date filter conditions stay frozen eq shapes', () => {
   assert.equal(Object.isFrozen(conditions), true);
   assert.equal(Object.isFrozen(conditions[0]), true);
   assert.deepEqual(conditions, [{ field: 'due', op: 'eq', value: '2026-10-01' }]);
+});
+
+
+test('typed scalar filters preserve exact original year, instant and currency selections', () => {
+  const scalarFields = [
+    {field: 'year', label: 'Year', type: 'int', valueLabels: {}},
+    {field: 'qualified_at', label: 'Qualified at', type: 'datetime', valueLabels: {}},
+    {field: 'amount.currency', label: 'Currency', type: 'currency', valueLabels: {}},
+  ];
+  const defaults = {year: 2026n, qualified_at: '2026-10-18T09:30:00.000Z', 'amount.currency': 'EUR'};
+  assert.deepEqual(prepare([])(occurrence, scalarFields, defaults), [
+    {field: 'year', op: 'eq', value: '2026'},
+    {field: 'qualified_at', op: 'eq', value: '2026-10-18T09:30:00.000Z'},
+    {field: 'amount.currency', op: 'eq', value: 'EUR'},
+  ]);
+  assert.deepEqual(prepare([[collectionFilterName(occurrence, 'year'), '2027'],
+    [collectionFilterName(occurrence, 'qualified_at'), ''], [collectionFilterName(occurrence, 'amount.currency'), 'USD']])
+      (occurrence, scalarFields, defaults), [{field: 'year', op: 'eq', value: '2027'}, {field: 'amount.currency', op: 'eq', value: 'USD'}]);
+  for (const [field, value] of [['year', '9223372036854775808'], ['year', '2026.5'], ['year', 'NaN'],
+    ['qualified_at', '2026-10-18T09:30'], ['qualified_at', 'not-an-instant'], ['amount.currency', 'ZZZ'], ['amount.currency', 'eur']]) {
+    refuses(() => prepare([[collectionFilterName(occurrence, field!), value!]])(occurrence, scalarFields));
+  }
+  refuses(() => prepare([])(occurrence, [{...scalarFields[0]!, valueLabels: {'2026': 'Year'}}]));
 });

@@ -318,11 +318,12 @@ function checkViewerPath(
   path: string,
   grantedFields: ReadonlyArray<string>,
   secrets: ReadonlyArray<string>,
+  implicitParent = false,
 ): void {
   if (typeof path !== 'string') {
     throw new StateError('validation', 'Query field paths must be strings.');
   }
-  if (isMetadataPath(path)) {
+  if (isMetadataPath(path) || path === 'parent' && implicitParent) {
     return;
   }
   for (const secret of secrets) {
@@ -1172,20 +1173,23 @@ async function runAuthorizedQuery(
     }
     return decisions;
   };
+  const implicitParent = !Object.hasOwn(input.modelDescriptor?.fields ?? {}, 'parent') &&
+    !(selectedRead !== undefined && 'fields' in selectedRead && selectedRead.fields.includes('parent')) &&
+    (selectedRead?.parent !== undefined || page?.parentPolicies?.get(input.model)?.parent !== undefined);
   const prepareViewer = async (current: ByContext): Promise<boolean[]> => {
     if (sourceReads !== undefined && (selectedRead === undefined || 'grants' in selectedRead)) {
       grantedFields = selectedRead === undefined ? [] : selectedRead.grants.flatMap(grant => [...grant.fields]);
-      if (input.where !== undefined) for (const path of collectPredicateFields(input.where)) checkViewerPath(path, grantedFields, secrets);
-      for (const term of order) checkViewerPath(term.field, grantedFields, secrets);
-      for (const path of extraViewerPaths ?? []) checkViewerPath(path, grantedFields, secrets);
+      if (input.where !== undefined) for (const path of collectPredicateFields(input.where)) checkViewerPath(path, grantedFields, secrets, implicitParent);
+      for (const term of order) checkViewerPath(term.field, grantedFields, secrets, implicitParent);
+      for (const path of extraViewerPaths ?? []) checkViewerPath(path, grantedFields, secrets, implicitParent);
       return [];
     }
     const allowed = policy === null ? [] : await viewerGrantAuthority(policy, current);
     grantedFields = policy === null ? [] : policy.grants.flatMap((grant, index) =>
       allowed[index] || byDependsOnRow(grant.by) ? [...grant.fields] : []);
-    if (input.where !== undefined) for (const path of collectPredicateFields(input.where)) checkViewerPath(path, grantedFields, secrets);
-    for (const term of order) checkViewerPath(term.field, grantedFields, secrets);
-    for (const path of extraViewerPaths ?? []) checkViewerPath(path, grantedFields, secrets);
+    if (input.where !== undefined) for (const path of collectPredicateFields(input.where)) checkViewerPath(path, grantedFields, secrets, implicitParent);
+    for (const term of order) checkViewerPath(term.field, grantedFields, secrets, implicitParent);
+    for (const path of extraViewerPaths ?? []) checkViewerPath(path, grantedFields, secrets, implicitParent);
     return allowed;
   };
   if (input.authority === 'viewer') {
@@ -1276,7 +1280,7 @@ async function runAuthorizedQuery(
         const projected = 'record' in authority ? authority.record :
           authority.grants.length === 0 ? null : projectRow(row, authority.grants, secrets);
         if (projected === null) { matches.push(false); continue; }
-        if (input.where !== undefined && !evalPredicateForRow(input.where, projected)) {
+        if (input.where !== undefined && !evalPredicateForRow(input.where, projected, decisionIntFields, implicitParent)) {
           matches.push(false); continue;
         }
         const detached = cleanCopy(projected) as ProjectedRecord;
@@ -1314,7 +1318,7 @@ async function runAuthorizedQuery(
   const matched: StoredRow[] = [];
   if (input.authority === 'owner') {
     for (const row of scanned) {
-      if (input.where !== undefined && !evalPredicateForRow(input.where, row, decisionIntFields)) {
+      if (input.where !== undefined && !evalPredicateForRow(input.where, row, decisionIntFields, implicitParent)) {
         continue;
       }
       matched.push(row);
@@ -1337,7 +1341,7 @@ async function runAuthorizedQuery(
         retainQuerySourcePresence(candidate.record, input.model, revision, presence);
         observation!.candidates.push(candidate);
       }
-      if (input.where !== undefined && !evalPredicateForRow(input.where, projected)) {
+      if (input.where !== undefined && !evalPredicateForRow(input.where, projected, decisionIntFields, implicitParent)) {
         continue;
       }
       if (predicate !== undefined || observation !== undefined) {

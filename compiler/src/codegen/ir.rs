@@ -4364,6 +4364,8 @@ pub struct IrPreferenceField {
     /// are civil `YYYY-MM-DD` strings validated downstream, never a
     /// spelling inventory. Like `reference`, it carries no save control.
     pub date: bool,
+    /// Canonical scalar wire type for a saved equality-filter leaf.
+    pub scalar_type: Option<String>,
 }
 
 // --- Test artifacts (PR5 contract, lowered by `bdd`) -----------------------
@@ -13616,6 +13618,7 @@ impl<'a> Cx<'a> {
                     .unwrap_or_default(),
                 reference: false,
                 date: false,
+                scalar_type: None,
             });
         }
         let text = |value: String| {
@@ -17749,6 +17752,7 @@ impl<'a> Cx<'a> {
                 option_labels: label.map(|label| label.values).unwrap_or_default(),
                 reference: false,
                 date: false,
+                scalar_type: None,
             });
         }
         Some(())
@@ -17945,6 +17949,7 @@ impl<'a> Cx<'a> {
                 option_labels: label.map(|label| label.values).unwrap_or_default(),
                 reference: false,
                 date: false,
+                scalar_type: None,
             });
         }
         Some(())
@@ -18013,6 +18018,7 @@ impl<'a> Cx<'a> {
                 option_labels: label.map(|label| label.values).unwrap_or_default(),
                 reference: true,
                 date: false,
+                scalar_type: None,
             });
         }
         Some(())
@@ -18071,17 +18077,30 @@ impl<'a> Cx<'a> {
                 fail(self, path.span);
                 return None;
             };
-            let Some(field_id) = self.fields.get(&(model, name.clone())).copied() else {
-                fail(self, path.span);
-                return None;
-            };
+            let implicit_parent = if name == "parent" && !self.fields.contains_key(&(model, "parent".into())) {
+                match self.program.symbols.get(model.0 as usize).map(|item| &item.kind) {
+                    Some(SymbolKind::Model { owner: ModelOwner::ChildOf(parent), .. }) => Some(*parent),
+                    _ => None,
+                }
+            } else { None };
+            let money_currency = name.strip_suffix(".currency").filter(|base| !base.contains('.'));
+            let source_name = money_currency.unwrap_or(name);
+            let field_id = if let Some(parent) = implicit_parent { parent }
+                else if let Some(id) = self.fields.get(&(model, source_name.to_string())).copied() { id }
+                else { fail(self, path.span); return None; };
             let Some(symbol) = self.program.symbols.get(field_id.0 as usize).cloned() else {
-                fail(self, path.span);
-                return None;
+                fail(self, path.span); return None;
             };
-            let Some(ty) = self.program.types.symbol_types.get(&field_id).cloned() else {
-                fail(self, path.span);
-                return None;
+            let ty = if let Some(parent) = implicit_parent {
+                ResolvedType::Record { symbol: parent, stored: true }
+            } else {
+                let Some(actual) = self.program.types.symbol_types.get(&field_id).cloned() else {
+                    fail(self, path.span); return None;
+                };
+                if money_currency.is_some() {
+                    if actual != ResolvedType::Scalar(Scalar::Money) { fail(self, path.span); return None; }
+                    ResolvedType::Scalar(Scalar::Currency)
+                } else { actual }
             };
             // A filter selector is a distinct owned finite-choice field: an
             // owned enum, a plain bool (the recorded `active`/`done`
@@ -18131,15 +18150,20 @@ impl<'a> Cx<'a> {
                 // the state string equality evaluates them. Datetime
                 // keeps the exact E6008 below: no symmetry
                 // generalization from civil dates to instants.
-                ResolvedType::Scalar(Scalar::Date) => ("date".to_string(), Vec::new()),
+                ResolvedType::Scalar(scalar @ (Scalar::Date | Scalar::Int | Scalar::Datetime | Scalar::Currency)) => (scalar.as_str().to_string(), Vec::new()),
                 _ => {
                     fail(self, path.span);
                     return None;
                 }
             };
-            if symbol.id != field_id || symbol.name != *name
-                || !matches!(symbol.kind, SymbolKind::Field { owner, .. } if owner == model)
-                || !self.program.symbols.get(model.0 as usize).is_some_and(|item| item.module == symbol.module && matches!(&item.kind, SymbolKind::Model { fields, .. } if fields.contains(&field_id)))
+            let declared = if let Some(parent) = implicit_parent {
+                symbol.id == parent && matches!(symbol.kind, SymbolKind::Model { .. })
+                    && !self.fields.contains_key(&(model, "parent".into()))
+            } else {
+                symbol.name == source_name && matches!(symbol.kind, SymbolKind::Field { owner, .. } if owner == model)
+                    && self.program.symbols.get(model.0 as usize).is_some_and(|item| item.module == symbol.module && matches!(&item.kind, SymbolKind::Model { fields, .. } if fields.contains(&field_id)))
+            };
+            if symbol.id != field_id || !declared
                 || selected
                     .insert(name.clone(), (ty.clone(), cases.clone()))
                     .is_some()
@@ -18250,7 +18274,7 @@ impl<'a> Cx<'a> {
                     // C3 civil-date equality rule: no case inventory
                     // (None, like text/references); any other shape keeps
                     // the refusal.
-                    ResolvedType::Scalar(Scalar::Date) => None,
+                    ResolvedType::Scalar(Scalar::Date | Scalar::Int | Scalar::Datetime | Scalar::Currency) => None,
                     _ => return None,
                 };
                 // C2 text-equality rule (DESIGN 975 scalar): a text-typed
@@ -18263,6 +18287,10 @@ impl<'a> Cx<'a> {
                 // exactly. No computed date form is admitted: only this
                 // literal, a direct saved date read, or null below.
                 let date_filter = matches!(expected, ResolvedType::Scalar(Scalar::Date));
+                let scalar_filter = match expected {
+                    ResolvedType::Scalar(scalar @ (Scalar::Int | Scalar::Datetime | Scalar::Currency)) => Some(*scalar),
+                    _ => None,
+                };
                 let literal = enum_cases.is_some_and(|cases| {
                     matches!(&decoded.expr, IrExpr::Text(case) if cases.contains(case) && (decoded.ty == *expected || matches!(decoded.ty, ResolvedType::Scalar(Scalar::Text))))
                 }) || (bool_filter
@@ -18274,6 +18302,8 @@ impl<'a> Cx<'a> {
                     || (date_filter
                         && date_literal_wire(&decoded).is_some()
                         && decoded.ty == *expected)
+                    || (scalar_filter.is_some() && decoded.ty == *expected && matches!(&decoded.expr,
+                        IrExpr::Int(_) | IrExpr::Datetime(_) | IrExpr::Text(_)))
                     || matches!(
                         (&decoded.expr, &decoded.ty),
                         (IrExpr::Null, ResolvedType::Null)
@@ -18422,6 +18452,9 @@ impl<'a> Cx<'a> {
                                         }
                                     }
                                 }
+                                IrExpr::Int(value) if scalar_filter == Some(Scalar::Int) => Some(value.to_string()),
+                                IrExpr::Text(value) if scalar_filter == Some(Scalar::Currency) => Some(value),
+                                IrExpr::Datetime(value) if scalar_filter == Some(Scalar::Datetime) => Some(value),
                                 IrExpr::Null if nullable => None,
                                 _ => {
                                     fail(self, value.span);
@@ -18455,6 +18488,7 @@ impl<'a> Cx<'a> {
                 // C3 civil-date equality rule: the date leaf carries
                 // no inventory; downstream validates civil dates.
                 date: date_filter,
+                scalar_type: scalar_filter.map(|scalar| scalar.as_str().to_string()),
             });
                         }
                     }
@@ -18685,6 +18719,7 @@ impl<'a> Cx<'a> {
                 option_labels: pref_label.map(|label| label.values).unwrap_or_default(),
                 reference: false,
                 date: false,
+                scalar_type: None,
             });
         }
         // B16: the control edits the owning saved preference through the

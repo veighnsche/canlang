@@ -498,6 +498,14 @@ export function sourceFilterControls(
       return `<label for="${escapeAttr(name)}">${escapeHtml(resolveCaption(meta.label, props.context))}</label>` +
         `<input type="date" id="${escapeAttr(name)}" name="${escapeAttr(name)}" value="${escapeAttr(current)}" class="input">`;
     }
+    if (field.type === "int" || field.type === "datetime" || field.type === "currency") {
+      const selectedValue = selected.get(field.field);
+      const current = typeof selectedValue === "string" ? selectedValue : "";
+      // Exact instants use their canonical RFC3339 UTC representation rather
+      // than silently interpreting datetime-local text in a browser zone.
+      return `<label for="${escapeAttr(name)}">${escapeHtml(resolveCaption(meta.label, props.context))}</label>` +
+        `<input type="text"${field.type === "int" ? ' inputmode="numeric"' : ''} id="${escapeAttr(name)}" name="${escapeAttr(name)}" value="${escapeAttr(current)}" class="input">`;
+    }
     // Conditions carry typed values (bool toggles arrive as booleans);
     // controls compare against the stable option spellings ("true"/case).
     const selectedValue = selected.get(field.field);

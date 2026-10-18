@@ -1343,3 +1343,14 @@ reuse canonical reads and existing Values comparison; source/test hunks reviewed
 focused actual compiled D1 and compiler checks pass. Concurrent hook/filter work
 is excluded until accepted. Reuse retained coverage; the complete historical
 checkpoint stays held. The full212-error goal continues on main; Muse is stopped.
+
+
+### 2026-10-18 — typed filter intake
+
+Retain Compiler UI/preference ownership and the existing Contracts DTO, Interfaces
+request/preference/context adapters, UI controls, State grant/predicate engine and
+Cloudflare projection/consumer owners. Their changed source/tests were reviewed;
+the compiled D1 consumer and focused checks pass, with the separate pre-existing
+caption failure recorded. Bounded reconciliation since61334d958; unfinished hook
+changes and foreign work remain outside this intake. No new carrier/package or
+complete-checkpoint advance. Full212-error work continues on main; Muse is stopped.

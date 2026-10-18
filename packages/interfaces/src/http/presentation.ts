@@ -10,11 +10,11 @@
  * resolved identity as both `principal` and `invocation` (opaque
  * pass-through), and the dispatcher-bound row-query runner. `theme`
  * stays `DEFAULT_THEME` until a preference store exists, and
- * `currencyScales` stays absent until the lane-2 table is importable —
- * money rendering fails loudly without it rather than guessing.
+ * `currencyScales` comes from the pinned Values currency table so original
+ * Money columns use canonical minor units without request-provided scales.
  */
 import { DEFAULT_THEME, COLLECTION_FILTER_PREFIX, collectionFilterName } from '@canlang/contracts';
-import { decodeValue, encodeValue, makeUserRef } from '@canlang/values';
+import { CURRENCY_MINOR_UNITS, decodeValue, encodeValue, makeUserRef } from '@canlang/values';
 import { createOperationFormPreparer } from './forms.js';
 import { buildBusinessError } from '../errors/envelope.js';
 import { systemInterfacesClock } from '../ports.js';
@@ -127,10 +127,20 @@ function collectionFilterPreparer(params: URLSearchParams): NonNullable<Presenta
       }
       return refuse();
     };
+    const scalarWire = (type: 'int' | 'datetime' | 'currency', value: unknown): string => {
+      try {
+        // Request/saved strings use canonical codecs. Compiled int defaults
+        // are bigint values and follow the same exact wire representation.
+        const decoded = typeof value === 'string' ? decodeValue(type, value) : value;
+        const wire = encodeValue(type, decoded as never);
+        if (typeof wire !== 'string') return refuse();
+        return wire;
+      } catch { return refuse(); }
+    };
     if (typeof occurrence !== 'string' || occurrence.length === 0) refuse();
     let prefix: string;
     try { prefix = `${COLLECTION_FILTER_PREFIX}${encodeURIComponent(occurrence)}:`; } catch { return refuse(); }
-    const inventories = new Map<string, { readonly kind: 'enum' | 'bool' | 'ref' | 'text' | 'date'; readonly cases: Set<string> }>();
+    const inventories = new Map<string, { readonly kind: 'enum' | 'bool' | 'ref' | 'text' | 'date' | 'int' | 'datetime' | 'currency'; readonly cases: Set<string> }>();
     for (const column of fields) {
       if (typeof column !== 'object' || column === null) refuse();
       const field = own(column, 'field'), type = own(column, 'type'), labels = own(column, 'valueLabels');
@@ -168,6 +178,12 @@ function collectionFilterPreparer(params: URLSearchParams): NonNullable<Presenta
         if (cases.length !== 0) refuse();
         try { collectionFilterName(occurrence, field); } catch { return refuse(); }
         inventories.set(field, { kind: 'date', cases: new Set() });
+        continue;
+      }
+      if (type === 'int' || type === 'datetime' || type === 'currency') {
+        if (cases.length !== 0) refuse();
+        try { collectionFilterName(occurrence, field); } catch { return refuse(); }
+        inventories.set(field, { kind: type, cases: new Set() });
         continue;
       }
       if (typeof type !== 'string' || !type.startsWith('enum:') || type.slice(5).trim().length === 0 ||
@@ -212,6 +228,9 @@ function collectionFilterPreparer(params: URLSearchParams): NonNullable<Presenta
               (typeof value !== 'object' || value === null || Array.isArray(value))) refuse();
           selected.set(field, value === null || value === '' ? null : filterDate(value));
           continue;
+        } else if (entry.kind === 'int' || entry.kind === 'datetime' || entry.kind === 'currency') {
+          selected.set(field, value === null || value === '' ? null : scalarWire(entry.kind, value));
+          continue;
         } else if (value !== null && (typeof value !== 'string' || !entry.cases.has(value))) refuse();
         selected.set(field, value as string | boolean | null);
       }
@@ -251,6 +270,11 @@ function collectionFilterPreparer(params: URLSearchParams): NonNullable<Presenta
       if (entry.kind === 'date') {
         seen.add(field);
         selected.set(field, value === '' ? null : filterDate(value));
+        continue;
+      }
+      if (entry.kind === 'int' || entry.kind === 'datetime' || entry.kind === 'currency') {
+        seen.add(field);
+        selected.set(field, value === '' ? null : scalarWire(entry.kind, value));
         continue;
       }
       if (value !== '' && !entry.cases.has(value)) refuse();
@@ -381,6 +405,7 @@ export function buildPresentationContext(
     preferredLocales: parseAcceptLanguage(input.request.headers.get('accept-language')),
     appDefaultLocale: input.appDefaultLocale,
     theme: DEFAULT_THEME,
+    currencyScales: CURRENCY_MINOR_UNITS,
     path: input.pathname,
     ...(input.breadcrumbs === undefined ? {} : { breadcrumbs: input.breadcrumbs }),
     pollUrl: input.pathname + url.search,

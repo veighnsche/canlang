@@ -8,6 +8,7 @@ import { projectInstalledSourceRow, readRecordsAtSourceObservation, type ViewerG
   type ViewerGenerationCallbackSourceReadPolicy, type ViewerSourceReadPolicy } from '../../src/query/source-policy.js';
 import { bindInstalledSourceQueryPredicate, evaluateInstalledReadPredicate, type InstalledSourceOwnerRows, type InstalledSourceQueryPredicate } from '../../src/receipt/read-policy-membership.js';
 import { StateError } from '../../src/errors.js';
+import { resolveRowPath } from '../../src/policy/grants.js';
 import { FenceConflictError } from '../../src/storage/port.js';
 import { createMemoryStorage } from '../../src/storage/memory.js';
 import { makeBatch, makeRow, asId } from '../invocation/fixtures.js';
@@ -314,4 +315,28 @@ test('owner viewer collections preserve declared containment and project every c
     else await assert.rejects(pending, StateError);
     assert.equal(scans, 0); assert.equal(queries, mode === 'wrong-parent' ? 0 : 1);
   }
+});
+
+
+test('implicit parent equality filters stay after viewer grants and preserve ordinary parent data fields', async () => {
+  const s = await setup(true);
+  const matches = await queryRecords({...s.input, where: {op: 'eq', field: 'parent', value: {id: 'project'}}});
+  assert.deepEqual(matches.records.map(row => row.id), ['a', 'b']);
+  assert.deepEqual((await queryRecords({...s.input, where: {op: 'eq', field: 'parent', value: {id: 'missing'}}})).records, []);
+  s.reads.set(MODEL, {...s.current, grants: [{fields: ['title'], read: async () => true},
+    {fields: ['parent'], read: async () => false}]});
+  assert.deepEqual((await queryRecords({...s.input, modelDescriptor: {...s.input.modelDescriptor,
+    fields: {...s.input.modelDescriptor.fields, parent: {valueType: 'text', required: true, serverOnly: false}}},
+    where: {op: 'eq', field: 'parent', value: {id: 'project'}}})).records, [],
+    'withheld authored parent field never falls back to implicit metadata');
+  s.reads.set(MODEL, s.current);
+  s.reads.set(PARENT, policy(['title'], async () => false, ROOT));
+  assert.deepEqual((await queryRecords({...s.input, where: {op: 'eq', field: 'parent', value: {id: 'project'}}})).records, []);
+  const root = await setup();
+  const parentField = {valueType: 'text' as const, required: true, serverOnly: false};
+  const row = (await root.store.load(MODEL, asId('a')))!;
+  assert.equal(resolveRowPath({...row, data: {...row.data, parent: 'private-parent'}}, 'parent'), 'private-parent');
+  await assert.rejects(queryRecords({...root.input, modelDescriptor: {...root.input.modelDescriptor,
+    fields: {...root.input.modelDescriptor.fields, parent: parentField}},
+    where: {op: 'eq', field: 'parent', value: 'private-parent'}}), StateError);
 });
