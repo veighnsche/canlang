@@ -1,5 +1,15 @@
 # Living ideal file-tree plan for Canlang
 
+**Released branch-history cleanup, 2026-10-18:** retain main's complete source
+through1fc81e59b while joining the original B17/B19 histories (including their
+shared Muse history), the standalone-install patch-equivalent history and the
+dev-server bound-mail repair history. Existing accepted integrations8096c3f86,
+802a4be81 and7373a8425 supply their recorded review and checks; the mail production
+patch matches exactly and the installer is patch-equivalent. This merge changes
+only this record and DECISIONS, preserving obsolete snapshots in Git history
+without restoring deleted evidence or superseded source. Existing owners,
+coverage, unresolved behavior and the complete historical checkpoint remain.
+
 **Final Rust complexity wind-down merge, 2026-10-18:** integrate released
 01c5e8b3f, retaining existing compiler ownership and the defining source observer/
 hook fixes in the extracted visitors. Newer native Values and Work-kernel owners

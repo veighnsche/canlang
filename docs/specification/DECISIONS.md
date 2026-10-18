@@ -1,5 +1,18 @@
 # Canlang language design decisions
 
+## 2026-10-18 — preserve integrated histories during final branch cleanup
+
+Retain the original factory/filter, shared Muse, standalone-install and development
+repair commits as ancestors of main before deleting their released task branches.
+Keep current main source: B17/B19 were integrated and qualified in8096c3f86 and
+802a4be81 with the recorded corrections; the bound-mail production patch matches
+7373a8425 exactly and Git identifies the installer patch as already applied.
+Replaying these older snapshots would restore superseded source and deleted
+evidence. Reuse those accepted results; this history merge changes only the two
+existing reconciliation records and claims no new behavior or backlog completion.
+Preserve installation artifacts and logs outside removed worktrees; shared cache
+targets remain untouched. Existing ownership and complete review checkpoint stay.
+
 ## 2026-10-18 — complete native development ownership
 
 **Accepted user direction; implementation qualified except the listed final
