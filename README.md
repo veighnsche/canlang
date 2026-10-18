@@ -58,7 +58,7 @@ The selected target compiles `.can` applications to JavaScript for **workerd**, 
 
 The Rust package ports are selected targets with adoption gates. Observable JavaScript object traversal, callbacks, storage authority, and host integrations retain their TypeScript owners. Rust/Wasm parity, complete-call performance, installed assets, and supported hosts must be verified before adoption. Native artifact preparation is opt-in on qualified hosts.
 
-The [living plan](docs/ideal-filetree-plan.md) brings together original application intent, challenge and reference work, remaining implementation, and the four subsystem-port plans. Its [selected file tree](docs/ideal-filetree-plan/finished-product/target-tree.md), [ownership boundaries](docs/ideal-filetree-plan/finished-product/ownership.md), and [dependency-ordered work](docs/ideal-filetree-plan/finished-product/tasks.md) are the detailed codebase direction.
+The [living plan](docs/ideal-filetree-plan.md) brings together original application intent, challenge and reference work, remaining implementation, and the four subsystem-port plans. Its [selected file tree](docs/ideal-filetree-plan/finished-product/target-tree.md), [ownership boundaries](docs/ideal-filetree-plan/finished-product/ownership.md), and [dependency-ordered work](docs/implementation/REMAINING-WORK.md) are the detailed codebase direction.
 
 Required completion work includes durable identity/file/provider joins, complete finite fanout and recovery, owner expiry and sensitive-data disposal, authorized document grounding, browser assets and polling, preferences, CSV intake/export, staged upgrades, and installed release checks. Compiler output or an isolated runtime test establishes only its own scope; supported applications require their complete declared workflows and failure outcomes to be verified.
 
@@ -73,6 +73,8 @@ The installer detects macOS Apple Silicon or Linux x86-64 with glibc and downloa
 The bundle contains the compiler, language catalog, private Node runtime, local Worker engine and production dependencies. You do not need to install Rust, Node, Bun, npm packages or a browser. Write and run applications in your own folder using the [installation tutorial](docs/public/01-Getting-started/02-installation.md) and [local development guide](docs/public/03-Build-and-operate/01-local-development.md). Browser automation is a [separate optional development add-on](docs/install.md#optional-browser-development-tools).
 
 ## Getting the source (optional, for contributors)
+
+Current contributor tasks, dependencies and finite acceptance are in the [remaining-work list](docs/implementation/REMAINING-WORK.md). Implementation remains paused after the recorded wind-down.
 
 The remaining setup and build instructions are for changing CanLang itself. Application authors can use the installation command above without cloning or building this repository. The handbook has a dedicated [optional contributor guide](docs/public/01-Getting-started/03-contributor-setup.md).
 

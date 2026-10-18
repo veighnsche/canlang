@@ -22,7 +22,7 @@ Public release/deployment, default changes and TS retirement remain separate.
 
 **Execution update, 18 October 2026:** selected Rust int/ASCII plus explicit CSV,
 shared fanout TS and selected installed recovery asset delivery are now accepted.
-See the [single current execution view](../../implementation/RUST-PORT-START-HERE.md#current-execution-view--2026-10-18)
+See the [single current execution view](../../implementation/REMAINING-WORK.md#native-port-unit-contracts)
 for scope and retained limits; this adds no opportunity or whole-parent acceptance.
 
 **18 October 2026 — audit baseline `08dc8c3928f53c7a06984136ac52ff944360075c`; candidate 1 message syntax/usage and finite joined completion recorded below.**
@@ -45,9 +45,9 @@ identifies possibilities; it does not establish faster execution or cheaper
 maintenance after transport, error compatibility and distribution are included.
 
 This is a subject record under the [living file-tree plan](../../ideal-filetree-plan.md).
-The [Rust start guide](../../implementation/RUST-PORT-START-HERE.md#current-execution-view--2026-10-18)
+The [Rust start guide](../../implementation/REMAINING-WORK.md#native-port-unit-contracts)
 remains the **single execution view**. Its original IDs, accepted components and
-three [finite packet details](../../implementation/rust-port-orchestration/current-plan.md)
+three [finite packet details](../../implementation/REMAINING-WORK.md#native-port-unit-contracts)
 remain intact. Optional investigations below are not another dispatch queue and
 add no prerequisites to existing work. Native preparation remains **HUMAN HOLD**.
 
@@ -68,7 +68,7 @@ repaired. This closes no broad validation/native parent. The former Values-asset
 accepted. A planning-only refresh at main `46cb113ad` recommends ten matching
 ordinary Work helpers under existing `ports:W02.5`, consuming the installed `/rows`
 edge. Newer provenance/snapshot codecs stay Work-owned. The
-[current finite detail](../../implementation/rust-port-orchestration/current-plan.md#planning-refresh-against-current-main--18-october-2026)
+[current finite detail](../../implementation/REMAINING-WORK.md#native-port-unit-contracts)
 records exact remaining scope and acceptance; no additional Rust candidate is
 released. Unreleased candidates below have decision or measurement
 prerequisites; none becomes implementation-ready merely because a pure function exists.
@@ -78,7 +78,7 @@ source/operation/catalog correspondence and request cleanup are qualified for
 ordinary TS serving. Reuse the earlier Node mutation/stale-file and default-copy
 results at their scope. HTTP remains the canonical TS evaluator; native protected
 input/PH3/other-profile/resource/full-parent gates remain separate. The
-[current packet detail](../../implementation/rust-port-orchestration/current-plan.md)
+[current packet detail](../../implementation/REMAINING-WORK.md#native-port-unit-contracts)
 records the two distinct Worker cases and exact packaging repair. No additional
 Rust owner, parser, dependency or native-preparation release is selected. Candidates
 2–5 retain their decision/measurement prerequisites.

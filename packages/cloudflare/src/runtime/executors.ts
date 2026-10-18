@@ -4,7 +4,7 @@
  * `originOccurrence` from the admitted occurrence through to the fenced
  * commit.
  *
- * Addendum settlement (`docs/implementation/status/lane-07.md:215`): sibling
+ * Addendum settlement (`docs/implementation/CONTRACTS.md#canonical-generated-execution`): sibling
  * `work.dispatch` rows ride the existing same-batch `effects.writes`
  * channel; the permanent producer is L1 codegen, the interim producer is
  * these runner executors; `originOccurrence` is runtime-stamped (null

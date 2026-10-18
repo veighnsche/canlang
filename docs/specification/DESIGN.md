@@ -4,7 +4,7 @@ Status: normative v1 language contract, reconciled 15 October 2026. This documen
 defines behavior, not universal implementation readiness. [REQUIREMENTS.md](REQUIREMENTS.md)
 owns product goals and [GRAMMAR.md](GRAMMAR.md) exact syntax; §0 states their common
 conformance boundary. [DECISIONS.md](DECISIONS.md) records rationale and supersession.
-The [completion record](../implementation/compiler-completion/README.md#current-remainder-and-finite-completion)
+The [completion record](../implementation/REMAINING-WORK.md#compiler-source-constraints)
 owns current implementation gaps and qualified consumers. An implemented slice,
 parsed source or handwritten JavaScript target is not complete language conformance.
 
@@ -1139,7 +1139,7 @@ do
  let body = format(choose(show_count,"{n} tasks"@{}(n=n),"Task: {label}"@{}(label=label)),locale=null)
 ```
 
-Delivery spans implemented and pending consumers. Checked message/type/import resolution, ICU validation and explicit formatting have compiler and installed-runtime coverage recorded in the [existing completion work](../implementation/compiler-completion/README.md); that coverage does not establish every presentation, preference, MCP or outbound-delivery requirement above. Localized MCP descriptions remain explicitly deferred, and the existing S9-Q01/C17 work tracks remaining presentation/outbound provenance. Syntax acceptance, JSON strings and JEV advice alone do not establish working localization.
+Delivery spans implemented and pending consumers. Checked message/type/import resolution, ICU validation and explicit formatting have compiler and installed-runtime coverage recorded in the [existing completion work](../implementation/REMAINING-WORK.md#compiler-source-constraints); that coverage does not establish every presentation, preference, MCP or outbound-delivery requirement above. Localized MCP descriptions remain explicitly deferred, and the existing S9-Q01/C17 work tracks remaining presentation/outbound provenance. Syntax acceptance, JSON strings and JEV advice alone do not establish working localization.
 
 ## 10. MCP and generated interfaces
 
@@ -1253,7 +1253,7 @@ This records the current bounded v1 design: composition, descriptions, type/scop
 
 [examples/TeamTasks.can](../../examples/TeamTasks.can) and [examples/ExpenseFlow.can](../../examples/ExpenseFlow.can) illustrate this design. Sources under `draft/` carry app identity and composition without wrapper files or an authored build manifest. Reference status, historical migration notes and structural inspection do not establish current compilation or executable workflow support; unsupported app foundations cannot enlarge v1 by implication.
 
-[The initial Python parser](../../tools/can_parser.py) is historical syntax work, separate from the current Rust compiler and installed runtime. Current implementation and qualification are recorded in the [compiler summary](../../compiler/README.md), [completion status](../implementation/compiler-completion/status.json) and their owning evidence. Distinguish accepted source semantics, checked syntax/types, emitted interfaces, installed runtime behavior and complete application workflows. A pass at one stage does not establish later stages or other profiles.
+[The initial Python parser](../../tools/can_parser.py) is historical syntax work, separate from the current Rust compiler and installed runtime. Current implementation and qualification are recorded in the [compiler summary](../../compiler/README.md), [completion status](../implementation/REMAINING-WORK.md#compiler-source-constraints) and their owning evidence. Distinguish accepted source semantics, checked syntax/types, emitted interfaces, installed runtime behavior and complete application workflows. A pass at one stage does not establish later stages or other profiles.
 
 Remaining work is the finite unsupported behavior and unqualified workflows in those existing execution records, including their explicit external gates. This specification does not claim complete application execution, production security qualification or representative performance from grammar or source inspection alone.
 

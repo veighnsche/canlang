@@ -58,3 +58,138 @@ Provider adapters and typed library functions can be implemented where their con
 L1 checks and compiles explicit migration declarations. L3 executes owner-local transforms under fencing and constraints. L4 exposes pending-work compatibility/inventory. L7 coordinates staging/activation/recovery and preserves deployed evidence. No lane creates a parallel migration interpreter.
 
 L1 compiles inline examples separately from production. L7 schedules fixtures/calls/assertions; L2 supplies exact expected-value equality, L3 runs real admission/transactions, and L4 supplies controlled provider/event/file fixtures under isolated test authority. A setup/type error cannot satisfy an expected business rejection. The runner must not interpret `.can` independently or bypass the production dispatcher to make a test pass.
+
+## Source correspondence requirements
+
+These retained correspondences define required behavior. They do not assert that an owning mechanism is absent; reuse accepted scope and select unmet consumers only from [REMAINING-WORK.md](REMAINING-WORK.md).
+
+### Ordinary nullable flow
+
+[INFERRED] Bucket b, high confidence. Explicit null tests should provide ordinary continuation facts while remaining separate from permission reasoning. Extend the existing analysis rather than weakening receiver, arithmetic, trim or argument contracts separately.
+
+Specify true/false facts for equality and inequality, reversed operands, parentheses and NOT. AND's right operand receives left-true facts; OR's receives left-false facts. Branch joins retain facts valid on every reaching path. Successful requirements carry facts forward. Key facts by resolved declaration and path, distinguish immutable local values from mutable fields, and invalidate relevant facts around writes and mutation-capable calls.
+
+Acceptance includes the six original patterns and guarded nullable text/datetime operations. Invalid controls include unguarded access, reads before guards, null admitted by another OR arm, alias writes, contradictory branches and zero-iteration loops. Safe-access comparisons against nullable values must not invent presence.
+
+Cost: more flow bookkeeping and conservative rejection where alias mutation is uncertain.
+
+### Readable selectors
+
+[INFERRED] Bucket b, high confidence. Share canonical resolved member information with purpose-specific checks for reading, filtering, granting and writing. Preserve owner, type, supported leaves and reference/value provenance.
+
+Acceptance covers parent, safe metadata, value members, nullable schema intermediates and imported aliases. Unknown leaves, invalid terminal descent, unauthorized traversal and metadata mutation remain invalid. A schema selector supplies no runtime non-null fact and no automatic permission grant. Preserve existing B4 delivery-leaf support.
+
+Cost: a shared semantic member/path boundary with context-specific validation.
+
+### Actor facts after admission
+
+[INFERRED] Bucket b, high confidence. Carry successful caller admission facts inside Boolean continuations and into CRUD when. Reuse the flow machinery and declared authentication predicates.
+
+Acceptance retains nullable actor for public alternatives, other-subject roles, helpers before admission and signature defaults. Trusted payload users do not become callers. Preserve existing tests in [b4_check.rs](/Users/vince/Projects/canlang/compiler/tests/b4_check.rs:89).
+
+Cost: contextual admission bookkeeping.
+
+### Canonical standard and bound interfaces
+
+[INFERRED] Bucket b, high confidence on missing interface production and resolution; medium on each unresolved recipe. Supply owning information while retaining strict validation.
+
+Inventory imported names against accepted contracts. Reconcile versions and earlier producer DTOs. Export request/result/error schemas, effects, event and observable relationships from one authoritative producer definition; preserve canonical identity through aliases. Use that information for checking, runtime validation and discovery. Installed capability checks remain a separate build/activation obligation.
+
+Start with common operation/delivery/email contracts, then generation/image/workflow interfaces, judgment/mailbox contracts and corpus operations. Reuse delivered adapters. Keep missing/private/misspelled members, incompatible bindings, wrong associations and forged protected handles invalid. E3019 remains valid when the real schema is absent.
+
+Cost: producer catalog/contract work and explicit compatibility handling.
+
+### Creation defaults and input schemas
+
+[INFERRED] Bucket b, high confidence. Carry requiredness, omission, default, server initialization and derived distinctions separately from representation types through checking, effects, IR, artifacts, runtime, forms and MCP.
+
+Ordinary arrays omit to empty; required arrays reject omission. Preserve documented nullable/default behavior, protected initialization, update omission versus explicit null, and derived/server exclusions from writable inputs. Defaults execute in their documented context/order and do not rerun on replay or ordinary updates.
+
+Acceptance uses actual source-derived descriptors and existing values conformance, including parent, actor/time, server fields and replay. Model stored fields are not automatically writable operation inputs.
+
+Cost: a shared semantic descriptor join and deliberate correction of contradictory emission expectations.
+
+### Contextual structural values
+
+[INFERRED] Bucket b, medium-high confidence. Validate literal construction recursively against a known expected closed contract. Preserve canonical identity and constraints; leave arbitrary named-type conversion to its own rule.
+
+Acceptance covers known/unknown fields, required/default/nullable members, nested contracts/arrays, enum domains, exact bounds, model references and protected handles. Runtime fixture normalization agrees with static checking. Wrong shape and forged provenance remain invalid.
+
+Cost: expected-type propagation and recursive validation using owning schemas.
+
+### Imported containment
+
+[INFERRED] Bucket b, medium confidence, with a design gate. Separate declaring package identity, local executable closure, parent identity, inherited team/storage, mutation authority, reverse-child identity and migration consequences.
+
+Local imports and deployment-bound remote schemas require different treatment. Import or containment supplies no automatic parent mutation authority. Acceptance retains source relationships while testing alias/order/composition parity, wrong parent, cross-team parent, missing/archive state, cycles and unavailable ownership. Prove applicable persistence/query behavior on actual storage and respect D1/DO boundaries.
+
+Cost: a canonical ownership graph and lifecycle/migration rules.
+
+### Event and hook mutation provenance
+
+[INFERRED] Bucket b, high confidence for spelling-based rejection and medium for secondary-write semantics. Distinguish ordinary parameters, verified declared references, before/input data, pending after, and referenced stored records by resolved provenance and authority.
+
+Implement the spelling correction independently of unresolved execution policy. Permitted secondary writes must stage through the same valid owner transaction. Acceptance proves revision invalidation, child/parent rollback, version/history/replay and rejection of forbidden snapshot writes, recursion or deletion. Existing ordinary parent-set tests do not establish hook behavior.
+
+Cost: typed provenance plus staged secondary-write context.
+
+### Exact integral literals in decimal positions
+
+[INFERRED] Bucket c, high confidence. Interpret an integral source literal as an exact decimal when the expected type is uniquely decimal. Do not add general integer-variable coercion, ambiguous overload guessing or a JS Number intermediary.
+
+Acceptance covers defaults, bounds, arguments, fixtures and emitted wire/schema values, including precision/range rejection and parsing without an inappropriate intermediate i64 limit.
+
+Cost: a narrow contextual literal rule and ambiguity handling.
+
+### Authoritative membership reads
+
+[INFERRED] Bucket c, high confidence conditional on fencing. Distinguish deterministic value computation, bounded authoritative reads, mutation and external effects. Specify permitted contexts, snapshots, transitive effects and revalidation boundaries.
+
+Acceptance proves revocation denies new access/spending, stale reads cannot authorize commits, failures stay visible and helpers cannot conceal writes/I/O. Preserve required accounting evidence without leaking content after revocation.
+
+Cost: read/fence work and possible latency, to be measured.
+
+## Runtime correspondence requirements
+
+### Canonical generated execution
+
+Dispatch intent and domain changes share the same fenced commit. Interim occurrence executors carry sibling `work.dispatch` rows through `effects.writes`; `originOccurrence` is stamped by the runtime and is null for direct calls. Generated producers preserve that association and atomicity when replacing an interim producer.
+
+[INFERRED] High-confidence integration recommendation: migrate generated operations to the existing state engine, then retire migrated interim callers. Agree descriptors/ports, resolve emitted canonical identity, establish verified principal/team/owner/time, validate inputs, enforce accepted admission/evaluation order, use canonical queries/mutations/effects, commit required history/replay/work, and project results safely.
+
+Acceptance includes denied access, stale versions, replay, failed business guards, disclosure, rollback and durable intents. Preserve delivered callable member linkage and artifact validation. Version descriptor compatibility explicitly.
+
+### Forms and presentation
+
+[INFERRED] High-confidence recommendation: derive real form descriptors from writable checked operation inputs. Join action/operation/mode/timezone/submit/identity metadata, bound arguments, create/update omission, versions, exact values, files, CSRF, full/partial context and error rerendering. Keep the approved complete presentation catalog.
+
+Acceptance is a real generated form invoking the same operation as MCP with equal authority and consistent schemas.
+
+### Selected receipts and observable progress
+
+[INFERRED] High-confidence intent recommendation: implement the accepted shared relation over existing producers. The pure observation kernel remains a component; the public helper still needs checked locator authorization, selected leaves, nested progress and revision fencing.
+
+Prove replaced associations reject stale business completion; status-only access reveals no protected request/result/locator; missing grants do not become ordinary authorized null; failed origin commits cause no provider call; dispatch guards yield defined skipped outcomes. For progress prove pre-ack correlation, duplicate/conflicting sequence, cancel-first tombstone, late usage, restart, terminal immutability, durable notification and visible handler-failure recovery.
+
+Images require receiving-app finalized-file provenance, not only downloaded bytes.
+
+### Executable examples and negative evidence
+
+[INFERRED] High-confidence recommendation: extend existing loaders to actual emitted suites and production invocation. Validate fixture dependencies; provision distinct accounts/grants and real finalized test files; supply controlled provider fixtures; execute tables/sequences; compare independent expectations and persisted observations.
+
+Setup errors, unavailable capabilities and expected business rejections remain separate. A rejected later sequence step retains earlier successful commits and adds no new domain/work effects. Assert compiled artifact identity. Altering an expected value, removing a call or suppressing a write must make the relevant test fail.
+
+Recommend accept workflow intent for all 49 apps, subject to demonstrated site corrections and explicit scope decisions. Preserve runtime negatives; add deliberate compiler-negative fixtures where needed. Flip a file to reject intent only with explicit compile-negative purpose.
+
+### Scoped fanout adoption
+
+[INFERRED] Bucket d, medium confidence. Pursue a finite durable fanout contract and compare syntax only after guarantees are concrete. Define authoritative cohort/cutoff, stable source/record child IDs, concurrent change policy, checkpoint/admission atomicity, child authority, independent failure/retry, supersession and complete owner coverage. Keep ordinary bounded for overflow rejection.
+
+Proof covers 499/500/501/1000 records, checkpoint crashes, duplicate source, concurrent insert/move/remove, rejected child, retry and supersession. An eventually updated owner directory is not proof of complete enumeration.
+
+Flip evidence: a continuation design demonstrates equal completeness/recovery with lower complexity and authoring cost.
+
+
+## Frontend composition requirements
+
+Implicit forms include the complete source-derived input set, defaults, validation, corrected drafts and final authorization. Slot/cardinality inheritance and exclusive button bindings retain their owning declarations; a convenient renderer cannot broaden a binding or silently drop a required control. Calendars implement the actual date/range/navigation behavior. Whole-frontend redesign preserves the full application workflow, and desired-output companions faithfully express the intended source meaning without claiming unimplemented APIs. These requirements feed the existing source/UI and DFE outcomes in [REMAINING-WORK.md](REMAINING-WORK.md); the old lane launch prompts are retired.

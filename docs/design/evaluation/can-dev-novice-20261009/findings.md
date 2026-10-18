@@ -4,7 +4,7 @@
 
 ## Collection
 
-Two coding-agent model configurations each received one of the three [business tasks](../../can-dev-agent-tasks.md): office supplies, staff shifts and expense review. Each run began with no conversation history and only this language introduction: “Can builds business apps from .can source. Given declares data and rules. When declares permitted actions. Then declares pages. Write your best draft.” Agents were instructed to return their first `.can` guess without inspecting files, examples, docs, tools or compiler output. A follow-up copied each returned code block verbatim to the raw files below; it did not request revision.
+Two coding-agent model configurations each received one of the three [business tasks](../../../implementation/REMAINING-WORK.md#development-extension-contracts): office supplies, staff shifts and expense review. Each run began with no conversation history and only this language introduction: “Can builds business apps from .can source. Given declares data and rules. When declares permitted actions. Then declares pages. Write your best draft.” Agents were instructed to return their first `.can` guess without inspecting files, examples, docs, tools or compiler output. A follow-up copied each returned code block verbatim to the raw files below; it did not request revision.
 
 | Task | Luna Medium first draft | Sol Low first draft |
 | --- | --- | --- |

@@ -1,16 +1,6 @@
 # Work/state transition kernel implementation plan
 
-**Post-merge status, 18 October 2026:** current remaining work is consolidated in
-[REMAINING-WORK.md](../../../implementation/REMAINING-WORK.md); the
-[Rust closeout](../../../implementation/rust-port-orchestration/current-plan.md#wind-down-closeout--18-october-2026)
-credits the merged partial outcomes. Source observations, unchecked boxes, waves
-and release/HOLD instructions below retain their dated assessment/contract scope;
-they are not current completion claims or a dispatch queue. Native-source HOLD
-was lifted before the completed wind-down. No workers or supervision remain active.
-Public deployment/defaults/TS retirement remain separately held.
-
-
-**Current completion plan, 18 October 2026:** [Work transition kernel](../../../implementation/rust-port-orchestration/current-plan.md#work-transition-kernel-complete) is one end-to-end outcome, with implementation, actual consumer, focused qualification/review/repairs and integration inside it. The original tasks/waves below retain IDs and acceptance; they are not repeated approval or dispatch units. Rust completion is independent of held TypeScript retirement, defaults and public deployment. This update starts no implementation.
+This is the original technical scope and action contract. Current status/order is owned only by [REMAINING-WORK.md](../../../implementation/REMAINING-WORK.md#native-port-unit-contracts); dated observations and proposed symbols below are not a current absence inventory.
 
 October 6, 2026. Source checkpoint: `3d1f8f062f9650c061f6cb87c8af9afb2c01b0e5`. This is a proposed implementation plan, not an implemented port or benchmark result. It applies the shared-row boundary in [boundary-options.md](../boundary-options.md) and the behavioral limits in [full-evaluation.md](../full-evaluation.md). Compiler implementation, lowering, generated handler execution and `.can` composition remain unchanged. `.can` declarations and their existing owning producers continue to determine app identity, handlers, cohorts, dependencies and permissions.
 

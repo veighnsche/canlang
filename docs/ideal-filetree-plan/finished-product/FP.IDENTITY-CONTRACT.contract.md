@@ -9,6 +9,19 @@ Task row: `tasks.md` FP.IDENTITY-CONTRACT (deps T04; gates FP.IDENTITY).
 
 ## Current-source addendum — 2026-10-10 bounded membership observation
 
+**18 October continuation boundary:** the older absence claims below are not a
+new lifecycle queue. Current Identity `storage/d1.ts` implements
+`acceptInvitationWithMembership`, `recoverAccountWithToken`,
+`removeMemberWithOccurrence` and conditional last-owner writes. Preserve their
+accepted results. The next Identity/State design unit enumerates only remaining
+ordinary-removal cascades/lifecycle variants, identifies each actual table and
+whether a business-State mutation is required, and chooses the transaction owner.
+Compare an Identity-local conditional batch against any demonstrated cross-owner
+participation using the existing consultation requirement. Do not force accepted
+local commands through a new shared fence or assert cross-database atomicity.
+That precise participant decision releases one remaining variant's D1 race,
+rollback/replay consumer; it is an engineering decision, not an account gate.
+
 The human-authorized TECH-I01 reconciliation supersedes the historical shared
 database premise for this read prerequisite. Production Identity uses global
 `env.DB`; concrete team State uses `STATE_DB` or owner-routed databases. The

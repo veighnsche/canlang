@@ -16,7 +16,7 @@ implementations. Consider one Rust implementation
 serving all three only in the bounded follow-up below; do not require Wasm to call
 today's synchronous public TS parser as an incidental refactor.
 
-The [Rust start guide](../../implementation/RUST-PORT-START-HERE.md#current-execution-view--2026-10-18)
+The [Rust start guide](../../implementation/REMAINING-WORK.md#native-port-unit-contracts)
 remains the single execution view. Steps below are finite subdivisions of this
 candidate, with links to existing compiler correctness packets, not new canonical
 task IDs or a second dispatch queue. Existing A/V/W/C04 readiness and accepted

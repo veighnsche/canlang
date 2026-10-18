@@ -1,6 +1,6 @@
 # Library adoption sequence within the existing Can plans
 
-Current Rust-port dispatch planning is in the [18 October source refresh](../../implementation/rust-port-orchestration/current-plan.md). This dated sequence and its finite releases are evidence; they are not a second execution queue.
+Current Rust-port dispatch planning is in the [18 October source refresh](../../implementation/REMAINING-WORK.md#native-port-unit-contracts). This dated sequence and its finite releases are evidence; they are not a second execution queue.
 
 **Historical planning sequence with recorded finite implementation releases. Future execution remains deferred.** This sequence turns the [package audit](README.md) into finite work and acceptance units. It supplements the existing challenge, Rust-port and ideal file-tree plans; it is not a replacement master plan, a live assignment or a new canonical task count. The [machine sequence](adoption-sequence.json) records dependencies, candidate files and original-task references.
 
@@ -10,7 +10,7 @@ There are **27 local units** below, including planning, conditional choices and 
 
 ## Scheduling and owners
 
-**2026-10-07 human refinement:** execute future released packets with economical Codex subagents, not Muse instances. R1–R4 below are responsibility queues. Use Luna low/medium for clear routine work and Sol low/medium for technical packets; justify escalation. This dispatcher currently permits three subagents beside the root, so schedule across four queues within actual capacity. Codex alone stages released paths and commits coherent checked slices early and often. The [current execution policy](../../implementation/RUST-PORT-EXECUTION-PLAN.md) supersedes the earlier Muse topology; implementation remains deferred.
+**2026-10-07 human refinement:** execute future released packets with economical Codex subagents, not Muse instances. R1–R4 below are responsibility queues. Use Luna low/medium for clear routine work and Sol low/medium for technical packets; justify escalation. This dispatcher currently permits three subagents beside the root, so schedule across four queues within actual capacity. Codex alone stages released paths and commits coherent checked slices early and often. The [current execution policy](../../implementation/REMAINING-WORK.md#native-port-unit-contracts) supersedes the earlier Muse topology; implementation remains deferred.
 
 The order is a dependency graph, not five global waiting waves. After P01/P02, each family can freeze its own version/contract and proceed. No family waits for all other library investigations. Preserve the existing original DAG and all narrow writer handoffs.
 

@@ -1,8 +1,10 @@
 # Artifact preparation implementation plan
 
+This is the original technical scope and action contract. Current status/order is owned only by [REMAINING-WORK.md](../../../implementation/REMAINING-WORK.md#native-port-unit-contracts); dated observations and proposed symbols below are not a current absence inventory.
+
 **Post-merge status, 18 October 2026:** current remaining work is consolidated in
 [REMAINING-WORK.md](../../../implementation/REMAINING-WORK.md); the
-[Rust closeout](../../../implementation/rust-port-orchestration/current-plan.md#wind-down-closeout--18-october-2026)
+[Rust closeout](../../../implementation/REMAINING-WORK.md#native-port-unit-contracts)
 credits the merged partial outcomes. Source observations, unchecked boxes, waves
 and release/HOLD instructions below retain their dated assessment/contract scope;
 they are not current completion claims or a dispatch queue. Native-source HOLD
@@ -16,7 +18,7 @@ The proposed native process owns the semantic artifact tree, indexes, module inv
 
 ## Current completion outcome — full native preparation
 
-The [single completion plan](../../../implementation/rust-port-orchestration/current-plan.md#native-preparation-complete)
+The [single completion plan](../../../implementation/REMAINING-WORK.md#native-port-unit-contracts)
 replaces the digest-only next packet with one outcome: complete native preparation
 through the real installed explicit-native CLI, including current module/source-map/
 browser package construction, identities, plan/review and exact local publication.
@@ -28,7 +30,7 @@ This is planning only; accepted CLI/integrity/rollback results remain credited.
 
 ## Current bounded source and retained-owner ledger — 18 October 2026
 
-The [single current execution checklist](../../../implementation/rust-port-orchestration/current-plan.md)
+The [single current execution checklist](../../../implementation/REMAINING-WORK.md#native-port-unit-contracts)
 overrides historical planning/hold wording. Native source/local validation was
 released; the latest refresh pauses dispatch for planning. Public deployment,
 automatic defaults and TS retirement remain held.

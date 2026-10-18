@@ -1,7 +1,7 @@
 # Native development server
 
 This independent crate implements the Rust owner and Ratatui presenter described
-in [T14–T17](../docs/implementation/can-dev-server/PLAN.md). The existing installer
+in [T14–T17](../docs/implementation/REMAINING-WORK.md#development-extension-contracts). The existing installer
 now packages this native entry beside the compiler and bundled runtime host.
 Release builds and installed manual workflows are qualified on macOS arm64 and
 Linux x86_64; the hosted release workflow has not been dispatched or published.

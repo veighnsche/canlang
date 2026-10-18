@@ -1,6 +1,6 @@
 # Errors, warnings and efficient AI feedback
 
-Owner: lane 1. This policy is part of the implementation plan; exact stable code allocation lands with the first diagnostic catalog. CLI, compiler, linter and LSP consume one diagnostic engine. Editor coloring is a fallback, never an alternate parser/checker.
+Owner: compiler diagnostics. CLI, compiler, linter and LSP consume one diagnostic engine. Editor coloring is a fallback, never an alternate parser/checker.
 
 ## Severity
 
@@ -33,3 +33,7 @@ The planned agent-facing `can dev` response should attach a compact help card to
 Formatting uses the lossless CST and is idempotent. Preserve descriptions/comments, inline translations, strings, exact values, evaluation order and Given/When/Then identity. Use one-space indentation and keep newlines only where grammar or meaningful readability needs them. It is not a code simplifier, import reordering engine or policy repair tool. Removing an apparently unused binding is unsafe if its initializer can fail or its import changes executable dependency closure.
 
 Measure usefulness with a small repeatable task set: add a field and page binding, correct a type/reference, change an operation parameter with consumers, repair a stale action and inspect a denied operation. Track actionable diagnostics, invalid-fix rate, edit turns and output tokens when measurements exist. Do not claim better agent efficiency from shorter messages alone or run endless model benchmarks instead of implementing the required tools.
+
+## Stable code ranges
+
+Codes use `E`/`W`/`I` plus four digits. E1xxx covers syntax/layout; E2xxx names/imports/composition; E3xxx types/schemas; E4xxx effects/owners/disclosure/authority shape; E5xxx operations/fixtures/examples; E6xxx codegen/artifact/capability; E7xxx tool/config. W1xxx is unreachable, W2xxx shadowing (opt-in), W3xxx deprecated; I1xxx is unused/redundant/locale fallback. `can explain CODE` serves the shared catalog.

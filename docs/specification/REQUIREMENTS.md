@@ -14,7 +14,7 @@ resolve, not permission for a compiler or app to choose either interpretation.
 
 The specification describes the supported language contract, not a claim that
 every compiler/backend path is delivered. Required but unimplemented behavior
-remains a conformance gap in the [single completion record](../implementation/compiler-completion/README.md#current-remainder-and-finite-completion).
+remains a conformance gap in the [single completion record](../implementation/REMAINING-WORK.md#compiler-source-constraints).
 An implementation must report an unsupported contract explicitly rather than
 silently changing its meaning. Handwritten target JavaScript and historical
 app sketches illustrate intent; neither establishes a language rule or API.
