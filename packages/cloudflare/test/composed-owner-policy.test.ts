@@ -1,7 +1,7 @@
 /** Installed composition of the original model_rule_origins declarations.
  * Only the labelled authenticated CRUD setup is test-authored. Negative
  * variants corrupt actual emitted metadata; none supplies replacement rules. */
-import { createCheckoutScratch } from '../src/dev/checkout-scratch.js';
+import { createCheckoutScratch } from '../src/runtime/checkout-scratch.test-support.js';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';

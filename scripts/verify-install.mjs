@@ -191,7 +191,7 @@ try {
     copyFileSync(join(checkout, 'scripts/fixtures/preview-persistence.can'), join(app, 'Preview.can'));
     const journey = join(scratch, 'native-dev-server.json');
     run(join(installation, 'libexec/node'), [join(checkout, 'scripts/verify-installed-dev-server.mjs'), '--installation', installation,
-      '--project-root', app, '--report', journey, '--compat-cli', join(checkout, 'packages/cloudflare/dist/dev/control-cli.js')], { timeout: 240000 });
+      '--project-root', app, '--report', journey], { timeout: 240000 });
     report.devServerJourney = JSON.parse(readFileSync(journey, 'utf8'));
     assert.equal(report.devServerJourney.ok, true);
   });

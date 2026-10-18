@@ -1,5 +1,5 @@
 /** Original scalar-input first lookup -> captured CLI -> verified module -> real D1/Identity. */
-import { createCheckoutScratch } from '../src/dev/checkout-scratch.js';
+import { createCheckoutScratch } from '../src/runtime/checkout-scratch.test-support.js';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';

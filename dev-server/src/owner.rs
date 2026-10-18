@@ -9,7 +9,7 @@ use crate::{
     gateway::{Backend, Gateway},
     model::*,
     runtime::{Allocation, Bridge, BridgeConfig, Reply},
-    service,
+    service, construct, inventory, preview, examples, qualification, sdk,
     state::{CheckTicket, Inputs, Refusal, SessionState},
 };
 use serde_json::{Value, json};
@@ -195,6 +195,8 @@ enum Event {
 }
 
 struct Generation {
+    actors: Value,
+    recovery: Option<Value>,
     revision: String,
     gateway: Gateway,
     // Payloads are retained through failed or uncertain runtime cleanup.
@@ -207,6 +209,9 @@ struct RetainedCheck {
     recipe: Option<Arc<Recipe>>,
 }
 struct Recipe {
+    value: Value,
+    actors: Value,
+    recovery: Option<Value>,
     _payloads: Payloads,
     reference: FileRef,
     capture: Capture,
@@ -240,6 +245,7 @@ struct Loop {
     server: Server,
     tx: Sender<Event>,
     bridge: Option<Arc<Bridge>>,
+    resources: Arc<sdk::Resources>,
     generations: BTreeMap<String, Generation>,
     checks: BTreeMap<String, RetainedCheck>,
     check_order: Vec<String>,
@@ -262,6 +268,7 @@ struct Loop {
     pending_qualifications: BTreeMap<String, String>,
     refusal_polling: bool,
     refusal_at: Instant,
+    recovery_at: Instant,
     failure_omitted: u64,
     failure_unavailable: u64,
     indexes: BTreeMap<String, Arc<ConstructIndex>>,
@@ -293,6 +300,7 @@ impl Loop {
             server,
             tx,
             bridge: None,
+            resources: Arc::default(),
             generations: BTreeMap::new(),
             checks: BTreeMap::new(),
             check_order: vec![],
@@ -315,6 +323,7 @@ impl Loop {
             pending_qualifications: BTreeMap::new(),
             refusal_polling: false,
             refusal_at: Instant::now(),
+            recovery_at: Instant::now(),
             failure_omitted: 0,
             failure_unavailable: 0,
             indexes: BTreeMap::new(),
@@ -597,6 +606,7 @@ impl Loop {
         self.jobs += 1;
         self.state.job_started();
         let worker = CheckWorker {
+            resources: self.resources.clone(),
             config: self.config.clone(),
             bridge: self.bridge.clone(),
             tx: self.tx.clone(),
@@ -653,6 +663,8 @@ impl Loop {
             self.generations.insert(
                 id,
                 Generation {
+                    actors: Value::Null,
+                    recovery: None,
                     revision: ticket.revision.clone(),
                     gateway,
                     _payloads: payloads,
@@ -675,6 +687,7 @@ impl Loop {
         recipe: Option<Arc<Recipe>>,
     ) {
         if let Some(recipe) = recipe {
+            if let Some(g)=self.generations.get_mut(&id){g.actors=recipe.actors.clone();g.recovery=recipe.recovery.clone();}
             self.retain_recipe(recipe);
         }
         let result = self.select(&ticket, &id, backend, &captured, hint);
@@ -734,6 +747,7 @@ impl Loop {
         self.respond_check(operation);
     }
     fn failed(&mut self, operation: &str, reason: String) {
+        if reason.starts_with("CLEANUP_REQUIRED:"){self.service_cleanup_required();}
         let snapshot = self.state.snapshot();
         let stopping = snapshot.lifecycle != Lifecycle::Running;
         let source = match snapshot.operation.as_ref().map(|o| o.phase) {
@@ -898,13 +912,14 @@ impl Loop {
             .collect();
         let bridge = self.bridge.clone();
         let tx = self.tx.clone();
+        let resources=self.resources.clone();
         self.state.job_started();
         self.cleanup_job = Some(thread::spawn(move || {
             let mut results = vec![];
             for id in ids {
                 results.push((
                     id.clone(),
-                    release(bridge.as_deref(), &id, contexts.get(&id).cloned()),
+                    release(bridge.as_deref(), &id, contexts.get(&id).cloned()).and_then(|value|{resources.released(&id)?;Ok(value)}),
                 ));
             }
             let host = if release_host {
@@ -919,6 +934,7 @@ impl Loop {
                 Ok(())
             };
             let released = release_host && host.is_ok();
+            let host=host.and_then(|()|if released{resources.host_released()}else{Ok(())});
             let _ = tx.send(Event::Cleanup(results, released, host.err()));
         }));
     }
@@ -1001,6 +1017,7 @@ impl Loop {
 
     fn poll(&mut self) {
         self.service_maintenance();
+        self.recovery_maintenance();
         if let Some(watcher) = &mut self.watcher {
             if watcher.reconcile() || watcher.audit_due() {
                 self.state.dirty();
@@ -1322,6 +1339,7 @@ impl Loop {
             )
         })?;
         let mut worker = ServiceWorker {
+            resources: self.resources.clone(),
             bridge,
             command: command.into(),
             payload: payload.clone(),
@@ -1338,6 +1356,7 @@ impl Loop {
             "preview.open" => {
                 worker.base = self.open()?;
                 worker.payload["build"] = json!(snapshot.preview.build);
+                worker.base["actors"] = snapshot.preview.build.as_ref().and_then(|b|self.generations.get(b)).map(|r|r.actors.clone()).unwrap_or(Value::Null);
             }
             "example.run" => self.plan_example(&mut worker, payload)?,
             "example.rerun" => self.plan_rerun(&mut worker, payload)?,
@@ -1573,6 +1592,10 @@ impl Loop {
             }
             self.service_cleanup_required();
         }
+        if job.command == "recovery" {
+            if fact.result.is_err() && !job.cancel.load(Ordering::Acquire) {self.service_cleanup_required();}
+            return;
+        }
         if job.command == "refusals" {
             self.refusal_polling = false;
             self.finish_refusals(fact.result);
@@ -1736,6 +1759,7 @@ impl Loop {
         };
         let id = request_id("qualification");
         let worker = ServiceWorker {
+            resources: self.resources.clone(),
             bridge,
             command: "qualify".into(),
             payload: json!({"revision":revision}),
@@ -1821,6 +1845,16 @@ impl Loop {
             job.cancel.store(true, Ordering::Release);
         }
     }
+    fn recovery_maintenance(&mut self) {
+        if self.recovery_at>Instant::now()||self.cleaning||self.state.host_cleanup_required()||self.state.snapshot().lifecycle!=Lifecycle::Running||self.service_jobs.values().any(|j|j.command=="recovery"){return;}
+        self.recovery_at=Instant::now()+Duration::from_secs(1);
+        let Some(build)=self.state.snapshot().preview.build else{return;};
+        let Some(recovery)=self.generations.get(&build).and_then(|r|r.recovery.clone()) else{return;};
+        let Some(bridge)=self.bridge.clone() else{return;};
+        let payload=json!({"build":build,"recovery":recovery});
+        let worker=ServiceWorker{resources:self.resources.clone(),bridge,command:"recovery".into(),payload:payload.clone(),capture:None,index:None,qualification:None,recipe:None,original:None,base:Value::Null,run:None,files:Arc::new(Mutex::new(vec![]))};
+        self.spawn_service(request_id("recovery"),"recovery".into(),payload,None,Arc::new(AtomicBool::new(false)),worker);
+    }
     fn service_maintenance(&mut self) {
         let mut pending = VecDeque::new();
         for item in self.example_queue.drain(..) {
@@ -1866,6 +1900,7 @@ impl Loop {
             return;
         };
         let worker = ServiceWorker {
+            resources: self.resources.clone(),
             bridge,
             command: "refusals".into(),
             payload: json!({"build":build,"context":failure_context(&self.server.identity.session_id,&revision,&c.capture,&build)}),
@@ -2128,29 +2163,8 @@ fn load_construct_index(
     cancel: &AtomicBool,
     events: &Sender<Event>,
 ) -> Result<ConstructIndex> {
-    let mut payloads = Payloads::new().map_err(|e| error("CAPTURE_UNAVAILABLE", e))?;
-    let capture = payloads
-        .json(capture)
-        .map_err(|e| error("CAPTURE_UNAVAILABLE", e))?;
-    let owned = Arc::new(payloads);
-    let id = request_id("index-input");
-    let _ = events.send(Event::HoldPayload(id.clone(), owned));
-    let response = bridge_value(
-        bridge,
-        "construct",
-        None,
-        json!({"capture":capture,"action":"index"}),
-        cancel,
-    );
-    if response
-        .as_ref()
-        .is_err_and(|e| e.code == "CLEANUP_REQUIRED")
-    {
-        let _ = events.send(Event::HostUncertain);
-        return Err(response.unwrap_err());
-    }
-    let _ = events.send(Event::ReleasePayload(id));
-    let value = read_output(bridge, &response?, "construct")?;
+    let _ = (bridge,events);
+    let value = construct::run(capture,&json!({"action":"index"}),cancel).map_err(native_error)?;
     let mut payloads = Payloads::new().map_err(|e| error("CAPTURE_UNAVAILABLE", e))?;
     let reference = payloads
         .json(&value)
@@ -2161,36 +2175,17 @@ fn load_construct_index(
         value,
     })
 }
-fn retain_runtime_recipe(
-    bridge: &Bridge,
-    response: &Reply,
-    capture: &Capture,
-    revision: &str,
-    build: &str,
-    artifact: &[u8],
-) -> std::result::Result<Option<Arc<Recipe>>, String> {
-    let value = reply(response)?;
-    let Some(reference) = value.get("recipe") else {
-        return Ok(None);
-    };
-    let reference: FileRef =
-        serde_json::from_value(reference.clone()).map_err(|e| e.to_string())?;
-    let bytes = files::read(&reference)?;
-    let mut payloads = Payloads::new()?;
-    let owned_reference = payloads.write(&bytes)?;
-    consume_output(bridge, &reference).map_err(|e| e.to_string())?;
-    let reference = owned_reference;
-    Ok(Some(Arc::new(Recipe {
-        _payloads: payloads,
-        reference,
-        capture: capture.clone(),
-        revision: revision.into(),
-        build: build.into(),
-        digest: capture::hash(artifact),
-    })))
+fn retain_runtime_recipe(prepared: &preview::Prepared, capture: &Capture, revision:&str, build:&str, artifact:&[u8]) -> std::result::Result<Option<Arc<Recipe>>,String> {
+    let mut payloads=Payloads::new()?;
+    let reference=payloads.json(&prepared.recipe)?;
+    Ok(Some(Arc::new(Recipe{value:prepared.recipe.clone(),actors:prepared.actors.clone(),recovery:prepared.recovery.clone(),_payloads:payloads,reference,capture:capture.clone(),revision:revision.into(),build:build.into(),digest:capture::hash(artifact)})))
+}
+fn native_error(message:String)->ControlError {
+    error(if message.starts_with("CLEANUP_REQUIRED:"){ "CLEANUP_REQUIRED" }else{"RUNTIME_REQUEST_FAILED"},message)
 }
 
 struct ServiceWorker {
+    resources: Arc<sdk::Resources>,
     bridge: Arc<Bridge>,
     command: String,
     payload: Value,
@@ -2225,15 +2220,8 @@ impl ServiceWorker {
     fn perform(&self, cancel: &AtomicBool, current: bool) -> Result<Value> {
         match self.command.as_str() {
             "preview.open" => {
-                let result = bridge_value(
-                    &self.bridge,
-                    "actors",
-                    self.payload["build"].as_str(),
-                    json!({"discloseLocalCredentials":true}),
-                    cancel,
-                )?;
                 let mut value = self.base.clone();
-                value["actors"] = result["actors"].clone();
+                value["actors"] = self.base["actors"].clone();
                 Ok(value)
             }
             "refusals" => {
@@ -2246,6 +2234,7 @@ impl ServiceWorker {
                 )?;
                 read_output(&self.bridge, &result, "refusals")
             }
+            "recovery" => sdk::call(&self.bridge,&self.resources,"mf.scheduled",self.payload["build"].as_str(),self.payload["recovery"].clone(),cancel).map_err(native_error),
             "qualify" => self.qualify(cancel, current),
             "example.run" if !current => Err(error(
                 "REVISION_CONFLICT",
@@ -2274,17 +2263,10 @@ impl ServiceWorker {
             .iter()
             .find(|i| i.name == "catalog")
             .and_then(|i| i.canonical_path.as_ref());
-        let response = bridge_value(
-            &self.bridge,
-            "inventory",
-            None,
-            json!({"root":c.root,"compilerPath":compiler,"catalogPath":catalog}),
-            cancel,
-        )
-        .map_err(|e| e.to_string())?;
-        let value = read_output(&self.bridge, &response, "inventory").map_err(|e| e.to_string())?;
-        serde_json::from_value(value).map_err(|e| e.to_string())
+        let call=|command:&str,parent:Option<&str>,payload:Value,signal:&AtomicBool|sdk::call(&self.bridge,&self.resources,command,parent,payload,signal);
+        inventory::collect(std::path::Path::new(&c.root),std::path::Path::new(compiler),std::path::Path::new(catalog.ok_or("catalog unavailable")?),&call,cancel)
     }
+
     fn current(&self, c: &Capture, cancel: &AtomicBool, runtime: bool) -> bool {
         let inventory = || self.inventory(cancel);
         if runtime {
@@ -2322,8 +2304,7 @@ impl ServiceWorker {
             .lock()
             .unwrap_or_else(|p| p.into_inner())
             .push(payloads);
-        let result = bridge_value(&self.bridge, "construct", None, payload, cancel)?;
-        let result = read_output(&self.bridge, &result, "construct")?;
+        let result = construct::run(self.capture.as_ref().ok_or_else(||error("CAPTURE_UNAVAILABLE","capture unavailable"))?,&payload,cancel).map_err(native_error)?;
         let source = self.capture.as_ref().map(|c| c.source_revision.clone());
         match self.command.as_str() {
             "diagnostic.detail" => {
@@ -2398,14 +2379,12 @@ impl ServiceWorker {
         {
             return Ok(Value::Null);
         }
-        let mut payloads = Payloads::new().map_err(|e| error("CAPTURE_UNAVAILABLE", e))?;
-        let payload = json!({"capture":payloads.json(c).map_err(|e|error("CAPTURE_UNAVAILABLE",e))?,"request":payloads.json(&request).map_err(|e|error("CAPTURE_UNAVAILABLE",e))?});
-        self.files
-            .lock()
-            .unwrap_or_else(|p| p.into_inner())
-            .push(payloads);
-        let result = bridge_value(&self.bridge, "qualify", None, payload, cancel)?;
-        let bundle = read_output(&self.bridge, &result, "qualification")?;
+        let parent=request_id("qualification-sdk");
+        let call=|command:&str,scope:Option<&str>,payload:Value,signal:&AtomicBool|sdk::call(&self.bridge,&self.resources,command,scope,payload,signal);
+        let inventory=||self.inventory(cancel);
+        let result=qualification::run(c,&request,&parent,&call,&inventory,cancel);
+        sdk::release(&self.bridge,&self.resources,&parent).map_err(native_error)?;
+        let bundle=result.map_err(native_error)?;
         if !valid_qualification(&bundle, &request) {
             return Ok(Value::Null);
         }
@@ -2464,28 +2443,15 @@ impl ServiceWorker {
         )
     }
     fn run_examples(&self, recipe: &Recipe, run: &str, cancel: &AtomicBool) -> Result<Value> {
-        let mut files = Payloads::new().map_err(|e| error("CAPTURE_UNAVAILABLE", e))?;
-        let capture = files
-            .json(&recipe.capture)
-            .map_err(|e| error("CAPTURE_UNAVAILABLE", e))?;
-        let session = self.payload["session"].as_str().unwrap_or("");
-        let mut payload = json!({"recipe":recipe.reference,"capture":capture,"runId":run,"context":failure_context(session,&recipe.revision,&recipe.capture,&recipe.build)});
-        if self.command == "example.rerun" {
-            payload["selectedRow"] = self
-                .original
-                .as_ref()
-                .map(|v| v["selector"].clone())
-                .unwrap_or(Value::Null)
-        } else if self.payload.get("operation").is_some() {
-            payload["selectedRow"] =
-                json!({"operation":self.payload["operation"],"rowIndex":self.payload["rowIndex"]})
-        }
-        self.files
-            .lock()
-            .unwrap_or_else(|p| p.into_inner())
-            .push(files);
-        let response = bridge_value(&self.bridge, "examples", None, payload, cancel)?;
-        let result = read_output(&self.bridge, &response, "report")?;
+        let session=self.payload["session"].as_str().unwrap_or("");
+        let context=failure_context(session,&recipe.revision,&recipe.capture,&recipe.build);
+        let selected=if self.command=="example.rerun"{self.original.as_ref().map(|v|v["selector"].clone())}else if self.payload.get("operation").is_some(){Some(json!({"operation":self.payload["operation"],"rowIndex":self.payload["rowIndex"]}))}else{None};
+        let parent=request_id("example-sdk");
+        let call=|command:&str,scope:Option<&str>,payload:Value,signal:&AtomicBool|sdk::call(&self.bridge,&self.resources,command,scope,payload,signal);
+        let inventory=||self.inventory(cancel);
+        let outcome=examples::run(&recipe.value,&recipe.capture,&parent,run,selected.as_ref(),Some(&context),&inventory,&call,cancel);
+        sdk::release(&self.bridge,&self.resources,&parent).map_err(native_error)?;
+        let result=outcome.map_err(native_error)?;
         if result["artifactDigest"] != recipe.digest
             || result["report"]["artifact"]["digest"] != recipe.digest
             || result["report"]["artifact"]["sourceRevision"] != recipe.capture.source_revision
@@ -2696,6 +2662,7 @@ fn request_id(prefix: &str) -> String {
 }
 
 struct CheckWorker {
+    resources: Arc<sdk::Resources>,
     config: Config,
     bridge: Option<Arc<Bridge>>,
     tx: Sender<Event>,
@@ -2792,13 +2759,8 @@ impl CheckWorker {
         phase: CheckPhase,
     ) -> std::result::Result<Inventory, String> {
         self.phase(phase, "enumerating_input_membership");
-        let response=bridge.request("inventory",&request_id("inventory"),None,json!({"root":self.config.capture.checkout_root,"compilerPath":self.config.capture.compiler_path,"catalogPath":self.config.capture.catalog_path}),Instant::now()+Duration::from_secs(15),&self.cancel).map_err(|e|e.to_string())?;
-        let value = reply(&response)?;
-        let reference: FileRef =
-            serde_json::from_value(value["inventory"].clone()).map_err(|e| e.to_string())?;
-        let inventory =
-            serde_json::from_slice(&files::read(&reference)?).map_err(|e| e.to_string())?;
-        consume_output(bridge, &reference).map_err(|e| e.to_string())?;
+        let call=|command:&str,parent:Option<&str>,payload:Value,signal:&AtomicBool|sdk::call(bridge,&self.resources,command,parent,payload,signal);
+        let inventory=inventory::collect(std::path::Path::new(&self.config.capture.checkout_root),std::path::Path::new(&self.config.capture.compiler_path),std::path::Path::new(self.config.capture.catalog_path.as_deref().ok_or("catalog unavailable")?),&call,&self.cancel)?;
         self.phase(phase, "verifying_captured_bytes");
         Ok(inventory)
     }
@@ -2866,7 +2828,7 @@ impl CheckWorker {
             .send(Event::Retain(
                 captured.clone(),
                 CompileResult::Artifact {
-                    artifact,
+                    artifact: artifact.clone(),
                     artifact_bytes: bytes.clone(),
                 },
             ))
@@ -2890,23 +2852,11 @@ impl CheckWorker {
             .map_err(|e| e.to_string())?;
         rx.recv_timeout(Duration::from_secs(5))
             .map_err(|e| e.to_string())??;
-        let mut payload = json!({"origin":origin,"artifact":artifact_ref,"capture":capture_ref});
-        if let Some(roles) = &self.config.preview_roles {
-            payload["previewRoles"] = roles.clone();
-        }
-        let response = bridge
-            .request(
-                "prepare",
-                &self.operation,
-                Some(&id),
-                payload,
-                Instant::now() + Duration::from_secs(60),
-                &self.cancel,
-            )
-            .map_err(|e| e.to_string())?;
-        let backend = ready_backend(&response, &id, &origin)?;
-        let recipe =
-            retain_runtime_recipe(bridge, &response, &captured, &ticket.revision, &id, &bytes)?;
+        let _ = (artifact_ref,capture_ref);
+        let call=|command:&str,parent:Option<&str>,payload:Value,signal:&AtomicBool|sdk::call(bridge,&self.resources,command,parent,payload,signal);
+        let prepared=preview::prepare(&captured,&artifact,&bytes,&id,&origin,None,self.config.preview_roles.as_ref().unwrap_or(&json!({})),&call,&self.cancel)?;
+        let backend=prepared.backend.clone();
+        let recipe=retain_runtime_recipe(&prepared,&captured,&ticket.revision,&id,&bytes)?;
         self.phase(CheckPhase::PreparingPreview, "verifying_publication_inputs");
         let hint = self.current_hint()?;
         if !capture::is_current_with_phases(&captured, inventory, &self.cancel, &|phase| {
@@ -3019,6 +2969,7 @@ mod tests {
         let operation = state.begin_check(1).unwrap();
         state.dirty();
         let worker = CheckWorker {
+            resources: Arc::default(),
             config: Config {
                 selection: Selection {
                     checkout_root: request.checkout_root.clone(),

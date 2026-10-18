@@ -2,7 +2,7 @@
  * linked to that Run, then the same Run return. Only labelled authenticated
  * CRUD setup is added; removing it restores the pinned original fixture.
  */
-import { createCheckoutScratch } from '../src/dev/checkout-scratch.js';
+import { createCheckoutScratch } from '../src/runtime/checkout-scratch.test-support.js';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';

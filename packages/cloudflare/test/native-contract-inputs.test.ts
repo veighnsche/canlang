@@ -1,5 +1,5 @@
 /** Original Contract input paths -> captured compiler -> installed native receiver -> real D1/Identity. */
-import { createCheckoutScratch } from '../src/dev/checkout-scratch.js';
+import { createCheckoutScratch } from '../src/runtime/checkout-scratch.test-support.js';
 import assert from 'node:assert/strict';
 import { readFile, rm, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';

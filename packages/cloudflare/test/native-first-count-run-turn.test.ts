@@ -2,7 +2,7 @@
  * CRUD solely for setup. Original Budget selection/guards/Set/SEND/late require
  * remain intact; count appends a genuine sibling Turn linked to the same Run.
  */
-import { createCheckoutScratch } from '../src/dev/checkout-scratch.js';
+import { createCheckoutScratch } from '../src/runtime/checkout-scratch.test-support.js';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';

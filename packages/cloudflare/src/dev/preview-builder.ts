@@ -22,14 +22,13 @@ import { PINNED_COMPATIBILITY_DATE } from "./zero-config.js";
 import { startLocalDev, type LocalDev, type LocalRuntimeBackend } from "./local-run.js";
 import { cleanupAfterFailure, DevCleanupError, retryableDispose } from "./cleanup.js";
 import type { D1Database } from "@cloudflare/workers-types";
-import { startProtectedPreview, type ProtectedPreview } from "./preview-bridge.js";
+import { startProtectedPreview, type PreviewRefusal, type ProtectedPreview } from "./preview-bridge.js";
 import {
   captureIsCurrent,
   verifyCompilerSources,
   type CapturedFileIdentity,
   type SingleFileCapture,
 } from "./source-capture.js";
-import type { SessionServicePreview } from "./session-service.js";
 import type { CompiledExampleInput } from "./example-runner.js";
 import { openRetainedPreviewState } from "./preview-state.js";
 import { configureLocalBindings, planLocalBindings, probeLocalR2, type LocalBindingImplementations } from "./local-bindings.js";
@@ -115,12 +114,24 @@ export interface LocalPreviewSeed {
   readonly owners: readonly { readonly owner: string; readonly binding: string }[];
 }
 
-export type LocalPreviewWithActors = SessionServicePreview & {
+export interface LocalPreviewWithActors {
+  readonly id: string;
+  /** Synchronous current-generation selection, only at the publication fence. */
+  activate?(): void;
+  dispose(): Promise<void>;
+  /** Non-secret listener origin; reading it never issues protected access. */
+  readonly origin?: string;
+  /** A protected, short-lived bootstrap URL; status never returns it. */
+  issueOpenUrl?(): string;
+  /** Actual bounded business refusal; no request headers, credentials or raw response detail. */
+  observeRefusals?(handler: (event: PreviewRefusal) => void): () => void;
+  /** Local-only real Identity fixture credentials, released through owner control. */
   issueLocalActors(): readonly LocalPreviewActor[];
+  /** Exact admitted artifact and verified Worker recipe for isolated rows. */
   exampleInput(): LocalPreviewExampleInput;
   runtimeBackend?(): LocalRuntimeBackend;
   probeRuntime?(): Promise<void>;
-};
+}
 
 export interface LocalPreviewBuilder {
   (artifact: CompileArtifact, capture: SingleFileCapture, artifactBytes?: Uint8Array,
@@ -499,8 +510,8 @@ async function preparePreviewTarget(options: LocalPreviewBuilderOptions, artifac
 }
 
 /**
- * Return the session-service previewBuilder hook. A build is offered for
- * promotion only after all probes and the protected bridge are ready.
+ * Prepare a preview for the owning runtime. A build is offered for promotion
+ * only after all probes and its configured preview access are ready.
  */
 export function createLocalPreviewBuilder(options: LocalPreviewBuilderOptions): LocalPreviewBuilder {
   let stopping = false;

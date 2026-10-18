@@ -98,9 +98,9 @@
       "types": "./dist/distribution.d.ts",
       "default": "./dist/distribution.js"
     },
-    "./dev/browser-tools": {
-      "types": "./dist/dev/browser-tools.d.ts",
-      "default": "./dist/dev/browser-tools.js"
+    "./runtime/browser-tools": {
+      "types": "./dist/runtime/browser-tools.d.ts",
+      "default": "./dist/runtime/browser-tools.js"
     },
     "./deploy/soda": {
       "types": "./dist/deploy/soda.d.ts",

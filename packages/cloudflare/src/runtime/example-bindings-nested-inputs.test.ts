@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import type { CompileArtifact } from '@canlang/contracts';
 import { distribution } from '@canlang/values/distribution';
-import { loadInstalledExampleTestkit, runCompiledExamples } from './example-runner.js';
+import { loadInstalledExampleTestkit, runCompiledExamples } from './example-bindings.test-support.js';
 
 const source = `app NestedFixture
 Given

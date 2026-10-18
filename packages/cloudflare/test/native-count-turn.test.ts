@@ -2,7 +2,7 @@
  * CRUD setup is separate from the exact 454-byte Compiler CountSources fixture.
  * This qualifies count(branch.Turn)+1 and one new contained Turn, not full Chat.
  */
-import { createCheckoutScratch } from '../src/dev/checkout-scratch.js';
+import { createCheckoutScratch } from '../src/runtime/checkout-scratch.test-support.js';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';

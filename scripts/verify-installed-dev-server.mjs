@@ -157,14 +157,11 @@ try {
   const invalid = await check('invalidCheckMs');
   const invalidStatus = (await control('status')).result;
   require(invalid.state === 'errors' && invalidStatus.serving_revision === first.revision, 'source errors retain last good preview');
-  if (options.has('--compat-cli')) {
-    const { stdout } = await exec(join(installation, 'libexec/node'), [resolve(options.get('--compat-cli')), 'status', '--root', root, '--session', session],
-      { cwd: root, env, timeout: 10000, maxBuffer: 128 * 1024 });
-    const compatible = JSON.parse(stdout);
-    require(compatible.ok === true && compatible.session === session && compatible.result.serving_revision === first.revision,
-      'existing JSON consumer sees the same native owner');
-    report.passed.push('existing TypeScript JSON consumer controls installed native owner');
-  }
+  const compatible = await control('status');
+  require(compatible.command === 'status' && compatible.result.schema === 'can.dev.status.v1' &&
+    compatible.session === session && compatible.result.serving_revision === first.revision,
+    'native JSON consumer sees the same retained owner and last good revision');
+  report.passed.push('public native JSON consumer retains session identity and last good revision');
   const diagnostics = (await control('diagnostics', ['--revision', invalid.revision])).result;
   require(diagnostics.diagnostics.length > 0 && Number.isInteger(diagnostics.compiler_omitted), 'bounded diagnostic page and counts');
   await control('diagnostic.detail', ['--revision', invalid.revision, '--index', '0']);

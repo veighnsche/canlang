@@ -1,7 +1,7 @@
 /** Original Purchase record_payable and return_goods through installed State/Identity/D1.
  * Canonical example snapshots only establish authoritative initial records.
  */
-import { createCheckoutScratch } from '../src/dev/checkout-scratch.js';
+import { createCheckoutScratch } from '../src/runtime/checkout-scratch.test-support.js';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { execFile } from 'node:child_process';

@@ -7,7 +7,7 @@ import {
   assertDistReady,
   discoverArtifact,
   resolveLocalDefaults,
-} from "../src/dev/zero-config.js";
+} from "../src/cli/artifact-defaults.js";
 import { UI_BUILD_COMMAND, UI_DIST_ENTRY_RELATIVE } from "../src/runtime/modules.js";
 
 const SHA = "a".repeat(64);

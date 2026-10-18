@@ -14,7 +14,7 @@ import {
   type CompiledExampleInput,
   type ExampleRowScope,
   type ExampleRuntimeHooks,
-} from "./example-runner.js";
+} from "./example-bindings.test-support.js";
 
 const compiler = join(process.cwd(), "compiler/target/debug/can");
 const catalog = fileURLToPath(valuesDistribution.catalog);

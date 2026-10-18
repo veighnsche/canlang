@@ -14,9 +14,32 @@ import { localPreviewActivationVerdict, preflightLocalPreviewActivation, produce
   seedLocalPreviewActors, localPreviewWorkerVars } from './preview-host.js';
 import { loadInstalledChromium, prepareLocalPreviewCapture } from './preview-inputs.js';
 import { qualifyFirstProfileBrowser, type FirstProfileBrowserInput } from './first-profile-browser.js';
-import { FIRST_PROFILE, parseCompilerConstructCandidates } from './construct-help.js';
-import type { SessionConstructQualification, SessionConstructQualificationRequest } from './session-service.js';
+import { FIRST_PROFILE, parseCompilerConstructCandidates, type QualifiedConstructProof } from './construct-help.js';
 import { captureIsCurrent, capturedProducerInputsAreCurrent, captureSingleFileSource, verifyCompilerSources, type SingleFileCapture } from './source-capture.js';
+
+/** Trusted runtime evidence, never accepted from control callers. */
+export interface FirstProfileConstructQualification {
+  readonly resourceProfile: string;
+  readonly authoringProfile: typeof FIRST_PROFILE;
+  readonly indexRevision: string;
+  readonly compilerSha256: string;
+  /** Hash of exact captured producer identities, independent of application source. */
+  readonly producerInputsDigest: string;
+  /** Finite owning normalized diagnostic branches qualified for bounded ranking. */
+  readonly messageKinds: readonly string[];
+  readonly proofs: readonly QualifiedConstructProof[];
+}
+
+export interface FirstProfileConstructQualificationRequest {
+  readonly resourceProfile: string;
+  readonly authoringProfile: typeof FIRST_PROFILE;
+  readonly indexRevision: string;
+  readonly compilerSha256: string;
+  readonly producerInputsDigest: string;
+  readonly inputs: SingleFileCapture["inputs"];
+  /** Private trusted runtime input, never an external ranking packet. */
+  readonly capture: SingleFileCapture;
+}
 
 type Qualification = { readonly id: string; readonly runtimeCheck: string; readonly exampleCheck?: string };
 type Actor = { readonly cookie: string; readonly csrf: string; readonly owner: string | null; readonly principal: string };
@@ -548,9 +571,9 @@ export async function qualifyInstalledFirstProfile(capture: SingleFileCapture, s
  * are retained for at most four tuples. Cancellation/races retain nothing.
  */
 export function createInstalledFirstProfileQualification() {
-  const completed = new Map<string, SessionConstructQualification | null>();
-  return async (request: SessionConstructQualificationRequest & { readonly capture: SingleFileCapture },
-    signal?: AbortSignal): Promise<SessionConstructQualification | null> => {
+  const completed = new Map<string, FirstProfileConstructQualification | null>();
+  return async (request: FirstProfileConstructQualificationRequest,
+    signal?: AbortSignal): Promise<FirstProfileConstructQualification | null> => {
     signal?.throwIfAborted();
     const capture = request.capture;
     assert.equal(request.producerInputsDigest,sha(JSON.stringify(capture.inputs)));
@@ -588,7 +611,7 @@ export function createInstalledFirstProfileQualification() {
     }
     signal?.throwIfAborted(); assert.equal(await capturedProducerInputsAreCurrent(capture),true); signal?.throwIfAborted();
     const fixtureIdentity=capture.inputs.find(item=>item.name==='extra:construct-profile:fixture')!;
-    const result: SessionConstructQualification=Object.freeze({ resourceProfile:request.resourceProfile,
+    const result: FirstProfileConstructQualification=Object.freeze({ resourceProfile:request.resourceProfile,
       authoringProfile:FIRST_PROFILE,indexRevision:request.indexRevision,compilerSha256:request.compilerSha256,
       producerInputsDigest:request.producerInputsDigest,messageKinds:Object.freeze([]),
       proofs:Object.freeze(actual.map(record=>Object.freeze({ ...record,indexRevision:request.indexRevision,

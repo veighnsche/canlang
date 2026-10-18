@@ -24,7 +24,7 @@ import { preflightLocalPreviewActivation, localPreviewActivationVerdict, produce
   seedLocalPreviewActors } from '../dev/preview-host.js';
 import { startLocalDev, type LocalDev } from '../dev/local-run.js';
 import { startProtectedPreview, type ProtectedPreview } from '../dev/preview-bridge.js';
-import { PINNED_COMPATIBILITY_DATE } from '../dev/zero-config.js';
+import { PINNED_COMPATIBILITY_DATE } from '../cli/artifact-defaults.js';
 
 const root = resolve(fileURLToPath(new URL('../../../../', import.meta.url)));
 const model = 'NativeSavedScenario.Item';

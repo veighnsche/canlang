@@ -1,5 +1,5 @@
 /** Emitted protected row actions and poll markers in the installed browser. */
-import { createCheckoutScratch } from '../src/dev/checkout-scratch.js';
+import { createCheckoutScratch } from '../src/runtime/checkout-scratch.test-support.js';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { randomBytes, createHash } from 'node:crypto';

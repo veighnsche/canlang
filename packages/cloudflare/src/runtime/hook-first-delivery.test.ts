@@ -19,7 +19,7 @@ import { createMemoryIdentityStore } from '@canlang/identity/testing';
 import { createTestMemoryStorage } from '@canlang/state/storage/memory';
 import { assembleModules } from '@canlang/cloudflare/runtime/modules';
 import { buildInvoker } from '@canlang/cloudflare/worker/assembly';
-import { createCheckoutScratch } from '../dev/checkout-scratch.js';
+import { createCheckoutScratch } from './checkout-scratch.test-support.js';
 import { originalScenarioSource as originalHandlerSource } from './original-source.testing.js';
 
 const execFileAsync = promisify(execFile);

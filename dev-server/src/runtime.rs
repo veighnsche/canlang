@@ -25,6 +25,56 @@ pub const MAX_FRAME: usize = 64 * 1024;
 pub const MAX_STDERR: usize = 64 * 1024;
 const MAX_PENDING: usize = 16;
 const MAX_RETAINED: usize = 64;
+// Fixed SDK methods advertised by dev-server/host/sdk.mjs. Development jobs
+// themselves execute in the native owner.
+const REQUIRED_COMMANDS: &[&str] = &[
+    "node.resolve",
+    "runtime.constants",
+    "metadata.parse",
+    "mf.create",
+    "mf.dispose",
+    "mf.scheduled",
+    "d1.query",
+    "r2.put",
+    "r2.get",
+    "r2.delete",
+    "identity.ensureSchema",
+    "identity.createTeam",
+    "identity.createUser",
+    "identity.createMembership",
+    "identity.findUserByEmail",
+    "identity.findTeamById",
+    "identity.setMemberRole",
+    "identity.hashPassword",
+    "identity.csrf",
+    "identity.resolve",
+    "state.ensureSchema",
+    "state.ownerScoped",
+    "state.hashInputs",
+    "semantic.activate",
+    "semantic.appDefinition",
+    "bundle.build",
+    "bundle.assert",
+    "testkit.load",
+    "testkit.row",
+    "testkit.report",
+    "testkit.dispose",
+    "browser.executable",
+    "browser.launch",
+    "browser.newContext",
+    "browser.newPage",
+    "browser.goto",
+    "browser.request",
+    "browser.cookies",
+    "browser.locator",
+    "browser.submit",
+    "browser.title",
+    "browser.close",
+    "consume",
+    "cancel",
+    "release",
+    "retry",
+];
 
 #[derive(Clone, Debug)]
 pub struct BridgeConfig {
@@ -520,18 +570,11 @@ impl BridgeState {
                 || ready.session_id != config.session_id
                 || ready.pid != bridge.child.id()
                 || ready.profile != config.profile
-                || ready.commands.len() > 32
+                || ready.commands.len() > 64
                 || ready.commands.iter().any(|command| !valid_id(command))
-                || [
-                    "inventory",
-                    "prepare",
-                    "probe",
-                    "cancel",
-                    "release",
-                    "retry",
-                ]
-                .iter()
-                .any(|command| !ready.commands.iter().any(|ready| ready == command))
+                || REQUIRED_COMMANDS
+                    .iter()
+                    .any(|command| !ready.commands.iter().any(|ready| ready == command))
             {
                 return Err(failure(
                     ErrorKind::Protocol,
@@ -989,7 +1032,7 @@ mod tests {
 const sessionId=process.argv[process.argv.indexOf('--session')+1];
 const protocol='can.dev.runtime.v1';
 const send=value=>process.stdout.write(JSON.stringify(value)+'\n');
-send({protocol,kind:'ready',sessionId,pid:process.pid,profile:'local-d1-identity',commands:['inventory','prepare','probe','cancel','release','retry']});
+send({protocol,kind:'ready',sessionId,pid:process.pid,profile:'local-d1-identity',commands:[...__SDK_COMMANDS__,'inventory','prepare','probe']});
 require('readline').createInterface({input:process.stdin}).on('line',line=>{
  const request=JSON.parse(line);
  const respond=()=>send({protocol,kind:'result',sessionId,operationId:request.operationId,generationId:request.generationId,ok:true,allocation:request.command==='prepare'?'owned':request.command==='release'?'released':'none',result:{command:request.command}});
@@ -1001,7 +1044,14 @@ process.stdin.on('end',()=>process.exit(0));
     fn fixture(script: &str) -> (tempfile::TempDir, BridgeConfig) {
         let directory = tempfile::tempdir().unwrap();
         let host_script = directory.path().join("host.cjs");
-        fs::write(&host_script, script).unwrap();
+        fs::write(
+            &host_script,
+            script.replace(
+                "__SDK_COMMANDS__",
+                &serde_json::to_string(REQUIRED_COMMANDS).unwrap(),
+            ),
+        )
+        .unwrap();
         let config = BridgeConfig {
             node: std::env::var_os("CAN_DEV_TEST_NODE")
                 .map(PathBuf::from)
@@ -1044,6 +1094,7 @@ process.stdin.on('end',()=>process.exit(0));
         for bad in [
             SCRIPT.replace("pid:process.pid", "pid:1"),
             SCRIPT.replace("profile:'local-d1-identity'", "profile:'wrong'"),
+            SCRIPT.replace("__SDK_COMMANDS__", "[]"),
         ] {
             let (_directory, config) = fixture(&bad);
             let error = match Bridge::spawn(config) {

@@ -2,7 +2,7 @@
  * labelled test-authored member CRUD block in owned temporary source. No tracked
  * fixture edit, raw State seed, undeclared operation or two matching accounts.
  */
-import { createCheckoutScratch } from '../src/dev/checkout-scratch.js';
+import { createCheckoutScratch } from '../src/runtime/checkout-scratch.test-support.js';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';

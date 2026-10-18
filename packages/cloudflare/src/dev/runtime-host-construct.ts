@@ -9,7 +9,7 @@ import { FIRST_PROFILE, parseCompilerConstructCandidates, type QualifiedConstruc
   type CatalogFact, type ConstructHelpIndex, type ConstructHelpInputs } from "./construct-help.js";
 import { installedReferenceRoot } from "./preview-inputs.js";
 import type { SingleFileCapture } from "./source-capture.js";
-import type { SessionConstructQualification } from "./session-service.js";
+import type { FirstProfileConstructQualification } from "./first-profile-qualification.js";
 import { readRuntimeFile, runtimeObject, runtimeString } from "./runtime-host-protocol.js";
 function record(value: unknown): Record<string, unknown> | null {
   return value !== null && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
@@ -81,7 +81,7 @@ export async function runtimeConstruct(capture: SingleFileCapture, payload: Reco
     throw new Error("captured help identity mismatch");
   }
   const qualification = payload.qualification === undefined ? null
-    : JSON.parse((await readRuntimeFile(payload.qualification)).toString("utf8")) as SessionConstructQualification | null;
+    : JSON.parse((await readRuntimeFile(payload.qualification)).toString("utf8")) as FirstProfileConstructQualification | null;
   const proofs = qualification?.indexRevision === index.revision && qualification.compilerSha256 === index.compilerSha256
     && qualification.authoringProfile === FIRST_PROFILE && qualification.resourceProfile === capture.profile
     && qualification.producerInputsDigest === createHash("sha256").update(JSON.stringify(capture.inputs)).digest("hex")
@@ -124,7 +124,7 @@ function sourceKeywordAt(bytes: Buffer, start: number): boolean {
 }
 
 async function rankConstruct(capture: SingleFileCapture, payload: Record<string, unknown>, index: ConstructHelpIndex,
-  bundle: SessionConstructQualification | null, proofs: readonly QualifiedConstructProof[]) {
+  bundle: FirstProfileConstructQualification | null, proofs: readonly QualifiedConstructProof[]) {
   const diagnostic = runtimeObject(payload.diagnostic);
   const routing = parseCompilerConstructCandidates(diagnostic.construct_candidates);
   if (routing.disposition === "structural") return { state: "structural", reason: "authoring slot is not reliable" };

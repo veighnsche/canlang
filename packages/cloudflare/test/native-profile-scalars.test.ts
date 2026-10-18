@@ -2,7 +2,7 @@
  * Runtime outcomes below require this complete installed native execution;
  * source/descriptor/factory qualification alone does not establish them.
  */
-import { createCheckoutScratch } from '../src/dev/checkout-scratch.js';
+import { createCheckoutScratch } from '../src/runtime/checkout-scratch.test-support.js';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';

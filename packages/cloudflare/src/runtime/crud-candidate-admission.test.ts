@@ -1,5 +1,5 @@
 /** Native source -> installed canonical invoker; memory State, not browser/D1 coverage. */
-import { createCheckoutScratch } from '../dev/checkout-scratch.js';
+import { createCheckoutScratch } from './checkout-scratch.test-support.js';
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { rm, writeFile } from 'node:fs/promises';

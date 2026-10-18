@@ -64,6 +64,7 @@ function productionFile(name, path) {
   return true;
 }
 copy(join(root, 'scripts/distribution/module-resolution.mjs'), join(stage, 'libexec/module-resolution.mjs'), 'launchers');
+copy(join(root, 'dev-server/host'), join(stage, 'libexec/dev-server-host'), 'dev-server');
 const compiler = options.get('--compiler') ?? join(root, 'compiler/target/release/can');
 const devServer = options.get('--dev-server') ?? join(root, 'compiler/target/release/can-dev');
 copy(compiler, join(stage, 'libexec/can'), 'compiler');
@@ -177,7 +178,8 @@ for (const pkg of packages.values()) for (const destination of pkg.destinations)
   }
 }
 execFileSync(join(stage, 'libexec/node'), ['--input-type=module', '-e', "await import('@canlang/cloudflare'); await import('@canlang/testkit')"], { cwd: stage, stdio: 'inherit' });
-assert.ok(existsSync(join(stage, 'node_modules/@canlang/cloudflare/dist/dev/runtime-host.js')), 'Native runtime bridge is missing');
+assert.ok(existsSync(join(stage, 'libexec/dev-server-host/entry.mjs')), 'Native development SDK host is missing');
+assert.ok(existsSync(join(stage, 'node_modules/@canlang/cloudflare/dist/native-dev-catalog.json')), 'Native construct catalog is missing');
 
 
 // Existing release stamp ownership facts, without shipping development declarations.

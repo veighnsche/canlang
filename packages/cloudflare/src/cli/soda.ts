@@ -10,7 +10,7 @@ import type { SodaBundle } from '../deploy/soda.js';
 import { bundleMixedSha256, inventorizeAssets, assertLinksResolve, assertWorkerdLoadable } from '../deploy/bundle.js';
 import { provisionSodaStorage, startSodaRuntime } from '../deploy/soda-run.js';
 import { installWorkerdShutdown, superviseWorkerd } from '../deploy/soda-lifetime.js';
-import { PINNED_COMPATIBILITY_DATE } from '../dev/zero-config.js';
+import { PINNED_COMPATIBILITY_DATE } from '../cli/artifact-defaults.js';
 
 type Options = Map<string, string>;
 function required(options: Options, name: string): string {

@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import type { CompileArtifact } from '@canlang/contracts';
-import { loadInstalledExampleTestkit, runCompiledExamples } from './example-runner.js';
+import { loadInstalledExampleTestkit, runCompiledExamples } from './example-bindings.test-support.js';
 
 test('default row identity matches only its provisioned static role array', async () => {
   const directory = mkdtempSync(join(tmpdir(), 'can-role-identity-'));

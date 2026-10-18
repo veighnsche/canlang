@@ -1,5 +1,21 @@
 # Canlang language design decisions
 
+## 2026-10-18 — implement remaining development orchestration natively
+
+**Accepted user direction; implementation in progress.** Replace the remaining
+coarse TS development workflows with Rust inventory/config/preparation,
+construct help/ranking and example/qualification sequencing. Retire duplicate
+controllers and migrate real callers; retain defining application/runtime/Testkit
+semantics and a fixed SDK bridge. Do not count relocation of old orchestration as
+completion. Preserve all lifecycle/permission/cleanup barriers and prior accepted
+results at their recorded scope. Three independently worded JEV NOUL consultations
+on this narrower boundary return .73/.78/.81; advice is consistent but uncertain,
+not verification. Requests/responses are retained in
+`docs/design/jev/dev-native-runtime-boundary-20261018.json`. Initial approval review
+rejected the calls; the retry was accepted after checking public-only prose payloads
+and the explicit AGENTS preauthorization. Actual native/bridge/installed acceptance
+for this stronger scope remains pending.
+
 ## 2026-10-18 — accept the integrated native release manual workflow
 
 **Accepted finite result.** Maincdf26e070 includes the native manual server and

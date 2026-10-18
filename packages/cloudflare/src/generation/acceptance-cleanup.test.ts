@@ -7,8 +7,8 @@ import { cleanupAcceptanceBrowsers, type AcceptanceCleanupControl } from "./acce
 
 const session = "a".repeat(48);
 const app = "Probe";
-const unavailable = (command: string, detail = "ENOENT: endpoint absent") => ({
-  code: 1, stdout: JSON.stringify({ ok: false, command, code: "CONTROL_UNAVAILABLE", detail }),
+const unavailable = (command: string, detail = "No such file or directory (os error 2)") => ({
+  code: 1, stdout: JSON.stringify({ ok: false, command, code: "CONTROL_IO", detail }),
 });
 const present = { code: 0, stdout: JSON.stringify({ ok: true, command: "discover", session }) };
 const stopped = { code: 0, stdout: JSON.stringify({ ok: true, command: "stop", session, result: { stopped: true } }) };
@@ -68,7 +68,10 @@ for (const altered of ["workspace", "source", "session", "app", "owned"] as cons
   });
 }
 
-for (const final of [present, unavailable("discover", "ECONNREFUSED"),
+for (const final of [present, unavailable("discover", "Connection refused (os error 61)"),
+  unavailable("discover", "ENOENT mentioned in another error"),
+  unavailable("discover", "Permission denied (os error 13)"),
+  { code: 1, stdout: JSON.stringify({ ok: false, command: "discover", code: "CONTROL_UNAVAILABLE", detail: "ENOENT: endpoint absent" }) },
   { code: 1, stdout: JSON.stringify({ ok: false, command: "discover", code: "SESSION_MISMATCH", detail: "ENOENT" }) }]) {
   test(`browser cleanup refuses stop acknowledgement without verified absence: ${final.stdout}`, async () => {
     const f = await fixture();

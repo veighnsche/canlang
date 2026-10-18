@@ -2,7 +2,7 @@
  * Canonical snapshots are setup only. Every exercised mutation is the compiler's
  * unchanged recover method, through the installed State/Identity/D1 graph.
  */
-import { createCheckoutScratch } from '../src/dev/checkout-scratch.js';
+import { createCheckoutScratch } from '../src/runtime/checkout-scratch.test-support.js';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { execFile } from 'node:child_process';

@@ -8,6 +8,8 @@ import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
 
 const exec = promisify(execFile);
+const controlBin = process.env.CAN_DEV_BIN ?? 'can';
+const controlPrefix = process.env.CAN_DEV_BIN === undefined ? ['dev'] : [];
 const root = process.cwd();
 // Resolve browser/auth clients from the selected execution root, including frozen snapshots.
 const runtimeRequire = createRequire(resolve(root, 'package.json'));
@@ -58,7 +60,7 @@ function sanitizeTree(value) {
 async function control(command, flags = [], cleanup = false) {
   let result;
   try {
-    result = await exec(process.execPath, [resolve(root, 'packages/cloudflare/dist/dev/control-cli.js'), command, ...flags],
+    result = await exec(controlBin, [...controlPrefix, command, ...flags],
       { cwd: root, timeout: cleanup ? 15000 : Math.min(60000, remaining()), maxBuffer: 256 * 1024 });
   } catch (error) {
     // Decode typed control failures privately; never print raw CLI output.
@@ -236,7 +238,7 @@ try {
         report.failures.push(`Owned session cleanup failed: ${sanitize(error.message)}`);
         report.ok = false;
       } catch (discovery) {
-        if (discovery.controlCode === 'CONTROL_UNAVAILABLE' && discovery.controlDetail?.startsWith('ENOENT:')) {
+        if (discovery.controlCode === 'CONTROL_IO' && discovery.controlDetail === 'No such file or directory (os error 2)') {
           report.cleanup = { owned: true, released: true, note: 'Owned endpoint absence verified after stop acknowledgement failure' };
         } else {
           report.failures.push(`Owned session cleanup could not be verified: ${sanitize(discovery.message)}`);

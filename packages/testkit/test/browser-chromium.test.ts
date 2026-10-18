@@ -27,9 +27,9 @@ async function application(mode = "driver") {
   await copyFile(join(packageRoot, "package.json"), join(installed, "package.json"));
   await copyFile(join(packageRoot, "dist/browser/chromium.js"), join(installed, "dist/browser/chromium.js"));
   const cloudflare = join(root, "node_modules/@canlang/cloudflare");
-  await mkdir(join(cloudflare, "dist/dev"), { recursive: true });
-  await writeFile(join(cloudflare, "package.json"), JSON.stringify({ name: "@canlang/cloudflare", type: "module", exports: { "./dev/browser-tools": "./dist/dev/browser-tools.js" } }));
-  await copyFile(join(packageRoot, "../cloudflare/dist/dev/browser-tools.js"), join(cloudflare, "dist/dev/browser-tools.js"));
+  await mkdir(join(cloudflare, "dist/runtime"), { recursive: true });
+  await writeFile(join(cloudflare, "package.json"), JSON.stringify({ name: "@canlang/cloudflare", type: "module", exports: { "./runtime/browser-tools": "./dist/runtime/browser-tools.js" } }));
+  await copyFile(join(packageRoot, "../cloudflare/dist/runtime/browser-tools.js"), join(cloudflare, "dist/runtime/browser-tools.js"));
 
   const executable = join(root, "chromium");
   if (mode === "directory") await mkdir(executable);

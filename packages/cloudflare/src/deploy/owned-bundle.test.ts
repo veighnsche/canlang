@@ -4,7 +4,7 @@ import type { CompileArtifact } from "@canlang/contracts";
 import { buildOwnedDeployBundleWithAssets } from "./owned-bundle.js";
 import { startLocalDev } from "../dev/local-run.js";
 import { bundlerExecutableInputs } from "../dev/preview-inputs.js";
-import { PINNED_COMPATIBILITY_DATE } from "../dev/zero-config.js";
+import { PINNED_COMPATIBILITY_DATE } from "../cli/artifact-defaults.js";
 
 test("owned portable build returns a genuine browser bundle loadable by workerd", { timeout: 120_000 }, async () => {
   const artifact: CompileArtifact = {

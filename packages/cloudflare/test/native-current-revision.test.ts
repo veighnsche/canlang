@@ -2,7 +2,7 @@
  * Worker qualification is recorded separately from each actual main capture.
  * Preserves original policies, WorkflowDefinition CRUD and physical File authority.
  */
-import { createCheckoutScratch } from '../src/dev/checkout-scratch.js';
+import { createCheckoutScratch } from '../src/runtime/checkout-scratch.test-support.js';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';

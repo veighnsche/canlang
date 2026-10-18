@@ -1,4 +1,4 @@
-import { browserToolsRoot, browserToolsExecutable } from '@canlang/cloudflare/dev/browser-tools';
+import { browserToolsRoot, browserToolsExecutable } from '@canlang/cloudflare/runtime/browser-tools';
 /** Optional Node browser producer. Deliberately absent from the portable/root entry. */
 import { constants } from "node:fs";
 import { access, stat } from "node:fs/promises";

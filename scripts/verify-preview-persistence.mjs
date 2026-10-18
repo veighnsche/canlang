@@ -41,11 +41,12 @@ const installed = existsSync(join(tools, 'tools.json'));
 const compiler = resolve(option('--compiler') ?? join(tools, installed ? 'compiler/target/release/can' : 'compiler/target/debug/can'));
 const catalog = join(tools, installed ? 'lib/node_modules/@canlang/cloudflare/dist/native-catalog.json' : 'packages/values/dist/catalog.json');
 const help = join(tools, 'docs/specification/CONSTRUCT-HELP.md');
-const cli = join(tools, installed ? 'bin/can-dev' : 'packages/cloudflare/dist/dev/control-cli.js');
+const cli = process.env.CAN_DEV_BIN ?? (installed ? join(tools, 'bin/can-dev') : 'can');
+const controlPrefix = process.env.CAN_DEV_BIN === undefined && !installed ? ['dev'] : [];
 let session;
 function control(command, args = []) {
   let output;
-  try { output = execFileSync(installed ? cli : process.execPath, [...(installed ? [] : [cli]), command, '--root', root,
+  try { output = execFileSync(cli, [...controlPrefix, command, '--root', root,
     ...(session && command !== 'start' ? ['--session', session] : []), ...args],
     { cwd: root, env, encoding: 'utf8', timeout: 120_000, stdio: ['ignore', 'pipe', 'pipe'] }); }
   catch (error) { output = error.stdout; }

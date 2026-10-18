@@ -1,5 +1,34 @@
 # `can dev` implementation plan
 
+**Current ownership-completion execution, 2026-10-18:** after the accepted
+native main/manual release checkpoint, the user explicitly requests deletion of
+redundant TypeScript dev-server code and implementation of remaining development
+logic in Rust. This strengthens the former coarse target adapter boundary; prior
+manual/profile results remain accepted at their recorded inputs, not proof of the
+new ownership scope.
+
+Continue canonical T14/T16/T17 in dependency order: (1) migrate maintained callers
+to native control and disconnect legacy controller types; (2) port help/rank,
+native inventory/config/persistence/preparation and example/qualification sequencing;
+(3) reduce the JS host to fixed Miniflare/SDK/defining shared semantic API calls,
+with no dev capture/compiler/queues/cache/publication workflow; (4) delete obsolete
+controller/helper sources and their exclusive tests, retaining semantic-owner
+regressions and migrating still-used public CLI consumers; (5) qualify changed
+native/bridge/installed manual behavior, then integrate under a new safe main
+window and remeasure. No old session-controller fallback or renamed coarse builder
+counts as completion. Compiled application/runtime and Testkit semantics retain
+their defining owners; direct JS APIs are an execution boundary, not a second dev
+controller.
+
+Required output is an actually used native pipeline, no maintained caller/import
+of retired TS orchestration, exact explicit allocation/late-result retention and
+confirmed release, unchanged permissions/evaluation/atomicity, and the same real
+installed manual/terminal outcomes. Native child IDs are allocated before SDK
+calls; absent/failed replies retain the parent generation/owned process scope.
+JavaScript keeps only live SDK objects and retryable disposal handles. Existing
+source/epoch/currentness and private file contracts remain. Old stopped U and
+foreign unfinished main inputs stay preserved, excluded from implementation.
+
 **Integrated release acceptance and final measurement, 2026-10-18:** native
 manual development is integrated in local main at `cdf26e070`. The accepted
 compiler-context batch9e9b1c7c4 is included, all24 foreign tracked source/test/AGENTS

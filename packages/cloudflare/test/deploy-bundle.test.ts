@@ -24,7 +24,7 @@ import {
   writeDeployBundle,
   type ModuleSyntaxFacts,
 } from "../src/deploy/bundle.js";
-import { PINNED_COMPATIBILITY_DATE } from "../src/dev/zero-config.js";
+import { PINNED_COMPATIBILITY_DATE } from "../src/cli/artifact-defaults.js";
 import { startLocalDev } from "../src/dev/local-run.js";
 import { rewriteModuleImports, scanModuleImports } from "../src/deploy/module-imports.js";
 import { resolveProducerFile } from "../src/deploy/producer-files.js";

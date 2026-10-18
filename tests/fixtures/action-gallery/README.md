@@ -23,10 +23,9 @@ can validate tests/fixtures/action-gallery/ActionGallery.can
 
 The app-local Playwright test consumes the normal `CAN_ACCEPTANCE_SOURCE`, `CAN_ACCEPTANCE_WORKSPACE` and `CAN_ACCEPTANCE_OUTPUT` contract and uses the existing real development-session helper. It captures default, edit, open secondary-menu and archive-confirmation states for eight record owners at 1440×1000 and 390×844. The static page owner instead captures its default heading, create dialog and secondary navigation menu, then follows the navigation target. Dark table edit and archive dialogs also check that Cancel and the committing action share one footer without a nested card. These produce 74 inspection screenshots; edits, archives and the extra create are cancelled, and the owned session is closed. Screenshots are written beneath the acceptance output's `screenshots/` directory; local test execution uses `playwright/results/screenshots/`. Captures are inspection artifacts, not automatically approved visual baselines.
 
-For interactive inspection, the existing CLI uses development control commands rather than `can dev FILE`:
+For interactive inspection, use the installed native development control:
 
 ```sh
-export CAN_DEV_BIN="$PWD/packages/cloudflare/dist/dev/control-cli.js"
 can dev start --root "$PWD" --source tests/fixtures/action-gallery/ActionGallery.can --app ActionGallery
 ```
 

@@ -1,4 +1,4 @@
-//! Native entry wiring. The TypeScript install entry remains until T17 parity.
+//! Native command entry wiring and SDK host selection.
 use crate::{
     capture::CaptureRequest,
     claim::{self, Lookup, Selection},
@@ -67,6 +67,12 @@ impl StartConfig {
 }
 
 pub fn run(argv: Vec<String>) -> u8 {
+    if argv
+        .first()
+        .is_some_and(|a| matches!(a.as_str(), "examples-artifact" | "producer-current"))
+    {
+        return crate::artifact::run(&argv);
+    }
     if argv.first().is_some_and(|a| a == "__owner") {
         crate::signals::install();
         return daemon_entry(&argv[1..]);
@@ -275,6 +281,19 @@ fn config(args: &Args) -> Result<StartConfig> {
         install_root,
     })
 }
+pub(crate) fn artifact_config(root: &Path, source: &str) -> Result<Config> {
+    let root = root
+        .to_str()
+        .ok_or_else(|| fail("INVALID_ARGUMENTS", "project root is not UTF-8"))?;
+    config(&Args {
+        command: "start".into(),
+        values: BTreeMap::from([
+            ("--root".into(), root.into()),
+            ("--source".into(), source.into()),
+        ]),
+    })
+    .map(StartConfig::owner)
+}
 fn source_capture(args: &Args) -> Result<CaptureRequest> {
     let root = root(args)?;
     let install_root = installation()?;
@@ -432,15 +451,12 @@ fn bridge_script(root: &str) -> Result<PathBuf> {
     let install_root = installation()?;
     let path = std::env::var_os("CAN_DEV_RUNTIME_HOST")
         .map(PathBuf::from)
-        .or_else(|| {
-            install_root
-                .map(|root| root.join("node_modules/@canlang/cloudflare/dist/dev/runtime-host.js"))
-        })
-        .unwrap_or_else(|| Path::new(root).join("packages/cloudflare/dist/dev/runtime-host.js"));
+        .or_else(|| install_root.map(|root| root.join("libexec/dev-server-host/entry.mjs")))
+        .unwrap_or_else(|| Path::new(root).join("dev-server/host/entry.mjs"));
     fs::canonicalize(path).map_err(|_| {
         fail(
             "RUNTIME_UNAVAILABLE",
-            "build the local Cloudflare runtime bridge before starting the native owner",
+            "the native development SDK host entry is unavailable",
         )
     })
 }

@@ -1,5 +1,5 @@
 /** Actual native compile and canonical memory consumer; no whole-app or D1 claim. */
-import { createCheckoutScratch } from '../dev/checkout-scratch.js';
+import { createCheckoutScratch } from './checkout-scratch.test-support.js';
 import assert from 'node:assert/strict';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';

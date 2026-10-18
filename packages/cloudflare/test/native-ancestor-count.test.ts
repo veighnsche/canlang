@@ -2,7 +2,7 @@
  * equality and unfinished short-circuit before one Run creation and return.
  * Only the visibly labelled three-line authenticated CRUD setup is added.
  */
-import { createCheckoutScratch } from '../src/dev/checkout-scratch.js';
+import { createCheckoutScratch } from '../src/runtime/checkout-scratch.test-support.js';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';

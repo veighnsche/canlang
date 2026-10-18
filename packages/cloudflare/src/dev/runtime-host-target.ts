@@ -9,8 +9,7 @@ import { DevCleanupError } from "./cleanup.js";
 import { createInstalledLocalPreviewBuilder } from "./preview-host.js";
 import { assertInstalledCatalog, installedBrowserQualificationInputs, installedLocalPreviewInputInventory } from "./preview-inputs.js";
 import { loadInstalledExampleTestkit, runCompiledExamples } from "./example-runner.js";
-import { createInstalledFirstProfileQualification } from "./first-profile-qualification.js";
-import type { SessionConstructQualificationRequest } from "./session-service.js";
+import { createInstalledFirstProfileQualification, type FirstProfileConstructQualificationRequest } from "./first-profile-qualification.js";
 import type { LocalPreviewBuilder, LocalPreviewWithActors } from "./preview-builder.js";
 import type { PreviewRefusal } from "./preview-bridge.js";
 import { parsePreviewRoles } from "./preview-roles.js";
@@ -241,7 +240,7 @@ export class RuntimeTargets {
     try {
       const payload = runtimeObject(JSON.parse((await readRuntimeFile(request.payload.request)).toString("utf8")));
       const capture = parseRuntimeCapture(await readRuntimeFile(request.payload.capture));
-      const result = await this.qualify({ ...payload, capture } as unknown as SessionConstructQualificationRequest, signal);
+      const result = await this.qualify({ ...payload, capture } as unknown as FirstProfileConstructQualificationRequest, signal);
       return { qualification: await writeRuntimeFile(this.directory, result) };
     } finally { this.qualificationJobs -= 1; }
   }
