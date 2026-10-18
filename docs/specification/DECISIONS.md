@@ -45,6 +45,18 @@ closed, and native construction has no assumed speed advantage. The canonical
 priority section retains the dependent order and independent alternatives. It
 neither preempts a user's live Muse unit nor authorizes implementation.
 
+**Accepted-scope coverage correction:** the original app-intent records already
+assign Discover/Enrich outward source semantics, Sync conditional remote writes,
+federated work reads and structured Decide/Discover/Workbench runtime-AI output to
+existing source/provider and application outcomes. Inbound Billing/Sales mapping,
+CC/CH provider qualification, generic text output or BGI generation alone cannot
+close those consumers. Name their exact declaration/result/authority/recovery
+criteria under FP.SOURCE-MAPPINGS and FP.SERVICE-CATALOG, linked once from
+FP.INVOCATION/FP.QUALIFY. No new outcome ID or subsystem is required; counts stay
+77 reviewed / 76 open. Reception's configured-device branch remains optional;
+actual provider/snapshot guarantees and existing policy decisions stay explicit.
+This focused inventory/owner check does not certify every implementation path.
+
 This is documentation preparation only. It starts no implementation; no new
 semantic choice, runtime qualification, public activation or complete file-tree
 checkpoint is claimed.
