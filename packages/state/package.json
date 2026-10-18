@@ -33,7 +33,8 @@
   "dependencies": {
     "@canlang/contracts": "workspace:*",
     "@canlang/files": "workspace:*",
-    "@canlang/values": "workspace:*"
+    "@canlang/values": "workspace:*",
+    "@canlang/work-kernel": "workspace:*"
   },
   "exports": {
     ".": {

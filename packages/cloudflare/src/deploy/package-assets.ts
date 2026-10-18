@@ -6,10 +6,12 @@ import { fileURLToPath } from "node:url";
 import { TextDecoder } from "node:util";
 import { distribution as valuesDistribution } from "@canlang/values/distribution";
 import { distribution as uiDistribution } from "@canlang/ui/distribution";
+import { distribution as workKernelDistribution } from "@canlang/work-kernel/distribution";
 
 export interface PackageAssetSelection {
   valuesWasm?: boolean;
   browser?: boolean;
+  workKernelRecovery?: boolean;
 }
 
 export interface PackageResource {
@@ -139,6 +141,23 @@ export function gatherValuesWasmAssets(
   walk(root);
   result.binaries[`${VALUES_PREFIX}generated/values_semantics_bg.wasm`] =
     generated["values_semantics_bg.wasm"] as Uint8Array;
+  return result;
+}
+
+const WORK_KERNEL_NATIVE_FILES = ["recovery.wasm"] as const;
+const WORK_KERNEL_PREFIX = "vendor/work-kernel/native/";
+
+/** Pinned recovery WASM verified against its staged BUILD.json manifest; the
+ *  deploy bundler owns producer-import rewriting. Missing/corrupt staged
+ *  bytes refuse here, never at Worker dispatch. */
+export function gatherWorkKernelRecoveryAssets(
+  nativeDirectory: URL = new URL("./", workKernelDistribution.recoveryWasm),
+): GatheredDeploymentAssets {
+  const root = directoryRoot(nativeDirectory);
+  const verified = verifiedFiles(root, join(root, "BUILD.json"), WORK_KERNEL_NATIVE_FILES);
+  const result = emptyAssets();
+  result.binaries[`${WORK_KERNEL_PREFIX}recovery.wasm`] =
+    verified["recovery.wasm"] as Uint8Array;
   return result;
 }
 
@@ -279,6 +298,7 @@ export function gatherDeploymentAssets(
   const selected: GatheredDeploymentAssets[] = [];
   if (selection.valuesWasm === true) selected.push(gatherValuesWasmAssets());
   if (selection.browser === true) selected.push(gatherBrowserAssets());
+  if (selection.workKernelRecovery === true) selected.push(gatherWorkKernelRecoveryAssets());
   for (const assets of selected) {
     Object.assign(result.modules, assets.modules);
     Object.assign(result.binaries, assets.binaries);

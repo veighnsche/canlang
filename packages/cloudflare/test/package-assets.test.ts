@@ -10,6 +10,7 @@ import {
   gatherBrowserAssets,
   gatherDeploymentAssets,
   gatherValuesWasmAssets,
+  gatherWorkKernelRecoveryAssets,
 } from "../src/deploy/package-assets.js";
 
 const temporary: string[] = [];
@@ -42,6 +43,12 @@ function writeFiles(directory: string, files: Record<string, string | Uint8Array
 }
 
 const WASM = new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0]);
+function recoveryFixture(): { root: string } {
+  const root = tempDirectory();
+  writeFiles(root, { "recovery.wasm": WASM });
+  writeFileSync(join(root, "BUILD.json"), JSON.stringify(manifest({ "recovery.wasm": WASM })));
+  return { root };
+}
 function valuesFixture(): { root: string; inventory: ReturnType<typeof manifest> } {
   const root = tempDirectory();
   const files = {
@@ -120,6 +127,29 @@ describe("installed package asset discovery", () => {
     const { root } = valuesFixture();
     rmSync(join(root, "generated", "values_semantics_bg.wasm"));
     expect(() => gatherValuesWasmAssets(directoryUrl(root))).toThrow(/missing asset/);
+  });
+
+  it("gathers the pinned recovery WASM under the work-kernel vendor key", () => {
+    const { root } = recoveryFixture();
+    const assets = gatherWorkKernelRecoveryAssets(directoryUrl(root));
+    expect(assets.modules).toEqual({});
+    expect(assets.binaries).toEqual({ "vendor/work-kernel/native/recovery.wasm": WASM });
+    expect(assets.resources).toEqual({});
+    const installed = gatherDeploymentAssets({ workKernelRecovery: true });
+    expect(Object.keys(installed.binaries)).toEqual(["vendor/work-kernel/native/recovery.wasm"]);
+    expect(Buffer.from(installed.binaries["vendor/work-kernel/native/recovery.wasm"]!).length).toBeGreaterThan(0);
+  });
+
+  it("rejects corrupt or missing staged recovery bytes before Worker dispatch", () => {
+    const { root } = recoveryFixture();
+    writeFileSync(join(root, "recovery.wasm"), "corrupt");
+    expect(() => gatherWorkKernelRecoveryAssets(directoryUrl(root))).toThrow(/integrity mismatch/);
+    const { root: absent } = recoveryFixture();
+    rmSync(join(absent, "recovery.wasm"));
+    expect(() => gatherWorkKernelRecoveryAssets(directoryUrl(absent))).toThrow(/missing asset/);
+    const { root: unlisted } = recoveryFixture();
+    rmSync(join(unlisted, "BUILD.json"));
+    expect(() => gatherWorkKernelRecoveryAssets(directoryUrl(unlisted))).toThrow(/cannot read manifest/);
   });
 
   it("rejects manifest file-set changes before following a traversal path", () => {
