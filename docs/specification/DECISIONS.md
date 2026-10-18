@@ -19771,3 +19771,15 @@ remains held: package resolution reached another checkout's live output, so an
 owned immutable dependency closure is still required. The baseline's extra ICU
 corpus failure is a missing fixture, not an implementation improvement. No behavior
 correction, test weakening or complexity configuration change is accepted here.
+
+
+## 2026-10-18 — extract file finalization and upload phases
+
+Accepted implementation: split finalization validation and upload staging into
+private helpers, closing five original above-20 bodies. Preserve lazy caller reads
+on the prior-row branch and the originally captured staging key during cleanup
+after size inspection. Independent diff and repair review accepted both sources;
+focused getter/cleanup probes preserve prior behavior. The ten owned file-consumer
+suites pass 157/157 with raw exit 0, and package no-emit typing exits 0 using the
+existing pinned hash dependency. All changed bodies score within 20. Provider-output
+and scenario-wide qualification remain unrun; no full-package pass is claimed.
