@@ -1,5 +1,19 @@
 # Living ideal file-tree plan for Canlang
 
+**Inline preference-editor intake, 2026-10-18:** account for all ten released
+source/test/fixture paths together: compiler analysis/types owns exact local
+control facts; IR/JS owns editor descriptors and typed saved bindings; Contracts
+owns the existing presentation carrier; UI controls/settings owns rendering;
+Interfaces page handling owns existing authenticated save/materialization;
+filter-remainder pins and the compiled standalone-preference fixture/host test
+remain with those owners. Only preference JS hunks enter; native hook-staging
+and unfinished runtime receipt work stay excluded. Reuse compiler9/9 and actual
+compiled HTTP1/1 (plus independent direct consumer); boolean false, int precision,
+nullable clear, CSRF/CAS, read-only and module separation pass. Scoped complexity
+passes after cohesive helper extraction. Preserve previous finite coverage,
+decisions and the historical complete checkpoint; no whole-application claim.
+
+
 **Integrated release closure, 2026-10-18:** the unchanged100-path native
 integration and accepted16-path compiler intake are measured at maincdf26e070.
 Rebuilt actual release compilers and affected installed manual workflows pass on

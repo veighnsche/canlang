@@ -1,5 +1,19 @@
 # Can18 remaining work — proposed root-cause plan
 
+### Accepted inline preference editors — 2026-10-18
+
+Source-authored local bool toggles and text/int inputs now compile and execute
+through the existing preference save route. The compiled HTTP consumer passes
+render/save/reload, false, exact integers, nullable clear, CSRF/CAS, read-only,
+authentication and module-isolation checks (1/1); affected compiler pins pass9/9.
+Independent direct validation passes and the scoped complexity gate is clear.
+The stale staged UI link that caused HTTP422 is avoided with task-local real-UI
+resolution; shared links and emitted module bytes are preserved. This closes
+the inline editor mechanism, including the recorded Member/Rent/Leave source
+shapes, while full original24 compilation/runtime remains open. One fresh
+original24 capture follows this meaningful intake with frozen compiler inputs.
+
+
 ## Current remainder and finite completion
 
 ### Accepted finite compiler receipt composition — 2026-10-18
@@ -11,7 +25,8 @@ refuse. Focused compiler checks pass (27 + 4), and the independent original
 six-query/count/ancestor witness passes (1/1, 125.62 s). Actual compiled Maintain
 assignment commits and sends genuine mail, recording the failed receipt.
 Complete retry/delivery source-policy integration remains open, as do original
-hook retirement, inline-preference HTTP 422 and the other listed shared roots.
+hook retirement and the other listed shared roots. Inline preference editors
+are accepted at their finite scope above.
 This is a completed compiler mechanism; the last complete original24 count
 remains 212 E6008 pending the next meaningful combined capture.
 

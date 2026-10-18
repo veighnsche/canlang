@@ -1,5 +1,26 @@
 # Canlang language design decisions
 
+## 2026-10-18 — source-owned inline preference editors
+
+**Accepted implementation.** An authored preference panel binds each toggle or
+input to its checked local preference field. Bool, text and int editors reuse
+the existing single-field authenticated POST, CSRF and compare-and-set route;
+nullable controls clear through the same envelope. Filter defaults alone do not
+grant an editor. Typed binding/owner correspondence survives IR and emission,
+with no app-name exceptions or CRUD write authority.
+
+The actual compiled-Can HTTP consumer passes: render/save/reload, explicit false,
+exact integer spelling, nullable clear, stale-version and CSRF refusals, escaped
+text, read-only rejection and independent same-named preferences in another
+module. The affected compiler pins pass 9/9; the refreshed compiler consumer
+passes 1/1. Independent direct consumer validation also passed; unchanged checks
+are reused. Cohesive Details/Tabs/default extraction preserves behavior and
+passes the scoped complexity gate without allowance changes. The earlier HTTP
+422 came from a stale staged UI dependency; validation selects real workspace
+UI through a task-local resolver without changing emitted code or shared links.
+Full CanCRM compilation/runtime and its next original24 capture remain open.
+
+
 ## 2026-10-18 — accept the integrated native release manual workflow
 
 **Accepted finite result.** Maincdf26e070 includes the native manual server and

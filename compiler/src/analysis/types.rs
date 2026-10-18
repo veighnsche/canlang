@@ -788,9 +788,23 @@ pub enum CheckedRuntimeBinding {
     },
 }
 
+/// Exact inline saved-control selector and its local preference declaration.
+#[derive(Debug, Clone)]
+pub(crate) struct CheckedPreferenceControl {
+    pub panel: NodeKey,
+    pub node: NodeKey,
+    pub selector: NodeKey,
+    pub field: SymbolId,
+    pub owner: SymbolId,
+    pub module: ModuleId,
+    pub control: String,
+    pub ty: ResolvedType,
+}
+
 /// Types and selected bindings per symbol and typed CST node.
 #[derive(Debug, Clone, Default)]
 pub struct TypeTable {
+    pub(crate) preference_controls: HashMap<NodeKey, CheckedPreferenceControl>,
     pub runtime_bindings: HashMap<ModuleId, Vec<CheckedRuntimeBinding>>,
     bound_tabs: HashMap<NodeKey, CheckedBoundTabs>,
     calendar_endpoints: HashMap<NodeKey, CheckedCalendarEndpoint>,
@@ -9730,6 +9744,56 @@ impl<'a> Typer<'a> {
         }
     }
 
+    /// Details widgets type their domain and `open=` binding; `display=`
+    /// base values are unspecified (only the drawer exception is
+    /// documented): no check.
+    fn check_details_widget(&mut self, cx: &Ctx<'_, '_>, node: &SyntaxNode, domain: Option<&SyntaxNode>) {
+        if let Some(domain) = domain {
+            let _ = self.expr(cx, domain, None);
+        }
+        if let Some(open) = attribute_value(node, "open", cx.text) {
+            let ty = self.expr(cx, open, None);
+            self.expect_bool(cx, tight_span(cx.text, open), &ty, "`details open=`");
+        }
+    }
+
+    /// Inline selectors are vocabulary, so bind them explicitly instead of
+    /// treating a same-spelled expression or a foreign field as an editor.
+    fn check_preference_panel(&mut self, cx: &Ctx<'_, '_>, panel: &SyntaxNode) {
+        for node in kids(panel).into_iter().filter(|node| node.kind != SyntaxKind::Name) {
+            if let Some(fact) = self.preference_control_fact(cx, panel, node) {
+                self.types.preference_controls.insert(NodeKey::of(node), fact);
+            } else {
+                self.diags.push(Diagnostic::error("E3001",
+                    "preferences controls require one local bool toggle or text/int input field".into(), node.span));
+            }
+        }
+    }
+
+    fn preference_control_fact(&mut self, cx: &Ctx<'_, '_>, panel: &SyntaxNode,
+        node: &SyntaxNode) -> Option<CheckedPreferenceControl> {
+        if node.kind != SyntaxKind::CatalogItem { return None; }
+        let parts = kids(node);
+        let control = parts.iter().find_map(|part| name_text(part, cx.text))?;
+        if !matches!(control, "toggle" | "input") || parts.iter().any(|part|
+            !matches!(part.kind, SyntaxKind::Name | SyntaxKind::NameRef)) { return None; }
+        let headers: Vec<_> = parts.iter().filter(|part| part.kind == SyntaxKind::NameRef).copied().collect();
+        let [selector] = headers.as_slice() else { return None; };
+        let name = nameref_word(selector, cx.text)?;
+        let owner = self.tables.symbols.iter().find(|symbol|
+            symbol.module == cx.module && matches!(symbol.kind, SymbolKind::Preferences { .. }))?.clone();
+        let field = owner.fields_of().iter().find(|field| self.tables.symbols[field.0 as usize].name == name).copied()?;
+        let ty = self.decl_type(field);
+        let base = ty.nullable_inner().unwrap_or(&ty);
+        let valid = match control {
+            "toggle" => *base == ResolvedType::Scalar(Scalar::Bool),
+            "input" => matches!(base, ResolvedType::Scalar(Scalar::Text | Scalar::Int)),
+            _ => false,
+        };
+        valid.then(|| CheckedPreferenceControl { panel: NodeKey::of(panel), node: NodeKey::of(node),
+            selector: NodeKey::of(selector), field, owner: owner.id, module: cx.module, control: control.to_string(), ty })
+    }
+
     /// Walk one presentation widget: type the domain, validate closed
     /// NAME sets, required selector lists and selector navigation
     /// against the domain model, then recurse into nested widgets.
@@ -10015,17 +10079,8 @@ impl<'a> Typer<'a> {
                     }
                 }
             }
-            SyntaxKind::Details => {
-                if let Some(domain) = domain {
-                    let _ = self.expr(cx, domain, None);
-                }
-                if let Some(open) = attribute_value(node, "open", cx.text) {
-                    let ty = self.expr(cx, open, None);
-                    self.expect_bool(cx, tight_span(cx.text, open), &ty, "`details open=`");
-                }
-                // `display=` base values are unspecified (only the
-                // drawer exception is documented): no check.
-            }
+            SyntaxKind::PreferencePanel => self.check_preference_panel(cx, node),
+            SyntaxKind::Details => self.check_details_widget(cx, node, domain),
             SyntaxKind::Tabs => {
                 let has_tabs = kids(node).iter().any(|n| n.kind == SyntaxKind::Tab);
                 if !has_tabs {

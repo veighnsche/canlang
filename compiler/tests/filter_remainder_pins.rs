@@ -160,29 +160,30 @@ fn parent_linkage_selector_lowers() {
 
 /// Recorded CanMember shape (x2) and CanRent `arrival_open` shape: an
 /// inline owning-bool toggle presentation (`preferences` block with a
-/// `toggle` child) has no source-to-factory profile even though the
-/// owning `bool` preference is declared, so the page keeps its exact
-/// E6008 refusal.
+/// `toggle` child) binds the checked local bool field to its saved editor.
 #[test]
-fn inline_bool_toggle_presentation_refuses() {
-    assert_refuses(
+fn inline_bool_toggle_presentation_lowers() {
+    assert_lowers(
         "app Probe\nGiven\n Customer { name:text }\n policy Customer read=public\nWhen\nThen\n preferences { current_only:bool=false }\n page /mine title=\"Mine\"\n  preferences\n   toggle current_only\n  list Customer columns=name\n",
-        "E6008",
-        "component has no supported source-to-factory profile",
     );
 }
 
 /// Recorded CanLeave shape (`input year` + `input bucket`): an inline
-/// scalar input presentation has no source-to-factory profile even
-/// though the owning preferences are declared, so the page keeps its
-/// exact E6008 refusal.
+/// scalar inputs retain their owning type and nullable clear behavior.
 #[test]
-fn inline_scalar_input_presentation_refuses() {
-    assert_refuses(
+fn inline_scalar_input_presentation_lowers() {
+    assert_lowers(
         "app Probe\nGiven\n Customer { name:text }\n policy Customer read=public\nWhen\nThen\n preferences { year:int?, bucket:text? }\n page /mine title=\"Mine\"\n  preferences\n   input year\n   input bucket\n  list Customer columns=name\n",
-        "E6008",
-        "component has no supported source-to-factory profile",
     );
+}
+
+#[test]
+fn inline_preference_controls_require_matching_local_fields() {
+    let source = "app Probe\nGiven\n Customer { name:text }\n policy Customer read=public\nWhen\nThen\n preferences { enabled:bool=false, year:int? }\n page /mine title=\"Mine\"\n  preferences\n   toggle enabled\n";
+    for control in ["toggle missing", "input enabled", "toggle year"] {
+        assert_refuses(&source.replace("toggle enabled", control), "E3001",
+            "preferences controls require one local bool toggle or text/int input field");
+    }
 }
 
 /// A board's bare pagination marker uses the same finite query/continuation
