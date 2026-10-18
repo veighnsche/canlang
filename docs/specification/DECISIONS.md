@@ -19255,3 +19255,34 @@ rollback criteria still require their concrete outputs; producer evidence does
 not close those parents. Continue that independent work during Git integration.
 Preserve newer compiler/runtime/Work changes, complete stale filetree checkpoint
 and public deployment/default/TS-retirement holds.
+
+
+## 2026-10-18 — integrate explicit native CLI and executable custody
+
+Select the native preparation route only with explicit build/deploy `--backend
+native`; retain TS defaults and synchronous library owners. Verify the exact
+absolute executable and owning release before either readiness or the real job.
+Treat every child pipe failure as an owned refusal, retain original semantic and
+cancellation objects/order, and release the process-group session before failure
+exit. Readiness observes the whole bounded frame/exit lifetime; no pending deadline
+or future group-kill timer survives a completed session. Review found and repaired
+PATH-versus-cwd launch, extra frames, callback exits, timer/group cleanup and actual
+Linux EPIPE failures.
+
+Reuse contained bundle publication and existing recursive dist inventory. Cargo's
+reported executable, not a guessed target path, owns staged bytes; source metadata
+must name the accepted compiled crate. Workspace build/package/verify commands add
+no installed compiler requirement, package export or Worker native asset. The actual
+native job's confirmed mocked apply consumes reviewed config/modules/digest; same
+persisted data rolls back to selected TS previews without conversion. No remote
+provider is contacted.
+
+Final local checks and residuals belong to the single current checklist. Linux
+052 retry passes genuine native build/expected wrong-architecture JSON refusal in
+444/481ms, with other accepted controls reused and ELF/manifest restored. Current CLI selects
+JS-only assets; broader P05 construction/policy transfer and full resource/adoption
+criteria remain partial. Recorded durations justify no speed/default claim. Retain
+two pre-existing adapter fixture failures, the old Rust digest pin and four foreign
+runtime type errors rather than claiming blanket green checks. Preserve newer
+compiler/runtime/Work source and notes, the complete stale filetree checkpoint,
+public deployment/default/TS-retirement holds and the broader programme's open goal.

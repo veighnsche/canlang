@@ -122,7 +122,10 @@
     "build:emit": "tsc -p tsconfig.json && node scripts/emit-native-catalog.mjs && chmod +x dist/cli/soda.js dist/cli/platform.js dist/dev/control-cli.js",
     "typecheck:check": "tsc --noEmit -p tsconfig.json",
     "test:runtime": "cd ../.. && node --test \"packages/cloudflare/dist/**/*.test.js\"",
-    "build:prepare": "node ../../scripts/build-package.mjs --prepare"
+    "build:prepare": "node ../../scripts/build-package.mjs --prepare",
+    "preparation:build": "node scripts/build-preparation.mjs",
+    "preparation:package": "node scripts/package-preparation.mjs",
+    "preparation:verify": "node scripts/verify-preparation.mjs"
   },
   "dependencies": {
     "@canlang/contracts": "workspace:*",
