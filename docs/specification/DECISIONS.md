@@ -1,5 +1,15 @@
 # Canlang language design decisions
 
+## 2026-10-18 — use shared finite pagination for boards
+
+**Accepted implementation.** Board consumes the existing typed page flag and
+source-owned occurrence; the unchanged authorized viewer page query and cursor
+binding own bounded results and continuation. No separate Board paging engine.
+The actual compiled HTTP consumer passes26 rows over25+1, owner isolation and
+foreign-owner cursor refusal. Compiler accepts the marker and refuses headers,
+children and duplicates; Contracts/UI/Cloudflare emit passes. Full original24
+qualification and other collection domains remain open.
+
 ## 2026-10-18 — compose checked native hooks with live contained queries
 
 **Accepted implementation.** Native hook admission compares complete original

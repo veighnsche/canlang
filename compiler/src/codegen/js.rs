@@ -2915,6 +2915,7 @@ fn ui_prop_is_admitted(factory: &str, key: &str) -> bool {
                 | "cursor"
                 | "empty"
                 | "columns"
+                | "page"
                 | "order"
                 | "search"
                 | "count"
@@ -12762,7 +12763,9 @@ impl<'a> Emitter<'a> {
                     key == "page" && matches!(value.expr, IrExpr::Bool(true))
                 }))
             || (node.factory == "board"
-                && node.props.iter().any(|(key, _)| key == "filter"))
+                && node.props.iter().any(|(key, value)| {
+                    key == "filter" || key == "page" && matches!(value.expr, IrExpr::Bool(true))
+                }))
         {
             // A URL locator names this source collection occurrence. The
             // owning factory selects only from its fresh authorized result.

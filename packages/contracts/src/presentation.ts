@@ -1967,6 +1967,8 @@ export interface BoardProps {
   readonly defaults?: Readonly<Record<string, CollectionFilterDefault>>;
   readonly limit?: number;
   readonly cursor?: string;
+  /** Explicit finite page read, independent of enum-grouped layout. */
+  readonly page?: true;
   /** Stable source collection occurrence; required when filter controls or pagination apply. */
   readonly occurrence?: string;
   readonly empty: MessageValue;

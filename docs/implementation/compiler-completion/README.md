@@ -248,6 +248,16 @@ candidate failures. The final bridge edit reran the affected joint and two D1
 consumers; the joint count case also ran once separately. Unchanged compiler and
 reference results were reused. No full24 recount or new verification framework.
 
+### Board pagination — 2026-10-18
+
+Board now consumes the existing typed `page:true` and stable source occurrence;
+query/cursor execution is unchanged. The existing compiled HTTP owner-page case
+passes for List and Board, 26 rows over25+1 with no duplicates or owner leakage,
+and refuses another owner's cursor. The affected compiler pin passes with three
+malformed-marker controls; Contracts/UI/Cloudflare emit passes. One actual HTTP
+failure exposed the missing Board occurrence, then only that case was retried
+after correction. No new runtime/query mechanism or original24 recount.
+
 ### Observed repeated work — command-log snapshot
 
 Counts below distinguish command invocations from actual rebuilds/cases. Prior
