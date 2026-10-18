@@ -83,10 +83,88 @@ fn command_error(error: ControlError) -> Vec<String> {
 }
 
 fn format_access(value: Value) -> Vec<String> {
-    match value.get("url").and_then(Value::as_str) {
+    let mut lines = match value.get("url").and_then(Value::as_str) {
         Some(url) => vec![format!("Preview access (private): {url}")],
         None => vec!["Preview access URL unavailable.".into()],
+    };
+    match &value["actors"] {
+        Value::Array(actors) => {
+            for actor in actors.iter().take(20) {
+                if let (Some(email), Some(password)) =
+                    (actor["email"].as_str(), actor["password"].as_str())
+                {
+                    lines.push(format!(
+                        "Actor {} (private): {email} / {password}",
+                        actor["label"].as_str().unwrap_or("local")
+                    ));
+                }
+            }
+        }
+        Value::Object(actors) => {
+            for (label, actor) in actors.iter().take(20) {
+                if let Some(url) = actor.as_str().or_else(|| actor["url"].as_str()) {
+                    lines.push(format!("Actor {label} (private): {url}"));
+                }
+            }
+        }
+        _ => {}
     }
+    lines
+}
+
+/// Preserve owner result fields and refs without interpreting them as terminal instructions.
+/// The UI applies its shared bounded-history projection before writing these lines.
+fn help_fields(value: &Value) -> String {
+    value
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|field| {
+            let name = match field["name"].as_str()? {
+                "expectedRevision" => "expected-revision",
+                "authorIntent" => "author-intent",
+                "rowIndex" => "row",
+                name => name,
+            };
+            Some(format!(
+                "--{name} {}",
+                field["type"].as_str().unwrap_or("VALUE")
+            ))
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+fn format_control(command: &str, value: Value) -> Vec<String> {
+    let mut lines = vec![format!("{command} result:")];
+    if command == "help" {
+        for entry in value["commands"].as_array().into_iter().flatten().take(25) {
+            let name = entry["name"].as_str().unwrap_or("unknown");
+            let optional = help_fields(&entry["optional"]);
+            lines.push(format!(
+                "{name} {}{} | {}",
+                help_fields(&entry["required"]),
+                if optional.is_empty() {
+                    String::new()
+                } else {
+                    format!(" [{optional}]")
+                },
+                entry["availability"]
+                    .as_str()
+                    .unwrap_or("owner decides availability")
+            ));
+        }
+        return lines;
+    }
+    match serde_json::to_string_pretty(&value) {
+        Ok(encoded) => {
+            lines.extend(encoded.lines().take(36).map(str::to_owned));
+            if encoded.lines().count() > 36 {
+                lines.push("Result display truncated; use the JSON command for the complete bounded result.".into());
+            }
+        }
+        Err(_) => lines.push("Owner result could not be displayed.".into()),
+    }
+    lines
 }
 fn format_logs(value: Value) -> Vec<String> {
     let Some(text) = value.get("text").and_then(Value::as_str) else {
@@ -244,7 +322,15 @@ fn perform(
             now(),
             true,
         )),
-        Action::Help => Ok(vec![HELP.into()]),
+        Action::Help => {
+            let help = endpoint.request("help", json!({}), cancel)?;
+            let mut lines = vec![HELP.into(), "Use explicit --revision rN for retained results; example.run requires --expected-revision rN. Append --author-intent SENTENCE last. Selection is fixed to this verified owner.".into()];
+            lines.extend(format_control("help", help));
+            Ok(lines)
+        }
+        Action::Control { command, payload } => endpoint
+            .request(&command, payload, cancel)
+            .map(|value| format_control(&command, value)),
         Action::Detach => Ok(vec![
             "Detach is a presentation action; session lifetime remains with its owner.".into(),
         ]),
@@ -325,11 +411,12 @@ impl Session {
                     Err(mpsc::RecvTimeoutError::Timeout) => continue,
                     Err(_) => break,
                 };
+                let stopping = action == Action::Stop;
                 let request = Work {
                     action,
                     snapshot: latest.lock().unwrap_or_else(|p| p.into_inner()).clone(),
                 };
-                let queue = if action == Action::Stop { &stop } else { &work };
+                let queue = if stopping { &stop } else { &work };
                 if queue.try_send(request).is_err() {
                     message(
                         &updates,
@@ -571,6 +658,8 @@ mod tests {
                 "check.request" => json!({"accepted":true}),
                 "preview.open" => json!({"url":"http://localhost/access?private=credential"}),
                 "logs" => json!({"text":"runtime line\n","dropped_bytes":12}),
+                "failure.detail" => json!({"ref":"session/r1/d0","message":"safe retained message"}),
+                "help" => json!({"commands":[{"name":"example.run","required":[{"name":"expectedRevision"}],"availability":"current_verified_artifact"}]}),
                 _ => return Err(ControlError::new("UNEXPECTED_COMMAND", "unexpected test command")),
             })
         })).unwrap();
@@ -612,6 +701,24 @@ mod tests {
                 .unwrap()
                 .iter()
                 .any(|line| line.contains("dropped 12 bytes"))
+        );
+        let routed = perform(
+            &endpoint,
+            Action::Control {
+                command: "failure.detail".into(),
+                payload: json!({"ref":"session/r1/d0"}),
+            },
+            &snapshot,
+            &cancel,
+        )
+        .unwrap()
+        .join("\n");
+        assert!(routed.contains("safe retained message"));
+        assert!(
+            perform(&endpoint, Action::Help, &snapshot, &cancel)
+                .unwrap()
+                .join("\n")
+                .contains("--expected-revision")
         );
         let before = calls.lock().unwrap().len();
         assert!(
@@ -667,6 +774,29 @@ mod tests {
             );
             thread::sleep(Duration::from_millis(5));
         }
+    }
+
+    #[test]
+    fn explicit_access_projects_real_actor_credentials_and_results_are_bounded() {
+        assert_eq!(
+            format_access(
+                json!({"url":"http://localhost/access", "actors":[{"label":"Ava","email":"ava@local","password":"private","teams":["team"]}]})
+            ),
+            [
+                "Preview access (private): http://localhost/access",
+                "Actor Ava (private): ava@local / private"
+            ]
+        );
+        let lines = format_control(
+            "failures",
+            json!({"failures": (0..100).collect::<Vec<_>>()}),
+        );
+        assert!(lines.len() <= 38);
+        assert!(lines.last().unwrap().contains("truncated"));
+        assert_eq!(
+            format_control("example.run", json!({"status":"passed"})).len(),
+            4
+        );
     }
 
     #[test]

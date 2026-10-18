@@ -9,7 +9,7 @@ import { RuntimeTargets } from "./runtime-host-target.js";
 import { MAX_RUNTIME_FRAME, parseRuntimeRequest, RUNTIME_PROTOCOL, runtimeString,
   type RuntimeRequest, type RuntimeResult } from "./runtime-host-protocol.js";
 
-const COMMANDS = ["inventory", "prepare", "probe", "cancel", "release", "retry", "actors", "examples", "qualify", "refusals"];
+const COMMANDS = ["inventory", "prepare", "probe", "cancel", "release", "retry", "actors", "examples", "qualify", "construct", "refusals", "consume"];
 function send(value: unknown): void {
   const line = `${JSON.stringify(value)}\n`;
   if (Buffer.byteLength(line) > MAX_RUNTIME_FRAME) throw new Error("runtime result exceeds frame limit");

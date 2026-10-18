@@ -227,8 +227,9 @@ verification scope, tests and explicit opt-in native builds.
 
 For a built source checkout, point `CAN_PLATFORM_BIN` at the executable
 `packages/cloudflare/dist/cli/platform.js`, or put `node_modules/.bin` on
-`PATH`. For `can dev`, use the sibling `CAN_DEV_BIN` override or the installed
-`can-dev` bin. The public build restores both executable modes.
+`PATH`. For `can dev`, build the independent Rust crate into the compatible
+compiler target and set `CAN_DEV_BIN` to its `debug/can-dev`; see
+[developer setup](dev-setup.md). Standalone assembly includes the native entry.
 
 ## Shell completions
 
@@ -260,8 +261,8 @@ error, never silent output. The standard standalone installation already supplie
   `./can-catalog.json`).
 - `CAN_PLATFORM_BIN`: override path to the `can-platform` binary for the
   thin lane-7 entries (`run`/`test`/`build`/`deploy`/`activate`/`docs`).
-- `CAN_DEV_BIN`: override path to the `can-dev` JSON session client for
-  `can dev`.
+- `CAN_DEV_BIN`: override path to the native `can-dev` owner and terminal entry
+  for `can dev`.
 
 ## Assemble a standalone release (contributors)
 

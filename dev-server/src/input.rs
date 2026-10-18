@@ -1,10 +1,11 @@
 //! Bounded command editing; only an explicit Enter dispatches a known action.
 use ratatui::crossterm::event::{Event, KeyCode, KeyEventKind, KeyModifiers};
+use serde_json::Value;
 
-pub const HELP: &str = "Enter check (c), open/access (o), details (d), status (s), help (h/?), logs (l), stop (owned) or detach (attached). No shell commands.";
-const MAX_INPUT: usize = 128;
+pub const HELP: &str = "Enter check (c), open/access (o), details (d), status (s), help (h/?), logs (l), stop (owned) or detach (attached). Use diagnostics, diagnostic.detail, failures, failure.lookup/detail, construct.help/rank, rank.lookup, example.run/rerun or preview.status with their JSON command flags. No shell commands.";
+const MAX_INPUT: usize = 1024;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Action {
     Check,
     Open,
@@ -14,6 +15,7 @@ pub enum Action {
     Logs,
     Stop,
     Detach,
+    Control { command: String, payload: Value },
 }
 
 impl Action {
@@ -27,7 +29,41 @@ impl Action {
             "logs" | "l" => Self::Logs,
             "stop" => Self::Stop,
             "detach" | "quit" => Self::Detach,
-            _ => return None,
+            _ => return Self::control(value),
+        })
+    }
+
+    fn control(value: &str) -> Option<Self> {
+        let (command, intent) = value
+            .split_once(" --author-intent ")
+            .map_or((value, None), |(command, intent)| (command, Some(intent)));
+        let mut argv: Vec<String> = command.split_whitespace().map(str::to_owned).collect();
+        if let Some(intent) = intent {
+            argv.extend(["--author-intent".into(), intent.into()]);
+        }
+        let args = crate::cli::parse(&argv).ok()?;
+        if !matches!(
+            args.command.as_str(),
+            "diagnostics"
+                | "diagnostic.detail"
+                | "failures"
+                | "failure.lookup"
+                | "failure.detail"
+                | "construct.help"
+                | "construct.rank"
+                | "rank.lookup"
+                | "example.run"
+                | "example.rerun"
+                | "preview.status"
+        ) || ["--root", "--session", "--app", "--profile"]
+            .iter()
+            .any(|flag| args.value(flag).is_some())
+        {
+            return None;
+        }
+        Some(Self::Control {
+            payload: crate::cli::payload(&args),
+            command: args.command,
         })
     }
 }
@@ -124,6 +160,38 @@ mod tests {
     }
 
     #[test]
+    fn explicit_owner_actions_reuse_json_validation_and_never_change_selection() {
+        assert_eq!(
+            Action::parse("example.run --expected-revision r2 --operation App.save --row 0"),
+            Some(Action::Control {
+                command: "example.run".into(),
+                payload: serde_json::json!({"expectedRevision":"r2","operation":"App.save","rowIndex":0})
+            })
+        );
+        assert_eq!(
+            Action::parse(
+                "construct.rank --revision r2 --index 0 --author-intent Prefer a concise table"
+            ),
+            Some(Action::Control {
+                command: "construct.rank".into(),
+                payload: serde_json::json!({"revision":"r2","index":0,"authorIntent":"Prefer a concise table"})
+            })
+        );
+        for command in [
+            "start --source Other.can",
+            "stop --session foreign",
+            "diagnostics --revision r2 --root /other",
+            "example.run",
+            "diagnostic.detail --revision r1 --index -1",
+            "failures --revision r1; rm -rf /",
+        ] {
+            assert_eq!(Action::parse(command), None, "{command}");
+        }
+        assert!(Action::parse("failure.detail --ref session/r2/run/f0_1").is_some());
+        assert!(Action::parse("construct.help --revision r1 --id can.v1.ui.table").is_some());
+    }
+
+    #[test]
     fn multiline_and_control_paste_never_dispatch_or_corrupt_typed_input() {
         let mut editor = Editor::default();
         editor.handle(Event::Paste("sta".into()));
@@ -146,7 +214,7 @@ mod tests {
     #[test]
     fn editing_is_bounded_and_release_does_not_submit() {
         let mut editor = Editor::default();
-        editor.handle(Event::Paste("x".repeat(500)));
+        editor.handle(Event::Paste("x".repeat(5000)));
         assert_eq!(editor.value().len(), MAX_INPUT);
         editor.handle(key(KeyCode::Backspace));
         assert_eq!(editor.value().len(), MAX_INPUT - 1);

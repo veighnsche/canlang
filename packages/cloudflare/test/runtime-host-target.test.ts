@@ -26,6 +26,8 @@ async function setup() {
 }
 function preview(dispose = vi.fn(async () => {})) {
   return { origin: 'http://127.0.0.1:43217', runtimeBackend: () => ({ origin: 'http://127.0.0.1:1234', secret: 'private' }),
+    exampleInput: () => ({ artifactBytes: Buffer.from('{}'), artifactLabel: 'a.can', sourceRevision: 'r', workerName: 'a',
+      compatibilityDate: '2026-07-15', d1Binding: 'DB', worker: { mainModule: 'main.js', modules: { 'main.js': 'export default {}' } } }),
     dispose, observeRefusals: () => () => {}, issueLocalActors: vi.fn(() => ['private actor']), probeRuntime: async () => {} };
 }
 it('keeps actor disclosure explicit and preserves failed cleanup handles until retry', async () => {
@@ -34,7 +36,8 @@ it('keeps actor disclosure explicit and preserves failed cleanup handles until r
   const ready = await targets.execute(request('prepare', 'prepare', payload));
   expect(ready).toMatchObject({ id: 'g', readiness: true, backend: { secret: 'private' } });
   expect(runtime.issueLocalActors).not.toHaveBeenCalled();
-  expect(await targets.execute(request('actors', 'actors'))).toEqual({ actors: ['private actor'] });
+  await expect(targets.execute(request('actors', 'implicit'))).rejects.toThrow('disclosure must be explicit');
+  expect(await targets.execute(request('actors', 'actors', { discloseLocalCredentials: true }))).toEqual({ actors: ['private actor'] });
   runtime.dispose.mockRejectedValueOnce(new Error('still running'));
   await expect(targets.execute(request('release', 'release'))).rejects.toThrow('still running');
   expect(targets.allocation('g')).toBe('release_failed');

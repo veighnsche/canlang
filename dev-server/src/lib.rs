@@ -12,6 +12,7 @@ pub mod model;
 pub mod owner;
 pub mod presentation;
 pub mod runtime;
+pub mod service;
 pub mod signals;
 pub mod state;
 pub mod ui;

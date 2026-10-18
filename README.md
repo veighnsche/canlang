@@ -48,6 +48,7 @@ The selected target compiles `.can` applications to JavaScript for **workerd**, 
 | --- | --- |
 | `.can` source in `examples/` and `draft/` | Application identity, composition, records, permissions, business operations, pages, descriptions, translations, and inline examples. |
 | `compiler/` | Rust parsing, resolution, type/effect analysis, diagnostics, artifact emission, and shared CLI/LSP authoring services. |
+| `dev-server/` | Rust development owner, captured checks, protected preview lifecycle, JSON controls and Ratatui terminal; Workerd tooling remains subordinate. |
 | `packages/values/` | Exact values and ordered input validation, with a shared package-local Rust semantics core, distinct validation profiles, and TypeScript façades/Wasm bindings. |
 | `packages/state/` and `packages/identity/` | TypeScript storage authority, canonical admission and commits, queries, replay, sessions, teams, and current grants. |
 | `packages/work-kernel/`, `packages/work/`, `packages/files/`, and `packages/services/` | A work-owned Rust leaf for shared pure decisions; TypeScript durable scheduling, delivery, progress, provider integration, and file lifecycle coordination. |
@@ -99,7 +100,7 @@ bun run build:compiler
 
 Turbo schedules the 13 package producers through their declared dependencies. Builds use a local cache with verified host, Node and Bun identities; cleanup before restoration removes obsolete outputs. `bun run build --filter=@canlang/values` builds one owner's dependency closure, and `bun run build:uncached` executes producers with cache reads and writes disabled. [The scheduling and cache report](docs/implementation/turbo-scheduling/README.md) records the proof and its limits.
 
-Use `bun run test` for the root integration suites, `bun run test:all` for those suites plus owning package and Cloudflare runtime tests, and `bun run test:compiler` for compiler tests. Test suites run uncached; `test:all` schedules them sequentially. Native builds and release verification also run uncached through explicit adapters. See [developer setup](docs/dev-setup.md), [compiler commands](compiler/README.md), and [installation](docs/install.md) for details. `can check`, `compile`, `lint`, `fmt`, `policy`, and `lsp` provide compiler and authoring services; platform commands delegate to `can-platform`, while `can dev` delegates to the owner-only JSON session client.
+Use `bun run test` for the root integration suites, `bun run test:all` for those suites plus owning package and Cloudflare runtime tests, and `bun run test:compiler` for compiler tests. Test suites run uncached; `test:all` schedules them sequentially. Native builds and release verification also run uncached through explicit adapters. See [developer setup](docs/dev-setup.md), [compiler commands](compiler/README.md), and [installation](docs/install.md) for details. `can check`, `compile`, `lint`, `fmt`, `policy`, and `lsp` provide compiler and authoring services; platform commands delegate to `can-platform`, while `can dev` delegates to the native development owner and terminal entry.
 
 `bun run release` validates the prepared package outputs. `bun run release:pack`
 also writes all 13 workspace tarballs, including private dependencies, to

@@ -808,6 +808,16 @@ mod tests {
         assert!(
             parse(&argv(&[
                 "start",
+                "--source",
+                "App.can",
+                "--check-mode",
+                "automatic"
+            ]))
+            .is_ok()
+        );
+        assert!(
+            parse(&argv(&[
+                "start",
                 "--capture",
                 "inputs.json",
                 "--app",

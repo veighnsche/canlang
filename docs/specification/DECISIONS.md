@@ -1,5 +1,31 @@
 # Canlang language design decisions
 
+## 2026-10-18 — preserve command policy in Rust and package the native manual entry
+
+**Accepted implementation.** Rust retains command admission, captured revisions,
+failure references, serialized example requests, exact rerun recipes, qualification
+cache/currentness and safe disclosure. The private host supplies existing semantic
+results from immutable file-backed captures/artifacts; it never wraps another
+session controller. Detach cancels and joins the caller's operation. Failed row or
+qualification cleanup retains its original release handle and primary error;
+uncertainty closes admission until actual cleanup succeeds. Verified spool outputs
+are acknowledged after copying rather than accumulating across repeated commands.
+
+The existing standalone assembler now takes a matching native server, checks host
+and release identity, carries its locked dependency notices, and uses the same
+atomic version switch. Dev help is a nonstarting preflight. The installed server
+resolves bundled Node and its subordinate bridge; explicit overrides remain.
+Conflicting TS installed/bin routes retire, while preserved source and semantic
+owners remain available. The existing Linux tool archive explicitly consumes the
+same native component so removing the old package bin cannot break its entry.
+
+Native94, bridge6/cleanup4/spool1 and existing example13 checks qualify their finite
+contracts. A real macOS installed journey preserves login/data across invalid edit,
+repair and restart, exercises failure/construct/example controls, and accepts the
+existing JSON consumer. Local archive23 checks pass. Actual Linux/release-profile
+CI, public publication and later automation retain their separate gates; no live
+external ranking or new process/profile framework is introduced.
+
 ## 2026-10-18 — implement one native development owner and a subordinate runtime host
 
 **Accepted implementation at the manual core scope.** The independent

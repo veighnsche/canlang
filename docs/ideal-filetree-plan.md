@@ -1,5 +1,18 @@
 # Living ideal file-tree plan for Canlang
 
+**Native manual parity and packaging, 2026-10-18:** development owns the new Rust
+`service.rs` retained projections and owner command jobs; existing CLI/foreground
+modules consume that policy. Cloudflare owns captured construct/example helpers,
+private spool consumption and narrow owning example/qualification cleanup fixes.
+The existing three canonical example-fixture lookups follow the compiler's retained
+canonical-key contract. Distribution owns native artifact identity, dev notices,
+existing build/pack/install/CI and Linux tool-entry updates; no second installer or
+new runtime profile is added. Dev contributor/plan/decision documentation retains
+its owners. Reuse native94, bridge6/cleanup4/spool1, example13 and local installed23
+checks at their recorded scopes; actual Linux/release-profile CI remains external.
+Stopped dirty TS/cache/UI inputs and foreign main work remain separate. This
+updates bounded coverage without advancing the complete historical checkpoint.
+
 **Resumed development implementation, 2026-10-18:** `f979867b2` completes the
 previously prepared `69eede1e8` intake. The user now authorizes the Rust owner and
 Ratatui implementation in dependency order. `dev-server/` owns its independent

@@ -15,7 +15,73 @@ First priority is T14's authoritative state contract
 and T15's Ratatui experience, with T16 supplying the runtime boundary needed to
 qualify that manual workflow. Later automation and performance work stay separate.
 
-**Native implementation checkpoint, 2026-10-18:** `dev-server/` now supplies the
+**Native command parity and installed manual checkpoint, 2026-10-18:** T14/T15's
+remaining manual command policy is implemented: compatible status/check fields,
+bounded captured diagnostics and safe compiler/example/HTTP failure references,
+serialized isolated examples and retained exact-row reruns, captured construct
+help and trusted four-job qualification, stale-proof downgrade and default-disabled
+external ranking. All public command families are advertised; missing pending
+ranks produce the existing typed refusal. Rust alone admits work, assigns refs,
+retains inputs and selects generations. Caller detach cancels and joins only its
+own work; uncertain resource release retains payloads/recipes and blocks growth.
+The subordinate host acknowledges consumption of verified private spool outputs.
+Existing example/qualification cleanup now retains failed disposal handles and
+joins pending allocations, preserving the primary failure.
+
+Native94 checks pass at their scopes (whole93 plus the affected final owner check).
+Bridge protocol/target6, new cleanup/recipe4 and spool1 pass. Existing example13
+pass with the failed-only canonical fixture-key correction; no request/wire or
+business assertions were removed. Source AST comparison covers445 changed native/
+bridge functions with zero complexity violations. The installed native manual
+journey passes real login/team selection and D1 mutation, isolated failed examples
+and exact rerun, safe failure/diagnostic commands and historical refs, invalid edit
+with last-good serving, repair/replacement, real HTTP refusal, and stop/restart
+retaining the same login, MCP grant and data. The existing TS JSON consumer also
+controls that installed native owner. External ranking/account gates stay held.
+
+T17 now assembles the native `libexec/can-dev` with the existing installer,
+explicit component input, native host/release identity, component bytes and
+separate locked dependency notices. The release jobs build both native targets
+serially in a compatible target; installed defaults use bundled Node/bridge and
+the existing compiler override. Preflight runs nonstarting dev help before the
+atomic switch. Conflicting TS bin/installed controller routes are retired; stopped
+TS sources remain preserved. The existing Linux tools archive also takes the
+native component instead of losing its former bin mapping. Local macOS archive
+verification passes23 checks, reusing19 unchanged passes after correcting the
+verifier's help invocation and retrying only its manual scope and remaining3.
+Producer emission temporarily isolated the stopped dirty TS/UI inputs, restored
+all original source bytes, and froze the coherent outputs through qualification.
+No private dependency install or foreign compiler output was replaced.
+
+**Integrated local build measurement:** the packaged development-profile compiler
+is SHA `fcb86188b219f156915b5379cf6dc41e4cadf56e91d8db74083ecfacafe46746`;
+native SHA is `5b609df5fead8eddb0ced75bec86cc081f642cba188f502eb16b8e650846aa8f`.
+The external PreviewPersistence workflow reaches ready in10.110s, control in.115s,
+invalid check in3.613s, repair in9.399s, restart check in11.328s and confirmed stop
+in.197s. This is a different packaged producer/app tuple from the earlier matched
+checkout comparison below; do not derive a new percentage from those old samples.
+These are local observations, not a statistical or two-second latency claim.
+The final installed ModelFreePreview phase run is10.360s to serving (control.101s,
+HTTP.020s, confirmed stop.163s): capture about2.18s, compiler/currency about1.68s,
+runtime preparation about5.81s and final currency about.60s. Runtime preparation
+still dominates. This uses the same source bytes and compiler as the earlier
+checkout sample, but the packaged producer closure differs.
+
+Actual installed generic-command PTY also passes: diagnostics and same-session
+failure lookup render real captured results, typed input survives, Ctrl+C detaches
+with exact terminal restoration, the same owner remains live, and explicit stop
+retires it. Reuse unchanged earlier80/44 resize/history/plain checks. The one-off
+helper expected an invented SESSION_NOT_FOUND code after teardown; actual missing
+endpoint reports CONTROL_IO, consistent with its existing native boundary. No
+extra owner/terminal retry was needed.
+
+**Remaining T17 gate:** actual Linux qualification and release-profile CI execution
+on both configured release hosts remain external; this run qualifies the current
+local macOS build. No public publication, T18–T30 extension or external gate release
+is inferred. The native manual and terminal outcomes above are closed at their
+local scope; these external platform gates do not reopen their accepted checks.
+
+**Earlier native core checkpoint, 2026-10-18:** `dev-server/` now supplies the
 typed authoritative state, one owner event loop, immutable capture/compiler
 adapter, private root claim/control, managed runtime bridge and process groups,
 protected gateway, watcher and Ratatui/plain foreground. The subordinate bridge
@@ -62,7 +128,7 @@ enumeration is about.86s per request and was retained, including all three brows
 driver pins. Runtime preparation is now the largest remaining phase. These are
 single local observations, not a two-second or statistical latency claim.
 
-**Still open at the existing task IDs:** T14's complete JSON/result policy,
+**Historical gaps at the core checkpoint `5d8113012`:** T14's complete JSON/result policy,
 retained failure/reference, example/rerun, explicit local-actor and construct
 help/ranking coordination; full T15 compatible-command qualification; T17 native
 installation/default resolution, complete retained-login/data journey and

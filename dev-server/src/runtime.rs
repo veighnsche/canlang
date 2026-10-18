@@ -34,6 +34,7 @@ pub struct BridgeConfig {
     pub session_id: String,
     pub profile: String,
     pub startup_timeout: Duration,
+    pub install_root: Option<PathBuf>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -442,6 +443,9 @@ impl BridgeState {
             .env_remove("NODE_OPTIONS")
             .env_remove("NODE_INSPECTOR_INFO")
             .env_remove("VSCODE_INSPECTOR_OPTIONS");
+        if let Some(root) = &config.install_root {
+            command.env("CAN_INSTALL_ROOT", root);
+        }
         // Only async-signal-safe OS calls run between fork and exec.
         unsafe {
             command.pre_exec(|| {
@@ -1007,6 +1011,7 @@ process.stdin.on('end',()=>process.exit(0));
             session_id: "private-test-session".into(),
             profile: "local-d1-identity".into(),
             startup_timeout: Duration::from_secs(3),
+            install_root: None,
         };
         (directory, config)
     }

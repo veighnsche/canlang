@@ -1,6 +1,7 @@
 /** Actual, private local qualification of the finite authored HelpOffice fixture.
  * No card is returned from declaration inventory or an unexecuted example. */
 import assert from 'node:assert/strict';
+import { RuntimeExampleResources } from './runtime-host-example-resources.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import type { D1Database } from '@cloudflare/workers-types';
@@ -111,8 +112,11 @@ export async function qualifyInstalledFirstProfile(capture: SingleFileCapture, s
   };
   const owners = new Map<string, D1Database>();
   let identities: D1Database | undefined, preview: LocalPreviewWithActors | undefined;
-  const build = createLocalPreviewBuilder({ resources: { d1: { binding: 'DB', availability: 'real_local' },
-    identity: { backingBinding: 'DB', availability: 'real_local' } }, activationVerdict: preflightLocalPreviewActivation,
+  const resources = new RuntimeExampleResources(), previewKey = {}, preflightKey = {};
+  const release = () => resources.drain();
+  const build = createLocalPreviewBuilder({ onAllocated: dispose => resources.retain(previewKey, dispose), resources: { d1: { binding: 'DB', availability: 'real_local' },
+    identity: { backingBinding: 'DB', availability: 'real_local' } }, activationVerdict: (artifact, source) => preflightLocalPreviewActivation(artifact, source, {},
+      dispose => resources.retain(preflightKey, dispose)),
     produceBundle: produceInstalledPortableBundle, seedLocalActors: db => seedLocalPreviewActors(db),
     workerVarsForOrigin: localPreviewWorkerVars,
     confirmRunningActivation: async (artifact, source, db, id, owner, identityDb) => {
@@ -121,7 +125,8 @@ export async function qualifyInstalledFirstProfile(capture: SingleFileCapture, s
       check(); return verdict;
     } });
   try {
-    check(); preview = await build(compiled.artifact, fixture, compiled.artifactBytes); check();
+    check(); preview = await build(compiled.artifact, fixture, compiled.artifactBytes, qualificationBuildContext(signal)); check();
+    resources.retain(previewKey, () => preview!.dispose());
     assert.ok(preview.issueOpenUrl && identities); assert.equal(owners.size, 2);
     const bootstrap = await fetch(preview.issueOpenUrl(), { redirect: 'manual', ...(signal===undefined?{}:{signal}) });
     assert.equal(bootstrap.status, 303);
@@ -429,12 +434,14 @@ export async function qualifyInstalledFirstProfile(capture: SingleFileCapture, s
         assert.equal(executable?.requestedPath,availability.identity.executablePath);
         assert.equal(await captureIsCurrent(fixture),true); check();
         const lease = await chromium.producer.acquireChromium(signal===undefined ? {} : {signal});
-        try {
+        resources.retain(lease, () => lease.close());
+        const browserPreview = preview;
+        await resources.using(lease, async () => {
           check(); assert.deepEqual(lease.identity,availability.identity);
           const browserActors = new Map<string,Actor>();
           const expectedActors = {Ava:ava,Ben:ben,Cal:cal,Dee:dee};
           const browserInput: FirstProfileBrowserInput = {
-            browser:lease.browser,preview,...(signal===undefined?{}:{signal}),expectedActors,snapshot,
+            browser:lease.browser,preview:browserPreview,...(signal===undefined?{}:{signal}),expectedActors,snapshot,
             initialVisible:(await db.prepare('SELECT data FROM records WHERE model=? AND archived_at IS NULL').bind(model)
               .all<{data:string}>()).results.map(row=>{
                 const data=object(JSON.parse(row.data)); return {name:string(data.name),
@@ -520,18 +527,19 @@ export async function qualifyInstalledFirstProfile(capture: SingleFileCapture, s
           };
           const browserChecks=await qualifyFirstProfileBrowser(browserInput); check();
           for(const result of browserChecks) pass([result.id],result.runtimeCheck);
-        } finally {await lease.close();}
+        });
         assert.equal(lease.browser.isConnected(),false,'qualification owns browser cleanup');
       }
     }
     check(); assert.equal(await captureIsCurrent(fixture),true); assert.equal(await captureIsCurrent(capture),true);
-    return Object.freeze([...qualified.values()]);
-  } finally {
-    await preview?.dispose();
+    await release();
     check();
     assert.equal(await captureIsCurrent(fixture),true,'qualification fixture remained current through cleanup');
     assert.equal(await captureIsCurrent(capture),true,'caller capture remained current through cleanup');
     check();
+    return Object.freeze([...qualified.values()]);
+  } catch (error) {
+    return resources.fail(error);
   }
 }
 
@@ -590,4 +598,8 @@ export function createInstalledFirstProfileQualification() {
     while(completed.size>4) completed.delete(completed.keys().next().value!);
     return Object.freeze({...result,messageKinds:await qualifyCurrentCollectionBranch(capture,signal)});
   };
+}
+
+function qualificationBuildContext(signal?: AbortSignal) {
+  return signal === undefined ? undefined : { signal };
 }

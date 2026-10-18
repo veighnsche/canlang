@@ -1,8 +1,8 @@
 /** Private bounded process contract. This is not a public command/session API. */
 import { createHash } from "node:crypto";
 import { constants } from "node:fs";
-import { lstat, open, readdir, realpath, writeFile } from "node:fs/promises";
-import { isAbsolute, join } from "node:path";
+import { lstat, open, readdir, realpath, unlink, writeFile } from "node:fs/promises";
+import { dirname, isAbsolute, join } from "node:path";
 import { randomUUID } from "node:crypto";
 import type { SingleFileCapture } from "./source-capture.js";
 
@@ -121,4 +121,22 @@ async function boundRuntimeSpool(directory: string, nextBytes: number): Promise<
   let retained = nextBytes;
   for (const entry of entries) retained += (await lstat(join(directory, entry))).size;
   if (retained > 128 * 1024 * 1024) throw new Error("runtime output byte retention limit reached");
+}
+
+/** Acknowledge copied outputs. The host can release only its own direct spool children. */
+export async function consumeRuntimeFiles(directory: string, values: unknown): Promise<void> {
+  if (!Array.isArray(values) || values.length > 128) throw new Error("invalid runtime consume batch");
+  const root = await realpath(directory);
+  const files = values.map(checkedFile);
+  for (const file of files) {
+    if (dirname(file.path) !== root) throw new Error("runtime consume must select an owned spool child");
+  }
+  for (const file of files) {
+    try { await readRuntimeFile(file); }
+    catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") continue;
+      throw error;
+    }
+    await unlink(file.path);
+  }
 }

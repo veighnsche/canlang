@@ -19,7 +19,7 @@ use std::time::{Duration, Instant};
 const MAX_REQUEST: usize = 64 * 1024;
 const MAX_RESPONSE: usize = 128 * 1024;
 const HANDSHAKE: Duration = Duration::from_millis(1500);
-const REQUEST: Duration = Duration::from_secs(30);
+const REQUEST: Duration = Duration::from_secs(60);
 const CLIENT_REQUEST: Duration = Duration::from_millis(61_500);
 const MAX_CONNECTIONS: usize = 32;
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -29,6 +29,8 @@ pub struct Command {
     pub payload: Value,
 }
 pub type Handler = dyn Fn(Command) -> Result<Value> + Send + Sync + 'static;
+pub type CancellableHandler =
+    dyn Fn(Command, Arc<AtomicBool>) -> Result<Value> + Send + Sync + 'static;
 fn io(error: std::io::Error) -> ControlError {
     ControlError::new("CONTROL_IO", error.to_string())
 }
@@ -345,6 +347,12 @@ pub struct Server {
 }
 impl Server {
     pub fn start(selection: Selection, handler: Arc<Handler>) -> Result<Self> {
+        Self::start_cancellable(selection, Arc::new(move |command, _| handler(command)))
+    }
+    pub fn start_cancellable(
+        selection: Selection,
+        handler: Arc<CancellableHandler>,
+    ) -> Result<Self> {
         let claim = Claim::acquire(&selection)?;
         let identity = claim.identity.clone();
         let claim = Arc::new(Mutex::new(claim));
@@ -425,7 +433,7 @@ fn accept_loop(
     accepting: Arc<AtomicBool>,
     connections: Arc<AtomicUsize>,
     active: Arc<AtomicUsize>,
-    handler: Arc<Handler>,
+    handler: Arc<CancellableHandler>,
 ) {
     while !stopped.load(Ordering::Acquire) {
         let accepted = claim.lock().ok().and_then(|c| {
@@ -457,7 +465,7 @@ fn accept_loop(
 fn serve(
     mut stream: UnixStream,
     identity: Identity,
-    handler: Arc<Handler>,
+    handler: Arc<CancellableHandler>,
     stop: Arc<AtomicBool>,
     permit: Permit,
 ) -> Result<()> {
@@ -482,22 +490,65 @@ fn serve(
     )?;
     let request = frames.read(&mut stream, MAX_REQUEST, HANDSHAKE, &stop)?;
     let (id, command) = parse_request(request)?;
-    // Permit follows the actual handler, even when its caller times out. A
-    // disconnected caller cannot cancel shared work or allow unbounded jobs.
+    // The request owns its cancellation token, never the owner's shared queue.
+    // Permit follows the actual handler even after its caller has detached.
     let (sender, receiver) = mpsc::sync_channel(1);
+    let cancelled = Arc::new(AtomicBool::new(false));
+    let request_cancel = cancelled.clone();
     thread::spawn(move || {
         let _permit = permit;
-        let result = handler(command);
+        let result = handler(command, request_cancel);
         let _ = sender.send(result);
     });
-    let result = match receiver.recv_timeout(REQUEST) {
-        Ok(result) => result,
-        Err(mpsc::RecvTimeoutError::Timeout) => {
-            Err(frame_error("REQUEST_TIMEOUT", "control request timed out"))
-        }
-        Err(_) => Err(frame_error("REQUEST_FAILED", "control request failed")),
-    };
+    let result = await_handler(&stream, receiver, &stop);
+    cancelled.store(true, Ordering::Release);
     send_result(&mut stream, &id, result, &stop)
+}
+fn await_handler(
+    stream: &UnixStream,
+    receiver: mpsc::Receiver<Result<Value>>,
+    stop: &AtomicBool,
+) -> Result<Value> {
+    let deadline = Instant::now() + REQUEST;
+    loop {
+        match receiver.recv_timeout(Duration::from_millis(20)) {
+            Ok(result) => return result,
+            Err(mpsc::RecvTimeoutError::Disconnected) => {
+                return Err(frame_error("REQUEST_FAILED", "control request failed"));
+            }
+            Err(mpsc::RecvTimeoutError::Timeout) => {}
+        }
+        detached(stop)?;
+        if peer_closed(stream)? {
+            return Err(frame_error(
+                "REQUEST_ABORTED",
+                "control request was detached",
+            ));
+        }
+        if Instant::now() >= deadline {
+            return Err(frame_error("REQUEST_TIMEOUT", "control request timed out"));
+        }
+    }
+}
+fn peer_closed(stream: &UnixStream) -> Result<bool> {
+    let mut byte = 0u8;
+    let count = unsafe {
+        libc::recv(
+            stream.as_raw_fd(),
+            (&mut byte as *mut u8).cast(),
+            1,
+            libc::MSG_PEEK | libc::MSG_DONTWAIT,
+        )
+    };
+    if count >= 0 {
+        return Ok(count == 0);
+    }
+    let error = std::io::Error::last_os_error();
+    if transient(&error) {
+        Ok(false)
+    } else {
+        Err(io(error))
+    }
 }
 fn parse_request(frame: Value) -> Result<(String, Command)> {
     let id = frame["id"].as_str().filter(|id| id.len() <= 64);
@@ -648,6 +699,57 @@ mod tests {
         }
         assert!(completed.load(Ordering::Acquire));
         assert!(server.require_ownership().is_ok());
+        server.stop().unwrap();
+    }
+    #[test]
+    fn detached_request_cancels_only_its_handler_and_keeps_owner_available() {
+        let (_root, _runtime, selection) = selection();
+        let (entered, ready) = mpsc::channel();
+        let (finished, joined) = mpsc::channel();
+        let mut server = Server::start_cancellable(
+            selection.clone(),
+            Arc::new(move |command, cancel| {
+                if command.command == "example.run" {
+                    entered.send(()).unwrap();
+                    let deadline = Instant::now() + Duration::from_secs(2);
+                    while !cancel.load(Ordering::Acquire) && Instant::now() < deadline {
+                        thread::sleep(Duration::from_millis(2));
+                    }
+                    finished.send(cancel.load(Ordering::Acquire)).unwrap();
+                }
+                Ok(json!("available"))
+            }),
+        )
+        .unwrap();
+        let client = Client::discover(&lookup(&selection)).unwrap();
+        let cancel = AtomicBool::new(false);
+        thread::scope(|scope| {
+            let request = scope.spawn(|| {
+                client.request(
+                    Command {
+                        command: "example.run".into(),
+                        payload: Value::Null,
+                    },
+                    &cancel,
+                )
+            });
+            ready.recv_timeout(Duration::from_secs(2)).unwrap();
+            cancel.store(true, Ordering::Release);
+            assert_eq!(request.join().unwrap().unwrap_err().code, "REQUEST_ABORTED");
+        });
+        assert!(joined.recv_timeout(Duration::from_secs(2)).unwrap());
+        assert_eq!(
+            client
+                .request(
+                    Command {
+                        command: "status".into(),
+                        payload: Value::Null
+                    },
+                    &AtomicBool::new(false)
+                )
+                .unwrap(),
+            "available"
+        );
         server.stop().unwrap();
     }
     #[test]

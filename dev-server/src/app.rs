@@ -38,6 +38,8 @@ struct StartConfig {
     preview_roles: Option<Value>,
     node: PathBuf,
     host_script: PathBuf,
+    #[serde(default)]
+    install_root: Option<PathBuf>,
 }
 impl StartConfig {
     fn owner(self) -> Config {
@@ -55,6 +57,7 @@ impl StartConfig {
                 session_id: String::new(),
                 profile: self.capture.profile.clone(),
                 startup_timeout: Duration::from_secs(15),
+                install_root: self.install_root,
             },
             capture: self.capture,
             mode: self.mode,
@@ -102,18 +105,8 @@ fn output(envelope: Envelope) -> u8 {
 }
 fn dispatch(args: &Args) -> Result<(Option<String>, Value)> {
     if args.command == "help" {
-        let mut help = serde_json::to_value(cli::help())
+        let help = serde_json::to_value(cli::help())
             .map_err(|e| fail("CONTROL_INTERNAL", e.to_string()))?;
-        help["result"]["unavailable"] = json!([
-            "construct.help",
-            "construct.rank",
-            "rank.lookup",
-            "failure.lookup",
-            "failure.detail",
-            "failures",
-            "example.run",
-            "example.rerun"
-        ]);
         return Ok((None, help["result"].clone()));
     }
     if args.command == "start" {
@@ -205,6 +198,13 @@ fn start(args: &Args) -> Result<(Option<String>, Value)> {
     ))
 }
 fn terminal(args: &Args) -> Result<()> {
+    if args.value("--help") == Some("true") {
+        eprintln!(
+            "can dev ui [--source PATH | --capture PATH] [start/selection flags] [--plain]\nWithout source or capture, attach to the verified selected owner. Checks are manual by default.\n{}",
+            crate::input::HELP
+        );
+        return Ok(());
+    }
     let plain = args.value("--plain") == Some("true");
     if args.value("--source").is_none() && args.value("--capture").is_none() {
         return crate::foreground::run_attached(Client::discover(&lookup(args)?)?, plain)
@@ -237,13 +237,14 @@ fn config(args: &Args) -> Result<StartConfig> {
         .map(str::to_owned)
         .map(Ok)
         .unwrap_or_else(|| app_name(&source))?;
+    validate_selection(&capture, &app, &source)?;
     let mode = match args.value("--check-mode").unwrap_or("manual") {
         "manual" => CheckMode::Manual,
-        "auto" => CheckMode::Automatic,
+        "automatic" => CheckMode::Automatic,
         _ => {
             return Err(fail(
                 "INVALID_ARGUMENTS",
-                "check mode must be manual or auto",
+                "check mode must be manual or automatic",
             ));
         }
     };
@@ -258,8 +259,10 @@ fn config(args: &Args) -> Result<StartConfig> {
         .map(serde_json::from_str)
         .transpose()
         .map_err(|e| fail("INVALID_ARGUMENTS", e.to_string()))?;
+    let install_root = installation()?;
     let node = std::env::var_os("CAN_DEV_NODE")
         .map(PathBuf::from)
+        .or_else(|| install_root.as_ref().map(|root| root.join("libexec/node")))
         .unwrap_or_else(|| PathBuf::from("node"));
     let host_script = bridge_script(&capture.checkout_root)?;
     Ok(StartConfig {
@@ -269,15 +272,18 @@ fn config(args: &Args) -> Result<StartConfig> {
         preview_roles,
         node,
         host_script,
+        install_root,
     })
 }
 fn source_capture(args: &Args) -> Result<CaptureRequest> {
     let root = root(args)?;
-    let path = |name: &str, env: &str, fallback: &str| -> String {
+    let install_root = installation()?;
+    let path = |name: &str, env: &str, fallback: &str, installed: &str| -> String {
         root.join(
             args.value(name)
                 .map(PathBuf::from)
-                .or_else(|| std::env::var_os(env).map(PathBuf::from))
+                .or_else(|| configured_input(env))
+                .or_else(|| install_root.as_ref().map(|root| root.join(installed)))
                 .unwrap_or_else(|| PathBuf::from(fallback)),
         )
         .to_string_lossy()
@@ -294,15 +300,18 @@ fn source_capture(args: &Args) -> Result<CaptureRequest> {
             "--compiler",
             "CAN_DEV_COMPILER",
             "compiler/target/debug/can",
+            "libexec/can",
         ),
         catalog_path: Some(path(
             "--catalog",
             "CAN_CATALOG",
             "packages/values/dist/catalog.json",
+            "node_modules/@canlang/values/dist/catalog.json",
         )),
         help_index_path: path(
             "--help-index",
-            "CAN_DEV_HELP_INDEX",
+            "CAN_HELP_INDEX",
+            "docs/specification/CONSTRUCT-HELP.md",
             "docs/specification/CONSTRUCT-HELP.md",
         ),
         package_input_paths: vec![],
@@ -312,36 +321,79 @@ fn source_capture(args: &Args) -> Result<CaptureRequest> {
     })
 }
 fn read_capture(path: &str) -> Result<CaptureRequest> {
-    let metadata = fs::metadata(path).map_err(io)?;
+    let unavailable = || {
+        fail(
+            "CAPTURE_FILE_UNAVAILABLE",
+            "capture manifest cannot be read",
+        )
+    };
+    let metadata = fs::metadata(path).map_err(|_| unavailable())?;
     if metadata.len() > 1024 * 1024 {
         return Err(fail(
             "INVALID_CAPTURE",
             "capture manifest exceeds input limit",
         ));
     }
-    let mut capture: CaptureRequest = serde_json::from_slice(&fs::read(path).map_err(io)?)
+    let value: Value = serde_json::from_slice(&fs::read(path).map_err(|_| unavailable())?)
         .map_err(|e| fail("INVALID_CAPTURE", e.to_string()))?;
+    if !value
+        .get("catalogPath")
+        .is_some_and(|v| v.is_null() || v.is_string())
+    {
+        return Err(fail(
+            "INVALID_CAPTURE",
+            "catalogPath must be explicitly null or a path",
+        ));
+    }
+    let mut capture: CaptureRequest =
+        serde_json::from_value(value).map_err(|e| fail("INVALID_CAPTURE", e.to_string()))?;
+    if capture.catalog_path.is_none()
+        || (capture.package_input_paths.is_empty()
+            && capture.input_inventory.as_deref() != Some("installed-local-preview"))
+    {
+        return Err(fail(
+            "CAPTURE_INCOMPLETE",
+            "compiler catalog and package input inventory are required",
+        ));
+    }
     let root = fs::canonicalize(&capture.checkout_root).map_err(io)?;
     capture.checkout_root = root.to_string_lossy().into();
     capture.app_path = root.join(&capture.app_path).to_string_lossy().into();
     Ok(capture)
 }
-fn app_name(path: &Path) -> Result<String> {
-    if fs::metadata(path).map_err(io)?.len() > 8 * 1024 * 1024 {
-        return Err(fail("INVALID_SELECTION", "source too large; pass --app"));
-    }
-    let source = fs::read_to_string(path).map_err(io)?;
-    let apps: Vec<_> = source
+fn identifier(value: &str) -> bool {
+    let mut bytes = value.bytes();
+    bytes
+        .next()
+        .is_some_and(|c| c.is_ascii_alphabetic() || c == b'_')
+        && bytes.all(|c| c.is_ascii_alphanumeric() || c == b'_')
+}
+fn source_apps(source: &str) -> Vec<String> {
+    source
         .lines()
         .filter_map(|line| {
-            let mut parts = line.trim_start().split_whitespace();
-            (parts.next() == Some("app"))
-                .then(|| parts.next())
-                .flatten()
-                .filter(|s| s.chars().all(|c| c.is_ascii_alphanumeric() || c == '_'))
-                .map(str::to_owned)
+            let rest = line.trim_start_matches([' ', '\t']).strip_prefix("app")?;
+            if !rest.starts_with([' ', '\t']) {
+                return None;
+            }
+            let name: String = rest
+                .trim_start_matches([' ', '\t'])
+                .chars()
+                .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
+                .collect();
+            identifier(&name).then_some(name)
         })
-        .collect();
+        .collect()
+}
+fn source_text(path: &Path) -> Result<String> {
+    let unavailable = || fail("SOURCE_UNAVAILABLE", "selected source cannot be read");
+    if fs::metadata(path).map_err(|_| unavailable())?.len() > 8 * 1024 * 1024 {
+        return Err(fail("INVALID_SELECTION", "source too large; pass --app"));
+    }
+    fs::read_to_string(path).map_err(|_| unavailable())
+}
+fn app_name(path: &Path) -> Result<String> {
+    let apps = source_apps(&source_text(path)?);
     if apps.len() == 1 {
         Ok(apps[0].clone())
     } else {
@@ -351,9 +403,39 @@ fn app_name(path: &Path) -> Result<String> {
         ))
     }
 }
+fn validate_selection(capture: &CaptureRequest, app: &str, source: &Path) -> Result<()> {
+    if !identifier(app) {
+        return Err(fail(
+            "INVALID_SELECTION",
+            "selected app must be one Can identifier",
+        ));
+    }
+    if capture.profile != "local-d1-identity" {
+        return Err(fail(
+            "PROFILE_UNSUPPORTED",
+            "the local D1 and Identity profile is the only daemon profile",
+        ));
+    }
+    if source_apps(&source_text(source)?)
+        .first()
+        .map(String::as_str)
+        != Some(app)
+    {
+        return Err(fail(
+            "SELECTION_MISMATCH",
+            "selected app differs from the captured source declaration",
+        ));
+    }
+    Ok(())
+}
 fn bridge_script(root: &str) -> Result<PathBuf> {
+    let install_root = installation()?;
     let path = std::env::var_os("CAN_DEV_RUNTIME_HOST")
         .map(PathBuf::from)
+        .or_else(|| {
+            install_root
+                .map(|root| root.join("node_modules/@canlang/cloudflare/dist/dev/runtime-host.js"))
+        })
         .unwrap_or_else(|| Path::new(root).join("packages/cloudflare/dist/dev/runtime-host.js"));
     fs::canonicalize(path).map_err(|_| {
         fail(
@@ -361,6 +443,50 @@ fn bridge_script(root: &str) -> Result<PathBuf> {
             "build the local Cloudflare runtime bridge before starting the native owner",
         )
     })
+}
+fn configured_input(name: &str) -> Option<PathBuf> {
+    let alias = match name {
+        "CAN_DEV_COMPILER" => "CAN_COMPILER_BIN",
+        "CAN_HELP_INDEX" => "CAN_DEV_HELP_INDEX",
+        _ => name,
+    };
+    std::env::var_os(name)
+        .or_else(|| std::env::var_os(alias))
+        .map(PathBuf::from)
+}
+fn installation() -> Result<Option<PathBuf>> {
+    let executable = std::env::current_exe().map_err(io)?;
+    let sibling = executable
+        .parent()
+        .filter(|p| p.file_name().is_some_and(|n| n == "libexec"))
+        .and_then(Path::parent)
+        .filter(|p| p.join("manifest.json").is_file())
+        .map(Path::to_owned);
+    let selected = std::env::var_os("CAN_INSTALL_ROOT")
+        .map(PathBuf::from)
+        .or(sibling);
+    selected
+        .map(|root| validate_installation(&root))
+        .transpose()
+}
+fn validate_installation(root: &Path) -> Result<PathBuf> {
+    let unavailable = || {
+        fail(
+            "INSTALLATION_INVALID",
+            "native development tools require a valid Can installation",
+        )
+    };
+    let root = fs::canonicalize(root).map_err(|_| unavailable())?;
+    let path = root.join("manifest.json");
+    if fs::metadata(&path).map_err(|_| unavailable())?.len() > 1024 * 1024 {
+        return Err(unavailable());
+    }
+    let manifest: Value = serde_json::from_slice(&fs::read(path).map_err(|_| unavailable())?)
+        .map_err(|_| unavailable())?;
+    if manifest["kind"] != "can-install" {
+        return Err(unavailable());
+    }
+    Ok(root)
 }
 fn launch(config: StartConfig) -> Result<Client> {
     let directory = tempfile::Builder::new()
@@ -475,4 +601,121 @@ fn stop(client: &Client) -> Result<()> {
         "STOP_UNCONFIRMED",
         "resources released; endpoint/process retirement has not been confirmed",
     ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn implicit_app_selection_matches_declared_identifier_boundaries() {
+        assert_eq!(
+            source_apps("  app Office{\n app_ignored Wrong\n\tapp _Other "),
+            ["Office", "_Other"]
+        );
+        assert!(source_apps("app 1Invalid\n## app Comment\napple Other").is_empty());
+        let root = tempfile::tempdir().unwrap();
+        let source = root.path().join("App.can");
+        fs::write(&source, "app Office {\n").unwrap();
+        assert_eq!(app_name(&source).unwrap(), "Office");
+        fs::write(&source, "app Office\napp Other\n").unwrap();
+        assert_eq!(app_name(&source).unwrap_err().code, "INVALID_SELECTION");
+        assert_eq!(
+            app_name(&root.path().join("absent.can")).unwrap_err().code,
+            "SOURCE_UNAVAILABLE"
+        );
+    }
+
+    #[test]
+    fn capture_manifest_and_selection_fail_with_specific_control_codes() {
+        let root = tempfile::tempdir().unwrap();
+        let manifest = root.path().join("capture.json");
+        assert_eq!(
+            read_capture(manifest.to_str().unwrap()).unwrap_err().code,
+            "CAPTURE_FILE_UNAVAILABLE"
+        );
+        fs::write(&manifest, "not JSON").unwrap();
+        assert_eq!(
+            read_capture(manifest.to_str().unwrap()).unwrap_err().code,
+            "INVALID_CAPTURE"
+        );
+        let source = root.path().join("App.can");
+        fs::write(&source, "app Office\n").unwrap();
+        let mut capture = CaptureRequest {
+            checkout_root: root.path().to_string_lossy().into(),
+            app_path: "App.can".into(),
+            profile: "local-d1-identity".into(),
+            compiler_path: "compiler".into(),
+            catalog_path: Some("catalog".into()),
+            help_index_path: "help".into(),
+            package_input_paths: vec![],
+            extra_input_paths: vec![],
+            semantic_options: BTreeMap::new(),
+            input_inventory: None,
+        };
+        let mut value = serde_json::to_value(&capture).unwrap();
+        fs::write(&manifest, serde_json::to_vec(&value).unwrap()).unwrap();
+        assert_eq!(
+            read_capture(manifest.to_str().unwrap()).unwrap_err().code,
+            "CAPTURE_INCOMPLETE"
+        );
+        value.as_object_mut().unwrap().remove("catalogPath");
+        fs::write(&manifest, serde_json::to_vec(&value).unwrap()).unwrap();
+        assert_eq!(
+            read_capture(manifest.to_str().unwrap()).unwrap_err().code,
+            "INVALID_CAPTURE"
+        );
+        capture.input_inventory = Some("installed-local-preview".into());
+        fs::write(&manifest, serde_json::to_vec(&capture).unwrap()).unwrap();
+        assert_eq!(
+            read_capture(manifest.to_str().unwrap()).unwrap().profile,
+            "local-d1-identity"
+        );
+        validate_selection(&capture, "Office", &source).unwrap();
+        assert_eq!(
+            validate_selection(&capture, "Other", &source)
+                .unwrap_err()
+                .code,
+            "SELECTION_MISMATCH"
+        );
+        assert_eq!(
+            validate_selection(&capture, "1Office", &source)
+                .unwrap_err()
+                .code,
+            "INVALID_SELECTION"
+        );
+        capture.profile = "foreign".into();
+        assert_eq!(
+            validate_selection(&capture, "Office", &source)
+                .unwrap_err()
+                .code,
+            "PROFILE_UNSUPPORTED"
+        );
+    }
+
+    #[test]
+    fn help_dispatch_is_nonstarting_and_advertises_the_complete_command_surface() {
+        let args = cli::parse(&[]).unwrap();
+        let (session, result) = dispatch(&args).unwrap();
+        assert!(session.is_none());
+        assert_eq!(result["unavailable"], json!([]));
+        assert_eq!(
+            result["commands"].as_array().unwrap().len(),
+            cli::COMMANDS.len()
+        );
+        assert_eq!(
+            result["flags"]["start"],
+            json!([
+                "--source",
+                "--root",
+                "--app",
+                "--compiler",
+                "--catalog",
+                "--help-index",
+                "--capture",
+                "--preview-roles",
+                "--check-mode"
+            ])
+        );
+    }
 }

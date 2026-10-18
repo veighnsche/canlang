@@ -122,7 +122,6 @@ impl View {
                 "This view owns the session. Enter stop and wait for confirmed release.".into(),
             ),
             Action::Detach => return Ok(Some(ExitReason::Detached)),
-            Action::Help => history.push(HELP.into()),
             Action::Status => {
                 history.push(presentation::identity(&self.snapshot, config.owned));
                 history.extend(presentation::status(&self.snapshot, now(), self.connected));
@@ -137,10 +136,11 @@ impl View {
             }
             _ => {
                 // Admission is rechecked by the owning controller, including stale views.
+                let stopping = action == Action::Stop;
                 actions.send(action).map_err(|_| {
                     io::Error::new(io::ErrorKind::BrokenPipe, "Owner action channel closed")
                 })?;
-                if action == Action::Stop {
+                if stopping {
                     self.stop_requested = true;
                 }
             }
