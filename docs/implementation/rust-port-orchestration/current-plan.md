@@ -137,7 +137,9 @@ not qualify the remaining native CLI/packaged-publication contracts.
 Review019 continues exact executable binding and prebuilt/installed delivery.
 Review020 exposed parameter/default and regex-context differences; decision025
 retains the existing host-library syntax/scope frontend explicitly, with minimal
-source-bound facts consumed by Rust module policy. See the
+source-bound facts consumed by Rust job-side module checks. Existing TS
+builder policy checkpoints stay retained for the finite CLI/executable packet
+under refinement031; sole native module-policy ownership is not claimed. See the
 [three-question decision](../../design/jev/native-module-boundary-20261018/README.md).
 The ad-hoc recognizer is not accepted as full JS parity or a completed native
 syntax port. Review021 restores host read/error/cancellation/build admission and
@@ -152,6 +154,29 @@ Preserve foreign notes/newer commits and the complete stale filetree checkpoint.
 Neither Codex review nor Git waiting adds a source gate. Public deployment,
 default changes and TS retirement remain held; accepted ICU/V02.6/int-CSV/Work/
 recovery evidence is reused.
+
+### Accepted shared frontend / native module-facts source — 18 October 2026
+
+The finite source slice carries the existing host import lexer/Acorn2025/eslint-scope
+facts with exact staged module text through the real LOAD_MODULES encoder. Rust
+validates shape, source spans, ordered diagnostics and link closure, including
+actual staged binary asset keys. Build retains its original admission domain;
+deploy-only gates stay on deploy. Existing TS builder checks remain at their
+original checkpoints; this does not complete broader native module construction
+or claim sole native syntax/policy ownership (refinement031).
+
+Independent review repaired the encoder dropping facts, brace escapes and
+ordinary TS frontend-error propagation. Reuse facts24/vectors23/inputs17 and the
+actual native/TS9 comparison at the released producer closure; the final frontend
+repair has its focused regression. Exact-slice current complexity passes with no
+baseline change. The immutable matching crate builds offline with pinned1.99 on
+Linux x64 (glibc2.39); its genuine private installed binary passes handshake/abort
+and retained b1 build with Rust/Cargo absent from runtime PATH. This is Linux
+producer/job qualification only. Full installed CF CLI, final executable guard,
+readiness/lifetime, confirmed mocked apply and mixed/resource/rollback disposition
+remain explicit ready work, not a Git/review wait. Muse continues those joins while
+Codex integrates this accepted slice. Reuse unchanged acceptance; public deployment,
+default switches and TS retirement stay held.
 
 ## Planning refresh against current main — 18 October 2026
 

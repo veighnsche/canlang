@@ -20,7 +20,9 @@ import {
   buildDeployBundle,
   buildDeployBundleWithAssets,
   deployBundleMain,
+  refuseModuleFrontendIssues,
   writeDeployBundle,
+  type ModuleSyntaxFacts,
 } from "../src/deploy/bundle.js";
 import { PINNED_COMPATIBILITY_DATE } from "../src/dev/zero-config.js";
 import { startLocalDev } from "../src/dev/local-run.js";
@@ -1313,6 +1315,24 @@ describe("producer import rewrite + link check (P-C/P-B skew class)", () => {
 });
 
 describe("assertWorkerdLoadable", () => {
+  it("refuses frontend-error facts with the exact owner message (037)", () => {
+    // No real source reaches this arm today (lexer errors carry idx);
+    // the contract is that the ordinary consumer never swallows the
+    // field when the frontend does report it — the old direct
+    // scanModuleImports path threw this exact message.
+    const facts: ModuleSyntaxFacts = {
+      imports: [],
+      lexerError: null,
+      frontendError: "module-imports: lexer returned an invalid literal span",
+      syntaxError: null,
+      fileUrl: [],
+      unresolved: [{ group: 2, start: 0, end: 7, name: "exports" }],
+    };
+    expect(() => refuseModuleFrontendIssues(facts, "t.js")).toThrow(
+      "module-imports: lexer returned an invalid literal span",
+    );
+  });
+
   it("rejects node file-URL imports, naming the module", () => {
     expect(() =>
       assertWorkerdLoadable({ "main.js": `import x from "file:///tmp/x.js";\n` }),

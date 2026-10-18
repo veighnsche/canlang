@@ -7,13 +7,30 @@
 > decisions and bounded coverage evidence are retained below; that evidence
 > applies only at its recorded scope and does not establish whole-plan currency.
 
+**Native module-facts source integration, 2026-10-18:** accept the released
+preparation job/facts decoder, matching host frontend/payload and owning tests at
+their existing Cloudflare owner. Independent wire/Unicode/error-order review
+repairs facts loss, escaped spans and ordinary TS frontend-error propagation.
+The exact released source passes the current complexity policy without exceptions.
+Reuse facts24/vectors23/inputs17 and the actual encoder-to-job native9 comparison;
+focused frontend-error regression covers the final TS repair. The same Rust source
+also builds with pinned1.99 on Linux x64 and runs the retained build job from a
+private installation without Rust/Cargo at runtime. This is producer/job evidence,
+not completed installed CLI qualification. Existing TS builder policy checkpoints
+remain; broader P05 and native CLI/integrity/confirmed mocked apply/installed
+criteria stay open. Since b9243c59 this bounded source/docs intake changes no
+compiler/runtime/Work owner or target; preserve foreign changes, accumulated
+coverage, complete stale checkpoint and public/default/retirement holds.
+
 **Native module frontend boundary, 2026-10-18:** decision025 retains the
 existing Cloudflare host-library parser/scope owner and sends minimal exact-source
 facts through LOAD_MODULES to Rust policy. No new package/parser dependency or
 compiler owner is introduced. The three saved JEV requests/results and assessment
 under `docs/design/jev/native-module-boundary-20261018/` support the bounded
-choice; source integration/CLI acceptance remain open. P05 native syntax scope
-stays partial and P11 records the retained frontend. This adds bounded design
+choice; source integration/CLI acceptance remain open. P05 native syntax/module-construction scope
+stays partial and P11 records the retained frontend and existing TS builder
+policy checkpoints (refinement031); Rust job-side checks do not certify sole
+native module-policy ownership. This adds bounded design
 coverage only; complete checkpoint/stale notice and public/default/retirement
 holds remain unchanged.
 
