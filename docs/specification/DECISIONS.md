@@ -5,10 +5,11 @@
 **Accepted.** Commit the user's deletion of the two tracked root evidence
 snapshots, the root `/output/` ignore policy and reduced-process contributor
 instructions. Reconcile historical references without regenerating evidence;
-prior snapshots remain available in Git history. The existing filetree record
-accounts for all eight housekeeping/documentation paths and retains its complete
-historical checkpoint. Active compiler/runtime edits remain with their current
-owner and are not qualified by this housekeeping commit.
+prior snapshots remain available in Git history. Reconcile the four remaining
+compiler-test comments as documentation only, retaining test behavior. The
+existing filetree record accounts for all twelve housekeeping/documentation
+paths and retains its complete historical checkpoint. Active compiler/runtime
+edits remain with their current owner and are not qualified by this cleanup.
 
 ## 2026-10-18 — source-owned inline preference editors
 

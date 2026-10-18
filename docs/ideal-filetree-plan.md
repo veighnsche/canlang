@@ -3,10 +3,12 @@
 **User cleanup intake, 2026-10-18:** retain the user's root `/output/` ignore
 policy and reduced-process contributor instructions; remove both tracked root
 evidence snapshots and reconcile their historical references in this plan, its
-existing coverage JSON, compiler history and decisions. Historical results remain
-in Git; no evidence is regenerated. These eight housekeeping/documentation paths
-keep their existing owners. Active compiler/runtime work is excluded from this
-commit; previous coverage and the complete historical checkpoint stay unchanged.
+existing coverage JSON, compiler history, decisions and four compiler-test
+comments. Historical results remain in Git; no evidence is regenerated. These
+twelve housekeeping/documentation paths keep their existing owners. The four
+test changes are comment-only and need no executable requalification. Active
+compiler/runtime work is excluded; previous coverage and the complete historical
+checkpoint stay unchanged.
 
 **Inline preference-editor intake, 2026-10-18:** account for all ten released
 source/test/fixture paths together: compiler analysis/types owns exact local

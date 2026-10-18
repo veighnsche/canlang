@@ -3,7 +3,7 @@
 //! Finite remainder batch from the canonical 288 capture
 //! (`/tmp/can18-main-agap-capture.json`, same tuple as the promoted
 //! read-only reference
-//! `/Users/vince/Projects/canlang/evidence/original24-main-20261016.json`):
+//! `historical diagnostic snapshot (removed)`):
 //! table filters 9 outer + 9 inner, list filters 4 + 4, board filters
 //! 2 + 2, calendar filters 2 inner, preferences 4 (plus 1 adjacent
 //! board `pagination` child, now served by the shared finite page profile).
