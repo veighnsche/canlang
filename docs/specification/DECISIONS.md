@@ -18877,3 +18877,16 @@ nine FIRST sites removed/none added;78 FIRST sites remain. Publication/periodic 
 and other unsupported closures remain local engineering. Provider execution and full
 composition are not accepted. The existing completion record holds checks/counts;
 main is the implementation branch and Muse stays stopped.
+
+
+## 2026-10-18 — proposed next Rust-port prerequisite after selected delivery
+
+- **Status:** Planning proposal against committed main `46cb113ad`; no implementation release. The selected integer/CSV, fanout and installed recovery-delivery scopes are accepted and are not queued again. Native preparation P04–P11/C04.native-release remains HUMAN HOLD.
+- **Choice and reason:** Recommend the ten matching ordinary Work row/update/query helpers under existing `ports:W02.5`, consuming the existing `/rows` export, frozen independent row fixtures and accepted production edge. Real every-slot, supersession and stage callers benefit from removing duplicate mechanisms. Reuse the existing owning-error projection; preserve JSON-safety-before-clone, metadata/version, getter/first-error order and non-leaf thrown identity. Exact exports and finite installed Node/Worker stop conditions are in the current checklist.
+- **Rejected shortcut / residual uncertainty:** Aliasing all old leaf codecs would omit newer Work source guards, File/queue provenance, generation/mail pins and detached occurrence/schedule payloads. Those owner shells stay intact; a later extraction needs current-owner cases and preserved read/clone order. Full W02.5/W02 stays partial. A04.1 scale `-0`, wider lossless UTF16 codecs, validation profiles and other-family facts/demand consumers remain separate decisions or prerequisites. No new Rust profile/carrier or optional kernel is selected.
+- **Evidence and limits:** Source/caller comparison and one independent read-only readiness review at this pin, plus incremental accounting of all fifteen newer-main paths using their retained compiler owner review. Planning JSON/link/diff checks only; no product test/build/benchmark, source edit, native preparation, new supervisor, default change or complete living-plan checkpoint advance. Canonical main's concurrent uncommitted compiler/runtime/Work, guidance/decisions, JEV and inventory remain with their owner.
+
+Integration scope: eight documentation paths only, on top of main `46cb113ad`.
+Retain the compiler owner's accumulated coverage and newer history, all foreign
+working notes and the stale complete filetree checkpoint. This merge authorizes
+no implementation; the proposed W02.5 packet and native-preparation hold remain.

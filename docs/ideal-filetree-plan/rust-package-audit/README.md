@@ -44,10 +44,13 @@ add no prerequisites to existing work. Native preparation remains **HUMAN HOLD**
 The selected `ports:V02.6` ordinary TS Worker serving qualification is now
 complete: the new installed workerd fixture passes its default Worker and
 same-graph source/lifetime scopes, with one missing existing runtime staging edge
-repaired. This closes no broad validation/native parent. The dependency-ready
-packets are `ports:C04.values-assets` next, and `ports:W02.5` with its `C04.graph`
-handoff, after a new finite release. Their original acceptance and setup limits
-are unchanged. Unreleased candidates below have decision or measurement
+repaired. This closes no broad validation/native parent. The former Values-asset and selected fanout/recovery delivery packets are now
+accepted. A planning-only refresh at main `46cb113ad` recommends ten matching
+ordinary Work helpers under existing `ports:W02.5`, consuming the installed `/rows`
+edge. Newer provenance/snapshot codecs stay Work-owned. The
+[current finite detail](../../implementation/rust-port-orchestration/current-plan.md#planning-refresh-against-current-main--18-october-2026)
+records exact remaining scope and acceptance; no additional Rust candidate is
+released. Unreleased candidates below have decision or measurement
 prerequisites; none becomes implementation-ready merely because a pure function exists.
 
 **After the released Worker packet (base `3059a36af`):** current installed
