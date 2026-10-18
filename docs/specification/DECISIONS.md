@@ -1,5 +1,15 @@
 # Canlang language design decisions
 
+## 2026-10-18 — retain user-requested repository cleanup
+
+**Accepted.** Commit the user's deletion of the two tracked root evidence
+snapshots, the root `/output/` ignore policy and reduced-process contributor
+instructions. Reconcile historical references without regenerating evidence;
+prior snapshots remain available in Git history. The existing filetree record
+accounts for all eight housekeeping/documentation paths and retains its complete
+historical checkpoint. Active compiler/runtime edits remain with their current
+owner and are not qualified by this housekeeping commit.
+
 ## 2026-10-18 — source-owned inline preference editors
 
 **Accepted implementation.** An authored preference panel binds each toggle or
@@ -18776,7 +18786,7 @@ Accepted: Conjunction first-query admission with ordered multi-dependency plans:
 
 ## 2026-10-17 — conjunction producer original24 qualification
 
-Qualified: frozen conjunction producer `e0f58507f` (binary `5921567e`, catalog `ca50`) reproduces the frozen ifbranch cohort exactly on the unchanged original24 tuple: 276 E6008, complete/omitted0, 26 sources, 24/24 authored hashes match, full diagnostic multiset identical (0 removed, 0 added vs `evidence/original24-main-20261016.json`). Capture output `/tmp/can18-main-conj/capture.json` (498s, exit 10). The CanCustomer two-predicate conjunction spans stay refused on their recorded void/context/enum prerequisites; no regression from the new admission. Evidence file unchanged (cohort definition carries no producer field).
+Qualified: frozen conjunction producer `e0f58507f` (binary `5921567e`, catalog `ca50`) reproduces the frozen ifbranch cohort exactly on the unchanged original24 tuple: 276 E6008, complete/omitted0, 26 sources, 24/24 authored hashes match, full diagnostic multiset identical (0 removed, 0 added vs `historical diagnostic snapshot (removed)`). Capture output `/tmp/can18-main-conj/capture.json` (498s, exit 10). The CanCustomer two-predicate conjunction spans stay refused on their recorded void/context/enum prerequisites; no regression from the new admission. Evidence file unchanged (cohort definition carries no producer field).
 
 
 ## 2026-10-17 — can18_merge_53_20261017

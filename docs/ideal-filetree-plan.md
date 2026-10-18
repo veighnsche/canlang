@@ -1,5 +1,13 @@
 # Living ideal file-tree plan for Canlang
 
+**User cleanup intake, 2026-10-18:** retain the user's root `/output/` ignore
+policy and reduced-process contributor instructions; remove both tracked root
+evidence snapshots and reconcile their historical references in this plan, its
+existing coverage JSON, compiler history and decisions. Historical results remain
+in Git; no evidence is regenerated. These eight housekeeping/documentation paths
+keep their existing owners. Active compiler/runtime work is excluded from this
+commit; previous coverage and the complete historical checkpoint stay unchanged.
+
 **Inline preference-editor intake, 2026-10-18:** account for all ten released
 source/test/fixture paths together: compiler analysis/types owns exact local
 control facts; IR/JS owns editor descriptors and typed saved bindings; Contracts
@@ -1483,7 +1491,7 @@ Membership coverage through `98b7f48c` is retained; radial qualification
 is deferred for the correct frozen compiler closure.
 
 Current main qualification (2026-10-16): the single generated artifact
-`evidence/original24-main-20261016.json` belongs to the existing Compiler completion
+`historical diagnostic snapshot (removed)` belongs to the existing Compiler completion
 owner, recorded with merge17 coverage.369E6008 remain on unchanged24 authored
 sources (26 consumed, complete/omitted0). Existing source/target allocations and
 complete checkpoint are retained; this validation artifact adds no audit framework.

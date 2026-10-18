@@ -5,7 +5,6 @@ __pycache__/
 
 # Generated Rust build output and packaged editor extensions
 /compiler/target
-/output/editor/*.vsix
 
 # Package-local Cargo/native/Wasm build output
 /packages/**/target/
@@ -34,21 +33,12 @@ playwright-report/
 **/playwright/.cache/
 **/playwright/results/
 **/playwright/screenshots/
-/output/prompt-pipeline/playwright/
-/output/prompt-pipeline/acceptance/
 
-/output/draft-frontends/playwright-*/
-/output/draft-frontends/playwright-*.json
-/output/draft-frontends/*.json
-/output/draft-frontends/rollout-harness/
-/output/prompt-pipeline/*.json
 
 # Ad hoc browser previews; curated captures live beside the app's tests.
-/output/*-preview.png
 
 # B5 release verification artifact (regenerate: bun run release)
 dist-manifest.json
-/output/release-artifacts/
 
 # Local worker worktrees
 /.worktrees/
@@ -57,7 +47,6 @@ dist-manifest.json
 .can/
 
 # Generated artifacts removed by the 2026-10-14 history cleanup.
-/output/build-in-public/
 /docs/implementation/compiler-completion/corpus-admission/independent-review/probe
 /docs/research/**/*.log
 /docs/research/**/*.stdout
@@ -69,14 +58,10 @@ dist-manifest.json
 /editors/vscode/audit-astra/*tokens.json
 
 # Owned standalone-install assembly and private release-tool dependencies
-/output/install/
-/output/install-tools/
 
-/output/install-inputs/
-/output/resource-runtime-check/
-/output/install-refresh/
-/output/install-previous/
 
 # Offline Soda tool archives and disposable integration state
-/output/tools/
 /.artifacts/
+
+# Generated root output
+/output/
