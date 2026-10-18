@@ -2,7 +2,9 @@
 
 **Native ownership-completion coverage, 2026-10-18:** account incrementally
 for the port after68919a8b7, retaining the058a11b46 checkpoint and all22 incoming
-main paths through69d45c33c. Development owns native inventory, configuration,
+main paths through69d45c33c. The following released receipt-observer intake
+adds the two compiler paths and existing records through465bb1ba5; contributor
+policy00b46b744 applies. Development owns native inventory, configuration,
 persistence, help/example/browser qualification, safe refusal projections and
 private semantic-test policy under `dev-server/`. Its existing owner/state/watch
 and gateway retain authoritative admission, currentness, allocation and disposal.
@@ -28,6 +30,18 @@ public qualification, component refresh and safe main integration/remeasurement
 remain open. Reuse unchanged owner results and preserve foreign main edits, stopped U and
 the complete historical checkpoint. This coverage does not advance that checkpoint
 or reopen the separate later automation/application plans.
+**Receipt observer intake, 2026-10-18:** reconcile the two released compiler
+paths: `codegen/scenario_decisions.rs` owns checked delivery-read traversal;
+`codegen/source_require_retained_tests.rs` owns the source-Require regression
+and retained-IR field-tamper refusal. No new carrier, authority or package is
+introduced. Actual focused CLI compilation succeeds with zero diagnostics;
+the final regression passes and unchanged retained checks are reused. Account
+also for intervening user cleanup/reference/policy commits 91d931a98,
+69d45c33c and 00b46b744; their documentation/comment/ignore ownership remains
+as recorded above the earlier intake. Preserve accepted ranges and the complete
+historical checkpoint. Runtime, hook and original24 outcomes remain open;
+active diagnostic/runtime edits are excluded from this implementation intake.
+
 
 **User cleanup intake, 2026-10-18:** retain the user's root `/output/` ignore
 policy and reduced-process contributor instructions; remove both tracked root

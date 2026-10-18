@@ -19707,3 +19707,16 @@ implementation stays paused. Reconcile these documentation changes together with
 the living filetree plan, preserving newer committed compiler/runtime/Work history
 and concurrent uncommitted source/notes. No canonical task status, owner/target
 allocation, complete checkpoint or public/default/retirement release advances.
+
+
+### Accepted: retain declared delivery reads in source observer census (2026-10-18)
+
+The existing checked decision consumer descends through `DeliveryRead.record`
+and verifies registered callback observations. Its fresh semantic join continues
+to seal the delivery field, selected leaves, types and source correspondence.
+This closes the missing expression case exposed by Invoice `review_attempt`;
+it does not grant receipt visibility or bypass live permissions/revocation,
+revision fences or failure handling. The focused regression and retained-IR
+field refusal pass; an actual CLI-compiled Can fixture has zero diagnostics.
+The original24 observer/membership reduction and complete Maintain retry are
+still unverified. Reuse unchanged retained checks and runtime requirements.

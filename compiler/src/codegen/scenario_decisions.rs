@@ -766,6 +766,19 @@ impl Consumer<'_> {
             IrExpr::Unary { operand, .. } | IrExpr::Member { base: operand, .. } => {
                 self.expression(operand, chain, stack, calls, matched, depth + 1)?
             }
+            IrExpr::DeliveryRead { record, field, props, callback } => {
+                // Delivery observations keep their owning row chain matched
+                // through the record; field/props equality already holds by
+                // the fresh semantic comparison above. A generation-callback
+                // read additionally authenticates its registered observation,
+                // exactly as the semantic join does.
+                self.expression(record, chain, stack, calls, matched, depth + 1)?;
+                if let Some(callback) = callback {
+                    if !callback.matches(self.ir, e, record, field, props) {
+                        return None;
+                    }
+                }
+            }
             IrExpr::Array(a) => {
                 for v in a {
                     self.expression(v, chain, stack, calls, matched, depth + 1)?;

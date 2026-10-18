@@ -50,7 +50,9 @@ No push or public publication is authorized by this qualification work.
 Main sync68919a8b7 incorporates all released inputs through69d45c33c while retaining
 checkpoint058a11b46; its temporary inventory-root test failure is repaired. Main's
 later00b46b744 contributor-policy update is read and applies to this work.
-Released compiler delivery-read change465bb1ba5 is the next integration input. Continue
+Released compiler delivery-read change465bb1ba5 is integrated in this isolated
+branch; its two source/test paths and existing records are reconciled with the
+retained coverage. Final release compiler rebuild follows this merge. Continue
 within canonical T14/T16/T17; T18–T30 retain their separate scope. The acknowledged
 Miniflare internal-restart notification limitation remains unchanged.
 

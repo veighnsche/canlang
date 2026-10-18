@@ -23,12 +23,19 @@
 - Reconcile merges incrementally from retained coverage while accounting for every change since the checkpoint. Reuse unchanged owner/target review; do not reconstruct the same history manually at every intake or recursively register bookkeeping. Keep the complete checkpoint unchanged until its required review is complete.
 - Stop an owned task when its declared acceptance is met. Record genuinely held/external gates with their owner and release condition, continue independent ready tasks, and distinguish finishable authorized work from completion that still requires a human or external release.
 
-## Reduce process overhead
+## Anti-bureaucracy — leading process rule
 
-- Reduce waste, not correctness coverage: reproduce a shared defect, fix its owning mechanism, and run focused checks. Reuse unchanged results; run expensive combined checks for a meaningful batch or a concrete integration risk, not after every small edit.
-- Keep decisions and outcomes concise in their existing owning records. Do not create extra plans, evidence summaries, status files or bookkeeping commits unless they resolve a concrete need.
-- Review handed-off work asynchronously. Continue independent, dependency-ready implementation while review is pending; deliver concrete findings and repair the affected scope without blocking unrelated work. Pending review alone is not a reason to stop.
-- Continue already-authorized work without per-step approval requests. Ask only for a genuine missing decision or permission; do not expand the scope or interrupt active work merely to add process.
+This section takes precedence over other workflow and process requirements in this file. Resolve procedural conflicts using the smallest process that completes the user's requested outcome while preserving correctness, permissions, evaluation order, atomicity, and failure/recovery behavior. Required validation and substantive decisions remain required; their records must not become additional implementation gates.
+
+- **Zero repeated approval requests for authorized work.** Continue within the granted scope. Ask only for a genuinely missing decision or permission; do not expand scope or interrupt active work merely to add process.
+- **Zero duplicate checks without a relevant change, actual failure, or specific unresolved risk.** Reproduce a shared defect, fix its owning mechanism, and validate the affected behavior once with proportionate checks. Reuse unchanged results; run expensive combined checks for a meaningful batch or concrete integration risk.
+- **Zero extra plans, evidence packets, status files, or bookkeeping commits without a concrete need.** Keep required decisions, JEV advice, validation outcomes, and merge reconciliation concise in their existing owning records. Do not create another record merely to prove that a record was updated. This file owns workflow policy; do not duplicate its rules in decision logs or evidence packets.
+- **Zero reviews of reviews or reopening satisfied criteria.** Review actual code, behavior, or a distinct unresolved risk. Close accepted scope once; remaining parent criteria do not invalidate accepted components.
+- **One canonical execution record per scope; count each shared outcome once.** Link consumers and existing decision/test records instead of copying progress into competing checklists. Do not create a new checklist when an existing record suffices.
+- **Every blocker names the missing output or decision, its owner, and its release condition.** Depend on the concrete prerequisite output, not completion of another owner's entire plan. Continue independent ready work.
+- **Progress claims require observed results.** Distinguish requested, sent, acknowledged, executing, and verified states. A dispatched request is not proof of execution or completion. If work stops, state the blocker or terminal limitation; do not imply background progress.
+- **Review asynchronously and commit coherent completed work at safe boundaries.** Pending review alone must not stop dependency-ready implementation. Deliver concrete findings and repair the affected scope without blocking unrelated work; do not wait for an entire port to finish before saving an independently complete batch. Preserve active writers and do not commit unfinished work merely to make the tree appear clean.
+- Enforce these limits through ordinary work and concise existing records, not a new measurement, approval, or verification framework. They apply to coordinators and delegated workers; include applicable limits in their task context.
 
 ## Build resources
 
